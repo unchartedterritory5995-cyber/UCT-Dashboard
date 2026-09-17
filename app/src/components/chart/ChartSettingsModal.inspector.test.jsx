@@ -171,6 +171,202 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
 // ════════════════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════════════════
 // ═════════════════════════════════════════════════════════════════════════════
+describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on the chart', () => {
+  // ⚰️⚰️ TWO MEASURED COMPLAINTS, 2026-09-17. *"Period = 200 currently occupies a
+  // huge input"* and *"the no-selection state feels too empty/dry"*. Both are
+  // presentation; neither touches a writer, an identity or an order.
+
+  const fieldOf = (key) => inspector().querySelector(`[data-field="${key}"]`)
+  const measureOf = (key) => fieldOf(key)?.getAttribute('data-measure')
+  const segOf = (key) => fieldOf(key)?.querySelector('[role="radiogroup"]')
+  const radios = (key) => [...(segOf(key)?.querySelectorAll('[role="radio"]') || [])]
+  const checked = (key) => radios(key).find((r) => r.getAttribute('aria-checked') === 'true')
+
+  it('⛔⛔ THE MEASURE COMES FROM THE VALUE, NOT FROM THE KEY NAME', () => {
+    // ⭐ THIS IS THE WHOLE DESIGN IN ONE CASE. A table of per-key widths would go
+    // stale the first time a definition declares a new input; `measureOf` reads
+    // the field descriptor — a number, an enum's longest label, a source — so an
+    // indicator nobody has written yet is sized correctly on its first render.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    select(/^EMA 9$/)
+    expect(measureOf('period'), 'a number is not compact').toBe('compact')
+    expect(measureOf('type'), 'a two-word enum did not become a segment').toBe('segment')
+    expect(measureOf('lineWidth'), '`1px`/`2px` is not compact').toBe('compact')
+    expect(measureOf('lineStyle'), '`LargeDashed` needs real room').toBe('medium')
+    expect(measureOf('offset')).toBe('compact')
+    // ⛔ AND THE TWO THE BRIEF PROTECTS KEEP THE CELL. `Close`, `Price`,
+    // `Automatic · Price`, `QQQ · Close`, another pane's name — solving oversized
+    // controls by truncating a semantic identity would trade one defect for a
+    // worse one.
+    expect(measureOf('__source__'), 'the source lost its room').toBe('wide')
+    expect(measureOf('__where__'), 'the destination lost its room').toBe('wide')
+
+    select(ENGINE_MA)
+    expect(measureOf('source'), 'a real source picker was made narrow').toBe('wide')
+    expect(measureOf('__display__')).toBe('wide')
+    expect(measureOf('maType')).toBe('segment')
+    expect(inspector().querySelector('[data-field^="__style__"]').getAttribute('data-measure'))
+      .toBe('medium')
+  })
+
+  it('⭐ COMPATIBLE CONTROLS SHARE A ROW; a semantic one keeps its own', () => {
+    // ⛔ THE RULE IS ONE LINE — a `wide` control takes its own row, anything else
+    // pairs with its neighbour — and it produces the owner's sketch with no
+    // per-field layout table anywhere.
+    show(base()); openTab()
+    select(/^EMA 9$/)
+    const pairsIn = (section) => [...inspector()
+      .querySelector(`[data-section="${section}"]`).querySelectorAll('[data-pair]')]
+      .map((p) => [...p.querySelectorAll('[data-field]')].map((f) => f.getAttribute('data-field')))
+
+    expect(pairsIn('core'), 'Period and Type did not pair').toEqual([['period', 'type']])
+    // …and the two semantic rows are NOT in any pair.
+    for (const key of ['__source__', '__where__']) {
+      expect(fieldOf(key).closest('[data-pair]'), `${key} was paired`).toBeNull()
+    }
+    expect(pairsIn('appearance')).toEqual([
+      ['color', 'onTop'], ['lineStyle', 'lineWidth'], ['offset', 'plotStyle'],
+    ])
+  })
+
+  it('⭐⭐ THE TYPE SEGMENT WRITES THE IDENTICAL CANONICAL VALUE — both implementations', () => {
+    // ⛔ A CONTROL SWAP AND NOTHING ELSE. `MA_TYPES`, `applyRowPatch`, the overlay
+    // slot and the instance input are all untouched; the only difference is that
+    // the member sees both answers at rest instead of opening a native menu.
+    const seen = { cs: null }
+    const { cs, id } = withMA(base(), 'close')
+    show(cs, seen); openTab()
+
+    // LEGACY — `cs.overlays[0].type`
+    select(/^EMA 9$/)
+    expect(checked('type').textContent.trim()).toBe('EMA')
+    fireEvent.click(radios('type').find((r) => r.textContent.trim() === 'SMA'))
+    expect(seen.cs.overlays[0].type, 'the segment did not reach the overlay slot').toBe('SMA')
+    expect(seen.cs.overlays[0].period, 'the segment disturbed the period').toBe(cs.overlays[0].period)
+    expect((seen.cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage'),
+      'editing a legacy overlay minted an instance — that is a migration')
+      .toHaveLength((cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage').length)
+
+    // ENGINE — the instance's own `maType` input
+    select(ENGINE_MA)
+    fireEvent.click(radios('maType').find((r) => r.textContent.trim() === 'EMA'))
+    const inst = seen.cs.indicatorInstances.find((i) => i.instanceId === id)
+    expect(inst.inputs.maType, 'the segment did not reach the instance input').toBe('ema')
+  })
+
+  it('⭐ THE SEGMENT IS ONE TAB STOP, and arrow keys move the choice', () => {
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    select(/^EMA 9$/)
+    const grp = segOf('type')
+    expect(grp.getAttribute('role')).toBe('radiogroup')
+    expect(grp.getAttribute('aria-label')).toBe('Type')
+    // ⛔ ROVING TABINDEX — landing on every option in turn is how a two-choice
+    // control becomes two controls for a keyboard member.
+    expect(radios('type').map((r) => r.tabIndex)).toEqual([-1, 0])
+    expect(checked('type').tabIndex, 'the chosen option is not the tab stop').toBe(0)
+
+    fireEvent.keyDown(grp, { key: 'ArrowLeft' })
+    expect(seen.cs.overlays[0].type, 'ArrowLeft did not move the choice').toBe('SMA')
+    expect(checked('type').textContent.trim()).toBe('SMA')
+    fireEvent.keyDown(grp, { key: 'ArrowRight' })
+    expect(seen.cs.overlays[0].type).toBe('EMA')
+  })
+
+  // ═════════════════════════════════════════════════════════════════════
+  const overview = () => document.body.querySelector('[data-testid="inspector-overview"]')
+  const ovPanes = () => [...(overview()?.querySelectorAll('[data-ov-pane]') || [])]
+    .map((g) => ({
+      pane: g.getAttribute('data-ov-pane'),
+      name: g.querySelector('[class*="insOvName"]').textContent.trim(),
+      count: g.querySelector('[class*="insOvCount"]').textContent.trim(),
+      rows: [...g.querySelectorAll('[data-ov-row]')]
+        .map((r) => r.querySelector('[class*="insOvSeries"]').textContent.trim()),
+      more: g.querySelector('[class*="insOvMore"]')?.textContent.trim() || null,
+    }))
+
+  it('⚰️⚰️ THE EMPTY STATE IS AN OVERVIEW, NOT A VOID', () => {
+    const { cs } = withSeries(base(), 'QQQ')
+    show(cs); openTab()
+    expect(overview(), 'nothing selected still renders three lines and a void').toBeTruthy()
+    // ⭐ THE SAME PANES, IN THE SAME ORDER, AS THE LIST BESIDE IT — because it is
+    // the same `paneGroups`, already resolved through `resolvePaneOrder`.
+    expect(ovPanes().map((g) => g.pane)).toEqual(paneIds())
+    const priceRows = [...document.body
+      .querySelectorAll('[data-pane-group="price"] [data-structure-row] [class*="insRowName"]')]
+      .map((e) => e.textContent.trim())
+    expect(ovPanes().find((g) => g.pane === 'price').rows).toEqual(priceRows)
+    expect(ovPanes().find((g) => g.pane === 'price').count).toBe(String(priceRows.length))
+  })
+
+  it('⛔⛔ IT ORIENTS, IT DOES NOT MANAGE — nothing in it is a control', () => {
+    // The one outcome the brief rules out by name: two competing versions of the
+    // Indicators list. The LEFT column manages; this side says what there is.
+    const { cs } = withSeries(base(), 'QQQ')
+    show(cs); openTab()
+    expect(overview().querySelectorAll('button, [role="button"], input, select, a'),
+      'the overview grew a control — that is a second management surface')
+      .toHaveLength(0)
+    expect(overview().querySelectorAll('[data-move], [data-row-order], [role="option"]'),
+      'the overview grew reorder arrows or selectable rows').toHaveLength(0)
+    // …and it still uses the ONE series mark the list and Legend V2 use.
+    expect(overview().querySelectorAll('[class*="insRail"]').length)
+      .toBe(overview().querySelectorAll('[data-ov-row]').length)
+  })
+
+  it('⭐ IT FOLLOWS EVERY CANONICAL ORDER — pane, series, and destination', () => {
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    const ovRows = () => ovPanes().find((g) => g.pane === 'price').rows
+
+    // (1) SERIES ORDER, through `paneSeriesOrder`.
+    const before = ovRows()
+    const row = [...document.body.querySelectorAll('[data-pane-group="price"] [data-structure-row]')]
+      .find((r) => r.querySelector('[class*="insRowName"]').textContent.trim() === 'EMA 20')
+    fireEvent.click(row.querySelector('[data-move="up"]'))
+    // nothing is selected, so the overview is what re-rendered
+    expect(ovRows()[0], 'the overview did not follow paneSeriesOrder').toBe('EMA 20')
+    expect(ovRows()).not.toEqual(before)
+  })
+
+  it('⭐ A CHANGED DISPLAY MOVES THE SERIES TO THE OTHER PANE\'S OVERVIEW GROUP', () => {
+    const seen = { cs: null }
+    const { cs } = withMA(base(), 'volume')
+    show(cs, seen); openTab()
+    const paneOfOv = (name) => ovPanes().find((g) => g.rows.includes(name))?.pane
+    // An average OF volume derives its way into the volume pane, and the overview
+    // reads the same `chartDataMap` the list does — there is nothing to keep in
+    // step, so there is nothing that can disagree.
+    expect(paneOfOv('SMA 5'), 'the overview filed it somewhere the list did not')
+      .toBe('volume')
+  })
+
+  it('⛔ MANY SERIES DO NOT EXPLODE THE OVERVIEW — it summarises', () => {
+    // ⭐ ORIENTATION, NOT ADMINISTRATION. A member with a dozen moving averages
+    // must not meet a second scrolling list here.
+    let cs = base()
+    for (let i = 0; i < 8; i += 1) cs = withMA(cs, 'close').cs
+    show(cs); openTab()
+    const price = ovPanes().find((g) => g.pane === 'price')
+    expect(Number(price.count), 'the fixture did not build a dense pane').toBeGreaterThan(8)
+    expect(price.rows.length, 'the overview printed every series').toBeLessThanOrEqual(5)
+    expect(price.more, 'a capped pane did not say how many it left out')
+      .toMatch(/^\+\d+ more$/)
+    // ⛔ AND THE COUNT IS THE TRUTH, not the number printed.
+    expect(Number(price.count)).toBe(price.rows.length + Number(price.more.match(/\d+/)[0]))
+  })
+
+  it('⛔⛔ OPENING THE TAB WITH NOTHING SELECTED WRITES NOTHING', () => {
+    const seen = { cs: null }
+    const { cs } = withSeries(base(), 'QQQ')
+    show(cs, seen); openTab()
+    expect(overview()).toBeTruthy()
+    expect(seen.cs, 'rendering the overview wrote to the blob').toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
 describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
   // ⛔⛔ THREE ORDERS, AND THIS BLOCK EXISTS TO KEEP THEM APART.
   //   · a ROW ARROW reorders series inside the pane they are already in
@@ -422,7 +618,11 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
       const sel = f.querySelector('select')
       const num = f.querySelector('input[type="number"]')
       const ro = f.querySelector('[class*="insFieldValue"]')
-      const value = sel ? [...sel.options].find((o) => o.value === sel.value)?.textContent
+      // ⚠️ A TWO-CHOICE ENUM IS A SEGMENT NOW, not a select — the chosen option is
+      // the one radio that is checked. Same value, different widget.
+      const seg = f.querySelector('[role="radio"][aria-checked="true"]')
+      const value = seg ? seg.textContent.trim()
+        : sel ? [...sel.options].find((o) => o.value === sel.value)?.textContent
         : num ? num.value : ro ? ro.textContent.trim() : '?'
       return `${label} = ${value}`
     })
@@ -456,13 +656,21 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     // are already what the ROW is called, on the chart and in the legend.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
+    // ⚰️ IT READ A `<select>`'s OPTIONS. Type is a SEGMENT now — two radios, both
+    // visible at rest — so the same two facts are read off the group instead: the
+    // checked radio's word, and every radio's word.
     for (const [row, want] of [[/^EMA 9$/, 'EMA'], [/^SMA 50$/, 'SMA'], [ENGINE_MA, 'SMA']]) {
       select(row)
-      const sel = inspector().querySelector('[data-field="type"] select, [data-field="maType"] select')
-      expect([...sel.options].find((o) => o.value === sel.value).textContent,
+      const grp = inspector().querySelector('[data-field="type"] [role="radiogroup"], [data-field="maType"] [role="radiogroup"]')
+      expect(grp, `${row} has no Type segment`).toBeTruthy()
+      const opts = [...grp.querySelectorAll('[role="radio"]')]
+      expect(opts.find((o) => o.getAttribute('aria-checked') === 'true').textContent.trim(),
         `${row} speaks a different vocabulary`).toBe(want)
-      // ⛔ AND NO OPTION ANYWHERE SAYS THE OLD WORDS.
-      expect([...sel.options].map((o) => o.textContent).join('|')).not.toMatch(/Simple|Exponential/)
+      // ⛔ AND NO CHOICE ANYWHERE SAYS THE OLD WORDS.
+      expect(opts.map((o) => o.textContent).join('|')).not.toMatch(/Simple|Exponential/)
+      // ⛔ EXACTLY ONE IS CHOSEN. A radio group with none checked — or two — is a
+      // control whose state a screen reader cannot report.
+      expect(opts.filter((o) => o.getAttribute('aria-checked') === 'true')).toHaveLength(1)
     }
   })
 

@@ -1459,7 +1459,8 @@ export default function ChartSettingsIndicators({
 
   /** A CORE fact that is true and not editable — see `readOnlyCore`. */
   const renderReadOnly = (f) => (
-    <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true" title={f.why}>
+    <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true"
+      data-measure="wide" title={f.why}>
       <span className={styles.insFieldLabel}>{f.label}</span>
       <span className={styles.insFieldCtl}>
         {/* ⛔ NOT A CONTROL, AND IT MUST NOT LOOK LIKE ONE. No border, no chevron,
@@ -1471,6 +1472,105 @@ export default function ChartSettingsIndicators({
     </div>
   )
 
+  /**
+   * HOW MUCH ROOM DOES THIS CONTROL'S VALUE ACTUALLY NEED?
+   *
+   * ⚰️⚰️ EVERY CONTROL USED TO TAKE THE WHOLE CELL. `.insFieldCtl > select` and
+   * `> input` were `width: 100%`, which was the right first answer — one rule, one
+   * right edge, nothing hand-tuned — and it made `Period` a 275px box holding the
+   * characters `200`, and `SMA`/`EMA` a 275px dropdown over two three-letter
+   * words. Owner, 2026-09-17: *"controls such as Period, Type, Line Style, Line
+   * Width, Offset are unnecessarily stretched across most of the editor width."*
+   *
+   * ⛔ THE ANSWER IS CONTENT, NOT A KEY NAME. Sizing by `f.key` would be a table
+   * of special cases that goes stale the moment a definition declares a new input;
+   * this reads what the control actually holds, so a definition nobody has written
+   * yet is sized correctly on its first render.
+   *
+   *   `compact`  a number, or an enum whose labels are TOKENS rather than words —
+   *              `1px`, `2px`, `SMA`, `Off`. Four characters is the line: past it
+   *              a label is a word (`Dashed`, `Solid`) and a 100px box starts
+   *              clipping the chevron off the end of it.
+   *   `medium`   an enum with real words in it (`Dashed`, `Histogram`)
+   *   `wide`     a SEMANTIC IDENTITY — a source or a destination. These are the
+   *              controls the owner explicitly protected: `QQQ · Close`,
+   *              `Automatic · Price`, `RSI (14)`, another pane's name. Solving
+   *              oversized controls by truncating these would trade one defect for
+   *              a worse one.
+   *   `bare`     a swatch or a switch — it has its own size and never took the
+   *              cell in the first place.
+   */
+  const measureOf = useCallback((f) => {
+    if (!f) return 'wide'
+    if (f.type === 'color' || f.type === 'toggle') return 'bare'
+    if (f.type === 'source') return 'wide'
+    if (f.type === 'number') return 'compact'
+    if (f.type === 'select') {
+      const longest = (f.options || []).reduce((n, o) => Math.max(n, String(o?.[1] ?? '').length), 0)
+      return longest <= 4 ? 'compact' : 'medium'
+    }
+    return 'wide'
+  }, [])
+
+  /** The same question for the two controls that are not `row.fields`. */
+  const measureOfKey = (key) => (/^__style__:/.test(key) ? 'medium' : 'wide')
+
+  /**
+   * TWO CHOICES ARE A SEGMENT, NOT A DROPDOWN.
+   *
+   * ⛔ DECLARED BY THE DATA, not by `f.key === 'maType'`. A two-option enum whose
+   * labels are short IS a segmented control — that is what a segmented control is
+   * for — and stating the rule this way means `MA_TYPES` (`SMA` / `EMA`) picks it
+   * up without being named, while `barStyle` (`Columns` / `Histogram`) correctly
+   * does not.
+   */
+  const isSegment = (f) => f && f.type === 'select'
+    && Array.isArray(f.options) && f.options.length === 2
+    && f.options.every((o) => String(o?.[1] ?? '').length <= 5)
+
+  /**
+   * Pack a section's controls into rows.
+   *
+   * ⭐⭐ A `wide` CONTROL TAKES ITS OWN ROW; ANYTHING ELSE PAIRS WITH ITS
+   * NEIGHBOUR. That one rule produces the arrangement the owner sketched, with no
+   * per-field layout table anywhere:
+   *
+   *     Source          [ Close ]           ← wide, alone
+   *     Period [ 200 ]      Type [SMA|EMA]  ← compact + compact
+   *     Display         [ Price ]           ← wide, alone
+   *
+   * ⛔ AND IT IS PAIRS, NOT A GRID. Three-up would put a 100px control, a 150px
+   * control and a swatch on one line at three different heights of visual weight,
+   * which is the spreadsheet the brief rules out. Two is enough to close the dead
+   * space and still leave the row readable as two related settings.
+   *
+   * ⚠️ ADJACENCY IS THE ONLY INPUT. Declaration order already means something —
+   * `partitionFields` sorts a moving average's core into the member's reading
+   * order and sinks inert fields — so pairing NEIGHBOURS preserves that, where any
+   * cleverer packing would quietly reorder the form.
+   */
+  const packFields = (items) => {
+    const rows = []
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i]
+      if (it.measure === 'wide') { rows.push([it]); continue }
+      const next = items[i + 1]
+      if (next && next.measure !== 'wide') { rows.push([it, next]); i += 1 }
+      else rows.push([it])
+    }
+    return rows
+  }
+
+  /** One packed row: a lone field renders as it always did; a pair gets a flex
+   *  wrapper that wraps — not a grid that squashes — when the column is narrow. */
+  const renderPacked = (items, key) => (items.length === 1
+    ? items[0].el
+    : (
+      <div className={styles.insPair} data-pair="true" key={`pair-${key}`}>
+        {items.map((it) => it.el)}
+      </div>
+    ))
+
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
     const dis = !!f.disabled
@@ -1480,8 +1580,15 @@ export default function ChartSettingsIndicators({
     const inert = dis
       ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
       : {}
+    const seg = isSegment(f)
     return (
-      <div key={f.key} className={styles.insField} data-field={f.key} title={f.disabled || undefined}>
+      <div
+        key={f.key}
+        className={styles.insField}
+        data-field={f.key}
+        data-measure={seg ? 'segment' : measureOf(f)}
+        title={f.disabled || undefined}
+      >
         <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
@@ -1513,7 +1620,57 @@ export default function ChartSettingsIndicators({
               onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
             />
           )}
-          {f.type === 'select' && (
+          {/* ⭐⭐ A TWO-CHOICE ENUM IS A SEGMENT. ⛔ NOT A DROPDOWN: a native select
+              over `SMA` / `EMA` costs two clicks, opens an operating-system menu
+              in the middle of a dark premium panel, and spends 275px saying
+              nothing until it is opened. The segment says both answers at rest
+              and switches in one click.
+              ⛔ AND IT WRITES THE IDENTICAL VALUE. Same `onRowPatch`, same option
+              tuple, same canonical field — this is a control swap and nothing
+              else; `MA_TYPES` and the two persistence paths under it are
+              untouched. */}
+          {f.type === 'select' && seg && (
+            <span
+              className={styles.insSeg}
+              role="radiogroup"
+              aria-label={f.label}
+              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
+              /* ⭐ ARROW KEYS MOVE THE CHOICE, which is what a radio group is
+                 defined to do and what a member reaches for after tabbing to it.
+                 Home/End are the same two answers here, so they are not bound. */
+              onKeyDown={(e) => {
+                if (dis) return
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight'
+                  && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+                e.preventDefault()
+                const at = f.options.findIndex(([v]) => String(v) === String(val))
+                const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1
+                const to = f.options[(Math.max(at, 0) + step + f.options.length) % f.options.length]
+                if (to) onRowPatch?.(row, { [f.key]: to[0] })
+              }}
+            >
+              {f.options.map(([v, l]) => {
+                const picked = String(v) === String(val)
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={picked}
+                    /* ⛔ ROVING TABINDEX. A radio group is ONE tab stop — landing
+                       on every option in turn is how a two-choice control becomes
+                       two controls for a keyboard member. */
+                    tabIndex={picked ? 0 : -1}
+                    disabled={dis}
+                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : {})}
+                    className={`${styles.insSegBtn} ${picked ? styles.insSegBtnOn : ''}`}
+                    onClick={() => onRowPatch?.(row, { [f.key]: v })}
+                  >{l}</button>
+                )
+              })}
+            </span>
+          )}
+          {f.type === 'select' && !seg && (
             <select
               className={styles.indSelect} {...inert} value={val ?? ''}
               onChange={(e) => {
@@ -1580,10 +1737,14 @@ export default function ChartSettingsIndicators({
         {(core.length > 0 || display || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
-            {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
-            {core.map((f) => renderField(row, f))}
-            {display}
-            {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
+            {packFields([
+              ...readOnly.filter((f) => f.key === '__source__')
+                .map((f) => ({ key: f.key, measure: 'wide', el: renderReadOnly(f) })),
+              ...core.map((f) => ({ key: f.key, measure: isSegment(f) ? 'compact' : measureOf(f), el: renderField(row, f) })),
+              ...(display ? [{ key: '__display__', measure: 'wide', el: display }] : []),
+              ...readOnly.filter((f) => f.key !== '__source__')
+                .map((f) => ({ key: f.key, measure: 'wide', el: renderReadOnly(f) })),
+            ]).map((items, i) => renderPacked(items, `core-${i}`))}
           </section>
         )}
 
@@ -1591,8 +1752,14 @@ export default function ChartSettingsIndicators({
         {(look.length > 0 || (plotStyle && plotStyle.length > 0)) && (
           <section className={styles.insSection} data-section="appearance">
             <div className={styles.insSectionLabel}>Appearance</div>
-            {look.map((f) => renderField(row, f))}
-            {plotStyle}
+            {packFields([
+              ...look.map((f) => ({ key: f.key, measure: isSegment(f) ? 'compact' : measureOf(f), el: renderField(row, f) })),
+              ...((plotStyle || []).map((el, i) => ({
+                key: el?.props?.['data-field'] || `style-${i}`,
+                measure: measureOfKey(el?.props?.['data-field'] || ''),
+                el,
+              }))),
+            ]).map((items, i) => renderPacked(items, `look-${i}`))}
           </section>
         )}
 
@@ -1628,22 +1795,96 @@ export default function ChartSettingsIndicators({
     )
   }
 
+  /** How many series one pane lists in the overview before it says `+N more`. */
+  const OVERVIEW_ROWS = 5
+
   /**
-   * NOTHING SELECTED — quiet, and still a door.
+   * NOTHING SELECTED — WHAT IS ON THIS CHART.
    *
-   * ⛔ NOT A BLANK RECTANGLE AND NOT A MARKETING PANEL. One sentence saying what
-   * the column is for, one count so the member can see the list is real, and the
-   * same Add door the heading carries.
+   * ⚰️⚰️ IT WAS THREE LINES AND A VOID. One sentence, one count, one button,
+   * and then roughly 400px of nothing — owner, 2026-09-17: *"the no-selection
+   * state feels too empty/dry... it should feel intentionally designed, not like
+   * content failed to load."*
+   *
+   * ⛔ THE FIX IS NOT DECORATION. No illustration, no tutorial, no marketing
+   * copy, no cards: the space is filled with the one thing a member opening this
+   * tab wants to know, which is WHAT IS ON THE CHART AND WHERE IT DRAWS.
+   *
+   * ⛔⛔ AND IT IS ORIENTATION, NOT A SECOND MANAGEMENT SURFACE. No arrows, no
+   * toggles, no ✕, no menus, nothing clickable at all. The LEFT column manages;
+   * this side says what there is. Two lists that both manage is how a member
+   * learns to distrust both of them, and the brief rules it out by name.
+   *
+   * ⭐ SAME DATA, SAME ORDER, SAME RAILS. `paneGroups` IS the Indicators list's
+   * own read model — `paneMap`, already resolved through `resolvePaneOrder` and
+   * `paneSeriesOrder` — so the overview cannot disagree with the list beside it
+   * about which panes exist, what order they are in, or what is in them. Moving a
+   * pane, reordering a series or changing a Display destination all move this,
+   * because there is nothing here to keep in step. The rail is the same 2×10px
+   * series mark the list and Legend V2 use, in the series' own effective colour,
+   * which is what ties the three surfaces together visually.
    */
-  const renderInspectorEmpty = () => (
-    <div className={styles.insEmpty} data-testid="inspector-empty">
-      <div className={styles.insEmptyLede}>Select an indicator to edit it.</div>
-      <div className={styles.insEmptyNote}>
-        {flatRows.length} {flatRows.length === 1 ? 'series' : 'series'} on this chart
+  const renderInspectorEmpty = () => {
+    // ⚠️ REAL PANES ONLY. `hidden` and `orphans` are not places on the chart, and
+    // an overview of where things draw must not print a heading for a rectangle
+    // that does not exist. They are still in the LEFT list, where they belong,
+    // because that is the surface a member repairs them from.
+    const panes = paneGroups.filter((g) => ['price', 'volume', 'pane'].includes(g.kind))
+    const shown = panes.filter((g) => g.rows.length > 0)
+    const total = shown.reduce((n, g) => n + g.rows.length, 0)
+    return (
+      <div className={styles.insEmpty} data-testid="inspector-empty">
+        <div className={styles.insEmptyLede}>
+          {total === 0
+            ? 'Nothing is drawn on this chart yet.'
+            : `${total} ${total === 1 ? 'series' : 'series'} across ${shown.length} ${shown.length === 1 ? 'pane' : 'panes'}`}
+        </div>
+
+        {shown.length > 0 && (
+          <div className={styles.insOverview} data-testid="inspector-overview">
+            {shown.map((g) => {
+              // ⛔ CAPPED PER PANE, NOT SCROLLED. A member with fifteen moving
+              // averages must not meet a second scrolling list here — the point is
+              // orientation, and a pane that says `PRICE · 8` with four names and
+              // `+4 more` has oriented them completely.
+              const rows = g.rows.slice(0, OVERVIEW_ROWS)
+              const rest = g.rows.length - rows.length
+              return (
+                <div key={g.id} className={styles.insOvGroup} data-ov-pane={g.id}>
+                  <div className={styles.insOvHead}>
+                    <span className={styles.insOvName}>{g.name}</span>
+                    <span className={styles.insOvCount}>{g.rows.length}</span>
+                  </div>
+                  {rows.map((r) => {
+                    const tint = rowColor(r)
+                    return (
+                      <div key={r.id} className={styles.insOvRow} data-ov-row={r.id}>
+                        <i
+                          className={styles.insRail}
+                          style={tint ? { background: tint } : undefined}
+                          aria-hidden="true"
+                        />
+                        <span className={styles.insOvSeries}>
+                          {paneRowMeta(r, g, settings, defOf).name}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {rest > 0 && <div className={styles.insOvMore}>{`+${rest} more`}</div>}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className={styles.insEmptyNote}>
+          Select a series to edit its settings, or add another indicator, symbol or
+          breadth series.
+        </div>
+        <button type="button" className={styles.insAddBtn} onClick={enterBrowse}>＋ Add to Chart</button>
       </div>
-      <button type="button" className={styles.insAddBtn} onClick={enterBrowse}>＋ Add to Chart</button>
-    </div>
-  )
+    )
+  }
 
   /**
    * ARRANGE's right-hand side — deliberately almost nothing.
@@ -1741,7 +1982,7 @@ export default function ChartSettingsIndicators({
       : AUTO_TARGET
 
     return (
-      <div className={styles.insField} data-field="__display__" key="display-in">
+      <div className={styles.insField} data-field="__display__" data-measure="wide" key="display-in">
         <span className={styles.insFieldLabel}>Display</span>
         <span className={styles.insFieldCtl}>
           <select
@@ -1824,7 +2065,8 @@ export default function ChartSettingsIndicators({
       const choices = availableStyles(plot, styleCtx)
       const label = single ? 'Plot style' : `${plot.label || plot.key} style`
       return (
-        <div className={styles.insField} data-field={`__style__:${plot.key}`} key={`style-${plot.key}`}>
+        <div className={styles.insField} data-field={`__style__:${plot.key}`} data-measure="medium"
+          key={`style-${plot.key}`}>
           <span className={styles.insFieldLabel}>{label}</span>
           <span className={styles.insFieldCtl}>
             <select

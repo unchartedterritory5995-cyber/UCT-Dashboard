@@ -1488,12 +1488,153 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The shared controls fill the cell rather than sitting at a hand-tuned width —
-   one rule, so a select, a number box and the source picker all line up on one
-   right edge without any of them knowing about the others. */
-.insFieldCtl > select,
-.insFieldCtl > input[type='number'] { width: 100%; }
+/* ⚰️⚰️ EVERY CONTROL USED TO FILL THE CELL, AND THAT RULE IS NOW SCOPED.
+   It read: *"the shared controls fill the cell rather than sitting at a
+   hand-tuned width — one rule, so a select, a number box and the source picker
+   all line up on one right edge without any of them knowing about the others."*
+   The reasoning was sound and the result was a 275px box holding `200`, and a
+   275px dropdown over `SMA`. Owner, 2026-09-17: *"small values → small controls;
+   long semantic values → enough room."*
+   ⭐ SO THE WIDTH IS STILL ONE RULE — it is just keyed on what the control HOLDS.
+   `data-measure` is set by `measureOf`, which reads the field descriptor (a
+   number, an enum's longest label, a source) and never a key name, so a
+   definition nobody has written yet is sized correctly on its first render.
+   Filling the cell is what `wide` still does, and `wide` is exactly the two
+   controls that carry a semantic identity. */
+.insField[data-measure='wide'] > .insFieldCtl > select,
+.insField[data-measure='wide'] > .insFieldCtl > input[type='number'] { width: 100%; }
 .insFieldCtl > div { min-width: 0; width: 100%; }
+
+/* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
+   for `-100`, `9999` and a caret; narrow enough that `200` does not look lost. */
+.insField[data-measure='compact'] > .insFieldCtl > select,
+.insField[data-measure='compact'] > .insFieldCtl > input[type='number'] {
+  width: 100px;
+  flex: 0 0 auto;
+}
+/* An enum with real words in it — `Dashed`, `Histogram`, `Baseline`.
+   ⚠️ 132, NOT 150, AND THE 18px IS MEASURED. At 150 the `Line style` / `Line
+   width` pair came to 392px against a 372px column and WRAPPED — correct
+   behaviour, wrong width: the pair is supposed to wrap when the Inspector is
+   narrow, not on an ordinary desktop. 132 fits `Histogram` with its chevron and
+   brings the widest pair to 368. */
+.insField[data-measure='medium'] > .insFieldCtl > select {
+  width: 132px;
+  flex: 0 0 auto;
+}
+/* ⛔ THE CELL STILL ENDS ON THE RIGHT, so a compact control sits at the right
+   edge with the wide ones rather than floating in the middle of the row. That is
+   `.insFieldCtl`'s own `justify-content: flex-end`, which is why nothing here has
+   to say it again — and why a full-width row keeps ONE right edge no matter how
+   many different widths are stacked down it. */
+
+/* ⚰️ NATIVE SPINNERS, HIDDEN — AND THE KEYBOARD KEPT. The webkit spin buttons
+   are two grey chevrons drawn by the operating system in the middle of a dark
+   premium panel, and they are the only chrome on this panel nothing else matches.
+   ⛔ THIS DOES NOT TOUCH ↑/↓ ON THE FOCUSED INPUT: that is the input's own key
+   handling, not the button chrome, and the brief protects it explicitly. Same
+   pair of declarations `NewHighsLowsWidget.module.css` already uses, scoped here
+   rather than added to the shared `.indNum`. */
+.insFieldCtl > input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.insFieldCtl > input[type='number']::-webkit-outer-spin-button,
+.insFieldCtl > input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ── TWO RELATED SETTINGS ON ONE LINE ───────────────────────────────
+   ⭐⭐ ONCE A CONTROL IS COMPACT, THE SPACE BESIDE IT IS DEAD SPACE. `packFields`
+   pairs adjacent non-`wide` controls and this lays the pair out.
+   ⛔ FLEX THAT WRAPS, NOT A GRID THAT SQUASHES. Two halves at a fixed 50% would
+   cramp `Line style` into 130px on a narrow Inspector and put a scrollbar under
+   it; `flex-wrap` with a sane basis means the pair simply becomes two rows when
+   the column cannot hold it, which is what the brief asks for at narrow widths.
+   ⛔ AND THE LABELS GO NATURAL HERE. A full-width row keeps its 92px label
+   column, so `Source` and `Display` stay on the grid a member reads down; inside
+   a pair a fixed column would push `Type` off the end of the line for the sake of
+   an alignment nobody can see across two different rows. */
+.insPair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px 20px;
+}
+.insPair > .insField {
+  flex: 1 1 auto;
+  /* Enough for the widest pairable label + its control; below this the second
+     half wraps to its own line instead of shrinking into the first. */
+  min-width: 150px;
+  width: auto;
+}
+.insPair > .insField > .insFieldLabel { flex: 0 0 auto; }
+.insPair > .insField > .insFieldCtl { flex: 0 0 auto; width: auto; }
+/* ⚠️ A BARE CONTROL (a swatch, a switch) HAS NO WIDTH TO GIVE, so its half is
+   sized by its label and the pair's `gap` does the rest — `Color [swatch]` and
+   `Overlap candles [toggle]` read as two settings, not as one wide row with a
+   mark at each end. */
+.insPair > .insField[data-measure='bare'] { flex: 0 1 auto; min-width: 0; }
+
+/* ── THE SEGMENTED CONTROL — TWO CHOICES, BOTH VISIBLE ─────────────────
+   ⚰️ IT WAS A `<select>`, and a native menu is the one control in this modal
+   that cannot be made to look like the rest of it: the popup is drawn by the
+   operating system, in its own colours, at its own scale. Over two three-letter
+   words it also spent 275px saying nothing until it was opened.
+   ⭐ THE LANGUAGE IS THIS FILE'S OWN `.seg` / `.segBtn` — the Canvas tab's
+   Solid / Gradient control — re-pitched for a 24px row: same restrained gold
+   selected treatment, same 1px accent border, same accent-bg wash. It is not a
+   new design system; it is the existing one at the Inspector's scale.
+   ⛔ NOT A PILL AND NOT TWO BUTTONS. One bordered group with a hairline between
+   the halves reads as ONE control with two states; two separate pills read as two
+   things you could somehow have both of. */
+.insSeg {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  height: 24px;
+  padding: 1px;
+  gap: 1px;
+  box-sizing: border-box;
+  border: 1px solid var(--menu-border, #2b2b2d);
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+}
+.insSegBtn {
+  flex: 0 0 auto;
+  min-width: 42px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--menu-text-dim, #93939a);
+  cursor: pointer;
+  transition: color 110ms, background 110ms, border-color 110ms;
+}
+.insSegBtn:hover:not(:disabled):not(.insSegBtnOn) {
+  color: var(--menu-text, #ededed);
+  background: rgba(255, 255, 255, 0.05);
+}
+/* ⭐ RESTRAINED GOLD. The same three signals the selected ROW uses — a wash, a
+   1px accent edge and brighter ink — at the same strength, so nothing on this
+   panel is louder than the member's own selection. */
+.insSegBtnOn,
+.insSegBtnOn:hover {
+  color: var(--menu-accent, #e7cf8f);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
+}
+.insSegBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+.insSeg[aria-disabled='true'] { opacity: 0.55; }
+.insSegBtn:disabled { cursor: not-allowed; }
 
 /* ── THE CONTROLS, RESTYLED **HERE AND ONLY HERE** ────────────────────────────
    ⛔⛔ SCOPED UNDER `.insFieldCtl`, WHICH IS NOT A STYLE PREFERENCE. `.indSelect`
@@ -1653,6 +1794,73 @@
   cursor: pointer;
 }
 .insAddBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+
+/* ── THE NO-SELECTION OVERVIEW — WHAT IS ON THIS CHART ─────────────────
+   ⚰️ WHAT WAS HERE WAS THREE LINES AND ~400px OF NOTHING. The fix is not
+   decoration — it is the one thing a member opening this tab wants to know, laid
+   out quietly.
+   ⛔⛔ AND NOTHING IN IT IS A CONTROL. No hover, no cursor, no focus ring, no
+   pointer target: the LEFT column manages and this side orients. If a rule below
+   ever grows a `:hover` the two lists have started competing, which is the one
+   outcome the brief rules out by name. */
+.insOverview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 6px 0 4px;
+  width: 100%;
+}
+.insOvGroup { display: flex; flex-direction: column; gap: 2px; }
+/* ⭐ THE SAME HEADING LANGUAGE THE LEFT LIST USES — uppercase, faint, letter-spaced
+   — so a member reads the two columns as one idea seen twice, not as two designs.
+   The count rides on the same line because `PRICE · 4` is one fact. */
+.insOvHead {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 2px;
+}
+.insOvName {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.insOvCount {
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--menu-text-faint, #93939a);
+  opacity: 0.75;
+}
+/* ⛔ NO PADDING, NO RADIUS, NO BACKGROUND. A row here is a LINE OF TEXT with a
+   mark in front of it; giving it the list row's box would make it look pressable
+   and there is nothing to press. */
+.insOvRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+.insOvSeries {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--menu-text-dim, #b3b3b9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ⛔ A SENTENCE, NOT A DISCLOSURE. It says how many are not printed and stops;
+   making it expand would turn the overview into the second list this is not. */
+.insOvMore {
+  margin-left: 10px;
+  font-size: 10.5px;
+  color: var(--menu-text-faint, #93939a);
+}
 
 /* ── THE ADD SURFACE ──────────────────────────────────────────────────────── */
 /* ⭐ THE SEARCH IS THE SURFACE'S SUBJECT, so it gets the room directly under the
