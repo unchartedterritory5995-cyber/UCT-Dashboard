@@ -94,15 +94,23 @@ def main() -> int:
     try:
         for m in MUTATIONS:
             src = m.path.read_text(encoding="utf-8", newline="")
-            if m.old not in src:
+            # ⛔⛔ EOL-DERIVED ANCHORS, NEVER HAND-TYPED ONES. `core.autocrlf=true` on this box,
+            # so a checked-out file is CRLF while an anchor written in source is LF. A multi-line
+            # anchor then matches ZERO times and the harness reports ANCHOR MISS — which reads
+            # almost like a pass unless the harness refuses to score it, which this one does.
+            # Measured here on the first run: M1 and M3 both missed for exactly this reason.
+            eol = "\r\n" if "\r\n" in src else "\n"
+            old = m.old.replace("\n", eol)
+            new = m.new.replace("\n", eol)
+            if old not in src:
                 print(f"  {m.name}: ANCHOR MISS — mutation not applied (NOT a pass)")
                 failed += 1
                 continue
-            if src.count(m.old) != 1:
-                print(f"  {m.name}: anchor matches {src.count(m.old)}x — refusing an ambiguous edit")
+            if src.count(old) != 1:
+                print(f"  {m.name}: anchor matches {src.count(old)}x — refusing an ambiguous edit")
                 failed += 1
                 continue
-            m.path.write_text(src.replace(m.old, m.new), encoding="utf-8", newline="")
+            m.path.write_text(src.replace(old, new), encoding="utf-8", newline="")
             rc, out = run_tests()
             named_red = m.expect_red in out and rc != 0
             print(f"  {m.name}: {'RED (good)' if named_red else 'GREEN (BAD)'}"
