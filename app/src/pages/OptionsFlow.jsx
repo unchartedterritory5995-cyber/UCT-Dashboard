@@ -5988,6 +5988,16 @@ export default function OptionsFlowDashboard() {
               const standoutCandidates = _picksSrc.standoutCandidates;
               const _adCount = servedTopPicks ? servedTopPicks.adCount : _local.ad.length;
               if (!_adCount) return null;
+              // ⛔ `ad` (per-ticker all_directional rows) is read by the row-expand
+              // "TOP N TRADES BY PREMIUM" panel below (~L6269). The 3b refactor
+              // dropped its top-level declaration — the note above claimed `ad` was
+              // "only ever read for ad.length", which missed that second consumer —
+              // so every pick-row click threw `ReferenceError: ad is not defined`
+              // and blanked the page. Local path carries the rows; the server-product
+              // path ships adCount only, so fall back to whatever all_directional is
+              // present (empty -> the panel's own `if(!trades.length) return null`
+              // simply hides the trade table, no crash).
+              const ad = _local ? _local.ad : (D.all_directional || []);
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
                 : top5Filter==="Both" ? candidates
@@ -8723,8 +8733,12 @@ export default function OptionsFlowDashboard() {
                     const isEtf = isETF(w.S, "");
                     return dataMode === "stocks" ? !isEtf : isEtf;
                   };
-                  const visible = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
-                    : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
+                  // ⛔ WATCH is a DEFERRED part that no fetch site requests on the
+                  // parts path (same gap as ALL_SYMS), so `D.WATCH` is undefined
+                  // and a bare `.filter` crashed the OI Check tab on open. Guard so
+                  // the tab renders empty instead of throwing until WATCH is wired.
+                  const visible = oiSearch ? (D.WATCH||[]).filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                    : (D.WATCH||[]).filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
                   fetchPrices(visible.map(w=>({sym:w.S,cp:w.CP,strike:w.K,exp:w.E})));
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
@@ -8741,8 +8755,11 @@ export default function OptionsFlowDashboard() {
                 const isEtf = isETF(w.S, "");
                 return dataMode === "stocks" ? !isEtf : isEtf;
               };
-              const watchAll = oiSearch ? D.WATCH.filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
-                : D.WATCH.filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
+              // ⛔ WATCH is never fetched on the parts path (see the button guard
+              // above) — this render-time `.filter` is what actually blanked the
+              // OI Check tab on open. Guard against the undefined deferred key.
+              const watchAll = oiSearch ? (D.WATCH||[]).filter(w=>(w.S||"").includes(oiSearch)&&w.OI>=5).filter(_tabOk).sort((a,b)=>b.P-a.P).slice(0,40)
+                : (D.WATCH||[]).filter(w=>w.OI>=5&&(capFilter==="All"||w.cap===capFilter)).filter(_tabOk).slice(0,100);
               // Enrich with live OI data
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
