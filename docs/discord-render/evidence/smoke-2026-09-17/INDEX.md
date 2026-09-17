@@ -14,8 +14,8 @@ as 9:04 in a 0.55-scale screenshot.
 | 2 | STALE badge | **NOT RUNNABLE** | unreachable by construction — pre-V2 path emits no `?stale=`; see SMOKE-3.5 §"Rows 2, 3 and 7" |
 | 3 | stand-in + heal | **INCONCLUSIVE-BY-CONSTRUCTION** | R32; V2 dark |
 | 4 | footer | **PASS** | the same 7:32a message — the footer line is present and freshly computed: `in 62d` today against `in 64d` on the 9/15 message two days older |
-| 5 | `/flow ticker:SPY days:30` | pending | 10:00 ET window (R17) |
-| 6 | `/flow` equity underlying | pending | 10:00 ET window |
+| 5 | `/flow ticker:SPY days:30` | ⚰️ **SUPERSEDED - see the 09:09 update below** | was: pending |
+| 6 | `/flow` equity underlying | ⚰️ **SUPERSEDED - see the 09:15 update below** | was: pending |
 | 7 | degraded flow card | **INCONCLUSIVE-BY-CONSTRUCTION** | §5's card is the V2 failure contract; V2 dark |
 | 8 | `/buzz` (bare) | **PASS** | 7:39a (08:39 ET) · ephemeral (*Only you can see this*) · *"No mentions counted yet for **since the open**, counted through 8:37a."* · **fired ~3 s after a 4-ticker `/chart`** (see the caveat below) |
 | 9 | `/renderhealth` | **PASS** | 7:40a (08:40 ET) · ephemeral · *"Render V2 is **off** (`DISCORD_RENDER_V2_ENABLED` unset) and has never run on this volume, so there is no job history yet. Renderer: not probed yet. Commit `d9455a6d64a5`."* — names the flag state AND the commit |
@@ -25,8 +25,9 @@ as 9:04 in a 0.55-scale screenshot.
 | 13 | non-allowlisted channel | **PASS** | fired in `#alert-test` (`1483290485627031603`) 7:39a · ephemeral · *"Please use #📈\|chart-flow-requests for chart & flow requests."* — the **member-facing** channel as a live mention, **never `#render-smoke`** |
 | 14 | rate-limit refusal | **PASS** | 7:38a (08:38 ET) · ephemeral · verbatim: *"Slow down: up to 12 charts per minute per member. Try again in 20s."* |
 
-**Score so far: 9 PASS · 2 pending (clock-gated) · 3 not-runnable/inconclusive by
-construction · 0 FAIL · 0 unexplained NOT RUN.**
+⚰️ **THE SCORE BELOW IS THE 08:40 ET READING AND IS SUPERSEDED — read the update section.**
+**Score at 08:40 ET: 9 PASS · 2 pending (clock-gated) · 3 not-runnable/inconclusive by
+construction · 0 FAIL · 0 unexplained NOT RUN.** Current: **10 PASS · 0 FAIL · 4 not-runnable.**
 
 ---
 
