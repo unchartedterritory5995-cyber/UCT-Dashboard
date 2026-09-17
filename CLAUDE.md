@@ -2756,6 +2756,15 @@ written. The only thing that finds either is asking, of a record you already tru
 
 > ### ⭐ **"When was this last true?"**
 
+⭐⭐ **THE CLEANEST INSTANCE OF 3b, because nothing was ever red.** For two days this
+programme reported *"no rig window has been taken"* and treated it as the rig being
+unavailable. The observation was **true the whole time**. What had changed is what it was
+*about*: the window queue held no `pending` entries, so the runner's own answer was
+*"queue empty — nothing staged"*. **The windows opened. There was nothing staged to spend
+them on.** A runner with nothing to do looks exactly like a rig that was never free —
+and unlike a drifted constant or a stale ratio, there was no failing test, no red, and
+nothing to notice. It failed by being quietly, accurately unhelpful.
+
 ⚠️ **A documented cost is not a bounded cost, and a ratified number is not a current one.**
 Writing a hazard down, and having it ratified, both *feel* like handling it. Four more of the
 same shape turned up in one file in one night: a report tool defaulting to a pool path the
