@@ -5,8 +5,16 @@
 
 ⛔ A POOL IS A POPULATION, NOT A FILE. Rows are only comparable when they came from the
 same deployed code on the same reader configuration, so this groups by
-(sha, flag_observed) and refuses to pool across groups silently. `flag_observed` is read
-from the pod's OWN phase keys, never from what the operator believed was set.
+(reader fingerprint, observed flag) and refuses to pool across groups silently.
+
+⚰️ This paragraph used to say it grouped by `(sha, flag_observed)`, and BOTH halves were
+wrong in the same way: the SHA is a proxy for the code (see `reader_fingerprint`), and the
+stored `flag_observed` is a proxy for which reader ran (see `observed_flag`). Both are now
+DERIVED from what the row actually carries — the hot-path blobs, and the published phase
+keys. A docstring describing a rule the code does not implement is this repository's
+most-repeated defect, and it was committed here, in the module that exists to catch it.
+
+⛔ Rows that never ran the reader are dropped entirely — see `reader_ran`.
 
 ⭐ WHY 59. The largest value in a sample of n exceeds the true 95th percentile with
 probability 1 - 0.95^n. At n = 20 that is only 64% — a p95 "estimate" there is mostly the
@@ -34,6 +42,11 @@ HOTPATH_LIST = pathlib.Path(__file__).resolve().parents[1] / "docs/breadth/reade
 REPO = str(pathlib.Path(__file__).resolve().parents[1])
 P95_N_FOR_95PC_CONFIDENCE = 59
 ANALYSIS_UPTIME_FLOOR = 600
+#: The defect this programme exists to answer, in milliseconds. Every "N times faster"
+#: figure in the report and on the page is DERIVED from this by `--per-deploy`; none is
+#: typed into prose. ⛔ A ratio hand-carried into a document is a second authority, and
+#: this programme has already had one drift (33x, ratified, superseded by data 2026-09-17).
+D042_COLD_MS = 54923.0
 
 #: Timing keys that are COUNTS or BYTES, not milliseconds. Ranking these beside real
 #: phases reports a counter as a duration. Listed explicitly: a pattern guess ("anything
@@ -110,10 +123,61 @@ def reader_fingerprint(sha: str) -> str | None:
     return hashlib.sha1("|".join(blobs).encode()).hexdigest()[:12]
 
 
+#: The phases only the SQLite reader emits. See breadth_sampler.flag_evidence.
+FETCH_PHASES = ("rf_open", "rf_pragma", "rf_execute", "rf_fetch", "rf_conn_reused")
+
+
+def observed_flag(r) -> str:
+    """Which reader served this row, DERIVED from its phase keys.
+
+    ⛔ THE STORED `flag_observed` IS ADVISORY AND MAY BE VACUOUS. Until 2026-09-17 the
+    sampler derived it from `rf_resident`, which `server_timing()` never publishes, so
+    every row written before that fix says "off" whatever the flag actually was — including
+    rows taken while the resident reader was demonstrably serving. Deriving here means a
+    pool collected across the fix is still correctly grouped, instead of splitting on when
+    the label happened to be written.
+
+    ⭐ Same rule as everywhere else in this programme: derive from the evidence the row
+    carries, never restate a field somebody else computed."""
+    keys = set(r.get("phase_keys") or (r.get("timing") or {}).keys())
+    if not keys:
+        return "unknown"
+    if "rf_resident" in keys:
+        return "on"
+    if any(p in keys for p in FETCH_PHASES):
+        return "off"
+    if "rf_materialise" in keys:
+        return "on"
+    return "unknown"
+
+
+def reader_ran(r) -> bool:
+    """Did the READER actually execute, or did this request hit a cache?
+
+    ⚰️ 2026-09-17: five rows in the pool are `kind=deep_cold, ok=True` and were CACHE
+    HITS — `reader` phase 0.0, totals of 69-168 ms against a ~300 ms population. Cause:
+    the sampler forces a miss by varying the span, and each `--once` invocation is a
+    fresh process that computes the SAME span, so repeated one-shots re-read a span the
+    previous one had just warmed. The long-running loop varies it correctly; four
+    consecutive one-shots do not.
+
+    ⛔ TWO OF THE FIVE ARE IN READER `b8873db0f2ab` AND WERE PUBLISHED. They are why that
+    pool's reported minimum was 70.2 ms, and they bias its median FAST — a cache hit
+    banked as a deep cold read is not a slightly-optimistic sample, it is a measurement
+    of a different thing wearing the same label.
+
+    ⭐ `kind` records what the sampler INTENDED; `reader` records what the pod DID. When
+    they disagree the pod wins, which is the same rule as flag_declared vs flag_observed
+    one layer down."""
+    v = (r.get("timing") or {}).get("reader")
+    return isinstance(v, (int, float)) and v > 0
+
+
 def deep_ok(rows):
     return [r for r in rows if r.get("ok") and r.get("kind") == "deep_cold"
             and isinstance(r.get("timing"), dict)
-            and isinstance(r["timing"].get("total"), (int, float))]
+            and isinstance(r["timing"].get("total"), (int, float))
+            and reader_ran(r)]
 
 
 def spearman(xs, ys) -> float | None:
@@ -211,10 +275,58 @@ def describe(group_rows, label) -> dict:
             "uptime": uptime_effect(group_rows)}
 
 
+def per_deploy(rows) -> list[dict]:
+    """The RESULT, one row per deploy, at the analysis floor.
+
+    ⭐ THIS REPLACED A SINGLE POOLED p95 (owner ruling, 2026-09-17). Deploys running
+    IDENTICAL code on IDENTICAL work differ by up to 79% at the median, so a pooled p95
+    across them characterises the DEPLOY MIX SAMPLED rather than the reader. Reporting
+    per deploy says what is actually true: the reader is stable and the host is not.
+
+    ⛔ The conservative figure is the WORST deploy's bound, never an average of bounds.
+    """
+    by = collections.defaultdict(list)
+    for r in rows:
+        if (r.get("uptime_s") or 0) >= ANALYSIS_UPTIME_FLOOR and r.get("sha"):
+            by[r["sha"]].append(r["timing"]["total"])
+    out = []
+    for sha, v in by.items():
+        v = sorted(v)
+        out.append({"sha": sha, "n": len(v), "p50": statistics.median(v),
+                    "min": v[0], "max": v[-1],
+                    "x_at_max": D042_COLD_MS / v[-1],
+                    "x_at_p50": D042_COLD_MS / statistics.median(v)})
+    return sorted(out, key=lambda d: d["p50"])
+
+
+def print_per_deploy(rows) -> None:
+    rp = per_deploy(rows)
+    if not rp:
+        print("no settled rows -- nothing to report per deploy")
+        return
+    print(f"\n=== THE RESULT, per deploy (>= {ANALYSIS_UPTIME_FLOOR}s analysis floor) ===")
+    print(f"  D-042 cold baseline: {D042_COLD_MS:.0f} ms\n")
+    print(f"  {'deploy':<12}{'n':>4}{'p50 ms':>9}{'max ms':>10}{'x at p50':>11}{'x at max':>11}")
+    for d in rp:
+        print(f"  {d['sha']:<12}{d['n']:>4}{d['p50']:>9.1f}{d['max']:>10.1f}"
+              f"{d['x_at_p50']:>10.0f}x{d['x_at_max']:>10.0f}x")
+    worst = min(rp, key=lambda d: d["x_at_max"])
+    best = max(rp, key=lambda d: d["x_at_max"])
+    print(f"\n  CONSERVATIVE (worst deploy's p95 bound): {worst['x_at_max']:.0f}x "
+          f"({worst['sha']}, max {worst['max']:.1f} ms, n={worst['n']})")
+    print(f"  RANGE across deploys: {worst['x_at_max']:.0f}x - {best['x_at_max']:.0f}x")
+    p50s = [d["p50"] for d in rp]
+    print(f"  p50 span: {min(p50s):.1f} - {max(p50s):.1f} ms across {len(rp)} deploys")
+    print("\n  Identical code (one reader fingerprint) and identical work per read;")
+    print("  the spread is the host. No pooled p95 across deploys is reported.")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pool", default=str(DEFAULT_POOL))
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--per-deploy", action="store_true",
+                    help="the headline result: one row per deploy, no pooled p95")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
@@ -223,6 +335,16 @@ def main(argv=None) -> int:
     if not rows:
         print("no usable rows -- an empty pool is a failed read until proven otherwise")
         return 2
+
+    if a.per_deploy:
+        # Restrict to the LIVE reader with the flag off -- mixing readers here would
+        # reintroduce, one level up, exactly the pooling error this view exists to fix.
+        live = [r for r in rows if observed_flag(r) == "off"]
+        fps = collections.Counter(reader_fingerprint(r.get("sha") or "") for r in live)
+        main_fp = fps.most_common(1)[0][0] if fps else None
+        print_per_deploy([r for r in live
+                          if reader_fingerprint(r.get("sha") or "") == main_fp])
+        return 0
 
     # Group by READER IDENTITY, never by SHA. Unresolvable -> fall back to the SHA,
     # which is the stricter grouping, and label it so nobody reads it as a reader.
@@ -233,7 +355,7 @@ def main(argv=None) -> int:
         fp = reader_fingerprint(sha) if sha else None
         if fp is None and sha:
             unresolved.add(sha)
-        groups[(fp or f"sha:{sha}", r.get("flag_observed"))].append(r)
+        groups[(fp or f"sha:{sha}", observed_flag(r))].append(r)
 
     print(f"pool: {a.pool}")
     print(f"usable deep_cold rows: {len(rows)}   readers: {len(groups)}")
@@ -365,6 +487,18 @@ def self_check() -> int:
     if reader_fingerprint("0" * 40) is not None:
         print("FAIL: an unresolvable sha must fingerprint to None, never to a value")
         ok = False
+
+    # A cache hit is not a reader measurement, and the control proves the filter can
+    # still SEE a real read -- a filter that rejects everything reports an empty pool,
+    # which reads as "no data" rather than as a broken screen.
+    hit = {"ok": True, "kind": "deep_cold", "timing": {"total": 69.0, "reader": 0.0}}
+    real = {"ok": True, "kind": "deep_cold", "timing": {"total": 300.0, "reader": 180.0}}
+    kept = deep_ok([hit, real])
+    if len(kept) != 1 or kept[0] is not real:
+        print(f"FAIL: deep_ok must drop the cache hit and keep the real read (kept {len(kept)})")
+        ok = False
+    if reader_ran(hit) or not reader_ran(real):
+        print("FAIL: reader_ran cannot distinguish a cache hit from a real read"); ok = False
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

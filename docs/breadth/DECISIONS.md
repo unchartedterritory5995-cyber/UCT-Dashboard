@@ -1635,3 +1635,307 @@ consumed a burst slot, and reset the peer's recency clock.
 ⭐ **The right response to "please hold X" is to check what else you are holding.** Granting
 the literal request while leaving the larger hazard running would have been technically
 responsive and practically useless.
+
+---
+
+## SD-1.7 POST-CLOSE ADDENDUM — the conservative figure is ratified as 33× (2026-09-17)
+
+### 1. The headline, ratified
+
+| figure | value | what it is |
+|---|---|---|
+| **conservative headline** | **33×** | `54,923 ms ÷ 1,680.6 ms` — D-042 against the **p95 bound** |
+| median | 183× | `54,923 ms ÷ 300.4 ms` — kept on the page, **labelled as the median** |
+| superseded | ~~175×~~ | the slowest *median* of the SHA-keyed groups |
+
+**Owner ruling, 2026-09-17, verbatim:** *"175× was the slowest median, and D-042 was a
+complaint about the tail. 33× at the p95 bound is the conservative figure; 183× stays on the
+page labelled as the median. Ratified."*
+
+⭐ **Why the correction was accepted rather than argued.** A median is the midpoint, not a
+bound — half of real requests are slower than it — so quoting one as the *conservative* end
+of a range describes the good half of a distribution to someone complaining about the bad
+half. D-042 was a 54.9-second **tail event**. The figure that answers it has to be a tail
+figure.
+
+⚰️ The 175× number was not wrong; it was **mislabelled**. It remains the correct answer to
+"what was the slowest group median", a question nobody asked.
+
+### 2. ⛔ SD-1 §3's six terms ARE NOT IN THIS REPOSITORY — R6 cannot be formally closed
+
+`PROGRAMME-CHECKLIST.md` says R6's criterion "is six terms, all of which must hold to keep
+ON". **Those six terms appear nowhere in the repo.** Searched: `DECISIONS.md`, the checklist,
+`FINAL.md`, `00-profile.md`, and every session report. The string is referenced in three
+places and defined in none — it lived in the directive text, and the session that held it was
+compacted.
+
+⛔ **They are NOT reconstructed from memory here, and must not be.** This repository's own
+rule: *a citation you cannot quote is struck.* Writing six plausible terms and labelling them
+"§3" would manufacture an authority — the invented-citation defect, committed in the record
+that exists to prevent it.
+
+**Consequence, stated rather than worked around:** the flip below is executed and measured,
+and its result is recorded against **explicitly-stated terms owned by this session**, marked
+as such. **R6 is `MEASURED, NOT FORMALLY CLOSED`** until the owner restates §3's six terms;
+the data is collected so that closing it is then a reading, not a re-run.
+
+### 3. ⛔⛔ THE FLIP'S A/B IS CONFOUNDED BY DESIGN, AND THIS REPO ALREADY RECORDED WHY
+
+Measured 2026-09-17, before flipping anything:
+
+| deploy | n | p50 | rf_rows | rf_bytes |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 ms | 4,529 | 4,523,328 |
+| `9906a7fcd` | 8 | 307.6 ms | 4,529 | 4,523,328 |
+| `6128705c4` | 48 | 312.5 ms | 4,529 | 4,523,328 |
+| `465b12e36` | 34 | 313.4 ms | 4,529 | 4,523,328 |
+| `02328569b` | 12 | 350.4 ms | 4,529 | 4,523,328 |
+| **`9081799f2`** | **54** | **497.2 ms** | 4,529 | 4,523,328 |
+
+**Identical code** (one hot-path fingerprint, `7864c894526e`) and **identical work** —
+`rf_rows` and `rf_bytes` take exactly one value each across all 175 rows — yet the newest
+deploy is **60% slower at the median**. The difference is the pod, and nothing else.
+
+⛔ **Flipping a variable causes a redeploy, so Pool A and Pool B necessarily land on different
+pods.** A before/after median comparison therefore confounds the flag with the host. That is
+not a new insight here — **D-050 §8 already recorded it**, verbatim: *"The design flaw was
+consecutive arms, which confound the flag with whatever else the single uvicorn process was
+doing. Interleaved arms at matched times of day is the fix, and it needs a quiet period."*
+P-B4 was left INCONCLUSIVE for exactly this reason, and a naive Pool A vs Pool B would have
+repeated it.
+
+⭐ **THE MEDIAN WAS NEVER THE RIGHT TEST, AND THE DISTRIBUTION SAYS SO.** The reads are
+**bimodal**, and `rf_fetch` selects the mode:
+
+| mode | `rf_fetch` | `total` |
+|---|---|---|
+| fast | 7–20 ms | ~275–500 ms |
+| slow | 600–3,200 ms | ~1,000–3,700 ms |
+
+A median over a bimodal population reports the **mode mix**, not the reader — so a pod that
+happens to draw the slow mode more often reads as a slower reader. `9081799f2` is that pod.
+
+⭐ **The resident copy's claim is STRUCTURAL, which makes it testable without a median.**
+D-051 §6 states it removes `reconstructed_fetch` entirely, and session 11 §A.3 measured
+`rf_fetch` at 8.5 ms p50 / **607.1 ms p90** — *"the only phase that moves with the tail."*
+So the flip is verified per-sample by asking **does `rf_fetch` still appear, and is the slow
+mode gone** — a question about each row, immune to which host served it. A structural check
+does not care about the pod; a median does.
+
+**Terms this session records the flip against (OWNED BY THIS SESSION, not §3):**
+
+1. the instrument confirms the flag ON from the pod's own phase keys (`rf_resident` present)
+2. `rf_fetch` is absent or near-zero per sample, not merely smaller on average
+3. the slow mode (total > 1,000 ms) disappears rather than thinning
+4. parity: `rf_rows` and `rf_bytes` unchanged — the flag must not change the work
+5. no new failure mode in the sampler's refusals
+
+
+### 4. R6 EXECUTED — the flip works, and the instrument built to prove it could not
+
+**The flip was executed and verified. `flag_observed` was structurally incapable of
+reporting it, and said so with total confidence.**
+
+| step | result |
+|---|---|
+| `railway variables --set BREADTH_RESIDENT_RECON_ENABLED=1` on `web` | exit 0 |
+| variable read back, with a positive and a negative control | `=1`; 251 → **252** variables, exactly one added |
+| redeploy | **auto-redeployed** — new deploy of the same commit `9081799f2`, no burst slot |
+| deploy's own record | **SUCCESS**; previous same-commit deploy marked REMOVED |
+| running process | uptime 30,682 → **269** — a genuinely new pod |
+| **instrument says** | `flag_declared=on`, **`flag_observed=off`**, `flag_agrees=False` |
+
+⛔⛔ **`rf_resident` IS NEVER PUBLISHED, SO `flag_observed` COULD ONLY EVER SAY "off".**
+`breadth_daily_ohlc.py` notes it correctly on **every** branch (1 resident / 0 SQLite), but
+`breadth_timing.server_timing()` writes a **hard-coded scalar allowlist** — `rf_rows`,
+`rf_bytes`, `rf_busy_retries`, `rf_stmts`, `rf_stmt_min/max/sum`, `rf_pagecache`,
+`rf_conn_reused` — and `rf_resident` is not in it. `rf_pagecache` is, because the
+page-cache flag's author added it there; the resident flag's author added the `note()` and
+not the publish.
+
+⭐ **The disagreement field was disagreeing with itself.** `flag_declared` vs
+`flag_observed` exists precisely so a mixed pool is visible in the row rather than
+reasoned about afterwards — and the half that was wrong was the observation. **Every
+`flag_observed` value written before 2026-09-17 is VACUOUS** and must not be read as
+evidence of a flag state.
+
+⭐ **THE FLIP IS PROVEN STRUCTURALLY INSTEAD, and the escape generalises.** The two readers
+differ in what they *do*, and that is published:
+
+| reader | phases |
+|---|---|
+| SQLite | `rf_open` · `rf_pragma` · `rf_execute` · `rf_fetch` · `rf_conn_reused` |
+| resident | none of those — `rf_materialise` only (it parses held JSON strings) |
+
+The post-flip read carried **none of the five**. Absence of the fetch phases is positive
+evidence for the resident reader, and it is a property of the request rather than of a
+header's allowlist. **The phase set is what the pod DID; `rf_resident` is what an allowlist
+chose to mention.** Both `breadth_sampler.flag_evidence` and `breadth_pool_report`
+(`observed_flag`) now derive from the phase set, and the report derives rather than trusting
+the stored label, so a pool collected across the fix is still grouped correctly.
+
+#### ⛔ FIVE `deep_cold` ROWS WERE CACHE HITS, AND TWO OF THEM WERE PUBLISHED
+
+`reader` phase **0.0**, totals of 69–168 ms against a ~300 ms population. Cause: the sampler
+forces a miss by varying the span, and **each `--once` run is a fresh process that computes
+the same span**, so four consecutive one-shots re-read a span the previous one had warmed.
+The long-running loop varies it correctly.
+
+⛔ Two are in reader `b8873db0f2ab`, and **they are why its published minimum was 70.2 ms**.
+Corrected: n 14 → **12**, p50 271.5 → **276.1**, min 70.2 → **251.6**. ⭐ `kind` records what
+the sampler INTENDED; `reader` records what the pod DID — and when they disagree the pod
+wins, which is the same rule as `flag_declared` vs `flag_observed`, one layer down.
+`reader_ran()` now drops them, mutation-proved.
+
+#### R6 VERDICT — `DEFERRED`, with the exact n
+
+| pool | reader | n (all) | n (settled ≥600 s) |
+|---|---|---|---|
+| **A** flag OFF | `7864c894526e` | 175 | **155** |
+| **B** flag ON | `7864c894526e` | 2 | **1** |
+
+**Pool B did not reach n ≥ 20 and cannot today: the sampler's 60/day cap is exhausted**, and
+item 4 of the addendum says leave it at 60. Per the addendum's own rule — *leave the flag in
+the state with the larger settled pool* — the flag is **reverted to OFF**, because 155 ≫ 1.
+
+⚠️ **The one settled resident read is 491.0 ms against Pool A's 497.2 ms on the same
+deploy.** That is one sample and settles nothing; it is recorded so the next session starts
+from a number rather than an expectation. The build cost is real and separate:
+**~7.5 s on the first read after a boot**, once per pod, then gone.
+
+### 5. ⛔⛔ THE RATIFIED 33× HAS DRIFTED TO 15×, AND THE READER DID NOT CHANGE
+
+Recomputed 2026-09-17 on 155 settled rows, per deploy:
+
+| deploy | n | p50 | max | vs D-042 at the max |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 | 389.3 | **141×** |
+| `9906a7fcd` | 7 | 302.2 | 469.3 | 117× |
+| `6128705c4` | 42 | 307.9 | 754.7 | 73× |
+| `465b12e36` | 26 | 313.4 | 1,680.6 | **33× ← the published figure** |
+| `02328569b` | 7 | 331.0 | 1,129.2 | 49× |
+| **`9081799f2`** | **54** | **497.2** | **3,752.1** | **15×** |
+
+**Pooled: p95 ≤ 3,752.1 ms ⇒ 15×**, against the published 33×.
+
+⛔ **This is NOT a regression in the reader, and it must not be reported as one.** Every row
+still does identical work — `rf_rows` = 4,529 and `rf_bytes` = 4,523,328 take exactly one
+value each across the whole pool. `9081799f2` draws the **slow mode** far more often, and it
+now contributes 54 of 155 settled rows.
+
+⭐ **A pooled p95 across deploys that disagree by 79% describes the MIX OF DEPLOYS SAMPLED,
+not the reader** — which is why the tool prints every constituent and flags a spread ≥30%
+rather than letting the number stand alone. The published 33× was computed when that spread
+was 26%.
+
+**OWNER DECISION NEEDED.** The conservative headline is a choice between:
+- **15×** — the pooled bound over everything measured, honest and pessimistic, but dominated
+  by one deploy's host;
+- **33×** — unchanged, and now describing a subset;
+- **per-deploy** — report the range 15–141× and stop pretending one number is a property of
+  the reader.
+
+This session does **not** pick. The number was ratified an hour ago on data that has since
+moved, and quietly re-picking it is precisely the second-authority defect.
+
+---
+
+## POST-CLOSE DECISIONS — SD-1.7 (final, 2) — 2026-09-17
+
+### 1. The 33× headline is RETIRED; the result is the per-deploy table
+
+**Owner ruling.** No single pooled p95 across deploys. The result is the per-deploy table
+at the ≥600 s analysis floor, the conservative figure is the **worst deploy's p95 bound**,
+and the range is stated. Generated by `tools/breadth_pool_report.py --per-deploy`;
+**every figure derived, none typed.** Recorded in FINAL.md §14.1.
+
+⛔ **The 33× ratification is superseded BY DATA, not by judgement**, and the distinction is
+the whole reason it is written this way. 33× was correct on 2026-09-16 and is still in the
+table — it is `465b12e36`'s bound. It stopped being the *conservative* figure when
+`9081799f2` entered the pool with a worse one. Nothing about the reader changed.
+
+### 2. The cache-hit correction is accepted, and the CAUSE is fixed
+
+n 14 → **12**, p50 **276.1 ms**, min **251.6 ms** for reader `b8873db0f2ab`.
+
+⭐ **`reader_ran()` was the symptom fix and is kept as a backstop; the cause is fixed too.**
+The sampler's span walk keeps spans distinct WITHIN a run, and the seed was the constant
+`SPAN_HI` — so every fresh `--once` process started in the same place and re-read a span the
+previous one had just warmed. `seed_span()` now seeds from the POOL (`recent_spans()`), so
+consecutive one-shots cannot collide. ⛔ A downstream filter alone would have hidden a
+sampler that reliably produces unusable rows, forever.
+
+Rails: `test_a_fresh_process_does_not_reuse_a_recent_span`,
+`test_the_seed_is_read_from_the_pool_not_from_a_constant` (non-vacuity: the seed must
+*depend on its input* and be deterministic, or a collision is merely unlikely),
+`test_recent_spans_reads_the_tail_of_the_pool`. Mutation-proved by restoring the constant.
+
+### 3. R6 = **REVERT**, and not for lack of data
+
+⛔⛔ **THE RESIDENT COPY IS BUILT ON FIRST ACCESS, ~7.5 s, ONCE PER POD — AND THIS REPO
+DEPLOYS ~31 TIMES A DAY.** A member pays that build after **every deploy**. That fails the
+p90 term by construction at the current cadence, and no amount of Pool B would change it:
+the defect is in *when* the copy is built, not in how fast it reads once built.
+
+⭐ **This is the honest reason, and it is better than the one available an hour earlier.**
+"Pool B only reached n=1" is true and would have been a weak reason — a sampling shortfall,
+fixable by waiting. The real reason is structural and visible from a single observation.
+**A flip can be correctly refused on a mechanism, without a pool.**
+
+The single steady-state datum, recorded as the only one there is: **491.0 ms resident
+against 497.2 ms SQLite** on the same deploy, n=1 each side. It settles nothing and is kept
+so the next session starts from a number rather than an expectation.
+
+### 4. R8 — PROPOSED, NOT BUILT
+
+1. **Build the resident copy at boot, or in a background task, before first request** —
+   behind the same flag, with the boot cost measured rather than assumed.
+2. **Add `rf_resident` to `server_timing()`'s allowlist in the same change.** It is the
+   scalar whose absence made `flag_observed` structurally incapable of saying "on".
+   ⚠️ `breadth_timing.py` is a HOT-PATH file, so that landing **starts a new pool** — which
+   is fine, and is exactly why it belongs in the same change rather than after it.
+3. **Only then is a Pool B worth collecting.** Until it exists, there is nothing to measure
+   that would not measure the build.
+
+### 5. The sampler cap stays 60/day
+
+No Pool B until the R8 change exists. The cap was not raised for the close-out and is not
+raised now; the five verification reads taken during the flip were a one-shot with the cap
+incremented for that invocation only, and are recorded as verification, not collection.
+
+### 6. ⛔⛔ THE REVERT NEEDED AN EXPLICIT REDEPLOY — and `--unset` no longer exists
+
+Executing the revert found two things about the Railway CLI (**v4.35.0**) that the runbook
+documents incorrectly:
+
+| | |
+|---|---|
+| `railway variables --service web --unset KEY` | **`error: unexpected argument '--unset' found`** — it is gone |
+| the current form | **`railway variable delete <KEY> --service web`** (note: `variable`, singular; the CLI moved to subcommands `list` / `set` / `delete`) |
+| does `--set` redeploy? | **YES** — measured; the CLI even carries `--skip-deploys` for the case where you do not want it |
+| does `delete` redeploy? | **NO** — measured: 9 minutes, no new deploy, `uptime_seconds` climbing 1,508 → 2,019 unbroken |
+
+⛔⛔ **SO THE VARIABLE WAS GONE FROM THE SERVICE AND STILL LIVE IN THE PROCESS.** `--kv`
+read 251 variables with the flag absent, the control still present — and the pod, started
+*before* the delete, was **still serving the resident reader**. Verified by the phase set:
+zero SQLite fetch phases, `rf_materialise` present.
+
+⭐ **This is the `--kv` rule paying out against the session that wrote it.** *"`--kv` shows
+what the SERVICE is configured with, which is not evidence the RUNNING process has it."* An
+operator who deleted the variable, read it back, saw it gone, and stopped there would have
+recorded a revert that had not happened — and every subsequent sample would have been
+labelled "off" while the resident reader served it. The asymmetry is the trap: **set
+applies itself, delete does not**, so the direction that looks safer is the one that
+silently fails.
+
+`railway redeploy --service web --yes` then produced a real boot (uptime 2,126 → **62**),
+its own record reached SUCCESS, and the phase set came back with all five fetch phases and
+`rf_fetch` = 5,691.3 ms. **REVERT EFFECTIVE**, confirmed from the pod.
+
+⚠️ **This invalidates a removal instruction in another programme's documentation.**
+`CLAUDE.md` tells a future operator to run
+`railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED` when the joystick
+programme closes. That command now errors out. It is **not corrected here** — it is another
+programme's file and this one has no standing to edit it — but it is recorded so whoever
+closes that programme is not surprised, and so the two halves (the new syntax, and the fact
+that a delete does not restart anything) travel together.
