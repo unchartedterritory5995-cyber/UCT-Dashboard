@@ -2739,6 +2739,27 @@ not evidence that the measurement was.
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
 
+### ⛔ NEVER `git commit -m` FOR A MESSAGE WITH IDENTIFIERS — use a quoted heredoc
+
+> **`git commit -F - <<'MSG'` … `MSG`.** The quoted heredoc expands NOTHING — backticks, `$`,
+> `!` all pass through verbatim. `-m "…"` cannot be made safe by care, because the shell has
+> already eaten the string before git ever sees it.
+
+⚰️ **Measured 2026-09-17.** A commit was written with `git commit -m "…"` containing backticks
+around three identifiers. The shell command-substituted them away, and the commit landed with
+holes exactly where `probe`, `mint_session_token` and `--unset` should have been — in a message
+whose entire purpose was to name those three.
+
+⭐ **THE MITIGATION IS THE FLAG, NOT THE CHARACTER.** "Remember not to use backticks in `-m`" is
+a rule that depends on spotting one character in a long string, and it is the kind you lose at
+3am. "Never use `-m` for a message with identifiers in it" is checkable **before you type it**.
+
+⛔ **AND THE TELL IS AS WEAK AS A TELL GETS:** `bash: probe: command not found` on **stderr**, at
+commit time, in a stream nobody reads when the commit succeeds. The commit **exits 0**. `git log`
+then renders the holes as ordinary prose, because **a sentence with a missing word still reads
+like a sentence**. ⚠️ **A commit message is the one artifact with no reader between writing and
+permanence** — no review, no test, no gate. Nothing downstream will ever tell you it is wrong.
+
 ### ⛔ A DEFAULT ARGUMENT IS BOUND AT IMPORT — late-bind every injectable seam
 
 > **`def f(..., thing_fn=None)` and resolve it in the body. NEVER `thing_fn=real_function`.**
