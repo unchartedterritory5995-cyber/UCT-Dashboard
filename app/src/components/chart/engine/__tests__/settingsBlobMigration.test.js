@@ -200,7 +200,10 @@ describe('a blob written before the engine existed', () => {
     // exist. It is registry-native — there is no hardcoded block, no legacy
     // toggle and no stored blob that ever named it — so it can have no place in a
     // stack order that already shipped.
-    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
+    // ⭐ `dollarVolume` JOINS IT (2026-09-16): a pane definition that never shipped
+    // a legacy pane because it was never a pane — the value was printed into the
+    // volume pane's LABEL. No block, no toggle, no stored blob that named it.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume']
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
       expect(paneIds, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`)
@@ -227,7 +230,10 @@ describe('a blob written before the engine existed', () => {
     // the record of.
     expect(SHIPPED_STACK_ORDER.slice(9))
       .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
-        'movingAverage', 'dataSeries', 'rsLine'])
+        // ⭐ `dollarVolume` LANDS AFTER `dataSeries` AND BEFORE `rsLine` — registry
+        // order again, and the evidence for it: it is a NATIVE registered last, so
+        // it is appended after the natives and still precedes the server lane.
+        'movingAverage', 'dataSeries', 'dollarVolume', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -445,7 +451,11 @@ describe('a blob written before the engine existed', () => {
     // ⭐ `dataSeries` IS APPENDED LIKE THE THREE BEFORE IT — authored after the
     // stack order shipped, so `computeShippedStackOrder` puts it at the end by
     // design rather than inserting it into an order members already have.
-    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'rsLine'])
+    expect(SHIPPED_STACK_ORDER.slice(14))
+      // ⭐ `dollarVolume` IS APPENDED HERE TOO, for the same reason as the four
+      // before it: it postdates the shipped stack order, so it goes on the END
+      // rather than into a z-order members already have on screen.
+      .toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'dollarVolume', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

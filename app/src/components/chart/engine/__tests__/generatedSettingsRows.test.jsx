@@ -432,7 +432,7 @@ describe('⭐ TASK 6 — one row per LIVE INSTANCE, and each row edits its own',
 })
 
 describe('…and it reaches the real dialog, not just the row builder', () => {
-  const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+  const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
   /** A blob with EVERY shipped definition, and the carved-out section, switched
    *  on — the widest active list the product can produce. */

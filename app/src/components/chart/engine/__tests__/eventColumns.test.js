@@ -209,6 +209,8 @@ const SHIPPED_COLUMNS = Object.freeze({
   dataSeries: ['value'],
   // ⭐ ONE COLUMN. An average of any series is still one number per bar.
   movingAverage: ['ma'],
+  // ⭐ ONE COLUMN. `volume × close` is one number per bar and declares no events.
+  dollarVolume: ['dv'],
 })
 
 describe('columnKeys — plots ∪ events', () => {

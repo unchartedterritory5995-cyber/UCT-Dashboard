@@ -461,7 +461,45 @@ const meanOfLastVolumes = (n) => {
 }
 const fmtVolume = (v) => (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'K' : String(v))
 
-describe("MOB-06′ #2 — dollar volume and average volume reach the phone", () => {
+describe("MOB-06′ #2 — the volume moving average reaches the phone", () => {
+  // ⚰️⚰️ THIS SUITE WAS "dollar volume AND average volume", AND HALF OF IT IS GONE
+  // ON PURPOSE (owner §16, 2026-09-16).
+  //
+  // `$ Vol` was `volume × close` computed inline on every crosshair frame and
+  // printed on EVERY chart, with no control anywhere in the product to turn it
+  // off, move it, recolour it or plot it. Dollar volume is a DEFINITION now
+  // (`nativeRegistry.dollarVolume`), so a member adds it and gets an ordinary
+  // series with a pane, a colour, a legend row and a ✕. There is nothing left for
+  // a phone MIRROR of an automatic reading to mirror — the cases that asserted it
+  // are deleted rather than rewritten, because the thing they measured no longer
+  // exists on any device.
+  //
+  // ⭐ THE VOLUME MA SURVIVES INTACT, and that is the §51 half of the same rule:
+  // `cs.volume.maPeriod` is a real setting that draws a real line, so it is the
+  // DEFAULT that moved to 0, never a member's configuration. Every case below now
+  // states the period it is testing, which is what a chart with one looks like.
+  //
+  // ⚠️ AND THE LABEL READS `SMA 50`, NOT `Avg 50D`. A member who adds
+  // `Moving Average · SMA · 50 · Source: Volume` gets a row reading `SMA 50`; the
+  // legacy volume MA printing a different phrase for the same line is exactly how
+  // one feature comes to read as two (owner §17).
+  const WITH_MA = { settings: { volume: { maPeriod: 50 } } }
+
+  /** The VOLUME MA's own row text.
+   *
+   *  ⛔ SCOPED, BECAUSE THE WHOLE-LEGEND TEXT CANNOT ANSWER THIS ANY MORE. The
+   *  default chart ships `EMA 9 / EMA 20 / SMA 50 / SMA 200` on PRICE, so once the
+   *  volume average stopped reading `Avg 50D` and started reading `SMA 50` — which
+   *  is the point of the change (§17: one Moving Average, one grammar) — a
+   *  substring test over the legend matched a price overlay. `.volXtra` is the
+   *  phone-only marker this row and only this row carries.
+   */
+  const volMaRowText = (view) => {
+    const leg = legendEl(view)
+    const el = leg && [...leg.children].find((c) => /volXtra/.test(c.className || ''))
+    return el ? (el.textContent || '').trim() : ''
+  }
+
   it('CONTROL · hovering draws the legend, and Vol is in it', async () => {
     const view = draw()
     await hover(view)
@@ -470,37 +508,31 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     expect(legendTextOf(view)).toMatch(/V\s*2\.0M/)
   })
 
-  it('$ Vol is in the legend, and it is volume × close', async () => {
-    const view = draw()
-    await hover(view, { close: 1.5, volume: 2_000_000 })
-    // 2,000,000 × 1.5 = $3.0M, through the shipped formatter.
-    expect(legendTextOf(view)).toContain('$ Vol')
-    expect(legendTextOf(view)).toContain('$3.0M')
-  })
-
-  it('$ Vol tracks the bar — a different bar gives a different number', async () => {
-    // Guards the "renders a constant" failure an equality check alone cannot see.
-    const view = draw()
-    await hover(view, { close: 10, volume: 4_000_000 })
-    expect(legendTextOf(view)).toContain('$40.0M')
-  })
-
-  it('Avg 50D is in the legend, and it is the real moving average', async () => {
+  it('⛔ NO VOLUME MA BY DEFAULT — the automatic reading is gone', async () => {
+    // The default is 0, so a chart nobody has configured prints no average and
+    // draws no line. This is the case that would have caught the old behaviour.
     const view = draw()
     await hover(view)
-    const text = legendTextOf(view)
-    expect(text).toContain('Avg 50D')
-    expect(text, 'the Avg row is not the volume MA the chart draws')
+    expect(volMaRowText(view), 'a volume moving average is back by default').toBe('')
+    expect(legendTextOf(view), 'the retired automatic dollar volume is back').not.toContain('$ Vol')
+  })
+
+  it('SMA 50 is in the legend, and it is the real moving average', async () => {
+    const view = draw(WITH_MA)
+    await hover(view)
+    const row = volMaRowText(view)
+    expect(row).toContain('SMA 50')
+    expect(row, 'the SMA row is not the volume MA the chart draws')
       .toContain(fmtVolume(meanOfLastVolumes(50)))
   })
 
-  it('the Avg row names the CONFIGURED period, not a hard-coded 50', async () => {
+  it('the SMA row names the CONFIGURED period, not a hard-coded 50', async () => {
     const view = draw({ settings: { volume: { maPeriod: 20 } } })
     await hover(view)
-    const text = legendTextOf(view)
-    expect(text).toContain('Avg 20D')
-    expect(text).toContain(fmtVolume(meanOfLastVolumes(20)))
-    expect(text).not.toContain('Avg 50D')
+    const row = volMaRowText(view)
+    expect(row).toContain('SMA 20')
+    expect(row).toContain(fmtVolume(meanOfLastVolumes(20)))
+    expect(row).not.toContain('SMA 50')
   })
 
   it('an UNAVAILABLE average renders NOTHING — never a misleading zero', async () => {
@@ -508,53 +540,40 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     // is genuinely absent. The row must vanish while its neighbours stay.
     const view = draw({ settings: { volume: { maPeriod: 1 } } })
     await hover(view)
+    expect(volMaRowText(view), 'an absent average was rendered as a number').toBe('')
     const text = legendTextOf(view)
-    expect(text, 'an absent average was rendered as a number').not.toMatch(/Avg\s*\d/)
-    expect(text, 'a metric that IS available was dropped with the one that is not').toContain('$ Vol')
+    expect(text, 'the OHLC half of the legend went down with the volume half').toMatch(/O\s*1/)
     expect(text).toMatch(/V\s*2\.0M/)
   })
 
-  it('an UNAVAILABLE volume takes $ Vol with it, and only it', async () => {
-    // The guards are independent per metric, so absence propagates exactly as far
-    // as the missing datum and no further.
-    const view = draw()
-    await hover(view, { close: 1.5, volume: null })
-    const text = legendTextOf(view)
-    expect(text, 'dollar volume was computed from a volume that does not exist').not.toContain('$ Vol')
-    expect(text, 'the OHLC half of the legend went down with the volume half').toMatch(/O\s*1/)
-  })
-
-  it('the two rows JOIN the existing legend row rather than adding a second one', async () => {
-    // ⭐ The structural half of "no 390px overflow": both spans are siblings of
-    // the V span inside the one legend element, so they wrap with it instead of
-    // forcing a new fixed-width surface. The PIXEL half cannot be measured in
-    // jsdom (no layout engine) and is on the device-validation list.
-    const view = draw()
+  it('the row JOINS the existing legend row rather than adding a second one', async () => {
+    // ⭐ The structural half of "no 390px overflow": the span is a sibling of the
+    // V span inside the one legend element, so it wraps with it instead of forcing
+    // a new fixed-width surface. The PIXEL half cannot be measured in jsdom (no
+    // layout engine) and is on the device-validation list.
+    const view = draw(WITH_MA)
     await hover(view)
     const leg = legendEl(view)
     expect(leg, 'no legend element').toBeTruthy()
     const labels = [...leg.children].map(el => (el.textContent || '').trim())
-    expect(labels.some(t => t.startsWith('$ Vol'))).toBe(true)
-    expect(labels.some(t => /^Avg 50D/.test(t))).toBe(true)
+    expect(labels.some(t => /^SMA 50/.test(t))).toBe(true)
   })
 
-  it('only the NEW rows are phone-gated — V is not', async () => {
+  it('only the NEW row is phone-gated — V is not', async () => {
     // ⛔ VISIBILITY IS CSS'S JOB. `.volXtra` is the marker the stylesheet keys on;
     // the V row must NOT carry it, or the metric that already worked everywhere
     // would become phone-only too.
-    const view = draw()
+    const view = draw(WITH_MA)
     await hover(view)
     const leg = legendEl(view)
     const byText = (re) => [...leg.children].find(el => re.test((el.textContent || '').trim()))
-    expect(byText(/^\$ Vol/).className, '$ Vol is not marked for the phone-only rule').toMatch(/volXtra/)
-    expect(byText(/^Avg 50D/).className, 'Avg ND is not marked for the phone-only rule').toMatch(/volXtra/)
+    expect(byText(/^SMA 50/).className, 'the SMA row is not marked for the phone-only rule')
+      .toMatch(/volXtra/)
     // ⚰️ THIS READ `byText(/^V\s/)` — the V row used to be ONE span, `V 56.0M`.
-    // It is a `LegendRow` now (it grew the eye / gear / ✕ every other indicator
-    // has), so the label and the value are separate cells and no single child's
-    // text starts with "V ". The CLAIM is unchanged and is what is asserted: the
-    // volume row must not carry `.volXtra`, or a metric that works everywhere
-    // would become phone-only. Addressed by the id the row publishes rather than
-    // by its text, which is what made the probe brittle in the first place.
+    // It is a `LegendRow` now, so the label and the value are separate cells and no
+    // single child's text starts with "V ". The CLAIM is unchanged: the volume row
+    // must not carry `.volXtra`, or a metric that works everywhere would become
+    // phone-only. Addressed by the id the row publishes rather than by its text.
     const volRow = leg.querySelector('[data-legend-row="volume"]')
       || byText(/^V\s/)
     expect(volRow, 'the volume row is gone from the legend entirely').toBeTruthy()
@@ -567,12 +586,14 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     expect(await hoverExpectingNoLegend(view)).toBe('')
   })
 
-  it('DESKTOP UNCHANGED · the volume-pane strip still carries both numbers', async () => {
-    const view = draw({ volumeSeparatePane: true })
+  it('DESKTOP · the volume-pane strip carries the member’s average, and only that', async () => {
+    const view = draw({ volumeSeparatePane: true, settings: { volume: { maPeriod: 50 } } })
     await hover(view)
     const strip = volStripText(view)
-    expect(strip, 'the desktop strip stopped rendering — this repair was additive').toContain('$ Vol')
-    expect(strip).toContain('Avg 50D')
+    expect(strip, 'the desktop strip stopped rendering — this change was not additive there')
+      .toContain('SMA 50')
+    expect(strip, 'the retired automatic dollar volume is back on the desktop strip')
+      .not.toContain('$ Vol')
   })
 })
 

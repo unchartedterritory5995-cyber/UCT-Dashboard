@@ -86,7 +86,7 @@ function Host({ initial, seen }) {
   )
 }
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
-const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Chart Data/i }))
+const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
 
 /** The row block whose expander NAME is exactly this.
  *  ⛔ Anchored on purpose: that is the guarantee the summary must not break. */
@@ -121,13 +121,27 @@ beforeEach(() => { clearSecondaryBars() })
 afterEach(() => { cleanup(); clearSecondaryBars() })
 
 describe('what the collapsed row says', () => {
-  it('⭐⭐ a direct symbol series says its PRESENTATION and its PANE', () => {
+  // ⚰️⚰️ THIS SUITE USED TO ASSERT `Line · Own pane`, AND BOTH HALVES ARE RETIRED
+  // (owner §30, 2026-09-16): *"Do not overstuff rows with implementation metadata
+  // such as: MA / Line · Price."*
+  //
+  // `Line` is the same word on nearly every row and is the control the editor
+  // directly beneath already offers. `Own pane` is a SECOND statement of what the
+  // group heading this row is filed under already says — the rows are grouped by
+  // the pane they draw in (`chartDataMap`), so the destination was printed twice.
+  //
+  // ⭐ WHAT THE ROW STILL ANSWERS is *what does this read* (`Source: QQQ`) and,
+  // when there is no pane to file it under at all, *what happened to it*
+  // (`Pane unavailable`). Both are things the heading cannot say.
+  it('⭐⭐ a direct symbol series is QUIET — its name and its pane say everything', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    expect(summaryOf(/^QQQ$/)).toBe('Line · Own pane')
+    expect(summaryOf(/^QQQ$/), 'the row grew furniture back').toBe('')
   })
 
-  it('⭐⭐ CANDLES — the summary names the style the control resolved', () => {
+  it('⛔ …AND A STYLE IS STILL NOT A ROW FACT, whatever it is set to', () => {
+    // The control case for the one above: a NON-default presentation must not
+    // bring the metadata line back either.
     const { cs, id } = withSeries(mergeChartSettings({}), 'QQQ')
     const styled = {
       ...cs,
@@ -135,7 +149,20 @@ describe('what the collapsed row says', () => {
         i.instanceId === id ? { ...i, presentation: { plotStyle: 'candles' } } : i)),
     }
     show(styled); openIndicators()
-    expect(summaryOf(/^QQQ$/)).toBe('Candles · Own pane')
+    expect(summaryOf(/^QQQ$/)).toBe('')
+  })
+
+  it('⭐⭐ AND THE PANE IS STILL ANSWERED — by the GROUP the row is filed under', () => {
+    // ⛔ THE FACT DID NOT GO AWAY, THE DUPLICATE DID. `chartDataMap` groups the
+    // rows by the pane each one draws in and the heading names it, which is where
+    // a member reads "where is this" — so removing it from the row is removing a
+    // repeat, not an answer.
+    const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
+    show(cs); openIndicators()
+    const group = rowFor(/^QQQ$/).closest('[data-pane-group]')
+    expect(group, 'the QQQ row is not filed under any pane').toBeTruthy()
+    expect((group.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
+      .toBe('QQQ')
   })
 
   it('⭐⭐ A GUEST NAMES ITS HOST — a human label, never an instance id', () => {
@@ -143,24 +170,30 @@ describe('what the collapsed row says', () => {
     const b = withSeries(a.cs, 'SPY')
     const moved = setInstanceDisplayTarget(b.cs, b.id, `@${a.id}`, registry)
     show(moved); openIndicators()
-    expect(summaryOf(/^SPY$/)).toBe('Line · QQQ')
+    // ⭐ THE HOST IS NAMED BY THE GROUP THE GUEST IS FILED UNDER, which is where
+    // the answer moved (§30) and is the one place it is not a repeat.
+    const group = rowFor(/^SPY$/).closest('[data-pane-group]')
+    expect((group.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
+      .toBe('QQQ')
     // ⛔ AND THE ADDRESS NEVER LEAKS. `@inst:dataSeries:1` is the engine talking
     // to itself; a member reads the pane by the name of what is in it.
+    expect(group.textContent).not.toMatch(/@inst:|inst:dataSeries/)
     expect(summaryOf(/^SPY$/)).not.toMatch(/@|inst:/)
   })
 
   it('⭐⭐ A DERIVED SERIES NAMES WHAT IT READS', () => {
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const s = summaryOf(/Moving Average/)
-    expect(s).toMatch(/Source: QQQ/)
-    expect(s).toMatch(/^Line · /)
+    // ⚠️ `SMA 5`, NOT `Moving Average` — the engine MA names itself from the
+    // member's own `maType` and `period` since 2026-09-16 (`engine/semanticName`).
+    const s = summaryOf(/^SMA 5$/)
+    expect(s).toBe('Source: QQQ')
   })
 
   it('⛔ …and the SOURCE IS THE SYMBOL ALONE — not the field, not the type', () => {
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const s = summaryOf(/Moving Average/)
+    const s = summaryOf(/^SMA 5$/)
     expect(s).not.toMatch(/close|numeric|sym:/)
   })
 
@@ -205,23 +238,35 @@ describe('what the collapsed row says', () => {
     let cs = addInstance(mergeChartSettings({}), 'bb', registry)
     cs = withSeries(cs, 'QQQ').cs      // …and a summarised row beside it, so the
     show(cs); openIndicators()         //    absence is a CHOICE, not an empty tab
-    expect(summaryOf(/^QQQ$/), 'the control case lost its summary').toBe('Line · Own pane')
+    // ⚠️ THE CONTROL IS NOW THE **SOURCE** LINE, not the placement one. `Line ·
+    // Own pane` is retired (§30), so the thing that proves this tab still prints a
+    // summary at all has to be a row whose summary survives: an MA over a symbol
+    // says what it reads.
+    const { cs: withMa } = withMA(cs, 'QQQ')
+    cleanup(); show(withMa); openIndicators()
+    expect(summaryOf(/^SMA 5$/), 'the control case lost its summary').toBe('Source: QQQ')
     expect(summaryOf(/Bollinger|^BB/), 'a plain price overlay grew furniture').toBe('')
   })
 })
 
 describe('it follows the real controls, live', () => {
-  it('⭐⭐ STYLE — change it through the select and the collapsed row agrees', () => {
+  it('⭐⭐ STYLE — the control still writes, and the row still says nothing about it', () => {
+    // ⚰️ IT ASSERTED `Line · Own pane` → `Candles · Own pane`. The style left the
+    // ROW (§30) and stayed exactly where it was already editable: the control
+    // directly beneath it. The claim that survives is the one that mattered — the
+    // write lands — and it is read off the CONTROL rather than off a summary that
+    // no longer restates it.
+    const seen = { cs: null }
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
-    show(cs); openIndicators()
-    expect(summaryOf(/^QQQ$/)).toBe('Line · Own pane')
+    show(cs, seen); openIndicators()
+    expect(summaryOf(/^QQQ$/)).toBe('')
     openRow(/^QQQ$/)
     const sel = selectIn(/^QQQ$/, /plot style/i)
     expect([...sel.options].some((o) => o.value === 'candles'),
       'Candles was not offered — this case would pass for the wrong reason').toBe(true)
     fireEvent.change(sel, { target: { value: 'candles' } })
-    // ⛔ NO REOPEN. The summary is derived from current state, never cached text.
-    expect(summaryOf(/^QQQ$/)).toBe('Candles · Own pane')
+    expect(selectIn(/^QQQ$/, /plot style/i).value, 'the style write did not land').toBe('candles')
+    expect(summaryOf(/^QQQ$/), 'the style came back onto the row').toBe('')
   })
 
   it('⭐⭐ SOURCE — re-point the instrument and the summary follows', async () => {
@@ -236,14 +281,14 @@ describe('it follows the real controls, live', () => {
       ok: true, json: () => Promise.resolve({ results: [{ ticker: 'SPY', name: 'SPDR', type: 'etf' }] }),
     })))
     show(cs); openIndicators()
-    expect(summaryOf(/Moving Average/)).toMatch(/Source: QQQ/)
-    openRow(/Moving Average/)
-    fireEvent.change(selectIn(/Moving Average/, /source/i), { target: { value: '__search__' } })
+    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: QQQ/)
+    openRow(/^SMA 5$/)
+    fireEvent.change(selectIn(/^SMA 5$/, /source/i), { target: { value: '__search__' } })
     fireEvent.change(screen.getByLabelText('Search symbol'), { target: { value: 'SPY' } })
     fireEvent.click(await screen.findByRole('button', { name: /SPY/ }))
     // ⛔ NO REOPEN, NO CACHED TEXT. The summary is derived from current state.
-    expect(summaryOf(/Moving Average/)).toMatch(/Source: SPY/)
-    expect(summaryOf(/Moving Average/)).not.toMatch(/QQQ/)
+    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: SPY/)
+    expect(summaryOf(/^SMA 5$/)).not.toMatch(/QQQ/)
     vi.unstubAllGlobals()
   })
 
@@ -253,7 +298,7 @@ describe('it follows the real controls, live', () => {
     const moved = setInstanceDisplayTarget(b.cs, b.id, `@${a.id}`, registry)
     const seen = { cs: null }
     show(moved, seen); openIndicators()
-    expect(summaryOf(/^SPY$/)).toBe('Line · QQQ')
+    expect(summaryOf(/^SPY$/), 'a guest in a live pane says nothing — the heading does').toBe('')
 
     // Remove the host through the row's own ✕, which is the member's door.
     const hostRow = rowFor(/^QQQ$/)
@@ -321,13 +366,16 @@ describe('accessibility and CSS scope — the two ways this feature broke before
     // space, so their trailing controls would pack left. Scoped by explicit class
     // ownership instead: a row with no summary must not carry the modifier, which
     // is precisely the shape those two components render.
-    const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
+    // ⚠️ THE SUMMARISED SUBJECT MOVED. `QQQ` used to carry `Line · Own pane` and
+    // now carries nothing at all (§30); a row that still HAS a summary is one that
+    // says what it READS, so the MA over a symbol is the honest subject here.
+    const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
 
     const headOf = (re) => rowFor(re).querySelector('[class*="actHead"]')
     const hasModifier = (re) => /actHeadMeta/.test(headOf(re).className)
 
-    expect(hasModifier(/^QQQ$/), 'a summarised row is missing the modifier').toBe(true)
+    expect(hasModifier(/^SMA 5$/), 'a summarised row is missing the modifier').toBe(true)
     for (const fixture of [/^EMA 9$/, /^Volume$/, /^SMA 50$/]) {
       expect(hasModifier(fixture), `${fixture} carries the modifier with no summary`).toBe(false)
     }

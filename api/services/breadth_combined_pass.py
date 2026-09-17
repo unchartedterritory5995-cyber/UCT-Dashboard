@@ -29,6 +29,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 import time
 from typing import Optional
 
@@ -332,3 +333,39 @@ def _checkpoint(c, D, status, detail=None):
               "ON CONFLICT(date) DO UPDATE SET status=excluded.status,"
               "detail=excluded.detail", (D, status, detail))
     c.commit()
+
+
+def main(argv=None) -> int:
+    """CLI entrypoint so the pass can run as its OWN PROCESS.
+
+    ⚰️ WHY A PROCESS AND NOT A THREAD, MEASURED. The first resilient version ran the
+    pass in a daemon thread inside `api.worker_main`. It survived redeploys — and went
+    from **13.7 s/session standalone to 180 s/session in-thread**, a 13x collapse that
+    turns a ~35-hour job into 224 hours. The worker is busy (host load average 26) and
+    the minute-file parse is pure Python, so it holds the GIL against everything else
+    that pod is doing.
+
+    ⭐ A subprocess keeps both properties: its own interpreter and its own GIL for full
+    speed, spawned from the boot hook so a redeploy still resumes it.
+    """
+    import argparse
+    ap = argparse.ArgumentParser(prog="breadth_combined_pass")
+    ap.add_argument("--artifact", required=True)      # ⛔ required, never defaulted
+    ap.add_argument("--to", default="2026-09-11")
+    args = ap.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
+                        format="%(asctime)s %(message)s")
+    legs = [(("uct", "us"), "2008-01-02", "2010-12-31"),
+            (ALL_UNIVERSES, "2011-01-03", args.to)]
+    t0 = time.time()
+    for unis, frm, to in legs:
+        print(f"LEG {frm}..{to} {unis}", flush=True)
+        res = run(args.artifact, frm, to, universes=unis, progress_every=25)
+        print(f"LEG DONE {frm}..{to}: {res}", flush=True)
+    print("PASS COMPLETE in %.1f h" % ((time.time() - t0) / 3600), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    import sys as _s
+    _s.exit(main())

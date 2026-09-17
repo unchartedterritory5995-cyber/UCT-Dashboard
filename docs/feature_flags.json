@@ -238,6 +238,13 @@
       ],
       "note": ""
     },
+    "BREADTH_COMBINED_PASS_ENABLED": {
+      "status": "armed",
+      "where": [
+        "worker"
+      ],
+      "note": "ARMED on the worker while the Breadth Data Correctness re-grind runs. Resumes the combined historical pass (RTH-only, 1-minute, composites-before-OHLC) on every worker boot, because the first launch was killed by an unrelated redeploy 43 minutes in and nothing noticed for eleven hours - a ~40-hour job on a pod other people deploy to cannot live in a detached process. Safe to run on every boot: completed sessions are skipped via pass_checkpoint and a committed session re-runs idempotently, so a restart costs at most the session in flight. It writes ONLY to BREADTH_COMBINED_PASS_ARTIFACT, and open_artifact refuses both an absent path and the production breadth store, so arming this cannot touch live breadth even if the path is wrong. UNSET IT once the artifact is validated and promoted. Record: docs/breadth-library/DECISIONS.md BL-036 and docs/breadth-library/PASS-HANDOFF.md."
+    },
     "BREADTH_HISTORY_BACKFILL_ENABLED": {
       "status": "armed",
       "where": [

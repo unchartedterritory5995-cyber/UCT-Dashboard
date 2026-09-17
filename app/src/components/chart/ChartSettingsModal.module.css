@@ -889,12 +889,26 @@
    so they stay at `--menu-text-faint` until the row is hovered; a panel that
    shows six live controls per heading reads as a toolbar, not a map. */
 .cdGroupHead[draggable='true'] { cursor: grab; }
+/* ⚰️⚰️ THESE WERE `opacity: 0` UNTIL HOVER, AND THAT MADE PANE REORDERING A
+   SECRET. Owner, 2026-09-16: *"The current pane up/down controls are only
+   discoverable if the pointer happens to hover exactly where the invisible
+   buttons are."* Moving a pane is a PRIMARY chart-management action — it is half
+   of what this panel is for — and an affordance a member has to find by accident
+   is an affordance most of them never find at all.
+
+   ⭐ SO THEY REST VISIBLE AND BRIGHTEN ON HOVER. Quiet enough that a six-pane map
+   does not read as twelve buttons (the owner's *"Do not make them loud"*), loud
+   enough that the first glance says panes move. Same rule for the grip: a drag
+   handle nobody can see is a drag nobody attempts.
+
+   ⛔ AND `:focus-within` STILL GOES TO FULL, so a keyboard member tabbing into the
+   pair gets the same emphasis a pointer does. */
 .cdGrip {
   flex: none;
   font-size: 11px;
   line-height: 1;
   color: var(--menu-text-faint, #6b6b6b);
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 90ms ease;
 }
 .cdGroupHead:hover .cdGrip { opacity: 1; }
@@ -903,7 +917,7 @@
   margin-left: auto;
   display: flex;
   gap: 2px;
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 90ms ease;
 }
 .cdGroupHead:hover .cdMove,

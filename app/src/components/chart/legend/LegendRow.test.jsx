@@ -139,7 +139,15 @@ describe('LegendRow — the three verbs', () => {
     expect(screen.getByText('1').style.color,
       'the value is inheriting the series colour again — it must stay bright neutral')
       .toBe('')
-    expect(row.querySelector('i'), 'a colour rail is back in the row').toBeNull()
+    // ⚰️⚰️ THIS ASSERTED `toBeNull()` — "no colour rail" — and the owner reversed it.
+    // Track B's rail REPLACED the coloured label, so nine rows read as nine little
+    // coloured tabs with neutral text beside them; the retirement was of THAT, not
+    // of colour-at-the-head-of-a-row. The micro-rail ACCOMPANIES the coloured label
+    // in the same hue, so it reads as the start of the label rather than a mark of
+    // its own. It is pinned by `legendV2.test.jsx`, which owns its dimensions.
+    expect(row.querySelector('i'), 'the micro-rail left the row').toBeTruthy()
+    expect(row.querySelector('i').style.background,
+      'the rail stopped taking the row\'s own series colour').toBe('rgb(192, 123, 224)')
     const src = read('./LegendRow.jsx')
     expect(src, 'a hover handler is back in the component').not.toMatch(/onMouseEnter|onMouseLeave/)
   })
@@ -170,17 +178,30 @@ describe('LegendRow — the three verbs', () => {
     expect(hover[1]).toBe('background:rgba(255,255,255,0.055);')
   })
 
-  it('🔴 the vertical variant is ONE row box holding THREE subgrid cells', () => {
-    // 🔴 BOTH HALVES OF THIS ARE BUG FIXES THE OWNER REPORTED.
-    // ONE BOX: three loose sibling cells left the column GAPS un-hittable
-    // (`.legend` is `pointer-events: none`), so the controls vanished mid-approach
-    // and flickered between a label and its own value.
-    // THREE CELLS: the row borrows the legend's tracks through `subgrid`, and a
-    // row that emitted two would leave the control column unclaimed on that line.
+  it('🔴 the vertical variant is ONE row box — rail, label, value', () => {
+    // 🔴 THE HALF THAT IS A BUG FIX AND STILL IS: ONE BOX. Three loose sibling
+    // cells left the column GAPS un-hittable (`.legend` is `pointer-events: none`),
+    // so the controls vanished mid-approach and flickered between a label and its
+    // own value. The row is still a single element for exactly that reason.
+    //
+    // ⚰️ THE OTHER HALF — "THREE SUBGRID CELLS" — IS GONE WITH THE SUBGRID. The row
+    // borrowed the legend's tracks so every value landed on one x; that alignment
+    // was the invisible table the floating pass removed, and the retired control
+    // gutter was the third track. The row now carries a micro-rail, a label and a
+    // value, and the count is asserted so a silently dropped cell still fails.
     const h = handlers()
     const { container } = render(<LegendRow rowId="ma:0" label="EMA 9" value="319.82" vertical {...h} />)
     expect(container.children, 'the row is not a single box').toHaveLength(1)
-    expect(container.firstChild.children, 'the row does not claim all three tracks').toHaveLength(3)
+    const cells = [...container.firstChild.children]
+    expect(cells.map((c) => c.tagName), 'a row cell went missing')
+      .toEqual(['I', 'SPAN', 'SPAN', 'SPAN'])
+    expect(cells[0].tagName, 'the micro-rail is not first').toBe('I')
+    // ⚰️ THE FOURTH IS VESTIGIAL: `.vCtl`, `display: none`. It existed so the old
+    // subgrid filled by ORDER — a two-cell row would have let the next row's label
+    // land in the control track. There is no grid and no track, so it holds nothing
+    // and costs nothing; it is asserted here only so its removal is a deliberate
+    // edit rather than a silent one.
+    expect(cells[3].className, 'the vestigial control cell changed identity').toMatch(/vCtl/)
   })
 })
 

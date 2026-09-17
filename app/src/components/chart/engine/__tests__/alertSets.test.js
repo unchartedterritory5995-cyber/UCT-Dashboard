@@ -308,8 +308,27 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   //
   // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
   // investigating is the one thing you may not do. The investigation is above.
+  // ⚰️ RE-PINNED 2026-09-16 — INVESTIGATED, and the diff is exactly one VALUE.
+  //
+  // `CHART_DEFAULTS.volume.maPeriod` went 50 → 0: the automatic 50-day volume
+  // moving average the owner's §16 removes (*"I do NOT want … Average 50-Day
+  // Volume automatically bundled into the Volume pane"*). Measured by enumerating
+  // both key sets rather than inferred from the digest moving — 42 merged keys
+  // before and after, 14 `volume` keys before and after, nothing added and nothing
+  // removed, and exactly one value different: `maPeriod 50 → 0`.
+  //
+  // ⛔ AND IT IS A PIXEL CHANGE, WHICH IS WHY THIS CASE SAYS SO IN THOSE WORDS. A
+  // chart whose stored blob never mentioned `maPeriod` loses a line it never asked
+  // for; a chart that carries the key — which is every chart ever saved through
+  // the settings modal, because `onChange` persists the whole merged object —
+  // keeps its own period and its own colour. That asymmetry is the §51 rule
+  // (remove the default, never the configuration) and it is the intended effect.
+  //
+  // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
+  // investigating is the one thing you may not do. The investigation is above.
+  // (Prior value: 65a5cb321ef40cb3021362d670dbbac195a7b255702460acd0099bcc66c08600)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '65a5cb321ef40cb3021362d670dbbac195a7b255702460acd0099bcc66c08600'
+    '7031577edd24fa97e31b76ad0db4a75dfd361f0d73739fa97df21d5b731ac8e4'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

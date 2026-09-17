@@ -194,6 +194,18 @@ export default function LegendRow({
         style={ink}
         {...trigger}
       >
+        {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
+            A rail means "this readout corresponds to a plotted series", and that
+            is a fact about the SERIES rather than about which layout names it —
+            so the volume pane's own strip reads `▏ Vol 9.1M  ▏ SMA 50 34.6M` with
+            the same rule the price stack uses.
+
+            ⛔ EMITTED ONLY WHEN THERE IS A COLOUR, which is the exact inverse of
+            the vertical variant's rule and is deliberate. Vertical is a grid and
+            reserves the width so every label starts at one x; horizontal has no
+            column to hold, so an unpainted rule would open a hole before every
+            `O`, `H`, `L` and `C` in the flat legend. See `.railFlat`. */}
+        {color ? <i className={styles.railFlat} style={{ background: color }} aria-hidden="true" /> : null}
         {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
       </span>
     )
@@ -212,6 +224,31 @@ export default function LegendRow({
           same reason: `.vLabel` declares its own colour, and a declaration on a
           CHILD beats a colour the parent only passes down. The horizontal variant
           needs nothing — its label is a bare text node, so it inherits. */}
+      {/* ⭐⭐ THE MICRO-RAIL — 2×10px of the series' own colour, before the label.
+       *
+       * ⚰⚰ TWO COLOURED MARKS WERE RETIRED BEFORE THIS ONE AND IT IS NEITHER.
+       * Track B's `.rail` (2×9px) REPLACED the coloured label, so nine rows read as
+       * nine little coloured tabs with neutral text beside them. The composition
+       * pass's 5×5 swatch was a SQUARE, which is DeepView's signature and read as a
+       * bullet. This is a hairline rule that ACCOMPANIES a coloured label: the rail
+       * and the label say the same thing in the same hue, so the rail reads as the
+       * start of the label rather than as a mark of its own.
+       *
+       * ⛔ IT IS ALWAYS EMITTED, AND ONLY PAINTED WHEN THERE IS A COLOUR. A row with
+       * no series colour of its own (`Vol`) keeps the indent so every label starts
+       * at one x — the owner's target prints `Vol` aligned under `EMA 9`, not
+       * hanging two pixels to its left. An unpainted rail is invisible and costs
+       * exactly the width it reserves.
+       *
+       * ⛔ NOT A CONTROL. `aria-hidden`, no handler, no hover state of its own: the
+       * ROW is the target and the rail is inside it, so pointing at the rail already
+       * hovers the row. A screen reader has the label; "blue bar" adds nothing.
+       *
+       * ⛔ AND THE COLOUR COMES FROM THE SAME PLACE THE LABEL'S DOES — the caller's
+       * already-resolved `opaqueColor(...)` / `chip.color`. No second colour source,
+       * so the rail cannot disagree with the line it names. A hidden row dims both
+       * together, because `.rowHidden` is on the ROW. */}
+      <i className={styles.rail} style={color ? { background: color } : undefined} aria-hidden="true" />
       <span className={styles.vLabel} style={valInk}>{label}</span>
       {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
           the whole colour system: COLOUR = which series, WHITE = the market value.

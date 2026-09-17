@@ -28,7 +28,7 @@ const paneToggle = () => screen.getByRole('switch', { name: 'Separate pane' })
  *  `aria-expanded` button is what a member does; a harness that rendered the
  *  fields some other way would pass over a tab whose only door was broken. */
 const openIndicators = () => {
-  fireEvent.click(screen.getByRole('tab', { name: 'Chart Data' }))
+  fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
   const volumeRow = document.body.querySelector('[data-row-id="volume"] [aria-expanded]')
   expect(volumeRow, 'the volume pane is not in the ACTIVE list — it is always drawn').toBeTruthy()
   fireEvent.click(volumeRow)

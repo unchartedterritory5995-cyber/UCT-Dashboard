@@ -951,7 +951,24 @@ const RAW_DEFS = [
       // the distinguishing word — there is nothing left to distinguish it from. A
       // member picks Moving Average and then picks what it averages, which is the
       // point of the feature.
+      //
+      // ⭐⭐ AND IT NAMES ITSELF `EMA 9`, NOT `MA (9)` (2026-09-16). A member does
+      // not have a "Moving Average" on their chart — they have a 9 EMA and a 50
+      // SMA, and every other surface already spells it that way: `cs.overlays`'
+      // own rows read `EMA 9` / `SMA 200` (`indicatorRegistry.listIndicators`),
+      // and so does the shipped legend. The engine MA reading `Moving Average` was
+      // the one place the two persistence mechanisms produced two different WORDS
+      // for one user-facing concept — and with two at default inputs it read
+      // `Moving Average #1` / `Moving Average #2`, because `disambiguateLabels`
+      // had nothing but an ordinal to tell identical names apart.
+      //
+      // ⛔ THE STEM IS THE MEMBER'S OWN CHOICE, READ BACK FROM THE CONTROL THEY
+      // MADE IT IN. `nameFrom.stem: 'maType'` resolves through the enum's OPTION
+      // LABEL, so the word in the name is the word in the dropdown; a third MA
+      // type added to `options` names itself with no edit here. `legendParams`
+      // stays as the `MA (9)` fallback for a blob whose `maType` is unreadable.
       { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+        nameFrom: { stem: 'maType', params: ['period'] },
         description: 'The average of any series — price, volume, or another indicator output.',
         tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
@@ -1077,6 +1094,48 @@ const RAW_DEFS = [
     // acquire the claim by being named like one.
     passthrough: true,
   }),
+
+  // ─── DOLLAR VOLUME — AN INDICATOR, NOT A FREEBIE ─────────────────────────
+  //
+  // ⚰️⚰️ IT USED TO BE A LINE IN THE VOLUME PANE'S LABEL THAT NOBODY ASKED FOR.
+  // `StockChart` computed `volume × close` on every crosshair frame and printed
+  // `$ Vol $6.48B` beside `Vol 9.1M`, on every chart, for everyone, with NO
+  // setting anywhere in the product to turn it off, move it, recolour it or plot
+  // it. Owner, 2026-09-16: *"I do NOT want Dollar Volume and Average 50-Day Volume
+  // automatically bundled into the Volume pane… If the member wants Dollar Volume,
+  // they add it."*
+  //
+  // ⭐⭐ SO IT BECOMES AN ORDINARY DEFINITION AND GAINS EVERYTHING ONE HAS — a
+  // catalogue row, a colour, a plot style, a display destination, a legend row
+  // with a micro-rail, a ✕, duplication, alerts. Nothing about it is special any
+  // more, which is the whole point of the change.
+  //
+  // ⛔⛔ AND IT DEFAULTS TO ITS OWN PANE, NOT TO VOLUME'S — which is arithmetic,
+  // not timidity. Dollar volume is price × shares: ~$6.5B against 9.1M shares, two
+  // orders of magnitude apart. Declared into the volume pane it would share
+  // volume's ladder and flatten the bars it sits over into a solid line at zero.
+  // A member who wants the two together moves it there through "Display in", and
+  // `placement.js` gives a PARKED guest its own axis for exactly this reason (see
+  // `displayTarget.derivedTargetOf` — units, not only position).
+  //
+  // ⚠️ NO `legendParams` AND NO INPUTS BUT COLOUR. It has no period, no source and
+  // no choice to make: it is one number per bar, defined by the bar. A definition
+  // with a parameter nobody can vary is a control that writes nowhere.
+  nativeDef('dollarVolume', 'dollarVolume',
+    { name: 'Dollar Volume', shortName: '$ Vol', category: 'Volume',
+      description: 'The cash traded in each bar — volume multiplied by the closing price.',
+      tags: ['dollar volume', 'turnover', 'notional', 'liquidity', 'volume', '$ vol'] },
+    autoPane(0.15),
+    [colorInput('color', 'Color', '#8fb7d9')],
+    [
+      // ⭐⭐ `compact: true` — AND IT IS THE REASON THAT FIELD EXISTS. Measured in
+      // the pane harness 2026-09-16: this printed `Dollar Volume 4609414802`, ten
+      // digits in a readout, over a chart whose own axis read `4.61B` two inches
+      // away. `decimals` cannot express "print this like a magnitude"; a
+      // definition declaring it can. See `readout.chipValueText`.
+      { key: 'dv', label: '$ Vol', style: 'histogram', color: '$color', width: 1,
+        role: 'primary', legend: { decimals: 0, compact: true } },
+    ]),
 
 ]
 
@@ -1245,6 +1304,22 @@ const NATIVE_COMPUTE = {
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
     return { ma: p.maType === 'ema' ? emaOfSeries(src, p.period, n) : smaOfSeries(src, p.period, n) }
+  },
+
+  // ⛔ THE BARS' OWN TWO FIELDS, MULTIPLIED — no window, no smoothing, no
+  // parameter. A bar with either field missing produces NO point rather than a
+  // zero: `toColumn` leaves it NaN, the binder draws no bar there, and a gap in
+  // the data reads as a gap instead of as a day nothing traded.
+  dollarVolume: (bars) => {
+    const n = Array.isArray(bars) ? bars.length : 0
+    const out = new Array(n)
+    for (let i = 0; i < n; i++) {
+      const b = bars[i]
+      const v = b ? Number(b.v) : NaN
+      const c = b ? Number(b.c) : NaN
+      if (Number.isFinite(v) && Number.isFinite(c)) out[i] = { value: v * c }
+    }
+    return { dv: out }
   },
 
   dataSeries: (bars, p, ctx) => {

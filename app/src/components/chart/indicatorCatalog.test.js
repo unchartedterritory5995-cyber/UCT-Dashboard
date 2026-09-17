@@ -247,7 +247,11 @@ describe('the catalog covers every settings section, and nothing else', () => {
     // z-order. Asserted in the equality rather than filtered out, for the reason
     // the note below gives: this catalog is what the Add-Indicator dialog reads,
     // and a definition missing from it is a definition nobody can reach.
-    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'rsLine'])
+    // ⭐ `dollarVolume` IS A PANE DEFINITION TOO (2026-09-16) and lands after
+    // `dataSeries`, in registration order. Its own pane is arithmetic, not taste:
+    // `volume × close` is two orders of magnitude above share volume, so sharing
+    // volume's ladder would flatten the bars it sits over. See its definition.
+    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'dollarVolume', 'rsLine'])
     expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
       // ⭐ `movingAverage` declares `onPrice` and lands last, in registration order.
       'atrBands', 'movingAverage'])
@@ -671,6 +675,12 @@ describe('the library needs a sentence per indicator, and the schema already all
       // verdict, because the thing that repaints is the input, and an average
       // cannot launder it.
       movingAverage: 'non-repainting',
+      // ⭐⭐ JUDGED, AND IT IS THE SIMPLEST ROW IN THE TABLE. `volume × close` on
+      // ONE bar: no window, no seed, no forward reference, and nothing about bar
+      // `i` that bar `i+1` can revise. The only value that moves is the CURRENT
+      // bar's, which is true of the candle it is computed from and is what "live"
+      // means rather than what "repainting" means.
+      dollarVolume: 'non-repainting',
       avwap: 'non-repainting',
       atrBands: 'non-repainting',
       rsLine: 'non-repainting',

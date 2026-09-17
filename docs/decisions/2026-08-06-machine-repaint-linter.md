@@ -111,13 +111,23 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 19
-plots 44
+definitions 20
+plots 45
 decided 1
-undecidable-hand-written 43
+undecidable-hand-written 44
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+⭐ **2026-09-16 — the counts moved by one definition and one plot, and the
+FINDING did not move at all.** `dollarVolume` was registered (the `$ Vol` reading
+the volume pane used to print unasked became an indicator a member adds). It is
+hand-written JS like every other native, so it lands in
+`undecidable-hand-written` and adds nothing the linter can decide: `decided`
+stays 1, the one verdict is the same verdict, and the one disagreement is the
+same disagreement. The counts are re-measured here rather than the badge being
+edited — editing `meta.repaint` to quiet a rail is the one response §2/§5.7
+forbids.
 
 **Read `decided 1` before reading anything else.** Every shipped definition today
 is hand-written JS or Python, and spec §11 explicitly forbids static analysis of

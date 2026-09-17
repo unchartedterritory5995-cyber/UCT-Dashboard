@@ -259,9 +259,14 @@ describe('Flip B — the set itself', () => {
       // were never a migrated BLOCK; this one was never a hardcoded anything — no
       // block, no `cs.indicators` section, no toggle. Registry-native, and the set
       // grew with no flip happening.
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
-        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar',
-        'stoch', 'vwap', 'williamsR'])
+      // ⭐ NINETEEN AT 2026-09-16: `dollarVolume`. Registry-native like
+      // `dataSeries`, but with an odder ancestry than any of them — the number
+      // was already on screen, computed inline by `StockChart` and printed into
+      // the volume pane's LABEL, with no definition, no section and no toggle.
+      // The set grew again with no flip and nothing to migrate.
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
+        'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
     // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
     // literals deleted the honest form is the one that can still FAIL: everything

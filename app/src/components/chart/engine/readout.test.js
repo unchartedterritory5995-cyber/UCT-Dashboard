@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { engineChips, chipsFrom, legendChips } from './readout'
+import { engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes, chipValueText } from './readout'
 import * as engineRegistry from './nativeRegistry'
 // ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
 // `__tests__/legendFromDefinitions.test.jsx`, which gates the same nine chips
@@ -310,6 +310,12 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     // moving averages live in `cs.overlays` and had no chip of their own; this is
     // an additive engine definition beside them, not a migration of them.
     'movingAverage::ma',
+    // ⭐ `dollarVolume` POSTDATES IT AS A CHIP, THOUGH NOT AS A NUMBER. The value
+    // was on screen before this — printed into the volume pane's LABEL by
+    // `StockChart`, hand-formatted, outside `legendChips` entirely — which is
+    // exactly why it is not in the shipped nine: there was no declared chip to
+    // drop. It has one now, which is what makes it an indicator like the others.
+    'dollarVolume::dv',
     // ── the ten Task 2 gave a chip to, in the order the registry declares them ──
     'bb::middle', 'vwap::vwap', 'mfi::mfi', 'cci::cci', 'williamsR::williams_r',
     'adx::adx', 'obv::obv', 'donchian::middle', 'avwap::avwap', 'atrBands::middle',
@@ -535,5 +541,128 @@ describe('legendChips — a chip for every LIVE instance, hidden ones included',
     expect(legendChips([], null, engineRegistry, [null, undefined, {}, { instanceId: 5 }])).toEqual([])
     expect(legendChips([], null, engineRegistry,
       [{ instanceId: 'x', defId: 'nope-not-a-definition', inputs: {} }])).toEqual([])
+  })
+})
+
+// ─── §4 · AN ENGINE ADDRESS NEVER REACHES A MEMBER ──────────────────────────
+//
+// ⭐⭐ THE OWNER'S §4, VERBATIM: *"Never expose `@inst:dataSeries:1::value` or
+// similar implementation strings to members."* The place that could was
+// `siblingSuffixes`: when two copies of one definition collide, it names the
+// inputs that DIFFER — and when the differing input is a SOURCE, the default
+// `key value` grammar printed the engine's own column address into a legend, a
+// settings row and a destination menu at once.
+//
+// ⚰️ WHAT IT READ: `EMA 20 (source @inst:dataSeries:1::value)`. Unreadable,
+// untypeable, and the exact shape §4 forbids.
+describe('⛔⛔ siblingSuffixes — a source is DESCRIBED, never spelled', () => {
+  const MA = engineRegistry.getDefinition('movingAverage')
+  const get = (id) => engineRegistry.getDefinition(id)
+  const rows = (a, b) => [
+    { defId: 'movingAverage', plotKey: 'ma', instanceId: 'inst:movingAverage:1', label: 'EMA 20', inputs: a },
+    { defId: 'movingAverage', plotKey: 'ma', instanceId: 'inst:movingAverage:2', label: 'EMA 20', inputs: b },
+  ]
+
+  it('⭐⭐ a SYMBOL source reads as its symbol — `EMA 20 · QQQ` (§31)', () => {
+    const out = disambiguateLabels(
+      rows({ maType: 'ema', period: 20, source: 'close' },
+        { maType: 'ema', period: 20, source: 'sym:QQQ:close' }), get)
+    expect(out).toEqual(['EMA 20 · Close', 'EMA 20 · QQQ'])
+    for (const label of out) expect(label).not.toMatch(/sym:|@|::/)
+  })
+
+  it('⭐⭐ an INSTANCE source reads as that instance — `EMA 20 · RSI(14)`', () => {
+    // ⭐ ONLY A CALLER HOLDING THE INSTANCE LIST CAN DO THIS, which is why the
+    // settings rows and the destination menu pass one and the crosshair chip pass
+    // does not. Both are correct; they differ in what they can honestly say.
+    const instances = [
+      { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } },
+      { instanceId: 'inst:rsi:2', defId: 'rsi', inputs: { period: 7 } },
+    ]
+    const out = disambiguateLabels(
+      rows({ maType: 'ema', period: 20, source: '@inst:rsi:1::rsi' },
+        { maType: 'ema', period: 20, source: '@inst:rsi:2::rsi' }),
+      get, { instances })
+    // ⚠️ `RSI(14)`, THE **CHIP'S** SPELLING, AND THAT IS THE RIGHT ONE HERE. This
+    // module is the pure formatting pipeline and names an instance through its own
+    // `chipLabel` — the string a member reads on the chart itself. `instanceLabel`
+    // writes `RSI (14)` with a space for the source PICKER; using it here would
+    // mean importing the source grammar into a module whose header refuses it, to
+    // gain a space. What matters for §4 is that neither is an address.
+    expect(out).toEqual(['EMA 20 · RSI(14)', 'EMA 20 · RSI(7)'])
+  })
+
+  it('⛔⛔ AND WITH NO INSTANCE LIST IT FALLS TO THE ORDINAL — never the address', () => {
+    // Thin, and true. The one thing it may never do is print the ref.
+    const out = disambiguateLabels(
+      rows({ maType: 'ema', period: 20, source: '@inst:rsi:1::rsi' },
+        { maType: 'ema', period: 20, source: '@inst:rsi:2::rsi' }), get)
+    expect(out).toEqual(['EMA 20 #1', 'EMA 20 #2'])
+    for (const label of out) expect(label).not.toMatch(/@|inst:|::/)
+  })
+
+  it('⛔ A POISONED KEY POISONS THE WHOLE GROUP, not one row', () => {
+    // A group where one sibling's source can be named and another's cannot would
+    // otherwise print the named half and silently omit the other — two rows
+    // reading `EMA 20 · QQQ` and `EMA 20`, the second claiming to be the
+    // plain-price average it is not.
+    const out = disambiguateLabels(
+      rows({ maType: 'ema', period: 20, source: 'sym:QQQ:close' },
+        { maType: 'ema', period: 20, source: '@inst:ghost:1::x' }), get)
+    expect(out).toEqual(['EMA 20 #1', 'EMA 20 #2'])
+  })
+
+  it('⛔ AN ORDINARY INPUT KEEPS THE `(key value)` GRAMMAR, untouched', () => {
+    // This adds a rule for SOURCE inputs and changes nothing else — the shape
+    // every existing caller and case was written against.
+    const out = disambiguateLabels([
+      { defId: 'macd', plotKey: 'macd', instanceId: 'a', label: 'MACD', inputs: { fastPeriod: 12 } },
+      { defId: 'macd', plotKey: 'macd', instanceId: 'b', label: 'MACD', inputs: { fastPeriod: 15 } },
+    ], get)
+    expect(out).toEqual(['MACD (fastPeriod 12)', 'MACD (fastPeriod 15)'])
+  })
+
+  it('⭐ and `siblingSuffixes` with no options is byte-for-byte what it always was', () => {
+    expect(siblingSuffixes([{ period: 14 }, { period: 7 }])).toEqual([' (period 14)', ' (period 7)'])
+    expect(siblingSuffixes([{ period: 14 }, { period: 14 }])).toEqual([' #1', ' #2'])
+    expect(MA, 'the definition this suite is about is gone').toBeTruthy()
+  })
+})
+
+
+describe('⛔⛔ `chipValueText` IS THE ONE ANSWER, INCLUDING WHEN A PANE ALREADY KNOWS IT', () => {
+  // ⚰️ MEASURED ON PRODUCTION, 2026-09-16: a Moving Average sourced from Volume
+  // read `17.2M` in its pane row and `17189110.14` in the header of the popover
+  // that row opens. The units rule — `derivedTargetOf` says this guest is
+  // averaging VOLUME, so it reads on volume's ladder — is knowledge the PANE has
+  // and this module does not. It was being applied where the row was built, and
+  // the menu re-derived a second answer from the same raw number.
+
+  it('⭐⭐ a resolved `valueText` wins, so two surfaces cannot print two numbers', () => {
+    expect(chipValueText({ value: 17189110.14, decimals: 2, valueText: '17.2M' })).toBe('17.2M')
+  })
+
+  it('⛔ AND IT WINS OVER `compact` TOO — a stated answer beats any derived one', () => {
+    // If `compact` outranked it, a definition that declares `compact` could never
+    // be read in a host pane's units, which is the whole case this exists for.
+    expect(chipValueText({ value: 4609414802, compact: true, valueText: '4,609,414,802' }))
+      .toBe('4,609,414,802')
+  })
+
+  it('⭐ an EMPTY string is an answer, not an absence', () => {
+    // `''` is falsy; a truthiness test here would silently fall through to the
+    // eight-digit number the caller was deliberately suppressing.
+    expect(chipValueText({ value: 5, decimals: 2, valueText: '' })).toBe('')
+  })
+
+  it('⛔ ABSENT MEANS ABSENT — every chip without one formats exactly as before', () => {
+    expect(chipValueText({ value: 12.345 })).toBe('12.35')
+    expect(chipValueText({ value: 12.345, decimals: 1 })).toBe('12.3')
+    expect(chipValueText({ value: 4609414802, compact: true })).toBe('4.61B')
+    expect(chipValueText({ value: null })).toBe('')
+    expect(chipValueText({ value: Number.NaN })).toBe('')
+    expect(chipValueText(null)).toBe('')
+    // ⚠️ a NON-string `valueText` is not an answer and must not be printed.
+    expect(chipValueText({ value: 12.345, valueText: 99 })).toBe('12.35')
   })
 })
