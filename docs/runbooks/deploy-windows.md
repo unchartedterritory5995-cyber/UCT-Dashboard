@@ -451,47 +451,60 @@ been `REMOVED` at 05:40:58Z.
 someone else's build — exactly what happened here), and a `SUCCESS` row does not by itself say
 which commits the build contained.
 
-### ✅ AND THE CLOCK IS MECHANICAL TOO, SINCE 2026-09-14
+### ⚰️ THE CLOCK IS GONE — REMOVED PERMANENTLY BY OWNER RULING, 2026-09-17
 
-`tools/pre_push_guard.py` now refuses a master push **between 09:25 and 16:05 ET on trading days**
-unless **every** changed path is Tier 1.
+> *"I am sick of the no push window during market hours. Remove that from whatever is
+> causing this every day. Remove that permanently."*
 
-⚰️ **Why it exists.** On 2026-09-14 a session reasoned that a merge should wait for the 16:00 close,
-wrote that decision down, set a timer to enforce it — and pushed at **15:49** anyway, on a mental
-estimate of elapsed time that had drifted about twenty-five minutes. `web` and `chart-renderer` both
-restarted inside the last minutes of the session. **The rule was known, agreed and written down, and
-the mechanism to enforce it had been built and then bypassed.** A clock-gate only works if the gate
-is what releases the action; an estimate that happens to agree with you is not a check.
+**There is no market-hours push window and there must not be one again.** A clock gate once
+refused a master push during the session unless every changed path was Tier 1. R18 retired
+the REFUSAL on 2026-09-15 but kept the constants, the override env var, the docstring and a
+log line printed on every push — all still naming the hours. **Presence was the problem, not
+the predicate:** every session that read the guard re-learned a rule that no longer existed,
+and every prompt that read their output re-inherited it.
 
-**What it does:**
+All of it is deleted. `tests/test_no_market_hours_window.py` fails the master gate if the
+mechanism returns, and asserts the guard is **time-of-day invariant** — identical output at
+10:00 and 22:00 ET on identical deploy state — so a clock cannot come back under a new name.
+
+⭐ **The incident that built the clock is kept, because the lesson outlived the rule.** On
+2026-09-14 a session reasoned a merge should wait for the close, wrote that down, set a timer
+— and pushed at 15:49 anyway on a mental estimate that had drifted ~25 minutes. The lesson is
+*an estimate that happens to agree with you is not a check*; the clock was the wrong
+mechanism for it, and the cadence clauses below are the right one.
+
+## What the guard refuses NOW — the two live clauses, and they are the whole of it
 
 | situation | verdict |
 |---|---|
-| RTH, diff entirely Tier 1 (docs/markdown, `tests/**`, `tools/**`, `scripts/**`, `app/**`) | **OK** |
-| RTH, one path outside Tier 1 | **REFUSE**, naming the path and the next allowed time |
-| RTH, diff came back EMPTY | **REFUSE** — an empty result is a failed invocation, not a clean one |
-| RTH, git did not answer | **REFUSE** — an unread diff is never exempt |
-| the market clock cannot be read | **REFUSE** — a guard that passes when it cannot tell the time reports "fine" exactly when it has stopped working |
-| outside 09:25–16:05, or a weekend/holiday | OK (the queue check still applies) |
+| newest `web` deploy is BUILDING/DEPLOYING | **REFUSE** — a swap is in flight |
+| newest `web` deploy is SUCCESS but < 600 s old | **REFUSE** — recency; it has not settled |
+| ≥ 3 distinct commits deployed to `web` in 60 min | **REFUSE** — burst |
+| the deploy history cannot be read | **REFUSE** — an unreadable queue is not a quiet queue |
+| anything else, at any hour of any day | **OK** |
+
+⛔ **THE TIER LIST BELOW DOES NOT EXEMPT ANYTHING FROM THOSE CLAUSES.** `CLEARED_PREFIXES`
+was the CLOCK's daytime-clearance list and the clock is gone; `decide_cadence` never
+consulted it and still does not. A docs-only push and an `api/**` push are paced
+identically. Measured 2026-09-17 from the guard source, because the opposite was assumed.
 
 ⛔ **The cleared list is DERIVED FROM TIER 1 ABOVE and re-read at test time**, so editing this
 document moves the guard. Do not maintain a second copy of it in the tool — that is the
 second-authority defect this runbook already carries three examples of.
 
-⛔ **The trading-day answer comes from the product's own `freshness` module**, asked exactly one
-question. The 09:25–16:05 window is deliberately WIDER than the session at both ends and is this
-guard's own policy; re-deriving `session_state` inside the tool would be the second copy.
+⚰️ **THE MARKET-HOURS WINDOW WAS REMOVED PERMANENTLY BY OWNER RULING, 2026-09-17, AND MUST
+NOT BE REINSTATED.** The ruling, verbatim: *"I am sick of the no push window during market
+hours. Remove that from whatever is causing this every day. Remove that permanently."*
 
-**Override**, and it is deliberately awkward:
+R18 had retired the refusal in 2026-09-15 while KEEPING the constants, the override env var,
+the docstring and a log line that all still named the hours — so every session that read the
+guard re-learned a rule that no longer existed. **Presence was the problem, not the
+predicate.** All of it is deleted, and `tests/test_no_market_hours_window.py` fails the gate
+if any of it returns.
 
-```sh
-UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART
-```
-
-An exact value, not `=1`. It is **separate from `UCT_SKIP_PREPUSH_GUARD`** — a test proves that
-skipping the one-merge-at-a-time queue check does **not** also buy an RTH restart — and every use is
-appended to `logs/pre-push-guard-bypass.log` as `CLOCK-WINDOW`. An override exists so that it is a
-deliberate act, not so that it is the way past a red.
+**There is no clock override, because there is no clock gate.** The one remaining bypass is
+`UCT_SKIP_PREPUSH_GUARD=1`, which overrides the DEPLOY QUEUE and is logged to
+`logs/pre-push-guard-bypass.log`.
 
 **Checking harm after a restart:** `tools/deploy_blip_check.py` reads a log pull and counts HTTP
 statuses **by structured field**. ⚰️ It replaces a check that grepped for `502` and matched the
