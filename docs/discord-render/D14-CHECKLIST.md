@@ -282,7 +282,7 @@ block D1-D3). No item may read "pending owner".
 | gate | earliest |
 |---|---|
 | D-13 start | Wed 16 Sep, >= 09:00 ET, weekday |
-| R17 + smoke rows 5/6/7 | first weekday 10:00 ET the session spans |
+| ~~R17 + smoke rows 5/6/7~~ ✅ **RUN 2026-09-17 14:00:07Z** | ~~first weekday 10:00 ET the session spans~~ — SPY failed in RTH too, on a 30 s timeout (`[flow] fetch failed SPY (30): timed out`), NOT the ETF partition. Row 7 settled NOT RUNNABLE on evidence; rows 5/6 unchanged. `evidence/r17-flow-rth/2026-09-17-spy-rth.md` |
 | OI-13 step 6 (R42) | Thu 17 Sep at the earliest — counter must span a 07:35 ET run + a market session |
 | S2 after an operator command (R33) | +15 min |
 | member flip (R40) | >= 30 min clear of 07:35 ET; outside 09:25-10:30 ET |

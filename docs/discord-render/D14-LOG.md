@@ -351,3 +351,62 @@ is unchanged (--run-mutations, or read each merge row), and it is still
 gate row quoting a hand-typed denominator drifts the moment the directory does;
 this one is now derived by listing `mutation_harness*.py`.
 ```
+
+```
+================================================================================
+2026-09-17 10:05 ET | R17 CLOSED | live commit 3648792d5a04 | V2 DARK | exposure 0
+================================================================================
+THE 10:00 ET WINDOW RAN. /flow ticker:SPY days:30 in #render-smoke at 14:00:07Z,
+staged and zoom-verified in a rendered viewport before the key was pressed.
+
+RESULT: SPY FAILS IN REGULAR TRADING HOURS TOO, byte-identical to pre-market.
+  SPY  07:10 ET  FAIL  "the flow feed is reconnecting"
+  NVDA 07:10 ET  PASS  rendered NVDA Flow card
+  SPY  10:00 ET  FAIL  same sentence
+(a) vs (c) controls the clock; (b) vs (c) controls the pod. The going-in
+hypothesis -- pre-market feed warming, clears in RTH -- is REFUTED. The variable
+is the SYMBOL.
+
+CAUSE, from the pod log inside retention:
+  14:00:37,886 WARNING [flow] fetch failed SPY (30): timed out
+30.1 s after the ack, against timeout_s=30.0. A clean expiry.
+
+AND NOT THE ETF PARTITION -- the obvious, well-cited, WRONG answer. A stocks-
+partition miss returns ok:true/0 contracts and says "no significant options
+flow"; we saw the not-ok branch. One grep separated them. That is the second
+near-miss of this class in the programme and the first one that was caught
+BEFORE publication rather than after.
+
+OPEN, STATED NOT CLOSED: on 09-13 SPY-under-stocks returned fast enough to count
+zero contracts; today it times out. Something changed, or the two readings were
+not against the same flow-worker state. Next step is a flow-worker-side read, NOT
+another Discord command.
+
+ALSO THIS SESSION:
+  - SMOKE_ROWS_TOTAL 15->14 is now MUTATION-PROVED (throwaway sandbox worktree):
+      mutation_harness_flipgate PASS rows=11 cases=69 failed=0
+      flip_preconditions --self-check PASS cases=11 mutation_failures=0 failed=0
+    The single first-run failure was a STALE HAND-TYPED NEEDLE (says="only 1/15")
+    with want=NOT MET got=NOT MET -- a red whose halves AGREE. Fixed by deriving
+    it from fp.SMOKE_ROWS_TOTAL. Third count-beside-its-list defect fixed today.
+  - SMOKE-3.5's unrunnable section said THREE over a list of FOUR. Corrected.
+  - Row 7 settled NOT RUNNABLE on EVIDENCE (the run did not show s5's shape).
+  - GATE UNCHANGED: VERDICT NOT MET, 6 MET / 2 NOT MET / 3 NOT MEASURABLE.
+    ROW MOVED: canary scope MET -> NOT MEASURABLE, read-back aged past 24 h.
+    NOT re-read: the instrument runs a LOCAL import of api.** under railway run,
+    which this repo documents as writing to live C:\data outside pytest. The
+    stronger fact -- V2 is off entirely -- is already measured in-product.
+  - OI-47 OBSERVED LIVE AND CONTINUOUS: token_slots/stall_record are null in all
+    85 r31 trace rows across THREE commits. The fix branch is still unmerged.
+  - A SECOND PAGE DELIVERED, and it is TIER 2 -- the first tier-2 delivery seen:
+    13:35:06Z, 1771.7 ms at uptime 930.1 s, paged=true. Both tiers now observed.
+  - A 3572.1 ms block at uptime 281 s scored tier=null, correctly per R34, and
+    would still have killed an interaction ack. The named design tension, again.
+
+STILL BLOCKED: C2/C3 BLOCKED-permission (Task Scheduler, owner action).
+W3/OI-13 step 6 BLOCKED-until-FRIDAY ~08:23 ET (R29 span).
+NOT MERGED: fix/oi-47-health-early-return @ 494b20948 -- R22 budget spent.
+================================================================================
+master unchanged BY THIS SESSION | no env change | budget intact
+================================================================================
+```
