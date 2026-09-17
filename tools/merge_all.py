@@ -214,6 +214,83 @@ def parse_constraints(text: str) -> list:
     return out
 
 
+def _manifest_row(stem, manifest=None):
+    """(path, checkpoints, fingerprint) for a stem, DERIVED from the manifest."""
+    man = pathlib.Path(manifest) if manifest else (DOCS_REPO / "tools/sign_manifest.txt")
+    for line in man.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "|" not in line:
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) >= 3 and pathlib.Path(parts[0]).stem == stem:
+            return parts[0], parts[1], parts[2]
+    return None, None, None
+
+
+def sign_one(packet, stem, manifest=None, by=None, on=None):
+    """K CP10 — sign exactly this row, now. (ok, detail).
+
+    ⛔ THE DELEGATION IS CHECKED PER UNIT, not once per run. A run that starts under a valid
+    delegation and continues for four hours can outlive it; the authority is a file and the
+    file can change.
+    ⛔ The scope is DERIVED from the manifest's checkpoint cell, never typed — the same cell
+    `sign_all` uses, so the two cannot disagree about what a row authorises.
+    """
+    sa = _load_sibling("sign_all")
+    dstate, ddetail = sa.delegation_state()
+    if dstate != "OK":
+        return False, "NO DELEGATION (%s): %s" % (dstate, ddetail)
+    # ⚰️ THE MANIFEST SUPPLIES THE SCOPE, NOT THE TARGET. The first version of this function
+    # looked the row up and then signed `path` — the manifest's copy — ignoring the `packet`
+    # it was handed. A fixture therefore stayed UNSIGNED while the REAL packet was signed,
+    # outside any merge. Caught by the control, which is the only reason it was visible: the
+    # run reported success either way.
+    row_path, cps_cell, _fp = _manifest_row(stem, manifest)
+    if not row_path:
+        return False, "no manifest row for %s" % stem
+    path = str(packet)
+    cps = [c.strip() for c in (cps_cell or "").split(",") if c.strip()]
+    if not cps:
+        return False, "the manifest row for %s names no checkpoint" % stem
+    scope = "%s ONLY — the checkpoint(s) named here and nothing else in the packet." % ", ".join(cps)
+    on = on or _et_today()
+    by = by or DELEGATED_BY
+    scope_dir = DOCS_REPO / ".scopes"
+    scope_dir.mkdir(exist_ok=True)
+    sf = scope_dir / (pathlib.Path(path).stem + ".scope.txt")
+    sf.write_text(scope + "\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, str(HERE / "sign_gate.py"), path,
+                        "--by", by, "--on", on, "--scope-file", str(sf)],
+                       cwd=str(DOCS_REPO), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        return False, "sign_gate exit %d: %s" % (r.returncode,
+                                                 ((r.stdout or "") + (r.stderr or "")).strip()[:200])
+    return True, "scope %s" % ", ".join(cps)
+
+
+def _load_sibling(name):
+    spec = importlib.util.spec_from_file_location(name, str(HERE / (name + ".py")))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def _et_today():
+    """The ET date from the authority, never `date.today()` (this box is CT)."""
+    r = subprocess.run([sys.executable, str(CODE_REPO / "tools/weekly_exec.py"), "et"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    m = re.search(r"ET (\d{4}-\d{2}-\d{2})", r.stdout or "")
+    if m:
+        return m.group(1)
+    import datetime
+    return datetime.datetime.now().strftime("%Y-%m-%d")   # pragma: no cover - fallback
+
+
+#: ⛔ The delegated by-line, recorded in the runbook's Delegation block. One spelling.
+DELEGATED_BY = "Patrick (owner; delegated to the running Claude Code session, 2026-09-17)"
+
+
 def replay(base="origin/master", units=None, repo=None, verbose=True):
     """K CP9 — PERFORM the merge on a throwaway and report the FIRST strand.
 
@@ -848,10 +925,29 @@ def main(argv=None) -> int:
             print("    ⛔ UNSIGNABLE AS IT STANDS: %s" % stem)
             print("    ⛔ STOPPED — nothing after this was attempted.")
             return UNSIGNABLE
+        # ⛔⛔ K CP10 — SIGNING IS THE LAST ACT BEFORE **THIS** UNIT'S MERGE.
+        # ⚰️ Signing every row up front and then merging invites a strand on an ALREADY-SIGNED
+        # unit, whose build record cites a SHA that the resolution would have to rewrite —
+        # and a signature is pinned to the packet's content, so the fix would mean editing a
+        # signed row. Master moves hourly here; F-MERGE-2 was exactly that shape.
+        # ⭐ Signing here makes a strand hit an UNSIGNED row BY CONSTRUCTION, so the fix is
+        # always a rewrite of one commit plus a record update, never a re-signature.
+        if state != "SIGNED" and not a.dry_run:
+            signed_now, why = sign_one(packet, stem)
+            if not signed_now:
+                print("    ⛔ could not sign %s: %s" % (stem, why))
+                print("    ⛔ STOPPED — nothing after this was attempted.")
+                return UNSIGNABLE
+            state, reason = approval_state(packet)
+            if state != "SIGNED":
+                print("    ⛔ signed, but the packet still reads %s (%s). STOPPED."
+                      % (state, reason))
+                return UNSIGNABLE
+            print("    ✅ SIGNED (%s)" % why)
         if state != "SIGNED":
             if not a.dry_run:
-                print("    ⛔ %s (%s). Run sign_all.py first. STOPPED — nothing after "
-                      "this was attempted." % (state, reason))
+                print("    ⛔ %s (%s). STOPPED — nothing after this was attempted."
+                      % (state, reason))
                 return UNSIGNABLE
             # ⭐ A DRY RUN THAT STOPS AT ROW 1 IS NOT A PREVIEW. The owner needs the
             # WHOLE sequence to read before trusting it, so dry-run reports the block
