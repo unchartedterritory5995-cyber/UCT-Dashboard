@@ -303,3 +303,51 @@ SPY/NVDA pair). Queue clear, live commit 26147924d, instruments alive.
 master unchanged BY THIS SESSION | no env change | budget intact
 ================================================================================
 ```
+
+---
+
+## 2026-09-17 09:42 ET — W1's rails re-verified in THIS session, and the harness census re-derived
+
+```
+⭐ THE INTEGRATOR GATES IT ITSELF. W1 is merged and live, so its mutation proof
+from the merging session is evidence, not a verdict. Re-run here, in this
+session, on `feat/observability-stall-record` @ 246d6eff8:
+
+  CONTROL BEFORE: exit=0   28 passed
+  M1 the page is re-gated behind the dark V2 flag        RED  test_a_stall_pages_with_V2_DARK
+  M2 the severity drops to warning                       RED  test_the_severity_is_critical
+  M3 the cooldown stops being persisted                  RED  test_the_cooldown_survives_a_process_restart
+  M4 the uptime floor reads as zero                      RED  test_tier2_pages_only_past_the_uptime_floor
+  M5 tier 1 is raised out of reach                       RED  test_tier1_pages_at_any_uptime
+  M6 the slot label is swapped                           RED  test_a_previous_match_increments_only_previous
+  M7 the counter stops being persisted                   RED  test_counts_survive_a_process_restart
+  M8 an unreadable counter reports itself as clean       RED  test_an_unreadable_counter_is_not_a_zero
+  restore render_panels.py / stall_record.py / token_slots.py / observe.py -- all sha256 VERIFIED
+  CONTROL AFTER:  exit=0   28 passed
+  TOTALS mutation_harness_stall_record PASS declared=8 evaluated=8 failed=0
+
+⭐ M2 and M3 are the two that matter most this morning, and both are now more
+than theoretical. M2 (severity -> warning) is the mutation that would have
+reproduced OI-45 in a new place -- recorded, never told -- and this morning the
+unmutated path DID tell, in #system-alerts. M3 (cooldown not persisted) is the
+one whose real-world behaviour we watched at 13:20:34Z: the durable cooldown
+correctly suppressed a SECOND tier-1 page, which an in-memory cooldown on a pod
+that redeploys all day could never have done.
+
+W4 GATE ROW 4 -- "mutation NOT-APPLIED = 0" -- RE-DERIVED RATHER THAN RETYPED.
+The snapshot says "15 harnesses, only 6 answer --dry-check". Measured today by
+listing the directory and grepping each file, there are SIXTEEN, and still SIX:
+
+  HAS --dry-check : adapters, contract, flipgate, image_delivery, load_model, push_guard
+  NO  --dry-check : (the base harness), badge, cache, delivery, envlogs, observe,
+                    renderer, stall_record, symbols, v2router
+
+⛔ So the row is still NOT MEASURABLE, and for a reason worth stating precisely:
+ten of sixteen harnesses cannot answer "was every mutation actually applied?"
+without a FULL run, and a full run of ten harnesses is minutes each. The mover
+is unchanged (--run-mutations, or read each merge row), and it is still
+"unblocked and cheap" only in the sense that nothing external blocks it.
+⚠️ The count moved 15 -> 16 because a harness was added since the snapshot. A
+gate row quoting a hand-typed denominator drifts the moment the directory does;
+this one is now derived by listing `mutation_harness*.py`.
+```
