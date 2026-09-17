@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Scope for the Breadth Data Charts programme (DC-1 §0).",
+    "A branch matching `branches` may only stage paths under `allow`; anything else is a",
+    "WOULD-REFUSE in WARN mode and a refusal in ENFORCE. Deliberate exceptions ride",
+    "UCT_SKIP_GIT_SCOPE=1, which logs to logs/git-scope-override.log and is reviewable.",
+    "",
+    "DELIBERATELY ABSENT, and each absence is the point:",
+    "  - the reader's 8 hot-path files (docs/breadth/reader-hotpath.txt). DC-1 §0 says a",
+    "    change needing the reader is a PROPOSAL to a new reader increment, not a commit",
+    "    here. Leaving them out of scope makes that a refusal rather than a convention.",
+    "  - docs/runbooks/. Shared across programmes; this one has no standing to edit it.",
+    "  - api/services/breadth_daily_ohlc.py and breadth_timing.py specifically, which are",
+    "    hot path even though other api/services/breadth_ files are not."
+  ],
+  "branches": [
+    "breadth/data-charts",
+    "breadth/dc-",
+    "docs/data-charts-record"
+  ],
+  "allow": [
+    ".git-scope/",
+    "app/src/pages/BreadthCharts",
+    "app/src/pages/breadth/",
+    "docs/breadth-data-charts/",
+    "docs/feature_flags.json",
+    "logs/",
+    "tools/breadth_charts_"
+  ]
+}
