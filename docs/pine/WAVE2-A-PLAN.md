@@ -588,6 +588,49 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# ✅ R36 — A PRESENTATION FOLD READS AN INPUT'S DEFAULT AND DOES **NOT** MINT (owner, 2026-09-17)
+
+> **Parameter ids (`__uct_param_N`) address saved member definitions. A parameter
+> is minted only by a read that reaches a SERIES — the output loop's authority, as
+> before R35c. A fold in a PRESENTATION position (colour, alpha, opacity; anything
+> `staticColourOf` / `staticAlphaOf` / `constantValueOf` reaches from
+> `outputPresentation`) reads the input's declared default and mints nothing.**
+
+⭐ **THE SAME RESTRAINT R13 ALREADY RULED FOR THE CLOSING PASS: RESOLVING IS NOT
+MINTING.** R35c/R35d made an input *foldable*, and foldability was silently being
+treated as use — so `uncharted-volume-v2` went from 3 declared parameters to 4 and
+`HVE lookback (bars)` moved from `__uct_param_3` to `__uct_param_4`. A saved
+definition pinning `_3` would have addressed a different knob.
+
+**On `uncharted-volume-v2` after R36:** back to **3 params**, `HVE lookback (bars)`
+at `__uct_param_3`. `Avg Vol Line Opacity` stays *"declared but reaches no series
+this pane draws"* in the refusal sentence, **and its default (90) still governs the
+carried opacity** — the fold keeps working, it simply stops minting.
+
+⚠️ **THE DISCLOSURE IS UNCHANGED AND STAYS AS MEASURED:** a presentation fold reads
+input **defaults**, colour and numeric alike, so a member moving such a knob still
+gets the author's default rendering.
+
+## ⏭️ H.11 — OWED, RECORDED, NOT BUILT: STABLE PARAMETER IDS
+
+Member-adjustable presentation inputs need ids **keyed by declared name, not by
+position**, plus a migration for saved definitions, before any presentation input
+may mint. ⛔ **Positional ids are a latent hazard independent of R35c** — any change
+that adds or removes a minted parameter renumbers every one after it. R35c merely
+made one instance visible; the rail below makes the class visible.
+
+## ⚰️ THE DEFECT CLASS THIS ENTERS — a test that addresses by POSITION
+
+`memberPaneDefinition.test.js` varied `__uct_param_3` by hard-coded id and, after
+the shift, **silently began testing a different knob** — it still failed, but for a
+reason that had nothing to do with its subject. That is the sibling of
+`lesson_a_guard_that_tests_the_adjacent_thing`: the guard fired, on the adjacent
+thing. ⛔ **A knob is addressed by its declared TITLE; an id is an address, not a
+name.** The test now resolves by title, and `param-ids.json` pins the mapping so a
+shift is reported by name rather than found by accident.
+
+---
+
 # 🛑 R35c — 1.1 MEASURED, BUILD **NOT** STARTED. ONE CLAUSE IS MISSING AND IT IS MINE.
 
 **Owner granted R35c as proposed. 1.1 measured first, as the block requires, and
