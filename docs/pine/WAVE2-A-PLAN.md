@@ -588,6 +588,52 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# ✅ THE pine_oos RE-BASELINE HOLE IS CLOSED — a MEASURED sidecar, not a verdict
+
+`app/src/components/chart/engine/ast/oosMeasuredBaseline.test.js` +
+`oos-measured-baseline.json` (15,771 bytes, 59 scripts).
+
+⛔ **`pine.oosBaseline.test.js`'s OWN DESIGN RULING IS UNTOUCHED.** It says *"NO
+RATCHET IN THIS FILE YET … its assertions are non-vacuity checks only"*, and that
+is right — a floor asserted before a baseline is adjudicated pins numbers nobody
+has read. This adds the measurement it lacked, beside it, rather than changing it.
+
+⚰️ **WHAT IT COST TO LACK ONE.** R33a's first re-baseline ran over
+`corpus/committed` and reported *"20 predicted, 2 moved"*. Six of the census's
+named 20 are not in that corpus — they live in `tests/fixtures/pine_oos` — so they
+were never measured, and the OOS rail could not say so because it pins no counts.
+The corrected figure is **3 scripts / 15 positions**, and the third mover was found
+by checking the NAMES, not by any rail.
+
+**Pinned per script: output count, refusal guards IN ORDER, and the four
+colour-carrying position counts.** ⭐ A move is reported as a **set difference, by
+name, with both readings** — a count comparison stays green when one script gains
+what another loses, which is the failure this shape exists to catch. Corpus
+membership is diffed both ways, so an added or removed script fails too.
+
+**Mutation-proved:** one script's `outputs` changed 3 → 4 in the artifact ⇒ RED,
+naming `high_engagement__02-waddah-attar-explosion-lazybear` with both readings;
+restored byte-exact to sha `71f62e8ab4aba05506c75abdfb60546388b9715c570ced85a7ebef53fc4bd48a`.
+`manifestFormatting.test.js` covers the new JSON automatically (16 tests green
+across the three files).
+
+### The six census-named OOS scripts, R33a before → after
+
+| script | outputs | refusals | colour positions |
+|---|---|---|---|
+| `high_engagement__13-ultimate-opening-range-breakout-luxalgo` | 14 | 12 | 0 → 0 |
+| `high_engagement__22-reversal-probability-profile-algoalpha` | 8 | 6 | 0 → 0 |
+| `long_tail__06-sector-rotation-leadership-persistence` | 12 | 12 | 0 → 0 |
+| `mid_engagement__09-relative-volume-breakout-context` | 12 | 10 | **0 → 2 MOVED** |
+| `mid_engagement__22-rsi-levels-regime-map` | 28 | 10 | 0 → 0 |
+| `mid_engagement__23-distilled-htf-po3` | 0 | 1 | 0 → 0 |
+
+**Outputs and refusals moved on none of them** — R33a's stop condition held here
+too. The six are also named in the rail itself, so a future re-baseline cannot
+lose them the same way.
+
+---
+
 # ⚰️⚰️ R35 — H.10's LEGS 1 AND 2 ARE WRONG. MEASURED 2026-09-17, AFTER THE STOP.
 
 **The owner asked one question — "does `inlineUserFunction` already handle Clouds'
