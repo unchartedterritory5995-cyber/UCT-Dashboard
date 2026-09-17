@@ -114,7 +114,7 @@ command for per-member DEFAULTS and is reached from the picker, never from this 
 
 ---
 
-## ⛔ Rows 2, 3 and 7 cannot be run while V2 is dark — this is a property of the pod, not of the run
+## ⛔ Rows 2, 3, 5 and 7 cannot be run while V2 is dark — this is a property of the pod, not of the run
 
 All three assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is unset on
 `web` (confirmed in-product by `/renderhealth` on 2026-09-17: *"Render V2 is off
@@ -131,6 +131,16 @@ All three assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is 
   badge here is absence of the mechanism, not evidence of freshness.*
 - **Row 3 (stand-in + heal).** Same family; R32 already recorded it as
   INCONCLUSIVE-BY-CONSTRUCTION.
+- **Row 5 (the ETF partition).** ⛔⛔ **ADDED 2026-09-17, and it was hiding inside the row's own
+  sentence.** The row names `discord_render.symbols.flow_source` → `etfs` as the mechanism. That
+  function is called from **one** place — `commands.py:578`, the V2 handler. The pre-V2 dispatch
+  (`routers/discord_interactions.py:499`) calls `run_flow_card_job` with **no `source` argument at
+  all**, so the signature default `source: str = "stocks"` applies and `/flow SPY` asks
+  flow-worker for SPY in the **stocks** partition. Even a perfectly healthy read cannot satisfy
+  this row today. ⇒ **NOT RUNNABLE.** Scoring it PASS on a card that merely rendered would score
+  the wrong assertion; scoring it FAIL would blame the run for the flag.
+  ⭐ **Row 6 is unaffected and is the one flow row that CAN pass** — `stocks` is the pre-V2
+  default, so an equity underlying is exactly what this path is built to read.
 - **Row 7 (degraded flow card).** 04-visual-spec §5's card is the V2 failure contract.
   The pre-V2 path has exactly one sentence for every non-ok read — *"the flow feed is
   reconnecting"* — which satisfies "never silence" and says nothing about §5.

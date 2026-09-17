@@ -59,3 +59,37 @@ run is the other half. ⭐ **A timeout is not obviously a pre-market phenomenon*
 merely empty before the open would answer quickly with nothing, not fail to answer — so the
 hypothesis is already looking weak. **One reading is not a result.** The RTH run decides it, and
 its own `[flow]` line must be captured the same way.
+
+---
+
+## ⛔⛔ AND ROW 5 CANNOT PASS AS WRITTEN — the ETF partition is selected ONLY by the V2 handler
+
+Row 5's assertion is *"Real contracts, not 'no significant options flow' — the C-14 ETF partition
+(`discord_render.symbols.flow_source` → `etfs`)"*. **That function is called from exactly one
+place, and it is not the path production runs.**
+
+| path | call | partition |
+|---|---|---|
+| **pre-V2** (live on every pod) | `api/routers/discord_interactions.py:499` — `background.add_task(run_flow_card_job, app_id, token, tkr, days)` | **no `source` argument** ⇒ the signature default `source: str = "stocks"` |
+| **V2** (dark) | `api/services/discord_render/commands.py:578-586` — `source = symbols.flow_source(tkr)` … `source=source` | `etfs` for an ETF or index underlying |
+
+So `/flow SPY` on production asks flow-worker for **SPY in the `stocks` partition**, which is the
+wrong partition for an ETF by C-14's own definition. **Row 5 is NOT RUNNABLE BY CONSTRUCTION while
+`DISCORD_RENDER_V2_ENABLED` is unset**, for the same reason as rows 2, 3 and 7 — and this one was
+hiding inside the row's own sentence: it names `discord_render.symbols.flow_source`, a function in
+the V2 package, as the mechanism, and nobody asked who calls it.
+
+⭐ **This is the FOURTH instance of the class in one programme** (OI-42 `loop`, OI-45 the page,
+OI-47 the health fields, and now the flow partition). Every one has the same shape: the capability
+is built, tested and correct, and the only door to it is behind the dark flag.
+
+### What the 10:00 ET run can therefore still establish, and what it cannot
+
+- ✅ **Whether the 30 s timeout recurs during regular trading hours.** That is the controlled pair
+  this document opened, and it is unaffected by the partition question — a timeout is a failure to
+  answer, not a wrong answer.
+- ✅ **Row 6** — `/flow` on an equity underlying. `stocks` **is** the pre-V2 default, so row 6 is
+  the one flow row that can legitimately pass today.
+- ❌ **Row 5 as written.** Even a perfectly healthy read would return the `stocks` partition for
+  SPY. Scoring it PASS on a card that rendered would be scoring the wrong assertion; scoring it
+  FAIL would blame the run for the flag.
