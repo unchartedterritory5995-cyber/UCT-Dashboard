@@ -8,6 +8,19 @@ file, is the thing you are approving.
 
 ---
 
+## PRE-MERGE-RUN
+
+```
+run      #35   id 35254702856   branch replay-preview   tip 217ae7230
+base     origin/master 77dad414d      48 ahead
+verdict  COVERAGE_LOST — NEW 34, FIXED 32, MISSING 7, flaky 3
+```
+
+⛔ **It does NOT satisfy C.3's proceed rule, and the sittings are held on it (F-CI-44).**
+⭐ **But zero of the 34 NEW entries are in any file the 48 units touch** (units touch 33 files;
+intersection empty). The baseline is run #19, a *feat* run ~370 master commits ago, and master
+has changed 197 test files since — so the diff measures master's drift, not this merge.
+
 ## Delegation
 
 > **The owner delegates signing and merging to the running Claude Code session.**
