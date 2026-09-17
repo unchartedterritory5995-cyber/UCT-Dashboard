@@ -172,6 +172,53 @@ WARM_EVERY = 10
 #: Distinct span per sample so every read is a forced cache miss. Walks downward.
 SPAN_HI = 7300
 SPAN_LO = 6400
+#: How many recent pool rows a fresh process must avoid colliding with.
+SPAN_RECENT_WINDOW = 40
+
+
+def recent_spans(path=None, window: int = SPAN_RECENT_WINDOW) -> list[int]:
+    """Spans used by the last `window` rows already in the pool."""
+    p = pathlib.Path(path) if path else LOG_PATH
+    if not p.exists():
+        return []
+    out = []
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines()[-window:]:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            v = json.loads(line).get("span")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(v, int):
+            out.append(v)
+    return out
+
+
+def seed_span(used) -> int:
+    """The span THIS PROCESS's first sample will use.
+
+    ⚰️ WITHOUT THIS, EVERY `--once` RUN USED 7299. The walk (`span - 1` each iteration)
+    keeps spans distinct WITHIN a run, and the seed was the constant `SPAN_HI` — so a
+    fresh process always started at the same place. Four consecutive one-shots on
+    2026-09-17 therefore re-read a span the previous one had just warmed, and three of
+    the four came back as CACHE HITS banked as `kind=deep_cold` with `reader` phase 0.0
+    — 69-168 ms against a ~300 ms population. Two such rows from an earlier session were
+    already in a published pool and are why its reported minimum was 70.2 ms.
+
+    ⭐ THE FILTER IN breadth_pool_report WAS THE SYMPTOM FIX. `reader_ran()` drops these
+    rows so they cannot pollute a result, and that is worth having as a backstop — but a
+    sampler that reliably produces unusable rows is still a broken sampler, and a
+    downstream filter would have quietly hidden that forever. Fix the cause too.
+
+    ⛔ Falls back to SPAN_HI only when EVERY span in the range is recently used, which
+    cannot happen while the window (40) is smaller than the range (901). The fallback is
+    a correct-by-construction dead branch, not a silent degradation."""
+    used = set(used)
+    for s in range(SPAN_HI, SPAN_LO - 1, -1):
+        if s not in used:
+            return s
+    return SPAN_HI
 
 
 # ── decisions: pure functions, so the rails can feed them fake inputs ────────
@@ -332,7 +379,8 @@ def main() -> int:
     sha_cache = {"sha": None, "uptime": None, "at": 0.0}
     want = args.dry_run or (1 if args.once else 10 ** 9)
     taken = 0
-    span = SPAN_HI
+    # None => the first sample seeds from the POOL, not from a constant. See seed_span.
+    span = None
 
     while taken < want:
         et = et_now()
@@ -366,7 +414,8 @@ def main() -> int:
         if op is None:
             op = login()
 
-        span = span - 1 if span > SPAN_LO else SPAN_HI
+        span = (seed_span(recent_spans()) if span is None
+                else (span - 1 if span > SPAN_LO else SPAN_HI))
         s = take_sample(op, span, "deep_cold")
         row = {"ts_utc": datetime.datetime.now(datetime.timezone.utc)
                           .strftime("%Y-%m-%dT%H:%M:%SZ"),

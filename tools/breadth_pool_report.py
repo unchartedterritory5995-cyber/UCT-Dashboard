@@ -42,6 +42,11 @@ HOTPATH_LIST = pathlib.Path(__file__).resolve().parents[1] / "docs/breadth/reade
 REPO = str(pathlib.Path(__file__).resolve().parents[1])
 P95_N_FOR_95PC_CONFIDENCE = 59
 ANALYSIS_UPTIME_FLOOR = 600
+#: The defect this programme exists to answer, in milliseconds. Every "N times faster"
+#: figure in the report and on the page is DERIVED from this by `--per-deploy`; none is
+#: typed into prose. ⛔ A ratio hand-carried into a document is a second authority, and
+#: this programme has already had one drift (33x, ratified, superseded by data 2026-09-17).
+D042_COLD_MS = 54923.0
 
 #: Timing keys that are COUNTS or BYTES, not milliseconds. Ranking these beside real
 #: phases reports a counter as a duration. Listed explicitly: a pattern guess ("anything
@@ -270,10 +275,58 @@ def describe(group_rows, label) -> dict:
             "uptime": uptime_effect(group_rows)}
 
 
+def per_deploy(rows) -> list[dict]:
+    """The RESULT, one row per deploy, at the analysis floor.
+
+    ⭐ THIS REPLACED A SINGLE POOLED p95 (owner ruling, 2026-09-17). Deploys running
+    IDENTICAL code on IDENTICAL work differ by up to 79% at the median, so a pooled p95
+    across them characterises the DEPLOY MIX SAMPLED rather than the reader. Reporting
+    per deploy says what is actually true: the reader is stable and the host is not.
+
+    ⛔ The conservative figure is the WORST deploy's bound, never an average of bounds.
+    """
+    by = collections.defaultdict(list)
+    for r in rows:
+        if (r.get("uptime_s") or 0) >= ANALYSIS_UPTIME_FLOOR and r.get("sha"):
+            by[r["sha"]].append(r["timing"]["total"])
+    out = []
+    for sha, v in by.items():
+        v = sorted(v)
+        out.append({"sha": sha, "n": len(v), "p50": statistics.median(v),
+                    "min": v[0], "max": v[-1],
+                    "x_at_max": D042_COLD_MS / v[-1],
+                    "x_at_p50": D042_COLD_MS / statistics.median(v)})
+    return sorted(out, key=lambda d: d["p50"])
+
+
+def print_per_deploy(rows) -> None:
+    rp = per_deploy(rows)
+    if not rp:
+        print("no settled rows -- nothing to report per deploy")
+        return
+    print(f"\n=== THE RESULT, per deploy (>= {ANALYSIS_UPTIME_FLOOR}s analysis floor) ===")
+    print(f"  D-042 cold baseline: {D042_COLD_MS:.0f} ms\n")
+    print(f"  {'deploy':<12}{'n':>4}{'p50 ms':>9}{'max ms':>10}{'x at p50':>11}{'x at max':>11}")
+    for d in rp:
+        print(f"  {d['sha']:<12}{d['n']:>4}{d['p50']:>9.1f}{d['max']:>10.1f}"
+              f"{d['x_at_p50']:>10.0f}x{d['x_at_max']:>10.0f}x")
+    worst = min(rp, key=lambda d: d["x_at_max"])
+    best = max(rp, key=lambda d: d["x_at_max"])
+    print(f"\n  CONSERVATIVE (worst deploy's p95 bound): {worst['x_at_max']:.0f}x "
+          f"({worst['sha']}, max {worst['max']:.1f} ms, n={worst['n']})")
+    print(f"  RANGE across deploys: {worst['x_at_max']:.0f}x - {best['x_at_max']:.0f}x")
+    p50s = [d["p50"] for d in rp]
+    print(f"  p50 span: {min(p50s):.1f} - {max(p50s):.1f} ms across {len(rp)} deploys")
+    print("\n  Identical code (one reader fingerprint) and identical work per read;")
+    print("  the spread is the host. No pooled p95 across deploys is reported.")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pool", default=str(DEFAULT_POOL))
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--per-deploy", action="store_true",
+                    help="the headline result: one row per deploy, no pooled p95")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
@@ -282,6 +335,16 @@ def main(argv=None) -> int:
     if not rows:
         print("no usable rows -- an empty pool is a failed read until proven otherwise")
         return 2
+
+    if a.per_deploy:
+        # Restrict to the LIVE reader with the flag off -- mixing readers here would
+        # reintroduce, one level up, exactly the pooling error this view exists to fix.
+        live = [r for r in rows if observed_flag(r) == "off"]
+        fps = collections.Counter(reader_fingerprint(r.get("sha") or "") for r in live)
+        main_fp = fps.most_common(1)[0][0] if fps else None
+        print_per_deploy([r for r in live
+                          if reader_fingerprint(r.get("sha") or "") == main_fp])
+        return 0
 
     # Group by READER IDENTITY, never by SHA. Unresolvable -> fall back to the SHA,
     # which is the stricter grouping, and label it so nobody reads it as a reader.
