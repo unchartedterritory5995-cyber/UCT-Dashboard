@@ -87,6 +87,23 @@ def add_record(conn, record_id, record_type, segment_id, source_id, **kw):
     conn.execute(f"INSERT INTO wisdom_records({cols}) VALUES ({', '.join('?' * len(row))})", list(row.values()))
 
 
+#: ⛔⛔ R89 (2026-09-17) put CALL, NEGATIVE_CALL and MENTION under the publication floor, which
+#: fails closed on a NULL stability — so a seed record of one of those types with no score is
+#: WITHHELD from every consumer, and this corpus would have gone silently empty at nine call
+#: sites at once. The corpus stands for records that HAVE been stability-voted and passed, so it
+#: carries the score explicitly.
+#:
+#: ⭐ It is spread onto the guest and rejected records too, deliberately. Without it,
+#: `test_guests_rejected_and_negative_calls_are_not_markers` would still pass — for the WRONG
+#: REASON, because the floor would be excluding them before the guest and status filters ever
+#: ran, and deleting those filters would leave the suite green
+#: (`lesson_a_guard_that_tests_the_adjacent_thing`).
+#:
+#: ⛔ recPRIN keeps a NULL stability ON PURPOSE: several floor tests rely on the corpus carrying
+#: one genuinely-blocked PRINCIPLE, and say so in their own comments.
+PASSES_FLOOR = {"stability": 1.0, "stability_runs": 3}
+
+
 def seed_basic(conn) -> dict:
     """A small corpus: a TSDR live session, a Sunday Scans issue, a guest workshop,
     a Bracco Discord message, one attendee cue. Every string is synthetic."""
@@ -118,22 +135,22 @@ def seed_basic(conn) -> dict:
                entry_zone_lo=140.25, entry_zone_hi=142.75, stop=131.5,
                targets_json=[{"price": 160.0, "text": "measured move"}],
                levels_json=[{"type": "breakout", "price": 142.75, "price_as_heard": "142"}],
-               stated_at_et="2026-09-08T10:05:00-04:00")
+               stated_at_et="2026-09-08T10:05:00-04:00", **PASSES_FLOOR)
     # closed / hindsight CALL (a teaching example with a stated outcome)
     add_record(conn, "recCALL_DONE", "CALL", "segSCAN1", "srcSCAN", author_id="tsdr", ticker="NVDA",
                direction="long", stance="hindsight", hindsight=1, vocab_id="v_ep",
                setup_name_raw="episodic pivot", thesis="the gap held and the base resolved higher",
                stated_outcome="profit", entry=100.0, stop=95.0, targets_json=[{"price": 120.0, "text": "prior high"}],
-               status="confirmed", stated_at_et="2026-09-06T10:00:00-04:00")
+               status="confirmed", stated_at_et="2026-09-06T10:00:00-04:00", **PASSES_FLOOR)
     add_record(conn, "recPRIN", "PRINCIPLE", "segSCAN1", "srcSCAN", author_id="tsdr",
                principle_key="never_add_to_loser", status="confirmed", stated_at_et="2026-09-06T10:00:00-04:00")
     add_record(conn, "recNEG", "NEGATIVE_CALL", "segDISC1", "srcDISC", author_id="bracco", ticker="AMD",
                direction="long", stance="passed", reason="relative strength is weak", reason_class="chart",
-               stated_at_et="2026-09-10T12:00:00-04:00")
+               stated_at_et="2026-09-10T12:00:00-04:00", **PASSES_FLOOR)
     add_record(conn, "recGUEST", "MENTION", "segWORK1", "srcWORK", author_id="guest:stockbee", is_guest=1,
-               ticker="TSLA", stated_at_et="2026-09-10T19:05:00-04:00")
+               ticker="TSLA", stated_at_et="2026-09-10T19:05:00-04:00", **PASSES_FLOOR)
     add_record(conn, "recREJECT", "MENTION", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="AMD",
-               stance="no_view", status="rejected", stated_at_et="2026-09-08T10:06:00-04:00")
+               stance="no_view", status="rejected", stated_at_et="2026-09-08T10:06:00-04:00", **PASSES_FLOOR)
 
     conn.execute("INSERT INTO wisdom_principles(principle_key, statement, category, author_id, status, "
                  "first_seen_at) VALUES ('never_add_to_loser', 'Never add to a losing position; cut it quickly.', "

@@ -4,6 +4,13 @@
 unless stability = 1.0 (3/3) AND confirmed or provisional-with-evidence; 2/3 may surface only in
 the admin review queue.*
 
+**R89 (owner ruling, 2026-09-17) widened WHICH types the rule governs, and nothing else.** CALL —
+and, on the evidence recorded beside `FLOORED_TYPES`, MENTION and NEGATIVE_CALL — are now floored
+on the same predicate, the same MIN_RUNS, the same review-queue pairing. ⛔ The ruling is about
+membership of one tuple: `passes()`, `sql_clause()`, `enqueue_blocked` and `retract_passed` are
+untouched, because a second spelling of the predicate for a second set of types is exactly the
+defect this module exists to prevent (`lesson_a_guard_repeated_is_a_guard_unproved`).
+
 ⛔⛔ **ONE PREDICATE, NOT FOUR COPIES.** Four different mechanisms reach these record types, so the
 floor has four call sites — but a guard written out four times cannot be mutation-proved and
 drifts silently (`lesson_a_guard_repeated_is_a_guard_unproved`: delete every copy but one). Every
@@ -34,10 +41,48 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Optional, Sequence
 
-#: The two types the rule names. ⛔ NEVER widen this without an owner ruling: item 2's measured
-#: `below_floor` list currently contains all five measured types, and quietly extending the
-#: publication floor to CALL/MENTION/LEVEL would stop those lanes dead.
-FLOORED_TYPES: tuple = ("PRINCIPLE", "MARKET_SIGNAL")
+#: ⛔ NEVER widen this without an owner ruling. Widening STOPS A LANE DEAD: every record in the
+#: store today has `stability` NULL, `passes()` fails closed on NULL, so the day a type is added
+#: here every consumer of that type returns nothing until item 2's N=3 voting has scored it. That
+#: is the intended cost, and it is why each entry below names the ruling that bought it.
+#:
+#: ⭐ **R89 (owner ruling, 2026-09-17): the floor governs CALL as it already governs PRINCIPLE and
+#: MARKET_SIGNAL**, and it has to be serving BEFORE `WISDOM_DESK_MARKERS_ENABLED` can open —
+#: desk markers surface CALLs onto a member's chart (`adapters/desk_markers.py:33,46`).
+#:
+#: ⭐⭐ **MENTION and NEGATIVE_CALL come with it, decided by evidence, not by sympathy with CALL.**
+#: The test is R50's map (`tests/test_wisdom_type_gating_audit.py::DECLARED_CONSUMERS`): does a
+#: consumer R50 classifies MEMBER surface the type? Read off the AST of every `select_records`
+#: call site in this package on 2026-09-17, not from memory:
+#:
+#:   | type          | MEMBER consumer that surfaces it                                   | verdict |
+#:   |---------------|--------------------------------------------------------------------|---------|
+#:   | CALL          | desk_markers:46 · dossier:36 · modelbook:86,129 · brainkb:117       | FLOOR   |
+#:   | MENTION       | desk_markers:46 (`_KINDS` = {CALL, MENTION}) — a member's chart      | FLOOR   |
+#:   | NEGATIVE_CALL | dossier:36 · modelbook:129 — both MEMBER in R50's map               | FLOOR   |
+#:   | LEVEL         | **none** — no typed read of LEVEL exists anywhere                   | UNFLOORED |
+#:
+#: ⛔ **LEVEL stays out, and the reason is a measurement, not an opinion.** Fifteen
+#: `select_records` call sites exist in `api/services/wisdom/**`; **not one** names LEVEL. Its
+#: only two appearances are (a) `brainkb._ALL_TYPES` (`brainkb.py:44,93`), a support lookup that
+#: passes `include_unstable=True` on purpose so it can DATE a principle it is not publishing — the
+#: floor is bypassed there by design whatever this tuple says — and (b) `clips.clip_candidates`,
+#: an untyped SQL export over all six types behind `require_push_secret`, which already applies
+#: `sql_clause()` and therefore picks up every type added here for free. Adding LEVEL would block
+#: nothing a member can see and would silently shrink an internal clip export. **Re-derive this,
+#: never re-read it**: the AST sweep is two lines, and a MEMBER consumer that starts reading LEVEL
+#: is exactly the change this note must not be allowed to outlive.
+#:
+#: ⚰️ This comment used to read *"the two types the rule names … quietly extending the publication
+#: floor to CALL/MENTION/LEVEL would stop those lanes dead."* Under R89 the extension is no longer
+#: quiet, and "stopping the lane dead" is the point until the scores exist — but the warning was
+#: right about the mechanism and is kept, one paragraph up, as the first thing a widener reads.
+FLOORED_TYPES: tuple = ("PRINCIPLE", "MARKET_SIGNAL", "CALL", "NEGATIVE_CALL", "MENTION")
+
+#: The types the floor deliberately does NOT govern, named rather than implied. ⛔ A test asserts
+#: this is exactly `writer.RECORD_TYPES - FLOORED_TYPES`, so the two can never quietly disagree
+#: and "we forgot one" cannot be mistaken for "we ruled on it".
+UNFLOORED_TYPES: tuple = ("LEVEL",)
 
 #: Review-queue tab and reason code for a blocked record.
 REVIEW_TAB = "contradictions"

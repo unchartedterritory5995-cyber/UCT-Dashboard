@@ -39,11 +39,137 @@ def test_3_missing_score_blocks(rtype):
     assert floor.passes(rtype, "not a number", 3) is False
 
 
-def test_6_other_record_types_are_unaffected_at_any_value():
-    for rtype in ("CALL", "NEGATIVE_CALL", "MENTION", "LEVEL"):
+def test_6_an_unfloored_record_type_is_unaffected_at_any_value():
+    """⚰️ This looped over CALL, NEGATIVE_CALL, MENTION and LEVEL until R89 (2026-09-17) floored
+    the first three. It is kept, narrowed to `floor.UNFLOORED_TYPES`, because the property it
+    pins — an unfloored type passes at EVERY (stability, runs) combination, including NULL — is
+    what makes `passes()` a type-scoped predicate rather than a blanket one.
+
+    ⛔ It reads the tuple instead of naming LEVEL, so the day a type leaves `FLOORED_TYPES` this
+    covers it without an edit, and the day `UNFLOORED_TYPES` empties the guard below fires rather
+    than the loop passing over nothing.
+    """
+    assert floor.UNFLOORED_TYPES, "non-vacuity: with no unfloored type this test asserts nothing"
+    for rtype in floor.UNFLOORED_TYPES:
         for value in (None, 0.0, 0.333, 0.667, 1.0):
             for runs in (None, 1, 3, 5):
                 assert floor.passes(rtype, value, runs) is True, (rtype, value, runs)
+
+
+# ── R89: CALL is floored, on the same predicate ──────────────────────────────
+#
+# ⛔⛔ WHY THESE ARE HERE AND NOT IN A NEW MODULE. R89 changes ONE tuple. If it had needed a new
+# predicate, a new call site or a second spelling of "below the floor", that would itself be the
+# finding — `lesson_a_guard_repeated_is_a_guard_unproved`. Everything below therefore re-uses the
+# existing machinery deliberately, and the mutation proof is that removing CALL from
+# `FLOORED_TYPES` reds these by name.
+
+R89_TYPES = ("CALL", "NEGATIVE_CALL", "MENTION")
+
+
+@pytest.mark.parametrize("rtype", R89_TYPES)
+def test_r89_the_ruling_types_are_floored_with_identical_semantics(rtype):
+    """PENDING below MIN_RUNS · BLOCK below the floor · PUBLISH otherwise — the same three."""
+    assert rtype in floor.FLOORED_TYPES
+    # below STABILITY_FLOOR over enough runs -> blocked
+    assert floor.passes(rtype, 2 / 5, 5) is False, "2 of 5 must not publish"
+    assert floor.passes(rtype, 0.667, floor.MIN_RUNS) is False
+    # measured over too few runs -> blocked, whatever the score says
+    assert floor.passes(rtype, 1.0, floor.MIN_RUNS - 1) is False
+    assert floor.passes(rtype, 1.0, None) is False
+    # never measured -> blocked
+    assert floor.passes(rtype, None, None) is False
+    # at or above the floor over at least MIN_RUNS -> publishes (the control)
+    assert floor.passes(rtype, 4 / 5, 5) is True, "4 of 5 must publish"
+    assert floor.passes(rtype, FLOOR, floor.MIN_RUNS) is True
+    assert floor.passes(rtype, 1.0, floor.MIN_RUNS) is True
+
+
+def test_r89_the_boundary_for_CALL_is_the_same_object_not_a_near_neighbour():
+    """⛔ Mutation vii's lesson, applied to the new type: probe strictly BETWEEN candidates."""
+    f = floor.floor_value()
+    assert floor.passes("CALL", f - 0.005, floor.MIN_RUNS) is False
+    assert floor.passes("CALL", f, floor.MIN_RUNS) is True
+    assert floor.passes("CALL", f + 0.005, floor.MIN_RUNS) is True
+
+
+def test_r89_the_sql_clause_and_the_python_predicate_agree_about_CALL():
+    """The two spellings must move together for the NEW types as well as the old ones."""
+    conn = _db()
+    cases = [("c_null", "CALL", None, None), ("c_low", "CALL", 0.4, 5), ("c_ok", "CALL", 1.0, 3),
+             ("c_pending", "CALL", 1.0, 2), ("c_five", "CALL", 0.8, 5),
+             ("n_low", "NEGATIVE_CALL", 0.667, 3), ("n_ok", "NEGATIVE_CALL", 1.0, 3),
+             ("m_low", "MENTION", None, 3), ("m_ok", "MENTION", 1.0, 3),
+             ("l_null", "LEVEL", None, None)]
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs) VALUES (?,?,?,?)", cases)
+    got = set(_rows(conn))
+    assert got == {rid for rid, rtype, stab, runs in cases if floor.passes(rtype, stab, runs)}
+    assert got == {"c_ok", "c_five", "n_ok", "m_ok", "l_null"}
+    # non-vacuity in both directions
+    assert got and len(got) < len(cases)
+
+
+def test_r89_a_blocked_CALL_is_enqueued_and_a_passing_one_is_not(wisdom_review_db):
+    """⛔ The block and the enqueue are PAIRED, or a blocked CALL vanishes instead of surfacing."""
+    conn = wisdom_review_db
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs, segment_id, author_id) "
+        "VALUES (?,?,?,?,?,?)",
+        [("c_block", "CALL", 2 / 5, 5, "seg-1", "tsdr"),
+         ("c_pass", "CALL", 4 / 5, 5, "seg-1", "tsdr"),
+         ("l_null", "LEVEL", None, None, "seg-1", "tsdr")])
+    out = floor.enqueue_blocked(conn)
+    refs = {r[0] for r in conn.execute("SELECT subject_ref FROM wisdom_review_queue")}
+    assert "record:c_block" in refs, "a blocked CALL must surface in the admin review queue"
+    assert "record:c_pass" not in refs, "non-vacuity: a passing CALL must never be enqueued"
+    assert "record:l_null" not in refs, "an unfloored type is not the floor's business"
+    assert out["blocked"] == 1 and out["enqueued"] == 1
+    # the reason names the type, the value and the floor — an admin can act on it
+    summary = conn.execute(
+        "SELECT summary FROM wisdom_review_queue WHERE subject_ref = 'record:c_block'").fetchone()[0]
+    assert "CALL" in summary and f"{FLOOR:.3f}" in summary and "5 run(s)" in summary
+
+
+def test_r89_a_CALL_below_MIN_RUNS_is_pending_and_is_queued_exactly_like_a_PRINCIPLE(wisdom_review_db):
+    """⭐⭐ THE ONE PLACE R89's BRIEF AND THE SHIPPED CONTRACT DISAGREED, PINNED SO NOBODY
+    "FIXES" IT FROM MEMORY.
+
+    The brief asked for *"a CALL with fewer than MIN_RUNS runs -> PENDING, and NO queue item"*.
+    **That is not what this module does for ANY floored type, and making CALL the exception is the
+    larger defect.** A PRINCIPLE at 1.0 over one run IS enqueued today — `test_4_...` asserts it,
+    `test_q17_a_blocked_single_run_record_is_enqueued_once` asserts it, and Q17 exists BECAUSE
+    1.0-over-one-run is the most confident-looking number the pipeline can produce for the least
+    evidence. Suppressing its queue row is the opposite of what Q17 bought.
+
+    So R89 was implemented as *"identical semantics to PRINCIPLE/MS"*, the clause it leads with,
+    and the PENDING/BLOCK distinction lives where it always has — in the REASON, which tells an
+    admin which condition failed. This test pins both halves:
+      * PENDING and BLOCK both withhold publication and both raise a queue item, and
+      * their reasons are DIFFERENT, so "re-measure this" is never read as "the score is bad".
+
+    ⚠️ If the owner does want PENDING to stay out of the queue, that is a change to
+    `enqueue_blocked` for EVERY floored type, with `test_4` and the Q17 test restated — not a
+    branch on `record_type`.
+    """
+    conn = wisdom_review_db
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs, segment_id, author_id) "
+        "VALUES (?,?,?,?,?,?)",
+        [("c_pending", "CALL", 1.0, floor.MIN_RUNS - 1, "seg-1", "tsdr"),
+         ("p_pending", "PRINCIPLE", 1.0, floor.MIN_RUNS - 1, "seg-1", "tsdr"),
+         ("c_pass", "CALL", 1.0, floor.MIN_RUNS, "seg-1", "tsdr")])
+    assert floor.passes("CALL", 1.0, floor.MIN_RUNS - 1) is False, "PENDING must not publish"
+    floor.enqueue_blocked(conn)
+    rows = {r["subject_ref"]: r["summary"] for r in conn.execute(
+        "SELECT subject_ref, summary FROM wisdom_review_queue")}
+    assert set(rows) == {"record:c_pending", "record:p_pending"}, (
+        "CALL and PRINCIPLE must be treated identically, and the passing CALL is the control")
+    for ref in ("record:c_pending", "record:p_pending"):
+        assert f"minimum {floor.MIN_RUNS}" in rows[ref]
+        assert "below the floor" not in rows[ref], (
+            "a PENDING record must not be reported as a bad score — that sends an admin hunting "
+            "a scoring bug that does not exist")
 
 
 def test_the_floor_value_is_read_from_its_single_definition():
@@ -153,13 +279,18 @@ def test_7_status_and_stability_are_ANDed_not_ORed():
 # ── 4 + 5: the paired enqueue ────────────────────────────────────────────────
 
 def _seed_blocked(conn):
+    # ⚰️ `r_call` was a NULL-stability CALL standing for "an unfloored type the floor must not
+    # touch". R89 floored CALL, so the unfloored control is now `r_level` — a LEVEL, the one type
+    # `floor.UNFLOORED_TYPES` still names. The row was swapped rather than dropped: without an
+    # unfloored row in the fixture, `test_4b` degenerates into "the queue did not take a record
+    # that is not there".
     conn.executemany(
         "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs, segment_id, author_id) "
         "VALUES (?,?,?,?,?,?)",
         [("r_null", "PRINCIPLE", None, None, "seg-1", "a1"),
          ("r_low", "MARKET_SIGNAL", 0.667, 3, "seg-2", "a1"),
          ("r_ok", "PRINCIPLE", 1.0, 3, "seg-3", "a1"),
-         ("r_call", "CALL", None, None, "seg-4", "a1"),
+         ("r_level", "LEVEL", None, None, "seg-4", "a1"),
          ("r_one_run", "PRINCIPLE", 1.0, 1, "seg-5", "a1")])
 
 
@@ -187,7 +318,7 @@ def test_4b_a_passing_record_is_never_enqueued(wisdom_review_db):
     _seed_blocked(conn)
     floor.enqueue_blocked(conn)
     refs = {r[0] for r in conn.execute("SELECT subject_ref FROM wisdom_review_queue")}
-    assert "record:r_ok" not in refs and "record:r_call" not in refs
+    assert "record:r_ok" not in refs and "record:r_level" not in refs
 
 
 def test_5_rerunning_does_not_duplicate_the_queue_row(wisdom_review_db):
@@ -413,14 +544,23 @@ from tests.test_wisdom_publish_adapters_store import (  # noqa: E402
 
 
 def _floor_fixture(conn):
-    """One below-floor PRINCIPLE, one at-floor PRINCIPLE, one CALL that must be untouched."""
+    """Below-floor and at-floor rows of a floored type, plus an unfloored row.
+
+    ⚰️ Until R89 the last two rows were a single NULL-stability CALL named `rec_call`, standing
+    for "a type the floor must not touch". CALL is floored now, so it becomes a PAIR — one blocked,
+    one passing — and LEVEL takes over as the unfloored control.
+    """
     conn.execute("UPDATE wisdom_records SET stability = NULL")
     add_record(conn, "rec_low", "PRINCIPLE", "segLIVE1", "srcLIVE", author_id="tsdr", stability=0.667,
                stability_runs=3)
     add_record(conn, "rec_ok", "PRINCIPLE", "segLIVE1", "srcLIVE", author_id="tsdr", stability=1.0,
                stability_runs=3)
     add_record(conn, "rec_null", "MARKET_SIGNAL", "segLIVE1", "srcLIVE", author_id="tsdr")
-    add_record(conn, "rec_call", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA")
+    add_record(conn, "rec_call_low", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA",
+               stability=0.4, stability_runs=5)
+    add_record(conn, "rec_call_ok", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA",
+               stability=1.0, stability_runs=3)
+    add_record(conn, "rec_level", "LEVEL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA")
     conn.commit()
 
 
@@ -436,13 +576,17 @@ def test_select_records_actually_withholds_a_below_floor_record(adapters_db, see
         opened = {r["record_id"] for r in common.select_records(
             conn, types=("PRINCIPLE", "MARKET_SIGNAL"), include_unstable=True)}
         calls = {r["record_id"] for r in common.select_records(conn, types=("CALL",))}
+        levels = {r["record_id"] for r in common.select_records(conn, types=("LEVEL",))}
 
     assert "rec_ok" in got, "non-vacuity: an at-floor record MUST still come back"
     assert "rec_low" not in got and "rec_null" not in got
     # the opt-in returns them, which is what proves the filter is the thing doing the work
     assert {"rec_low", "rec_null", "rec_ok"} <= opened
+    # R89: the same filter now governs CALL, with its own control
+    assert "rec_call_ok" in calls, "non-vacuity: a passing CALL MUST still come back"
+    assert "rec_call_low" not in calls, "R89: a below-floor CALL must not leave select_records"
     # and an unfloored type is untouched at NULL stability
-    assert "rec_call" in calls
+    assert "rec_level" in levels
 
 
 def test_clip_candidates_actually_withholds_a_below_floor_record(adapters_db, seeded):
@@ -456,8 +600,12 @@ def test_clip_candidates_actually_withholds_a_below_floor_record(adapters_db, se
     body = clips.clip_candidates(42)
     ids_out = {r["record_id"] for r in body["records"]}
     assert "rec_ok" in ids_out, "non-vacuity: an at-floor record MUST still be exported"
-    assert "rec_call" in ids_out, "non-vacuity: an unfloored type MUST still be exported"
+    assert "rec_call_ok" in ids_out, "non-vacuity: a passing CALL MUST still be exported"
+    assert "rec_level" in ids_out, "non-vacuity: an unfloored type MUST still be exported"
     assert "rec_low" not in ids_out and "rec_null" not in ids_out
+    # ⛔ R10 ruled FLOOR for this internal export; R89 added CALL to what that governs. The clause
+    # is untyped, so CALL came under it the moment FLOORED_TYPES grew — no edit in clips.py.
+    assert "rec_call_low" not in ids_out
 
 
 # ── Q17 (R17: FLOOR, min runs 3) — BEHAVIOURAL, at all four sites ────────────
@@ -483,11 +631,17 @@ Q17_CASES = [
 
 
 def _seed_q17(conn):
-    """One record per Q17 case, plus a CALL control that must survive every combination."""
+    """One record per Q17 case, plus an UNFLOORED control that must survive every combination.
+
+    ⚰️ The control was `q17_call`, a NULL-stability CALL, until R89 floored CALL — at which point
+    a control asserting "this still comes back" would have been asserting the opposite of the new
+    ruling. It is a LEVEL now; the CALL cases moved into the R89 section above, where they are
+    seeded with real scores instead of standing for "unfloored".
+    """
     for label, stab, runs, _ in Q17_CASES:
         add_record(conn, f"q17_{label}", "PRINCIPLE", "segLIVE1", "srcLIVE", author_id="tsdr",
                    stability=stab, stability_runs=runs)
-    add_record(conn, "q17_call", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA")
+    add_record(conn, "q17_level", "LEVEL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA")
     conn.commit()
 
 
@@ -508,10 +662,10 @@ def test_q17_site1_select_records(adapters_db, seeded):
     with store.read() as conn:
         got = {r["record_id"] for r in common.select_records(conn, types=("PRINCIPLE",))
                if r["record_id"].startswith("q17_")}
-        calls = {r["record_id"] for r in common.select_records(conn, types=("CALL",))}
+        levels = {r["record_id"] for r in common.select_records(conn, types=("LEVEL",))}
     assert _expected_pass_ids() <= got, "non-vacuity: the passing cases MUST come back"
     assert not (_expected_block_ids() & got)
-    assert "q17_call" in calls, "an unfloored type is untouched by the runs condition"
+    assert "q17_level" in levels, "an unfloored type is untouched by the runs condition"
 
 
 def test_q17_site4_clip_candidates(adapters_db, seeded):
@@ -523,7 +677,7 @@ def test_q17_site4_clip_candidates(adapters_db, seeded):
     out = {r["record_id"] for r in clips.clip_candidates(42)["records"]}
     assert _expected_pass_ids() <= out
     assert not (_expected_block_ids() & out)
-    assert "q17_call" in out
+    assert "q17_level" in out
 
 
 def test_q17_site2_brainkb_export(adapters_db, seeded, monkeypatch):
