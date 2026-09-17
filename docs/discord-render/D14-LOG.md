@@ -199,3 +199,107 @@ TimeZoneInfo conversion before acting, and the two disagreed by 34 minutes.
 08:23 ET, D-13's "Wed >= 09:00 ET"). Any of them waited on with `TZ=` through this
 shell would open early and look like it had waited.
 ```
+
+---
+
+## 2026-09-17 09:30 ET — the record fired, the page landed, and I published a wrong cause
+
+```
+================================================================================
+D-14 W2/W2b -- OI-45 CLOSED BY THE ARTIFACT. Live commit moved twice under us.
+web SUCCESS 26147924dcbd (13:17:12Z) | V2 STILL DARK | no master push by this session
+================================================================================
+
+THE HEADLINE. A production pod blocked its event loop for 10,469.7 ms at uptime
+103.6 s. W1 commit A recorded it on the volume, tiered it 1 under R34, paged --
+and the page is in #system-alerts, verbatim:
+
+  Chart health - loop_stalled: The event loop was blocked for 10470 ms at
+  uptime 104s (tier 1). Discord closes an interaction at 3,000 ms and the
+  renderer's page load fails in the same window (C-02).
+
+OI-45 was "the rule exists, is tested, is mutation-covered, and can never fire".
+This is the replacement path firing on a real pod with V2 still dark. The
+10470/104s in Discord match the record's 10,469.7 ms @ 103.6 s, so the message
+and the volume are ONE event.
+  ⛔ `paged: true` WAS NOT THE PROOF. _page_discord is fire-and-forget with a
+  bare `except: pass` and no logging on either path, so the log can never show
+  delivery. The channel is the only artifact. I checked the channel.
+
+SIX EVENTS ACROSS TWO COMMITS, carried through a deploy. The largest is
+29,241.5 ms at uptime 58.3 s -- NINE TIMES Discord's 3 s deadline -- and it was
+NOT paged, because the durable 30-minute cooldown was still running from the
+first. That is correct, and it is the tension worth naming: without a durable
+cooldown a pod that restarts all day re-pages every boot; with it, the biggest
+event can be absorbed by a cooldown a smaller one opened. The RECORD catches it
+either way. That is why there are two mechanisms -- the page is for attention,
+the record is for truth -- and W1's separation justified itself in four hours.
+  ⛔ DO NOT SHORTEN THE COOLDOWN. R35: the number moves after the cause is
+  fixed, never to make a symptom louder.
+
+R31 ANSWERED (R31-BOOT-WINDOW.md). Exposure-normalised, two runs shown as a
+series: boot 1.94 -> 2.46 /pod-h against a tail that did not move at 1.08.
+Minutes 0-3 carry a >=5 s rate of 4.17/pod-h against the settled tail's 0.16.
+  ⭐ AND IT RECONCILES Q6 WITH THE CENSUS, WHICH WERE NEVER IN CONFLICT: D-12
+  measured a RATE, the census measured a COUNT. Re-measured today the split is
+  sharper still -- the >=1 s class is majority SETTLED (27 of 46) and the
+  >=5 s class, the one that pages, is majority BOOT (9 of 13). Both true, about
+  different populations; either alone misleads.
+  ⛔ The hypothesised minute-11-to-15 block pages NOBODY: 4 events >=1 s, zero
+  >=5 s, across both runs.
+
+W2b MOVED AND STOPPED AT A CANDIDATE. Three log silences (25.3 s, 11.7 s, 6.7 s)
+align with three recorded stalls; a log gap is what a blocked loop looks like
+from outside. It does NOT name the blocker -- seven jobs ran in those windows.
+The leading NAMED candidate leads only because it measures itself:
+[discord-chart] hot warm reported 26.8 s and 33.5 s against its own 20 s budget,
+and it fires EVERY MINUTE forever, not only at boot.
+
+SMOKE: 10 PASS / 0 FAIL / 4 NOT RUNNABLE BY CONSTRUCTION (rows 2, 3, 5, 7).
+  Row 5 joined the not-runnable set today and the reason was inside its own
+  sentence: it asserts the `etfs` partition via discord_render.symbols
+  .flow_source, whose ONLY caller is the V2 handler. The pre-V2 dispatch passes
+  no `source` at all, so /flow SPY reads the STOCKS partition. Fourth instance
+  of the built-tested-correct-and-behind-the-dark-flag class in one programme.
+  Row 6 PASSED (NVDA, 246 contracts) and killed the pre-market hypothesis: a
+  feed that answers an equity read in seconds is not a feed that is
+  reconnecting. And row 5's cause was captured at last, inside the retention
+  window: `[flow] fetch failed SPY (30): timed out`.
+
+⛔⛔ AND I PUBLISHED A WRONG CAUSE, IN THREE ARTIFACTS, AND WITHDREW IT.
+For forty minutes this programme's record said "three pod restarts in 55
+minutes, all on the same commit, no push between them", with an exposure
+argument on top. They were DEPLOYS -- another workstream merged 26147924d to
+master mid-session, and the deploy list is the authority. The analysis printed a
+table of t/uptime/current/previous/since and OMITTED `sha`, the one column that
+answers "is this the same code?", then filled the gap from a /renderhealth
+reading 35 minutes stale. The trace had recorded the change correctly the whole
+time.
+  ⭐ The retraction makes R29's durability STRONGER, not weaker: the counter
+  survived a deploy to a DIFFERENT COMMIT -- slots_since held at 12:23:20Z,
+  current went 251 -> 255 across the swap. R29's mechanism is proven in
+  production; only its SPAN condition is outstanding (Friday ~08:23 ET).
+
+THREE INSTRUMENT-HONESTY FAILURES TODAY, ALL MINE, ALL THE SAME CLASS:
+  1. the R31 ssh trace reported ITS OWN process's loopwatch as the pod's
+     (19 rows of running:false while the HTTP probe read 600 samples);
+  2. the dropped `sha` column above;
+  3. a clock gate that opened 34 minutes early and printed UTC labelled "ET".
+  ⛔ All three were written AFTER the rule against them. Writing a lesson is
+  not holding it.
+
+PUSHED, NOT MERGED: fix/oi-47-health-early-return @ 494b20948. 2/2 mutations
+RED, 108 tests green, zero file overlap with master's three new commits so it
+merges clean. R22's one master push per session is SPENT (the W1 merge), and a
+context compaction is NOT a session boundary -- treating it as one would let the
+deploy budget be reset by an event with nothing to do with deploy risk.
+
+STILL BLOCKED: C2/C3 BLOCKED-permission (Task Scheduler, owner action).
+W3/OI-13 step 6 BLOCKED-until-FRIDAY ~08:23 ET (R29 span).
+
+PENDING AT THE TIME OF WRITING: the 10:00 ET window (R17 + the RTH half of the
+SPY/NVDA pair). Queue clear, live commit 26147924d, instruments alive.
+================================================================================
+master unchanged BY THIS SESSION | no env change | budget intact
+================================================================================
+```
