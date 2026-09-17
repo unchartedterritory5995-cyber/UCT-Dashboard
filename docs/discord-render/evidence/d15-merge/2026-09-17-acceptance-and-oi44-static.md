@@ -90,3 +90,68 @@ rule as reading the wire instead of the call site, one layer out.
   design (a deeper walk without call-graph resolution produces confident nonsense).
 
 **So the correlation half is still owed, and it is the half that can name a cause.**
+
+---
+
+## 3 · R52 — the CORRELATION half opens with a strong lead
+
+The merge's own deploy handed us a boot inside log retention, and the durable record — readable
+for the first time — caught a stall in it.
+
+**The stall:** `lifetime_max_ms` **2,989.7 ms** at **uptime 117 s**. Pod boot ≈ 17:06:54Z
+(uptime 25 s at 17:07:19Z), so the stall ended ≈ **17:08:51Z**.
+⭐ Ten milliseconds under the new 3,000 ms tier 1 — recorded, not paged. R51 working, and a
+reminder of how close the ordinary boot storm now runs to the ack budget.
+
+**The log across that instant** — note that a blocked loop cannot log, so the stall shows up as a
+SILENCE bounded by two ordinary lines. There is one: **17:08:37 → 17:09:00, 23 s of silence**,
+and the stall ends inside it.
+
+Every job running across that window is a candidate, and all of them are printed:
+
+| candidate | evidence | confidence |
+|---|---|---|
+| **`[screener-live]` sweep** | `held_lock_ms=32814.01 duration_ms=33861.42 cols_recomputed=96296 rows_considered=3745`, finishing 17:08:35 | **HIGHEST — see below** |
+| `ticker-names-prewarm` | `starting pass over 3742 tickers` 17:08:00 → `done in 36.7s` 17:08:37 | medium |
+| `[discord-chart] hot warm` | `hit its 20s budget after 23.1s — 7 chart(s) deferred` 17:08:25 | medium |
+| `rs_ranking` | `Computing RS scores for 3696 stocks` 17:09:00 | adjacent, just after |
+| `industry_map`, `calendar-enrich-warm`, `darkpool_intraday`, `bars_reconciliation` | all in the same two minutes | low, but present |
+
+### 3a · ⭐⭐ THE SCREENER SWEEP'S OWN SAFETY ARGUMENT HAS MOVED 269×
+
+`api/services/screener/live_tier.py` shares `snapshot_builder._BUILD_LOCK`, and the comment
+justifying that says, in the file:
+
+> *"WHY SHARING IT IS SAFE, WITH THE NUMBER (measured 2026-08-23 on a synthetic 3,745-row
+> universe, 5 consecutive cycles): held_lock_ms median **122 ms** (121-140) … a ~0.2% duty cycle
+> at the 60 s cadence. … `held_lock_ms` is on EVERY receipt so this stays a measurement rather
+> than a claim."*
+
+**Measured on production, 2026-09-17: `held_lock_ms = 32,814 ms`.** That is **269× the
+documented median**, and a **~55% duty cycle** at the 60 s cadence rather than 0.2%.
+
+⭐ **The file did exactly what it promised** — it put the number on every receipt so the claim
+could be falsified, and the receipt falsified it. That is the design working, and it is the first
+time anyone has read one.
+
+**Why this is the leading candidate for ROUTINE stalls specifically:** it runs **every 60 s
+during RTH**, in-process on web, recomputing ~96k columns. Python holds the GIL, so that CPU work
+stalls the event loop *whatever thread it is on* — which is why the sync-vs-async distinction in
+§2 does not clear it. A per-minute mechanism is the right shape to explain ~46 stalls a day;
+the rare admin routes in §2a are not.
+
+### 3b · ⛔ WHAT THIS IS NOT, YET
+
+- **n = 1.** One stall, one boot window, one receipt. `lesson_two_points_do_not_establish_a_rate`
+  applies with one point even harder.
+- **A boot is not steady state.** 32.8 s may be a cold-cache artifact of minute two, not what the
+  sweep costs at 14:30. **That is the measurement now running** — receipts collected across
+  several minutes to get the distribution. Until it lands, "the sweep is the cause of routine
+  stalls" is a HYPOTHESIS with one supporting observation.
+- **The silence is shared.** `ticker-names-prewarm` (36.7 s) and the chart hot-warm (23.1 s
+  against a 20 s budget) span the same seconds. A single-candidate answer from this data would be
+  a story, not a finding — `oi44_align.py` exists to refuse exactly that.
+
+**Next:** the receipt distribution, then the same correlation over the ≥3 s events the durable
+record already holds, then the fix under R52 (move the sweep's CPU off the loop's GIL — a process
+pool, or a readiness barrier for boot work) with the rail R52 specifies.
