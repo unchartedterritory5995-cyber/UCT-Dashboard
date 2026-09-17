@@ -129,7 +129,10 @@ def main(argv=None) -> int:
 
     rc, out = _run(["tools/merge_all.py", "--manifest", str(man), "--dry-run"] + repo_args)
     record("merge_all --dry-run (REPLAY)", rc,
-           _first(out, r"^\[merge-all\] (replay CLEAN \d+ of \d+|⛔ STRAND.*)$"), rc == 0)
+           # ⛔ NOT `$`-anchored: the CLEAN line now carries the base sha and any resolutions
+           # applied, and an anchored pattern reported "(no line matched)" for a perfectly
+           # good run — a validator block whose RESULT column goes blank is half a check.
+           _first(out, r"^\[merge-all\] (replay CLEAN \d+ of \d+.*|⛔ STRAND.*)"), rc == 0)
 
     print()
     print("%-34s %5s  %s" % ("VALIDATOR", "EXIT", "RESULT"))

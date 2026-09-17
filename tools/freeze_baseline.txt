@@ -80,7 +80,7 @@ docs/terminal-research/12-decisions/gates/s9-entitlements-pre-implementation-gat
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | 21c37a3bc0a5c564470927bec7362a1bcdbd489b
 docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | 42eafe314c00f98bd72d2374fb0627ada79e98bf
 tools/merge_all.py | 941be737659be6ac94363745e5320aac866ce7c9
-tools/pre_sitting.py | 9f2234f454ded32bb956bc37ec03abd14999a92a
+tools/pre_sitting.py | 7b11f1e0520693af403bf926ecf436eb21736ead
 tools/sign_all.py | 05d28de0906016871628cc7b80a894bc64def092
 tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
 tools/sign_manifest.txt | 72a165c5217e5cc179f674b80bb697b04f32b48e
