@@ -28,6 +28,7 @@ is a loopback address so this cannot quietly become one.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pathlib
@@ -279,11 +280,22 @@ class LocalBatches:
 
     def create(self, requests) -> _Batch:
         requests = list(requests)
-        bid = f"localbatch_{int(time.time() * 1000):013d}_{len(requests):05d}"
+        body = "".join(json.dumps(r) + "\n" for r in requests)
+        # ⭐⭐ THE ID IS DERIVED FROM THE REQUESTS, NOT FROM THE CLOCK, AND THAT IS THE WHOLE
+        # RESUME STORY. A timestamp id made every re-invocation a NEW directory, so the
+        # documented property — "a kill loses the request in flight and nothing else" — was
+        # true of `_process` and UNREACHABLE from the gate, which only ever calls `create`.
+        # ⚰️ Measured 2026-09-17: an OOM killed a golden run at 12 of 83 segments. The twelve
+        # results were on disk, correct, and orphaned — a fresh run would have re-extracted
+        # all 83. On a box that OOM-kills, a resume nobody can reach is not a resume.
+        # ⛔ Identical requests MUST land on the same directory; that collision IS the feature.
+        # A changed prompt, model or segment changes `params`, so it changes the digest and
+        # earns a new directory — a run can never silently inherit another extractor's answers.
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
+        bid = f"localbatch_{digest}_{len(requests):05d}"
         d = self._dir(bid)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "requests.jsonl").write_text(
-            "".join(json.dumps(r) + "\n" for r in requests), encoding="utf-8")
+        (d / "requests.jsonl").write_text(body, encoding="utf-8")
         self._process(bid)
         return _Batch(id=bid, processing_status="ended",
                       request_counts=_Counts(succeeded=self._done_count(bid)))

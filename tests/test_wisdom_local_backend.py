@@ -169,6 +169,51 @@ def test_a_batch_is_a_directory_and_a_second_create_RESUMES(local, monkeypatch):
     assert calls == [], "a resumed batch must not re-run completed requests"
 
 
+def test_a_SECOND_CREATE_with_the_same_requests_resumes_instead_of_restarting(local, monkeypatch):
+    """⛔⛔ THE ONE THAT WAS MISSING, AND IT COST A RUN. The test above proved `_process`
+    resumes — but the gate never calls `_process`, it calls `create`. With a clock-derived id
+    every re-invocation opened a NEW directory, so the resume was real and unreachable.
+
+    ⚰️ Measured 2026-09-17: an OOM killed a golden run at 12 of 83 segments. Twelve correct
+    results sat on disk and a fresh run would have re-extracted all 83.
+    ⭐ This is `lesson_a_guard_that_tests_the_adjacent_thing`: the old rail asserted resumption
+    of the function nobody calls, one layer below the entry point that needed it."""
+    calls = []
+
+    def fake_run_one(params):
+        calls.append(params)
+        return local_backend._Message(
+            content=[local_backend._Block("text", json.dumps({"records": []}))],
+            stop_reason="end_turn",
+            usage=local_backend._Usage(input_tokens=10, output_tokens=5))
+
+    monkeypatch.setattr(local_backend, "run_one", fake_run_one)
+    batches = local_backend.LocalBatches(local / "jobs")
+    reqs = [_req("a"), _req("b"), _req("c")]
+
+    first = batches.create(reqs)
+    assert len(calls) == 3
+
+    calls.clear()
+    second = batches.create(list(reqs))
+    assert second.id == first.id, "identical requests must land on the same batch directory"
+    assert calls == [], "a second create of the same work must re-run nothing"
+    assert len(list(batches.results(first.id))) == 3
+
+
+def test_DIFFERENT_requests_never_share_a_batch(local, monkeypatch):
+    """⛔ The other direction, and the dangerous one: a changed prompt/model/segment must NOT
+    inherit a previous extractor's answers. If it did, a run would silently report results it
+    never produced."""
+    monkeypatch.setattr(local_backend, "run_one", lambda params: local_backend._Message(
+        content=[local_backend._Block("text", "{}")], stop_reason="end_turn",
+        usage=local_backend._Usage(input_tokens=1, output_tokens=1)))
+    batches = local_backend.LocalBatches(local / "jobs")
+    a = batches.create([_req("a", text="one")])
+    b = batches.create([_req("a", text="two")])
+    assert a.id != b.id, "different request bodies must not collide onto one directory"
+
+
 def test_a_failing_request_is_recorded_not_raised(local, monkeypatch):
     """⛔ One unreachable moment must not lose the batch. It is an errored item, counted."""
     def boom(params):
