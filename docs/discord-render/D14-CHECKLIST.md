@@ -314,3 +314,18 @@ claiming continuity it does not have.
 - ⛔ **Still not merged, and the reason is not staleness:** R22's one master push per session is
   spent. The next session merges it as its first act, after re-reading `/renderhealth` for the
   live commit.
+
+### ⚠️ One thing the denominator change is NOT yet mutation-proved against
+
+`flip_preconditions.py --self-check` reads **`cases=11` all ok, `mutation_failures=1`, `failed=1`**
+after the `SMOKE_ROWS_TOTAL 15 → 14` change. **The one failure is not a case and not a regression:**
+`mutation_harness_flipgate.py` **refuses to run in this tree at all** — it edits real source in
+place, so it demands a `.mutation-sandbox` marker and this is the integrator's tree, not a
+throwaway. (That guard exists because a killed run once left a mutation behind in `badge.py`.)
+
+⛔ **So "self-check FAIL" here says nothing about the change** — the same rule as *"never read an
+INVALID manifest as a signal about your branch"*. The eleven behavioural cases all pass, including
+the smoke row.
+**Outstanding, cheap, and NOT done:** run `mutation_harness_flipgate.py` in a throwaway worktree
+carrying the marker, to prove the two cases that build fixtures from `fp.SMOKE_ROWS_TOTAL`
+(`:263`, `:593`) still fail for the right reason at 14.
