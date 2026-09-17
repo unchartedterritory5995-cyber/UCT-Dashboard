@@ -80,12 +80,42 @@
 > door are all in and proven; the fold is the one missing link and it is an
 > **owner decision**, not an engineering one.
 >
-> ▶️ **NEXT: PART 4** — rig, Clouds capture through the MEMBER door (in exactly the
-> state above), vendor capture under Gate v2.1, j.4 per-layer table (21 layers, 20
-> fills, both tables, both tiers), H.8's line REPORTED not asserted, then the R29
-> draft→ready decision. ⚠️ Owed and unchanged: `paramSingleTranslation` (green,
-> cause NOT established) and the binder-level `notes` channel for a definition with
-> fills and no visible host.
+> ✅ **PART 4 — j.4's MEMBER half is measured and tabled:
+> `docs/pine/j4-clouds-member-door.md`.** 23 outputs / 0 refusals / 20 fills into
+> the document; **23 plots, 21 hidden anchors `out3`…`out23` chained into exactly
+> 20 fills**, two visible MAs. ⭐ A fill is a **PROPERTY OF THE UPPER PLOT**
+> (`fill: {with:'outN'}`), NOT a `definition.fills` collection — the first probe
+> asked for the latter, got `undefined`, and would have published *"the document
+> carries zero fills"*. Guessing a field name manufactured a headline finding;
+> the shape is `{schemaVersion,id,version,compute,meta,placement,inputs,plots}`.
+> **0 of 20 fills carry a colour pair**, all 20 declare `colorDynamic`, and **0
+> R34 condition rows are minted — which is R34 WORKING**: no condition is carried
+> because the fold is stopped, and `conditionColumn.test.js` proves the door on
+> foldable ones. ⚠️ Each cloud layer instead exposes a member-settable
+> `$outNColor` input (48 inputs carried), so the member sees twenty individually
+> colourable bands rather than one graded cloud — a different product, not a
+> broken one.
+>
+> ⛔⛔ **THE VENDOR HALF IS BLOCKED BY A STANDING OWNER RULING, AND ONE URL IS
+> OWED.** `capture-procedure.md:463` retires the 19-study working chart and
+> requires a dedicated scratch layout; it arrived with a `<PASTE URL>` placeholder
+> and **the layout id has never been recorded** (`:481`, verified still unfilled).
+> Its own words: *"until it lands, every capture is blocked — deliberately, rather
+> than falling back to the 19-study chart."* The owner's live Chrome was the only
+> connected browser, so driving it would BE that forbidden fallback. **No capture
+> taken, no comparison column estimated, the Pine Editor untouched.**
+>
+> ⛔ **R29 DECIDED: #145 STAYS DRAFT**, and the two failing conditions are
+> different facts. (1) Colour is outside tolerance **by construction** — an owner
+> decision pending, not a defect. (2) "Both tables at both tiers" was **never
+> measured** — blocked on the owed URL. Unmeasured is not failed; collapsing them
+> is the `CoverageLine` defect this repo already refuses.
+>
+> ▶️ **WHAT UNBLOCKS THE REST — two owner items, both small:** the scratch layout
+> URL (one paste, unblocks the whole capture lane), and the (i)/(ii) fold decision
+> behind H.10. ⚠️ Owed and unchanged: `paramSingleTranslation` (green, cause NOT
+> established) and the binder-level `notes` channel for a definition with fills
+> and no visible host.
 >
 > ℹ️ One R33a remainder for whenever a colour ruling next opens:
 > `smart-money-volume-index-algoalpha` (16 named colour args, 12 expression alphas,

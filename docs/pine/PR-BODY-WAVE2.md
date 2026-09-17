@@ -211,9 +211,28 @@ reporter load **having executed nothing** and produced no totals line at all.
   over user functions**, which is a parser change whose re-baseline reaches the
   corpus; the owner's standing corollary says such an atomic unit is not *started*
   mid-block. The four insertion points are pinned in `WAVE2-A-PLAN.md`.
-- **The vendor capture (j.4)** — owed. And when it runs, **H.8's live-bar line is
+- ✅ **j.4's MEMBER half is measured and tabled** — `docs/pine/j4-clouds-member-door.md`.
+  **23 outputs / 0 refusals / 20 fills** into the pane document: 23 plots, **21 hidden
+  anchors `out3`…`out23` chained into exactly 20 fills**, two visible MAs. **0 of 20
+  fills carry a colour pair**, all 20 declare `colorDynamic` — the loss is *declared*,
+  not silent — and **0 R34 condition rows are minted, which is R34 working**: no
+  condition is carried because the fold is stopped at H.10.
+  ⭐ A fill is a **property of the upper plot** (`fill: {with:'outN'}`), not a
+  `definition.fills` collection; the first probe asked for the latter and would have
+  published "the document carries zero fills" off a guessed field name.
+- ⛔⛔ **The VENDOR capture is BLOCKED by a standing owner ruling, and one URL is owed.**
+  `capture-procedure.md:463` retires the 19-study working chart and requires a dedicated
+  scratch layout; the ruling arrived with a `<PASTE URL>` placeholder and **the layout id
+  has never been recorded** — *"until it lands, every capture is blocked — deliberately,
+  rather than falling back to the 19-study chart."* No capture was taken and **no
+  comparison column is estimated**. And when it does run, **H.8's live-bar line is
   REPORTED, not asserted**: Wave 1's fixture ends at a sealed bar, so it cannot cover the
   live divergence.
+- ⛔ **R29 — #145 STAYS DRAFT**, on two conditions that fail for different reasons:
+  colour is outside tolerance **by construction** (the fold is an owner decision, not a
+  defect), and "both tables at both tiers" was **never measured** (blocked on the owed
+  URL). ⭐ Unmeasured is not failed — collapsing the two is the `CoverageLine` defect
+  this repo already refuses.
 - **Alert sets (d3)** — deferred beyond Wave 2 under **H.7**.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
