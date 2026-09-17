@@ -8,6 +8,33 @@ States: `TODO` · `IN-PROGRESS` · `DONE` · `DEFERRED-<reason>` · `BLOCKED-<re
 
 ---
 
+## ⭐ STATE AT 2026-09-17 09:07 ET — this block SUPERSEDES anything below it that disagrees
+
+Live commit `d9455a6d64a5` on `web`, read from `/renderhealth` in-product. **V2 still dark.**
+No master push and no env change since the W1 merge.
+
+| item | state now |
+|---|---|
+| **OI-45** | ✅ **CLOSED BY THE ARTIFACT.** A real pod blocked its loop for 10,469.7 ms at uptime 103.6 s; W1 commit A recorded it, tiered it 1, paged — and **the page is in `#system-alerts`**, verbatim, zero member exposure. `docs/discord-render/evidence/oi44-attribution/2026-09-17-boot-storm.md` §4. ⛔ `paged: true` was NOT the proof: `_page_discord` is fire-and-forget with a bare `except` and no logging on either path, so only the channel can settle it. |
+| **R31** | ✅ **ANSWERED** — `R31-BOOT-WINDOW.md`. Boot (0–15 min) **1.94 stalls/pod-h** vs tail **1.08**, exposure-normalised: **1.80×**. The ≥5 s class separates far harder — minutes 0–3 at 3.55/pod-h against the settled tail's 0.16 (n=4; read n, not the ratio). **The hypothesised minute-11-to-15 block pages nobody**: 4 events ≥1 s, ZERO ≥5 s. |
+| **Q6 vs OI-44** | ✅ **RECONCILED, and they were never in conflict.** D-12 measured a RATE and the census measured a COUNT. Boot is worse per unit time; the tail holds 30 of 42 events and the largest ever (80,249 ms) because a pod spends ~82% of its observed life there. Neither half can be dropped. |
+| **W2 smoke** | ✅ **9 PASS**, 0 FAIL — `evidence/smoke-2026-09-17/INDEX.md`. Rows 5/6 are the 10:00 ET window. Rows 2/3/7 are **NOT RUNNABLE by construction** (V2 dark), never FAIL. SMOKE-3.5 rows 10 and 12 were corrected: they named a retired command and the wrong gear behaviour. |
+| **W2b** | 🟡 **MOVED, NOT CLOSED.** Three log silences (25.3 s · 11.7 s · 6.7 s) align with three of the four recorded stalls. ⛔ **The blocker is NOT named** — seven candidates ran in those windows. Leading NAMED candidate, only because it measures itself: `[discord-chart] hot warm`, 26.8 s and 33.5 s against its own 20 s budget, twice, in two minutes. |
+| **OI-47** | 🟡 **FIXED AND PUSHED, NOT MERGED.** `fix/oi-47-health-early-return` @ `494b20948`: 2/2 mutations RED, 108 tests green. ⛔ **R22's one master push per session is SPENT** (the W1 merge). **A context compaction is not a session boundary** — treating it as one would let the deploy budget be reset by an event with nothing to do with deploy risk. Merge is the next session's first act. ⭐ The "one-line fix" was wrong: the two branches disagreed about the SHAPE, so a top-level `d.get("loop")` would have started answering None the day V2 is enabled. |
+| **instruments** | The first R31 ssh trace was **VACUOUS** — it imported `loopwatch` in a `railway ssh` process and reported that process, not the pod. 19 rows of `running: false`. Replaced by `instruments/r31_boot_trace.py` (loop over HTTP, durable halves by import, every field labelled with its SOURCE). `d14_monitor`'s `token_slot_counts` key matched nothing the payload emits — fixed. |
+| **not explained** | The pod restarted **twice today with no commit change** (12:22:35Z, 12:58:50Z). If that holds, the boot storm runs far more often than 20×/day and each run is a fresh tier-1 page opportunity. |
+
+⛔ **STILL BLOCKED, unchanged:** `BLOCKED-permission` on C2/C3 (Task Scheduler entries — owner
+action) · `BLOCKED-until-FRIDAY 2026-09-18 ~08:23 ET` on W3/OI-13 step 6 (R29 needs a full weekday
+span including a 07:35 ET Morning Wire run; the counter's `since` is 12:23:20Z TODAY).
+
+⚠️ **AND R29's DURABILITY IS STILL UNOBSERVED.** `slots_since` has not yet survived a pod boot —
+it reads `2026-09-17T12:23:20Z`, 45 s after the first pod under commit B. **The tell at the next
+boot is `slots_since`: if it MOVES, the counter is not durable and R29 cannot be satisfied by it.**
+Check that before reading any count as a weekday span. (Current: `current 210 / previous 0`.)
+
+---
+
 ## 0. TWO DEVIATIONS FROM D-14 AS WRITTEN, RECORDED HERE BECAUSE THEY ARE STANDING
 
 **A4 (denial protocol) is REVISED and the revision is the operative rule.**
