@@ -446,7 +446,7 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
   /** ⚠️ `document.body`, not render()'s container: the modal is PORTALED — and
    *  the row's NAME, not the whole expander: a collapsed row also carries a short
    *  type badge, so `textContent` reads "Bollinger BandsBB". */
-  const activeLabels = () => [...document.body.querySelectorAll('[data-row-id] [class*="actLabel"]')]
+  const activeLabels = () => [...document.body.querySelectorAll('[data-structure-row] [class*="insRowName"]')]
     .map((n) => n.textContent.trim())
 
   /** Open one indicator's row so its fields render. The consolidated tab shows
@@ -456,8 +456,10 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     const block = document.body.querySelector(`[data-def-id="${defId}"]`)
     expect(block, `${defId} is not in the ACTIVE list — the list shows what the chart draws`)
       .toBeTruthy()
-    const expander = block.querySelector('[aria-expanded]')
-    if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+    // ⚰️⚰️ THE ROW IS SELECTED, NOT EXPANDED — the form is the right-hand
+    // Inspector column and the row itself is the target. Selecting twice is
+    // idempotent, so the "only when closed" guard this replaced is moot.
+    if (block.getAttribute('aria-selected') !== 'true') fireEvent.click(block)
     return block
   }
 
@@ -536,8 +538,12 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
       .map((k) => def.inputs.find((i) => i.key === k).label)
     const spin = [...document.body.querySelectorAll('input[type="number"]')]
     const rows = labels.map((label) => {
-      const hit = spin.find((el) => el.closest('[class*="indRow"]')
-        ?.querySelector('[class*="indLabel"]')?.textContent === label)
+      // ⚠️ `[data-field]`, NOT `[class*="insField"]`. The substring also matches
+      // `insFieldCtl` — the cell the input actually sits in — so `closest` stopped
+      // one element short of the row and found no label at all. CSS-module
+      // substrings are a prefix trap; the data attribute is the row's own mark.
+      const hit = spin.find((el) => el.closest('[data-field]')
+        ?.querySelector('[class*="insFieldLabel"]')?.textContent === label)
       expect(hit, `${label}'s number box is gone from the dialog entirely`).toBeTruthy()
       return hit
     })
@@ -585,16 +591,23 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
    *  than dodged by a stricter string match. */
   const rsiBlocks = () => [...document.body.querySelectorAll('[data-def-id="rsi"]')]
 
-  /** One row's COLLAPSED colour swatch — the headline control of the new row.
+  /** One row's MICRO-RAIL colour — what the row wears before anything is opened.
    *
-   *  ⭐ IT IS THE SAME `ind:<rowId>:<field>` TARGET the expanded form uses, on the
-   *  row's first declared colour input, which for RSI is `color`. Reading it
-   *  collapsed is the stronger test: it proves the per-instance target resolves
-   *  before a member has opened anything. */
+   *  ⚰️⚰️ IT WAS A COLOUR **SWATCH** ON THE COLLAPSED ROW, i.e. a picker, and it
+   *  is a RAIL now: 2×10px of the series' own colour, Legend V2's exact rule,
+   *  emitted always and painted only when there is a colour. A row is not a
+   *  settings form, so it holds no picker — but it still has to say WHICH LINE it
+   *  is, which is the thing this case was really about.
+   *
+   *  ⭐ AND IT IS THE STRONGER READ FOR EXACTLY THE SAME REASON THE OLD ONE WAS:
+   *  it proves the per-instance colour resolves before a member has opened
+   *  anything, and it proves the settings list and the on-chart legend are wearing
+   *  ONE colour — both end at the instance's own stored value, with no palette and
+   *  no "first plot" guess in between. */
   const collapsedSwatchIn = (block) => {
-    const sw = block.querySelector('[class*="actSwatch"] [data-color-swatch]')
-    expect(sw, 'the collapsed row shows no colour swatch').toBeTruthy()
-    return sw
+    const rail = block.querySelector('[class*="insRail"]')
+    expect(rail, 'the row shows no micro-rail').toBeTruthy()
+    return rail
   }
 
   /** One row's colour swatch for the `color` input, in the SELECTED row's form.
@@ -607,15 +620,18 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
    *  cannot let the case pass while reading the OTHER RSI's swatch, which is the
    *  exact confusion these two cases exist to catch. */
   const colourSwatchIn = (block) => {
-    const expander = block.querySelector('[aria-expanded]')
-    if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+    // ⚰️⚰️ THE ROW IS SELECTED, NOT EXPANDED — the form is the right-hand
+    // Inspector column and the row itself is the target. Selecting twice is
+    // idempotent, so the "only when closed" guard this replaced is moot.
+    if (block.getAttribute('aria-selected') !== 'true') fireEvent.click(block)
     const panel = document.body.querySelector('[data-inspector-for]')
     expect(panel?.getAttribute('data-inspector-for'),
       'the inspector is showing a different row than the one that was selected')
       .toBe(block.getAttribute('data-row-id'))
-    const label = engineRegistry.getDefinition('rsi').inputs.find((i) => i.key === 'color').label
-    const row = [...panel.querySelectorAll('[class*="indRow"]')]
-      .find((r) => r.querySelector('[class*="indLabel"]')?.textContent === label)
+    // ⚠️ BY `data-field`, THE INPUT'S OWN KEY. The Inspector partitions the fields
+    // into Core and Appearance, so a label walk over "the field rows" is both
+    // longer and order-dependent in a way this case never meant to be.
+    const row = panel.querySelector('[data-field="color"]')
     expect(row, 'the RSI row has no colour field — this case is asserting on nothing').toBeTruthy()
     const sw = row.querySelector('[data-color-swatch]')
     expect(sw, 'the colour field renders no swatch').toBeTruthy()
@@ -672,7 +688,7 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     expect(blocks, 'two RSI instances did not produce two rows in the list').toHaveLength(2)
     const seen = blocks.map((b) => collapsedSwatchIn(b).style.background)
     // ⛔ AN EQUALITY, NOT "they differ" — see the case below for why.
-    expect(seen, 'a collapsed swatch is showing a colour neither instance holds')
+    expect(seen, 'a row\'s micro-rail is wearing a colour neither instance holds')
       .toEqual(['rgb(17, 17, 51)', 'rgb(34, 119, 34)'])
   })
 

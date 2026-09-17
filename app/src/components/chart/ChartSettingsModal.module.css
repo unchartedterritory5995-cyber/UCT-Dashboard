@@ -33,6 +33,9 @@
   height: min(660px, 88vh);
   display: flex;
   flex-direction: column;
+  /* ⭐ THE WIDTH ANIMATES BECAUSE IT CHANGES. See `.panelWide`: a step is a jump,
+     and 140ms on the same curve as the panel's own entrance makes it a move. */
+  transition: width 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
   /* --menu-surface = translucent canvas gradient (gradient canvas only); solid
      canvases leave it unset and fall back to the opaque --menu-bg. */
   background: var(--menu-surface, var(--menu-bg, #0e0e10));
@@ -45,6 +48,28 @@
   overflow: hidden;
   animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
+
+/* ── THE INDICATORS TAB IS WIDER, AND ONLY WHILE IT IS OPEN ─────────────────
+   ⚰️⚰️ A TWO-COLUMN INDICATORS TAB WAS BUILT AND REVERTED ONCE, AND THE REASON
+   WAS EXACTLY THIS RULE. `.cdLeft`/`.cdRight` needed 880px; the owner reads this
+   panel at the compact width every other tab uses; "a modal that resizes on the
+   way into one tab" was judged too high a price, so the editor went back inline.
+   ⭐⭐ WHAT CHANGED IS THE NUMBER AND WHO CHOSE IT. 880 was what the old layout
+   HAPPENED to need; 720 is a width the owner set for this design (2026-09-17),
+   and it is 160px less — the difference between a modal that grows by 57% on one
+   tab and one that grows by 29%. The Inspector is two regions with two different
+   jobs, which is what makes the pixels worth spending; Hybrid 2's extra width
+   bought a third and fourth column of the same kind of thing, which is what made
+   its 680 feel unearned.
+   ⛔ AND IT IS SCOPED TO THE TAB RATHER THAN APPLIED GLOBALLY. Widening `.panel`
+   for everyone would re-lay-out Price, Canvas, Info and Conditions — four tabs
+   designed to a 560px column — to solve a problem none of them has. The cost is
+   one animated width change on tab switch, which the transition above makes a
+   move rather than a jump.
+   ⚠️ `94vw` IS THE SAME SECOND TERM AS THE NARROW PANEL'S, so a small viewport
+   still wins and the two-column layout hands off to the narrow navigation model
+   (`@media (max-width: 620px)` further down) rather than overflowing. */
+.panelWide { width: min(720px, 94vw); }
 
 @keyframes pop {
   from { opacity: 0; transform: translateY(8px) scale(0.985); }
@@ -865,140 +890,606 @@
   min-height: 0;
 }
 
-/* ⚰️ ONE COLUMN. `.cdLeft`/`.cdRight` were the pane map and a permanent
-   inspector side by side, and they are why this tab asked for 880px. The editor
-   is inline now, so there is one vertical flow and one scroll container — which
-   is also what `.body` was before Chart Data, so nothing else on this tab had to
-   change back. */
-.cdOne {
+/* ⚰️⚰️ `.cdOne` WAS THE ONE-COLUMN FLOW, AND IT IS RETIRED WITH THE INLINE
+   ACCORDION IT EXISTED FOR. Its own gravestone recorded that `.cdLeft`/`.cdRight`
+   — a pane map and a permanent inspector side by side — had asked for 880px, and
+   that going back to one column was the price of the compact modal. The owner has
+   now set the width at ~720 deliberately (2026-09-17), which is what reverses that
+   trade: two columns, at a width chosen for them rather than inherited from four
+   other tabs, and with the panel widening only while this tab is open. See
+   `.panelWide`. */
+
+/* ══ THE INDICATOR INSPECTOR ══════════════════════════════════════════════════
+   LEFT = WHAT IS ON MY CHART.  RIGHT = EDIT THE THING I SELECTED.
+
+   ⚰️⚰️ THIS PANEL HAS NOW BEEN THREE THINGS, AND THE GRAVESTONES ARE THE DESIGN.
+   (1) A flat list with an INLINE ACCORDION: clicking a row grew a form under it
+   and pushed everything below down by ~260px, so walking six indicators meant
+   reading a panel that reflowed under the pointer each time.
+   (2) HYBRID 2: pane BANDS at 680px with INDICATOR | SOURCE | DISPLAY as three
+   standing columns. Technically honest and, in the owner's words, *"visually too
+   much like managing machinery"* — it put every architectural fact on screen at
+   once for every row, whether or not anybody had asked about any of them.
+   (3) This. The structure says WHAT IS HERE and nothing else; every other fact
+   about a row is printed once, in the right column, for the one row selected.
+
+   ⭐⭐ THE WIDTH IS SPENT ON TWO DIFFERENT JOBS, WHICH IS WHY IT IS EARNED. Hybrid
+   2's extra pixels bought a third and fourth column of the SAME kind of thing —
+   more facts, same job. Here the left column is a map and the right is a form:
+   neither can be folded into the other, and neither wants the other's width.
+
+   ⛔ NO CARDS, NO PILLS, NO BOXES, NO TABLE HEADERS. Charcoal layering, hairline
+   seams, one typographic hierarchy and a great deal of restraint about gold.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.insSplit {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+/* ── THE LEFT COLUMN ──────────────────────────────────────────────────────────
+   ⭐ 264px, AND IT IS NOT A ROUND NUMBER FOR ITS OWN SAKE. It is what holds
+   `Relative Strength Index` — the longest shipped semantic name — plus a 2px
+   rail, its gutters and the `Off` tag without wrapping, at the 12px the rows are
+   set in. Narrower and the one name that needs the room truncates; wider and the
+   Inspector, which is doing the harder job, starts giving up field width. */
+.insLeft {
+  flex: 0 0 264px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* ⭐ THE SEAM IS THE ONLY DIVISION. A border, a panel background or a rounded
+     surface would make the two regions read as two components sitting next to
+     each other rather than as one panel with two jobs. */
+  border-right: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  padding-right: 14px;
+  margin-right: 14px;
+}
+
+.insLeftHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.insLeftTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ⭐ `Arrange` IS A WORD, NOT AN ICON, and that is the whole discoverability fix.
+   The arrows it replaces were twelve live controls resting on six pane headings;
+   this is one quiet verb that a member reads once and then knows about. */
+.insHeadAct,
+.insHeadAdd {
+  flex: none;
+  background: transparent;
+  border: none;
+  padding: 3px 5px;
+  margin: 0;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--menu-text-faint, #93939a);
+  cursor: pointer;
+  transition: color 110ms, background 110ms;
+}
+.insHeadAct:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+/* ⛔ THE ONE GOLD THING IN THE NORMAL VIEW. Add is the panel's primary verb and
+   nothing else in the calm state competes with it — which is what makes gold mean
+   something here rather than being decoration. */
+.insHeadAdd { color: var(--menu-accent, #dcbb5e); font-weight: 600; }
+.insHeadAdd:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+
+.insStructure {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-border, #3a3a3f) transparent;
+  outline: none;
+}
+.insStructure::-webkit-scrollbar { width: 8px; }
+.insStructure::-webkit-scrollbar-track { background: transparent; }
+.insStructure::-webkit-scrollbar-thumb {
+  background: var(--menu-border, #3a3a3f);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ── ONE PANE: A QUIET STRUCTURAL DIVIDER ─────────────────────────────────────
+   ⛔ NOT A BAND, NOT A CARD, NOT A RAIL DOWN THE GUTTER. A hairline above the
+   heading is the entire treatment. Hybrid 2's 4% tonal band made four panes read
+   as four containers on a busy chart; the seam groups just as unambiguously,
+   costs one pixel, and leaves every row on the same left edge as the heading. */
+.insGroup + .insGroup {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+.insGroupHead {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  padding: 0 0 5px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ⛔ THE REPAIR GROUPS' ONE SENTENCE. Small, faint, and above the rows rather
+   than beside them, so it reads as a caption on the heading and never as a row. */
+.insGroupWhy {
+  margin: 0 0 6px 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--menu-text-faint, #93939a);
+}
+
+/* The two groups whose members are not drawing. They are not panes and are never
+   arranged, so they say so in colour as well as in position. */
+.insGroupRepair .insGroupHead { color: var(--menu-accent, #dcbb5e); opacity: 0.72; }
+
+/* ── ONE SERIES ROW ───────────────────────────────────────────────────────────
+   ⭐ THREE THINGS, AND TWO OF THEM ARE USUALLY ABSENT: a micro-rail, a name, and
+   a dimmed `Off` when it is off. No gear, no ✕, no chevron, no dropdown, no
+   source, no display, no type, no period. The row's ONE interaction is CLICK TO
+   SELECT, and everything a member might want to do to it is one column to the
+   right, already open. */
+.insRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 7px 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  /* ⭐ A TRANSPARENT LEFT EDGE THAT IS ALWAYS THERE. The selected state paints
+     it gold; reserving it unpainted is what stops every row shifting 2px right
+     the moment a selection appears. */
+  border-left: 2px solid transparent;
+  transition: background 110ms, color 110ms;
+}
+.insRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.insRow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+
+/* ⭐⭐ THE SELECTED STATE — A TONAL STEP AND A GOLD EDGE, AND NOTHING ELSE.
+   ⛔ NOT A GLOWING CARD. The owner's brief names it directly; a selected row in a
+   list of eleven has to be findable at a glance and must not become the loudest
+   object on a panel whose whole point is calm. A 6% surface, a 2px gold edge and
+   a brighter label are three small signals that add up, which reads as considered
+   where any one of them turned up would read as shouting. */
+.insRowSel {
+  background: rgba(255, 255, 255, 0.062);
+  border-left-color: var(--menu-accent, #dcbb5e);
+}
+.insRowSel:hover { background: rgba(255, 255, 255, 0.075); }
+.insRowSel .insRowName { color: var(--menu-text, #ededed); font-weight: 600; }
+
+/* ⭐ THE LANDING MARK. `search → add → see it land`, held for 1.4s and then gone.
+   ⛔ NOT A TOAST: the thing that landed is a row in a list the member is already
+   looking at, and announcing it somewhere else makes them look away from it. */
+.insRowLanded { animation: insLand 1400ms ease-out; }
+@keyframes insLand {
+  0%   { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+  70%  { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .insRowLanded { animation: none; background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+}
+
+/* ⭐⭐ THE MICRO-RAIL — LEGEND V2'S, TO THE PIXEL. 2×10px, 1px radius, `flex:
+   none`, nudged half a pixel so it sits on the text's x-height rather than
+   hanging off its baseline box. It is the same rule the on-chart legend draws
+   before the same label in the same colour, which is what makes a trader
+   recognise `EMA 20` here and `EMA 20` on the chart as ONE plotted object without
+   being told. Do not resize it: at 3px it starts reading as a bar chart down the
+   left edge, which is the rainbow-barcode failure a dense stack invites.
+   ⛔ EMITTED ALWAYS, PAINTED ONLY WHEN THERE IS A COLOUR — an uncoloured row
+   (Volume, OHLC) keeps the indent so every label in the column starts at one x. */
+.insRail {
+  flex: none;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  transform: translateY(0.5px);
+}
+
+.insRowName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--menu-text-dim, #b3b3b9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.insRowOff .insRowName { color: var(--menu-text-faint, #93939a); }
+/* ⛔ THE RAIL DIMS WITH THE ROW, not separately — a hidden series' colour is
+   still its colour, and painting it at full strength beside grey text says the
+   line is drawing. */
+.insRowOff .insRail { opacity: 0.35; }
+.insRowOffTag {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  opacity: 0.8;
+}
+
+/* ── THE RIGHT COLUMN ─────────────────────────────────────────────────────── */
+.insRight {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-border, #3a3a3f) transparent;
+}
+.insRight::-webkit-scrollbar { width: 8px; }
+.insRight::-webkit-scrollbar-track { background: transparent; }
+.insRight::-webkit-scrollbar-thumb {
+  background: var(--menu-border, #3a3a3f);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.insPanel,
+.insAdd { display: flex; flex-direction: column; min-height: 0; }
+.insAdd { flex: 1; }
+
+/* ── THE INSPECTOR HEADER ─────────────────────────────────────────────────── */
+.insHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: none;
+  padding: 0 0 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+/* The header's own rail — the same rule as the row's, on the row's own hue, so
+   the selected item is recognisably the same object on both sides of the seam. */
+.insHeadRail {
+  flex: none;
+  width: 2px;
+  height: 13px;
+  border-radius: 1px;
+  margin-top: 3px;
+}
+.insHeadText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.insHeadName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--menu-text, #ededed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ⛔ A SECOND LINE ONLY WHEN IT SAYS SOMETHING THE FIRST DOES NOT. `Relative
+   Strength Index` under `RSI 14` expands an abbreviation; `Volume` under `Volume`
+   is furniture and the component simply omits it. */
+.insHeadKind {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insOnOff {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 999px;
+  padding: 3px 9px 3px 7px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms;
+}
+.insOnOff:hover { color: var(--menu-text, #ededed); }
+.insOnDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+/* ⭐ GOLD ONLY WHEN ON. The two states have to be tellable apart at a glance and
+   from across a screen; a pill that is gold either way is a label, not a state. */
+.insOnOffOn { color: var(--menu-accent, #dcbb5e); border-color: rgba(220, 187, 94, 0.35); }
+.insOnOffOn .insOnDot { opacity: 1; }
+
+.insBack {
+  flex: none;
+  width: 24px;
+  height: 22px;
+  margin-top: 1px;
+  background: transparent;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 6px;
+  color: var(--menu-text-dim, #b3b3b9);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.insBack:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, #dcbb5e); }
+
+/* ── ONE GROUP OF CONTROLS ────────────────────────────────────────────────── */
+.insSection + .insSection {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+.insSectionLabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+  margin-bottom: 8px;
+}
+
+/* ⭐ LABEL LEFT, CONTROL RIGHT, ON ONE BASELINE GRID. A fixed label column is
+   what stops eight rows of different label lengths reading as eight different
+   forms — and `min-width: 0` on the control cell is what lets a long source name
+   shrink instead of pushing the row wider than the panel. */
+.insField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  padding: 2px 0;
+}
+.insField + .insField { margin-top: 2px; }
+.insFieldLabel {
+  flex: 0 0 116px;
+  font-size: 11.5px;
+  color: var(--menu-text-dim, #b3b3b9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.insFieldCtl {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+/* The shared controls fill the cell rather than sitting at a hand-tuned width —
+   one rule, so a select, a number box and the source picker all line up on one
+   right edge without any of them knowing about the others. */
+.insFieldCtl > select,
+.insFieldCtl > input[type='number'] { width: 100%; max-width: 190px; }
+.insFieldCtl > div { min-width: 0; max-width: 190px; width: 100%; }
+
+/* ── ACTIONS ──────────────────────────────────────────────────────────────── */
+.insActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+.insAction {
+  background: transparent;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 6px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--menu-text-dim, #b3b3b9);
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms, background 110ms;
+}
+.insAction:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+/* ⛔ RED ON HOVER, NOT AT REST. The one destructive verb on the panel should be
+   findable without being the first thing the eye lands on in a form the member
+   opened in order to change a period. */
+.insActionDanger:hover {
+  /* ⭐ THE APP'S OWN LOSS RED, THROUGH ITS OWN TOKENS — not a hand-mixed danger
+     hue. The three `--loss*` tokens already carry the ink, its 15%-alpha fill and
+     its 35%-alpha border, and they re-declare themselves per theme, so a light
+     canvas gets the light-theme red with no second rule here. */
+  color: var(--loss, #df4646);
+  border-color: var(--loss-border, #df464635);
+  background: var(--loss-bg, #df464615);
+}
+
+/* ── NOTHING SELECTED / ARRANGE ASIDE ─────────────────────────────────────── */
+.insEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px 0 0 0;
+  max-width: 320px;
+}
+.insEmptyLede { font-size: 12.5px; color: var(--menu-text-dim, #b3b3b9); }
+.insEmptyNote { font-size: 11px; line-height: 1.55; color: var(--menu-text-faint, #93939a); }
+.insAddBtn {
+  margin-top: 4px;
+  background: transparent;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  border-radius: 6px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--menu-accent, #dcbb5e);
+  cursor: pointer;
+}
+.insAddBtn:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+
+/* ── THE ADD SURFACE ──────────────────────────────────────────────────────── */
+.insSearchRow { flex: none; margin-bottom: 12px; }
+.insAddBody {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-border, #3a3a3f) transparent;
 }
-
-/* ── ONE PANE: A HEADING AND A RAIL ──────────────────────────────────────────
-   ⭐ A RAIL, NOT A CARD. Boxing every pane reads as nine containers on a busy
-   chart (measured in the Concept D prototype); a 1px line down the gutter groups
-   just as unambiguously, costs no vertical space per group, and leaves the rows
-   inside on the same left edge as the headings above them. */
-.cdGroup + .cdGroup { margin-top: 16px; }
-
-/* ── WHOLE-PANE REORDERING ────────────────────────────────────
-   ⚠️ QUIET AT REST. The grip and the arrows are chrome on every pane heading,
-   so they stay at `--menu-text-faint` until the row is hovered; a panel that
-   shows six live controls per heading reads as a toolbar, not a map. */
-.cdGroupHead[draggable='true'] { cursor: grab; }
-/* ⚰️⚰️ THESE WERE `opacity: 0` UNTIL HOVER, AND THAT MADE PANE REORDERING A
-   SECRET. Owner, 2026-09-16: *"The current pane up/down controls are only
-   discoverable if the pointer happens to hover exactly where the invisible
-   buttons are."* Moving a pane is a PRIMARY chart-management action — it is half
-   of what this panel is for — and an affordance a member has to find by accident
-   is an affordance most of them never find at all.
-
-   ⭐ SO THEY REST VISIBLE AND BRIGHTEN ON HOVER. Quiet enough that a six-pane map
-   does not read as twelve buttons (the owner's *"Do not make them loud"*), loud
-   enough that the first glance says panes move. Same rule for the grip: a drag
-   handle nobody can see is a drag nobody attempts.
-
-   ⛔ AND `:focus-within` STILL GOES TO FULL, so a keyboard member tabbing into the
-   pair gets the same emphasis a pointer does. */
-.cdGrip {
-  flex: none;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--menu-text-faint, #6b6b6b);
-  opacity: 0.4;
-  transition: opacity 90ms ease;
+.insAddBody::-webkit-scrollbar { width: 8px; }
+.insAddBody::-webkit-scrollbar-track { background: transparent; }
+.insAddBody::-webkit-scrollbar-thumb {
+  background: var(--menu-border, #3a3a3f);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
-.cdGroupHead:hover .cdGrip { opacity: 1; }
+.insAddGroup + .insAddGroup { margin-top: 14px; }
 
-.cdMove {
-  margin-left: auto;
-  display: flex;
-  gap: 2px;
-  opacity: 0.55;
-  transition: opacity 90ms ease;
+/* ── ARRANGE ──────────────────────────────────────────────────────────────── */
+.insArrGroup {
+  padding: 7px 8px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  cursor: grab;
+  transition: background 110ms;
 }
-.cdGroupHead:hover .cdMove,
-.cdMove:focus-within { opacity: 1; }
-.cdMoveWrap { display: inline-flex; }
-.cdMoveBtn {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  line-height: 1;
+.insArrGroup + .insArrGroup { margin-top: 4px; }
+.insArrGroup:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.insArrGroup:not([draggable]) { cursor: default; }
+.insDragging { opacity: 0.45; }
+/* ⭐ THE INSERTION POINT IS A GOLD EDGE ON THE PANE THE DROP WOULD LAND ABOVE —
+   one mark, in the one accent, saying exactly where the thing goes. */
+.insDropBefore { box-shadow: inset 0 2px 0 0 var(--menu-accent, #dcbb5e); }
+
+.insArrHead { display: flex; align-items: center; gap: 7px; }
+.insGrip { flex: none; font-size: 11px; color: var(--menu-text-faint, #93939a); line-height: 1; }
+.insArrName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--menu-text, #ededed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ⭐ THE ARROWS ARE VISIBLE HERE BECAUSE THE MEMBER ASKED TO ARRANGE THINGS.
+   That is the whole difference from the version that rested them on every heading
+   in the normal view: an affordance inside an explicitly-entered mode is not
+   clutter, it is the mode. */
+.insArrMove { flex: none; display: inline-flex; gap: 2px; }
+.insArrBtn {
+  width: 20px;
+  height: 20px;
   background: transparent;
-  border: 1px solid var(--menu-border, #2c2c30);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
   border-radius: 5px;
   color: var(--menu-text-dim, #b3b3b9);
+  font-size: 10px;
+  line-height: 1;
   cursor: pointer;
+  transition: color 110ms, border-color 110ms;
 }
-.cdMoveBtn:hover:not(:disabled) {
-  color: var(--menu-text, #ededed);
-  background: var(--menu-hover, rgba(255, 255, 255, 0.055));
-}
-.cdMoveBtn:disabled { opacity: 0.3; cursor: default; }
+.insArrBtn:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: var(--menu-accent, #dcbb5e); }
+.insArrBtn:disabled { opacity: 0.32; cursor: default; }
 
-/* The drag's only feedback: a gold rule where the pane would land, and the
-   pane being carried dimmed. No lift, no shadow, no animation. */
-.cdDropBefore { box-shadow: 0 -2px 0 -1px var(--menu-accent, #dcbb5e); }
-.cdDragging { opacity: 0.45; }
-.cdGroupHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.cdGroupRows {
-  border-left: 1px solid var(--menu-divider, #202022);
-  padding-left: 12px;
-}
-
-/* ⛔ THE ORPHAN GROUP IS NOT AN ORDINARY PANE AND MUST NOT LOOK LIKE ONE. Its
-   members are not drawing at all; the accent rail is the one place on this tab
-   where gold means "look here" rather than "this is on". */
-.cdGroupOrphan .cdGroupRows { border-left-color: var(--menu-accent, #dcbb5e); }
-.cdGroupOrphan .sectionLabel { color: var(--menu-accent, #dcbb5e); }
-
-/* ⚠️ AND "NOT SHOWN" IS QUIET, NOT GOLD. It shares the orphan group's SHAPE —
-   a heading, a reason, a rail — because both answer "why is this not in a pane";
-   it must not share the accent, because nothing here needs attention. */
-.cdGroupHidden .cdGroupRows { border-left-style: dashed; }
-.cdOrphanWhy {
-  margin: 0 0 8px;
+/* The guests, as inert names. They travel with the host and cannot be dragged
+   out of it — placement is the Inspector's Display control, not this mode. */
+.insArrRows { display: flex; flex-direction: column; padding-left: 18px; margin-top: 2px; }
+.insArrRow {
   font-size: 11px;
-  line-height: 1.45;
-  color: var(--menu-text-dim, #b3b3b9);
+  line-height: 1.55;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── THE INLINE EDITOR ─────────────────────────────────────
-   ⛔ IT IS ATTACHED, NOT FLOATING. A hairline above and the row's own surface
-   behind it say "this belongs to the line above"; a card with its own border and
-   radius would read as a separate object sitting in the list, which is the
-   generic-accordion look this panel is not.
-   ⚠️ NO HORIZONTAL PADDING OF ITS OWN — `.actBlockOpen` already supplies it, and
-   a second inset would step the field labels in from the name they belong to. */
-.cdInspector {
-  padding: 8px 0 10px;
-  margin-top: 4px;
-  border-top: 1px solid var(--menu-divider, #202022);
+/* ── NARROW: THE SAME STATE, ONE REGION AT A TIME ──────────────────────────────
+   ⛔⛔ NOT A SECOND ARCHITECTURE AND NOT A SQUEEZE. The component renders ONE of
+   the two regions below this width and gives the Inspector a Back arrow; the
+   selection model, the read model and every writer are identical. Narrowing two
+   columns until a 116px label column and a 190px select share 300px is how a
+   desktop panel arrives on a phone looking broken. */
+@media (max-width: 620px) {
+  .insLeft {
+    flex: 1 1 auto;
+    border-right: none;
+    padding-right: 0;
+    margin-right: 0;
+  }
+  .insFieldLabel { flex: 0 0 96px; }
+  .insEmpty { max-width: none; }
+  .insArrBtn { width: 28px; height: 28px; }
 }
-/* The fields sit flush: there is no toggle column above them to clear. */
-.cdInspector .indRow { padding-left: 0; }
 
-/* ⚠️ AND THE SELECTED ROW DOES NOT BLEED INSIDE A RAIL. `.actBlockOpen` widens
-   itself 12px each side so an open card could sit proud of the flat list; inside
-   `.cdGroupRows` that reaches back across the rail and out the other side of it.
-   The surface is kept, the bleed is dropped — scoped here so the flat lists that
-   still use `.actBlockOpen` elsewhere are untouched. */
-.cdGroupRows .actBlockOpen {
-  margin-inline: 0;
-  padding-inline: 8px;
+/* ⛔⛔ THE TOUCH FLOOR IS ITS OWN QUERY, AT 1024, AND NOT PART OF THE LAYOUT
+   SWITCH ABOVE. They are two different questions and this stylesheet answered
+   them with one number once already: the row's 44px floor sat inside the 620px
+   block, so a member on a TABLET — touch, and every bit as unable to hit a 24px
+   row — got the desktop row height. `tapFloor.test.js` is the app-wide rail that
+   caught it, and its measurement is the reason it exists: 360 sub-44px targets at
+   820px against 15 at 390px, because dozens of stylesheets had made exactly this
+   assumption that touch means phone.
+   ⚠️ 1024 IS `breakpoints.css`'s OWN LINE for "touch", so this is the repo's
+   number rather than one chosen here. The two-column layout is unaffected: it
+   collapses at 620 and a roomier row above that costs nothing. */
+@media (max-width: 1024px) {
+  .insRow { min-height: var(--tap-min, 44px); padding-top: 8px; padding-bottom: 8px; }
 }
+
+
+/* ⚰️⚰️ THE `.cd*` RULES STOOD HERE AND ARE GONE WITH THE MARKUP THEY DRESSED
+   — the pane HEADING with its rest-visible grip and arrows, the 1px group rail,
+   the `.cdInspector` accordion body, the orphan/hidden explanations, and the
+   `.actBlockOpen` negative-margin fix that existed only because an open editor had
+   to reach back across that rail. Every one of them described a ROW that expanded;
+   the Inspector's rows do not expand, so the rules describe nothing.
+   ⛔ DELETED RATHER THAN LEFT IN PLACE "in case". Dead CSS in a 1,900-line module
+   is indistinguishable from live CSS to the next reader, and the classes it names
+   no longer exist in any component — asserted by the reachable/stylelint passes and
+   by `git log -p` if anyone needs them back. */
 
 /* ── The ways in: search + New Formula, one compact row (§25/§26) ─────────── */
 .indTop {

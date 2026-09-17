@@ -834,11 +834,14 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
-        /* ⚰️ CHART DATA USED TO WIDEN THIS TO 880 and the modal resized on the
-           way in and out of the tab. The two-column pane-map + inspector needed
-           the room; the inline editor does not, so the width goes back to the
-           one every tab shares and the jump is gone. */
-        className={styles.panel}
+        /* ⚰️⚰️ TWICE NOW. Chart Data widened this to 880 for a two-column pane
+           map + inspector, and it was reverted — *"the width goes back to the one
+           every tab shares and the jump is gone"* — when the editor went inline.
+           ⭐ THE INSPECTOR WIDENS IT AGAIN, TO 720, AT THE OWNER'S NUMBER
+           (2026-09-17), and the difference from the reverted version is 160px and
+           a transition. See `.panelWide` for why the trade reads differently at
+           this width, and why it stays scoped to the one tab that spends it. */
+        className={`${styles.panel} ${activeTab === 'indicators' ? styles.panelWide : ''}`}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}

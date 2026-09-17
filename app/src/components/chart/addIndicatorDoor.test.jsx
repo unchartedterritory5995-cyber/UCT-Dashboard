@@ -43,7 +43,17 @@ function Host({ initial, seen }) {
 }
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
 const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
-const search = (q) => fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
+/** Open the ONE Add door and type into it.
+ *  ⚰️ THE BOX USED TO BE PERMANENTLY AT THE TOP OF THE TAB. Discovery is the
+ *  Inspector's RIGHT column now and `＋ Add` is its door — which is what keeps the
+ *  default view calm — so reaching the box is one click first. Still ONE door,
+ *  and the catalogue behind it is unchanged. */
+const search = (q) => {
+  if (!document.body.querySelector('[data-testid="add-surface"]')) {
+    fireEvent.click(screen.getByTestId('add-enter'))
+  }
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
+}
 const optionNames = () => screen.queryAllByRole('option')
   .map((o) => (o.querySelector('[class*="resName"]')?.textContent || '').trim())
 
@@ -193,7 +203,17 @@ describe('⭐⭐ SEARCH QQQ → ADD QQQ (owner §9)', () => {
       expect(row).toBeTruthy()
       fireEvent.click(row)
       expect(seen.cs, 'the click created nothing').toBeTruthy()
+      // ⚰️ THE ADD SURFACE CLOSES ON A SUCCESSFUL ADD and the new series' own
+      // Inspector takes the right column — the add is finished, and what a member
+      // does next is configure the thing they just made. So the door is re-opened
+      // to ask the question this case exists to ask.
+      // ⛔ THE CLAIM IS UNCHANGED AND IS NOT ABOUT THE SURFACE STAYING PUT: a
+      // symbol row must never read "Active", because `isRowOn` answers per
+      // DEFINITION and a symbol row's id is a TICKER. Three QQQ series on one
+      // chart is legitimate (§32), so the row has to keep offering.
+      search('QQQ')
       const again = screen.queryAllByRole('option').find((o) => o.dataset.resultKind === 'security')
+      expect(again, 'the door did not re-open on a chart that already holds QQQ').toBeTruthy()
       expect(again.textContent, 'the symbol row went inert after one add').not.toMatch(/Active/)
     })
   })
