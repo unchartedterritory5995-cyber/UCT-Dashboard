@@ -208,11 +208,40 @@ def test_C08_ok_false_is_a_flow_error(monkeypatch, worker_url):
     assert got and got[0][0] == "flow_error"
 
 
-def test_flow_without_the_hook_keeps_todays_sentence_for_every_cause(monkeypatch, worker_url):
-    for behaviour in (_raise(httpx.ReadTimeout("x")), lambda: httpx.Response(500, json={}),
-                      lambda: httpx.Response(200, json={"ok": False})):
+def test_flow_without_the_hook_NOW_NAMES_EACH_CAUSE(monkeypatch, worker_url):
+    """⚰️⚰️ THIS ASSERTION WAS INVERTED ON PURPOSE (R53, D-16), and the old one is kept above as
+    `OLD_FLOW_SENTENCE` so the change is legible.
+
+    It used to read `..._keeps_todays_sentence_for_every_cause` and assert that a timeout, a 500
+    and an ok:false ALL produced one byte-identical sentence. That was a true description of the
+    pre-V2 path and a RAIL HOLDING THE DEFECT IN PLACE: `contract.py`'s own docstring calls it out
+    — "for two weeks /flow answered 'The flow feed is reconnecting' to a 30 s timeout
+    (2026-09-11 AMD/AMDL), to a flow-worker restart (2026-09-08 SPCX) and to every other non-ok
+    read." Measured again on 2026-09-17: SPY timed out at 30.1 s, twice in one day, and the member
+    was told to try again in a moment.
+
+    ⛔ The hook is still what the V2 CONTRACT adds. What changed is that the pre-V2 path no longer
+    throws away the class it had already computed — `fail_cls` was set on every arm of the fetch
+    and then discarded. So these sentences come from `contract.plain()`, the same table V2 reads.
+    """
+    seen = {}
+    for label, behaviour in (("timeout", _raise(httpx.ReadTimeout("x"))),
+                             ("upstream", lambda: httpx.Response(500, json={})),
+                             ("ok_false", lambda: httpx.Response(200, json={"ok": False}))):
         _, edits, _ = _flow(monkeypatch, behaviour, with_hook=False)
-        assert edits.calls[-1]["content"] == OLD_FLOW_SENTENCE
+        seen[label] = edits.calls[-1]["content"]
+
+    for label, text in seen.items():
+        assert "reconnecting" not in text.lower(), f"{label} still returns the catch-all: {text!r}"
+        assert "DPRO" in text, f"{label} lost the symbol: {text!r}"
+
+    # ⛔ NON-VACUITY: three different sentences, not one new sentence replacing one old one.
+    assert len(set(seen.values())) >= 2, (
+        f"every cause still reads the same, only differently worded: {seen}")
+    assert "didn't answer in time" in seen["timeout"], seen["timeout"]
+    assert "returned an error" in seen["upstream"], seen["upstream"]
+    # ⭐ And a retry is only offered where retrying can work.
+    assert "Try again" in seen["timeout"] and "Try again" not in seen["upstream"]
 
 
 def test_the_correlation_id_rides_to_flow_worker_as_a_query_param(monkeypatch, worker_url):

@@ -295,8 +295,23 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         if fail_fn is not None:
             fail_fn(fail_cls, fail_detail or "ok:false")
             return
+        # ⛔⛔ R53 (D-16) — THE PRE-V2 SENTENCE NAMES ITS CAUSE CLASS. It read "the flow feed is
+        # reconnecting" for EVERY non-ok read, which `contract.py` already records as the defect
+        # the whole failure contract exists to end: "for two weeks /flow answered 'The flow feed
+        # is reconnecting' to a 30 s timeout (2026-09-11 AMD/AMDL), to a flow-worker restart
+        # (2026-09-08 SPCX) and to every other non-ok read."
+        # ⭐ THE CLASS WAS ALREADY COMPUTED AND THEN THROWN AWAY. The fetch block above sets
+        # `fail_cls` on every arm — flow_timeout / flow_unavailable / flow_error — and this
+        # branch printed one sentence over all of them. So this is not a new taxonomy: it is
+        # `contract.plain()`, the SAME table V2 reads, used in the pre-V2 words.
+        # ⛔ "Try again in a moment" is kept ONLY where a retry can actually work. A timeout or a
+        # transport error may clear; an upstream error is not the member's to retry into.
+        from api.services.discord_render import contract as _contract
+        _cls = _contract.normalize_class(fail_cls)
+        _retryable = _cls in ("flow_timeout", "flow_unavailable")
         ack(app_id, token,
-            content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
+            content=f"⚠️ **{ticker}** — {_contract.plain(_cls)}."
+                    + (" Try again in a moment." if _retryable else ""))
         return
     win = _flow_window_phrase(data.get("window") or {})
     if not (data.get("contracts") or []):
@@ -607,7 +622,19 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         token = str(interaction.get("token") or "")
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
-        background.add_task(run_flow_card_job, app_id, token, tkr, days)
+        # ⛔⛔ R53 (D-16) — THE PARTITION IS CHOSEN HERE, OR SPY IS SEARCHED WHERE IT CANNOT BE.
+        # This call passed NO `source`, so the signature default `stocks` applied to every
+        # pre-V2 /flow. SPY is an ETF: `flow_source`'s own docstring measured **0 contracts
+        # under `stocks` against 182 under `etfs`** on 2026-09-13. The read is not merely empty —
+        # it is a 30-day aggregation over the whole stocks tape that returns nothing, so as the
+        # tape grew it crossed `timeout_s` and members got "the flow feed is reconnecting" for
+        # every ETF and index underlying. Measured 2026-09-17: `[flow] fetch failed SPY (30):
+        # timed out`, 30.1 s after the ack, pre-market AND at 10:00 ET.
+        # ⭐ V2 has always done this (`commands.py` → `symbols.flow_source`); the pre-V2 path
+        # simply never learned. One classifier, both paths.
+        from api.services.discord_render import symbols as _symbols
+        background.add_task(run_flow_card_job, app_id, token, tkr, days,
+                            source=_symbols.flow_source(tkr))
         # PUBLIC defer — the "thinking…" resolves into the card, posted as the bot so
         # the 'View chart' button (app-owned message) routes back to us. The bot now
         # has post + attach rights in the channel.
