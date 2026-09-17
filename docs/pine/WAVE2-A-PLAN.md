@@ -548,6 +548,34 @@ fold returns null with the dynamic reason. **No new node type; nothing outside
 **INTENDED** re-baseline, listed per script, predicted-vs-actual. ⛔ **If any
 script's OUTPUT COUNT or REFUSALS move, that is a finding and the block STOPS.**
 
+### ✅ DONE — `8e7bed1d3`. One call site, and the re-baseline is the story.
+
+`return staticColourOf(base, env, depth + 1)` replaces the two non-recursive checks
+it subsumes. ⭐ **`color.new` is the ONLY site in `staticColourOf` with a colour base
+to recurse** — `color.rgb` takes three NUMERIC channels and `color.t` has no branch
+in this function at all, so the ruling's three named functions reduce to one.
+
+| | predicted | measured |
+|---|---|---|
+| scripts moved | 20 | **3** |
+| positions moved | +139 | **+15** |
+| OUTPUT COUNT / REFUSALS moved | 0 | **0**, across all 325 |
+| unpredicted moves | 0 | **0** — all three are inside the named 20 |
+
+**The stop condition did not fire.** Re-baseline covered **266 `corpus/committed` +
+59 `tests/fixtures/pine_oos`**; the OOS half was added after finding that **six of
+the census's 20 live there**, unmeasured by the committed-corpus run, and that
+`pine.oosBaseline.test.js` pins no counts and so could not have flagged it.
+
+⛔⛔ **THE GAP IS THE CENSUS'S, AND IT IS CORRECTED AT SOURCE** (`j3b-colour-fn-census.md`
+§5, whose header claimed *"every script that would change"*). It counts **source**
+colour positions: the 12 unmoved scripts carry **308 drawing-object colour sites to
+63 plot/fill carriers**, and **10 of the 12 have no `plot()` carrying a colour at
+all**. One more (`anchored-vwap-pinch-handoff`) folds perfectly and is never read
+because all 9 of its colour args are **positional** — `outputPresentation`'s
+argument reading, **outside this grant**; recorded, not fixed.
+⭐ **R33b MUST BE SIZED ON PLOT/FILL CARRIERS, NOT ON THAT CENSUS.**
+
 ## R33b — (i-C), AFTER R33a
 
 ⚠️ **THE DISCLOSURE THAT MUST RIDE WITH IT**, quoted from the census:

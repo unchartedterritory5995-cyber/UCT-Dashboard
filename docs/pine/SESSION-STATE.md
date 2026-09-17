@@ -2,6 +2,64 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — R34 AND R33a ARE IN. NEXT IS R33b, THEN PART 4.
+>
+> ✅ **j.3b(b) / R34 — the pane door** (`b730c0e07`, RED first at `d1c61e892`). A
+> conditional fill's `colorMode: 'column:<key>'` names a synthetic hidden condition
+> row, keyed by **canonical formula**, so Clouds' 20 fills over one `isBullish`
+> mint **ONE** row. No second evaluator; `evaluateFormula` and the existing row
+> shape do the work.
+>
+> ✅ **R33a — `color.new`'s base resolves by recursion** (`8e7bed1d3`). One call
+> site: `return staticColourOf(base, env, depth + 1)` replaces two non-recursive
+> checks that the recursion already subsumes.
+> ⭐ **Re-baseline 325 scripts (266 corpus + 59 OOS): SHAPE MOVES 0.** No output
+> count and no refusal moved anywhere — **R33a's stop condition is not triggered.**
+> **COLOUR MOVES 3 scripts / 15 positions**, all three inside the census's 20 ⇒
+> **zero unpredicted moves.**
+>
+> ⛔⛔ **THE FINDING, AND IT OUTLIVES THIS BLOCK: THE CENSUS'S `(base)` FIGURE IS
+> NOT A FORECAST OF MEMBER-VISIBLE CHANGE.** `j3b-colour-fn-census.md` §5 is headed
+> *"every script that would change"* and predicts **20 scripts / +139 positions**.
+> Measured: **3 / 15**. It counts **source** colour positions, and across the 12
+> unmoved scripts those are **308 drawing-object sites against 63 plot/fill
+> carriers** — **10 of the 12 have no `plot()` carrying a colour at all**, so no
+> colour rule can ever make them carry one. **Size R33b on plot/fill carriers, not
+> on that census.**
+>
+> ⚰️ **A HOLE IN MY OWN RE-BASELINE, FOUND BY CHECKING THE NAMES:** six of the
+> census's 20 are not in `corpus/committed` — they are OOS fixtures under
+> `tests/fixtures/pine_oos`, and the 266-script run never measured them.
+> **`pine.oosBaseline.test.js` cannot cover for it: it pins NO counts by design**
+> (*"NO RATCHET IN THIS FILE YET"*), so its green says nothing about a move. The 59
+> OOS scripts were measured separately; one of the six moved.
+>
+> ⚰️ **TWO EXPLANATIONS GIVEN AND THEN MEASURED AWAY**, kept because each looked
+> sufficient and neither survived: *"the rest needs the census's arithmetic alpha"*
+> — the unmoved scripts hold **111 literal-alpha** `color.new` calls to **17**
+> expression-alpha; and *"they already carried"* — only **24** of 128 bases are
+> literal hex or built-in, while **95** are bound NAMEs, exactly the shape the
+> recursion resolves. The real causes are the drawing-object sites above and a
+> **positional** colour argument (`anchored-vwap`: 20 plots, 9 positional, zero
+> `color=`) whose chain folds perfectly and is never read — reading a positional
+> colour arg is `outputPresentation`'s job, **outside R33a's grant**. Recorded,
+> not fixed; a candidate for its own ruling.
+>
+> ⭐ **CHUNK B IS RED AND NONE OF IT IS NEW.** 6 failures, each measured at HEAD
+> today by restoring HEAD's `pine.js` and re-running — not by reading the baseline,
+> because the `wma` failure asserts the engine emits a refusal: `pineBoxSuggestVoice`
+> ×3 and `BuilderSheet.pine` / `ImportBox.thinkscript` ×1 fail **identically** at
+> HEAD; `stockChartWiring` **passes alone** (217/217), red only in company.
+>
+> ▶️ **NEXT: R33b — `(i-C)`.** Its blast radius was reported as 0 scripts, which is
+> now known to be measured on the same over-counting basis. **The gate stands:** if
+> it needs a general evaluator it is (ii) by another name and **STOPS as H.10**; if
+> it needs only a plan-time numeric fold reached from `staticColourOf` and nowhere
+> else, it is in scope. `smart-money-volume-index-algoalpha` is the one genuine
+> remainder from R33a's 20 — 16 named colour args, 12 expression alphas, 9
+> expression bases — and is the natural first specimen. Then Part 4 (rig, Clouds
+> capture through the MEMBER door, vendor capture, j.4 per-layer table, R29).
+
 > ### ⏱️ 2026-09-17 — MASTER IS IN, AND PART 1.3 IS PART-DONE.
 >
 > ✅ **R30 recorded** (`1476bd6f7`) — a fill is drawn as RUNS; the ruling is beside

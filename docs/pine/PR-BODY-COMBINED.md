@@ -777,15 +777,39 @@ reporter load **having executed nothing** and produced no totals line at all.
   ⭐ Re-baseline **predicted 5 scripts / 7 fills, measured 1 / 1**: a source-text
   census bounds what *could* carry, never what *does*. The prediction is kept in the
   test rather than corrected away.
-- ⏸️ **j.3b(b) — the pane door — is NOT started**: a synthetic hidden condition
-  column, deduped by formula, so `colorMode: 'column:<key>'` has something to name.
+- ✅ **j.3b(b) — the pane door — is in (R34).** A conditional fill's
+  `colorMode: 'column:<key>'` now names a synthetic hidden condition row, minted
+  through the existing row shape and `evaluateFormula` — **no second evaluator**.
+  ⭐ Rows are keyed by **canonical formula**, so Clouds' 20 fills over one
+  `isBullish` produce **ONE** row, not twenty; the row is hidden (binds no series,
+  R27 as amended) and goes when the last fill referencing it goes.
+- ✅ **R33a — `color.new`'s base resolves by recursion**, like every other colour.
+  An asymmetry removed, not a capability added: a bare NAME was already followed
+  through its binding and `input.color` already recursed into its default, while
+  `color.new`'s BASE asked a narrower question and never recursed. One call site.
+  ⭐ **Re-baseline over 325 scripts (266 corpus + 59 OOS): SHAPE MOVES 0** — not one
+  output count or refusal moved anywhere — **COLOUR MOVES 3 scripts / 15 positions**,
+  all three inside the census's named 20, so **zero unpredicted moves**.
+  ⚰️ **Predicted 20 scripts / +139 positions; measured 3 / 15, and the gap is the
+  census's.** Its §5 is headed *"every script that would change"*, but it counts
+  **source** colour positions: across the 12 unmoved scripts there are **308
+  drawing-object colour sites against 63 plot/fill carriers**, and **10 of the 12
+  have no `plot()` carrying a colour at all** — no colour rule can make a box or a
+  label carry one. One more passes colour **positionally** (9 sites, zero `color=`)
+  and folds perfectly but is never read, because reading a positional colour
+  argument belongs to `outputPresentation`, not `staticColourOf`. **Sizing any
+  further colour ruling against that census inherits the overstatement.**
 - ⛔ **The FOLD is NOT started, and the reason is a measurement.**
   Clouds' fills still carry **no** colour. The sentence below was written before this
   wave and is still exactly right — what is new is that it is now *costed*:
   `isBullish ? getBullFillColor(0) : getBearFillColor(0)` resolves to
   `{colorDynamic: true}` because `staticColourOf` has **no user-function branch** and
-  `color.new(base, t)` refuses a non-literal `t` (`pine.js:12359`) — and Clouds' `t`
-  is `getAdjustedTransparency(layerIndex, …)`. Carrying it needs a **constant folder
+  `color.new(base, t)` refuses a non-literal `t` — the guard reading
+  `if (t !== undefined && numberValue(t) === null) return null` — and Clouds' `t`
+  is `getAdjustedTransparency(layerIndex, …)`. ⚰️ That guard was cited here as
+  `pine.js:12359`, which pointed into a comment in the `name` branch; it is quoted
+  rather than numbered now, because a line number is the one citation that goes
+  stale without anyone touching it. Carrying it needs a **constant folder
   over user functions**, which is a parser change whose re-baseline reaches the
   corpus; the owner's standing corollary says such an atomic unit is not *started*
   mid-block. The four insertion points are pinned in `WAVE2-A-PLAN.md`.

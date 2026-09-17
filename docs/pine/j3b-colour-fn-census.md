@@ -161,7 +161,41 @@ before (ii) is chosen.
 
 ---
 
-## 5. ⭐ NAMED — every script that would change
+## 5. ⭐ NAMED — every script whose SOURCE carries a position the rule can resolve
+
+> ⛔⛔ **THIS SECTION WAS HEADED "every script that would change". IT IS NOT THAT,
+> AND R33a MEASURED THE DIFFERENCE: predicted 20 scripts / +139 positions, measured
+> 3 / 15** (re-baseline over 325 scripts, `8e7bed1d3`).
+>
+> The counts below are **source colour positions**. A position only becomes a
+> member-visible change if it lands on a **plot or a fill** — the two things the
+> presentation layer has a channel for. Across the 12 unmoved scripts in
+> `corpus/committed`:
+>
+> | | |
+> |---|---|
+> | drawing-object colour sites (`box`/`line`/`label`/`table`/`bgcolor`) | **308** |
+> | plot/fill carriers | **63** |
+> | of the 12 scripts, those with **no `plot()` carrying a colour at all** | **10** |
+> | `plot()` colour args passed **positionally** vs named `color=` | **9** vs 16 |
+>
+> ⭐ So the dominant term is colour that no folding rule can carry, because there is
+> no plot or fill to put it on. A second term is `anchored-vwap-pinch-handoff`,
+> whose chain folds perfectly (`col_H = input.color(colHi,…)`, `colHi = #ff00664d`)
+> and is never read because all 9 of its colour args are **positional** — which is
+> `outputPresentation`'s argument reading, not `staticColourOf`'s folding.
+>
+> ⛔ **SIZE A COLOUR RULING ON PLOT/FILL CARRIERS, NOT ON THE NUMBERS BELOW.** They
+> bound what *could* be resolved; they do not forecast what *will* carry. This is
+> the same lesson j.3b(a) already paid for once — *"a source-text census bounds what
+> could carry, never what does"*, predicted 5 scripts / 7 fills, measured 1 / 1 —
+> and it recurred here at eight times the scale because the header promised change.
+>
+> ⚠️ **AND SIX OF THE 20 BELOW ARE NOT IN `corpus/committed`.** The
+> `high_engagement__` / `mid_engagement__` / `long_tail__` entries live in
+> `tests/fixtures/pine_oos/`, so a re-baseline over the committed corpus alone
+> silently omits them. Measure both corpora, and do not lean on
+> `pine.oosBaseline.test.js` to notice — it pins no counts by design.
 
 **Under (i): NONE. Under (i-tern): NONE. Under (i-C): NONE.**
 
