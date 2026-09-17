@@ -671,3 +671,105 @@ So $0.00 spend requires **three** empty tables plus the gate — all four confir
 > CALLs. **EXTRACT is not the next ruling.** Segments reach production only through the `sources`
 > stream, and `WISDOM_SOURCES_INGEST_ENABLED` / `WISDOM_CAPTURE_ENABLED` are both off — and a
 > golden-gate receipt has to be imported before the extractor will accept anything at all.
+
+---
+
+### 2026-09-17 (later) — the force-run spend path, and two instruments that lied
+
+**⛔⛔ LIGHTING EXTRACT AND THEN FORCE-RUNNING THE CHAIN IS A SPEND EVENT, AND IT NEEDS NO SECOND
+FLAG.** Found by adversarial verification while checking an unrelated claim.
+
+`sources/__init__.py:18-21` gates the source streams like this:
+
+```python
+def _gate(ctx, reader, env):
+    if getattr(ctx, "force", False) or reader():
+        return None
+```
+
+So **`force` bypasses `WISDOM_SOURCES_INGEST_ENABLED` outright**, and `sources.run_daily` then
+calls `transcripts.ingest_new(...)`, which walks `edu_videos` newest-first (limit 500) and writes
+both `wisdom_sources` and `wisdom_segments` directly. The daily chain runs `sources` immediately
+before `extract` **in the same run** (`publish/chain.py:62-67`).
+
+⭐ **The consequence, in one sentence:** with `WISDOM_EXTRACT_ENABLED` on, a single ordinary admin
+request — `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run?force=true&dry_run=false`, the
+obvious thing an operator does to check the switch they just flipped — takes the store from **0
+sources to hundreds of sources to thousands of segments to three passes of up to 400 requests**,
+inside one run.
+
+⛔ **R52's acceptance string does NOT protect this.** `spend_allowed` short-circuits on the flag
+(`batch.py:492-496`), so `WISDOM_EXTRACT_ACCEPT_SPEND` is only required when
+`WISDOM_EXTRACT_ENABLED` is **off**. The literal exists for the forced-while-dark case, not for
+this one. The only ceilings left are the $25/night and $120 programme defaults.
+
+> **THE RULE. "Nothing will happen until 18:47" is false for any flag whose job can be
+> force-run.** Before lighting a spend switch, decide what a forced run of every job that reads it
+> would do, and say so in the same breath as the flip.
+
+**✅ R52's THIRD ENTRY POINT — FIXED THIS SESSION.** `audit.run_audit` carried the pre-R52 form and
+called `batch.submit_pending` directly, which has no spend gate of its own, so a forced weekly run
+submitted **paid** audit batches with `WISDOM_EXTRACT_AUDIT_ENABLED` *and* `WISDOM_EXTRACT_ENABLED`
+both off. $0 only because `select_segments` needs recent done requests and there were none — luck,
+not a guard. Gate added beside the scheduling check; rail asserts **nothing reached the client**
+and carries a control; mutation-proved.
+
+---
+
+**⚠️ TWO INSTRUMENTS LIED THIS SESSION, AND BOTH ARE THE SAME SHAPE AS R42.**
+
+**1. `sources=ok` DID NO WORK.** `sources.run_daily` returns
+`{"discord": {"skipped": …}, "transcripts": {"skipped": …}}` — the skip markers are **nested**, and
+`chain._normalize` (`chain.py:196-204`) only inspects the **top level**. A fully skipped sources
+step is therefore recorded as **`ok`** in the chain result and the observation log. ⛔ Do not read
+`sources=ok` as evidence that anything was ingested; read the store counts.
+
+**2. `capture=ok` IN 175 SECONDS, AND IT IS NOT GATED BY ITS OWN FLAG.** The chain's capture step
+is declared `gate=None` (`chain.py:63`) — `WISDOM_CAPTURE_ENABLED` is read only by the standalone
+slot jobs and the admin router, **not by the chain step**. `runner.run_all` iterates all 15
+`families.DATASETS` and writes gzipped objects to R2; that is the 175 seconds. ⭐ It **cannot**
+create extraction work: the only two writers of `wisdom_segments` are `segmenter.write_segments`
+and `sources/common.insert_segments`, and no capture family reaches either. No model call occurs
+anywhere in `capture/`.
+
+---
+
+**⚠️ AND THE LINE-ENDING CHECK THIS FILE RECOMMENDS IS UNRELIABLE THROUGH THE BASH TOOL.**
+
+The documented cheap check is `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'(a carriage return)'`.
+Run through this environment's Bash tool it reported **CR on 100% of lines for every file
+examined** — 133/133, 555/555, 920/920, 81/81. That is not a measurement; it is an **empty pattern
+matching every line**, and "every file is uniformly CRLF" should have been the tell.
+
+⭐ **Every blob in this repository is stored LF** (`core.autocrlf=true` normalises on the way in),
+measured by reading raw bytes: `blob.count(b"
+")` against `blob.count(b"
+")`. Writing CRLF
+over them was harmless — git cleaned it, and every recorded diff this session was minimal
+(118/0, 2/0, 25/1, 36/0, 48/3) — but the *reading* was wrong, and the dangerous direction would
+not have been.
+
+⛔ **And it produced a VACUOUS MUTATION.** A mutation script anchored on `"    return value
+"`
+in an LF file failed its assert, wrote nothing, and the suite then reported **21 passed** — which
+reads exactly like a mutation that failed to kill the tests. Always assert the anchor exists
+**before** writing, and treat a mutation run that comes back green as unproven until the anchor is
+confirmed applied.
+
+⛔⛔ **AND ONE BARE CR DEFEATS `autocrlf` ENTIRELY — TURNING AN 84-LINE ADDITION INTO A 757/673
+WHOLE-FILE REWRITE.** Measured here the same day. Writing this very section put a single lone
+carriage return into the prose (an escape that resolved to a real CR instead of the two
+characters). With that one byte present git declined to normalise the file at all: the STAGED
+blob came out CRLF against an LF HEAD, and `git diff --cached --numstat` read **757 673**.
+Removing that one byte and re-staging gave **84 0** and an LF blob.
+
+⭐ **So `autocrlf=true` cleans a uniformly-CRLF working file, and silently does NOT clean an
+irregular one** — which is the case you cannot see, because the working file still *looks* like
+CRLF to every line-based check.
+⛔ **`tools/check_repo_hygiene.py` CANNOT catch this**, and that is by design, not a bug: it
+reports a path only when the two sides are identical once CRs are stripped, so on a file with
+real added content it stays silent about endings. **Read `git diff --cached --numstat` before
+every commit and disbelieve any count near the file's length.**
+⭐ Count bare CRs as `data.count(bytes([13])) - data.count(bytes([13,10]))` on RAW BYTES. Escape
+sequences in shell-embedded scripts are exactly what produced the stray byte, so a check written
+with `a CR escape` in it can inject the defect it is looking for.
