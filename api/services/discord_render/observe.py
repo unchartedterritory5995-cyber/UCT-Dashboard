@@ -36,13 +36,23 @@ RENDERER_MISSES_TO_ALERT = 2
 #: One blocked second is a third of the whole 3 s acknowledgement budget (§3.9, C-02).
 LOOP_STALL_ALERT_MS = 1000.0
 #: R34 tier 1 — a stall this large pages at ANY uptime.
-#: ⛔ NOT a backstop above the boot range. The largest stall measured to date, 20,446 ms on
-#: 2026-09-15, occurred at uptime 670-893 s — BELOW the tier-2 floor. Tier 1 is the working
-#: path for that class, and the census measured 7.8 such events a day.
-#: ⛔⛔ R35: THIS NUMBER DOES NOT MOVE TO QUIET A SYMPTOM. If tier 1 pages more than twice a
-#: day the response is to fix the cause (OI-44); raising it is permitted only in a directive
-#: that cites the fix which removed the cause.
-LOOP_STALL_PAGE_ALWAYS_MS = 5000.0
+#: ⛔ NOT a backstop above the boot range. The largest stall measured to date, 80,249 ms,
+#: occurred on a SETTLED pod, and a 20,446 ms one on 2026-09-15 at uptime 670-893 s — both
+#: BELOW the tier-2 floor. Tier 1 is the working path for that class.
+#:
+#: ⭐⭐ R51 (owner ruling, D-15, 2026-09-17): THIS IS THE DISCORD ACK BUDGET, 3,000 ms.
+#: Discord closes an interaction at 3 s, so ANY block at or past 3 s is a CERTAIN
+#: member-visible failure — not a risk of one — and pages regardless of uptime. It was
+#: 5,000 ms, and the gap was measured: a 3,572.1 ms block at uptime 281 s on 2026-09-17
+#: scored tier=null, paged nobody, and would have killed an ack. A threshold above the
+#: budget cannot page for the failure it exists to catch.
+#:
+#: ⛔⛔ R35 STILL STANDS, AND THIS DOES NOT BEND IT. R35 forbids RAISING a threshold to
+#: quiet a symptom; this LOWERS one to hear more. The two directions are not symmetric:
+#: lowering costs noise and buys signal, raising buys silence and costs the defect. Raising
+#: this number remains permitted only in a directive that cites the fix which removed the
+#: cause (OI-44 / R52).
+LOOP_STALL_PAGE_ALWAYS_MS = 3000.0
 #: R34 tier 2 — below this uptime, a >= LOOP_STALL_ALERT_MS stall is recorded and counted but
 #: never paged. Q6's startup verdict, operationalised: the last >= 1 s startup-class event
 #: observed on a settled pod was at minute 12.9.
