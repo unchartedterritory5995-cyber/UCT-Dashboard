@@ -161,7 +161,14 @@
   ],
   "files_note": "⚰️ files[] is DERIVED from failures[] as of 2026-09-14 and is documentation only — scripts/gate_shards.py reads sha, measured_at and failures, never this. It had drifted: it listed src/__tests__/sourcesAreText.test.js and src/components/chart/builder/ImportBox.thinkscript.test.jsx (both removed when master fixed them) and src/components/screener/reachable.test.js (removed 2026-09-11), while omitting src/components/chart/ChartDrawingOverlay.surfaces.test.jsx (added 2026-09-10). A derived list cannot drift; a typed one already had.",
   "provisional_note": "⛔ ONE OF THE THREE 2026-09-14 ADDITIONS IS STILL PROVISIONAL. #10 (surfaces/manifest) was SETTLED and banked on 2026-09-14 by static proof. #9 (presentationSingleFormatter) is INCONCLUSIVE after five alone-runs — it failed once on a clear box and passed twice under a live gate, so it is an intermittent on its own 15s timeout boundary, not a load artefact. It stays banked only under owner ruling R1 and stays flagged. #8 (reachable / R-29) is unambiguous. ⚠️ H14: three of ten baseline entries carry a load classification in docs/breadth/gates.md — the two ThemeTrackerPage.chartmount rows (banked before today, not this programme's to unwind) and #9. #9's five runs show such a classification can itself be wrong, which is reason to re-measure the other two, not to remove them. Listed, not acted on. Settling runs: docs/plans/joystick/gate-runs/2026-09-14T21-39-settling-runs.md",
-  "expected_red": [],
-  "expected_red_reasons": {},
+  "expected_red": [
+    "src/pages/journal-2-0/lib/offline/q1AppendWriterCensus.test.jsx > ⛔⛔ Q1 STEP 2 — which writer reconciles the record clean on the append route > ⛔⛔ with the EDITOR owning the note, the spy names the writer"
+  ],
+  "expected_red_reasons": {
+    "src/pages/journal-2-0/lib/offline/q1AppendWriterCensus.test.jsx > ⛔⛔ Q1 STEP 2 — which writer reconciles the record clean on the append route > ⛔⛔ with the EDITOR owning the note, the spy names the writer": {
+      "why": "Q1 STEP 2's reproduction of the append cell, driven through the REAL offline modules with the editor owning the note. RED because the defect is real: the spy log names `persist` at useDurableNote.js:444 (spy call 1) writing dirty 1->0 with a NULL intent, which empties the queue in the same transaction and discards words the server has never seen. The sibling control case in the same file stays GREEN, so this is not an always-red fixture.",
+      "waits_on": "Q1 fix 6 - `persist` must prove the server holds a dirty record's content before reconciling it clean, or must not reconcile it at all. Designed and staged on feat/notebook-kill-switch; the push is RESERVED to the owner."
+    }
+  },
   "expected_red_note": "DELIBERATE reproductions added by a branch, red BECAUSE the defect is real. NOT the same as `failures`, which is a measurement OF MASTER ('Nothing here is the hub's'). Each entry names the fix it waits on. An entry that turns GREEN is STALE and fails the gate."
 }
