@@ -201,6 +201,33 @@ def test_a_SECOND_CREATE_with_the_same_requests_resumes_instead_of_restarting(lo
     assert len(list(batches.results(first.id))) == 3
 
 
+def test_requests_differing_only_in_KEY_ORDER_share_a_batch(local, monkeypatch):
+    """⛔⛔ THE BUG THAT A CONTENT DIFF CANNOT SEE, and it defeated the first version of the
+    resume fix within one run.
+
+    ⚰️ Measured 2026-09-17: two invocations built 83 requests that compared EQUAL as parsed
+    JSON — 0 of 83 differing — and hashed to two different digests, because `json.dumps`
+    preserves dict INSERTION order and the two runs happened to build a dict differently. The
+    resume opened a second directory and began re-extracting all 83 with 12 good results
+    already on disk.
+
+    ⭐ The id must key on what a request MEANS, not on how a process ordered a dict. That is
+    why the digest is canonical (`sort_keys=True`) and why this rail asserts on ORDER rather
+    than on content — a content assertion passes against the broken version."""
+    monkeypatch.setattr(local_backend, "run_one", lambda params: local_backend._Message(
+        content=[local_backend._Block("text", "{}")], stop_reason="end_turn",
+        usage=local_backend._Usage(input_tokens=1, output_tokens=1)))
+    batches = local_backend.LocalBatches(local / "jobs")
+
+    a = batches.create([{"custom_id": "a",
+                         "params": {"model": "m", "system": "S", "max_tokens": 64,
+                                    "messages": [{"role": "user", "content": "hi"}]}}])
+    b = batches.create([{"custom_id": "a",
+                         "params": {"messages": [{"role": "user", "content": "hi"}],
+                                    "max_tokens": 64, "system": "S", "model": "m"}}])
+    assert a.id == b.id, "the same request with keys in another order must resume, not restart"
+
+
 def test_DIFFERENT_requests_never_share_a_batch(local, monkeypatch):
     """⛔ The other direction, and the dangerous one: a changed prompt/model/segment must NOT
     inherit a previous extractor's answers. If it did, a run would silently report results it

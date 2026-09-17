@@ -280,7 +280,12 @@ class LocalBatches:
 
     def create(self, requests) -> _Batch:
         requests = list(requests)
-        body = "".join(json.dumps(r) + "\n" for r in requests)
+        # ⛔⛔ CANONICAL (sort_keys), because the id must key on what the request MEANS, not on
+        # how this process happened to order a dict. Measured 2026-09-17: two invocations built
+        # 83 requests that were EQUAL as parsed JSON — 0 of 83 differing — and produced two
+        # different digests, so the resume silently opened a second directory and re-ran
+        # everything. The bug was invisible to a content diff and visible only in the bytes.
+        body = "".join(json.dumps(r, sort_keys=True) + "\n" for r in requests)
         # ⭐⭐ THE ID IS DERIVED FROM THE REQUESTS, NOT FROM THE CLOCK, AND THAT IS THE WHOLE
         # RESUME STORY. A timestamp id made every re-invocation a NEW directory, so the
         # documented property — "a kill loses the request in flight and nothing else" — was
@@ -295,7 +300,11 @@ class LocalBatches:
         bid = f"localbatch_{digest}_{len(requests):05d}"
         d = self._dir(bid)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "requests.jsonl").write_text(body, encoding="utf-8")
+        # ⛔ write_bytes, NOT write_text: on Windows text mode rewrites "\n" as "\r\n", so the
+        # file on disk would NOT be the bytes the directory is named after. The resume works
+        # either way (the digest is taken from `body` in memory), but an artifact that does not
+        # hash to its own name is a trap for the next reader who tries to verify it.
+        (d / "requests.jsonl").write_bytes(body.encode("utf-8"))
         self._process(bid)
         return _Batch(id=bid, processing_status="ended",
                       request_counts=_Counts(succeeded=self._done_count(bid)))
