@@ -2716,7 +2716,37 @@ resolve, and `resolveFillHandles` drops the rest. Three of the five named script
 carry no fills at all. **The prediction is kept in the test rather than corrected
 away** — a source census bounds what COULD carry, never what DOES.
 
-## ⏸️ j.3b(b) — THE PANE DOOR, NOT STARTED
+## ✅ j.3b(b) — THE PANE DOOR, BUILT UNDER R34 (2026-09-17)
+
+Estimate 90, stop 180. Clouds' twenty fills over ONE `isBullish` mint **one** hidden
+condition column; each fill's `colorMode` names it.
+
+⭐ **THREE FINDINGS WORTH MORE THAN THE DIFF:**
+
+1. ⛔ **THE SAVED DOCUMENT DROPS UNKNOWN FIELDS.** `buildDefinition` builds each plot
+   from an explicit ALLOWLIST. A `conditionFor` marker I added never reached the
+   document, so a test keyed on it would have been **green against a field no member
+   receives**. The helper now DERIVES a condition row from the observable contract —
+   *hidden, and named by some fill's `colorMode`* — the question the renderer asks.
+   Same for `source`/`ast`: a plot carries neither; the trees live in `compute.trees`.
+2. ⭐ **`it.fails` CAUGHT A VACUOUS TEST.** "A condition column is a real column"
+   looped over an empty array and therefore PASSED — visible at once under a marker
+   that expects failure. Every other case pinned a COUNT first; that one did not.
+3. ⚰️ **A GUARD I WROTE WAS MEASURED REDUNDANT AND DELETED.** Mutation 2 removed the
+   "only push a column some fill names" prune and **nothing went red**: minting
+   happens only for a fill that survived every `continue`, and the mint and the
+   `colorMode` assignment are one step. Per `lesson_a_guard_repeated_is_a_guard_
+   unproved` it is gone — the property holds by CONSTRUCTION, which is stronger.
+
+**Mutations:** key-per-fill → RED ×4 · drop the prune → **RED ×0, deleted** · row not
+hidden → RED ×5 (incl. the visible-cap control) · row with no tree → RED ×5 (the
+document is refused).
+
+**EXIT:** `conditionColumn` 7/7 · builder lane **88 files / 1,883 tests**, 5 failed =
+the three PRE-EXISTING baseline files (1/1/3). ⭐ **Proven, not assumed**: reverting
+my `BuilderSheet.jsx` addition leaves the same **5 failed**, so they are not mine.
+
+## ⏸️ THE PANE DOOR — SUPERSEDED BY THE ABOVE
 
 The member-pane door carries no dynamic colour for plots **or** fills, so
 `colorMode: 'column:<key>'` has nothing to name. It needs a **synthetic hidden

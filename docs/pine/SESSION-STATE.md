@@ -229,8 +229,19 @@
 > undetected through j.1 and j.2. Combined is now **52,586 bytes**,
 > `sha256 23149cf171151a315f3f1f636b6c832451acd222ef972b37c60e5494c32619b3`.
 >
+> ## ✅ j.3b(b) BUILT — the deduped condition column (R34)
+> Clouds' 20 fills over ONE `isBullish` mint **one** hidden column. Three findings:
+> the saved document drops unknown fields (a `conditionFor` marker never arrived, so
+> the test now DERIVES a condition row from `hidden` + named-by-`colorMode`);
+> `it.fails` caught a **vacuous** test of mine looping over an empty array; and a
+> prune guard I wrote was **measured redundant and deleted** — minting only happens
+> for a surviving fill, so the property holds by construction.
+> Mutations: key-per-fill RED ×4 · drop the prune **RED ×0, deleted** · not hidden
+> RED ×5 · no tree RED ×5. EXIT: 7/7 · builder lane 88 files / 1,883 tests with the
+> 5 PRE-EXISTING baseline failures **proven** pre-existing by reverting my change.
+>
 > ### ⛔ NEXT, IN THIS ORDER:
-> 1. **j.3b(b) — the PANE DOOR.** A synthetic hidden condition row (`source`/`ast`
+> 1. ~~j.3b(b) the PANE DOOR~~ **DONE.** Next: A synthetic hidden condition row (`source`/`ast`
 >    from `colorCondition`, `mode` via `evaluateFormula`), ⛔ **deduped by formula**
 >    (Clouds' 20 fills share ONE `isBullish`; without dedup the document gains 20
 >    identical columns). Not started; a second atomic sub-part.

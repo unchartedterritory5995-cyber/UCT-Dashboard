@@ -213,6 +213,15 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     const keyOfOutput = new Map()
     drawable.forEach((o, i) => { keyOfOutput.set((t.outputs || []).indexOf(o), keyAt(i)) })
     const byKey = new Map(rows.map((r) => [r.key, r]))
+    // ⭐ R34 — the condition columns this document will need, minted at most once
+    // per canonical formula and appended only if a surviving fill names them.
+    // ⛔ THEY ARE APPENDED AFTER `DOC_CARRY_MAX` HAS BOUNDED THE AUTHOR'S OUTPUTS,
+    // and deliberately so: a derived column is not an author output competing for a
+    // slot, and dropping one would leave a fill's `colorMode` naming a column nobody
+    // declared — a locator into nothing, which is exactly what this block already
+    // refuses for a fill's ANCHORS two lines up.
+    const conditionRows = []
+    const conditionKeyByFormula = new Map()
     for (const f of ((t.presentation || {}).fills || [])) {
       if (!f || !Number.isInteger(f.a) || !Number.isInteger(f.b)) continue
       const ka = keyOfOutput.get(f.a)
@@ -223,7 +232,67 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       row.fill = { with: kb }
       if (typeof f.color === 'string') row.fillColor = f.color
       if (Number.isFinite(f.opacity)) row.fillOpacity = f.opacity
+      // ⭐⭐ (j) j.3b(b) / R34 — A CONDITIONAL FILL NAMES A CONDITION COLUMN.
+      //
+      // j.3b(a) carries `colorUp`/`colorDown`/`colorCondition` on the fill;
+      // `colorMode: 'column:<key>'` needs a COLUMN to name, and the pane document
+      // had none. The condition becomes a hidden row here and the fill points at it.
+      //
+      // ⛔⛔ KEYED BY THE CANONICAL FORMULA. Clouds' twenty fills are twenty
+      // `fill()` calls over ONE `isBullish`: keyed per fill this mints twenty
+      // identical columns — twenty evaluations of one expression, twenty rows
+      // against the document cap, and twenty chances for them to disagree. Keyed by
+      // formula it mints one, and the second fill REUSES it.
+      if (typeof f.colorUp === 'string' && typeof f.colorDown === 'string'
+          && f.colorCondition && typeof f.colorCondition.formula === 'string'
+          && f.colorCondition.ast) {
+        const formula = f.colorCondition.formula
+        let key = conditionKeyByFormula.get(formula)
+        if (!key) {
+          key = keyAt(drawable.length + conditionRows.length)
+          const ev = evaluateFormula(formula, lintScope)
+          conditionRows.push({
+            key,
+            label: '',
+            source: formula,
+            ast: f.colorCondition.ast,
+            // ⛔ THE SAME `evaluateFormula` AN AUTHOR'S ROW GOES THROUGH. A second
+            // evaluator over the same expression is free to disagree with the one
+            // that drew the line, which is the defect `columnColorsForPlot` already
+            // avoids once by riding the compute lane rather than re-deriving.
+            mode: (ev && ev.verdict && ev.verdict.mode) || 'clean',
+            readback: (ev && ev.readback) || '',
+            style: 'line',
+            // ⛔ HIDDEN: it binds no series (R27 amended) and costs the member no
+            // visible slot — `CARRY_MAX` bounds what is SEEN, and this is not.
+            hidden: true,
+            // The marker that makes this row identifiable as DERIVED rather than
+            // authored, for the cleanup below and for anything that counts outputs.
+            conditionFor: formula,
+          })
+          conditionKeyByFormula.set(formula, key)
+        }
+        row.fill.colorMode = `column:${key}`
+        row.fill.colorUp = f.colorUp
+        row.fill.colorDown = f.colorDown
+      }
     }
+    // ⭐ A COLUMN NOBODY NAMES CANNOT EXIST — BY CONSTRUCTION, NOT BY A GUARD.
+    //
+    // ⚰️ A prune here (`only push a row some fill names`) was written first, then
+    // MEASURED REDUNDANT: deleting it left every case green, because minting
+    // happens inside the loop above only for a fill that has already survived every
+    // `continue` — a dropped anchor, a duplicate owner — and the mint and the
+    // `colorMode` assignment are one step. There is no path that mints a column and
+    // then loses its namer.
+    //
+    // ⛔ So it is gone, per `lesson_a_guard_repeated_is_a_guard_unproved`: an
+    // unreachable guard reads as protection in review, cannot be mutation-proved,
+    // and would have to be maintained by everyone who touches this block. The
+    // property it claimed is stronger without it — "the last fill's removal removes
+    // the column" is what the acceptance pins, and it holds because a removed fill
+    // never mints.
+    for (const cr of conditionRows) rows.push(cr)
   }
 
   // ⛔ EVERY LOCATOR NAMES ITS PLOT EXPLICITLY, INCLUDING PLOT 1 — the rule

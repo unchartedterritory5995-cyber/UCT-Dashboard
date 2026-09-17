@@ -485,7 +485,29 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // make the whole document unsaveable rather than merely undrawn.
       ...(r.fill && r.fill.with && rows.some((o) => o.key === r.fill.with)
         ? {
-          fill: { with: r.fill.with },
+          fill: {
+            with: r.fill.with,
+            // ⭐⭐ (j) j.3b(b) / R34 — THE BAND'S OWN CONDITIONAL COLOUR, in the
+            // SAME three field names a plot uses twenty lines above. That is not a
+            // convenience: `pool.columnColorsForPlot` is handed the fill verbatim,
+            // so a third spelling would be a second reader for one idea (R10).
+            //
+            // ⛔ ALL THREE OR NONE, for the same reason the plot rule says so — a
+            // `column:` mode with nothing to alternate between registers happily
+            // and then draws one flat colour.
+            // ⛔ AND ONLY WHEN THE NAMED COLUMN IS REALLY IN THIS DOCUMENT, the
+            // same guard `fill.with` already gets: a mode naming a column nobody
+            // declares makes the whole document unsaveable rather than merely
+            // uncoloured.
+            ...(r.fill.colorMode && r.fill.colorUp && r.fill.colorDown
+              && rows.some((o) => o.key === String(r.fill.colorMode).slice('column:'.length))
+              ? {
+                colorMode: r.fill.colorMode,
+                colorUp: r.fill.colorUp,
+                colorDown: r.fill.colorDown,
+              }
+              : {}),
+          },
           ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),
           ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
         }
