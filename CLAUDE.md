@@ -2739,6 +2739,31 @@ not evidence that the measurement was.
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
 
+### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
+
+Kinds 1 and 2 are *the instrument was wrong*. Kind 3 is the nastiest, because the record is
+**right, and read, and still the reason the thing does not get done**. Two faces, found
+independently by two sessions on the same night:
+
+| face | it substitutes for | the instance |
+|---|---|---|
+| **3a** the record was right, **read**, and **not acted on** | a **FIX** | `"the `_drive` children still pay the sweep … Stated, not hidden"` — a true docstring, written by the person who then spent four hypotheses rediscovering it |
+| **3b** the record was right **when written**, and the **world moved under it** | a **RE-CHECK** | a ratified 33× headline that had drifted to 15× on unchanged code; and `test_the_policy_constants_are_what_the_owner_authorised` asserting `MIN_UPTIME_S == 600` after the owner authorised 300 — **the rail that exists to make policy drift deliberate had itself drifted, and was failing on the authorised value** |
+
+⛔ **NEITHER IS CATCHABLE BY TESTING HARDER.** 3a passes every test — the statement is true.
+3b passes every test it was written against — it is asserting the world of the day it was
+written. The only thing that finds either is asking, of a record you already trust:
+
+> ### ⭐ **"When was this last true?"**
+
+⚠️ **A documented cost is not a bounded cost, and a ratified number is not a current one.**
+Writing a hazard down, and having it ratified, both *feel* like handling it. Four more of the
+same shape turned up in one file in one night: a report tool defaulting to a pool path the
+pool had left months earlier and emitting a complete-looking summary of nothing; a rail
+comparing a fixed SHA against `origin/master` and reporting the world moving as a defect; and
+a document whose opening banner read "THIS IS A DRAFT, THE PROGRAMME IS NOT DONE" above its
+own closing statement that it was closed.
+
 ⚠️ **THE TWO KINDS ARE NOT DISJOINT, AND THE TABLE IS A CHECKLIST, NOT A FILING SYSTEM.**
 `%an` is both: it MOVED (every commit now carries one name) and it was ALWAYS a proxy
 (authorship standing in for "which session"). So ask BOTH questions of every instrument —
