@@ -82,6 +82,43 @@ def test_the_read_is_PER_REQUEST_not_captured_at_import(monkeypatch):
         "mechanism is a fiction")
 
 
+def test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF(monkeypatch):
+    """⛔⛔ THE SAFETY PROPERTY OF THE OWNER PREVIEW, and the only direction of this
+    value that can cost anything. `admin` is chosen BECAUSE it is the cautious setting;
+    if it leaked to members it would ship an unreleased surface to the whole roster
+    under the value picked to avoid exactly that."""
+    monkeypatch.setenv("BREADTH_DC_V2_2_ENABLED", "admin")
+    assert auth._breadth_dc_flags(is_admin=False)["breadth_dc_v2_2_enabled"] is False
+    assert auth._breadth_dc_flags(is_admin=True)["breadth_dc_v2_2_enabled"] is True
+
+
+@pytest.mark.parametrize("spelling", ["admin", "ADMIN", " Admin "])
+def test_the_admin_value_is_case_and_whitespace_insensitive(monkeypatch, spelling):
+    """A Railway value typed by hand must not fall through to the default and read as
+    'not released' while the owner believes the preview is live — the quiet direction,
+    but the one that wastes a flip."""
+    monkeypatch.setenv("BREADTH_DC_V2_3_ENABLED", spelling)
+    assert auth._breadth_dc_flags(is_admin=True)["breadth_dc_v2_3_enabled"] is True
+
+
+def test_an_uninstrumented_caller_fails_CLOSED(monkeypatch):
+    """⛔ `is_admin` DEFAULTS TO FALSE. A call site that forgets to pass the role must
+    see what a MEMBER sees, never what the owner sees. The default is a safety floor."""
+    monkeypatch.setenv("BREADTH_DC_V2_2_ENABLED", "admin")
+    assert auth._breadth_dc_flags()["breadth_dc_v2_2_enabled"] is False
+
+
+def test_the_payload_passes_the_REAL_role_not_a_constant(monkeypatch):
+    """NON-VACUITY for the two above: `_breadth_dc_flags` could be perfect and
+    `_access_payload` could still hand it a hardcoded False (dead preview) or True
+    (leak). Drive the REAL payload from both sides of the role."""
+    monkeypatch.setenv("BREADTH_DC_V2_2_ENABLED", "admin")
+    member = auth._access_payload({"role": "free", "created_at": None}, "free")
+    admin = auth._access_payload({"role": "admin", "created_at": None}, "free")
+    assert member["breadth_dc_v2_2_enabled"] is False, "an admin-only surface reached a member"
+    assert admin["breadth_dc_v2_2_enabled"] is True, "the owner preview never turns on"
+
+
 def test_the_flags_reach_the_access_payload(monkeypatch):
     """NON-VACUITY for everything above: the helper could be perfect and unwired.
     `_access_payload` is what signup/login/me actually return."""
