@@ -60,3 +60,93 @@ NEXT UNBLOCKED
 master 9ccb3f795 | W0 opened, no production change, budget intact
 ================================================================================
 ```
+
+---
+
+## 2026-09-17 08:47 ET — W2 smoke: 9 PASS, two rows corrected, one instrument thrown out
+
+```
+================================================================================
+D-14 W2 -- the non-clock-bound smoke rows, on live commit d9455a6d64a5
+web SUCCESS | V2 DARK (confirmed in-product) | no push, no env change this block
+================================================================================
+
+RAN (full record: docs/discord-render/evidence/smoke-2026-09-17/INDEX.md)
+  9 PASS  -- rows 1, 4, 8, 9, 10, 11, 12, 13, 14
+  2 pending clock gate -- rows 5, 6 at the 10:00 ET window
+  3 not-runnable / inconclusive BY CONSTRUCTION -- rows 2, 3, 7 (V2 dark)
+  0 FAIL, 0 unexplained NOT RUN
+
+TWO ROWS NAMED A SURFACE THE PRODUCT DOES NOT HAVE, AND THE DEFECT WAS IN THE
+SMOKE FILE, NOT THE BOT.
+  Row 10 asked for `/charts`. Discord offers no such command in this guild:
+    build_commands() (discord_interactions.py:1094) omits it and says why --
+    "/charts is retired: /chart NVDA AMD AVGO is the same thing through one
+    door. Its handler stays for a deploy cycle." build_charts_command() still
+    EXISTS and is registered nowhere, so grepping for the payload finds one and
+    concludes the command ships. The live door is routers/
+    discord_interactions.py:562 -- len(reqs) > 1 -> run_multi_chart_job, type 5.
+    Followed literally the row would have scored NOT RUN ("command not found")
+    against a working feature, which is the most expensive shape of wrong row.
+  Row 12 asked for "the /chartsettings surface opens". The gear EXPANDS the
+    in-message controls (owner ruling 2026-08-26, recorded at chart_components:
+    "the gear opens the full surface ... the open/closed state rides in the ids
+    so it survives every click"). /chartsettings is a separate command.
+  Both corrected in SMOKE-3.5.md rather than struck: each row's ASSERTION was
+  right and only its door was stale.
+
+ROWS 2, 3 AND 7 ARE OI-45's CLASS ONE LEVEL UP -- built, tested, mutation-
+covered, and the door shut in production. Row 2's proof is in the product's own
+docstring (discord_chart_house.py:270): "THE PRE-V2 PATH PASSES NEITHER KEY, so
+it leaves with None before the import, and its URL is unchanged down to the
+byte." No ticker and no market condition makes the pre-V2 path emit ?stale=.
+  => NOT RUNNABLE, never FAIL -- and never PASS on the strength of a chart that
+  had no badge: absence of a badge there is absence of the MECHANISM.
+
+AN INSTRUMENT REPORTED A PROPERTY OF ITSELF AND IT READ LIKE A FINDING.
+  The R31 boot trace probed loopwatch.snapshot() INSIDE a `railway ssh` python
+  process. loopwatch's window is in-process state of the UVICORN process, so a
+  fresh process imports a fresh, never-started watcher: 19 rows of
+  {"running": false, "samples": 0} -- while d14_monitor.py, polling the SAME pod
+  over HTTP in the SAME minute, recorded {"running": true, "samples": 600,
+  "max_ms": 507.1}. Two instruments, one pod, one minute, opposite answers.
+  The ssh answer reads as "the loop watcher is dead", not as a blank.
+  => every loop block in r31-trace.jsonl BEFORE loop_src:"http" is VACUOUS and
+     must not be scored. R31 is NOT satisfied by those rows.
+  => replaced by docs/discord-render/instruments/r31_boot_trace.py: loop over
+     HTTP (in-process truth), durable halves by import (volume truth, and the
+     only route while OI-47 drops them from the payload), every field carrying
+     its SOURCE. --self-check proves a failed probe RECORDS a gap. Running since
+     08:45 ET, 60 s cadence, 4 h.
+  ⭐ The durable halves were right all along and for the right reason: they live
+     on the volume, which is exactly why W1 made them durable.
+
+WHAT THE DURABLE RECORD SAYS ON THIS POD (uptime 1,344 s at 12:44:58Z)
+  stall record   lifetime_max_ms 0.0 | recorded 0 | below_floor 0
+                 CORRECT AND NOT A GAP: the trailing window's max is 664.9 ms,
+                 under LOOP_STALL_ALERT_MS = 1000. The record is armed and
+                 honestly silent. First page will be its first real test.
+  token slots    current 127 | previous 0 | since 2026-09-17T12:23:20Z |
+                 unreadable false
+                 R29 is accumulating and no previous-slot sender has appeared.
+  ⛔ DURABILITY ACROSS A RESTART IS STILL UNOBSERVED. `since` is 45 s after this
+     pod's boot because that is when the file was first created -- no pod has
+     restarted under commit B yet. THE TELL AT THE NEXT BOOT IS `slots_since`:
+     if it moves, the counter is not durable and R29 cannot be satisfied by it.
+     Check that before reading any count as a weekday span.
+
+OI-47 CONFIRMED LIVE, unchanged: d14_monitor records stall_record: null and
+token_slots: null on every poll against a volume that demonstrably holds both.
+One-line fix stays staged for the next push.
+
+NOT EXPLAINED, RECORDED: the pod restarted at 12:22:35Z with NO commit change
+(/renderhealth still reports d9455a6d64a5, merged yesterday).
+
+NEXT
+  10:00 ET window: R17 (/flow SPY days:30) + rows 5 and 6, with web's log line
+  captured inside Railway's retention window -- the cause of a row-5 refusal is
+  recoverable from that line and nowhere else.
+================================================================================
+master unchanged | no env change | budget intact
+================================================================================
+```

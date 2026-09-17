@@ -1,0 +1,500 @@
+[startup] S7 catalyst-match DARK comparison ENABLED (17:30 ET weekdays, s7-dark cohort, no delivery)
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[mrr] Snapshot recorded for 2026-09-17: MRR=$0, subs=15
+[startup] S7 regime-change DARK comparison ENABLED (every 20 min behind the awareness scan, weekdays 04:00-20:59 ET, no delivery)
+[startup] S7 indicator-condition DARK comparison ENABLED (every minute, weekdays 09:00-16:59 ET, no delivery)
+2026-09-17 11:50:25,907 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,907 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] S7 document-arrival alerts ENABLED (every 20 min)
+2026-09-17 11:50:25,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] S7 price-level DARK comparison ENABLED (every minute, weekdays 09:00-16:59 ET, admin cohort, no delivery)
+2026-09-17 11:50:25,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,914 INFO api.oi_snapshots: [oi-snapshot] DB initialized (path=/data/oi_snapshots.db)
+2026-09-17 11:50:25,914 INFO api.dealer_positioning: [dealer_positioning] init_db done
+[startup] dealer_positioning table initialized
+[scheduler] OI snapshot cron NOT registered here (MASSIVE_WS_ENABLED!=1 — runs on flow-worker)
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,917 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Fundamentals warm scheduled -- daily at 5:30 AM ET
+[startup] malloc_trim scheduled -- every 10 min
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] Theme engine scheduled -- orphans Mon-Fri 11 PM ET; improve Sat 10 AM ET
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] cache snapshot scheduled -- every 3 min + on shutdown
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,918 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,919 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,923 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,924 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,926 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,927 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_capture_eod" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_capture_late" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_sources_discord_listener" to job store "default"
+2026-09-17 11:50:25,929 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_extract_reap" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_daily_chain" to job store "default"
+2026-09-17 11:50:25,931 INFO apscheduler.scheduler: Added job "wisdom_core_catchup" to job store "default"
+2026-09-17 11:50:25,931 INFO apscheduler.scheduler: Added job "wisdom_core_watchdog" to job store "default"
+2026-09-17 11:50:25,931 INFO apscheduler.scheduler: Added job "wisdom_capture_detections" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_capture_morning" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_capture_themes" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_capture_tweets" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_weekly_chain" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "wisdom_monthly_packet" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,932 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,933 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,934 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,935 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,936 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,937 INFO apscheduler.scheduler: Scheduler started
+[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET
+[startup] Session cleanup scheduled -- daily at 3:00 AM ET
+[startup] Churn risk check scheduled -- daily at 9:00 AM ET
+[startup] MRR snapshot scheduled -- daily at 11:59 PM ET
+[startup] Compass automation ENABLED -- proactive scans, daily focus, EOD recap, weekly digest scheduled
+[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)
+[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)
+2026-09-17 11:50:25,954 INFO api.massive_ws_worker: [massive-ws] disabled via MASSIVE_WS_ENABLED=0
+2026-09-17 11:50:25,960 INFO api.massive_flatfiles_worker: [massive-ff] disabled -- not registering scheduler jobs
+[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)
+2026-09-17 11:50:25,963 INFO api.flow_gap_autofill: [gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)
+2026-09-17 11:50:25,968 INFO api.flow_backup: [flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)
+2026-09-17 11:50:25,970 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+2026-09-17 11:50:25,970 INFO api.j2_attachments_backup: [j2-attach-backup] scheduled 02:45 ET Mon-Sat (retain=14d)
+[startup] j2 attachments backup registered (02:45 ET Mon-Sat)
+2026-09-17 11:50:25,975 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] j2 excursion backfill registered (03:10 ET Mon-Sat)
+2026-09-17 11:50:25,975 INFO api.services.journal_two.excursion_jobs: [j2-excursion] scheduled 03:10 ET Mon-Sat
+2026-09-17 11:50:25,979 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] j2 books audit registered (Sun 09:30 ET)
+2026-09-17 11:50:25,980 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] j2 attachment GC registered (03:40 ET Mon-Sat)
+2026-09-17 11:50:25,981 INFO apscheduler.scheduler: Added job "instrument_scheduler.<locals>.add_job.<locals>.wrapped" to job store "default"
+[startup] j2 trash purge registered (03:20 ET daily)
+[watchdog] started — observe-only (no kill); check=5.0s wedge=30.0s
+2026-09-17 11:50:26,012 INFO api.daily_tracker: [tracker] Snapshot scheduler started.
+2026-09-17 11:50:26,012 INFO api.daily_tracker: [tracker] Next snapshot at 2026-09-17 16:30 ET (31174 seconds from now).
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2026-09-17 11:50:26,014 INFO api.massive_stream: [massive-stream] tailer armed at id=45438746 (tail=1.0s)
+2026-09-17 11:50:32,276 INFO yfinance: Failed to create TzCache, reason: Error creating TzCache folder: '/root/.cache/py-yfinance' reason: [Errno 17] File exists: '/root/.cache/py-yfinance'. TzCache will not be used. Tip: You can direct cache to use a different location with 'set_tz_cache_location(mylocation)'
+[warm] dashboard cache warmed: snapshot
+[warm] dashboard cache warmed: movers
+[warm] dashboard cache warmed: news
+[warm] dashboard cache warmed: theme-performance
+[warm] dashboard cache warmed: leadership
+[warm] dashboard cache warmed: breadth
+2026-09-17 11:50:37,599 INFO api.services.engine: prewarm: disabled via EARNINGS_PREWARM_ENABLED=0 (no tokens spent)
+[warm] dashboard cache warmed: earnings
+2026-09-17 11:50:38,756 INFO api.services.nhnl_live: [nhnl] print-exact trade listener registered
+2026-09-17 11:50:38,879 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: NWAX-U"}}}
+2026-09-17 11:50:39,491 INFO api.services.bars_continuous_audit: [continuous_audit] universe baseline (info, not alerted): 9/80 long-tail intraday cold (11%)
+2026-09-17 11:50:39,494 INFO api.services.bars_continuous_audit: [continuous_audit] 1hr priority sweep
+2026-09-17 11:50:39,752 INFO api.services.bars_audit: [bars_audit] pruned 1 expired report(s)
+2026-09-17 11:50:39,791 INFO api.services.bars_continuous_audit: [continuous_audit] 24hr universe sweep
+2026-09-17 11:50:40,001 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:50:40 EDT)" (scheduled at 2026-09-17 07:50:40-04:00)
+2026-09-17 11:50:40,814 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:51:00 EDT)" executed successfully
+[dormant] self-heal rebuilt active set (0 active)
+2026-09-17 11:50:43,986 INFO api.main: [dashboard-warm] flow-tape ok
+2026-09-17 11:50:43,997 INFO api.main: [dashboard-warm] movers ok
+2026-09-17 11:50:43,997 INFO api.main: [dashboard-warm] themes ok
+2026-09-17 11:50:43,997 INFO api.main: [dashboard-warm] news ok
+2026-09-17 11:50:46,789 INFO index_bars: [index_bars] warm pass done: {'fetched': 10, 'fresh': 39, 'failed': 0}
+2026-09-17 11:50:46,982 INFO api.main: [dashboard-warm] breadth ok
+2026-09-17 11:50:55,830 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3742 universe, 3 to warm, 3739 already cached
+2026-09-17 11:50:55,862 INFO api.services.ticker_logos_prewarm: [logo-prewarm] done in 0.0s warmed=0 skipped=3739 failed=3
+2026-09-17 11:50:56,026 INFO api.services.realtime_stream: [stream] Subscribed 2 new tickers (total: 2)
+2026-09-17 11:51:00,001 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-09-17 07:54:00 EDT)" (scheduled at 2026-09-17 07:51:00-04:00)
+2026-09-17 11:51:00,001 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:51:00 EDT)" (scheduled at 2026-09-17 07:51:00-04:00)
+2026-09-17 11:51:00,006 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-09-17 07:54:00 EDT)" executed successfully
+[darkpool_db] cleared darkpool_today (4 rows)
+2026-09-17 11:51:00,607 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:51:20 EDT)" executed successfully
+2026-09-17 11:51:05,738 INFO api.main: [chart-renderer-warm] SPY D 206948 bytes
+2026-09-17 11:51:09,071 INFO api.main: [startup] hot tier warmed: 0 entries
+[breadth-heal] boot pass: 0 healed of last 10
+2026-09-17 11:51:09,286 INFO darkpool_intraday: [darkpool_intraday] session 9/17/2026 armed — hot=53 warm=371, cursor=07:00:00
+[darkpool_db] darkpool_today upload: 3 inserted, 0 dupes, 0 errors / 3 total
+2026-09-17 11:51:18,127 INFO darkpool_intraday: [darkpool_intraday] 9/17/2026: +3 new / 3 prints from 53 tickers in 18s
+2026-09-17 11:51:20,000 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:51:40 EDT)" (scheduled at 2026-09-17 07:51:20-04:00)
+2026-09-17 11:51:20,268 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:51:40 EDT)" executed successfully
+2026-09-17 11:51:22,274 INFO darkpool_intraday: [darkpool_intraday] bigblock: {'ok': True, 'source': 'darkpool_today', 'new_blocks': 0, 'alerts_sent': 1}
+2026-09-17 11:51:23,985 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] starting pass over 3742 tickers
+[mem] rss_mb=1488.0 threads=119
+2026-09-17 11:51:25,342 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" (scheduled at 2026-09-17 11:51:25.341093+00:00)
+2026-09-17 11:51:25,347 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" (scheduled at 2026-09-17 11:51:25.346570+00:00)
+2026-09-17 11:51:25,349 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" executed successfully
+2026-09-17 11:51:25,352 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" executed successfully
+2026-09-17 11:51:25,469 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" (scheduled at 2026-09-17 11:51:25.468812+00:00)
+2026-09-17 11:51:25,473 INFO api.services.screener.live_tier: [screener-live] cycle skipped: not_regular_session (session=pre_market)
+2026-09-17 11:51:25,473 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" executed successfully
+2026-09-17 11:51:25,501 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:05:00], next run at: 2026-09-17 11:56:25 UTC)" (scheduled at 2026-09-17 07:51:25.500336-04:00)
+2026-09-17 11:51:25,523 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:52:25 EDT)" (scheduled at 2026-09-17 07:51:25.522475-04:00)
+2026-09-17 11:51:25,523 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" (scheduled at 2026-09-17 11:51:25.522602+00:00)
+2026-09-17 11:51:25,542 INFO api.main: [discord-chart] roster seeded 9 chart(s) from 9 name(s)
+2026-09-17 11:51:26,357 INFO api.main: [buzz] 1216816863313657886: 1 message(s), 2 mention(s)
+2026-09-17 11:51:26,360 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:52:25 UTC)" executed successfully
+[darkpool_agg] prewarm: cache already warm — skip
+2026-09-17 11:51:38,911 INFO api.services.industry_map: [industry_map] prewarm bulk skipped — fresh (11964 rows)
+2026-09-17 11:51:40,014 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:00 EDT)" (scheduled at 2026-09-17 07:51:40-04:00)
+2026-09-17 11:51:40,673 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:00 EDT)" executed successfully
+2026-09-17 11:51:43,389 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: NWAX-U"}}}
+2026-09-17 11:51:45,274 INFO api.services.industry_map: [industry_map] warmed 0/2 universe gaps via fallback
+2026-09-17 11:51:47,462 INFO api.services.discord_interactions: [discord-chart] warmed 3 hot chart(s): DELL:D:default, LITE:D:default, SMTC:D:default
+2026-09-17 11:51:47,462 INFO api.services.discord_interactions: [discord-chart] hot warm hit its 20s budget after 21.9s — 6 chart(s) deferred to the next cycle (resuming there)
+2026-09-17 11:51:47,462 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:52:25 EDT)" executed successfully
+2026-09-17 11:51:55,229 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/25 syms; week-2 5 day(s)/46 syms
+[startup] Darkpool DB: 6,047,670 rows, 120 days -- CSV unchanged, skip seed
+2026-09-17 11:52:00,031 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[minute='7/15'], next run at: 2026-09-17 08:07:00 EDT)" (scheduled at 2026-09-17 07:52:00-04:00)
+2026-09-17 11:52:00,033 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='4-9', minute='*/2'], next run at: 2026-09-17 07:54:00 EDT)" (scheduled at 2026-09-17 07:52:00-04:00)
+2026-09-17 11:52:00,043 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:20 EDT)" (scheduled at 2026-09-17 07:52:00-04:00)
+2026-09-17 11:52:00,219 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[minute='7/15'], next run at: 2026-09-17 08:07:00 EDT)" executed successfully
+2026-09-17 11:52:01,596 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:20 EDT)" executed successfully
+2026-09-17 11:52:02,419 INFO api.services.tweet_poller: [tweet_poll] 1ChartMaster stored=20 newest=2100524677076582606
+2026-09-17 11:52:06,304 INFO api.services.tweet_poller: [tweet_poll] Braczyy stored=20 newest=2099176504999428238
+2026-09-17 11:52:07,959 INFO api.services.tweet_poller: [tweet_poll] DeItaone stored=20 newest=2100521060953137344
+2026-09-17 11:52:09,507 INFO api.services.tweet_poller: [tweet_poll] Oraclenyse stored=20 newest=2100309301554270583
+2026-09-17 11:52:13,071 INFO api.services.tweet_poller: [tweet_poll] TSDR_Trading stored=20 newest=2100226789171753357
+2026-09-17 11:52:15,299 INFO api.services.tweet_poller: [tweet_poll] aistocksavvy stored=20 newest=2100553294410133681
+2026-09-17 11:52:17,015 INFO api.services.tweet_poller: [tweet_poll] faststocknewss stored=20 newest=2100360799550353703
+2026-09-17 11:52:18,487 INFO api.services.tweet_poller: [tweet_poll] markflowchatter stored=20 newest=2100273932930519139
+2026-09-17 11:52:20,001 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:40 EDT)" (scheduled at 2026-09-17 07:52:20-04:00)
+2026-09-17 11:52:20,241 INFO api.services.tweet_poller: [tweet_poll] tipranks stored=20 newest=2100518616579924004
+2026-09-17 11:52:20,493 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:52:40 EDT)" executed successfully
+2026-09-17 11:52:22,249 INFO api.services.tweet_poller: [tweet_poll] wallstengine stored=20 newest=2100548792567447798
+2026-09-17 11:52:22,250 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='4-9', minute='*/2'], next run at: 2026-09-17 07:54:00 EDT)" executed successfully
+2026-09-17 11:52:23,891 INFO api.services.rs_ranking: [rs_ranking] universe source=wire_data n=3696
+2026-09-17 11:52:23,892 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3696 stocks...
+[mem] rss_mb=1846.2 threads=137
+2026-09-17 11:52:25,354 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" (scheduled at 2026-09-17 11:52:25.341093+00:00)
+2026-09-17 11:52:25,355 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" (scheduled at 2026-09-17 11:52:25.346570+00:00)
+2026-09-17 11:52:25,513 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" (scheduled at 2026-09-17 11:52:25.468812+00:00)
+2026-09-17 11:52:25,514 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" executed successfully
+2026-09-17 11:52:25,514 INFO api.services.screener.live_tier: [screener-live] cycle skipped: not_regular_session (session=pre_market)
+2026-09-17 11:52:25,515 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" executed successfully
+2026-09-17 11:52:25,516 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" executed successfully
+2026-09-17 11:52:25,516 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: date[2026-09-17 07:52:25 EDT], next run at: 2026-09-17 07:52:25 EDT)" (scheduled at 2026-09-17 07:52:25.480900-04:00)
+2026-09-17 11:52:25,518 INFO apscheduler.scheduler: Removed job call_recap_warm_boot
+2026-09-17 11:52:25,569 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:53:25 EDT)" (scheduled at 2026-09-17 07:52:25.522475-04:00)
+2026-09-17 11:52:25,574 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" (scheduled at 2026-09-17 11:52:25.522602+00:00)
+2026-09-17 11:52:25,960 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:53:25 UTC)" executed successfully
+[startup] screener self-warm: not needed (rows=3745 >= warm_min=3000)
+2026-09-17 11:52:37,586 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for GLOO D (attempt 1) - discarding
+2026-09-17 11:52:40,005 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:00 EDT)" (scheduled at 2026-09-17 07:52:40-04:00)
+2026-09-17 11:52:41,466 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:00 EDT)" executed successfully
+2026-09-17 11:52:43,991 WARNING api.services.llm_batch: [llm_batch] submit failed for call_recap: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': "requests.0.custom_id: String should match pattern '^[a-zA-Z0-9_-]{1,64}$'"}, 'request_id': 'req_011Cf8xuckKfRvqtMZkbyRva'}
+2026-09-17 11:52:44,007 INFO api.main: [recap_warm] {'queued': 32, 'mode': 'batch', 'reaped': {'batches': 0, 'succeeded': 0, 'errored': 0, 'pending': 0, 'abandoned': 0}, 'submitted': {'queued': 25, 'no_transcript': 6, 'already': 1, 'submit_failed': 25}, 'spend_today_usd': 0.0}
+2026-09-17 11:52:44,008 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: date[2026-09-17 07:52:25 EDT], next run at: 2026-09-17 07:52:25 EDT)" executed successfully
+2026-09-17 11:52:49,600 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for GLOO D (attempt 2) - discarding
+2026-09-17 11:52:50,212 INFO matplotlib.font_manager: generated new fontManager
+2026-09-17 11:52:53,484 INFO api.services.discord_interactions: [discord-chart] hot warm hit its 20s budget after 27.5s — 5 chart(s) deferred to the next cycle (resuming there)
+2026-09-17 11:52:53,487 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:53:25 EDT)" executed successfully
+2026-09-17 11:52:54,639 INFO api.main: [scanner-warm] presets warm (6 still building)
+2026-09-17 11:52:54,643 INFO api.services.rs_ranking: [rs_ranking] Cached 3614 RS rankings
+2026-09-17 11:52:54,649 INFO api.main: [rs-rankings] warmed: 3614 entries
+[startup] Flow DB stocks: 678,988 rows, 53 days -- up to date
+2026-09-17 11:52:59,546 ERROR api.services.bars_reconciliation: [reconcile] heal SQLite delete failed for NVDA/30
+Traceback (most recent call last):
+  File "/app/api/services/bars_reconciliation.py", line 221, in _heal_drift
+    cur = conn.execute(
+          ^^^^^^^^^^^^^
+sqlite3.OperationalError: database is locked
+2026-09-17 11:53:00,004 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:20 EDT)" (scheduled at 2026-09-17 07:53:00-04:00)
+2026-09-17 11:53:00,359 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:20 EDT)" executed successfully
+2026-09-17 11:53:09,115 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: P-ANTH"}}}
+2026-09-17 11:53:20,000 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:40 EDT)" (scheduled at 2026-09-17 07:53:20-04:00)
+2026-09-17 11:53:20,360 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:53:40 EDT)" executed successfully
+[mem] rss_mb=2252.8 threads=115
+2026-09-17 11:53:24,478 INFO api.services.earnings_estimates: get_year_earnings ABVX 2026: 1/4 quarters had a report (rest shown as —)
+[news] fmp cycle mode=global-latest items=1000 req=6
+2026-09-17 11:53:25,201 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:05:00], next run at: 2026-09-17 11:56:25 UTC)" executed successfully
+2026-09-17 11:53:25,342 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" (scheduled at 2026-09-17 11:53:25.341093+00:00)
+2026-09-17 11:53:25,347 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" (scheduled at 2026-09-17 11:53:25.346570+00:00)
+2026-09-17 11:53:25,352 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" executed successfully
+2026-09-17 11:53:25,359 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" executed successfully
+2026-09-17 11:53:25,424 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:03:00], next run at: 2026-09-17 11:56:25 UTC)" (scheduled at 2026-09-17 11:53:25.420898+00:00)
+2026-09-17 11:53:25,436 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:03:00], next run at: 2026-09-17 11:56:25 UTC)" executed successfully
+2026-09-17 11:53:25,469 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" (scheduled at 2026-09-17 11:53:25.468812+00:00)
+2026-09-17 11:53:25,470 INFO api.services.screener.live_tier: [screener-live] cycle skipped: not_regular_session (session=pre_market)
+2026-09-17 11:53:25,470 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" executed successfully
+2026-09-17 11:53:25,493 INFO apscheduler.scheduler: Removed job transcript_index_boot
+2026-09-17 11:53:25,494 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: date[2026-09-17 07:53:25 EDT], next run at: 2026-09-17 07:53:25 EDT)" (scheduled at 2026-09-17 07:53:25.492215-04:00)
+2026-09-17 11:53:25,501 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:20:00], next run at: 2026-09-17 12:13:25 UTC)" (scheduled at 2026-09-17 07:53:25.500336-04:00)
+2026-09-17 11:53:25,566 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:54:25 EDT)" (scheduled at 2026-09-17 07:53:25.522475-04:00)
+2026-09-17 11:53:25,573 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" (scheduled at 2026-09-17 11:53:25.522602+00:00)
+2026-09-17 11:53:25,920 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:03:00], next run at: 2026-09-17 11:56:25 UTC)" (scheduled at 2026-09-17 11:53:25.918408+00:00)
+2026-09-17 11:53:26,067 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:54:25 UTC)" executed successfully
+2026-09-17 11:53:26,295 INFO api.services.cache_snapshot: [cache-snapshot] saved 950/967 entries (6195.9 KB)
+2026-09-17 11:53:26,313 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:03:00], next run at: 2026-09-17 11:56:25 UTC)" executed successfully
+2026-09-17 11:53:26,707 WARNING api.services.fundamentals_monitor: [fund-monitor] PERSISTENT ABVX: forward_noncontiguous
+2026-09-17 11:53:27,697 INFO api.services.fundamentals_monitor: [fund-monitor] cycle: 30 checked, 0 healed, 1 persistent-flagged, 0 fund-skipped, 0 paged, 4 blank-sales
+2026-09-17 11:53:27,928 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: WMK"}}}
+2026-09-17 11:53:28,308 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: WMK"}}}
+2026-09-17 11:53:28,658 INFO api.services.earnings_estimates: get_year_earnings LDOS 2026: 2/4 quarters had a report (rest shown as —)
+2026-09-17 11:53:28,706 INFO api.services.earnings_estimates: get_year_earnings EGBN 2026: 2/4 quarters had a report (rest shown as —)
+2026-09-17 11:53:28,755 INFO api.services.earnings_estimates: get_year_earnings MCW 2026: 1/4 quarters had a report (rest shown as —)
+2026-09-17 11:53:28,916 INFO api.services.earnings_estimates: get_year_earnings VRSN 2026: 2/4 quarters had a report (rest shown as —)
+2026-09-17 11:53:29,063 INFO api.services.earnings_estimates: get_year_earnings WMK 2026: 2/4 quarters had a report (rest shown as —)
+2026-09-17 11:53:29,535 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: WMK"}}}
+2026-09-17 11:53:29,592 ERROR api.services.bars_reconciliation: [reconcile] heal SQLite delete failed for NVDA/60
+Traceback (most recent call last):
+  File "/app/api/services/bars_reconciliation.py", line 221, in _heal_drift
+    cur = conn.execute(
+          ^^^^^^^^^^^^^
+sqlite3.OperationalError: database is locked
+2026-09-17 11:53:29,592 WARNING api.services.bars_reconciliation: [reconcile] DRIFT NVDA/30: 4 fail / 10 warn — healed 0 row(s)
+2026-09-17 11:53:29,764 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: WMK"}}}
+2026-09-17 11:53:33,956 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: HYAC"}}}
+2026-09-17 11:53:34,098 INFO api.main: [tindex] {'pages': 25, 'indexed': 0, 'already': 690, 'no_content': 0, 'bad_row': 0, 'off_universe': 1810, 'corpus': 2191}
+2026-09-17 11:53:37,125 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: date[2026-09-17 07:53:25 EDT], next run at: 2026-09-17 07:53:25 EDT)" executed successfully
+2026-09-17 11:53:40,001 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:54:00 EDT)" (scheduled at 2026-09-17 07:53:40-04:00)
+2026-09-17 11:53:40,489 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:54:00 EDT)" executed successfully
+[startup] Flow DB indexes: 289,454 rows, 53 days -- up to date
+2026-09-17 11:53:47,049 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for GNRC D (attempt 1) - discarding
+[startup] Flow DB pruned 18146 expired rows
+2026-09-17 11:53:55,397 WARNING api.services.bars_reconciliation: [reconcile] DRIFT ANET/15: 2 fail / 6 warn — healed 1 row(s)
+2026-09-17 11:53:57,246 WARNING api.services.bars_reconciliation: [reconcile] DRIFT UMC/30: 3 fail / 18 warn — healed 4 row(s) (+2 companion 60m)
+2026-09-17 11:53:57,812 WARNING api.services.bars_reconciliation: [reconcile] DRIFT RZLV/15: 12 fail / 12 warn — healed 18 row(s) (+6 companion 60m)
+2026-09-17 11:53:58,321 WARNING api.services.bars_reconciliation: [reconcile] DRIFT FIX/15: 12 fail / 19 warn — healed 20 row(s) (+10 companion 60m)
+2026-09-17 11:53:58,941 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for GNRC D (attempt 2) - discarding
+2026-09-17 11:54:00,003 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-09-17 07:57:00 EDT)" (scheduled at 2026-09-17 07:54:00-04:00)
+2026-09-17 11:54:00,012 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[minute='4/10'], next run at: 2026-09-17 12:04:00 UTC)" (scheduled at 2026-09-17 11:54:00+00:00)
+2026-09-17 11:54:00,013 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='4-9', minute='*/2'], next run at: 2026-09-17 07:56:00 EDT)" (scheduled at 2026-09-17 07:54:00-04:00)
+2026-09-17 11:54:00,021 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:54:20 EDT)" (scheduled at 2026-09-17 07:54:00-04:00)
+2026-09-17 11:54:00,038 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-09-17 07:57:00 EDT)" executed successfully
+2026-09-17 11:54:00,085 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[minute='4/10'], next run at: 2026-09-17 12:04:00 UTC)" executed successfully
+2026-09-17 11:54:01,388 INFO api.services.tweet_poller: [tweet_poll] 1ChartMaster stored=20 newest=2100524677076582606
+2026-09-17 11:54:01,738 WARNING api.services.bars_reconciliation: [reconcile] DRIFT TLNC/1: 4 fail / 2 warn — healed 4 row(s)
+2026-09-17 11:54:02,176 INFO api.services.discord_interactions: [discord-chart] warmed 1 hot chart(s): AMD:D:default
+2026-09-17 11:54:02,176 INFO api.services.discord_interactions: [discord-chart] hot warm hit its 20s budget after 36.6s — 6 chart(s) deferred to the next cycle (resuming there)
+2026-09-17 11:54:02,177 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:54:25 EDT)" executed successfully
+[darkpool_db] darkpool_today upload: 2 inserted, 0 dupes, 0 errors / 2 total
+2026-09-17 11:54:02,865 INFO darkpool_intraday: [darkpool_intraday] 9/17/2026: +2 new / 2 prints from 53 tickers in 3s
+2026-09-17 11:54:03,005 INFO api.services.tweet_poller: [tweet_poll] Braczyy stored=20 newest=2099176504999428238
+2026-09-17 11:54:03,253 WARNING api.services.bars_reconciliation: [reconcile] DRIFT BEP/30: 13 fail / 20 warn — healed 15 row(s) (+5 companion 60m)
+2026-09-17 11:54:03,917 WARNING api.services.bars_reconciliation: [reconcile] DRIFT HFRO/15: 2 fail / 20 warn — healed 4 row(s) (+2 companion 60m)
+2026-09-17 11:54:04,160 INFO api.routers.calendar: Calendar: Finviz added 0 past-day reporters, re-bucketed 4 out of Time TBD
+2026-09-17 11:54:04,160 INFO api.routers.calendar: Calendar: backfilled 18 past-day reporters from Finnhub+FMP (2026-09-14 -> 2026-09-16)
+2026-09-17 11:54:04,491 INFO api.routers.calendar: Calendar: live-window supplement added 4 reporters (2026-09-17 -> 2026-09-18)
+2026-09-17 11:54:04,529 INFO api.services.tweet_poller: [tweet_poll] DeItaone stored=20 newest=2100521060953137344
+2026-09-17 11:54:04,760 INFO api.routers.calendar: Calendar: FMP patched 3 actuals through 2026-09-17
+2026-09-17 11:54:05,262 INFO api.routers.calendar: Calendar: econ loaded — FF 11 events / 4 days, FMP filled 0 across 1 uncovered days
+2026-09-17 11:54:05,347 WARNING api.services.bars_reconciliation: [reconcile] DRIFT PCRX/15: 17 fail / 17 warn — healed 19 row(s) (+8 companion 60m)
+2026-09-17 11:54:05,841 INFO api.services.tweet_poller: [tweet_poll] Oraclenyse stored=20 newest=2100309301554270583
+2026-09-17 11:54:06,132 WARNING api.services.bars_reconciliation: [reconcile] DRIFT FBIN/15: 7 fail / 16 warn — healed 14 row(s) (+7 companion 60m)
+2026-09-17 11:54:06,633 WARNING api.services.bars_reconciliation: [reconcile] DRIFT DFIN/30: 9 fail / 25 warn — healed 12 row(s) (+6 companion 60m)
+2026-09-17 11:54:07,331 INFO api.services.tweet_poller: [tweet_poll] TSDR_Trading stored=20 newest=2100226789171753357
+2026-09-17 11:54:07,705 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] done in 163.7s — warmed=41 skipped=3700 failed=0 backed_off=1
+2026-09-17 11:54:08,863 INFO api.services.tweet_poller: [tweet_poll] aistocksavvy stored=20 newest=2100553294410133681
+2026-09-17 11:54:10,464 INFO api.services.tweet_poller: [tweet_poll] faststocknewss stored=20 newest=2100360799550353703
+2026-09-17 11:54:11,818 INFO api.services.tweet_poller: [tweet_poll] markflowchatter stored=20 newest=2100273932930519139
+2026-09-17 11:54:12,218 INFO api.services.bars_reconciliation: [reconcile] cycle complete: 30 pairs audited (28 ok, 2 err), 11 drift detected, 111 rows healed
+2026-09-17 11:54:13,288 INFO api.services.tweet_poller: [tweet_poll] tipranks stored=20 newest=2100518616579924004
+2026-09-17 11:54:13,673 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 44, 'fresh': 0, 'pit': {'refreshed': 7, 'fresh': 0, 'failed': 0, 'symbols': 7}}
+2026-09-17 11:54:15,277 INFO api.services.tweet_poller: [tweet_poll] wallstengine stored=20 newest=2100548792567447798
+2026-09-17 11:54:15,278 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='4-9', minute='*/2'], next run at: 2026-09-17 07:56:00 EDT)" executed successfully
+2026-09-17 11:54:20,001 WARNING apscheduler.scheduler: Execution of job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:54:20 EDT)" skipped: maximum number of running instances reached (1)
+[mem] rss_mb=2492.6 threads=66
+2026-09-17 11:54:25,563 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" (scheduled at 2026-09-17 11:54:25.522602+00:00)
+2026-09-17 11:54:25,565 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" executed successfully
+2026-09-17 11:54:25,431 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" (scheduled at 2026-09-17 11:54:25.341093+00:00)
+2026-09-17 11:54:25,454 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" (scheduled at 2026-09-17 11:54:25.346570+00:00)
+2026-09-17 11:54:25,526 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" (scheduled at 2026-09-17 11:54:25.468812+00:00)
+2026-09-17 11:54:25,528 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:10:00], next run at: 2026-09-17 12:04:25 UTC)" (scheduled at 2026-09-17 07:54:25.502217-04:00)
+2026-09-17 11:54:25,530 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:54:25 EDT)" (scheduled at 2026-09-17 07:54:25.522475-04:00)
+2026-09-17 11:54:25,555 INFO api.services.screener.live_tier: [screener-live] cycle skipped: not_regular_session (session=pre_market)
+2026-09-17 11:54:25,558 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" executed successfully
+2026-09-17 11:54:25,560 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" executed successfully
+2026-09-17 11:54:25,827 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 11:55:25 UTC)" executed successfully
+2026-09-17 11:54:26,262 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:54:40 EDT)" executed successfully
+2026-09-17 11:54:27,729 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 16 across 5 uncovered days
+2026-09-17 11:54:31,432 INFO api.routers.calendar: Calendar 2026-09-07: Finviz added 0, re-bucketed 5
+2026-09-17 11:54:31,714 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 16 across 5 uncovered days
+2026-09-17 11:54:32,279 INFO api.routers.calendar: Calendar metrics: Finviz returned data for 6/6 tickers
+2026-09-17 11:54:34,824 INFO api.services.provider_coverage_monitor: [coverage-monitor] cycle: 13 fields, 0 defects, 0 newly-alerted
+2026-09-17 11:54:40,002 INFO apscheduler.executors.default: Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:55:00 EDT)" (scheduled at 2026-09-17 07:54:40-04:00)
+2026-09-17 11:54:40,493 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: cron[day_of_week='mon-fri', hour='6-9,16', second='*/20'], next run at: 2026-09-17 07:55:00 EDT)" executed successfully
+2026-09-17 11:54:41,208 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for TDAY D (attempt 1) - discarding
+[panel-prewarm] {"symbols": 40, "universe": 3742, "cursor": 3591, "ok": 120, "failed": 0, "wrapped": false, "elapsed_s": 21.7, "slowest": {"symbol": "VTLE", "ms": 2641}}
+2026-09-17 11:54:48,263 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:10:00], next run at: 2026-09-17 12:04:25 UTC)" executed successfully
+2026-09-17 11:54:53,015 WARNING api.services.discord_chart_house: [discord-chart] house render drew 0 bar(s) for TDAY D (attempt 2) - discarding
+2026-09-17 11:54:54,573 INFO api.services.discord_interactions: [discord-chart] hot warm hit its 20s budget after 28.6s — 6 chart(s) deferred to the next cycle (resuming there)
+2026-09-17 11:54:54,575 INFO apscheduler.executors.default: Job "instrument_scheduler.<locals>.add_job.<locals>.wrapped (trigger: interval[0:01:00], next run at: 2026-09-17 07:55:25 EDT)" executed successfully

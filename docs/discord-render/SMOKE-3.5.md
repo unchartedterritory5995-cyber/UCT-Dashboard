@@ -67,11 +67,78 @@ A score of x/15 is from before this ruling and is not comparable.
 | 7 | `/flow` degraded card | **RATIFIED** | 04-visual-spec §5's degraded card renders rather than silence | a degraded card, never an empty reply |
 | 8 | `/buzz` (bare) | **DEFINED** | Ephemeral board reply, **ack inside 3 s** | ephemeral reply; **flags on the DEFER, not the follow-up** |
 | 9 | `/renderhealth` | **DEFINED** | Ephemeral; names the flag state AND the running commit | the reply quotes `DISCORD_RENDER_V2_ENABLED` and `Commit <sha>` |
-| 10 | `/charts` (multi-chart) | **RATIFIED** | Multi-chart delivery through `run_multi_chart_job`; type 5 defer | `background.add_task(run_multi_chart_job …)` path; one message, N charts |
+| 10 | `/chart NVDA AMD AVGO` (multi-chart) | **RATIFIED**, command name **CORRECTED 2026-09-17** | Multi-chart delivery through `run_multi_chart_job`; type 5 defer | `background.add_task(run_multi_chart_job …)` path; one message, N charts |
 | 11 | a chart CONTROL-ROW button (`D`/`W`/`60m`/`5m`) | **RATIFIED** | The button re-renders in place (type 12 deferred update) | `{"type": 12}` at `routers/discord_interactions.py:403` |
-| 12 | the `⚙` control | **RATIFIED** | `/chartsettings` surface opens | — |
+| 12 | the `⚙` control | **RATIFIED**, assertion **CORRECTED 2026-09-17** | The gear EXPANDS the in-message control surface in place (all five timeframes · pan/MAs/volume/Dark Pools · the one `⚙ Zoom · Indicators · Style` select · a `🔼` collapse). It does **not** open `/chartsettings` | the same message, edited, now carrying four component rows |
 | 13 | `/chart` in a NON-allowlisted channel | **RATIFIED** | Refused with a nudge naming the **member-facing** channel (`1546563720702853280`), never the smoke channel | `_channel_nudge()` |
 | 14 | rate-limit refusal | **RATIFIED** | `di.throttle_message(...)` — an honest named refusal, never silence | ephemeral throttle sentence |
+
+---
+
+## ⛔⛔ Two rows named a surface the product does not have (2026-09-17)
+
+**Both were RATIFIED from the spec rather than from the command surface, and both were
+wrong in the same direction: the row described an EARLIER product.** Neither is a defect
+in the bot; the defect was in this file.
+
+### Row 10 — `/charts` is RETIRED, and the multi-chart path is alive
+
+Typing `/charts` in `#render-smoke` offers `/chartsettings`, `/chart`, `/renderhealth`,
+`/c` and two other apps' `/channels` — **no `/charts`**. That is deliberate, and
+`build_commands` (`api/services/discord_interactions.py:1094`, the ONE registration
+authority) says so at the line that omits it:
+
+> `# /charts is retired: /chart NVDA AMD AVGO is the same thing through one door. Its`
+> `# handler stays for a deploy cycle so a client holding the older command set does not`
+> `# get an error.`
+
+`build_charts_command()` still EXISTS and is never registered — so a reader who greps for
+the payload finds one and concludes the command ships. The live door is
+`api/routers/discord_interactions.py:562`: `/chart` with more than one ticker →
+`len(reqs) > 1` → `background.add_task(di.run_multi_chart_job, …)` → `{"type": 5}`.
+**The row's ASSERTION was right and only its command text was stale**; it is corrected
+above rather than struck.
+
+⭐ Note what the row would have scored as if this file had been followed literally: NOT
+RUN, "command not found" — a NOT-RUN against a working feature, which is the most
+expensive kind of wrong row.
+
+### Row 12 — the gear expands the controls; it does not open `/chartsettings`
+
+Owner ruling, 2026-08-26 (recorded at `chart_components`,
+`api/services/discord_interactions.py:749`): a chart in a busy channel is the image plus
+ONE row, and *"the gear opens the full surface for the member who wants it, and the
+open/closed state rides in the ids so it survives every click."* The expanded state is
+`exp=1` in the component id; `🔼` closes it again. `/chartsettings` is a separate slash
+command for per-member DEFAULTS and is reached from the picker, never from this button.
+
+---
+
+## ⛔ Rows 2, 3 and 7 cannot be run while V2 is dark — this is a property of the pod, not of the run
+
+All three assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is unset on
+`web` (confirmed in-product by `/renderhealth` on 2026-09-17: *"Render V2 is off
+(`DISCORD_RENDER_V2_ENABLED` unset)"*).
+
+- **Row 2 (STALE badge).** The badge is composed by `discord_render/badge.py` from a
+  `freshness.Envelope`, and the URL parameter is emitted by `discord_chart_house.py:270`
+  — whose own docstring is the measurement: *"**THE PRE-V2 PATH PASSES NEITHER KEY**, so
+  it leaves with `None` before the import, and its URL is unchanged down to the byte.
+  `discord_chart_prefs.render_options` returns no `stale` and no `as_of`."* There is no
+  ticker, and no market condition, that makes the pre-V2 path emit `?stale=`.
+  ⇒ **NOT RUNNABLE — UNREACHABLE BY CONSTRUCTION.** Never score it as FAIL, and never
+  score it as PASS on the strength of a chart that simply had no badge: *absence of a
+  badge here is absence of the mechanism, not evidence of freshness.*
+- **Row 3 (stand-in + heal).** Same family; R32 already recorded it as
+  INCONCLUSIVE-BY-CONSTRUCTION.
+- **Row 7 (degraded flow card).** 04-visual-spec §5's card is the V2 failure contract.
+  The pre-V2 path has exactly one sentence for every non-ok read — *"the flow feed is
+  reconnecting"* — which satisfies "never silence" and says nothing about §5.
+  ⇒ INCONCLUSIVE-BY-CONSTRUCTION unless the 10:00 ET run shows §5's shape.
+
+⭐ **These three are the same class as OI-45 and OI-47 one level up:** the behaviour is
+built, tested and mutation-covered, and the door to it is shut in production. A smoke
+that scores them as failures would be blaming the run for the flag.
 
 ---
 

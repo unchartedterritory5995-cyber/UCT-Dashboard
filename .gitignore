@@ -168,3 +168,6 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 # no pull, merge, rebase, `git worktree add` or `git checkout` can ever put it in the
 # integrator's tree. Somebody has to stand in a throwaway worktree and write it.
 .mutation-sandbox
+
+# D-14 monitor transient lock (a live poller heartbeat, never evidence)
+docs/discord-render/evidence/d14-monitor/.poller.lock
