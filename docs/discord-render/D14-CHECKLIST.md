@@ -28,10 +28,21 @@ No master push and no env change since the W1 merge.
 action) · `BLOCKED-until-FRIDAY 2026-09-18 ~08:23 ET` on W3/OI-13 step 6 (R29 needs a full weekday
 span including a 07:35 ET Morning Wire run; the counter's `since` is 12:23:20Z TODAY).
 
-⚠️ **AND R29's DURABILITY IS STILL UNOBSERVED.** `slots_since` has not yet survived a pod boot —
-it reads `2026-09-17T12:23:20Z`, 45 s after the first pod under commit B. **The tell at the next
-boot is `slots_since`: if it MOVES, the counter is not durable and R29 cannot be satisfied by it.**
-Check that before reading any count as a weekday span. (Current: `current 210 / previous 0`.)
+✅ **R29's DURABILITY IS NOW OBSERVED — and the check that proved it was written down before it
+ran.** The R31 trace caught **two** pod restarts (uptime `2122 → 21`, then `894 → 39`), and across
+both `slots_since` never moved (`2026-09-17T12:23:20Z` throughout) and `current` never went
+backwards (200 → 200 → 203; 251 → 255). The counter is durable in production, measured rather than
+argued. `previous` is still **0**. ⚠️ The SPAN condition is untouched: `since` is TODAY, so the
+earliest qualifying window still closes **Friday ~08:23 ET**.
+
+⛔⛔ **AND THE POD RESTARTS EVERY 20–35 MINUTES ON ONE COMMIT** — `12:22:35Z`, `12:58:50Z`,
+`13:14:55Z`, all `d9455a6d64a5`, no push between them. **Every artifact in this programme sizes
+exposure against "~20 deploys/day".** If pods also restart themselves 2–3×/hour, the boot storm
+runs far more often than that, each run is a fresh tier-1 page opportunity, and in-process state is
+erased that often. ⛔ **NOT EXPLAINED, AND NOT TO BE GUESSED**: a platform cycle, an OOM kill, a
+healthcheck failure and a crash-respawn are four different things and the discriminator is the
+pod's own exit, which neither the stall record nor this trace can see. Upstream of this programme;
+the next measurement.
 
 ---
 
