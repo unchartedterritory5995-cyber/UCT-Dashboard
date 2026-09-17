@@ -155,3 +155,60 @@ the rare admin routes in §2a are not.
 **Next:** the receipt distribution, then the same correlation over the ≥3 s events the durable
 record already holds, then the fix under R52 (move the sweep's CPU off the loop's GIL — a process
 pool, or a readiness barrier for boot work) with the rail R52 specifies.
+
+---
+
+## 4 · ⭐⭐⭐ THE MEASUREMENT LANDED, AND IT IS NOT A BOOT ARTIFACT
+
+Six consecutive `[screener-live]` receipts, collected 17:08–17:15Z. The pod booted 17:06:54Z, so
+everything from 17:10 on is **uptime 3–9 minutes: steady state, inside RTH**, not a boot storm.
+
+```
+17:08:35  held_lock_ms=32814.01  duration_ms=33861.42
+17:10:10  held_lock_ms=68782.07  duration_ms=68784.42
+17:11:57  held_lock_ms=55951.43  duration_ms=55954.14
+17:12:57  held_lock_ms=56382.78  duration_ms=56382.92
+17:14:08  held_lock_ms=66657.58  duration_ms=66658.93
+17:15:50  held_lock_ms=49118.76  duration_ms=49118.94
+```
+
+| | documented (2026-08-23) | measured (2026-09-17, n=6) |
+|---|---|---|
+| `held_lock_ms` median | **122 ms** | **≈ 56,200 ms** |
+| range | 121–140 ms | 32,814 – 68,782 ms |
+| duty cycle at the 60 s cadence | **~0.2%** | **~94%** |
+| ratio | — | **≈ 460× the median, up to 564×** |
+
+⛔⛔ **THE SWEEP OVERRUNS ITS OWN CADENCE.** Three of six cycles exceed 60 s (68.8, 66.7 s), and
+the scheduler says so out loud in the same window:
+
+```
+17:09:00,005 WARNING apscheduler.scheduler: Execution of job "...cron[...minute='*']..."
+             skipped: maximum number of running instances reached (1)
+```
+
+**So the hypothesis in §3b is resolved.** 32.8 s was not minute-two cold cache — it was the
+*fastest* of the six. The screener live-tier sweep holds the shared build lock and burns CPU for
+roughly **56 of every 60 seconds, continuously, through the whole session**, in the same process
+and under the same GIL as the Discord ack whose budget is 3,000 ms.
+
+⭐ **This is the right SHAPE for OI-44 in a way nothing else on the candidate list is.** The
+census found ~46 stalls ≥1 s a day with the ≥1 s population majority *settled-pod* (27/46) —
+which is exactly what a near-continuous per-minute CPU job in the settled state produces, and
+exactly what a boot-only explanation cannot. The rare admin routes in §2a cannot; the boot storm
+cannot; this can.
+
+⚠️ **Still short of proof, and the gap is nameable.** n=6 over eight minutes on one pod is a
+strong measurement of the SWEEP; it is not yet a measured *join* between individual sweeps and
+individual stall events. The join is the remaining work: the durable record now carries
+`recent[]` with wall-clock `at`, and `oi44_align.py` exists to do exactly this against a captured
+slice. **What is established:** the sweep's own documented safety argument is false by ~460×, in
+steady state, today. **What is not:** that this specific job produced any specific recorded stall.
+
+⛔ **THE FIX NEEDS A MASTER PUSH, AND THIS SESSION'S IS SPENT.** D-14's stop conditions —
+carried forward verbatim by D-15 — include *"a second master push"*. The one push was the
+owner-directed merge `e50c0552d`. So R52's fix is specified and not shipped:
+move the sweep's CPU off the shared GIL (a process pool, or a readiness barrier that keeps it out
+of the boot window), with R52's rail — a synthetic run of that work showing no loop block ≥100 ms
+on the fixed code and the block present on the pre-fix code — and a mutation that reds when the
+fix is removed.
