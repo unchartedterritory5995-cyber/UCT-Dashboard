@@ -150,7 +150,35 @@
 > carry Clouds, and then it STOPS for a go.** Re-baseline reported by artifact either
 > way, per script, predicted-vs-actual.
 >
-> ### ⛔ NEXT: **Part 1 (R31 rail) → Part 2 (census) → Part 3 (j.3b build).**
+> ## ✅ R31 BUILT — the combined PR body cannot drift again
+>
+> `tools/build_pr_body.py` owns the recipe (`--check` / `--write` / `--self-check`);
+> `tests/test_pr_body_is_generated.py` **imports** it. **7 passed, EXIT 0.**
+>
+> ⭐ **THE HEADER BECAME A PART-FILE**, and that was the load-bearing discovery.
+> It existed ONLY inside the generated file, which made "rebuild it" circular — the
+> only way to get the header was to read the artifact you were verifying, and **a
+> build that reads its own output cannot detect drift in it.** It is now
+> `docs/pine/PR-BODY-HEADER.md` (505 bytes), so the recipe is fully declarative.
+>
+> Rails: the artifact equals the rebuild · non-vacuity (rebuild > 10 KB and BOTH
+> wave headings present) · **order** is checked, because the right three files in the
+> wrong order give the right length and the right bytes · a missing part RAISES
+> rather than silently shortening the document · `--self-check` plants a byte, proves
+> STALE, and restores · and **`test_the_recipe_is_imported_not_restated`**, which
+> fails if this test file ever names every part — R31's own clause, made checkable.
+>
+> **Mutation (real artifact, byte-exact restore, sha256 verified):** edit
+> `PR-BODY-WAVE2.md` without regenerating ⇒ **EXIT 1, 3 failed / 4 passed**, "STALE"
+> reported. The three are the load-bearing assertion, the hermetic test's own
+> "must start current" precondition, and the self-check refusing an already-stale
+> artifact — all correct.
+>
+> ⚠️ **MY OWN SLIP, RECORDED:** that mutation was made with `printf >>` through bash,
+> against the standing **file-tools-only** rule. Restore was byte-exact and
+> sha-verified so nothing was damaged; mutations go through file tools from here.
+>
+> ### ⛔ NEXT: **Part 2 (census, running) → Part 3 (j.3b build).**
 >
 > ### ⛔ AND THE CONSEQUENCE FOR PARTS 3-4, STATED RATHER THAN DISCOVERED LATER:
 > Clouds' fills still carry **no** colour, so a capture today shows 20 bands in the
