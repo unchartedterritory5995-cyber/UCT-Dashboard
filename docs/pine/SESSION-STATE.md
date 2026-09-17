@@ -2,7 +2,50 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
-> ### ⛔ NEXT: **(j) j.3 §1.2 — the red acceptance. The contract is SETTLED.**
+> ### ⏱️ 2026-09-17 — MASTER IS IN, AND PART 1.3 IS PART-DONE.
+>
+> ✅ **R30 recorded** (`1476bd6f7`) — a fill is drawn as RUNS; the ruling is beside
+> R10/R11 in the plan doc and is the contract j.3 builds to.
+>
+> ✅ **Master merged, ZERO conflicts** (`b854e75d0`, 223 commits). Master touched
+> **none** of `binder.js`, `fillPrimitive.js`, `pool.js`, `memberPaneDefinition.js`,
+> so the branch's engine files are untouched by the merge.
+>
+> ✅ **THE MERGE'S ONE RED IS FIXED** — `manifestProse.test.js`. The wide run was
+> 14 failed in 11 files against a baseline of 13 in 10: **delta exactly one file**.
+> Run **alone on the clean tree twice** per rule 0.1 → `1 failed | 8 passed` both
+> times, so **stable and attributable, not intermittent**. Cause: master's
+> `breadth_combined_pass.py` / `breadth_wick_recon.py` use the dict key `_session`,
+> which collides with a manifest key — neither side wrong alone, which is the case
+> for merging weekly. Fixed **at the instrument**, and it grew from there:
+>
+> | | |
+> |---|---|
+> | scan narrowed to files that **can see the manifest** | fixes the CLASS; the 2026-09-09 fix keyed on the FILENAME and fixed the instance |
+> | `_clock` moved KEEP → DROP | a passenger, justified by `// read by api/services/readiness.py` — which is `self._clock = clock`, a readiness probe's injected clock, in a file with **zero** references to the manifest |
+> | `withoutComments` now strips **docstrings and literal prose**, keeping `${…}` | a Python docstring containing `` `_requirement_tags._` `` was being read as code |
+> | `_` moved KEEP → DROP | the same false-hit mechanism; the header is 1,176 chars and no lane reads the key |
+> | the file's own "169KB / 68KB" header corrected to a ratio | both numbers had drifted; measured 248,305 / 102,004 |
+>
+> ⭐ **THE SHAPE WORTH CARRYING: somebody saw the rail report `_clock` as ACCESSED,
+> went looking for the reader, found the file the FALSE HIT came from, and wrote
+> that down as the justification.** The citation named a real file that really
+> contains the string, so it read as evidence and survived every review since.
+> **Quote the ACCESS, never the file name.**
+>
+> Measured: strip now removes **102,004 bytes (99.6 KB)**, up 4,764. Four mutations,
+> byte-exact restore and `sha256 -c` between each; the first version of the new
+> non-vacuity control **could not fail** and only the mutation proof said so.
+> EXIT 0 — `manifestProse` 11/11; ast dir + `paneTablesFit` **184 files / 2,858
+> tests**.
+>
+> ### ⛔ NEXT: **finish Part 1.3 — Python lane by filename, then the vite build
+> ALONE, then the three EXIT lines and the delta table. Then 1.4 push.**
+> ⚠️ `--reporter=basic` does NOT exist in this vitest: it dies at reporter load
+> having run nothing and the log carries **no totals line**. Second sighting of
+> that class this programme; read the totals line, never the exit code alone.
+>
+> ### ⛔ THEN: **(j) j.3 §1.2 — the red acceptance. The contract is SETTLED.**
 >
 > ✅ **j.1 and j.2 are BUILT** (`75be58693`, `8533faceb`). Clouds' 23 outputs reach
 > the pane document with their 20 fills, and **a fill between two hidden anchors

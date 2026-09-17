@@ -2,11 +2,17 @@
 //
 // ─── ⭐ THE MANIFEST'S PROSE IS FOR ENGINEERS, AND IT WAS SHIPPING TO MEMBERS ──
 //
-// `closedTable.json` is 169KB, and 68KB of it — FORTY PER CENT — is top-level
-// prose: the rulings that explain why `cum` is refused, why an offset may not run
-// forwards, what a vendor note may be written from. Every one is load-bearing
-// documentation and none of it is read at runtime. It was being parsed and held in
-// memory by every browser that loaded the engine.
+// About FORTY PER CENT of `closedTable.json` is top-level prose: the rulings that
+// explain why `cum` is refused, why an offset may not run forwards, what a vendor
+// note may be written from. Every one is load-bearing documentation and none of it
+// is read at runtime. It was being parsed and held in memory by every browser that
+// loaded the engine.
+//
+// ⛔ MEASURE THE SIZES, DO NOT QUOTE THEM — `stripProse(TABLE).savedBytes` is the
+// one authority and `manifestProse.test.js` floors it. This paragraph read
+// "169KB, and 68KB of it" for long enough that BOTH numbers had drifted: measured
+// 2026-09-17 the manifest is 248,305 bytes and the strip removes 102,004. Only the
+// ratio survived, which is why the ratio is the only figure left in this sentence.
 //
 // ⛔ THIS IS A BUILD-TIME STRIP, NOT AN EDIT. The file on disk keeps every word —
 // it is the repo's most-cited artifact and the Python lane reads the SAME file, so
@@ -35,8 +41,6 @@ export const STRUCTURAL = Object.freeze([
  *  a member searching for a name they cannot use is told WHY, and that answer lives
  *  in these two rosters. They are data with prose in them, not prose. */
 export const KEEP = Object.freeze([
-  '_',                          // the document's own header, read server-side
-  '_clock',                     // read by api/services/readiness.py
   '_functions_arg_role_kinds',  // read by interpret.js
   '_functions_excluded',        // read by vocabulary.js
   '_scalars_excluded',          // read by vocabulary.js
@@ -131,6 +135,57 @@ export const KEEP = Object.freeze([
  *  naming the key.
  */
 export const DROP = Object.freeze([
+  // ⚰️ `_` — THE DOCUMENT'S OWN HEADER, 1,176 CHARACTERS OF PROSE, AND THE SECOND
+  // PASSENGER FOUND THE SAME HOUR. Its entry read `// the document's own header,
+  // read server-side`, and no lane reads it: there is no `["_"]`, no `get("_")`
+  // and no `._` access to the top-level key anywhere in `app/src` or `api/`.
+  //
+  // ⭐ WHAT JUSTIFIED IT WAS A SENTENCE. `api/services/user_definitions.py:1022`
+  // is a DOCSTRING containing the text `` `_requirement_tags._` ``, and the access
+  // pattern for a one-character key (`\.\s*_\b`) matches the `._` in it. The rail
+  // stripped `//`, `/*` and `#` comments but not docstrings, so prose inside a
+  // triple-quoted string was read as code. ⚠️ And the citation was wrong TWICE:
+  // the `_` that sentence names is a key NESTED INSIDE `_requirement_tags`, not
+  // this top-level header — while the sentence itself is explaining a rail that
+  // AST-walks docstrings.
+  //
+  // ⛔ THE STRIPPER IS WHERE THIS WAS FIXED, NOT THE LIST. Dropping `_` alone
+  // would be the third fix in this family to correct an instance and leave the
+  // class — the filename fix of 2026-09-09, the visibility fix of 2026-09-17, and
+  // then this. `withoutComments` now removes docstrings and template-literal prose
+  // in BOTH lanes, keeping `${…}` interpolations because those hold real accesses.
+  // Measured over the 57 admitted files before it was applied: exactly one key
+  // leaves the accessed set (`_`) and none enters.
+  "_",
+  // ⚰️⚰️ `_clock` STOOD IN `KEEP` AND WAS A PASSENGER — 3,567 CHARACTERS OF PROSE
+  // SHIPPED TO EVERY BROWSER, JUSTIFIED BY THE RAIL'S OWN FALSE HIT. Its entry
+  // read `// read by api/services/readiness.py`, and `readiness.py:82` is
+  // `self._clock = clock` — a constructor-injected monotonic clock for a startup
+  // deadline probe, in a file that contains no reference to this manifest at all
+  // (`grep -c closedTable api/services/readiness.py` → 0). The same generic name
+  // is `self._clock` in `discord_render/loopwatch.py` and
+  // `journal_two/broker/rate_limit.py` too; none of the three has anything to do
+  // with the Pine clock.
+  //
+  // ⭐ WHAT MAKES IT WORTH THIS MANY LINES: somebody saw the rail report `_clock`
+  // as ACCESSED, went looking for the reader, found the file the false hit came
+  // from, and WROTE THE FALSE HIT DOWN AS THE JUSTIFICATION. The comment cites a
+  // real file that really contains the string, so it reads exactly like evidence
+  // and survived every review since — `lesson_a_comment_claiming_agreement_is_not
+  // _agreement`, and the invented-citation class in one. A citation you cannot
+  // quote is struck: quote the ACCESS, not the file name.
+  //
+  // ⛔ THIS IS THE SECOND HALF OF THE SAME DEFECT the scan narrowing fixed in
+  // `manifestProse.test.js`, and the header there predicted it in those words —
+  // "a false read admits prose to the bundle AND excuses it". Narrowing the scan
+  // to files that can see the manifest turned the first half green and made this
+  // half fail, which is the rail working: it fails in BOTH directions or it is
+  // not a rail. Found by the 223-commit merge of 2026-09-17.
+  //
+  // ⚠️ The prose itself is not lost — this is a build-time strip and the file on
+  // disk keeps every word, which is where `clock_parity.json` and the EDT→EST
+  // ruling it records are cited from.
+  "_clock",
   // ⭐ R-K (2026-09-13). Prose: the limits this engine has, each with the case
   // that found it. Read by engineers, never by the product — so it DROPS, and
   // a member never receives a paragraph about `or` evaluation.

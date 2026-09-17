@@ -9,7 +9,10 @@ import TABLE from './closedTable.json'
 
 const ROOT = path.resolve(process.cwd(), '..')
 
-/** Every non-test source file in BOTH lanes. */
+/** The manifest's own directory — every file here can see the table by import. */
+const AST_DIR = path.join('components', 'chart', 'engine', 'ast')
+
+/** Every non-test source file in BOTH lanes **that can see the manifest**. */
 function sources() {
   const out = []
   for (const base of ['app/src', 'api']) {
@@ -40,7 +43,28 @@ function sources() {
         if (e.name.includes('.test.')) continue
         if (/^test_.*\.py$/.test(e.name) || e.name.endsWith('_test.py')) continue
         if (e.name === 'manifestProse.js') continue
-        try { out.push(fs.readFileSync(p, 'utf8')) } catch (err) { /* unreadable */ }
+        let text = ''
+        try { text = fs.readFileSync(p, 'utf8') } catch (err) { continue }
+        // ⛔⛔ AND THE SAME CLASS CAME BACK, IN NON-TEST CODE. The exclusions above
+        // were written for `test_fmp_client.py`'s `fc._session`, and they fixed
+        // THAT FILE rather than the defect: a bare key name matched anywhere in
+        // two whole trees. The 223-commit merge of 2026-09-17 produced
+        // `api/services/breadth_combined_pass.py`'s `out.get("_session")` and
+        // `breadth_wick_recon.py`'s `out["_session"]` — ordinary product code in
+        // ANOTHER workstream, using a generic dict key that happens to spell a
+        // manifest key. Same false read, same both-directions failure, and the
+        // previous fix could not see it because it keyed on the FILENAME.
+        //
+        // ⭐ SO THE TEST IS NOW "COULD THIS FILE SEE THE MANIFEST AT ALL?" — a
+        // file that never names `closedTable` and does not live in the manifest's
+        // own directory cannot be reading its keys, whatever its dicts are called.
+        // ⚠️ DELIBERATELY INCLUSIVE, AND ON THE RAW TEXT: a file that only
+        // mentions the manifest in a comment still qualifies, because the
+        // dangerous direction is EXCLUDING a real reader (a key gets stripped
+        // that the product reads). The access match below stays strict and still
+        // runs on comment-free text.
+        if (!p.includes(AST_DIR) && !/closedTable/.test(text)) continue
+        out.push(text)
       }
     }
   }
@@ -50,12 +74,35 @@ function sources() {
 /** ⛔ COMMENTS STRIPPED FIRST, AND THAT IS THE WHOLE DIFFICULTY. These keys are
  *  NAMED in prose constantly — `_functions_cumulative` is cited in a dozen
  *  comments across both lanes — so a bare substring search reports every one of
- *  them as "used" and the strip becomes a no-op that looks like it works. */
+ *  them as "used" and the strip becomes a no-op that looks like it works.
+ *
+ *  ⛔⛔ AND A COMMENT IS NOT THE ONLY PLACE PROSE LIVES. This stripped `//`, `/* *\/`
+ *  and `#` lines only, so a PYTHON DOCSTRING was read as code — and
+ *  `api/services/user_definitions.py` has a docstring containing the text
+ *  `` `_requirement_tags._` ``, which satisfied the access pattern for the key `_`
+ *  and made the manifest's own 1,176-character header look like runtime data.
+ *  ⭐ The line it matched is explaining a rail that AST-walks docstrings, and the
+ *  `_` it names is a NESTED key inside `_requirement_tags`, not the top-level
+ *  header at all — so the citation was wrong twice over and still read as proof.
+ *
+ *  ⚠️ INTERPOLATIONS ARE KEPT. A template literal's `${…}` holds real expressions,
+ *  so `` `${TABLE._folds.note}` `` is an access and must survive the strip; only the
+ *  prose BETWEEN the interpolations goes. Stripping the whole literal would be the
+ *  dangerous direction — excluding a real reader, which ships a key the product
+ *  reads as `undefined` in a browser.
+ *
+ *  ⭐ MEASURED BEFORE IT WAS APPLIED, because that is the only way to know a strip
+ *  is not hiding a reader: over the 57 files this scan admits, adding docstrings
+ *  and literals changes the accessed set by exactly ONE key — `_` leaves it, and
+ *  nothing enters. Every other key keeps a justification in real code. */
 function withoutComments(text) {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '')
     .replace(/^\s*#.*$/gm, '')
+    .replace(/"""[\s\S]*?"""/g, '')
+    .replace(/'''[\s\S]*?'''/g, '')
+    .replace(/`([^`]*)`/g, (_m, inner) => (inner.match(/\$\{[^}]*\}/g) || []).join(' '))
 }
 
 /** Which `_` keys does the running product READ, as data? */
@@ -71,6 +118,51 @@ function accessedKeys() {
 }
 
 describe('the strip is safe, and the rail derives what safe means', () => {
+  it('⛔⛔ NON-VACUITY — the scan still reaches readers OUTSIDE the manifest\'s directory', () => {
+    // ⛔ THE NARROWING'S OWN CONTROL, AND THE FIRST VERSION OF IT COULD NOT FAIL.
+    // It asserted `_input_windows`, `_bind_time_constants` and `_benchmarks_scannable`
+    // stayed ACCESSED — all true, and all useless here, because every one of those
+    // is ALSO read from inside `AST_DIR` (parse.js, vocabulary.js). Deleting the
+    // `closedTable` clause entirely left the control green. A fixture that cannot
+    // distinguish is not a rail, and only the mutation proof said so.
+    //
+    // ⭐ `_tables_fit` IS THE KEY THAT DISCRIMINATES, and measurement — not
+    // intuition — picked it: it is the ONLY manifest key whose sole reader lives
+    // outside the manifest's own directory. `objectTableDom.js:248` reads
+    // `CLOSED_TABLE._tables_fit.floorPx` and sits in `engine/`, not `engine/ast/`,
+    // so it is reached ONLY by the `closedTable` clause. Over-tighten the scan and
+    // this key alone goes quiet — which would strip the note a member reads when a
+    // table was scaled to fit a phone, silently, since the call site has a `|| ''`
+    // fallback. Same failure shape as `_folds`: no wrong number, no crash, the
+    // member simply never told.
+    const accessed = accessedKeys()
+    expect(accessed.has('_tables_fit'),
+      'the scan no longer reaches app/src/components/chart/engine/objectTableDom.js — '
+      + 'a real reader outside the manifest directory has been excluded, so the key it '
+      + 'reads would be stripped from the bundle').toBe(true)
+
+    // …and the Python lane is genuinely in the scan, quoted by its ACCESS rather
+    // than by a file name — the citation rule this rail exists to enforce.
+    const bodies = sources().map(withoutComments)
+    expect(bodies.some((b) => /\(TABLE\.get\("_input_windows"\)/.test(b)),
+      'no scanned body contains the Python lane\'s own access to `_input_windows` — '
+      + 'api/services/ast_table.py and ast_lint.py have fallen out of the scan').toBe(true)
+
+    // …and the scan is not empty for some unrelated reason.
+    expect(sources().length, 'the scan found no files at all').toBeGreaterThan(5)
+  })
+
+  it('⛔ CONTROL — a key name used by ANOTHER workstream is not a manifest read', () => {
+    // ⚰️ TWICE NOW. `test_fmp_client.py`'s `fc._session` (688-commit merge,
+    // 2026-09-09) and then `breadth_combined_pass.py`'s `out.get("_session")`
+    // (223-commit merge, 2026-09-17) — both ordinary code elsewhere in the repo
+    // whose dict key happens to spell a manifest key. Neither is a manifest read.
+    const accessed = accessedKeys()
+    expect(accessed.has('_session'),
+      '`_session` is being read as a manifest key again — check whether the hit is '
+      + 'real or another workstream\'s identically-named field').toBe(false)
+  })
+
   it('⛔⛔ every key the product READS survives the strip', () => {
     // ⭐ THE LOAD-BEARING ONE. A build step that dropped a key the code reads
     // would fail in a browser, at runtime, as `undefined` rather than a refusal —
