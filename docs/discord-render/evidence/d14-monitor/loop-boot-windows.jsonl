@@ -1376,3 +1376,13 @@
 {"t": "2026-09-17T12:44:28Z", "uptime_s": 1314, "loop": {"running": true, "samples": 600, "max_ms": 664.9, "p95_ms": 84.2, "stalls": 41}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
 {"t": "2026-09-17T12:46:10Z", "uptime_s": 1416, "loop": {"running": true, "samples": 600, "max_ms": 463.3, "p95_ms": 55.8, "stalls": 34}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
 {"t": "2026-09-17T12:47:42Z", "uptime_s": 1508, "loop": {"running": true, "samples": 600, "max_ms": 463.3, "p95_ms": 55.8, "stalls": 35}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:49:14Z", "uptime_s": 1599, "loop": {"running": true, "samples": 600, "max_ms": 463.3, "p95_ms": 45.9, "stalls": 27}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:50:46Z", "uptime_s": 1691, "loop": {"running": true, "samples": 600, "max_ms": 504.0, "p95_ms": 42.4, "stalls": 25}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:52:18Z", "uptime_s": 1783, "loop": {"running": true, "samples": 600, "max_ms": 504.0, "p95_ms": 35.5, "stalls": 24}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:53:49Z", "uptime_s": 1874, "loop": {"running": true, "samples": 600, "max_ms": 504.0, "p95_ms": 45.9, "stalls": 26}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:55:21Z", "uptime_s": 1966, "loop": {"running": true, "samples": 600, "max_ms": 461.6, "p95_ms": 48.9, "stalls": 29}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:56:54Z", "uptime_s": 2059, "loop": {"running": true, "samples": 600, "max_ms": 439.7, "p95_ms": 51.2, "stalls": 31}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:57:08Z", "event": "poller_started", "pid": 58288, "interval_s": 90.0}
+{"t": "2026-09-17T12:57:09Z", "uptime_s": 2075, "loop": {"running": true, "samples": 600, "max_ms": 439.7, "p95_ms": 52.5, "stalls": 32}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
+{"t": "2026-09-17T12:58:40Z", "gap": "probe_no_json", "rc": 1}
+{"t": "2026-09-17T13:00:12Z", "uptime_s": 95, "loop": {"running": true, "samples": 156, "max_ms": 1360.9, "p95_ms": 120.2, "stalls": 14}, "stall_record": null, "token_slots": null, "sha": "d9455a6d64a5"}
