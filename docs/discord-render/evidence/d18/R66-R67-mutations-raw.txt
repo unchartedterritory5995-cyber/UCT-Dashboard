@@ -1,0 +1,41 @@
+sandbox OK: .mutation-sandbox declares this tree throwaway, and it is a linked worktree
+pristine sha256 38c85687bc712d11641a91a04fb70135b00288c1a5a99e554d5a16153fe579f5  (48322 bytes)
+line endings on disk: LF
+
+=== CONTROL: pristine ===
+  rc=0  76 passed, 2765 warnings in 9.56s
+
+=== M1-rollback-gate-removed ===
+  breaks : R66: the skip is accepted without a rollback reason or a revert
+  suite  : rc=1  3 failed, 73 passed, 2765 warnings in 11.66s  -> RED
+  named  : test_the_bypass_is_ROLLBACK_ONLY_and_refuses_an_ordinary_push -> RED  (1 failed, 75 deselected, 2765 warnings in 5.50s)
+
+=== M2b-clean-queue-refused ===
+  breaks : the discriminator: main() must still PASS a queue with nothing wrong
+  suite  : rc=1  3 failed, 73 passed, 2765 warnings in 7.58s  -> RED
+  named  : test_a_clean_queue_with_no_lever_set_simply_PASSES -> RED  (1 failed, 75 deselected, 2765 warnings in 1.08s)
+
+=== M3-second-read-dropped ===
+  breaks : R67: the second read is taken and its verdict discarded
+  suite  : rc=1  3 failed, 73 passed, 2765 warnings in 11.29s  -> RED
+  named  : test_R67_a_deploy_that_STARTS_between_the_two_reads_refuses -> RED  (1 failed, 75 deselected, 2765 warnings in 2.07s)
+
+=== M4-identity-back-to-the-invented-key ===
+  breaks : R67: _deploy_identity reads key names the payload does not carry
+  suite  : rc=1  1 failed, 75 passed, 2765 warnings in 12.66s  -> RED
+  named  : test_R67_a_DIFFERENT_deploy_of_the_same_status_also_refuses -> RED  (1 failed, 75 deselected, 2765 warnings in 2.04s)
+
+=== M5-memo-not-forgotten ===
+  breaks : R67: the second read is served from the one-per-process memo
+  suite  : rc=1  1 failed, 75 passed, 2765 warnings in 3.22s  -> RED
+  named  : test_R67_MAIN_forgets_the_memo_before_its_second_read -> RED  (1 failed, 75 deselected, 2765 warnings in 2.29s)
+
+==============================================================================
+MUTATION SUMMARY  target=tools/pre_push_guard.py  sha256=38c85687bc712d11641a91a04fb70135b00288c1a5a99e554d5a16153fe579f5
+  M1-rollback-gate-removed               RED                            named:RED
+  M2b-clean-queue-refused                RED                            named:RED
+  M3-second-read-dropped                 RED                            named:RED
+  M4-identity-back-to-the-invented-key   RED                            named:RED
+  M5-memo-not-forgotten                  RED                            named:RED
+restored sha256 38c85687bc712d11641a91a04fb70135b00288c1a5a99e554d5a16153fe579f5  MATCH=True
+TOTALS mutate_r66_r67 mutations=5 red=5 not_red=0

@@ -1,0 +1,46 @@
+sandbox OK: .mutation-sandbox declares this tree throwaway, and it is a linked worktree
+pristine sha256 d5c1b0f28318ad6edffdaac354690bfccc32f17d5f7dfa7fb9ca16d17c7c6a37 (28769 bytes, LF)
+
+=== CONTROL: pristine ===
+  rc=0  10 passed, 501 warnings in 1.93s
+
+=== N1-cache-an-errored-walk ===
+  breaks : R61: a partial index from a failed walk is kept for the whole day
+  suite  : rc=1  2 failed, 8 passed, 501 warnings in 1.92s  -> RED
+  named  : test_an_ERRORED_walk_is_never_kept_for_the_day -> RED  (1 failed, 9 deselected, 501 warnings in 1.77s)
+
+=== N2-cache-an-empty-index ===
+  breaks : R61: {} - what every failure path returns - zeroes OI for a session
+  suite  : rc=1  3 failed, 7 passed, 501 warnings in 1.99s  -> RED
+  named  : test_an_EMPTY_index_is_never_kept_for_the_day -> RED  (1 failed, 9 deselected, 501 warnings in 1.82s)
+
+=== N3-day-key-never-rolls ===
+  breaks : R61: the cache stops being DAILY and serves yesterday's open interest
+  suite  : rc=1  1 failed, 9 passed, 501 warnings in 1.82s  -> RED
+  named  : test_a_new_ET_day_refetches -> RED  (1 failed, 9 deselected, 501 warnings in 1.68s)
+
+=== N4-unbounded ===
+  breaks : R61: the LRU bound that replaced _PER_CALL_CACHE.clear() is removed
+  suite  : rc=1  1 failed, 9 passed, 501 warnings in 1.85s  -> RED
+  named  : test_the_cache_is_LRU_bounded -> RED  (1 failed, 9 deselected, 501 warnings in 1.76s)
+
+=== N5-never-cache-at-all ===
+  breaks : the discriminator: R61 does nothing, so the SPY walk is re-paid per request
+  suite  : rc=1  7 failed, 3 passed, 501 warnings in 2.12s  -> RED
+  named  : test_a_second_walk_on_the_same_day_touches_no_wire -> RED  (1 failed, 9 deselected, 501 warnings in 1.73s)
+
+=== N6-truncation-reported-as-success ===
+  breaks : R61: a chain cut off at the page cap logs as an ordinary success again
+  suite  : rc=1  1 failed, 9 passed, 501 warnings in 1.36s  -> RED
+  named  : test_hitting_the_page_cap_is_reported_as_TRUNCATED -> RED  (1 failed, 9 deselected, 501 warnings in 1.21s)
+
+==============================================================================
+MUTATION SUMMARY  target=api/massive_oi_snapshots.py  sha256=d5c1b0f28318ad6edffdaac354690bfccc32f17d5f7dfa7fb9ca16d17c7c6a37
+  N1-cache-an-errored-walk             RED                            named:RED
+  N2-cache-an-empty-index              RED                            named:RED
+  N3-day-key-never-rolls               RED                            named:RED
+  N4-unbounded                         RED                            named:RED
+  N5-never-cache-at-all                RED                            named:RED
+  N6-truncation-reported-as-success    RED                            named:RED
+restored sha256 d5c1b0f28318ad6edffdaac354690bfccc32f17d5f7dfa7fb9ca16d17c7c6a37  MATCH=True
+TOTALS mutate_r61 mutations=6 red=6 not_red=0
