@@ -671,3 +671,185 @@ So $0.00 spend requires **three** empty tables plus the gate — all four confir
 > CALLs. **EXTRACT is not the next ruling.** Segments reach production only through the `sources`
 > stream, and `WISDOM_SOURCES_INGEST_ENABLED` / `WISDOM_CAPTURE_ENABLED` are both off — and a
 > golden-gate receipt has to be imported before the extractor will accept anything at all.
+
+---
+
+### 2026-09-17 (later) — the force-run spend path, and two instruments that lied
+
+**⛔⛔ LIGHTING EXTRACT AND THEN FORCE-RUNNING THE CHAIN IS A SPEND EVENT, AND IT NEEDS NO SECOND
+FLAG.** Found by adversarial verification while checking an unrelated claim.
+
+`sources/__init__.py:18-21` gates the source streams like this:
+
+```python
+def _gate(ctx, reader, env):
+    if getattr(ctx, "force", False) or reader():
+        return None
+```
+
+So **`force` bypasses `WISDOM_SOURCES_INGEST_ENABLED` outright**, and `sources.run_daily` then
+calls `transcripts.ingest_new(...)`, which walks `edu_videos` newest-first (limit 500) and writes
+both `wisdom_sources` and `wisdom_segments` directly. The daily chain runs `sources` immediately
+before `extract` **in the same run** (`publish/chain.py:62-67`).
+
+⭐ **The consequence, in one sentence:** with `WISDOM_EXTRACT_ENABLED` on, a single ordinary admin
+request — `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run?force=true&dry_run=false`, the
+obvious thing an operator does to check the switch they just flipped — takes the store from **0
+sources to hundreds of sources to thousands of segments to three passes of up to 400 requests**,
+inside one run.
+
+⛔ **R52's acceptance string does NOT protect this.** `spend_allowed` short-circuits on the flag
+(`batch.py:492-496`), so `WISDOM_EXTRACT_ACCEPT_SPEND` is only required when
+`WISDOM_EXTRACT_ENABLED` is **off**. The literal exists for the forced-while-dark case, not for
+this one. The only ceilings left are the $25/night and $120 programme defaults.
+
+> **THE RULE. "Nothing will happen until 18:47" is false for any flag whose job can be
+> force-run.** Before lighting a spend switch, decide what a forced run of every job that reads it
+> would do, and say so in the same breath as the flip.
+
+**✅ R52's THIRD ENTRY POINT — FIXED THIS SESSION.** `audit.run_audit` carried the pre-R52 form and
+called `batch.submit_pending` directly, which has no spend gate of its own, so a forced weekly run
+submitted **paid** audit batches with `WISDOM_EXTRACT_AUDIT_ENABLED` *and* `WISDOM_EXTRACT_ENABLED`
+both off. $0 only because `select_segments` needs recent done requests and there were none — luck,
+not a guard. Gate added beside the scheduling check; rail asserts **nothing reached the client**
+and carries a control; mutation-proved.
+
+---
+
+**⚠️ TWO INSTRUMENTS LIED THIS SESSION, AND BOTH ARE THE SAME SHAPE AS R42.**
+
+**1. `sources=ok` DID NO WORK.** `sources.run_daily` returns
+`{"discord": {"skipped": …}, "transcripts": {"skipped": …}}` — the skip markers are **nested**, and
+`chain._normalize` (`chain.py:196-204`) only inspects the **top level**. A fully skipped sources
+step is therefore recorded as **`ok`** in the chain result and the observation log. ⛔ Do not read
+`sources=ok` as evidence that anything was ingested; read the store counts.
+
+**2. `capture=ok` IN 175 SECONDS, AND IT IS NOT GATED BY ITS OWN FLAG.** The chain's capture step
+is declared `gate=None` (`chain.py:63`) — `WISDOM_CAPTURE_ENABLED` is read only by the standalone
+slot jobs and the admin router, **not by the chain step**. `runner.run_all` iterates all 15
+`families.DATASETS` and writes gzipped objects to R2; that is the 175 seconds. ⭐ It **cannot**
+create extraction work: the only two writers of `wisdom_segments` are `segmenter.write_segments`
+and `sources/common.insert_segments`, and no capture family reaches either. No model call occurs
+anywhere in `capture/`.
+
+---
+
+**⚠️ AND THE LINE-ENDING CHECK THIS FILE RECOMMENDS IS UNRELIABLE THROUGH THE BASH TOOL.**
+
+The documented cheap check is `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'(a carriage return)'`.
+Run through this environment's Bash tool it reported **CR on 100% of lines for every file
+examined** — 133/133, 555/555, 920/920, 81/81. That is not a measurement; it is an **empty pattern
+matching every line**, and "every file is uniformly CRLF" should have been the tell.
+
+⭐ **Every blob in this repository is stored LF** (`core.autocrlf=true` normalises on the way in),
+measured by reading raw bytes: `blob.count(b"
+")` against `blob.count(b"
+")`. Writing CRLF
+over them was harmless — git cleaned it, and every recorded diff this session was minimal
+(118/0, 2/0, 25/1, 36/0, 48/3) — but the *reading* was wrong, and the dangerous direction would
+not have been.
+
+⛔ **And it produced a VACUOUS MUTATION.** A mutation script anchored on `"    return value
+"`
+in an LF file failed its assert, wrote nothing, and the suite then reported **21 passed** — which
+reads exactly like a mutation that failed to kill the tests. Always assert the anchor exists
+**before** writing, and treat a mutation run that comes back green as unproven until the anchor is
+confirmed applied.
+
+⛔⛔ **AND ONE BARE CR DEFEATS `autocrlf` ENTIRELY — TURNING AN 84-LINE ADDITION INTO A 757/673
+WHOLE-FILE REWRITE.** Measured here the same day. Writing this very section put a single lone
+carriage return into the prose (an escape that resolved to a real CR instead of the two
+characters). With that one byte present git declined to normalise the file at all: the STAGED
+blob came out CRLF against an LF HEAD, and `git diff --cached --numstat` read **757 673**.
+Removing that one byte and re-staging gave **84 0** and an LF blob.
+
+⭐ **So `autocrlf=true` cleans a uniformly-CRLF working file, and silently does NOT clean an
+irregular one** — which is the case you cannot see, because the working file still *looks* like
+CRLF to every line-based check.
+⛔ **`tools/check_repo_hygiene.py` CANNOT catch this**, and that is by design, not a bug: it
+reports a path only when the two sides are identical once CRs are stripped, so on a file with
+real added content it stays silent about endings. **Read `git diff --cached --numstat` before
+every commit and disbelieve any count near the file's length.**
+⭐ Count bare CRs as `data.count(bytes([13])) - data.count(bytes([13,10]))` on RAW BYTES. Escape
+sequences in shell-embedded scripts are exactly what produced the stray byte, so a check written
+with `a CR escape` in it can inject the defect it is looking for.
+
+---
+
+### 2026-09-17 (session 19) — R64/R65/R66/R67/R68, and a rule I broke by omission
+
+**R64 — A FORCED RUN CAN NEVER SPEND.** R52 guarded the wrong half: it required an acceptance
+literal for a forced run *while the switch was off*. The hazard is force **with the switch on**,
+where `spend_allowed` short-circuited to True on the flag before it ever looked at `force`. And
+the chain runs `sources` immediately before `extract` in the same run, with `sources` letting
+`force` bypass its own switch outright — so `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run
+?force=true` would have taken the store from 0 sources to thousands of segments to three passes.
+The literal is now **gone from the force path**: it is not a key, and no combination of variables
+opens it.
+
+⭐ **THE OLD TEST ASSERTED THE HAZARD AS A REQUIREMENT** —
+`test_the_flag_alone_is_enough_when_it_is_on` asserted `spend_allowed(force=True)` was True with
+the switch on, and called that correct. **When a guard is wrong, its rail is usually wrong in the
+same direction**, so fixing the code without re-reading the test would have left the test to
+restore the defect on the next refactor.
+
+⛔ Every entry point now faces a **tripwire client that fails on the first attribute touch**.
+Asserting on the return value is not enough: a refusal that had already built a client, or
+already sent a batch, still returns `skipped`.
+
+**R65 — THE PER-NIGHT BUDGET RATIONS A NIGHT.** It used to be handed to `select_within_budget`
+as *the* cap and compared against cumulative programme spend, so it clamped the whole programme.
+Two ceilings, two scopes, never a `min()` of the caps. Attribution is by SUBMISSION date
+(`substr(submitted_at,1,10)`, which IS the ET date because `timeutil.iso_et` writes it) — a batch
+submitted Friday and reaped Saturday belongs to the night whose budget authorised it.
+
+**R66 — A STEP THAT DID NOTHING NO LONGER REPORTS `ok`.** And work is a **whitelist of write
+counters**, not 'any positive number': `floor=0.8`, `lookback_days=10`, `candidates=5` are
+thresholds and INPUTS, and counting them would let a step that skipped everything outvote its own
+skip markers — the same defect one level down. The mixed case stays `ok` because **status is the
+resume contract** (`_prior_ok_steps` selects `status='ok'`), so marking a partial step skipped
+would re-run the half that already wrote rows.
+
+**R67 — THE GATE VERDICT CROSSES, THE EVIDENCE DOES NOT.** An aggregates-only manifest, with a
+**whitelist** classifier: 'reject anything that looks like a quote' is a judgement about text,
+'accept only these shapes' is a judgement about structure, and only the second fails safe when
+the source format changes. It is re-classified on the way IN, because the export's guarantee is
+not inherited once a file has been through git and a human.
+
+---
+
+⛔⛔ **R68's FLAG HAS A SECOND CONSUMER, AND THE BRIEF DID NOT KNOW IT.**
+`WISDOM_SOURCES_INGEST_ENABLED` is read in **two** places in `sources/__init__.py`: line 48 (the
+daily transcripts ingest) **and line 72 (`run_weekly_sunday_scans`)**. So lighting it for a
+Thursday night also arms **Sunday's** weekly step, which writes three further tables
+(`wisdom_chart_images`, `wisdom_sunday_scans_checks`, `wisdom_source_attributions`).
+
+⭐ Measured before flipping: `sunday_scans` makes **no model call** (searched with a control that
+matches `grounding.py`, which does), and its only network call is a public unauthenticated
+Substack GET. So the expansion costs nothing — but *a flag named for one stream gating two* is
+exactly the shape that makes a flip's blast radius larger than its name.
+
+> **THE RULE. Before flipping any flag, grep every reader of it — not the one the ruling names.**
+> A ruling is written against the consumer somebody had in mind.
+
+---
+
+⚰️⚰️ **AND A SUBAGENT WROTE TO `C:\data` BECAUSE I DID NOT GIVE IT THE RULE.**
+
+An investigation agent called `prompt.extractor_version()` to answer which version the gate
+compares against. That reaches `vocab.ensure_seeded()` → `vocab.seed()` → `store.write()`, and
+`store.db_path()` defaults to `/data/wisdom.db` — the live `C:\data\wisdom.db` on this box. It
+wrote `wisdom_vocab` (32 rows, from the committed `setup-vocabulary-v1.json`) and one
+`wisdom_seed_state` row. No member data; `wisdom_eval_runs`, `sources`, `segments` and `records`
+all unchanged. **The agent disclosed it unprompted, at the top of its report.**
+
+⛔ **The cause was my prompt.** The rules block I gave those agents covered scoped pytest, line
+endings, mutation discipline and CODE-NEVER-PROSE, and contained **zero** mentions of the
+shared-data-root prohibition. Measured: 0 occurrences in the workflow script. My own eight probe
+scripts were clean — five applied `conftest.shared_data_root_census()` before importing `api.*`,
+three never imported `api` at all.
+
+> **THE RULE. A subagent inherits none of this session's context. Every prompt that can import
+> `api.**` carries the shared-root sandbox instruction, or the agent is given a pinned
+> `WISDOM_DB_PATH`/`DATA_DIR` before it starts.** `prompt.extractor_version()` in particular is
+> not a read: it seeds.

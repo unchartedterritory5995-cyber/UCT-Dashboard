@@ -91,6 +91,53 @@ corpus under a local seed.
 
 ## D — Tooling landed (R62)
 
+Two landings, both master-first through `land_master_first.py`, both in a guard-approved window.
+
+**`f75bcd8d8`** — the session-17 lander fix plus this record. `^1=9081799f2 ^2=a8d3b461f`, on
+master's first-parent spine, and **`origin/production` fast-forwarded to it**, so it is serving.
+
+⭐ **The guard refused once and was right both times it spoke.** Attempt 1 of the first loop died
+on a `UnicodeEncodeError` inside the lander's own `print(out)` — the console is cp1252 and the
+guard's refusal text carries a ⛔. That is a REAL defect in the tool (a legitimate refusal
+rendered as a traceback), and it is the console, not the lander: with `PYTHONIOENCODING` set the
+same path prints cleanly. Attempt 2 landed on *"web is SUCCESS, 808s settled — master is quiet"*.
+
+A second landing carries the throttle override, the R52 fix and the findings below; at the time
+of writing the guard is holding it because another workstream's deploy is mid-swap —
+*"the newest web deployment is DEPLOYING … pushing now marks it REMOVED mid-swap and members get
+a 502"*. **That refusal is the window closing, and the session waits.** No attestation, no
+override, no `--no-verify`.
+
+Shipped on the branch: **`1a2775d3a`** (R53 throttle becomes `WISDOM_DAILY_SEGMENT_LIMIT`, read
+per call, refusing a nonsensical value — mutation-proved by making the resolver cache its first
+answer, 15 of 21 red), **`ad7f0c824`** (R52's third entry point, below), **`c07c28b40`** (the
+findings). Gate on the landing tip: **1,385 passed · 1 skipped · 0 failed**.
+
+## D2 — Three findings that arrived after the verdict, and change it further
+
+⛔⛔ **LIGHTING EXTRACT AND THEN FORCE-RUNNING THE CHAIN IS A SPEND EVENT, WITH NO SECOND FLAG.**
+`sources/__init__.py:18-21` lets `force` bypass `WISDOM_SOURCES_INGEST_ENABLED` outright, and
+`sources.run_daily` then writes `wisdom_sources` and `wisdom_segments` directly from `edu_videos`.
+The chain runs sources immediately before extract **in the same run**. So one ordinary admin
+request — force-running the chain, which is exactly what an operator does to check a switch they
+just flipped — takes the store from **0 sources to thousands of segments to three passes**.
+R52's acceptance string does not protect it: `spend_allowed` short-circuits on the flag, so the
+literal is only required while EXTRACT is **off**.
+⭐ **This retires "nothing happens until 18:47"** as a safety argument for any flag whose job can
+be force-run — and it is the strongest single reason the HOLD was right.
+
+✅ **R52 HAD A THIRD ENTRY POINT, AND IT IS NOW CLOSED.** `audit.run_audit` kept the pre-R52 form
+and called `batch.submit_pending` directly, which has no spend gate of its own, so a forced weekly
+run submitted **paid** audit batches with `WISDOM_EXTRACT_AUDIT_ENABLED` *and*
+`WISDOM_EXTRACT_ENABLED` both off. $0 only because `select_segments` needs recent done requests
+and there were none — luck, not a guard, and the luck expires the first night extraction runs.
+
+⚠️ **TWO CHAIN OUTCOMES IN SECTION B ARE NOT WHAT THEY SAY.** `sources=ok` did **no work** — the
+skip markers are nested and `chain._normalize` reads only the top level. And `capture=ok` in 175 s
+is **not gated by `WISDOM_CAPTURE_ENABLED` at all** (the chain step is `gate=None`); it walks 15
+dataset families writing to R2, which is the 175 seconds, and it cannot create extraction work.
+**That is the 175-second mystery closed.**
+
 ## E — The readiness gate
 
 | # | gate | verdict |

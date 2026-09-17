@@ -266,14 +266,25 @@ def test_the_night_budget_shrinks_as_passes_are_submitted(env, monkeypatch):
     monkeypatch.setattr(batch, "retry_rows", lambda *a, **k: [])
     caps: list = []
 
+    dates: list = []
+
     def fake_submit(ctx, **kw):
         caps.append(kw.get("night_cap_usd"))
+        dates.append(kw.get("night_date"))
         return {"status": "submitted", "selected_estimate_usd": 0.40,
                 "pass_index": kw.get("pass_index"), "run_id": kw.get("run_id")}
 
     monkeypatch.setattr(batch, "submit_pending", fake_submit)
     out = batch.run_daily(_ctx(), client=object())
-    assert caps == [1.00, pytest.approx(0.60), pytest.approx(0.20)], caps
+    # ⚰️ R65 MOVED WHERE THIS IS ENFORCED, AND STRENGTHENED IT. This used to assert the
+    # shrinking remainder [1.00, 0.60, 0.20] was passed down as the cap. That remainder was
+    # then compared against CUMULATIVE PROGRAMME spend, which is the clamp R65 removes.
+    # Each pass now receives the FULL night line plus the night DATE, and the rationing is
+    # done in select_within_budget against THAT NIGHT's rows — so pass 1's submitted
+    # requests are pass 2's pending. That also survives a SECOND chain run on the same
+    # night, which the in-memory remainder never could.
+    assert caps == [1.00, 1.00, 1.00], caps
+    assert dates == [_ctx().now_et.date().isoformat()] * 3, dates
     assert out["daily_budget_usd"] == 1.00
 
 

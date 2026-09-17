@@ -16,20 +16,23 @@ import { mergeChartSettings } from './chartDefaults'
 const settings = () => mergeChartSettings(JSON.stringify({ volume: { visible: true, separatePane: false } }))
 const paneToggle = () => screen.getByRole('switch', { name: 'Separate pane' })
 
-/** Open the tab AND the volume row.
+/** Open the tab AND select the volume row.
  *
  *  ⚰️ `openIndicators()` USED TO BE ENOUGH, because the tab rendered every row's
- *  fields at once. The consolidated tab lists what the chart draws, collapsed,
- *  and opens one row at a time — so reaching the volume pane's controls now takes
- *  the gesture a member makes: click the row. The CLAIM below is untouched; only
- *  the number of clicks to reach the control changed.
+ *  fields at once. Then the tab collapsed to one row at a time and this clicked the
+ *  row's own `aria-expanded` EXPANDER, because the form opened underneath it.
  *
- *  ⛔ AND IT IS NOT A SHORTCUT PAST THE UI. Expanding through the row's own
- *  `aria-expanded` button is what a member does; a harness that rendered the
- *  fields some other way would pass over a tab whose only door was broken. */
+ *  ⚰️⚰️ AND NOW THERE IS NO EXPANDER, because there is no accordion. The
+ *  Inspector puts the form in the RIGHT COLUMN and the row's one interaction is
+ *  CLICK TO SELECT — so the gesture is a click on the row itself. The CLAIMS below
+ *  are untouched, twice over; only the gesture that reaches the control changed.
+ *
+ *  ⛔ AND IT IS STILL NOT A SHORTCUT PAST THE UI. Selecting through the row a
+ *  member clicks is what a member does; a harness that rendered the fields some
+ *  other way would pass over a tab whose only door was broken. */
 const openIndicators = () => {
   fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
-  const volumeRow = document.body.querySelector('[data-row-id="volume"] [aria-expanded]')
+  const volumeRow = document.body.querySelector('[data-row-id="volume"][data-structure-row]')
   expect(volumeRow, 'the volume pane is not in the ACTIVE list — it is always drawn').toBeTruthy()
   fireEvent.click(volumeRow)
 }

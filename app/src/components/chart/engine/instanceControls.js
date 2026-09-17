@@ -69,7 +69,9 @@ import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
-import { resolveDisplayTarget, isWritableDisplayTarget, TARGET_EXPLICIT } from './displayTarget'
+import {
+  isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf,
+} from './displayTarget'
 import { parsePaneOfTarget } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
          CANDLE_COLOR_KEYS } from './presentation'
@@ -789,13 +791,13 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   // this is trying to compare against, and every write would then look like a
   // return-to-default — the key would be deleted and the member's choice lost on
   // the second move.
-  const bare = {
-    ...inst,
-    placement: { ...(inst.placement || {}), target: undefined, [TARGET_EXPLICIT]: undefined },
-  }
-  const defaultTarget = resolveDisplayTarget(bare, {
-    ...cs, volumeOverlayIndicators: legacy.filter((x) => x !== defId),
-  })
+  //
+  // ⭐ THE COMPUTATION MOVED TO `displayTarget.automaticTargetOf` AND NOTHING ELSE
+  // CHANGED. The Inspector has to LABEL the Automatic option with the same
+  // destination this comparison uses, and had it re-derived one there would be two
+  // answers to "where would this go if nobody had moved it". One function, two
+  // readers; the two paragraphs above are its header now.
+  const defaultTarget = automaticTargetOf(cs, inst)
 
   const next = cs.indicatorInstances.map((i) => {
     if (!i || i.instanceId !== instanceId) return i

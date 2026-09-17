@@ -56,6 +56,16 @@ def run_audit(ctx, *, client=None, n: int = AUDIT_SIZE) -> dict:
         return out
     from api.services.wisdom.extract import batch
 
+    # ⛔⛔ R52, THE THIRD ENTRY POINT. The check above is a SCHEDULING gate and `force` is
+    # allowed to bypass it. Spending is a different question, and `force` is NOT allowed to
+    # bypass that: this path reaches `batch.submit_pending`, which has no spend gate of its own
+    # (the only one lives in `batch.run_daily`), so a forced weekly run used to submit PAID audit
+    # batches with WISDOM_EXTRACT_AUDIT_ENABLED *and* WISDOM_EXTRACT_ENABLED both off. It was
+    # $0 only because `select_segments` needs recent done requests and there were none.
+    if not batch.spend_allowed(ctx):
+        out.update(status="skipped", reason=batch.spend_refusal(ctx))
+        return out
+
     version = prompt.extractor_version()
     week = week_key(ctx.now_et)
     with store.read() as conn:
