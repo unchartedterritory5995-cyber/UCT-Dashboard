@@ -34,7 +34,7 @@ material that reads as a physical thing resting on glass — not a card, not a m
 
 | what it does | what this hub does today |
 |---|---|
-| The material **refracts what is behind it** — the blur is lensed, brighter at the rim, and the tint shifts with content | `backdrop-filter: blur(18px) saturate(160%)` and a flat tint, `color-mix(text-heading 8%, transparent)`. **One uniform blur, no lensing, no edge brightening.** |
+| The material **refracts what is behind it** — the blur is lensed, brighter at the rim, and the tint shifts with content | **TEN `backdrop-filter` declarations, every one of them the byte-identical string `blur(18px) saturate(160%)`** — measured with comments stripped. Not merely "uniform": the pad, the knob, the chip, the bubbles, the scrim and the sheets sit at different depths over different content and are all given one value. No lensing, no edge brightening, no variation by role. |
 | A **specular highlight that tracks motion** — the rim catches light as the element moves | `inset 0 1px 0 var(--hub-rim-highlight)` — a **static** top-edge line. It does not move, ever. |
 | **Layered depth**: an ambient shadow plus a tighter key shadow, so it sits *above* rather than *on* | `--hub-shadow: 0 10px 28px -8px` — **one layer**. |
 | Material **thickens on press** and relaxes on release | Bubbles: `transition: transform 0.15s, background-color 0.15s` — no named curve, so the browser default `ease`. Reads as CSS. |
@@ -48,9 +48,26 @@ These are the two best references for *gesture feel* on iOS, and neither is abou
   three elements, permanently, over the data.
 - **The Camera zoom dial** is the standard for *a control that follows a thumb*: it tracks
   continuously, it has detents you can feel, and it settles with physics rather than snapping.
-  ⭐ The hub has **one** spring-ish curve — `cubic-bezier(0.34, 1.56, 0.64, 1)` on the knob's
-  return — and it is a CSS approximation of a spring, applied to one element. Everything else is a
-  linear-ish ease.
+
+  ⚰️ **THIS SAID THE HUB HAS "ONE" SPRING-ISH CURVE. IT HAS TWO, AND TWO IS WORSE THAN ONE.**
+  Measured from `hub.module.css` with comments stripped — **8 `transition` declarations: 2 carry a
+  named curve, 3 are browser-default `ease`, 3 are `none`** (the deliberate mid-drag suppressions).
+  The two named curves are:
+
+  | where | duration | curve | overshoot |
+  |---|---|---|---|
+  | knob return | `0.28s` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | 1.56 |
+  | bubble in | `0.26s` | `cubic-bezier(0.34, 1.4, 0.64, 1)` | 1.40 |
+
+  ⭐ **They differ by 0.16 of overshoot and 20 ms — a difference no thumb can feel and no eye can
+  see.** So this is not two considered motions; it is one motion typed twice and drifted. A single
+  named token used in both places would look identical and would mean something. That is a sharper
+  criticism than the one it replaces, and it only appeared because the value was quoted.
+
+  ⚠️ The remaining three are `opacity 0.18s`, `opacity 0.1s`, and `transform 0.15s,
+  background-color 0.15s` — no curve named, so the browser default `ease` applies. The bubble's own
+  transition bundles four properties (`transform`, `opacity`, `background-color`, `border-color`)
+  on three different durations in one declaration.
 
 ### The fintech set — Robinhood order ticket · Revolut card controls · Apple Stocks · Linear mobile
 
@@ -64,8 +81,17 @@ These are the two best references for *gesture feel* on iOS, and neither is abou
 ### What none of them do, and neither should this
 
 Decorative motion. Gradient washes. A shadow under everything. Identical radii regardless of
-hierarchy. ⛔ The hub currently uses `--radius-pill` on **the chip, the pad, the knob and the
-bubbles alike** — four different jobs, one radius.
+hierarchy.
+
+⛔ **`--radius-pill` is on SEVEN selectors, not the four this said**: `.pad`, `.padRing`,
+`.knobFace`, `.knobDot`, `.bubble`, `.chip`, `.actionsButton`. Seven different jobs — a surface, a
+ring, a face, a dot, a target, a readout and a button — and one radius across all of them. (The
+file's most-used radius is actually `--radius-sm`, 9 times, but every one of those is the Report
+scaffolding and the sheets, not the instrument.)
+
+⛔ **And `box-shadow` is 6 declarations over 2 distinct values** — `var(--hub-shadow)` and
+`var(--hub-shadow), inset 0 1px 0 var(--hub-rim-highlight)`. One ambient layer, no key light, and
+the inset rim is a static top edge that never moves.
 
 ---
 
