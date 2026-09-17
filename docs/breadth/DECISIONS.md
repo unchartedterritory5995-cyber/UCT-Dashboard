@@ -1635,3 +1635,98 @@ consumed a burst slot, and reset the peer's recency clock.
 ⭐ **The right response to "please hold X" is to check what else you are holding.** Granting
 the literal request while leaving the larger hazard running would have been technically
 responsive and practically useless.
+
+---
+
+## SD-1.7 POST-CLOSE ADDENDUM — the conservative figure is ratified as 33× (2026-09-17)
+
+### 1. The headline, ratified
+
+| figure | value | what it is |
+|---|---|---|
+| **conservative headline** | **33×** | `54,923 ms ÷ 1,680.6 ms` — D-042 against the **p95 bound** |
+| median | 183× | `54,923 ms ÷ 300.4 ms` — kept on the page, **labelled as the median** |
+| superseded | ~~175×~~ | the slowest *median* of the SHA-keyed groups |
+
+**Owner ruling, 2026-09-17, verbatim:** *"175× was the slowest median, and D-042 was a
+complaint about the tail. 33× at the p95 bound is the conservative figure; 183× stays on the
+page labelled as the median. Ratified."*
+
+⭐ **Why the correction was accepted rather than argued.** A median is the midpoint, not a
+bound — half of real requests are slower than it — so quoting one as the *conservative* end
+of a range describes the good half of a distribution to someone complaining about the bad
+half. D-042 was a 54.9-second **tail event**. The figure that answers it has to be a tail
+figure.
+
+⚰️ The 175× number was not wrong; it was **mislabelled**. It remains the correct answer to
+"what was the slowest group median", a question nobody asked.
+
+### 2. ⛔ SD-1 §3's six terms ARE NOT IN THIS REPOSITORY — R6 cannot be formally closed
+
+`PROGRAMME-CHECKLIST.md` says R6's criterion "is six terms, all of which must hold to keep
+ON". **Those six terms appear nowhere in the repo.** Searched: `DECISIONS.md`, the checklist,
+`FINAL.md`, `00-profile.md`, and every session report. The string is referenced in three
+places and defined in none — it lived in the directive text, and the session that held it was
+compacted.
+
+⛔ **They are NOT reconstructed from memory here, and must not be.** This repository's own
+rule: *a citation you cannot quote is struck.* Writing six plausible terms and labelling them
+"§3" would manufacture an authority — the invented-citation defect, committed in the record
+that exists to prevent it.
+
+**Consequence, stated rather than worked around:** the flip below is executed and measured,
+and its result is recorded against **explicitly-stated terms owned by this session**, marked
+as such. **R6 is `MEASURED, NOT FORMALLY CLOSED`** until the owner restates §3's six terms;
+the data is collected so that closing it is then a reading, not a re-run.
+
+### 3. ⛔⛔ THE FLIP'S A/B IS CONFOUNDED BY DESIGN, AND THIS REPO ALREADY RECORDED WHY
+
+Measured 2026-09-17, before flipping anything:
+
+| deploy | n | p50 | rf_rows | rf_bytes |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 ms | 4,529 | 4,523,328 |
+| `9906a7fcd` | 8 | 307.6 ms | 4,529 | 4,523,328 |
+| `6128705c4` | 48 | 312.5 ms | 4,529 | 4,523,328 |
+| `465b12e36` | 34 | 313.4 ms | 4,529 | 4,523,328 |
+| `02328569b` | 12 | 350.4 ms | 4,529 | 4,523,328 |
+| **`9081799f2`** | **54** | **497.2 ms** | 4,529 | 4,523,328 |
+
+**Identical code** (one hot-path fingerprint, `7864c894526e`) and **identical work** —
+`rf_rows` and `rf_bytes` take exactly one value each across all 175 rows — yet the newest
+deploy is **60% slower at the median**. The difference is the pod, and nothing else.
+
+⛔ **Flipping a variable causes a redeploy, so Pool A and Pool B necessarily land on different
+pods.** A before/after median comparison therefore confounds the flag with the host. That is
+not a new insight here — **D-050 §8 already recorded it**, verbatim: *"The design flaw was
+consecutive arms, which confound the flag with whatever else the single uvicorn process was
+doing. Interleaved arms at matched times of day is the fix, and it needs a quiet period."*
+P-B4 was left INCONCLUSIVE for exactly this reason, and a naive Pool A vs Pool B would have
+repeated it.
+
+⭐ **THE MEDIAN WAS NEVER THE RIGHT TEST, AND THE DISTRIBUTION SAYS SO.** The reads are
+**bimodal**, and `rf_fetch` selects the mode:
+
+| mode | `rf_fetch` | `total` |
+|---|---|---|
+| fast | 7–20 ms | ~275–500 ms |
+| slow | 600–3,200 ms | ~1,000–3,700 ms |
+
+A median over a bimodal population reports the **mode mix**, not the reader — so a pod that
+happens to draw the slow mode more often reads as a slower reader. `9081799f2` is that pod.
+
+⭐ **The resident copy's claim is STRUCTURAL, which makes it testable without a median.**
+D-051 §6 states it removes `reconstructed_fetch` entirely, and session 11 §A.3 measured
+`rf_fetch` at 8.5 ms p50 / **607.1 ms p90** — *"the only phase that moves with the tail."*
+So the flip is verified per-sample by asking **does `rf_fetch` still appear, and is the slow
+mode gone** — a question about each row, immune to which host served it. A structural check
+does not care about the pod; a median does.
+
+**Terms this session records the flip against (OWNED BY THIS SESSION, not §3):**
+
+1. the instrument confirms the flag ON from the pod's own phase keys (`rf_resident` present)
+2. `rf_fetch` is absent or near-zero per sample, not merely smaller on average
+3. the slow mode (total > 1,000 ms) disappears rather than thinning
+4. parity: `rf_rows` and `rf_bytes` unchanged — the flag must not change the work
+5. no new failure mode in the sampler's refusals
+
