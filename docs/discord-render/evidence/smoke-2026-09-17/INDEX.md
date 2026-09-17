@@ -77,3 +77,49 @@ taken through `build_board_text` either way.
 5. **The pod restarted at 12:22:35Z with no commit change** (`/renderhealth` reports the
    same `d9455a6d64a5` that merged yesterday). A restart without a deploy is worth one
    line in the record; it is not explained here.
+
+---
+
+## Update — 09:09–09:16 ET: row 6 PASS, and "pre-market" is no longer a live hypothesis
+
+| # | Row | Verdict | Evidence identity |
+|---|---|---|---|
+| 5 | `/flow SPY days:30` | **NOT RUNNABLE** (was: pending) | 8:09a CT (09:09 ET) · refused · and the cause was captured: `[flow] fetch failed SPY (30): timed out`. Separately, the row asserts the **`etfs`** partition, which only the V2 handler selects — see `ROW5-FLOW-CAUSE.md`. |
+| 6 | `/flow NVDA days:30` | **PASS** | 8:15a CT (09:15 ET) · a real flow card: `UCT Intelligence · NVDA Flow`, `$1213.80 · last 30 trading days · 8/5/2026-9/16/2026 · 30 active days`, ~16 contract rows with premium, volume, OI trend and BULL/BEAR/UNCLEAR/MIXED, `246 contracts`, and a `View chart` button. **No `[flow]` warning line** — only failures log, so silence here IS the success. |
+
+**Running score: 10 PASS · 0 FAIL · 4 not-runnable/inconclusive by construction (2, 3, 5, 7).**
+
+### ⭐ The controlled pair killed the pre-market hypothesis
+
+SMOKE-3.5 offered *"pre-market is a plausible benign explanation and is NOT established"* for row
+5's refusals on 09-14 and 09-15. **Same pod, same commit, same six minutes, same pre-market
+session:**
+
+- `/flow SPY days:30` at 09:09 ET → **timed out** after 30 s.
+- `/flow NVDA days:30` at 09:15 ET → **a full card with 246 contracts.**
+
+A pre-market feed that answers an equity read in seconds is not a feed that is "reconnecting". ⛔
+**What this does NOT establish is the cause of the SPY failure.** Both reads used the same
+`stocks` partition on the same hop, so the difference is the symbol, not the session — an ETF's
+flow in the equities partition could be an empty scan, an enormous one, or a slow one, and nothing
+captured here distinguishes those. **The hypothesis that died is "pre-market"; no hypothesis has
+replaced it.**
+
+### ⚠️ A member-visible autocomplete failure, observed live and unattributed
+
+Building the second command, `/flow`'s **`days` autocomplete answered "Loading options failed"** —
+twice, on the empty query, at ~09:16 and ~09:18 ET. The SAME empty query had loaded the full
+list (Today / 7 days / 30 days / 3 months / 6 months / All) seven minutes earlier at 09:09, and
+typing `30` made it answer immediately. Both `ticker` and `days` are `autocomplete: True`
+(`build_flow_command`, `discord_interactions.py:437`), so an autocomplete round trip must finish
+inside Discord's window or the member sees exactly that string.
+
+⛔ **NOT ATTRIBUTED, and the log cannot attribute it**: the app logs no autocomplete interaction on
+either path, so its silence distinguishes nothing. Recorded because it is a **member-visible
+degradation of the ack path on a pod that had already timed out a flow read** — the same C-02
+surface, seen from the product rather than from an instrument.
+
+⚠️ And worth noting beside it: `[discord-chart] warmed N hot chart(s)` fires **every single
+minute** (13:10:03, 13:11:04, 13:12:05, 13:13:13, 13:14:08 …), 3–5 charts a cycle, forever. At
+boot it overran its own 20 s budget twice. It is not a boot-only job; it is a standing consumer of
+the same valve and loop that `/flow`, `/chart` and every autocomplete need.
