@@ -219,6 +219,17 @@
 >    moving-average code.
 > 3. Then the capture, j.4, and R29.
 >
+> ✅ **#145's BODY UPDATED** to the R31-regenerated file, verified at the SOURCE
+> (textarea, not rendering): **52,586 bytes, `sha256 23149cf1…`**, matching
+> `PR-BODY-COMBINED.md` byte for byte.
+> ⭐ **AND BY A MINIMAL VERIFIED SPAN, NOT A RE-UPLOAD.** Only the WAVE2 section
+> moved, so the change was sent as ONE replacement — **38 bytes out, 1,191 bytes in**
+> — after confirming the textarea still hashed to the previously-posted body and that
+> the old span occurred **exactly once**. The full-body hash was then checked BEFORE
+> submitting. 1.2 KB transmitted instead of 29 KB, with the same end-to-end proof.
+> ⛔ A chunked re-upload is still the right tool for a first post or a wide rewrite;
+> a verified span is the right tool for an edit.
+>
 > ### ⛔ R29 — **#145 STAYS DRAFT.** Failed condition, named: **Clouds' fills still
 > carry no colour**, so a capture would show 20 bands in the fallback colour. Its
 > control asserts exactly that. Merging was never authorised.
