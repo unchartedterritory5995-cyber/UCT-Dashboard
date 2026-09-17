@@ -33,7 +33,7 @@ docs/terminal-research/12-decisions/gates/e-cp30-build-record.md | 451bc72952c08
 docs/terminal-research/12-decisions/gates/e-cp31-build-record.md | f4fd0651f87f2a19ad1d8cbe4e75e6cc9fe37a89
 docs/terminal-research/12-decisions/gates/e-cp32-build-record.md | 604b0dc69c1a3ef423fe68532f8d68d84f5abbc5
 docs/terminal-research/12-decisions/gates/e-cp33-build-record.md | 0651de2137220a17b04fff462c120a64766a7ff7
-docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | c409a19bae62bf9d667dd808b261d66b587fccc8
+docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | aa663d7e26ed10eb5dbf540653d237c6f4f4a736
 docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | 922385382832fd5ad6217fb7600488d68e137549
 docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | fcb2dd9b13bab70db117fb204d489900e87c1b23
 docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | 789e35efdc96104177b9c50b65ac21faf38cbe13
@@ -84,5 +84,5 @@ tools/merge_all.py | e1d66c61fa557e553a645b9e5892f96f881eb15e
 tools/pre_sitting.py | 7b11f1e0520693af403bf926ecf436eb21736ead
 tools/sign_all.py | 05d28de0906016871628cc7b80a894bc64def092
 tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
-tools/sign_manifest.txt | 8286edf85f6d94303a267398b398fe5d7aa35d05
+tools/sign_manifest.txt | d655ed83294607489695f259de4a3a5e6f4fdedc
 tools/verify_manifest.py | 3ddaa4798ed59187e2d1d48f1ac4f820e81ec0cd

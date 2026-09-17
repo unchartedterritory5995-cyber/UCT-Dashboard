@@ -52,7 +52,13 @@ push:
   branches: [feat/s7-price-level, master, replay-preview]
 ```
 
-- **`master`** — so the units are tested where they land, from the first merge onward.
+- **`master`** — so the units are tested where they land, **from the merge of unit #8 onward**.
+  ⚠️ **AMENDED 2026-09-17 (F-CI-45).** This line originally read *"from the first merge
+  onward"*, which is wrong: `.github/workflows/full-suite-report.yml` **does not exist on
+  master at all** — it is CREATED by unit #8 (`packet-e-ci-gap-gate`, `06d5bde92`) and
+  modified by 26 later units. Adding `master` here changes nothing until #8 lands, and the
+  `replay-preview` trigger only takes effect from #47, which is this unit. The checkpoint is
+  still correct and still needed; its claim about WHEN was not.
 - **`replay-preview`** — the branch the merge's own cherry-pick result is pushed to. The
   suite runs on **the exact tree 47 commits will produce**, *before* they land.
 
