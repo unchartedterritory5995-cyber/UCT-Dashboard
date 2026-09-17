@@ -12,8 +12,27 @@ const ROOT = path.resolve(process.cwd(), '..')
 /** The manifest's own directory — every file here can see the table by import. */
 const AST_DIR = path.join('components', 'chart', 'engine', 'ast')
 
+/** ⛔ MEMOISED, BECAUSE THE WALK IS THE WHOLE COST AND IT IS RUN FIVE TIMES.
+ *
+ *  `sources()` reads two entire trees from disk and `accessedKeys()` then strips
+ *  every body and runs one regex per `_` key over it. Both are PURE for the
+ *  lifetime of a run, and this file called them five times between its cases.
+ *
+ *  ⚰️ MEASURED: alone the file runs in ~1.7s; inside the 184-file `ast` chunk the
+ *  non-vacuity case alone reached **19.8s** and tripped the 15s timeout. It was not
+ *  wrong and it was not intermittent — it passed alone twice — but a rail that only
+ *  fails when the suite is busy is a rail that will be re-run, shrugged at, and
+ *  eventually muted. `lesson_a_rail_can_be_green_alone_and_red_in_company`.
+ *
+ *  ⚠️ The cache is keyed on nothing because it must not be: a per-run constant is
+ *  exactly what it is. If a future case needs to vary the scan, it takes a
+ *  parameter and gets its own entry — it does not clear this one. */
+let _sourcesMemo = null
+let _accessedMemo = null
+
 /** Every non-test source file in BOTH lanes **that can see the manifest**. */
 function sources() {
+  if (_sourcesMemo) return _sourcesMemo
   const out = []
   for (const base of ['app/src', 'api']) {
     const stack = [path.join(ROOT, base)]
@@ -68,6 +87,7 @@ function sources() {
       }
     }
   }
+  _sourcesMemo = out
   return out
 }
 
@@ -107,6 +127,7 @@ function withoutComments(text) {
 
 /** Which `_` keys does the running product READ, as data? */
 function accessedKeys() {
+  if (_accessedMemo) return _accessedMemo
   const bodies = sources().map(withoutComments)
   const found = new Set()
   for (const key of Object.keys(TABLE).filter((k) => k.startsWith('_'))) {
@@ -114,6 +135,7 @@ function accessedKeys() {
     const re = new RegExp(`\\.\\s*${esc}\\b|\\[\\s*['"]${esc}['"]\\s*\\]|get\\(\\s*['"]${esc}['"]`)
     if (bodies.some((b) => re.test(b))) found.add(key)
   }
+  _accessedMemo = found
   return found
 }
 

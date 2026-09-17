@@ -62,13 +62,25 @@ describe('a6 / R10 — the fill note contract', () => {
     expect(fills[0].b).toBe(1)
   })
 
-  it('⛔⛔ CONTROL — a DYNAMIC fill colour arrives with NO colour, never a guessed one', () => {
-    // R10: a dynamic colour arrives null. Inventing a flat colour for a conditional
-    // fill would paint one band where the author drew two, confidently.
+  it('⛔⛔ CONTROL — a DYNAMIC fill colour is never FLATTENED into a guessed one', () => {
+    // R10: inventing a flat colour for a conditional fill would paint one band
+    // where the author drew two, confidently.
+    //
+    // ⭐ THE TITLE MOVED WITH THE ASSERTION (j.3b). It read *"arrives with NO
+    // colour"*, which was true when a fill could hold only `color`, and became
+    // misleading the moment the carrier landed: a foldable conditional now arrives
+    // with a PAIR. What this control always actually pinned — and still pins — is
+    // that no FLAT colour is guessed, which is the half that would lie to a member.
+    // ⚠️ It survived the carrier untouched precisely because it asserted the absence
+    // of a GUESS rather than the absence of carriage; the two are different claims
+    // and only one of them was ever this test's.
     const { fills } = fillsOf(`${TWO}fill(p1, p2, color=close > open ? color.green : color.red)\n`)
     expect(fills.length).toBe(1)
-    expect(fills[0].color, 'no colour is guessed').toBeUndefined()
-    expect(fills[0].opacity).toBeUndefined()
+    expect(fills[0].color, 'no flat colour is guessed').toBeUndefined()
+    expect(fills[0].opacity, 'and no single opacity is invented for two branches').toBeUndefined()
+    // …and the pair IS carried, which is what (j) consumes.
+    expect(fills[0].colorUp).toBe('#4CAF50')
+    expect(fills[0].colorDown).toBe('#FF5252')
   })
 
   it('⛔⛔ CONTROL — a 3-argument colour carries NO opacity', () => {

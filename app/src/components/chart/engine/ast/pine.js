@@ -11284,13 +11284,27 @@ export function translatePine(source, opts = {}) {
           const a = positional[0] && positional[0].value
           const b = positional[1] && positional[1].value
           if (a && b && a.type === 'name' && b.type === 'name') {
-            const pres = outputPresentation(fargs, { env })
-            fills.push({
-              a: a.name,
-              b: b.name,
-              ...(pres.color ? { color: pres.color } : {}),
-              ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
-            })
+            // ⭐⭐ (j) j.3b — THE PRESENTATION IS READ LATER, AND IT HAS TO BE.
+            //
+            // This used to call `outputPresentation(fargs, { env })` right here, and
+            // that is why a fill could never carry a CONDITIONAL colour: the
+            // `Resolver` does not exist yet. It is constructed ~160 lines below
+            // (`const resolver = new Resolver(...)`), because a `fill()` may legally
+            // name plots declared after it and the walk has to finish first. With no
+            // resolver, `colourConditional` cannot turn the test into a canonical
+            // tree, so `carried` stayed false for every conditional fill in the
+            // corpus — 254 fill colour positions, 0 of them conditional.
+            //
+            // ⛔ SO THE ARGUMENTS ARE STASHED AND READ ONCE, LATER, WITH THE
+            // RESOLVER — not read twice. A second `outputPresentation` call here for
+            // the flat case would be a less-informed answer to the same question
+            // sitting beside the better one, and the two would drift the first time
+            // either changed. `resolveFillHandles` is the one reader.
+            //
+            // ⛔ `env` TRAVELS WITH THE ARGUMENTS. The colour expression must be read
+            // in the scope it was WRITTEN in, not in whatever scope the walk happens
+            // to be holding when the fills are finally resolved.
+            fills.push({ a: a.name, b: b.name, args: fargs, env })
           }
         } catch { /* a fill this grammar cannot read stays an ignored line */ }
         notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
@@ -11445,13 +11459,26 @@ export function translatePine(source, opts = {}) {
   const fillHandles = new Set(fills.flatMap((f) => [f.a, f.b]).filter(Boolean))
 
   // ── resolve each output, independently ───────────────────────────────────
-  const resolved = []
-  for (const out of outputs) {
-    const resolver = new Resolver(env, table, declaredTypes,
+  /**
+   * ⭐⭐ (j) j.3b — ONE PLACE A RESOLVER IS BUILT, extracted rather than copied.
+   *
+   * A resolver is constructed PER OUTPUT (it carries per-resolution state), and the
+   * fill-colour pass below needs one too. That would have been a THIRD construction
+   * site — and this code already warns, at the budget line, that *"the budget reaches
+   * both resolvers or it protects neither"*, which is a drift risk written down and
+   * left in place. A factory makes the warning structural: every caller gets the same
+   * options, including the budget, because there is one argument list.
+   *
+   * ⛔ A FRESH INSTANCE PER CALL, NEVER A SHARED ONE. `Resolver` holds frames and a
+   * step budget across a resolution; handing the same object to every output would
+   * make each one's limits depend on how much the previous output spent.
+   */
+  const makeResolver = () => {
+    const r = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
         strict: opts.strict === true,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
-        // ⭐ THE BUDGET REACHES BOTH RESOLVERS OR IT PROTECTS NEITHER. The object
+        // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
         basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
         budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
@@ -11460,12 +11487,18 @@ export function translatePine(source, opts = {}) {
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
     // ⭐ `opts.inputValues` is `{ boundName: number }` — the member's knob positions.
     if (opts.inputValues && typeof opts.inputValues === 'object') {
-      resolver.inputValues = opts.inputValues
+      r.inputValues = opts.inputValues
     }
     if (opts.declareInputs) {
-      resolver.declareInputs = opts.declareInputs === 'all'
+      r.declareInputs = opts.declareInputs === 'all'
         ? 'all' : new Set(opts.declareInputs)
     }
+    return r
+  }
+
+  const resolved = []
+  for (const out of outputs) {
+    const resolver = makeResolver()
     let row
     try {
       // ⛔ THE CALL IS BOUNDED HERE, NOT JUST EACH RESOLVER. One output that ate
@@ -12001,7 +12034,14 @@ export function translatePine(source, opts = {}) {
     // because that is the first point at which both are known. A fill whose two
     // handles do not both name a surviving output is DROPPED rather than
     // half-carried: a band with one edge is not a band.
-    presentation: { overlay, levels, fills: resolveFillHandles(fills, outputs, resolved) },
+    presentation: {
+      overlay,
+      levels,
+      // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
+      // not exist at collection time, which is why a conditional fill colour was
+      // uncarried for the whole of a6.
+      fills: resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver() }),
+    },
     // ⭐⭐ C3B — THE OBJECT PROGRAM, beside the columns and never inside them.
     // `null` when the script draws no graphical objects, which is 14 of the
     // frozen 60. `diagnostics` is ALWAYS present, because "this script draws
@@ -12491,7 +12531,35 @@ function colourConditional(node, env, depth = 0) {
  * plot, is not a band — carrying it with one edge would draw an area between a
  * line and nothing, which is a shape the author never asked for.
  */
-function resolveFillHandles(fills, outputs, resolved) {
+/**
+ * ⭐⭐ (j) j.3b — THE ONE PLACE A FILL'S COLOUR IS READ, and the first place it
+ * CAN be read: both the output handles and the `Resolver` exist here.
+ *
+ * ⛔ R10, SATISFIED BY CONSTRUCTION RATHER THAN BY A RULE. The call below is
+ * `outputPresentation(f.args, { env, resolver, kind })` — literally the call a
+ * `plot()` makes. There is no second colour path, no fill-specific resolver and no
+ * third spelling of "the two colours a per-point mode needs": a fill and a plot get
+ * the same answer because they ask the same function.
+ *
+ * ⛔⛔ AN ALPHA-ONLY CONDITIONAL IS DECLINED, and this is the clause that is not in
+ * the plan. `keltner-center-of-gravity-channel:91` reads
+ *
+ *     nzz ? color.new(color.blue, 70) : color.new(color.blue, 90)
+ *
+ * — ONE hex, TWO transparencies. `colourConditional` folds both branches happily and
+ * hands back `colorUp === colorDown`, and the schema holds a single `opacity` per
+ * fill, so carrying it would draw a FLAT blue band where the author drew a fading
+ * one — and draw it where today nothing is drawn at all. ⭐ That is precisely the
+ * failure `staticColourOf`'s own `color.new` branch already refuses ("reading only
+ * the BASE and calling it static hands the member one flat red and loses the entire
+ * effect — silently"), arriving through a different door. The fold is not wrong; the
+ * SCHEMA cannot hold the answer, so the honest move is to decline and say so.
+ *
+ * ⛔ AND THE DECLINE IS DECLARED. `colorDynamic` rides out with the fill, because a
+ * fill that quietly carries nothing is indistinguishable from a fill whose author
+ * wrote no colour — and those are different facts.
+ */
+function resolveFillHandles(fills, outputs, resolved, ctx) {
   if (!fills.length) return []
   const byHandle = new Map()
   outputs.forEach((o, i) => { if (o && o.handle) byHandle.set(o.handle, i) })
@@ -12501,8 +12569,35 @@ function resolveFillHandles(fills, outputs, resolved) {
     const bi = byHandle.get(f.b)
     if (ai === undefined || bi === undefined || ai === bi) continue
     if (!resolved[ai] || resolved[ai].refusal || !resolved[bi] || resolved[bi].refusal) continue
-    out.push({ a: ai, b: bi, ...(f.color ? { color: f.color } : {}),
-      ...(Number.isFinite(f.opacity) ? { opacity: f.opacity } : {}) })
+    let pres = {}
+    try {
+      // ⛔ FAIL-SOFT, as the collector's own `catch` always was: a colour this
+      // grammar cannot read must not cost the member the BAND. The edges are the
+      // indicator; the colour is the annotation.
+      pres = outputPresentation(f.args || [], {
+        env: f.env || (ctx && ctx.env),
+        resolver: ctx && ctx.resolver,
+        kind: 'fill',
+      }) || {}
+    } catch { pres = {} }
+    const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
+      ? (pres.colorUp !== pres.colorDown ? pres : null)
+      : null
+    out.push({
+      a: ai,
+      b: bi,
+      ...(pres.color ? { color: pres.color } : {}),
+      ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
+      ...(pair ? {
+        colorUp: pair.colorUp,
+        colorDown: pair.colorDown,
+        ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
+      } : {}),
+      // A conditional this lane could not carry — folded to one colour, or not
+      // folded at all — says so rather than going quiet.
+      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+        ? { colorDynamic: true } : {}),
+    })
   }
   return out
 }

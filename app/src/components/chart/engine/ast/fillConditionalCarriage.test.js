@@ -95,7 +95,7 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     expect(fills[0].color, 'and no flat colour is guessed either').toBeUndefined()
   })
 
-  it.fails('⛔⛔ …AND THE DECLINE IS DECLARED, because silence is a defect', () => {
+  it('⛔⛔ …AND THE DECLINE IS DECLARED, because silence is a defect', () => {
     // ⭐ SPLIT FROM THE CONTROL ABOVE ON PURPOSE. "Not carried as a flat colour" is
     // true BEFORE and AFTER the carrier, which is what makes it a control. "The
     // member is TOLD" is only true after, so it is a separate, failing assertion —
@@ -126,7 +126,7 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
       'Clouds gained colours without the fold — that cannot be right').toBe(0)
   })
 
-  it.fails('⛔⛔ A CONDITIONAL FILL CARRIES ITS TWO COLOURS AND ITS CONDITION', () => {
+  it('⛔⛔ A CONDITIONAL FILL CARRIES ITS TWO COLOURS AND ITS CONDITION', () => {
     // TODAY: `presentation.fills[0]` is `{a, b}` and nothing else — measured, and
     // recorded here so the before-state is not something a reader has to trust.
     const fills = fillsOf(`${TWO}fill(p1, p2, color=${COND})\n`)
@@ -139,32 +139,54 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     expect(fills[0].color, 'a flat colour was guessed beside the pair').toBeUndefined()
   })
 
-  it.fails('⛔⛔ RE-BASELINE — the three corpus scripts the census NAMED gain a colour', () => {
-    // ⭐ PREDICTED BEFORE THE BUILD, by `tools/pine_colour_fn_census.py` §12. These
-    // three are the fidelity-clean core: both branches already fold, and the two
-    // branch colours DIFFER, so carrying them loses nothing.
-    for (const [name, expected] of [
-      ['atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine', 1],
-      ['cumulative-volume-delta__c772250751.pine', 1],
-      ['72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine', 1],
-    ]) {
-      const fills = fillsOf(corpus(name))
-      const carried = fills.filter((f) => f.colorUp && f.colorDown)
-      expect(carried.length, `${name} was predicted to gain ${expected} carried fill`).toBe(expected)
-    }
-  })
-
-  it('⛔ CONTROL — the two scripts the census predicted would NOT gain, do not', () => {
-    // `keltner` is the alpha-only shape declined above; `order-block-finder` tests a
-    // STRING input (`colors == "DARK"`), which is not a condition this lane folds.
-    // ⚠️ These stay true BEFORE and AFTER the carrier, which is what makes them a
-    // control rather than a second copy of the assertion above.
+  it('⛔⛔ RE-BASELINE — MEASURED, and the census over-predicted it fivefold', () => {
+    // ⭐⭐ PREDICTED 5 SCRIPTS / 7 FILLS. MEASURED 1 SCRIPT / 1 FILL. The gap is a
+    // finding about the INSTRUMENT, and it is the reason a prediction is checked
+    // against the product rather than published as a result.
+    //
+    // `tools/pine_colour_fn_census.py` counts colour POSITIONS IN SOURCE TEXT. A
+    // fill only reaches `presentation.fills` if BOTH its handles also resolve to
+    // surviving outputs — `resolveFillHandles` drops the rest, because "a band with
+    // one edge is not a band". Three of the five named scripts therefore carry NO
+    // fills at all, whatever their colour expressions say:
+    //
+    //   atr-trailing-stop-by-ceyhun        0 fills carried
+    //   cumulative-volume-delta            0 fills carried
+    //   order-block-finder                 0 fills carried
+    //   keltner-center-of-gravity-channel  7 fills, all STATIC (the 2 alpha-only
+    //                                      conditionals are not among the carried)
+    //   72s-strategy-adaptive-hull         1 fill, and it GAINS its two colours
+    //
+    // ⛔ THE PREDICTION IS KEPT IN THE TEST RATHER THAN CORRECTED AWAY. Editing the
+    // census to match this would hide the lesson: a source-text census bounds what
+    // COULD carry, never what DOES, and only the product can close that bound.
+    const measured = {}
     for (const name of [
+      'atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine',
+      'cumulative-volume-delta__c772250751.pine',
+      '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine',
       'keltner-center-of-gravity-channel__e4a81d76f6.pine',
       'order-block-finder__fVSb3j0I87.pine',
     ]) {
-      const carried = fillsOf(corpus(name)).filter((f) => f.colorUp)
-      expect(carried.length, `${name} gained a fill colour it was predicted not to`).toBe(0)
+      const fills = fillsOf(corpus(name))
+      measured[name] = {
+        fills: fills.length,
+        carried: fills.filter((f) => f.colorUp && f.colorDown).length,
+      }
     }
+    expect(measured['72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine'])
+      .toEqual({ fills: 1, carried: 1 })
+    expect(measured['atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine']).toEqual({ fills: 0, carried: 0 })
+    expect(measured['cumulative-volume-delta__c772250751.pine']).toEqual({ fills: 0, carried: 0 })
+    expect(measured['order-block-finder__fVSb3j0I87.pine']).toEqual({ fills: 0, carried: 0 })
+    // keltner's seven are STATIC and must stay static — the alpha-only decline and
+    // the "a static fill is unchanged" control meeting on a real script.
+    expect(measured['keltner-center-of-gravity-channel__e4a81d76f6.pine'])
+      .toEqual({ fills: 7, carried: 0 })
+
+    // …and the whole corpus delta is ONE fill. Stated as a number so a later change
+    // that quietly widens the carrier has something to fail against.
+    const total = Object.values(measured).reduce((n, m) => n + m.carried, 0)
+    expect(total, 'the measured corpus re-baseline for j.3b is exactly one fill').toBe(1)
   })
 })
