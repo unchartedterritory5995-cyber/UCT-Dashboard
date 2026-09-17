@@ -1,0 +1,39 @@
+{
+  "acct": "probe-honesty-2-1-b",
+  "note": "probe-note-1",
+  "sentence": "F5-MATRIX probe honesty sentence",
+  "cases": {
+    "success": {
+      "entryStatus": null,
+      "entryAttempts": null,
+      "entryError": "",
+      "entryKeys": "mutationId,noteId,kind,baseUpdatedAt,patch",
+      "locksHeldPending": "0/0",
+      "lockClaimable": true,
+      "onLine": true,
+      "outboxTotal": 1,
+      "queuedForThisNote": 1,
+      "sentenceInDurableCopy": false,
+      "sentenceInQueuedEntry": true,
+      "sentenceOnScreen": null,
+      "baseUpdatedAt": "2026-09-17T00:00:00.000Z",
+      "dirty": false
+    },
+    "loss": {
+      "entryStatus": null,
+      "entryAttempts": null,
+      "entryError": "",
+      "entryKeys": "mutationId,noteId,kind,baseUpdatedAt,patch",
+      "locksHeldPending": "0/0",
+      "lockClaimable": true,
+      "onLine": true,
+      "outboxTotal": 1,
+      "queuedForThisNote": 1,
+      "sentenceInDurableCopy": false,
+      "sentenceInQueuedEntry": false,
+      "sentenceOnScreen": null,
+      "baseUpdatedAt": "2026-09-17T00:00:00.000Z",
+      "dirty": false
+    }
+  }
+}

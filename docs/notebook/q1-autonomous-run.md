@@ -115,3 +115,32 @@ own failure:
   for the window, not overriding it:** `UCT_SKIP_PREPUSH_GUARD` and the R19
   attestation both exist and neither is mine to use — the refusal text says this
   needs a human who can see every workstream.
+
+## ⛔ Why no rig window ran for two days — and it was NOT the guard
+
+⚰️ **CORRECTION to my own account.** I reported that "no rig window has been taken since
+the 04:03 timeout on the 15th" as though the rig had been unavailable. Measured 2026-09-17,
+the cause was simpler and entirely ours: **the queue had no PENDING entries.** Every row was
+`failed`, `blocked` or `done`, so `pending()` returned empty and the runner's own answer was
+*"queue empty — nothing staged"*. The windows opened; there was nothing staged to spend them
+on. ⭐ A runner that finds nothing to do looks exactly like a rig that was never free.
+
+### The window shape, derived from the scheduler rather than assumed
+
+`rig_window_refusal()` refuses while any `RIG_TASKS` entry is due within
+`WINDOW_MINUTES = 60`, plus `JUST_RAN_COOLDOWN_SECONDS = 180` after one starts. Measured
+task cadence today:
+
+    UCT Wave Q1 Window Check   09:00   DAILY      (last 09-16 09:00)
+    UCT-WaveQ1-Observe         10:00   every 2h   (last 09-17 08:00)
+    UCT-WaveQ1-Canary          09-20   weekly
+    UCT-WaveQ1-Gate            09-20   weekly
+
+⇒ a window runs from **(task start + 3 min)** to **(next task − 60 min)**. With the 2-hourly
+observer that is a **~57-minute window every two hours** — e.g. today **10:03–11:00**, then
+12:03–13:00. It is not scarce, but it is not "whenever the rig is idle" either, and a cell
+that needs longer than ~57 minutes cannot be run at all without changing the cadence.
+
+⚠️ At 08:07 the refusal named the **09:00 daily Window Check** (53 min out), not the observer
+that had just run — two different tasks, and the guard correctly refuses on whichever is
+nearest. Reading only the observer's schedule would have predicted a window that does not exist.

@@ -925,8 +925,22 @@ it does for a member. `/smoke-login` burns the token on first use.
 `web` only. **Removal instruction, to be run when the programme closes:**
 
 ```sh
-railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+railway variable delete SMOKE_LOGIN_LINK_ENABLED --service web
 ```
+
+⚰️ **The command above was `railway variables --service web --unset …` and that now ERRORS**
+(`unexpected argument '--unset'`). Railway CLI **v4.35.0** moved it to a subcommand, and the
+noun is **singular**: `railway variable delete KEY --service web`. Measured 2026-09-17 by the
+breadth/promotion-record session.
+
+⛔⛔ **AND THE HALF THAT ACTUALLY BITES: `--set` REDEPLOYS, `delete` DOES NOT.** Measured: nine
+minutes after a delete, no new deployment, `uptime_seconds` climbing 1508 → 2019 unbroken — so
+**the variable was gone from the SERVICE and still live in the PROCESS.** `--kv` read it as
+absent and the pod kept serving the old configuration. **The direction that looks safer is the
+one that fails silently:** an operator who deletes, reads back, sees it gone and stops has
+recorded a revert that never happened. Follow a delete with
+`railway redeploy --service web --yes` and confirm from the POD (a real boot: uptime reset,
+and the behaviour you expected), never from `--kv`.
 
 ⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
 lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
@@ -2678,6 +2692,32 @@ the moment of the push and is correct at that moment, but a build takes 3–5
 minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
 true and useless. The wait is on the DEPLOY, not on the check.
 
+⛔⛔ **A REDEPLOY STORM IS INVISIBLE TO BURST AND MAXIMALLY VISIBLE TO RECENCY.** Measured
+2026-09-17, verified independently by two sessions: **ONE landing produced FIVE deploy
+records**, three of them inside 16 seconds.
+
+```
+deploy records in last 60 min : 7
+DISTINCT commits (what BURST counts) : 3     77dad414d x5 · 0ec4d52e9 x1 · e50c0552d x1
+newest record age (what RECENCY counts) : 16.1 min
+```
+
+⭐ **The two clauses disagree about the same event, and both are behaving correctly.** Burst
+dedupes by commit — deliberately, so a variable flip costs no slot — so five deploys of one
+commit look like **one** landing to it. Recency counts *records*, so the same five look like
+**five**, and each one restarts the 600 s clock. A waiting session sees a countdown that
+resets over and over while `origin/master` never moves: `541 → 431 → 320 → 516 → 398`.
+
+⛔ **THE DIAGNOSTIC RULE: watch for a NEW SHA, not for the timer moving.** A resetting
+countdown with a static `origin/master` is a redeploy storm, not a third pusher — and it is
+the shape most likely to be misread as "somebody keeps landing ahead of me". (It was, by me.)
+
+⚠️ **A storm is not automatically a fault.** Checked before concluding: `/api/health` 200 with
+`uptime_seconds` stable across three probes, `master == production`, and the change involved
+was dev tooling with no importer under `api/` or `app/`. Not a crash loop, nothing to roll
+back. **Cause not proven** — the best available reading is the promotion workflow plus the
+`production` watch double-firing, and that is recorded as unproven rather than asserted.
+
 ⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
 Measured 2026-09-16: **Railway creates the deploy record MINUTES after the push, and the
 delay is VARIABLE** — two independent measurements, by two sessions, 47 s apart: **3m25s**
@@ -2724,6 +2764,115 @@ not evidence that the measurement was.
 ⭐ **The test for kind 2:** read the instrument's own stated rule, then ask what it actually
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
+
+### ⛔ NEVER `git commit -m` FOR A MESSAGE WITH IDENTIFIERS — use a quoted heredoc
+
+> **`git commit -F - <<'MSG'` … `MSG`.** The quoted heredoc expands NOTHING — backticks, `$`,
+> `!` all pass through verbatim. `-m "…"` cannot be made safe by care, because the shell has
+> already eaten the string before git ever sees it.
+
+⚰️ **Measured 2026-09-17.** A commit was written with `git commit -m "…"` containing backticks
+around three identifiers. The shell command-substituted them away, and the commit landed with
+holes exactly where `probe`, `mint_session_token` and `--unset` should have been — in a message
+whose entire purpose was to name those three.
+
+⭐ **THE MITIGATION IS THE FLAG, NOT THE CHARACTER.** "Remember not to use backticks in `-m`" is
+a rule that depends on spotting one character in a long string, and it is the kind you lose at
+3am. "Never use `-m` for a message with identifiers in it" is checkable **before you type it**.
+
+⛔ **AND THE TELL IS AS WEAK AS A TELL GETS:** `bash: probe: command not found` on **stderr**, at
+commit time, in a stream nobody reads when the commit succeeds. The commit **exits 0**. `git log`
+then renders the holes as ordinary prose, because **a sentence with a missing word still reads
+like a sentence**. ⚠️ **A commit message is the one artifact with no reader between writing and
+permanence** — no review, no test, no gate. Nothing downstream will ever tell you it is wrong.
+
+### ⛔ A DEFAULT ARGUMENT IS BOUND AT IMPORT — late-bind every injectable seam
+
+> **`def f(..., thing_fn=None)` and resolve it in the body. NEVER `thing_fn=real_function`.**
+
+A parameter default is evaluated ONCE, when the module is imported, and captures the original
+object forever. So `monkeypatch.setattr(module, "real_function", fake)` — which is what every
+caller reasonably expects to work — **reaches nothing**, and the test silently exercises the
+real function.
+
+⚰️ **Measured 2026-09-17, and it had been eating runs for a day.** `scripts/gate_shards.py`
+carried **two conventions in one signature**:
+
+```
+tree_state_fn=tree_state          <- default argument, bound at import
+run_shard_fn=None                 <- late-bound, two lines away
+file_count_fn=count_test_files    <- default argument, bound at import
+```
+
+`test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` patches
+`gate_shards.tree_state` to fake a dirty tree and assert the refusal releases the lock. With
+the patch inert it called the REAL `tree_state`, found the tree clean, skipped the refusal, and
+**ran a real six-shard gate inside a unit test** — real `npx vitest`, minutes of it, against a
+300 s ceiling.
+
+⭐⭐ **AND IT LOOKED LIKE FLAKINESS.** It PASSED whenever the working tree happened to be dirty
+(the real `tree_state` answered "dirty", the refusal fired, rc=2 in a second) and HUNG whenever
+it was clean. Every hang was immediately after a commit; every pass was mid-edit. **A test whose
+outcome depends on `git status` is not flaky — it is reading the wrong thing**, and from the
+outside those are indistinguishable. That is what let it survive four wrong diagnoses.
+
+⛔ **The rail must prove the patch is CALLED, not just that the default is `None`.** A signature
+assertion alone passes if the body ignores the parameter
+(`test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them`).
+
+⭐ **Class sweep (§10.35), 2026-09-17:** an AST pass over **364 files** in `scripts/` and
+`tools/` found **3** remaining `x_fn=module_level_callable` defaults —
+`deploy_watch.py:93 arm(probe_fn=probe)`, `deploy_watch.py:99 watch(probe_fn=probe)`,
+`window_check.py:883 reauthenticate(mint=mint_session_token)`. **None is monkeypatched anywhere
+in `tests/`**, so none is inert today. Left as-is with that reason recorded rather than changed
+for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
+the seam first, or it will be testing the real function while believing otherwise.
+
+### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
+
+Kinds 1 and 2 are *the instrument was wrong*. Kind 3 is the nastiest, because the record is
+**right, and read, and still the reason the thing does not get done**. Two faces, found
+independently by two sessions on the same night:
+
+| face | it substitutes for | the instance |
+|---|---|---|
+| **3a** the record was right, **read**, and **not acted on** | a **FIX** | `"the `_drive` children still pay the sweep … Stated, not hidden"` — a true docstring, written by the person who then spent four hypotheses rediscovering it |
+| **3b** the record was right **when written**, and the **world moved under it** | a **RE-CHECK** | a ratified 33× headline that had drifted to 15× on unchanged code; and `test_the_policy_constants_are_what_the_owner_authorised` asserting `MIN_UPTIME_S == 600` after the owner authorised 300 — **the rail that exists to make policy drift deliberate had itself drifted, and was failing on the authorised value** |
+
+⛔ **NEITHER IS CATCHABLE BY TESTING HARDER.** 3a passes every test — the statement is true.
+3b passes every test it was written against — it is asserting the world of the day it was
+written. The only thing that finds either is asking, of a record you already trust:
+
+> ### ⭐ **"When was this last true?"**
+
+⚰️ **AND IT CAUGHT THE AUTHORS OF THIS SECTION, WITHIN AN HOUR OF WRITING IT.** One session told
+another that a fix was "on master now"; it was **committed, not landed**, and master still
+served the command that errors. The claim was true in intent and false in fact, the other
+session accepted it without checking, and it was caught only because the owner asked whether it
+had actually shipped. ⭐ **"Committed" answers neither *is it written* nor *did it ship*.** The
+whole check is one line, and it is the same two-question discipline as the deploy rule:
+
+```sh
+git merge-base --is-ancestor <sha> origin/master   # did it SHIP
+git show origin/master:<path> | grep …             # what does master SAY today
+```
+
+⭐⭐ **THE CLEANEST INSTANCE OF 3b, because nothing was ever red.** For two days this
+programme reported *"no rig window has been taken"* and treated it as the rig being
+unavailable. The observation was **true the whole time**. What had changed is what it was
+*about*: the window queue held no `pending` entries, so the runner's own answer was
+*"queue empty — nothing staged"*. **The windows opened. There was nothing staged to spend
+them on.** A runner with nothing to do looks exactly like a rig that was never free —
+and unlike a drifted constant or a stale ratio, there was no failing test, no red, and
+nothing to notice. It failed by being quietly, accurately unhelpful.
+
+⚠️ **A documented cost is not a bounded cost, and a ratified number is not a current one.**
+Writing a hazard down, and having it ratified, both *feel* like handling it. Four more of the
+same shape turned up in one file in one night: a report tool defaulting to a pool path the
+pool had left months earlier and emitting a complete-looking summary of nothing; a rail
+comparing a fixed SHA against `origin/master` and reporting the world moving as a defect; and
+a document whose opening banner read "THIS IS A DRAFT, THE PROGRAMME IS NOT DONE" above its
+own closing statement that it was closed.
 
 ⚠️ **THE TWO KINDS ARE NOT DISJOINT, AND THE TABLE IS A CHECKLIST, NOT A FILING SYSTEM.**
 `%an` is both: it MOVED (every commit now carries one name) and it was ALWAYS a proxy

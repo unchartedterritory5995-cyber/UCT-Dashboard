@@ -1,0 +1,7 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+  raw -> C:\Users\Patrick\uct-worktrees\notebook-k\docs\notebook\evidence\20260917T120331-2.1b-probe-honesty\probe_honesty_raw.json
+  SUCCESS case sentenceInQueuedEntry=True (want True)
+  LOSS    case sentenceInQueuedEntry=False (want False)
+⇒ PASS  2.1(b): the probe reports a planted loss and a planted success correctly, reading the ENTRY with the record already clean
+(node:60208) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

@@ -4,6 +4,82 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
+      "id": "2.2-ring-on-the-drivable-door",
+      "status": "inconclusive",
+      "attempts": 3,
+      "why": "\u26d4 THE ORDERING WAS THE PROBLEM, NOT THE DOOR. Three INCONCLUSIVE attempts on `append_widget_embed` + `slow PUT (landed, ring populated)` all reported 'the control took the click but produced no call to /embeds \u2014 a label is not a door'. But `fix5-production-re-run` drove THE SAME FAMILY to a real RED reading with NO --ordering. So the door is drivable and the slow-PUT sequencing is what leaves it unready at click time. This entry replicates the KNOWN-DRIVABLE invocation verbatim and adds ONLY --trace-writes, so the single variable is the tracer. R-RAW: the raw ring reaches evidence/ before any summary.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "append_widget_embed",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md",
+        "--trace-writes"
+      ],
+      "timeout": 1800,
+      "result": {
+        "exit": 0,
+        "seconds": 374.6,
+        "tail": "\u21d2 INCONCLUSIVE  the control took the click but produced no call to `/embeds` \u2014 a label is not a door. note calls this cell: 9",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260917T122035-2.2-ring-on-the-drivable-door",
+        "evidence_ok": true
+      }
+    },
+    {
+      "id": "2.1b-probe-honesty",
+      "status": "done",
+      "attempts": 1,
+      "why": "R-HON, NOT SKIPPABLE, AND IT RUNS FIRST. Every RED cell in the F5 matrix rests on `sentenceInQueuedEntry`, and that field has never been shown reporting correctly against a KNOWN answer. Plants a known loss and a known success into a THROWAWAY store for a synthetic account, drives the REAL QUEUED_JS (imported, never restated), and requires the probe to report each correctly while the record is already CLEAN \u2014 which is the 2.1(b) question: does it read the surviving ENTRY's patch from IndexedDB after reconciliation? If this FAILS, every RED reading is labelled 'probe unverified' and the writer hunt waits.",
+      "cmd": [
+        "python",
+        "tools/q1_probe_honesty.py",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+      ],
+      "timeout": 900,
+      "result": {
+        "exit": 0,
+        "seconds": 36.0,
+        "tail": "\u21d2 PASS  2.1(b): the probe reports a planted loss and a planted success correctly, reading the ENTRY with the record already clean",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260917T120331-2.1b-probe-honesty",
+        "evidence_ok": true
+      }
+    },
+    {
+      "id": "2.2-slow-put-instrumented",
+      "status": "inconclusive",
+      "attempts": 3,
+      "why": "D2's whole point: the instrumented slow-PUT cell with the write tracer injected, so the RAW RING reaches docs/notebook/evidence/ BEFORE any summary (R-RAW). The reading that names the writer is a SEPARATE step taken with the artifact open \u2014 this entry only produces the artifact. Non-vacuity: the ring must contain at least one write with an app-code stack frame, else INCONCLUSIVE and the injector is the suspect, not the product.",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "append_widget_embed",
+        "--ordering",
+        "slow PUT (landed, ring populated)",
+        "--trace-writes",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+      ],
+      "timeout": 1800,
+      "result": {
+        "exit": 0,
+        "seconds": 86.3,
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: None, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260917T120651-2.2-slow-put-instrumented",
+        "evidence_ok": true
+      }
+    },
+    {
       "id": "2.8b-second-writer-while-away",
       "status": "failed",
       "attempts": 2,
