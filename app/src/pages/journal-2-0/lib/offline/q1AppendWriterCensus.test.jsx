@@ -9,10 +9,14 @@
  * loss on production by design, and the writer must be named here instead.
  *
  * ⛔⛔ R-CITE. Nothing in this file names a writer. It INSTRUMENTS every writer
- * and prints what fired. The name comes out of `spyLog`, as
- * "<function> at <file:line>, spy call N", or it does not get written down.
- * A census of three (`useDurableNote.js:328`, `:444`, `outboxDrain.js:75`) is a
- * census; this is the instrument that turns it into a name.
+ * and prints what fired. The name comes out of `spyLog`, as "<function>, spy
+ * call N", or it does not get written down. A census of three
+ * (`settleLandedSave`, `persist`, `settleSent`) is a census; this is the
+ * instrument that turns it into a name.
+ *
+ * ⛔ Corroborated against `tools/q1_clean_write_sweep.mjs` (acorn) and `grep -n`
+ * — see `callerFrom`, which also records the day I blamed this instrument for a
+ * corruption I had caused in the file it was reading.
  *
  * ⭐ EVERYTHING UNDER TEST IS REAL. `openNotebookDb`, `putNoteWithIntent`,
  * `drainOutbox`, `settleSent`, `rebaseEntry`, `mergeAppends`, `settleNoteWrite`,
@@ -137,10 +141,45 @@ function makeServer() {
 // ── the spy ──────────────────────────────────────────────────────────────────
 
 /**
- * ⛔ The CALLER is read from the stack, never typed. A line number typed into a
- * test is the drift this programme has paid for repeatedly; the stack is
- * evidence. Frame 0 is the Error, frame 1 is this wrapper — the first frame
- * after that which is not this file is the writer.
+ * ⛔ The CALLER is read from the stack, never typed. A function name or a line
+ * number typed into a test is the drift this programme has paid for repeatedly;
+ * the stack is evidence. Frame 0 is the Error, frame 1 is this wrapper — the
+ * first frame after that which is not this file is the writer.
+ *
+ * ⭐ CORROBORATED, because one instrument agreeing with itself proves nothing.
+ * `node tools/q1_clean_write_sweep.mjs` parses the same files with acorn and
+ * reports true `loc.start.line` values; it and this spy agree on every call site
+ * (`persist` :480, `settleSent` :75, `rebaseEntry` :205), and `grep -n` agrees
+ * with both. Cite the writer as "<function> at <file:line>, spy call N".
+ *
+ * ⚰️⚰️ AND A CORRECTION WORTH MORE THAN THE FINDING, 2026-09-17. This spy
+ * briefly reported `useDurableNote.js:957` for a call site in a 563-line file,
+ * and the AST sweep independently reported `:952`. I diagnosed that as the spy
+ * reading vitest's TRANSFORMED module and labelled its output "not a source
+ * line" — a defect in the instrument that did not exist.
+ *
+ * ⛔ THE FILE WAS CORRUPT, AND I HAD CORRUPTED IT. A patch script read the
+ * file preserving its CRLF endings, then wrote it back through a writer set
+ * to translate newlines to CRLF, so every ending was translated a SECOND
+ * time and 556 of them became CR-CR-LF. A bare CR is a line terminator in
+ * ECMAScript, so acorn and vitest both counted ~1.7x the lines, correctly.
+ * Two independent instruments agreed, and I read their agreement as
+ * corroboration of a shared flaw rather than as evidence about their shared
+ * INPUT.
+ *
+ * ⭐ THE TELL was available and I walked past it: `wc -l` said 563 while both
+ * instruments said ~950. When a derived number disagrees with the file
+ * itself, suspect the FILE before the readers, and when two independent
+ * tools agree on something surprising, that is the strongest possible signal
+ * that the thing they SHARE is what moved. `check_repo_hygiene.py` cannot
+ * catch this one: it reports a path only when line endings are the ONLY
+ * difference, and this file had content changes too.
+ *
+ * ⛔ AND THIS COMMENT CARRIED THE SAME BUG ONE LAYER UP: written through a
+ * shell heredoc, its escaped CR/LF sequences collapsed into REAL control
+ * characters and put a literal CR inside this file. That is why the endings
+ * are now spelled out in words. Never describe a line ending with an escape
+ * sequence you are piping through a shell.
  */
 function callerFrom(stack) {
   const frames = String(stack || '').split('\n').slice(1)
@@ -245,7 +284,7 @@ describe('⛔⛔ Q1 STEP 2 — which writer reconciles the record clean on the a
         serverBase: null,
       },
       {
-        mutationId: 'mut-offline-1',
+        mutationId: `note:${NOTE}`,
         noteId: NOTE,
         kind: 'patch',
         baseUpdatedAt: T0,
