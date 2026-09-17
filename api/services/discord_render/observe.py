@@ -332,6 +332,18 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
         "queue": runtime.depth() if runtime is not None else None,
         "renderer": renderer,
         "slo": snap,
+        # ⛔⛔ MIRRORED FROM `snap`, NEVER RECOMPUTED — one reading, two views. `evaluate_alerts`
+        # consumes the copy inside `slo`; every human and every instrument reads the TOP level,
+        # because that is where the no-jobs-database branch of `render_health` puts them.
+        # ⚰️ Until 2026-09-17 the two branches disagreed about the SHAPE, and that is what made
+        # OI-47 hard to see rather than merely wrong: on a production pod (no jobs database)
+        # `d.get("loop")` answers, and `d.get("stall_record")` answers nothing; the day V2 is
+        # enabled and a jobs database exists, `d.get("loop")` would START answering None and
+        # every poller reading the top level would go quietly blind — a LATENT failure armed to
+        # fire on exactly the deploy nobody wants surprises on.
+        "loop": snap["loop"],
+        "stall_record": snap["stall_record"],
+        "token_slots": snap["token_slots"],
         "breakers": breakers if breakers is not None else _live_breakers(),
         "alerts": [k for k, _ in evaluate_alerts(
             snap, renderer_misses=renderer_misses,

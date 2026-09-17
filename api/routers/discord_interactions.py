@@ -898,7 +898,19 @@ def render_health(request: Request):
         # ⚰️ Measured 2026-09-15: `/flow` missed its ack in `#render-smoke` with one admin and
         # no load, and the one instrument that could have explained it reported nothing,
         # because of this line. Built, wired, live, and unreachable.
+        # ⛔⛔ OI-47 — AND THE SAME EARLY RETURN SWALLOWED THE DURABLE RECORD, ONE WAVE LATER.
+        # W1 wired `stall_record` and `token_slots` into `observe.health_payload` — the branch
+        # below this one — so on every production pod they were computed by nobody and read by
+        # nobody. ⭐ The acceptance test caught it the day it merged (`stall_record_present:
+        # false`), which is the whole reason the directive requires reading the fields
+        # IN-PROCESS rather than inferring them from a green merge.
+        # ⚠️ The protective halves shipped regardless: the page path and the counter write are
+        # not on this route. Only the READ surface was blocked — so the volume held the numbers
+        # the whole time and a `railway ssh` import could see them. That is what made this cheap
+        # to find and expensive to notice.
         return {**payload, "renderer": renderer, "slo": None, "loop": observe._live_loop(),
+                "stall_record": observe._live_stall_record(),
+                "token_slots": observe._live_token_slots(),
                 "note": "no jobs database yet (V2 has never run on this volume)"}
     obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
     misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None

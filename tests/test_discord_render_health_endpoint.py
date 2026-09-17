@@ -76,3 +76,48 @@ def test_a_healthy_renderer_answer_is_passed_through(client, monkeypatch):
     monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(200, json={"ok": True, "browser": True}))
     h = rt._renderer_health()
     assert h["reachable"] is True and h["ready"] is True and h["status"] == 200
+
+
+# ── OI-47: the durable record must survive the no-jobs-database early return ──────────────
+#
+# ⛔⛔ THE THIRD INSTANCE OF ONE CLASS IN ONE PROGRAMME. `render_health` has an early return for
+# `store is None` — taken on EVERY production pod, because V2 is dark and no jobs database
+# exists — which hand-builds its dict and never reaches `observe.health_payload`. OI-42 was this
+# hole swallowing `loop`; OI-47 is the same hole swallowing `stall_record` and `token_slots` one
+# wave later, and it shipped the day they were wired.
+#
+# ⭐ A test that only exercises the WITH-database branch is structurally blind to it: that branch
+# was correct both times. The two tests below are deliberately a pair — one per branch — because
+# the defect lives in the difference between them.
+
+
+def _both_branches(tc, tmp):
+    """The payload on BOTH branches: no jobs database (production today), and with one."""
+    without = _get(tc).json()
+    s = JobsStore(str(tmp / "jobs.db"))
+    s.insert({"corr_id": "00000002", "command": "chart", "state": "queued", "token": "T", "app_id": "A"})
+    s.close()
+    return without, _get(tc).json()
+
+
+def test_the_durable_record_survives_the_no_jobs_database_early_return(client):
+    """⛔ THE LOAD-BEARING ONE. Reverting the early-return dict makes this red and nothing else."""
+    tc, tmp, _ = client
+    without, with_db = _both_branches(tc, tmp)
+    assert without.get("note"), "expected the no-jobs-database branch; the fixture stopped exercising it"
+    for key in ("loop", "stall_record", "token_slots"):
+        assert key in without, f"{key} was dropped by the store-is-None early return (OI-47's shape)"
+        assert key in with_db, f"{key} is missing from observe.health_payload"
+
+
+def test_the_two_branches_agree_on_the_observability_keys(client):
+    """⛔ NON-VACUITY: presence is not enough — a branch could answer `{}` for every key and pass
+    the test above. The record and the counter must carry their OWN shape, so a reader can tell
+    'nothing has stalled yet' (a real reading) from 'this route cannot see the record' (OI-47)."""
+    tc, tmp, _ = client
+    without, with_db = _both_branches(tc, tmp)
+    for body, where in ((without, "no-jobs-database"), (with_db, "with-database")):
+        assert "path" in body["stall_record"], f"{where}: stall_record carries no record path"
+        assert "slots" in body["token_slots"], f"{where}: token_slots carries no slot names"
+        assert set(body["token_slots"]["slots"]) == {"current", "previous"}, \
+            f"{where}: the slot set is not the two the rotation has"
