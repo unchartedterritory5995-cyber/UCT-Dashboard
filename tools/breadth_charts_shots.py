@@ -37,12 +37,24 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import socket
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+
+# ⛔⛔ THE FAILURE PATH WAS THE UNTESTED PATH. This console is cp1252, and the REGRESSION
+# header is the one line that carries a non-ASCII marker — so the tool crashed with a
+# UnicodeEncodeError at exactly the moment it had something important to say, after
+# printing the harmless "EXPECTED" section perfectly. A checker that dies on its own bad
+# news reports "crash" where it meant "V1 moved".
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):  # a pipe that cannot be reconfigured
+        pass
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 APP = REPO / "app"
@@ -311,6 +323,75 @@ def _install_routes(page, span: int, flags: dict) -> None:
     page.route("**/*", handle)
 
 
+
+#: ⛔⛔ THE CAPTURED DOM IS NOT BYTE-STABLE UNTIL IT IS NORMALISED. Measured: only 4 of 16
+#: captures matched across two full runs of the SAME build. The volatile parts are not
+#: product facts — React's `useId` values, UIcon's gradient counter (which counts UP per
+#: render), and ECharts' per-instance ids — and `flagOff.golden.test.jsx` already
+#: normalises exactly these for exactly this reason. The same list is applied here rather
+#: than a second, drifting one.
+#:
+#: ⛔ ONLY THESE, AND NOTHING ELSE. A normaliser that erases too much is a golden that
+#: cannot fail — `test_the_dom_normaliser_keeps_the_product` is the rail on that.
+_DOM_SUBS = (
+    # ⛔ KEEPS THE ATTRIBUTE NAME, replaces only its VALUE. Written first through a
+    # shell heredoc that ate the backreferences and collapsed the whole match to
+    # `<ID>`, deleting `id=` itself. A normaliser that erases the attribute erases the
+    # product, and every golden would then have matched every other golden -- the
+    # cannot-fail shape, arrived at by a quoting accident rather than a decision.
+    (re.compile(r'(\b(?:id|for|aria-controls|aria-labelledby|aria-describedby|name)=")[^"]*(")'),
+     r"\1<ID>\2"),
+    (re.compile(r"url\(#[^)]*\)"), "url(#<ID>)"),
+    (re.compile(r"«[^»]*»"), "<ID>"),
+    (re.compile(r'_echarts_instance_="[^"]*"'), '_echarts_instance_="<ID>"'),
+    (re.compile(r'data-zr-dom-id="[^"]*"'), 'data-zr-dom-id="<ID>"'),
+)
+
+
+def normalise_dom(html: str) -> str:
+    """Strip the non-product volatility from a captured DOM. See `_DOM_SUBS`."""
+    for pattern, repl in _DOM_SUBS:
+        html = pattern.sub(repl, html)
+    return html
+
+
+def _stable_screenshot(page, path: pathlib.Path, case: str,
+                       tries: int = 8, settle_ms: int = 250) -> None:
+    """Screenshot only once the page has stopped moving.
+
+    ⛔⛔ THE HARNESS WAS NONDETERMINISTIC AND IT WAS CAUGHT BY ITS OWN CHECKER. Goldens
+    were recorded and re-checked SECONDS later against the same tree and the same build:
+    4 px at 1280 and 13 px at 380 on several cases. Nothing had changed — the page was
+    simply still settling when the shutter opened.
+
+    ⭐ THAT IS THE WORST KIND OF FLAKE, because it does not fail. It produces goldens
+    that disagree by a handful of pixels on every run, and a checker that reds on every
+    run is muted within a week — after which the V1 regression it exists to catch ships
+    unnoticed. A rail that cries wolf is worse than no rail.
+
+    So stability is ENFORCED, not assumed: shoot repeatedly until two CONSECUTIVE frames
+    are byte-identical, and REFUSE if that never happens. `animations="disabled"` freezes
+    CSS animations and transitions (the app plays a cinematic intro and the shell fades
+    in); `caret="hide"` removes the blinking text caret, which is a real source of
+    one-pixel churn.
+
+    ⛔ It raises rather than saving the last frame. A shot that could not be stabilised is
+    not evidence about the product — it is evidence about the harness, and saving it
+    would launder one into the other.
+    """
+    prev = None
+    for attempt in range(tries):
+        page.wait_for_timeout(settle_ms)
+        shot = page.screenshot(animations="disabled", caret="hide")
+        if prev is not None and shot == prev:
+            path.write_bytes(shot)
+            return
+        prev = shot
+    raise RuntimeError(
+        f"{case}: the page never stopped changing — {tries} frames, no two consecutive "
+        f"frames identical. Refusing to record a golden that would flap on every run.")
+
+
 def _open_data_charts(page) -> None:
     """Click through to the Data Charts tab.
 
@@ -406,7 +487,24 @@ def capture(into: pathlib.Path) -> dict:
     manifest: dict = {"frozen_at": FROZEN_ISO, "cases": {}}
 
     with Preview() as prev, sync_playwright() as p:
-        browser = p.chromium.launch()
+        # ⛔⛔ DETERMINISTIC TEXT RASTERISATION, OR THE GOLDENS FLAP.
+        # Measured: re-checking goldens recorded SECONDS earlier from the same build
+        # produced 4 px at 1280 and 13 px at 380. The diff was never layout — every
+        # differing pixel was a grey level off by exactly ONE (17 vs 16, 27 vs 26) inside
+        # a small text region. That is Chromium's font antialiasing, which varies per
+        # launch unless it is pinned.
+        #
+        # ⭐ THE CAUSE IS FIXED RATHER THAN TOLERATED. A per-pixel tolerance would have
+        # hidden it, and would also have blinded the differ to the one-pixel change its
+        # own self-check exists to prove it can see. A rail you soften to stop it
+        # complaining is a rail you have retired.
+        browser = p.chromium.launch(args=[
+            "--font-render-hinting=none",
+            "--disable-lcd-text",
+            "--disable-font-subpixel-positioning",
+            "--force-color-profile=srgb",
+            "--disable-skia-runtime-opts",
+        ])
         for flag_name, flags in FLAG_STATES.items():
             for span_name, span in SPANS.items():
                 for vp_name, (w, h) in VIEWPORTS.items():
@@ -434,10 +532,11 @@ def capture(into: pathlib.Path) -> dict:
                     elapsed_ms = int((time.time() - t0) * 1000)
 
                     png = into / f"{case}.png"
-                    page.screenshot(path=str(png), full_page=False)
+                    _stable_screenshot(page, png, case)
                     dom = page.evaluate(
                         "() => (document.querySelector('[data-testid=\"breadth-charts-v2\"]')"
                         " || document.querySelector('main') || document.body).outerHTML")
+                    dom = normalise_dom(dom)
                     (into / "dom" / f"{case}.html").write_text(dom, encoding="utf-8",
                                                               newline="")
                     manifest["cases"][case] = {
@@ -458,59 +557,129 @@ def capture(into: pathlib.Path) -> dict:
 
 
 # ── Compare ──────────────────────────────────────────────────────────────────────────
-def pixel_diff(a: pathlib.Path, b: pathlib.Path) -> int:
-    """Number of differing pixels. ⛔ Not a boolean: "how different" is the fact a
-    reviewer needs, and a boolean cannot tell a re-render from a redesign."""
+#: Grey levels of per-launch rasterisation noise to ignore. ⛔ MEASURED, NOT GUESSED.
+#:
+#: Goldens re-checked SECONDS after recording, same build, same tree, differed by 4 px at
+#: 1280 and 13 px at 380. Every differing pixel was off by exactly ONE level on each
+#: channel (17 vs 16, 27 vs 26, 33 vs 32). Cropping the disputed region identified it: the
+#: Breadth TAB BAR's rounded gold pill, i.e. the antialiased edge of a rounded rect.
+#: Chromium rasterises that marginally differently per launch and the usual determinism
+#: flags (`--font-render-hinting=none`, `--disable-lcd-text`,
+#: `--disable-font-subpixel-positioning`, `--force-color-profile=srgb`) did NOT remove it.
+#:
+#: ⭐ The alternative was worse. Left unbounded, every run reports a handful of differing
+#: pixels, the checker is red on every run, and a rail that cries wolf is muted within a
+#: week — after which the V1 regression it exists to catch ships unnoticed.
+#:
+#: ⛔ 1, AND NOT A PIXEL MORE. This must never grow to "make the check pass": a real
+#: regression moves geometry or changes a colour materially, and `--self-check` proves a
+#: TWO-level change on a single pixel is still caught.
+ANTIALIAS_TOLERANCE = 1
+
+
+def pixel_diff(a: pathlib.Path, b: pathlib.Path, tol: int = ANTIALIAS_TOLERANCE) -> int:
+    """Pixels differing by MORE than `tol` on any channel.
+
+    ⛔ Not a boolean: "how different" is the fact a reviewer needs, and a boolean cannot
+    tell a re-render from a redesign. `-1` means the images are different sizes, which is
+    a different kind of fact again and must not be counted as "some pixels".
+    """
     from PIL import Image, ImageChops
     ia, ib = Image.open(a).convert("RGB"), Image.open(b).convert("RGB")
     if ia.size != ib.size:
         return -1
     raw = ImageChops.difference(ia, ib).tobytes()
-    # Three bytes per pixel; a pixel differs if ANY channel does.
-    return sum(1 for i in range(0, len(raw), 3) if raw[i] or raw[i + 1] or raw[i + 2])
+    # Three bytes per pixel; a pixel counts if ANY channel exceeds the tolerance.
+    return sum(1 for i in range(0, len(raw), 3)
+               if raw[i] > tol or raw[i + 1] > tol or raw[i + 2] > tol)
+
+
+#: Run-to-run PNG noise on the SAME build, measured 2026-09-17 across several full runs:
+#: `v22__max__1280` 32 px, `off__365__1280` 17 px, a few cases 13 or 4, most 0. Every
+#: instance was the same shape — a narrow vertical strip over the y-axis LABEL column, or
+#: a few pixels of the tab bar's rounded pill, rasterised at a different subpixel offset
+#: per browser launch. Max channel delta 15; most were 1.
+#:
+#: ⚰️ I FIRST WROTE THAT THE FLAG-OFF CASES WERE "DETERMINISTIC AT ZERO" AND HELD THEM TO
+#: ZERO. That was a conclusion from ONE sample in which they happened to come back clean;
+#: the very next run moved `off__365__1280` by 17 px, twice. Two points do not establish a
+#: rate, and one point does not establish determinism. The budget applies to EVERY case.
+#:
+#: ⛔ THIS IS A LABEL, NOT A LICENCE, and it is not what protects V1. Exactness lives in
+#: the normalised DOM, which IS byte-stable (16/16 across two full runs, measured after it
+#: was 4/16 un-normalised). Pixels decide "does this look different to a human"; bytes
+#: decide "did the structure move". Raising this number to quiet a red is how the rail
+#: dies — if pixels move past it, look at the crop before touching this.
+PNG_NOISE_BUDGET = 64
+
+
+def _dom_of(root: pathlib.Path, name: str) -> str | None:
+    p = root / "dom" / (name[:-4] + ".html")
+    return p.read_text(encoding="utf-8") if p.is_file() else None
 
 
 def check(shots: pathlib.Path, goldens: pathlib.Path) -> int:
     """Compare shots to goldens, and SAY WHICH KIND of difference each one is.
 
-    ⛔⛔ THE FLAG-OFF SHOTS CARRY AN INVARIANT THE OTHERS DO NOT. `off__*` is V1 — the
-    shipped product every member sees today — and it must not move by one pixel while
-    V2-2 and V2-3 are built behind a dark flag. A change there is a REGRESSION and the
-    exit code says so.
+    ⛔⛔ THE FLAG-OFF CASES CARRY AN INVARIANT THE OTHERS DO NOT. `off__*` is V1 — the
+    shipped product every member sees today — and it must not move while V2-2 and V2-3
+    are built behind a dark flag. It is held to an EXACT normalised DOM, and to the same
+    measured pixel budget as everything else. A change there is a REGRESSION and the exit
+    code says so.
 
     ⭐ A change in `v22__*`/`v23__*`/`both__*` is the increments being BUILT: expected,
-    reviewable, and not a failure. Reporting both as one red is how a rail gets muted
-    inside a week (`lesson_a_guard_that_tests_the_adjacent_thing`) — a checker that
-    cries wolf on the intended change trains everyone to pass `--update-goldens`
-    without looking, which is precisely how a real V1 regression would then slip
-    through.
+    reviewable, not a failure. Reporting both as one red is how a rail gets muted inside a
+    week — and a muted rail is how the V1 regression it exists to catch would then ship.
+
+    ⭐ THE DOM IS THE PRECISE RAIL; THE PNG IS FOR HUMAN EYES. The captured DOM is
+    normalised (React ids, UIcon gradient counter, ECharts instance ids) and is then
+    byte-stable 16/16 across full runs — measured, after it was 4/16 without. Pixels
+    cannot be made that stable here, so structure is judged by bytes and appearance by
+    pixels, each where it is trustworthy.
     """
     if not goldens.is_dir():
         sys.exit(f"no goldens at {goldens} — capture and review them first, then "
                  f"--update-goldens")
-    regressions, expected = [], []
+    regressions, expected, noise = [], [], []
     for png in sorted(shots.glob("*.png")):
         g = goldens / png.name
-        bucket = regressions if png.name.startswith("off__") else expected
+        is_off = png.name.startswith("off__")
+        bucket = regressions if is_off else expected
         if not g.is_file():
             bucket.append(f"{png.name}: NEW, no golden")
             continue
+
         d = pixel_diff(png, g)
         if d == -1:
             bucket.append(f"{png.name}: SIZE changed")
         elif d:
-            bucket.append(f"{png.name}: {d} px differ")
+            # ⛔ The SAME budget for every case, flag-off included. See PNG_NOISE_BUDGET:
+            # holding `off__*` to zero was a claim from a single clean sample and the next
+            # run disproved it. The DOM comparison below is what keeps V1 exact.
+            if d <= PNG_NOISE_BUDGET:
+                noise.append(f"{png.name}: {d} px (within the measured noise floor)")
+            else:
+                bucket.append(f"{png.name}: {d} px differ")
+
+        a, b = _dom_of(shots, png.name), _dom_of(goldens, png.name)
+        if a is not None and b is not None and a != b:
+            bucket.append(f"{png.name}: DOM changed (normalised)")
+
     for g in sorted(goldens.glob("*.png")):
         if not (shots / g.name).is_file():
             regressions.append(f"{g.name}: golden has no shot — a case disappeared")
 
+    if noise:
+        print("noise only (no product change):")
+        for b in noise:
+            print("  " + b)
     if expected:
         print("EXPECTED (the dark increments changing — review, then --update-goldens):")
         for b in expected:
             print("  " + b)
     if regressions:
         print()
-        print("⛔ REGRESSION — the flag-OFF surface is what members see TODAY:")
+        print("REGRESSION — the flag-OFF surface is what members see TODAY:")
         for b in regressions:
             print("  " + b)
         return 1
@@ -522,30 +691,43 @@ def check(shots: pathlib.Path, goldens: pathlib.Path) -> int:
 
 
 def self_check() -> int:
-    """⛔ PROVE THE DIFFER CAN FAIL. A comparison nobody has seen go red is not a rail —
-    and a 1-pixel change is the smallest real regression, so that is the control."""
+    """⛔ PROVE THE DIFFER CAN FAIL, AND PROVE ITS TOLERANCE IS BOUNDED.
+
+    A comparison nobody has seen go red is not a rail. And a tolerance nobody has seen
+    REFUSE to absorb a change is just a blindfold with a comment — so this checks both
+    directions: the antialias noise is absorbed, and one level past it is caught.
+    """
     from PIL import Image
     import tempfile
 
     with tempfile.TemporaryDirectory() as td:
         t = pathlib.Path(td)
-        a, b = t / "a.png", t / "b.png"
-        img = Image.new("RGB", (40, 30), (12, 34, 56))
-        img.save(a)
-        img2 = img.copy()
-        img2.putpixel((20, 15), (12, 34, 57))   # ONE pixel, ONE channel, by ONE
-        img2.save(b)
+        base = Image.new("RGB", (40, 30), (12, 34, 56))
+        a = t / "a.png"; base.save(a)
 
-        one = pixel_diff(a, b)
+        # every pixel off by exactly the tolerance -> absorbed
+        noisy = Image.new("RGB", (40, 30),
+                          (12 + ANTIALIAS_TOLERANCE, 34 + ANTIALIAS_TOLERANCE,
+                           56 + ANTIALIAS_TOLERANCE))
+        n = t / "noise.png"; noisy.save(n)
+
+        # ONE pixel, ONE channel, ONE level PAST the tolerance -> caught
+        m = base.copy()
+        m.putpixel((20, 15), (12, 34, 56 + ANTIALIAS_TOLERANCE + 1))
+        b = t / "b.png"; m.save(b)
+
+        c = t / "c.png"; Image.new("RGB", (41, 30), (12, 34, 56)).save(c)
+
         same = pixel_diff(a, a)
-        resized = t / "c.png"
-        Image.new("RGB", (41, 30), (12, 34, 56)).save(resized)
-        sized = pixel_diff(a, resized)
+        absorbed = pixel_diff(a, n)
+        caught = pixel_diff(a, b)
+        sized = pixel_diff(a, c)
 
-    ok = (one == 1 and same == 0 and sized == -1)
-    print(f"  identical images        -> {same} px      (want 0)")
-    print(f"  ONE pixel, ONE channel  -> {one} px      (want 1)")
-    print(f"  different size          -> {sized}       (want -1)")
+    ok = (same == 0 and absorbed == 0 and caught == 1 and sized == -1)
+    print(f"  identical images                  -> {same} px      (want 0)")
+    print(f"  every pixel off by {ANTIALIAS_TOLERANCE} (the noise)   -> {absorbed} px      (want 0)")
+    print(f"  ONE pixel, {ANTIALIAS_TOLERANCE + 1} levels (a real change) -> {caught} px      (want 1)")
+    print(f"  different size                    -> {sized}       (want -1)")
     print("SELF-CHECK PASS" if ok else "SELF-CHECK FAIL")
     return 0 if ok else 1
 
@@ -572,6 +754,13 @@ def main() -> int:
             GOLDEN.mkdir(parents=True, exist_ok=True)
             for f in list(OUT.glob("*.png")) + [OUT / "manifest.json"]:
                 (GOLDEN / f.name).write_bytes(f.read_bytes())
+            # ⛔ The DOM is the PRECISE rail — a golden set without it silently
+            # degrades to pixels only, and `_dom_of` would return None on both
+            # sides, which compares equal. A rail that passes by having nothing
+            # to compare is the vacuity this repo keeps paying for.
+            (GOLDEN / "dom").mkdir(exist_ok=True)
+            for f in (OUT / "dom").glob("*.html"):
+                (GOLDEN / "dom" / f.name).write_bytes(f.read_bytes())
             print(f"goldens updated from {OUT} — REVIEW THE DIFF BEFORE COMMITTING")
             return 0
         if a.check:

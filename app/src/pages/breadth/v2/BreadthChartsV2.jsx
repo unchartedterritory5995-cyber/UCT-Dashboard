@@ -17,16 +17,21 @@ import { useDcFlags } from './flag'
 import { buildOption } from './chartOption'
 import { panelsFor } from './panels'
 import { todayET, shiftISO } from '../sessionDates'
+import { defaultSelectionFor } from './defaults'
 
-/** V1's own default selection and window, so the two shells open on the same view. */
-const DEFAULT_KEYS = ['breadth_score', 'pct_above_50sma']
 const DEFAULT_WINDOW_DAYS = 90
 
-export default function BreadthChartsV2({ keys = DEFAULT_KEYS, from, to }) {
+export default function BreadthChartsV2({ keys, from, to }) {
   // Eastern, like every other session date in this programme (A-35).
   const today = todayET()
-  const s = useBreadthSeries(keys, from ?? shiftISO(today, -DEFAULT_WINDOW_DAYS), to ?? today)
   const { v22 } = useDcFlags()
+  // ⛔ THE DEFAULT DEPENDS ON THE FLAG (D-052). V1's two percentage metrics are ONE unit
+  // family, so V2-2's split produced a single panel on first load and the feature was
+  // invisible to a member and to a reviewer. With V2-2 on, the default adds the most-used
+  // non-percentage metric so the stack is visible immediately. ⛔ With it OFF the default
+  // is V1's exactly — the flag-off path must not diverge by even one key.
+  const selection = keys ?? defaultSelectionFor({ v22 })
+  const s = useBreadthSeries(selection, from ?? shiftISO(today, -DEFAULT_WINDOW_DAYS), to ?? today)
 
   // Which unit families the reader has asked to see on a log scale.
   const [logPanels, setLogPanels] = useState(() => new Set())
