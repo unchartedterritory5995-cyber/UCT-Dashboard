@@ -165,6 +165,47 @@ def _notebook_flags() -> dict:
     return out
 
 
+#: Breadth Data Charts V2 increments. ⛔ BOTH ARE ENABLEMENT GATES: unset means "not
+#: released yet", so a forgotten variable can never expose a surface nobody decided to
+#: ship. Same polarity as the Technical tab and S7, the opposite of the hub KILL switch.
+BREADTH_DC_FLAGS = {
+    "BREADTH_DC_V2_2_ENABLED": False,   # enablement — stacked panels
+    "BREADTH_DC_V2_3_ENABLED": False,   # enablement — honest coverage + long history
+}
+
+
+def _breadth_dc_flags() -> dict:
+    """Data Charts V2 capability flags, read from the environment PER REQUEST.
+
+    ⭐ RIDES THIS PAYLOAD RATHER THAN A NEW `/api/flags`, and that is a decision the repo
+    already made and recorded: `kill-switch-spec.md` first specified `GET /api/config` and
+    **struck it on the day it was written**, because this app treats the absence of a
+    config endpoint as deliberate and a second mechanism would be a second authority. It
+    would also reach members LATER — a boot-read needs a reload, while this arrives on the
+    next authenticated request.
+
+    ⚰️ THIS REPLACES A BUILD-TIME FLAG, AND THAT IS THE WHOLE POINT. V2-1 shipped behind
+    `VITE_BREADTH_CHARTS_V2_ENABLED`, which is compiled into the bundle — so a flip is a
+    rebuild and a deploy, a rollback is a deploy, and a per-owner preview cannot be
+    expressed at all because there is only one bundle. Read here, per request, all three
+    become real.
+
+    ⛔ AN UNRECOGNISED VALUE TAKES THE DEFAULT, never the opposite of it — a typo'd
+    "flase" must not turn a dark surface on. Copied deliberately from `_notebook_flags`
+    rather than reimplemented, so the two cannot drift.
+    """
+    out = {}
+    for env_name, default_on in BREADTH_DC_FLAGS.items():
+        raw = os.environ.get(env_name)
+        if raw is None:
+            value = default_on
+        else:
+            v = raw.strip().lower()
+            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
+        out[env_name.lower()] = value
+    return out
+
+
 def _access_payload(user: dict, plan: str) -> dict:
     """Shared access fields for every auth response (signup/login/me).
 
@@ -248,6 +289,11 @@ def _access_payload(user: dict, plan: str) -> dict:
         # reached members LATER, since a boot-read needs a reload while this
         # arrives on the next authenticated request.
         **_notebook_flags(),
+        # ── Breadth Data Charts V2 (DC-2) — same request-time read, enablement
+        # polarity, and the same reason for riding this payload instead of a new
+        # endpoint. See `_breadth_dc_flags` for why the VITE_ build-time flag was
+        # replaced rather than extended.
+        **_breadth_dc_flags(),
     }
 
 
