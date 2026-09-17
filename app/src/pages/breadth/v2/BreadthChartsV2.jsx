@@ -18,13 +18,14 @@ import { buildOption } from './chartOption'
 import { panelsFor } from './panels'
 import { todayET, shiftISO } from '../sessionDates'
 import { defaultSelectionFor } from './defaults'
+import { coverageModel } from './coverage'
 
 const DEFAULT_WINDOW_DAYS = 90
 
 export default function BreadthChartsV2({ keys, from, to }) {
   // Eastern, like every other session date in this programme (A-35).
   const today = todayET()
-  const { v22 } = useDcFlags()
+  const { v22, v23 } = useDcFlags()
   // ⛔ THE DEFAULT DEPENDS ON THE FLAG (D-052). V1's two percentage metrics are ONE unit
   // family, so V2-2's split produced a single panel on first load and the feature was
   // invisible to a member and to a reviewer. With V2-2 on, the default adds the most-used
@@ -37,10 +38,25 @@ export default function BreadthChartsV2({ keys, from, to }) {
   const [logPanels, setLogPanels] = useState(() => new Set())
   const panels = useMemo(() => panelsFor(s.keys ?? []), [s.keys])
 
+  // ⛔⛔ V2-3's MODEL IS NULL WHENEVER IT HAS NOTHING HONEST TO SAY, and the option then
+  // receives `coverage: null` and contributes no keys — so with coverage absent the
+  // rendered tree is IDENTICAL to V2-2's. That equality is the owner's rail, and it is
+  // structural here rather than a promise: there is no branch that draws empty chrome.
+  const coverage = useMemo(() => {
+    if (!v23 || !s.series || !s.dates?.length) return null
+    return coverageModel({
+      dates: s.dates,
+      valuesByKey: s.series,
+      keys: s.keys,
+      reconstructed: s.reconstructed,
+      panels,
+    })
+  }, [v23, s.series, s.dates, s.keys, s.reconstructed, panels])
+
   const option = useMemo(() => {
     if (!v22 || !s.series || !s.dates?.length) return null
-    return buildOption(s.dates, s.series, s.keys, { logPanels })
-  }, [v22, s.series, s.dates, s.keys, logPanels])
+    return buildOption(s.dates, s.series, s.keys, { logPanels, coverage })
+  }, [v22, s.series, s.dates, s.keys, logPanels, coverage])
 
   function toggleLog(unit) {
     setLogPanels(prev => {
@@ -117,6 +133,17 @@ export default function BreadthChartsV2({ keys, from, to }) {
               {r.reason}
             </p>
           ))}
+          {coverage?.era && (
+            // A-11 "Era comparability" (01-audit.md:309-311). ⛔ The numbers are the
+            // WINDOW'S OWN — the audit's 1,521 → 2,648 is illustrative, and pasting it
+            // would be a second authority over a value the data already holds.
+            <p role="status" data-testid="v2-era-note">
+              {coverage.era.text}
+              {coverage.era.swap && (
+                <button type="button" data-testid="v2-era-swap">Use %</button>
+              )}
+            </p>
+          )}
           <ReactECharts
             option={option}
             style={{ height: Math.max(320, panels.length * 190), width: '100%' }}
