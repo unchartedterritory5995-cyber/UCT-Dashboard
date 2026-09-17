@@ -35,14 +35,29 @@ backwards (200 → 200 → 203; 251 → 255). The counter is durable in producti
 argued. `previous` is still **0**. ⚠️ The SPAN condition is untouched: `since` is TODAY, so the
 earliest qualifying window still closes **Friday ~08:23 ET**.
 
-⛔⛔ **AND THE POD RESTARTS EVERY 20–35 MINUTES ON ONE COMMIT** — `12:22:35Z`, `12:58:50Z`,
-`13:14:55Z`, all `d9455a6d64a5`, no push between them. **Every artifact in this programme sizes
-exposure against "~20 deploys/day".** If pods also restart themselves 2–3×/hour, the boot storm
-runs far more often than that, each run is a fresh tier-1 page opportunity, and in-process state is
-erased that often. ⛔ **NOT EXPLAINED, AND NOT TO BE GUESSED**: a platform cycle, an OOM kill, a
-healthcheck failure and a crash-respawn are four different things and the discriminator is the
-pod's own exit, which neither the stall record nor this trace can see. Upstream of this programme;
-the next measurement.
+⛔⛔ **A CLAIM MADE AND WITHDRAWN IN THE SAME SESSION — read this before quoting anything above.**
+For forty minutes this block said *"the pod restarts every 20–35 minutes on one commit"* and drew
+an exposure argument from it. **It was wrong.** `railway deployment list --service web` shows every
+one of those uptime collapses is a **deploy**: `f75bcd8d8` → `2aa0594b0` → `d9455a6d6` →
+`d9455a6d6` (redeploy) → `26147924d` (13:11:01Z, REMOVED) → `26147924d` (13:17:12Z, SUCCESS, live).
+Another workstream merged to master mid-session. ⛔ **The ~20-deploys/day figure is INTACT** and the
+exposure argument is withdrawn.
+
+⭐ **How it happened, because it is the lesson:** the analysis printed a table of
+`t · uptime_s · current · previous · slots_since` and **omitted `sha`** — the one column that
+answers *"is this the same code?"* — then filled the gap from a `/renderhealth` reading taken 35
+minutes earlier. The trace had the change recorded faithfully (`13:13:31Z sha=d9455a6d64a5` →
+`13:15:34Z sha=26147924dcbd`). **The instrument was right; the analysis dropped the column.** A
+kind-2 proxy failure — *uptime collapse* standing in for *restart cause* — committed an hour after
+writing the warning about kind-2 proxy failures. Full account:
+`evidence/oi44-attribution/2026-09-17-boot-storm.md` §6.
+
+⭐ **R29's durability gets STRONGER from the correction, not weaker:** the counter survived a
+deploy **to a different commit**, not merely a restart — `slots_since` held, `current` went
+251 → 255 across the swap.
+
+⚠️ **Live commit is now `26147924dcbd`, not `d9455a6d64a5`.** Re-read `/renderhealth` before
+trusting any commit written above; and note the smoke rows from 09:15 ET ran on the new one.
 
 ---
 

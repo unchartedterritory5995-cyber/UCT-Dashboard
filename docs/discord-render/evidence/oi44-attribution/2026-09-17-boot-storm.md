@@ -179,3 +179,74 @@ or a crash-and-respawn. The discriminator is the pod's own exit — a restart wi
 or an OOM signature looks nothing like a graceful platform cycle, and **neither the stall record
 nor this trace can tell them apart.** That is the next measurement, and it is upstream of the
 render programme rather than inside it.
+
+---
+
+## §6 — ⛔⛔ CORRECTION, WRITTEN 40 MINUTES AFTER §5: THOSE WERE DEPLOYS, NOT SPONTANEOUS RESTARTS
+
+**§5's headline — "three pod restarts in 55 minutes, all on the same commit, no push between
+them" — is WRONG, and the error is the exact class this document spends §3 warning about.**
+
+`railway deployment list --service web --json`, read at 09:22 ET, is the authority:
+
+| createdAt (UTC) | commit | status |
+|---|---|---|
+| 03:14:59 | `9081799f2` | REMOVED |
+| 11:48:41 | `9081799f2` | REMOVED *(redeploy, same commit)* |
+| 12:04:38 | `f75bcd8d8` | REMOVED |
+| 12:17:53 | `2aa0594b0` | REMOVED |
+| 12:20:08 | `d9455a6d6` | REMOVED ← **the W1 merge** |
+| 12:57:47 | `d9455a6d6` | REMOVED *(redeploy, same commit)* |
+| 13:11:01 | `26147924d` | **REMOVED** |
+| 13:17:12 | `26147924d` | **SUCCESS — live now** |
+
+Every uptime collapse §5 read as a "restart" is a **deploy** in that list. Another workstream
+(breadth) merged `26147924d` to master while this session was running.
+
+### How the mistake was made, because it is the instructive part
+
+⛔ **I printed a table of `t · uptime_s · current · previous · slots_since` and left out `sha` —
+the one column that answers "is this the same code?" — and then filled the gap from
+`/renderhealth`'s reading taken THIRTY-FIVE MINUTES EARLIER.** The trace had recorded the change
+faithfully:
+
+```
+13:13:31Z  sha=d9455a6d64a5  uptime=894
+13:14:32Z  gap (probe failed — the swap)
+13:15:34Z  sha=26147924dcbd  uptime=39      <-- A DIFFERENT COMMIT, right there in the data
+```
+
+⭐ **The instrument was right; the analysis dropped the column and the conclusion filled the hole
+with a stale fact.** That is a kind-2 proxy failure — *uptime collapse* standing in for *restart
+cause* — committed an hour after §3 of this same file warned about kind-2 proxy failures. **A rule
+you have just written down is not a rule you have internalised.**
+
+### What survives, what dies, and what gets STRONGER
+
+- ✅ **R29's durability survives and is STRONGER than §5 claimed.** The counter did not merely
+  survive a restart — it survived a **deploy to a different commit** (`d9455a6d64a5` →
+  `26147924dcbd`): `slots_since` held at `12:23:20Z` and `current` went `251 → 255` across the
+  swap. That is a better proof than the one §5 wrote.
+- ❌ **"The exposure arithmetic changes" is WITHDRAWN.** The programme's ~20-deploys-a-day figure
+  is **intact**; today is an ordinary busy deploy day driven by another workstream. The boot storm
+  runs once per deploy, as everyone already believed.
+- ❌ **"NOT EXPLAINED … a platform restart, an OOM kill, a healthcheck failure"** is withdrawn.
+  There was nothing to explain. ⚠️ Keep the *method* note, though: the discriminator for a real
+  spontaneous restart would still be the pod's own exit, and neither instrument can see it.
+
+### And the ack failure at 13:19 was a DEPLOY, not a stall
+
+`/flow SPY` fired at 13:19 and Discord answered **"❗ The application did not respond"**. The log
+at `13:19:34` is a pod BOOT (`apscheduler: Adding job tentatively — it will be properly scheduled
+when the scheduler starts`), and the deploy list shows `26147924d` SUCCESS at `13:17:12`.
+
+⛔ **So that is NOT a C-02 loop-stall ack failure and must never be cited as one.** It is an
+interaction that arrived while the pod was coming up. ⚠️ The same correction reaches the two
+`"Loading options failed"` autocompletes at ~13:16/13:18 — they sit in the same swap window.
+
+⭐ **What IS real in that sequence, and is somebody else's rule to keep:** `26147924d` was
+deployed at **13:11:01 and again at 13:17:12**, the first marked **REMOVED** by the second —
+a **stacked push six minutes apart**, the precise failure the repo's own deploy rules forbid
+(*"a push is not clear until its web deploy reaches SUCCESS"*). The member-visible cost of that
+stack is the "did not respond" above. Recorded here because this session observed it; it belongs
+to the workstream that pushed it.

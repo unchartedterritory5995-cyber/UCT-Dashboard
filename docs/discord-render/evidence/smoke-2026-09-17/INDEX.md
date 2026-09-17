@@ -123,3 +123,28 @@ surface, seen from the product rather than from an instrument.
 minute** (13:10:03, 13:11:04, 13:12:05, 13:13:13, 13:14:08 …), 3–5 charts a cycle, forever. At
 boot it overran its own 20 s budget twice. It is not a boot-only job; it is a standing consumer of
 the same valve and loop that `/flow`, `/chart` and every autocomplete need.
+
+---
+
+## ⛔⛔ CORRECTION — the header's "commit live for the whole run" is WRONG for rows 5 and 6
+
+`railway deployment list --service web` (read 09:22 ET) shows **`26147924d` SUCCESS at 13:17:12Z**,
+and the R31 trace stamps the change at `13:15:34Z`. So:
+
+| rows | commit actually live |
+|---|---|
+| 1, 4, 8, 9, 10, 11, 12, 13, 14 *(08:30–08:40 ET)* | **`d9455a6d64a5`** — as the header says, and `/renderhealth` read it in-product at 08:40 |
+| 5 SPY refusal *(09:09 ET)* | **`d9455a6d64a5`** (the deploy of `26147924d` landed at 13:11 = 09:11 ET) |
+| 6 NVDA PASS *(09:15 ET)* | ⛔ **`26147924dcbd`** — a DIFFERENT commit, merged by the breadth workstream mid-run |
+
+⭐ **Row 6 still passes** — nothing in `26147924d` touches the flow path, and the card it returned
+is unambiguous — **but the row's evidence identity must name the commit it actually ran on.** The
+SPY-vs-NVDA pair that killed the pre-market hypothesis spans the swap: SPY on `d9455a6d64a5` at
+09:09, NVDA on `26147924dcbd` at 09:15. ⚠️ **That weakens the pair from "same pod, same commit" to
+"same pre-market session, six minutes apart, across a deploy."** The conclusion survives — a feed
+that answers an equity read in seconds is not a feed that is reconnecting — but it is no longer
+the clean single-pod control it was written as, and it should not be quoted as one.
+
+⛔ **And "The application did not respond" at 09:19 ET was the 13:17:12Z deploy's pod coming up,
+not an ack failure of the kind this programme is about.** See
+`evidence/oi44-attribution/2026-09-17-boot-storm.md` §6.
