@@ -579,6 +579,23 @@ gate_shards.load_baseline = lambda: {{"measured_at": "rail", "sha": "0" * 40, "f
 # and `exclude_reasons`, and all three rails in this file went red together with a
 # TypeError that never reached a manifest. A stub that must be hand-synced with
 # the function it wraps is a second authority over one signature.
+# ⛔⛔ THE CHILD MUST STUB THE SWEEP TOO, AND THE PARENT'S autouse FIXTURE CANNOT REACH IT.
+# `do_not_build_sweep()` shells out to `tools/q1_do_not_build_sweep.py`, measured at **114.7s**
+# on 2026-09-15 and slower since (the tree has grown to ~9,866 files). `run_gate` calls it with
+# no runner, so every `_drive` child paid a full repo scan — seven of them, ~13 minutes of pure
+# waste for a manifest field not one test in this file reads.
+#
+# ⚰️ THIS WAS A KNOWN, WRITTEN-DOWN COST THAT THEN CAUSED A FAILURE NOBODY CONNECTED TO IT. The
+# autouse stub's own docstring said the `_drive` children "still pay the sweep ... Stated, not
+# hidden" — and when the scoped suite started dying at ~47%% with no totals line, four separate
+# hypotheses were tested and discarded (contention, pytest-randomly, master's conftest, a missing
+# `run_shard_fn` seam) before anyone re-read the sentence that already named it. A cost you have
+# documented is not a cost you have bounded.
+#
+# ⛔ The parent's monkeypatch is process-local. `_drive` spawns a CHILD, so the stub has to be
+# INSIDE this template or it does not exist where it matters.
+gate_shards.do_not_build_sweep = lambda *a, **k: {{
+    "ran": True, "clean": True, "hits": [], "output": "", "stubbed_by": "_DRIVER"}}
 _SEAMS = ("tree_state_fn", "run_shard_fn", "file_count_fn")
 gate_shards.run_gate = lambda shards, od, **kw: _real(
     shards, od,
