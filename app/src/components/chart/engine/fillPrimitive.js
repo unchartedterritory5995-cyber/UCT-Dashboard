@@ -42,7 +42,7 @@ import { withAlpha } from '../designTokens'
  * "too small to matter" is a judgement the renderer is not entitled to make.
  * The DRAW step decides what a one-bar span looks like in pixels.
  */
-export function fillRuns(upper, lower) {
+export function fillRuns(upper, lower, colors) {
   // ⛔⛔ NOT `Array.isArray`. THIS ENGINE'S COLUMNS ARE TYPED ARRAYS.
   // ⚰️ MEASURED ON THE LIVE CHART: `up=600/581 lo=600/581 … runs=0`. Both columns
   // held 581 finite values, every coordinate resolved, the fill style was valid —
@@ -52,14 +52,38 @@ export function fillRuns(upper, lower) {
   // A length check accepts both, which is what "a column" has always meant here.
   const len = (a) => (a && typeof a.length === 'number' ? a.length : 0)
   const n = Math.min(len(upper), len(lower))
+  // ⭐⭐ R30 — A RUN ALSO ENDS WHERE THE COLOUR CHANGES, AND `null` ENDS ONE
+  // WITHOUT STARTING ANOTHER. `colors` is the per-point array
+  // `columnColorsForPlot` yields for the fill exactly as for a plot; a `null`
+  // entry is an `na` condition (or a dynamic transparency), and R30 rules that
+  // such a bar is a GAP, never a guess — the same answer `toPoints` already gives
+  // a plot, where a non-finite condition gets no colour rather than the "false"
+  // one. Picking a side here would paint every warm-up bar the down colour, which
+  // reads as a real signal for as many bars as the condition's own lookback.
+  //
+  // ⛔ NO `colors` ⇒ IDENTICAL BEHAVIOUR, BY CONSTRUCTION. `dyn` is false, the
+  // colour comparison never runs, and `color` stays `undefined` — so a static
+  // fill segments exactly as it always has and its draw calls cannot move.
+  const dyn = len(colors) > 0
+  const colourAt = (i) => (dyn ? (colors[i] == null ? null : colors[i]) : undefined)
   const runs = []
   let start = -1
+  let runColour
   for (let i = 0; i < n; i += 1) {
-    const ok = Number.isFinite(upper[i]) && Number.isFinite(lower[i])
-    if (ok && start < 0) start = i
-    else if (!ok && start >= 0) { runs.push({ from: start, to: i - 1 }); start = -1 }
+    const c = colourAt(i)
+    const ok = Number.isFinite(upper[i]) && Number.isFinite(lower[i]) && c !== null
+    if (!ok) {
+      if (start >= 0) { runs.push({ from: start, to: i - 1, color: runColour }); start = -1 }
+      continue
+    }
+    if (start < 0) { start = i; runColour = c; continue }
+    if (dyn && c !== runColour) {
+      runs.push({ from: start, to: i - 1, color: runColour })
+      start = i
+      runColour = c
+    }
   }
-  if (start >= 0) runs.push({ from: start, to: n - 1 })
+  if (start >= 0) runs.push({ from: start, to: n - 1, color: runColour })
   return runs
 }
 
@@ -128,10 +152,26 @@ export function runPolygon(run, upper, lower, times, timeToX, priceToY) {
  * coordinate functions and assert the exact shapes — including that a gap
  * produces TWO polygons rather than one.
  */
-export function fillPolygons({ upper, lower, times, timeToX, priceToY }) {
-  return fillRuns(upper, lower)
-    .flatMap((run) => runPolygon(run, upper, lower, times, timeToX, priceToY))
-    .filter((poly) => poly.length >= 4)
+export function fillGroups({ upper, lower, times, colors, timeToX, priceToY }) {
+  return fillRuns(upper, lower, colors)
+    .map((run) => ({
+      color: run.color,
+      polys: runPolygon(run, upper, lower, times, timeToX, priceToY)
+        .filter((poly) => poly.length >= 4),
+    }))
+    .filter((group) => group.polys.length > 0)
+}
+
+/**
+ * Every polygon a fill draws this frame, flattened.
+ *
+ * ⛔ DELEGATES TO `fillGroups` RATHER THAN REPEATING IT. Two functions walking
+ * the same runs is two authorities on one geometry, and the moment one gains a
+ * rule the other lacks the band drawn and the band tested stop being the same
+ * shape. This is the flattening of the answer, not a second answer.
+ */
+export function fillPolygons(args) {
+  return fillGroups(args).flatMap((group) => group.polys)
 }
 
 /**
@@ -157,22 +197,40 @@ export function createFillPrimitive(initial) {
     renderer: () => ({
       draw: (target) => {
         if (!series || !chart) return
-        const { upper, lower, times } = opts
+        const { upper, lower, times, colors } = opts
         if (!upper || !lower || !times) return
         const ts = chart.timeScale()
         const timeToX = (t) => { try { return ts.timeToCoordinate(t) } catch { return null } }
         const priceToY = (p) => { try { return series.priceToCoordinate(p) } catch { return null } }
-        const polys = fillPolygons({ upper, lower, times, timeToX, priceToY })
-        if (!polys.length) return
+        const groups = fillGroups({ upper, lower, times, colors, timeToX, priceToY })
+        if (!groups.length) return
+        // ⭐⭐ R30 — ONE `fillStyle` PER RUN when the fill is colour-driven, and ONE
+        // FOR THE WHOLE FRAME when it is not.
+        //
+        // ⛔ THE STATIC CASE IS NOT A SECOND PATH, IT IS THE DEGENERATE ONE, and it
+        // is written this way on purpose: a single-colour band is ONE run however
+        // many polygons an `na` hole splits it into, so its call list is what it
+        // has always been. Setting the style per GEOMETRY run instead would make a
+        // shipped band with a gap start assigning `fillStyle` three times — a
+        // change to the drawing of every fill nobody made dynamic.
+        //
+        // ⛔ AND THE RUN COLOUR IS USED VERBATIM — no `withAlpha` here. The two
+        // colours arrive from `columnColorsForPlot`, which has ALREADY applied the
+        // fill's alpha through `twoColoursOf`; applying `opts.opacity` on top would
+        // dim them a second time and be a second authority over one value.
+        const dynamic = !!(colors && colors.length)
         target.useMediaCoordinateSpace(({ context: ctx }) => {
           ctx.save()
-          ctx.fillStyle = withAlpha(opts.color, opts.opacity) || opts.color
-          for (const poly of polys) {
-            ctx.beginPath()
-            ctx.moveTo(poly[0].x, poly[0].y)
-            for (let i = 1; i < poly.length; i += 1) ctx.lineTo(poly[i].x, poly[i].y)
-            ctx.closePath()
-            ctx.fill()
+          if (!dynamic) ctx.fillStyle = withAlpha(opts.color, opts.opacity) || opts.color
+          for (const group of groups) {
+            if (dynamic) ctx.fillStyle = group.color
+            for (const poly of group.polys) {
+              ctx.beginPath()
+              ctx.moveTo(poly[0].x, poly[0].y)
+              for (let i = 1; i < poly.length; i += 1) ctx.lineTo(poly[i].x, poly[i].y)
+              ctx.closePath()
+              ctx.fill()
+            }
           }
           ctx.restore()
         })

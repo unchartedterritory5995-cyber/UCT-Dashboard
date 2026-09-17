@@ -205,15 +205,55 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
     // the "false" colour, which reads as a real signal for as many bars as the
     // condition's own lookback. Omitting `color` leaves the series colour, which
     // is what an uncoloured point already means everywhere else in this file.
-    if (colColors && condColumn) {
-      const c = condColumn[i]
-      if (Number.isFinite(c)) {
-        out[i] = { time, value: v, color: c !== 0 ? colColors.up : colColors.down }
-        continue
-      }
-    }
+    const colour = pointColour(colColors, condColumn, i)
+    if (colour) { out[i] = { time, value: v, color: colour }; continue }
     out[i] = { time, value: v }
   }
+  return out
+}
+
+/**
+ * ⭐⭐ R10 — THE ONE PLACE A PER-POINT COLOUR IS DECIDED, for a plot and for a
+ * fill alike.
+ *
+ * `null` means "this bar has no colour of its own", and the two callers are
+ * entitled to answer that differently because they are drawing different things:
+ * a PLOT falls back to the series colour (an uncoloured point already means that
+ * everywhere in this file), and a FILL draws NOTHING (R30 — an `na` bar is a gap,
+ * never a guess). ⛔ What they must never differ on is WHICH bars have a colour
+ * and WHICH colour it is; that is this function, and there is one of it.
+ */
+function pointColour(colColors, condColumn, i) {
+  if (!colColors || !condColumn) return null
+  const c = condColumn[i]
+  // ⛔ A NON-FINITE CONDITION IS NOT `down`. `na` is the author saying nothing on
+  // that bar, and picking a side paints every warm-up bar the "false" colour —
+  // which reads as a real signal for as many bars as the condition's lookback.
+  if (!Number.isFinite(c)) return null
+  return c !== 0 ? colColors.up : colColors.down
+}
+
+/**
+ * ⭐⭐ (j) j.3 / R30 — THE PER-POINT COLOURS A FILL DRAWS WITH, or `null` when the
+ * fill's colour is static.
+ *
+ * ⛔ THE FILL SPEC GOES TO `columnColorsForPlot` VERBATIM — the same reader a
+ * PLOT goes to, because the contract settled at `2b99b6682` gives a fill the same
+ * three field names a plot uses (`colorMode`, `colorUp`, `colorDown`). A second
+ * resolver for "the two colours a per-point mode needs" is the second-authority
+ * defect `pool.js` already avoids once, and R10 forbids a second colour path.
+ *
+ * ⛔ THE DECIDING COLUMN IS LOOKED UP THROUGH THE SAME `bindingKey` every column
+ * in this pass is stored under, so a fill's colour rule can only ever name a
+ * column of its OWN instance.
+ */
+function fillColours(fillSpec, instanceId, columns, n) {
+  const cc = columnColorsForPlot(fillSpec)
+  if (!cc) return null
+  const cond = columns.get(bindingKey(instanceId, cc.key))
+  if (!cond) return null
+  const out = new Array(n)
+  for (let i = 0; i < n; i += 1) out[i] = pointColour(cc, cond, i)
   return out
 }
 
@@ -1283,6 +1323,7 @@ export function createBinder({ chart, LWC }) {
           fill.setOptions({
             upper: own, lower: other, times: bars.map((bar) => adjustTime(bar.t)),
             color: colour.color, opacity: colour.opacity,
+            colors: fillColours(fillSpec, b.instanceId, columns, bars.length),
           })
         }
       }
@@ -1340,6 +1381,9 @@ export function createBinder({ chart, LWC }) {
           h.setOptions({
             upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
             color: hc.color, opacity: hc.opacity,
+            // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
+            // a `display.none` anchor, so this is the site that colours a cloud.
+            colors: fillColours(hp.fill, b.instanceId, columns, bars.length),
           })
           kept.set(hp.key, h)
         }

@@ -71,9 +71,80 @@
 >
 > ✅ **Every one of the 13 attributed. Zero reds owned by this branch.**
 >
-> ### ⛔ NEXT: **Part 1.4 — push; PR #145 body only if `PR-BODY-COMBINED.md` moved.**
+> ✅ **PART 1 CLOSED** — pushed `7874ed73c..ab3d16a4d`. `PR-BODY-COMBINED.md` is
+> byte-identical to the posted body (`sha256 7f0fb15a…`), so #145's body was NOT
+> touched, which is what 1.4 conditions it on.
 >
-> ### ⛔ THEN: **(j) j.3 §1.2 — the red acceptance. The contract is SETTLED.**
+> ## ⭐⭐ j.3 — THE RENDERER HALF IS BUILT; THE TRANSLATOR HALF IS NOT STARTED
+>
+> ⛔⛔ **THE CENSUS OVERTURNED 2.2's PREMISE, AND IT IS THE WHOLE REASON j.3 SPLIT.**
+> 2.2 reads *"the binder hands `plot.fill` to `columnColorsForPlot`… both colours
+> through `staticColourOf`"*, which describes plumbing. Measured before building:
+>
+> | | measured |
+> |---|---|
+> | `presentation.fills` for Clouds | `{a, b}` — **20 fills, no colour field at all** |
+> | the pane document's `fill` | `{with}` only |
+> | `staticColourOf` on Clouds' own shape | **`{colorDynamic: true}`** — it does not fold |
+>
+> The three-plot probe is the decisive one: `color.new(#00FF00, 40)` carries,
+> `color.green` carries, and `isBullish ? getBullFillColor(0) : getBearFillColor(0)`
+> — Clouds' actual line 118 — does **not**. `staticColourOf` has no user-function
+> branch, and `color.new(base, t)` returns null when `t` is not a literal
+> (`pine.js:12359`); Clouds' `t` is `getAdjustedTransparency(layerIndex, …)`.
+> ⇒ **Carrying Clouds' fill colours needs a CONSTANT FOLDER over user functions**
+> (inline `getBull(0)`, fold `50 + (100−50)*(20/100)`, resolve `input.int`
+> defaults, then `color.new`). That is a **parser change whose re-baseline reaches
+> the corpus**, and the owner's own corollary governs it: *an atomic unit that
+> cannot finish inside the remaining clock is NOT STARTED; half-landed atomic work
+> is the worse outcome.* It is therefore **not begun**, and the insertion points
+> are pinned so the next block starts at implementation:
+> **`pine.js:11287`** (the fill's `outputPresentation` call passes `{ env }` with
+> NO `resolver`, so `carried` can never become true) and **`pine.js:11288`** (the
+> `fills.push` drops `colorUp`/`colorDown`/`colorCondition`), plus
+> **`staticColourOf` at `pine.js:12309`** (no user-function branch) and
+> **`memberPaneDefinition.js:~214`** (copies `f.color` only).
+>
+> ✅ **BUILT AND GREEN — R30's renderer and the carriage.** 10/10 on the acceptance,
+> every `it.fails` self-retired, **0 remaining**.
+> ⭐ **TWO-LEVEL SEGMENTATION IS THE DESIGN POINT.** Colour decides where
+> `fillStyle` changes; finiteness decides where polygons split. So a STATIC band
+> with an `na` hole is still ONE `fillStyle` over three polygons and j.2's call
+> list cannot move — had "run" meant one thing, every shipped band with a gap
+> would have started assigning `fillStyle` three times.
+>
+> **Mutation proof, five, byte-exact restore + `sha256 -c` between each:**
+> 1. swap `colorUp`/`colorDown` → RED ×4 **including `dynamicColourColumn`, the
+>    PLOT's own rail** — which is the proof `pointColour` is genuinely shared (R10)
+>    rather than copied.
+> 2. `fillStyle` once per frame → RED ×4 dynamic, **GREEN on both static controls**.
+> 3. `null` carries the previous colour → RED ×2 (the na case + the pure function).
+> 4. route around `columnColorsForPlot` → **RED ×1, the alpha rail ALONE.**
+>    ⚰️ Predicted before it was run and added for exactly that reason: the other
+>    nine cases declare no `opacity`, so both routes agreed and the mutation would
+>    have escaped. `twoColoursOf` is what folds a fill's alpha into BOTH colours;
+>    without it a cloud ships at full strength over the candles it sits behind.
+> 5. static segments as if dynamic → RED ×14 across 2 files (the pre-existing rail).
+>
+> EXIT lines: acceptance **10/10**; the five fill/colour rails **48/48**; chunk 1
+> (`binder.test.js` + `engine/__tests__`) **107 files / 2,106 passed / 32 skipped,
+> EXIT 0**; chunk 2 (memberPane + defSchema + pool + binder) **9 files / 361,
+> EXIT 0**.
+> ⚠️ **A WIDE RUN WAS OOM-KILLED** (`src/components/chart/engine` whole tree +
+> memberPane). A killed run is not a result and its partial log was not read as
+> one; the scope was CHUNKED and both chunks are above. Box was at 11.3 GB free
+> with other workstreams' python resident.
+>
+> ### ⛔ NEXT: **j.3b — the translator fold, at the four pinned sites above.**
+> It is a parser change: census the corpus blast radius FIRST (how many `color.new`
+> calls with a non-literal-but-constant alpha start carrying), because every one of
+> them changes a translation.
+>
+> ### ⛔ AND THE CONSEQUENCE FOR PARTS 3-4, STATED RATHER THAN DISCOVERED LATER:
+> Clouds' fills still carry **no** colour, so a capture today shows 20 bands in the
+> fallback colour — the state this file already predicted. **R29's condition is NOT
+> met and #145 STAYS DRAFT**, with the failed condition named: *the per-layer fill
+> colours are not carried, because the translator cannot fold them yet.*
 >
 > ✅ **j.1 and j.2 are BUILT** (`75be58693`, `8533faceb`). Clouds' 23 outputs reach
 > the pane document with their 20 fills, and **a fill between two hidden anchors
