@@ -561,12 +561,17 @@ def _cases() -> list[Case]:
                           + "| 1 | /chart | ✅ **PASS** |\n| 8 | /buzz | 🔴 **FAIL** |\n"),
           "an index with a red row", says_fail="FAIL mark",
           says_gone="a screenshot is not a verdict")
+    # ⚰️ `says=` WAS THE HAND-TYPED LITERAL "only 1/15". R16 moved the denominator to 14 and this
+    #    case went red with `want=NOT MET got=NOT MET` — the VERDICT was right and only the needle
+    #    was stale, which is the one failure shape that reads as a real regression and is not one.
+    #    Derive it from the constant that owns it; a retyped count beside its source is the drift
+    #    this repo has paid for in four separate artifacts.
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
-                   "2 of 15 rows PASS — a partial smoke is not a smoke",
+                   f"1 of {fp.SMOKE_ROWS_TOTAL} rows PASS — a partial smoke is not a smoke",
                    lambda r, s: _w(r / idx, SMOKE_TITLE
                                    + "| 1 | ✅ **PASS** |\n| 5 | 🟡 **PARTIAL** |\n"
                                      "| 2-15 | ⛔ **NOT RUN** |\n"),
-                   says="only 1/15"))
+                   says=f"only 1/{fp.SMOKE_ROWS_TOTAL}"))
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
                    "⛔ fifteen PASS marks spread over two indexes while rows are still NOT RUN — "
                    "the arithmetic flipping the row, not the evidence",
