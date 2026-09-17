@@ -116,7 +116,7 @@ command for per-member DEFAULTS and is reached from the picker, never from this 
 
 ## ⛔ Rows 2, 3, 5 and 7 cannot be run while V2 is dark — this is a property of the pod, not of the run
 
-All three assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is unset on
+All four assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is unset on
 `web` (confirmed in-product by `/renderhealth` on 2026-09-17: *"Render V2 is off
 (`DISCORD_RENDER_V2_ENABLED` unset)"*).
 
@@ -146,7 +146,14 @@ All three assert a **V2 renderer** contract, and `DISCORD_RENDER_V2_ENABLED` is 
   reconnecting"* — which satisfies "never silence" and says nothing about §5.
   ⇒ INCONCLUSIVE-BY-CONSTRUCTION unless the 10:00 ET run shows §5's shape.
 
-⭐ **These three are the same class as OI-45 and OI-47 one level up:** the behaviour is
+⚰️ **This heading and this paragraph both said THREE while the list held FOUR** (row 5 was added
+on 2026-09-17 and neither count moved with it) — the same defect as the writer-index `FOUR`, the
+COT router's *"4 routes"*, and the `says="only 1/15"` needle fixed in `mutation_harness_flipgate.py`
+the same morning: **a count typed beside the list it describes.** Corrected rather than re-typed
+where possible; here the prose genuinely needs a number, so it is stated once per sentence and the
+list below it is the authority.
+
+⭐ **These four are the same class as OI-45 and OI-47 one level up:** the behaviour is
 built, tested and mutation-covered, and the door to it is shut in production. A smoke
 that scores them as failures would be blaming the run for the flag.
 
