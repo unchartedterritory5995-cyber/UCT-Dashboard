@@ -284,6 +284,27 @@ def test_rail2_capture_against_real_vitest_produces_a_parseable_totals_line(tmp_
     import gate_shards
 
     app = gate_shards.APP
+
+    # ⛔⛔ OPT-IN, BECAUSE ITS COST IS UNBOUNDED AND VARIABLE — not because it is unimportant.
+    # This rail invokes `npx vitest` for real. Measured in this worktree: it completed inside a
+    # 102-second whole-suite run once, and on 2026-09-17 the SAME invocation blew `_capture`'s
+    # 300s ceiling and killed the run with no totals line. npx resolution plus a cold vitest
+    # config load is the variance; nothing about the rail's own assertions changed between those
+    # two runs. An unbounded external call sitting in the default path of a suite that gates a
+    # landing will eventually eat a landing, and it did.
+    #
+    # ⭐ SKIPPED LOUDLY, NEVER SILENTLY. `pytest.ini` sets `-ra`, so this reason is printed in
+    # every summary — a rail that opts itself out quietly is one that reads as verified while
+    # having asserted nothing (`lesson_a_rails_important_half_can_be_opt_in`).
+    #
+    #   RUN IT DELIBERATELY:  UCT_RUN_REAL_VITEST=1 python -m pytest     #       tests/test_gate_shards.py::test_rail2_capture_against_real_vitest_produces_a_parseable_totals_line -q
+    #
+    # ⛔ It is the ONLY thing that proves the far end of our pipe is really vitest and that
+    # `parse_totals` understands the format vitest emits TODAY — so it must be run before any
+    # change to `_capture`, `parse_totals`, or the vitest version. Do not let it rot.
+    if os.environ.get("UCT_RUN_REAL_VITEST") != "1":
+        pytest.skip("OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, "
+                    "unbounded; it killed a landing run on 2026-09-17")
     if not (app / "node_modules").exists():
         pytest.skip("app/node_modules absent — cannot invoke the real vitest")
 
