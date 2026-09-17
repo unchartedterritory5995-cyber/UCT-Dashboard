@@ -925,8 +925,22 @@ it does for a member. `/smoke-login` burns the token on first use.
 `web` only. **Removal instruction, to be run when the programme closes:**
 
 ```sh
-railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+railway variable delete SMOKE_LOGIN_LINK_ENABLED --service web
 ```
+
+⚰️ **The command above was `railway variables --service web --unset …` and that now ERRORS**
+(`unexpected argument '--unset'`). Railway CLI **v4.35.0** moved it to a subcommand, and the
+noun is **singular**: `railway variable delete KEY --service web`. Measured 2026-09-17 by the
+breadth/promotion-record session.
+
+⛔⛔ **AND THE HALF THAT ACTUALLY BITES: `--set` REDEPLOYS, `delete` DOES NOT.** Measured: nine
+minutes after a delete, no new deployment, `uptime_seconds` climbing 1508 → 2019 unbroken — so
+**the variable was gone from the SERVICE and still live in the PROCESS.** `--kv` read it as
+absent and the pod kept serving the old configuration. **The direction that looks safer is the
+one that fails silently:** an operator who deletes, reads back, sees it gone and stops has
+recorded a revert that never happened. Follow a delete with
+`railway redeploy --service web --yes` and confirm from the POD (a real boot: uptime reset,
+and the behaviour you expected), never from `--kv`.
 
 ⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
 lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
