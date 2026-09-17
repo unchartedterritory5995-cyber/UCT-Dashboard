@@ -67,6 +67,7 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
+  securityResults, breadthResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
 } from './discoveryCatalog'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
@@ -87,6 +88,8 @@ import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/
 import { ohlcCapabilityOf } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
 import { symbolFamily } from '../../hooks/useBreadthSymbols'
+import useBreadthSymbols from '../../hooks/useBreadthSymbols'
+import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
   resolveDisplayTarget, displayTargetOptions, hasExplicitTarget, automaticTargetOf,
 } from './engine/displayTarget'
@@ -231,7 +234,28 @@ export default function ChartSettingsIndicators({
   //             category, left by Back, Escape or clearing the box.
   const [mode, setMode] = useState('active')
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState(null)
+  // ⚰️⚰️ IT WAS A FREE-TEXT `category`, filtered against whatever string each
+  // result happened to carry — `Momentum`, `Volatility`, `Symbols`, `Your
+  // formulas`. That is the CATALOGUE's own vocabulary, which is right for
+  // grouping headings and wrong for a strip a member chooses from: it had a tab
+  // per definition category and no notion of Indexes, ETFs or Popular at all.
+  // ⭐ `LIBRARY_TABS` IS A PRESENTATION TAXONOMY OVER CANONICAL FACTS — see
+  // `discoveryCatalog.tabOf`, which reads `kind` and the server's own security
+  // type and derives nothing. `Popular` is the landing tab because it is the
+  // curated answer to "what do most people add".
+  const [tab, setTab] = useState('popular')
+  // ⛔⛔ SEARCH IS UNIVERSAL UNTIL THE MEMBER SAYS OTHERWISE, and this boolean is
+  // the whole of that rule. `Popular` is a LANDING state, not a filter the member
+  // chose — so leaving it applied over a query would mean typing `QQQ` returned
+  // nothing, because a ticker is not a popular indicator. That is exactly the
+  // direct-search contract the brief protects: *"do not make ticker search
+  // harder."*
+  //
+  // ⭐ SO: no query → the tab browses. A query → everything matches, and the strip
+  // shows nothing selected, which is the honest picture of "searching all of it".
+  // Click a tab WHILE searching and it narrows, and stays narrowed until the box
+  // is cleared. One flag, three behaviours, no hidden mode.
+  const [tabPinned, setTabPinned] = useState(false)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
   // The modal is unmounted when closed (`if (!open) return null`), so this
   // component is fresh on every open and the initial value IS the deep link. An
@@ -719,6 +743,16 @@ export default function ChartSettingsIndicators({
   // catalogue makes no request and holds no state, which is the same discipline
   // `UserFormulaFeed` follows one file up.
   const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, mode === 'browse')
+  // ⚠️ THE SAME WINDOW `useSymbolDiscovery` NORMALISES AGAINST, so a browsed row
+  // and a searched row report the same capability for the same instrument. The
+  // hook defaults to these two; naming them here keeps the browse path honest
+  // rather than letting it answer `UNKNOWN` for everything.
+  const TF = 'D'
+  const BARS = 400
+  // ⛔ THE ROWS ARE ALREADY FETCHED. `useBreadthSymbols` requests
+  // `/api/breadth-symbols` ONCE per module and hands back the cache — this adds
+  // no request, exactly as `useSymbolDiscovery`'s own header records.
+  const breadthAll = useBreadthSymbols()
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -741,19 +775,68 @@ export default function ChartSettingsIndicators({
     return { rows, byKey }
   }, [symbolResults])
 
+  // ─── BROWSE, FOR THE TABS THAT HAVE SOMETHING TO SHOW WITHOUT A QUERY ─────
+  //
+  // ⛔⛔ NO NEW CATALOGUE AND NO NEW REQUEST. Symbols and ETFs browse the SAME
+  // `POPULAR_RESULTS` the desktop dropdown and the phone sheet already share —
+  // exported *"so the two surfaces can never drift on what popular means"*, and
+  // now three. Indexes browses `INDICES_PRESET`, whose own comment states it IS
+  // the full universe (`api/index_bars.py INDEX_MAP`), so that tab is complete
+  // rather than a sample. Breadth browses the rows `useBreadthSymbols` has
+  // already fetched once per module. All three go through `securityResults` /
+  // `breadthResults`, so a browsed row and a searched row are the same shape with
+  // the same capability and the same create door.
+  const browsed = useMemo(() => {
+    const secs = securityResults(POPULAR_RESULTS, { tf: TF, bars: BARS })
+    const idx = securityResults(INDICES_PRESET, { tf: TF, bars: BARS })
+    const brd = breadthAll && typeof breadthAll.all === 'function'
+      ? breadthResults(breadthAll.all(), { tf: TF, bars: BARS }) : []
+    return [...secs, ...idx, ...brd]
+  }, [breadthAll])
+
   const results = useMemo(() => {
     const byQuery = catalog.filter((r) => matches(r, query))
-    const local = category ? byQuery.filter((r) => r.category === category) : byQuery
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
     // answer to this query — `useSymbolDiscovery` asked the server and the breadth
     // library with it — and a second substring test over a name the server ranked
-    // would drop `Invesco QQQ Trust` for the query `Invesco` on a bad day. The
-    // CATEGORY chip still applies, because that is this surface's own filter.
-    const sym = category
-      ? symbolRows.rows.filter((r) => r.category === category)
-      : symbolRows.rows
-    return [...local, ...sym]
-  }, [catalog, query, category, symbolRows])
+    // would drop `Invesco QQQ Trust` for the query `Invesco` on a bad day.
+    //
+    // ⭐ WITH NO QUERY THE BROWSE ROWS STAND IN FOR THE REMOTE ONES. `Symbols`,
+    // `Indexes` and `ETFs` are search-driven tabs — there is no endpoint that
+    // lists every ticker — so an empty box shows the canonical popular/index
+    // sets rather than an empty tab that reads as broken. A query replaces them
+    // with the real answer.
+    const live = query ? symbolRows.rows : browsed
+    // ⛔ DEDUPED, THE QUERY'S ANSWER WINNING. A browsed `QQQ` and a searched
+    // `QQQ` are the same instrument with the same key.
+    //
+    // ⚰️⚰️ AND THE IDENTITY IS `key || catalog:id`, WHICH IS NOT PEDANTRY. The
+    // CATALOGUE half of this list is assembled above from `BUILT_IN_ROWS`,
+    // `catalogRows` and `userCatalogRows` DIRECTLY — not through `libraryRows` —
+    // so those rows carry an `id` and no `key` at all. Deduping on `r.key` alone
+    // therefore saw `undefined` for every catalogue row, kept the first and
+    // dropped the rest: measured, a chart with a tombstoned overlay searched
+    // `moving average` and got `Restore EMA 9` and nothing else, because the
+    // revive row sorted first and `Moving Average` collided with it on
+    // `undefined`. Prefixing the catalogue side keeps it from ever colliding with
+    // a discovery key either (`ma` the definition vs `MA` the ticker).
+    const seen = new Set()
+    const out = []
+    for (const r of [...byQuery, ...live]) {
+      if (!r) continue
+      const k = r.key || `catalog:${r.id}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push(r)
+    }
+    return out
+  }, [catalog, query, symbolRows, browsed])
+
+  /** The tab actually FILTERING right now — `null` means "everything". */
+  const activeTab = (query && !tabPinned) ? null : tab
+
+  /** What the selected tab shows — the filter, applied last. */
+  const tabResults = useMemo(() => resultsForTab(results, activeTab), [results, activeTab])
 
   const refusals = useMemo(
     () => userRefusalRows((userDefRows || []).map((r) => r && r.definition), userDefErrors)
@@ -761,31 +844,32 @@ export default function ChartSettingsIndicators({
     [userDefRows, userDefErrors, query],
   )
 
-  // Groups DERIVED in first-appearance order, the member's own hoisted to the
+  // Headings DERIVED in first-appearance order, the member's own hoisted to the
   // front — the same partition `IndicatorLibraryDialog` makes, and for the same
   // reason (a formula you wrote should not be below four shipped categories).
+  //
+  // ⚠️ THESE ARE THE CATALOGUE'S OWN GROUP NAMES (`Momentum`, `Trend`,
+  // `Symbols`…), NOT the tabs. A tab is what the member chose to look at; a
+  // heading is how that tab's contents sort themselves inside it.
   const groups = useMemo(() => {
-    const order = [...new Set(results.map((r) => r.category))]
-    const mine = new Set(results.filter((r) => r.userDefined).map((r) => r.category))
+    const order = [...new Set(tabResults.map((r) => r.category))]
+    const mine = new Set(tabResults.filter((r) => r.userDefined).map((r) => r.category))
     const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
     // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (owner §9). A member who types `QQQ`
     // means the instrument, and burying Symbols under four shipped categories is
-    // the same defect `useSymbolDiscovery` already fixed WITHIN its own list. The
-    // hook has put the exact hit first, so this only has to hoist its heading.
-    //
-    // ⛔ AND ONLY ON AN EXACT MATCH. Hoisting Symbols for every query would put a
-    // list of tickers above "Moving Average" for the query `moving average`.
+    // the same defect `useSymbolDiscovery` already fixed WITHIN its own list.
     const first = symbolRows.rows[0]
     const exact = first && String(first.id).toUpperCase() === String(query).trim().toUpperCase()
       ? first.category : null
     return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
-  }, [results, symbolRows, query])
-
-  const categories = useMemo(() => [...new Set(catalog.map((r) => r.category))], [catalog])
+  }, [tabResults, symbolRows, query])
 
   const enterBrowse = useCallback(() => setMode('browse'), [])
   const leaveBrowse = useCallback(() => {
-    setMode('active'); setQuery(''); setCategory(null)
+    // ⛔ THE SELECTION IS NOT DESTROYED (owner §20). `mode` goes back to `active`
+    // and `selected` is untouched, so a member who was editing `EMA 20`, went
+    // looking for something and changed their mind lands back on `EMA 20`.
+    setMode('active'); setQuery(''); setTab('popular'); setTabPinned(false)
     try { searchRef.current?.blur() } catch { /* noop */ }
   }, [])
 
@@ -806,20 +890,18 @@ export default function ChartSettingsIndicators({
   // its Inspector unchanged — the mode is a lens over the same state, not a
   // separate place with its own.
   const enterArrange = useCallback(() => {
-    setMode('arrange'); setQuery(''); setCategory(null); setNarrowView('list')
+    setMode('arrange'); setQuery(''); setTab('popular'); setTabPinned(false); setNarrowView('list')
   }, [])
   const leaveArrange = useCallback(() => {
     setMode('active')
     dragKeyRef.current = null; setDragging(null); setDropBefore(null)
   }, [])
 
-  // Focus the box when a CATEGORY chip put us in browse mode, so typing narrows
-  // without a second click. Not on every entry: focusing the box is itself one of
-  // the ways in, and re-focusing it there fights the caret.
-  const pickCategory = useCallback((c) => {
-    setCategory(c); setMode('browse')
-    try { searchRef.current?.focus() } catch { /* noop */ }
-  }, [])
+  // ⚰️ `pickCategory` STOOD HERE. It was the door the retired bottom-of-list
+  // `Browse` chips opened — pick a category, enter browse mode, focus the box.
+  // The category strip under Search is that door now, and it is already IN browse
+  // mode when it is visible, so there is no second entry to keep.
+
 
   const addRow = useCallback((row) => {
     // ⚰️⚰️ ONE CREATED OBJECT, ONE CANONICAL IDENTITY — AND THIS DOOR MINTED A
@@ -1512,9 +1594,6 @@ export default function ChartSettingsIndicators({
     return 'wide'
   }, [])
 
-  /** The same question for the two controls that are not `row.fields`. */
-  const measureOfKey = (key) => (/^__style__:/.test(key) ? 'medium' : 'wide')
-
   /**
    * TWO CHOICES ARE A SEGMENT, NOT A DROPDOWN.
    *
@@ -1528,48 +1607,23 @@ export default function ChartSettingsIndicators({
     && Array.isArray(f.options) && f.options.length === 2
     && f.options.every((o) => String(o?.[1] ?? '').length <= 5)
 
-  /**
-   * Pack a section's controls into rows.
-   *
-   * ⭐⭐ A `wide` CONTROL TAKES ITS OWN ROW; ANYTHING ELSE PAIRS WITH ITS
-   * NEIGHBOUR. That one rule produces the arrangement the owner sketched, with no
-   * per-field layout table anywhere:
-   *
-   *     Source          [ Close ]           ← wide, alone
-   *     Period [ 200 ]      Type [SMA|EMA]  ← compact + compact
-   *     Display         [ Price ]           ← wide, alone
-   *
-   * ⛔ AND IT IS PAIRS, NOT A GRID. Three-up would put a 100px control, a 150px
-   * control and a swatch on one line at three different heights of visual weight,
-   * which is the spreadsheet the brief rules out. Two is enough to close the dead
-   * space and still leave the row readable as two related settings.
-   *
-   * ⚠️ ADJACENCY IS THE ONLY INPUT. Declaration order already means something —
-   * `partitionFields` sorts a moving average's core into the member's reading
-   * order and sinks inert fields — so pairing NEIGHBOURS preserves that, where any
-   * cleverer packing would quietly reorder the form.
-   */
-  const packFields = (items) => {
-    const rows = []
-    for (let i = 0; i < items.length; i += 1) {
-      const it = items[i]
-      if (it.measure === 'wide') { rows.push([it]); continue }
-      const next = items[i + 1]
-      if (next && next.measure !== 'wide') { rows.push([it, next]); i += 1 }
-      else rows.push([it])
-    }
-    return rows
-  }
-
-  /** One packed row: a lone field renders as it always did; a pair gets a flex
-   *  wrapper that wraps — not a grid that squashes — when the column is narrow. */
-  const renderPacked = (items, key) => (items.length === 1
-    ? items[0].el
-    : (
-      <div className={styles.insPair} data-pair="true" key={`pair-${key}`}>
-        {items.map((it) => it.el)}
-      </div>
-    ))
+  // ⚰️⚰️ `packFields` / `renderPacked` STOOD HERE AND ARE RETIRED. They paired
+  // adjacent non-`wide` controls onto one line — `Period [20]   Type [SMA|EMA]` —
+  // which closed the dead space the compact widths opened up and produced the
+  // arrangement that pass was asked for.
+  //
+  // ⛔ THE OWNER TRIED IT AND PREFERRED THE SINGLE FILE (2026-09-17): *"Keep the
+  // selected indicator editor in a SINGLE-FILE VERTICAL PROPERTY LIST. Do NOT
+  // return to the recent paired layout."* A property list is read DOWN — one
+  // label column, one control column, one row per setting — and pairing made the
+  // eye travel in an S. The compact widths are what the pass was really for and
+  // they stay; what goes is the second column.
+  //
+  // ⭐ SO EVERY ROW IS FULL-WIDTH AND EVERY CONTROL IS NOT. That is the whole
+  // design: labels share one column, controls start at one x, and each control is
+  // as wide as its value needs — see `measureOf` and the `data-measure` rules.
+  // Whitespace AFTER a correctly sized control is fine; whitespace INSIDE a giant
+  // input holding `20` is what this is not.
 
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
@@ -1737,14 +1791,10 @@ export default function ChartSettingsIndicators({
         {(core.length > 0 || display || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
-            {packFields([
-              ...readOnly.filter((f) => f.key === '__source__')
-                .map((f) => ({ key: f.key, measure: 'wide', el: renderReadOnly(f) })),
-              ...core.map((f) => ({ key: f.key, measure: isSegment(f) ? 'compact' : measureOf(f), el: renderField(row, f) })),
-              ...(display ? [{ key: '__display__', measure: 'wide', el: display }] : []),
-              ...readOnly.filter((f) => f.key !== '__source__')
-                .map((f) => ({ key: f.key, measure: 'wide', el: renderReadOnly(f) })),
-            ]).map((items, i) => renderPacked(items, `core-${i}`))}
+            {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
+            {core.map((f) => renderField(row, f))}
+            {display}
+            {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
           </section>
         )}
 
@@ -1752,14 +1802,8 @@ export default function ChartSettingsIndicators({
         {(look.length > 0 || (plotStyle && plotStyle.length > 0)) && (
           <section className={styles.insSection} data-section="appearance">
             <div className={styles.insSectionLabel}>Appearance</div>
-            {packFields([
-              ...look.map((f) => ({ key: f.key, measure: isSegment(f) ? 'compact' : measureOf(f), el: renderField(row, f) })),
-              ...((plotStyle || []).map((el, i) => ({
-                key: el?.props?.['data-field'] || `style-${i}`,
-                measure: measureOfKey(el?.props?.['data-field'] || ''),
-                el,
-              }))),
-            ]).map((items, i) => renderPacked(items, `look-${i}`))}
+            {look.map((f) => renderField(row, f))}
+            {plotStyle}
           </section>
         )}
 
@@ -2200,7 +2244,9 @@ export default function ChartSettingsIndicators({
   // securities and breadth behind `matches()` + `useSymbolDiscovery`; a member
   // types `RSI`, `QQQ` or `% Above 50 EMA` and the difference underneath never
   // surfaces.
-  const renderAddSurface = () => (
+  const renderAddSurface = () => {
+    const tabLabel = (LIBRARY_TABS.find((t) => t.key === activeTab) || { label: 'anything' }).label
+    return (
     <div className={styles.insAdd} data-testid="add-surface">
       <div className={styles.insHead}>
         <button
@@ -2210,18 +2256,32 @@ export default function ChartSettingsIndicators({
           aria-label="Back to active indicators"
         >←</button>
         <span className={styles.insHeadText}>
-          <span className={styles.insHeadName}>Add to Chart</span>
+          <span className={styles.insHeadName}>Add Indicator</span>
         </span>
+        {/* ⚰️ IT WORE `.insHeadAct` — the same faint grey as `Arrange`, which is a
+            MODE SWITCH, and at the far end of a header a member reads for a
+            title. Owner, 2026-09-17: *"the existing + New Formula action is too
+            dark/subtle and easy to miss."*
+            ⭐ A GHOST BUTTON, NOT A GOLD ONE. It is the SECONDARY task on this
+            surface — search is the primary one — so it gets an outline and real
+            ink and stops there. Filling it would put the loudest object on the
+            panel next to the thing it must not outrank. */}
         {onCreateFormula && (
           <button
             type="button"
-            className={styles.insHeadAct}
+            className={styles.insNewFormula}
             data-testid="settings-new-formula"
             onClick={() => onCreateFormula()}
             title="Build your own indicator — conditions, plain English, Pine or ThinkScript"
-          >＋ New Formula</button>
+          >
+            <span className={styles.insNewFormulaPlus} aria-hidden="true">＋</span>
+            New Formula
+          </button>
         )}
       </div>
+      <p className={styles.insAddLede}>
+        Search and add indicators, symbols, breadth and your own formulas.
+      </p>
 
       <div className={styles.insSearchRow}>
         <div className={styles.indSearchWrap}>
@@ -2231,10 +2291,27 @@ export default function ChartSettingsIndicators({
             type="search"
             role="searchbox"
             className={styles.indSearch}
-            placeholder="Search indicators, symbols, breadth…"
+            /* ⛔ IT NAMES ONLY WHAT IS GENUINELY SEARCHABLE. `fundamentals` is
+               deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
+               that can return nothing is the "fake availability" the brief rules
+               out. */
+            placeholder="Search indicators, symbols, breadth or formulas…"
             aria-label="Search indicators"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              // ⚰️⚰️ TYPING ALWAYS RETURNS TO A UNIVERSAL SEARCH, and the first
+              // version of this rule did not. It un-pinned only on CLEARING, so a
+              // member who clicked `Popular` and then typed `QQQ` got nothing —
+              // measured in the harness — because a ticker is not a popular
+              // indicator. §18 asks for both *"search within the selected
+              // category"* and *"do not make ticker search harder"*, and when they
+              // collide the second one wins: a query is a new question.
+              // ⭐ NARROWING IS STILL THERE AND IS STILL THE MEMBER'S: click a tab
+              // while the results are up and it filters, and it stays filtered
+              // until they type again.
+              setTabPinned(false)
+              setQuery(e.target.value)
+            }}
             onKeyDown={(e) => {
               // ⛔ STOPPED HERE ON PURPOSE. The modal's Escape handler is a WINDOW
               // listener that closes the whole settings modal; inside the Add
@@ -2244,12 +2321,12 @@ export default function ChartSettingsIndicators({
               if (e.key === 'Escape') { e.stopPropagation(); leaveBrowse() }
             }}
           />
-          {(query || category) && (
+          {query && (
             <button
               type="button"
               className={styles.indClear}
               aria-label="Clear search"
-              onClick={() => { setQuery(''); setCategory(null); searchRef.current?.focus() }}
+              onClick={() => { setQuery(''); setTabPinned(false); searchRef.current?.focus() }}
             >✕</button>
           )}
         </div>
@@ -2260,14 +2337,70 @@ export default function ChartSettingsIndicators({
           the anchor would still describe where the list was BEFORE they moved — and
           the next insertion would "correct" to a position they had already left,
           which is a jump rather than the absence of one. */}
+      {/* ── THE CATEGORY STRIP, DIRECTLY UNDER SEARCH ────────────────────
+          ⚰️ WHAT IT REPLACES WAS A `Browse` BLOCK OF CHIPS AT THE **BOTTOM** of the
+          results, argued for at the time: *"with an empty box the list above IS
+          every category, grouped — so chips at the top would be a filter offered
+          before anything needed filtering."* That was true of a list that showed
+          everything at once. The taxonomy is a NAVIGATION now, not a filter over
+          a list already on screen, so it belongs where a member looks first.
+          ⛔ A `tablist`, NOT A ROW OF BUTTONS. Each tab controls the same results
+          region; `aria-selected` and roving tabindex are what make one tab stop
+          with arrow keys, which is what a member reaches for after tabbing out of
+          the search box. */}
+      <div className={styles.insTabsWrap}>
+        <div
+          className={styles.insTabs}
+          role="tablist"
+          aria-label="Indicator categories"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+            e.preventDefault()
+            const at = LIBRARY_TABS.findIndex((t) => t.key === activeTab)
+            const step = e.key === 'ArrowRight' ? 1 : -1
+            const next = LIBRARY_TABS[(Math.max(at, 0) + step + LIBRARY_TABS.length) % LIBRARY_TABS.length]
+            if (next) { setTab(next.key); setTabPinned(true) }
+          }}
+        >
+          {LIBRARY_TABS.map((t) => {
+            const on = t.key === activeTab
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                /* ⚠️ WITH NOTHING SELECTED (a universal search) THE FIRST TAB IS
+                   THE STOP, so the strip never drops out of the tab order. */
+                tabIndex={on || (!activeTab && t.key === LIBRARY_TABS[0].key) ? 0 : -1}
+                data-tab={t.key}
+                /* ⚠️ THE CHOSEN TAB SCROLLS ITSELF INTO VIEW. The strip is wider
+                   than the column, so an arrow-key walk would otherwise select
+                   something off the end of it — a keyboard member choosing a
+                   category they cannot see. `nearest` moves the minimum. */
+                ref={on ? ((el) => { try { el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) } catch { /* jsdom */ } }) : undefined}
+                className={`${styles.insTab} ${on ? styles.insTabOn : ''}`}
+                onClick={() => { setTab(t.key); setTabPinned(true) }}
+              >{t.label}</button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className={styles.insAddBody} ref={addBodyRef} onScroll={() => { anchorRef.current = captureAnchor() }}>
-        {category && (
-          <div className={styles.indCatActive}>
-            <span className={styles.indCatActiveName}>{category}</span>
-            <button type="button" className={styles.indCatDrop} onClick={() => setCategory(null)}>All categories</button>
+        {/* ⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS. The audit is
+            written out at `FUNDAMENTALS_STATUS`: the chart's source grammar has no
+            fundamental kind, and the one fundamental the product holds
+            (`market_cap`) is a NIGHTLY SCALAR whose own engine refuses a bar
+            offset because *"answering it with today's value would be a fabricated
+            history."* A row here would be exactly that fabrication. */}
+        {activeTab === 'fundamentals' && !FUNDAMENTALS_STATUS.available && (
+          <div className={styles.insUnavailable} data-testid="fundamentals-unavailable">
+            <div className={styles.insUnavailableLede}>{FUNDAMENTALS_STATUS.lede}</div>
+            <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
           </div>
         )}
-        {results.length === 0 && refusals.length === 0 && (
+        {activeTab !== 'fundamentals' && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -2276,8 +2409,14 @@ export default function ChartSettingsIndicators({
             {query
               ? (symbolsLoading
                 ? <>Nothing matches “{query}” yet — still searching symbols…</>
-                : <>Nothing matches “{query}”.</>)
-              : <>Nothing in this category.</>}
+                : (activeTab
+                  ? <>Nothing matches “{query}” in {tabLabel}.</>
+                  : <>Nothing matches “{query}”.</>))
+              /* ⛔ A SEARCH-DRIVEN TAB SAYS SO. `Symbols` and `ETFs` have no
+                 endpoint that lists every instrument, so an empty box is not an
+                 empty CATEGORY — telling a member there is nothing here would be
+                 a different and wrong sentence. */
+              : <>Search to find {tabLabel.toLowerCase()} to add.</>}
           </div>
         )}
         {/* ─── SYMBOLS ARE STILL COMING ──────────────────────────────────
@@ -2309,9 +2448,12 @@ export default function ChartSettingsIndicators({
         )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>
-            <div className={styles.insSectionLabel}>{c}</div>
+            {/* ⚠️ ONE GROUP, ONE HEADING — AND NOT WHEN IT WOULD REPEAT THE TAB.
+                `Popular` and `Formulas` resolve to a single group whose name is
+                the tab's own word; printing it again is furniture. */}
+            {groups.length > 1 && <div className={styles.insSectionLabel}>{c}</div>}
             <ul className={styles.resList} role="listbox" aria-label={c}>
-              {results.filter((r) => r.category === c).map(renderResult)}
+              {tabResults.filter((r) => r.category === c).map(renderResult)}
             </ul>
           </section>
         ))}
@@ -2347,29 +2489,10 @@ export default function ChartSettingsIndicators({
             </ul>
           </section>
         )}
-        {/* ⭐ THE CATEGORY FILTER, AT THE BOTTOM AND NOT THE TOP. With an empty box
-            the list above IS every category, grouped — so chips at the top would
-            be a filter offered before anything needed filtering. They sit under
-            the results, where a member who has scrolled and not found it reaches
-            for them. */}
-        {!query && (
-          <section className={styles.insAddGroup}>
-            <div className={styles.insSectionLabel}>Browse</div>
-            <div className={styles.indCats}>
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={styles.indCat}
-                  onClick={() => pickCategory(c)}
-                >{c}</button>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
-  )
+    )
+  }
 
   // ─── THE PANEL ─────────────────────────────────────────────────────────────
   //
@@ -2425,12 +2548,17 @@ export default function ChartSettingsIndicators({
                       onClick={enterArrange}
                     >Arrange</button>
                   )}
-                  <button
-                    type="button"
-                    className={styles.insHeadAdd}
-                    data-testid="add-enter"
-                    onClick={enterBrowse}
-                  >＋ Add</button>
+                  {/* ⚰️⚰️ A TINY `＋ Add` STOOD HERE, beside `Arrange`, and it is
+                      retired. Two words of chrome in a heading is where an action
+                      goes when nobody has decided how important it is — it was
+                      the same size as `Arrange`, which is a MODE, and it sat at
+                      the top of a list it was supposed to extend. Owner,
+                      2026-09-17: *"remove the tiny + Add from that location...
+                      replace it with a clear button at the BOTTOM of the left
+                      Indicators section."*
+                      ⭐ THE LIST NOW READS AS ONE SENTENCE: these are my
+                      indicators — and then, where the list ends, add another.
+                      See `.insAddIndicator` at the foot of this column. */}
                 </>
               )}
             </div>
@@ -2466,6 +2594,25 @@ export default function ChartSettingsIndicators({
                     deep link. */}
                 {paneGroups.map((g) => renderStructureGroup(g, g.id === 'volume' ? volumeRef : null))}
               </div>
+            )}
+
+            {/* ⭐⭐ WHERE THE LIST ENDS. It is OUTSIDE the scrolling structure, so a
+                member with fifteen indicators does not have to scroll to the
+                bottom to find the way to add a sixteenth — the list scrolls
+                under it and this stays put.
+                ⛔ NOT IN ARRANGE. Arrange is about the panes that already exist;
+                offering to add a new series in the middle of restacking is a
+                second job on a surface that deliberately has one. */}
+            {mode !== 'arrange' && (
+              <button
+                type="button"
+                className={styles.insAddIndicator}
+                data-testid="add-enter"
+                onClick={enterBrowse}
+              >
+                <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>
+                Add Indicator
+              </button>
             )}
           </div>
         )}

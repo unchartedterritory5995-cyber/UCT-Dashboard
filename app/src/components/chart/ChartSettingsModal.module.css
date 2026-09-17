@@ -25,8 +25,17 @@
      read of "do not redesign", and it bought a 160px dead strip down the right
      of Price Style, Canvas, Header and Markers — owner, 2026-09-17: *"the other
      tabs have not been responsively adapted to the new modal width."* The shell
-     is the content width now, for every tab. See `.body`. */
-  width: min(720px, 94vw);
+     is the content width now, for every tab. See `.body`.
+     ⚰️ 720 → 680, AND THE 40px IS THE INSPECTOR'S OWN SAVING. 720 was what the
+     Inspector needed while every control filled its cell; once a control is as
+     wide as its VALUE the right column's widest row is a 92px label, a 12px gap
+     and a 210px semantic control — 314px, not 380. Owner: *"the current
+     Indicators work made the modal unnecessarily large... Indicators no longer
+     justifies a huge modal."* 680 is the smallest width that still gives the
+     left column 43% (270px, MORE than the 264 it had) and the right column room
+     for its widest row without wrapping. It is not a guess: both halves were
+     measured in the browser before this number was written. */
+  width: min(680px, 94vw);
   /* Fixed height so the modal doesn't resize between tabs — the longer Canvas
      tab scrolls inside .body instead of growing the whole modal.
 
@@ -950,8 +959,19 @@
    rail, its gutters and the `Off` tag without wrapping, at the 12px the rows are
    set in. Narrower and the one name that needs the room truncates; wider and the
    Inspector, which is doing the harder job, starts giving up field width. */
+/* ⚰️ A SHARE, NOT 264px. The column was a fixed width chosen against a 720px
+   shell; at 680 that same number would have SHRUNK the list while the shell
+   shrank around it. Owner, 2026-09-17: *"give the left indicator column a little
+   more relative width... target approximately 40–43% of the Indicators content
+   area."*
+   ⭐ 43% IS WORTH MORE ON THE LEFT THAN ON THE RIGHT, and that is the argument
+   rather than the number: the left column holds `EMA 20 · QQQ`, `Relative
+   Strength Index`, a breadth measure's real name and two reorder arrows; the
+   right column's widest control holds `Close`. A floor keeps it usable if the
+   shell is ever narrowed further. */
 .insLeft {
-  flex: 0 0 264px;
+  flex: 0 0 43%;
+  min-width: 232px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -963,6 +983,54 @@
   padding-right: 14px;
   margin-right: 14px;
 }
+
+/* ── THE FOOT OF THE CURRENT-CHART LIST ─────────────────────────────
+   ⚰️ IT REPLACES A TWO-WORD `＋ Add` IN THE HEADING. That action was the same
+   weight as `Arrange` beside it — which is a MODE, not an addition — and it sat
+   at the TOP of the list it extends, so the column read top-down as "add
+   something / here is what you have" rather than the other way round.
+   ⭐ FULL-WIDTH, AND THAT IS WHAT MAKES IT TERMINATE THE LIST. A button the
+   width of the column is a horizontal rule you can press: the eye reads the
+   panes, reaches the edge of the last one, and finds the way to add another
+   exactly where the list stops.
+   ⛔ AND IT IS A GHOST, NOT A CTA. A filled gold bar here would be the loudest
+   object in a panel whose whole job is calm, and would outrank the member's own
+   selection two inches above it. A gold hairline, gold text and an accent wash
+   on hover is the same restraint `.insAddBtn` already uses — one size up,
+   because this one has a column to fill. */
+.insAddIndicator {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid rgba(220, 187, 94, 0.38);
+  border-radius: 7px;
+  background: rgba(220, 187, 94, 0.05);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--menu-accent, #dcbb5e);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.insAddIndicator:hover {
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.13));
+  border-color: var(--menu-accent, #dcbb5e);
+  color: var(--menu-accent, #e7cf8f);
+}
+.insAddIndicator:focus-visible {
+  outline: none;
+  border-color: var(--menu-accent, #dcbb5e);
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+/* The plus is a MARK, not a glyph competing with the words beside it. */
+.insAddIndicatorPlus { font-size: 13px; line-height: 1; opacity: 0.9; }
 
 .insLeftHead {
   display: flex;
@@ -1455,7 +1523,15 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  /* ⚰️⚰️ LEFT, NOT RIGHT. The cell was `flex-end` — correct while every control
+     filled it, since a full-width control has the same two edges either way. Now
+     that a control is as wide as its value, right-aligning them staggers the
+     column: `20`'s box would start 110px further right than `Close`'s, and the
+     eye reading DOWN a property list would have nothing to follow. Owner:
+     *"controls should begin at a consistent x-position where practical."*
+     ⭐ SO EVERY CONTROL STARTS ON ONE LINE and the whitespace collects on the
+     right, where it reads as room rather than as a stretched input. */
+  justify-content: flex-start;
   gap: 6px;
 }
 /* ⭐ A CORE FACT THAT CANNOT BE ASKED — see `readOnlyCore`. It wears the VALUE's
@@ -1499,10 +1575,21 @@
    `data-measure` is set by `measureOf`, which reads the field descriptor (a
    number, an enum's longest label, a source) and never a key name, so a
    definition nobody has written yet is sized correctly on its first render.
-   Filling the cell is what `wide` still does, and `wide` is exactly the two
-   controls that carry a semantic identity. */
+   ⚰️ AND `wide` NO LONGER MEANS "FILL". It did, because Source and Display are
+   the controls that carry a semantic identity — `QQQ · Close`, `Automatic ·
+   Price`, another pane's name — and filling was the safe way to guarantee them
+   room. Measured at 720 that came to 280px for a control whose longest real value
+   is about 22 characters, and it was the single reason the modal had to be 720
+   wide at all. 210 fits every value this chart can produce with the chevron
+   clear, and it is inside the owner's own 180–230 range.
+   ⛔ IT IS A MAXIMUM, NOT A FIXED WIDTH: `min(210px, 100%)` so a narrow
+   Inspector shrinks it rather than overflowing. */
 .insField[data-measure='wide'] > .insFieldCtl > select,
-.insField[data-measure='wide'] > .insFieldCtl > input[type='number'] { width: 100%; }
+.insField[data-measure='wide'] > .insFieldCtl > input[type='number'],
+.insField[data-measure='wide'] > .insFieldCtl > div {
+  width: min(210px, 100%);
+  flex: 0 1 auto;
+}
 .insFieldCtl > div { min-width: 0; width: 100%; }
 
 /* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
@@ -1860,6 +1947,144 @@
   margin-left: 10px;
   font-size: 10.5px;
   color: var(--menu-text-faint, #93939a);
+}
+
+/* ── ADD MODE'S OWN HEADER FURNITURE ──────────────────────────────
+   One line under the title saying what this surface can find. ⛔ IT NAMES ONLY
+   WHAT IS SEARCHABLE — `fundamentals` is deliberately absent, because promising a
+   search that can return nothing is the fake availability the brief rules out. */
+.insAddLede {
+  flex: none;
+  margin: -4px 0 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--menu-text-dim, #b3b3b9);
+}
+
+/* ⚰️ `+ New Formula` WORE `.insHeadAct` — the same faint grey as `Arrange`, which
+   is a MODE SWITCH, at the far end of a header a member reads for a title. Owner:
+   *"too dark/subtle and easy to miss."*
+   ⭐ A GHOST BUTTON: an outline, real ink, a plus that reads as one. ⛔ NOT
+   FILLED GOLD — it is the SECONDARY task here (search is the primary one) and a
+   solid accent button would be the loudest thing on the panel, directly above the
+   field it must not outrank. */
+.insNewFormula {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--menu-border, #33333a);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--menu-text, #ededed);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.insNewFormula:hover {
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: rgba(220, 187, 94, 0.5);
+  color: var(--menu-accent, #e7cf8f);
+}
+.insNewFormula:focus-visible {
+  outline: none;
+  border-color: var(--menu-accent, #dcbb5e);
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+.insNewFormulaPlus { font-size: 12px; line-height: 1; color: var(--menu-accent, #dcbb5e); }
+
+/* ── THE CATEGORY STRIP ────────────────────────────────────────
+   ⭐⭐ IT IS THIS PRODUCT'S OWN COMPACT CONTROL, not a borrowed one. The idea of a
+   category strip came from elsewhere; what it looks like comes from `.seg` /
+   `.insSegBtn` — the same 1px border, the same 5px radius, the same restrained
+   gold-wash selected state the SMA/EMA control and the Canvas tabs already use.
+   ⛔ COMPACT, NOT PILLS. 24px tall and 10px of side padding, so eight of them fit
+   a 380px column; a pill strip would be a second navigation competing with the
+   five real tabs 40px above it.
+   ⛔ AND IT SCROLLS RATHER THAN WRAPPING. Two ragged lines of categories is a
+   pile; one line that can be pushed is a strip. The scrollbar is hidden because
+   the row is 24px tall and a bar under it would be half its height again — the
+   overflow is still keyboard- and wheel-reachable, and the arrow keys move the
+   selection, which scrolls the chosen tab into view for free. */
+.insTabsWrap {
+  flex: none;
+  margin-bottom: 12px;
+  /* A hairline under the strip separates NAVIGATION from RESULTS without drawing
+     a box around either. */
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  padding-bottom: 10px;
+}
+.insTabs {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* ⚰️ EIGHT CATEGORIES DO NOT FIT A 325px COLUMN AT A READABLE SIZE — measured:
+     they need about 490px, and `Fundamentals` alone is 70 of it. The brief ranks
+     the options and rules out the pile: *"use a clean horizontal-scroll/overflow
+     solution... do NOT wrap them into an ugly two-line pile."*
+     ⭐ SO THE CUT IS A FADE, NOT A CLIFF. A hard edge reads as a clipped
+     element; a fade reads as "there is more this way", which is the only thing
+     the member needs to know. The mask is on the RIGHT only, because the strip
+     starts at its own beginning — and the active tab is scrolled into view when
+     it changes, so the keyboard never chooses something it cannot see. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
+}
+.insTabs::-webkit-scrollbar { display: none; }
+.insTab {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--menu-border, #2b2b2d);
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--menu-text-dim, #93939a);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 110ms, background 110ms, border-color 110ms;
+}
+.insTab:hover:not(.insTabOn) {
+  color: var(--menu-text, #ededed);
+  border-color: var(--menu-border, #3a3a3c);
+  background: rgba(255, 255, 255, 0.04);
+}
+.insTabOn,
+.insTabOn:hover {
+  color: var(--menu-accent, #e7cf8f);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
+}
+.insTab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+
+/* ── A CATEGORY THAT TELLS THE TRUTH ABOUT ITSELF ───────────────────
+   ⛔ NOT AN ERROR AND NOT A TEASER. Fundamentals is a direction the product is
+   committed to and a history that does not exist yet; the tab says both, quietly,
+   in the same ink the rest of the panel's prose uses. */
+.insUnavailable {
+  padding: 18px 2px 8px;
+  max-width: 340px;
+}
+.insUnavailableLede {
+  font-size: 12px;
+  color: var(--menu-text, #ededed);
+  margin-bottom: 6px;
+}
+.insUnavailableWhy {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--menu-text-dim, #b3b3b9);
 }
 
 /* ── THE ADD SURFACE ──────────────────────────────────────────────────────── */

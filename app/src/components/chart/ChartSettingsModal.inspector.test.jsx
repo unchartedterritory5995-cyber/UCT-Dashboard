@@ -35,6 +35,8 @@ import {
 } from './engine/instanceControls'
 import { storedPaneOrder, resolvePaneOrder, PRICE_PANE } from './engine/paneOrder'
 import { PANE_SERIES_ORDER_KEY } from './engine/paneSeriesOrder'
+import { POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf } from './discoveryCatalog'
+import { INDICES_PRESET } from './symbolSearchModel'
 
 // ⚠️ THE BREADTH REGISTRY IS A NETWORK FACT, so the family oracle is stubbed —
 // otherwise `symbolFamily` answers `'unknown'` and the Inspector's KIND line is
@@ -210,24 +212,32 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
       .toBe('medium')
   })
 
-  it('⭐ COMPATIBLE CONTROLS SHARE A ROW; a semantic one keeps its own', () => {
-    // ⛔ THE RULE IS ONE LINE — a `wide` control takes its own row, anything else
-    // pairs with its neighbour — and it produces the owner's sketch with no
-    // per-field layout table anywhere.
-    show(base()); openTab()
+  it('⚰️⚰️ ONE PROPERTY PER ROW — the pairing is retired, the widths are not', () => {
+    // ⚰️⚰️ THE OPPOSITE OF THIS CASE STOOD HERE FOR ONE PASS. `packFields` paired
+    // adjacent non-`wide` controls onto one line — `Period [20]  Type [SMA|EMA]` —
+    // and this asserted exactly which pairs formed. It closed the dead space the
+    // compact widths opened up, and the owner tried it and preferred the single
+    // file (2026-09-17): *"keep the selected indicator editor in a SINGLE-FILE
+    // VERTICAL PROPERTY LIST. Do NOT return to the recent paired layout."*
+    //
+    // ⭐ WHAT SURVIVED IS THE PART THE PASS WAS REALLY FOR: a control is as wide as
+    // its VALUE. A property list is read DOWN — one label column, one control
+    // column, one row per setting — and pairing made the eye travel in an S.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
     select(/^EMA 9$/)
-    const pairsIn = (section) => [...inspector()
-      .querySelector(`[data-section="${section}"]`).querySelectorAll('[data-pair]')]
-      .map((p) => [...p.querySelectorAll('[data-field]')].map((f) => f.getAttribute('data-field')))
+    expect(inspector().querySelectorAll('[data-pair]'),
+      'the editor paired two settings onto one row again').toHaveLength(0)
 
-    expect(pairsIn('core'), 'Period and Type did not pair').toEqual([['period', 'type']])
-    // …and the two semantic rows are NOT in any pair.
-    for (const key of ['__source__', '__where__']) {
-      expect(fieldOf(key).closest('[data-pair]'), `${key} was paired`).toBeNull()
+    // ⛔ EVERY FIELD IS A DIRECT CHILD OF ITS SECTION, in declaration order — no
+    // wrapper between the section and the row, which is what a pairing layer was.
+    for (const section of ['core', 'appearance']) {
+      const sec = inspector().querySelector(`[data-section="${section}"]`)
+      for (const f of sec.querySelectorAll('[data-field]')) {
+        expect(f.parentElement, `${f.getAttribute('data-field')} is nested in a row wrapper`)
+          .toBe(sec)
+      }
     }
-    expect(pairsIn('appearance')).toEqual([
-      ['color', 'onTop'], ['lineStyle', 'lineWidth'], ['offset', 'plotStyle'],
-    ])
   })
 
   it('⭐⭐ THE TYPE SEGMENT WRITES THE IDENTICAL CANONICAL VALUE — both implementations', () => {
@@ -840,6 +850,213 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
   })
 })
 
+describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no fiction', () => {
+  const addBtn = () => screen.getByTestId('add-enter')
+  const strip = () => document.body.querySelector('[role="tablist"][aria-label="Indicator categories"]')
+  const tabs = () => [...(strip()?.querySelectorAll('[role="tab"]') || [])]
+  const tabNamed = (label) => tabs().find((t) => t.textContent.trim() === label)
+  const chosen = () => tabs().find((t) => t.getAttribute('aria-selected') === 'true')
+  const resultNames = () => [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resName"]')]
+    .map((e) => e.textContent.trim())
+  const type = (q) => fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
+
+  it('⚰️⚰️ THE DOOR IS AT THE FOOT OF THE LIST, not in the heading', () => {
+    // ⚰️ A TWO-WORD `＋ Add` SAT BESIDE `Arrange` IN THE HEADING — the same weight
+    // as a MODE SWITCH, at the top of the list it extends. Owner, 2026-09-17:
+    // *"remove the tiny + Add from that location... replace it with a clear
+    // button at the BOTTOM of the left Indicators section."*
+    show(base()); openTab()
+    const btn = addBtn()
+    // ⚠️ THE GLYPH IS ITS OWN ELEMENT with a flex `gap` between, so `textContent`
+    // carries no space — the space a member SEES is layout, not a character.
+    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('＋Add Indicator')
+    // ⛔ IT IS IN THE LEFT COLUMN AND BELOW THE LIST — both halves matter: in the
+    // heading it read as chrome, and inside the scroller a member with fifteen
+    // indicators would have to scroll to reach it.
+    const left = document.body.querySelector('[data-testid="chart-structure"]')
+    expect(left.contains(btn), 'the Add door left the current-chart column').toBe(true)
+    const list = left.querySelector('[role="listbox"]')
+    expect(list.contains(btn), 'the Add door scrolls away with the list').toBe(false)
+    expect(list.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'the Add door is above the list it is supposed to terminate').toBeTruthy()
+  })
+
+  it('⭐⭐ THE LEFT CONTEXT SURVIVES BROWSING (owner §19)', () => {
+    // The one thing the owner named as worth keeping: a member browsing for
+    // something new can still see everything already on the chart.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    const before = names()
+    fireEvent.click(addBtn())
+    expect(document.body.querySelector('[data-testid="add-surface"]')).toBeTruthy()
+    expect(names(), 'the chart structure was replaced by the library').toEqual(before)
+  })
+
+  it('⛔ BACK RETURNS TO THE INSPECTOR AND KEEPS THE SELECTION (owner §20)', () => {
+    show(base()); openTab()
+    select(/^SMA 50$/)
+    fireEvent.click(addBtn())
+    expect(document.body.querySelector('[data-testid="add-surface"]')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('Back to active indicators'))
+    expect(document.body.querySelector('[data-testid="add-surface"]')).toBeNull()
+    expect(inspectorName(), 'going to look for something destroyed the selection').toBe('SMA 50')
+  })
+
+  it('⭐ THE STRIP IS A TABLIST, DIRECTLY UNDER SEARCH, and Popular is where it lands', () => {
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    expect(tabs().map((t) => t.textContent.trim())).toEqual([
+      'Popular', 'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Indexes', 'ETFs', 'Formulas',
+    ])
+    expect(chosen().textContent.trim()).toBe('Popular')
+    // ⛔ UNDER THE SEARCH BOX, because the strip is NAVIGATION and search is the
+    // primary entry point — the retired `Browse` chips sat under the RESULTS.
+    const box = screen.getByRole('searchbox')
+    expect(box.compareDocumentPosition(strip()) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'the category strip is above the search box').toBeTruthy()
+    // One tab stop, arrow keys move it — the same contract the SMA/EMA segment has.
+    expect(tabs().filter((t) => t.tabIndex === 0)).toHaveLength(1)
+    fireEvent.keyDown(strip(), { key: 'ArrowRight' })
+    expect(chosen().textContent.trim()).toBe('Technical')
+  })
+
+  it('⭐⭐ POPULAR IS CURATED, AND MOVING AVERAGE APPEARS EXACTLY ONCE', () => {
+    // ⛔ THE CURATION NAMES IDS; THE ROWS COME FROM THE REGISTRY. So this is the
+    // same single member-facing Moving Average every other surface offers — there
+    // is no second entry, and legacy `ma` cannot appear because
+    // `LIBRARY_HIDDEN_IDS` drops it upstream.
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    const got = resultNames()
+    expect(got.length, 'Popular is a dump, not a curation').toBeLessThanOrEqual(POPULAR_DEF_IDS.length)
+    expect(got[0], 'the curated ORDER is not being kept').toBe('Moving Average')
+    expect(got.filter((n) => /^Moving Average$/.test(n))).toHaveLength(1)
+    expect(got.join('|'), 'a member-facing Data Series row is being offered')
+      .not.toMatch(/Data Series/i)
+  })
+
+  it('⭐ TECHNICAL HOLDS EVERY SHIPPED DEFINITION — Popular is a shortcut, not a gate', () => {
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    fireEvent.click(tabNamed('Technical'))
+    const technical = resultNames()
+    fireEvent.click(tabNamed('Popular'))
+    for (const n of resultNames()) {
+      expect(technical, `${n} is Popular but not reachable under Technical`).toContain(n)
+    }
+    expect(technical.length).toBeGreaterThan(resultNames().length)
+  })
+
+  it('⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS', () => {
+    // ⛔⛔ THE AUDIT, RAILED. The chart's source grammar admits a BAR FIELD, a
+    // SYMBOL and another INSTANCE — there is no fundamental kind — and the one
+    // fundamental the product holds is a NIGHTLY SCALAR whose own engine refuses
+    // a bar offset because *"answering it with today's value would be a
+    // fabricated history"* (`ast/pcf.js`). A row here would be that fabrication.
+    expect(FUNDAMENTALS_STATUS.available,
+      'Fundamentals was switched on — was the PIT-safe history actually built?').toBe(false)
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    fireEvent.click(tabNamed('Fundamentals'))
+    const notice = screen.getByTestId('fundamentals-unavailable')
+    expect(notice.textContent).toContain(FUNDAMENTALS_STATUS.lede)
+    // ⛔ AND NOT ONE ROW. Market cap, revenue and EPS are a direction, not a
+    // series — offering them would be the lie the brief forbids by name.
+    expect(resultNames(), 'a fundamental is being offered as chartable').toEqual([])
+  })
+
+  it('⛔⛔ SEARCH IS UNIVERSAL UNTIL THE MEMBER NARROWS IT', () => {
+    // ⚰️ LEAVING `Popular` APPLIED OVER A QUERY MEANT TYPING A TICKER RETURNED
+    // NOTHING — a ticker is not a popular indicator. That is the direct-search
+    // contract the brief protects: *"do not make ticker search harder."*
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    expect(chosen().textContent.trim()).toBe('Popular')
+
+    type('rsi')
+    expect(chosen(), 'a landing tab is still filtering a search').toBeUndefined()
+    expect(resultNames().join('|')).toMatch(/Relative Strength Index/)
+
+    // …and clicking a tab WHILE searching narrows it.
+    fireEvent.click(tabNamed('Breadth'))
+    expect(chosen().textContent.trim()).toBe('Breadth')
+
+    // ⚰️⚰️ BUT TYPING AGAIN RETURNS TO UNIVERSAL, and the first version of this
+    // rule did the opposite. It un-pinned only on CLEARING, so a member who
+    // clicked `Popular` and then typed `QQQ` got nothing — measured in the
+    // harness, because a ticker is not a popular indicator. §18 asks for both
+    // *"search within the selected category"* and *"do not make ticker search
+    // harder"*; when they collide the second wins, because a query is a new
+    // question.
+    type('rsix')
+    expect(chosen(), 'a tab clicked before the query is still filtering it').toBeUndefined()
+
+    // …and clearing the box returns to browsing the tab the member last chose.
+    type('')
+    expect(chosen().textContent.trim()).toBe('Breadth')
+    expect(document.body.querySelector('[data-testid="add-surface"]')).toBeTruthy()
+  })
+
+  it('⛔ A SEARCH-DRIVEN TAB SAYS SO rather than claiming to be empty', () => {
+    // `Symbols` and `ETFs` have no endpoint that lists every instrument, so an
+    // empty box is not an empty CATEGORY — saying "nothing here" would be a
+    // different and wrong sentence.
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    fireEvent.click(tabNamed('Symbols'))
+    const body = document.body.querySelector('[data-testid="add-surface"]').textContent
+    // The canonical popular set browses here, so the tab is not blank either.
+    expect(resultNames().length, 'Symbols browses nothing at all').toBeGreaterThan(0)
+    expect(body).not.toMatch(/Nothing in this category/)
+  })
+
+  it('⭐ INDEXES BROWSES THE UNIVERSE THE CHARTS ACTUALLY RENDER', () => {
+    // ⛔ NOT A HAND-PICKED SAMPLE. `INDICES_PRESET`'s own comment states it IS the
+    // full indices universe (`api/index_bars.py INDEX_MAP`), which is why this tab
+    // can be complete rather than indicative.
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    fireEvent.click(tabNamed('Indexes'))
+    const got = resultNames()
+    for (const row of INDICES_PRESET) {
+      expect(got, `${row.ticker} is in the index universe and not in the tab`)
+        .toContain(row.name)
+    }
+  })
+
+  it('⛔ A TAB IS A VIEW OF ONE CANONICAL CLASSIFICATION, not a second one', () => {
+    // `tabOf` reads `kind` and the SERVER's own security type — the same
+    // vocabulary `symbolSearchModel.CHIPS` sends as its `type` filter. Nothing
+    // here re-derives what an ETF is, and no ticker is hard-coded into a class.
+    expect(tabOf({ kind: 'security', category: 'etf' })).toBe('etfs')
+    expect(tabOf({ kind: 'security', category: 'index' })).toBe('indexes')
+    expect(tabOf({ kind: 'security', category: 'stock' })).toBe('symbols')
+    expect(tabOf({ kind: 'breadth' })).toBe('breadth')
+    expect(tabOf({ kind: 'formula' })).toBe('formulas')
+    expect(tabOf({ userDefined: true })).toBe('formulas')
+    // ⚠️ AND A CATALOGUE ROW WITH NO `kind` IS TECHNICAL. The Indicators tab
+    // assembles its catalogue directly rather than through `libraryRows`, so a
+    // shipped definition arrives with an id and no kind — testing for
+    // `'technical'` emptied the whole tab once.
+    expect(tabOf({ id: 'rsi', category: 'Momentum' })).toBe('technical')
+  })
+
+  it('⛔ NEW FORMULA IS VISIBLE AND SECONDARY', () => {
+    // ⚰️ IT WORE `.insHeadAct` — the same faint grey as `Arrange`, a mode switch.
+    // Owner: *"too dark/subtle and easy to miss."* It is a real button now, and
+    // still not a gold one: search is the primary task on this surface.
+    show(base(), undefined); openTab()
+    fireEvent.click(addBtn())
+    const nf = screen.queryByTestId('settings-new-formula')
+    if (!nf) return                       // the host may not offer the builder
+    expect(nf.className, 'New Formula is still wearing the mode-switch class')
+      .not.toMatch(/insHeadAct/)
+    expect(nf.className).toMatch(/insNewFormula/)
+    expect(nf.textContent.replace(/\s+/g, ' ').trim()).toBe('＋New Formula')
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
 describe('SEARCH → ADD → SEE IT LAND', () => {
   const TICKER_REPLY = {
     ok: true,

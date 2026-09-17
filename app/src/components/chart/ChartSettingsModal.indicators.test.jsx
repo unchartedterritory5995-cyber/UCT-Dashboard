@@ -221,6 +221,19 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
     // shipped definition plus the carved-out sections. Derived from the registry,
     // for exactly the reason the old section list had to be.
     search('')
+    // ⚰️⚰️ IT USED TO READ THE OPTIONS STRAIGHT OFF AN EMPTY QUERY, on the
+    // premise stated above: *"an empty query in discovery mode is the whole
+    // catalogue."* That premise held while the Add surface was one ungrouped
+    // list. It has a CATEGORY STRIP now — Popular / Technical / Fundamentals /
+    // Breadth / Symbols / Indexes / ETFs / Formulas — and its landing tab is the
+    // curated `Popular` nine, so an empty query shows nine rows rather than
+    // twenty-two.
+    //
+    // ⭐ THE CLAIM IS UNCHANGED AND IS STILL THE POINT: every registered
+    // definition must be REACHABLE, and `Technical` is where they all are. What
+    // moved is one click, not the guarantee — so the sweep takes that click. A
+    // definition that falls out of the catalogue still fails here by name.
+    fireEvent.click(screen.getByRole('tab', { name: 'Technical' }))
     const options = screen.getAllByRole('option').map((o) => o.getAttribute('data-def-id'))
     for (const def of listDefinitions()) {
       // ⛔⛔ EXCEPT THE WRITTEN EXCLUSIONS, SUBTRACTED HERE AS A CLAIM.
