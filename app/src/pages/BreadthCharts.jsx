@@ -20,7 +20,7 @@ import { todayET, shiftISO } from './breadth/sessionDates'
 import { spanDays, tickBoundary, formatSessionTick, formatTooltipDate } from './breadth/chartTicks'
 import { zoomWindowFrom, zoomValues } from './breadth/chartZoom'
 import { magnitudeGaps, describeGap } from './breadth/chartMagnitude'
-import { v2Enabled } from './breadth/v2/flag'
+import { useV2Enabled } from './breadth/v2/flag'
 import BreadthChartsV2 from './breadth/v2/BreadthChartsV2'
 import styles from './BreadthCharts.module.css'
 
@@ -79,9 +79,17 @@ function LoadProblem({ error, onRetry, inline = false }) {
  * A wrapper keeps both bodies honest and, with the flag off, renders V1's tree with no
  * extra element around it: the flag-off DOM is byte-identical, and
  * `flagOff.golden.test.jsx` is the rail on that.
+ *
+ * ⭐⭐ "LATER" ARRIVED — DC-2 §2 made the gate RUNTIME, so it genuinely does change
+ * between renders: the answer lands when `/api/auth/me` settles, flipping this component
+ * from V1 to V2 mid-session with no reload. The wrapper was written as insurance against
+ * a hypothetical and is now the thing holding the hook lists apart. ⛔ Do not "simplify"
+ * it back into an early return inside V1 — under a runtime flag that is not a style
+ * preference, it is a conditional hook list and React will throw on the settle.
  */
 export default function BreadthCharts() {
-  return v2Enabled() ? <BreadthChartsV2 /> : <BreadthChartsV1 />
+  const v2 = useV2Enabled()
+  return v2 ? <BreadthChartsV2 /> : <BreadthChartsV1 />
 }
 
 function BreadthChartsV1() {
