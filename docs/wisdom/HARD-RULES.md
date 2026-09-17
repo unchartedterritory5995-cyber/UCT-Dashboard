@@ -904,3 +904,37 @@ flight**. Anything submitted before the stop stays open until it is re-armed or 
 ⭐ That is the right default for a runaway (it stops everything) and the wrong assumption for a
 clean shutdown (it strands work you have already paid for). A stop taken mid-night should be
 followed by a decision about the open batches, not treated as finished.
+
+---
+
+### 2026-09-17 — B3: can the imported gate verdict be superseded on the pod?
+
+**NO, not by anything that runs on its own.** Nothing scheduled, chained or admin-triggerable
+writes `wisdom_eval_runs`, and nothing on the pod can evaluate a golden set: the evaluator lives
+entirely in `tools/wisdom/extract_golden_gate.py`, needs two required CLI paths, and refuses a
+`--db` under the shared root. **Friday's spend cannot shut its own gate.**
+
+⭐ The control for that absence is the part worth keeping: the same search **did** find writers —
+three of them, including one nobody was looking for (`grounding.py`, an `INSERT OR REPLACE` in a
+sibling package) and one outside `api/` (`import_eval_manifest.py`). A search that surfaces an
+unexpected writer is a search that would have surfaced a fourth.
+
+**YES through two deliberate acts, both needing PUSH_SECRET or a shell:**
+1. `POST /api/internal/wisdom/extract/eval-runs` with a receipt. A receipt matching
+   `(extractor_version, model, effort, split)` whose per-type numbers REGRESS gets
+   `decision: "blocked"`, and `gate_status` takes the NEWEST matching row — so a worse
+   evaluation silently shuts extraction.
+2. Running the gate tool **inside the container** — its own docstring advertises
+   `railway run --service web python tools/wisdom/extract_golden_gate.py …` — against a golden
+   directory with no samples.
+
+⛔⛔ **AND THE ZERO-SAMPLE PATH IS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
+`decide_gate` treats the run as same-config against the single production row and records
+**`accepted, baseline: True`** — a verdict that measured nothing, superseding one that measured
+108 segments. ⭐ `import_receipt` does NOT have this hole (`golden.py:630-631` raises on an empty
+`per_type`), which is the shape of the fix if it is ever wanted: **an evaluation that scored
+nothing must refuse, never accept.** A gate whose failure mode is *open* is not a gate.
+
+> **THE RULE. Never run the golden gate inside the container.** The golden set is quote-bearing
+> and deliberately not deployed, so the only thing it can produce there is a verdict about no
+> data — and today that verdict is `accepted`.
