@@ -1901,7 +1901,12 @@ export default function OptionsFlowDashboard() {
   useEffect(() => {
     if (!SERVER_TOPPICKS) return;
     if (!D || D.all_directional) return;      // nothing missing
-    if (servedTopPicks) return;               // the product answered
+    // The product answered, so the TOP 10 table needs no raw rows — UNLESS the
+    // member has EXPANDED a pick. The expand panel's "TOP N TRADES BY PREMIUM"
+    // reads all_directional (via `ad`), which the server-product path never
+    // ships, so an expanded row rendered blank. Expanding is the on-demand
+    // trigger that makes the ~1.9 MB raw fetch worth its cost.
+    if (servedTopPicks && !top5Detail) return;
     if (D.TOP_PICKS && etfGeneration === null) return;  // generation still in flight
     if (_rawPartsAsked.current) return;
     _rawPartsAsked.current = true;
@@ -1917,7 +1922,7 @@ export default function OptionsFlowDashboard() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [D, servedTopPicks, etfGeneration, csvFile, dateFilter]);
+  }, [D, servedTopPicks, top5Detail, etfGeneration, csvFile, dateFilter]);
 
   const FD = useMemo(() => {
     // ⛔ FD IS TRACED SEPARATELY. The last branch returns a PLAIN copy of D, and
