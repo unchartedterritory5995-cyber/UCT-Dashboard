@@ -1,16 +1,21 @@
 /**
- * Data Charts V2 — the SHELL (V2-1). Dark behind `VITE_BREADTH_CHARTS_V2_ENABLED`.
+ * Data Charts V2 — the shell (V2-1) and, since DC-2 §3.3, the stacked panels (V2-2).
  *
- * What this is: the read path and its honest states, wired end to end. What it is NOT,
- * yet: a chart. V2-1 exists so the next increment draws against a data path that has
- * already been proved — the repo's recurring defect is the opposite order (eight features
- * built, tested, green, and connected to nothing).
+ * ⛔ THE HONEST STATES COME FIRST AND ARE NOT OPTIONAL. Everything above the chart —
+ * refused range, dropped keys, not-held keys, reconstructed sessions — is a claim about
+ * what the reader is looking at. A chart drawn without them is more confident than the
+ * data, which is the defect the whole C-lane and A-10 exist to fix.
  *
- * ⛔ NO STYLING ON PURPOSE. A dark shell that nobody can reach does not need a theme, and
- * adding tokens now would put `--v2-*` custom properties into every theme island before a
- * single pixel is designed. Markup first, styling with the chart.
+ * ⛔ V2-2 AND V2-3 ARE READ SEPARATELY. They are independent increments that the owner
+ * flips and reverts separately, so this component asks for each one on its own and never
+ * treats "V2 is on" as a single fact.
  */
+import { useMemo, useState } from 'react'
+import ReactECharts from 'echarts-for-react'
 import useBreadthSeries from './useBreadthSeries'
+import { useDcFlags } from './flag'
+import { buildOption } from './chartOption'
+import { panelsFor } from './panels'
 import { todayET, shiftISO } from '../sessionDates'
 
 /** V1's own default selection and window, so the two shells open on the same view. */
@@ -21,6 +26,25 @@ export default function BreadthChartsV2({ keys = DEFAULT_KEYS, from, to }) {
   // Eastern, like every other session date in this programme (A-35).
   const today = todayET()
   const s = useBreadthSeries(keys, from ?? shiftISO(today, -DEFAULT_WINDOW_DAYS), to ?? today)
+  const { v22 } = useDcFlags()
+
+  // Which unit families the reader has asked to see on a log scale.
+  const [logPanels, setLogPanels] = useState(() => new Set())
+  const panels = useMemo(() => panelsFor(s.keys ?? []), [s.keys])
+
+  const option = useMemo(() => {
+    if (!v22 || !s.series || !s.dates?.length) return null
+    return buildOption(s.dates, s.series, s.keys, { logPanels })
+  }, [v22, s.series, s.dates, s.keys, logPanels])
+
+  function toggleLog(unit) {
+    setLogPanels(prev => {
+      const next = new Set(prev)
+      if (next.has(unit)) next.delete(unit)
+      else next.add(unit)
+      return next
+    })
+  }
 
   return (
     <section data-testid="breadth-charts-v2" aria-label="Data Charts V2">
@@ -57,7 +81,49 @@ export default function BreadthChartsV2({ keys = DEFAULT_KEYS, from, to }) {
         </p>
       )}
 
-      {s.series && (
+      {s.reconstructed.length > 0 && (
+        <p data-testid="v2-reconstructed">
+          {s.reconstructed.length} reconstructed session(s) in this range.
+        </p>
+      )}
+
+      {option && (
+        <>
+          {/* ⛔ A LOG CONTROL THAT DID NOTHING MUST SAY WHY. ECharts drops non-positive
+              points from a log axis and draws a confident line through the rest, so a
+              silent refusal is silent data loss. */}
+          {panels.length > 0 && (
+            <div data-testid="v2-log-toggles">
+              {panels.map(p => (
+                <button
+                  key={p.unit}
+                  type="button"
+                  aria-pressed={logPanels.has(p.unit)}
+                  data-testid={`v2-log-${p.unit}`}
+                  onClick={() => toggleLog(p.unit)}
+                >
+                  {p.label} · log
+                </button>
+              ))}
+            </div>
+          )}
+          {option.__refusals.map(r => (
+            <p key={r.unit} role="status" data-testid={`v2-log-refused-${r.unit}`}>
+              {r.reason}
+            </p>
+          ))}
+          <ReactECharts
+            option={option}
+            style={{ height: Math.max(320, panels.length * 190), width: '100%' }}
+            notMerge
+            lazyUpdate
+          />
+        </>
+      )}
+
+      {!option && s.series && (
+        // The V2-1 diagnostic list, still the view when V2-2 is off — it is what proved
+        // the read path end to end and it stays reachable until V2-2 is everyone's.
         <ul data-testid="v2-series">
           {Object.entries(s.series).map(([key, values]) => (
             <li key={key} data-testid={`v2-series-${key}`}>
@@ -68,12 +134,6 @@ export default function BreadthChartsV2({ keys = DEFAULT_KEYS, from, to }) {
             </li>
           ))}
         </ul>
-      )}
-
-      {s.reconstructed.length > 0 && (
-        <p data-testid="v2-reconstructed">
-          {s.reconstructed.length} reconstructed session(s) in this range.
-        </p>
       )}
     </section>
   )

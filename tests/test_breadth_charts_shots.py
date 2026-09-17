@@ -68,6 +68,29 @@ def test_qqq_close_is_absent_before_2026_so_A39_has_something_to_disclose():
     assert after and all(x is not None for x in after), "nothing is present after the boundary"
 
 
+@pytest.mark.parametrize("span", [365, 4530])
+def test_the_fixture_obeys_the_series_contract(span):
+    """⛔⛔ A FIXTURE THAT DISOBEYS THE CONTRACT TESTS A SHAPE THE SERVER NEVER SENDS.
+
+    The first version omitted `dates` entirely. Nothing threw — `useBreadthSeries` reads
+    `data.dates` with an EMPTY fallback — so the V2 shell rendered against an empty
+    x-axis and the screenshots looked perfectly reasonable. It would have been found
+    when V2-2 drew a chart with no time on it, i.e. after the work was done.
+
+    The contract is `docs/breadth/api-series.md:38-45`, asserted here clause by clause.
+    """
+    f = H._fixture(span)
+    assert "dates" in f, "the response carries `dates` — the client reads it by that name"
+    dates = f["dates"]
+    assert dates == sorted(dates), "`dates` ascending"
+    assert len(set(dates)) == len(dates), "each date once"
+    assert f["sessions"] == len(dates), "`sessions == len(dates)`, in stored sessions"
+    for key, col in f["series"].items():
+        assert len(col) == len(dates), f"{key} column is not the length of `dates`"
+    assert set(f["reconstructed"]) <= set(dates), "reconstructed names a date not served"
+    assert f["from"] == dates[0] and f["to"] == dates[-1]
+
+
 def test_the_fixture_reads_no_clock_and_is_byte_stable():
     """⛔ Two calls must be identical. A fixture that consults `date.today()` re-records
     every golden at midnight, which is the moving-reference defect this harness exists
