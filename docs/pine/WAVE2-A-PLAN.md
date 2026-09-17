@@ -460,6 +460,30 @@ refusal would put a line in the result for every `len = 14` in every script.
 
 ---
 
+# ✅ R30 — A FILL IS DRAWN AS **RUNS** (owner, 2026-09-16)
+
+> `createFillPrimitive` receives **per-point colours** — the array
+> `columnColorsForPlot` yields for the fill *exactly as it does for a plot* — and draws
+> **one polygon per RUN**, a run being a maximal sequence of consecutive points whose
+> resolved colour is identical. `ctx.fillStyle` is set **once per run**.
+
+| case | what R30 requires |
+|---|---|
+| a **static**-colour fill | resolves to **one run**; its draw calls are **byte-identical to j.2's** — this is the control |
+| a point whose colour resolves to **`null`** (na condition, dynamic transparency) | **ends the current run and starts no polygon** until the next non-null point |
+| run boundaries | computed **once per frame** from the colour array |
+
+⛔⛔ **AN `na` BAR IS A GAP, NEVER A GUESS.** Carrying the previous colour across it would
+paint a band over bars the script says nothing about — the same class of lie as a
+tolerance on a count. The acceptance pins it with a fixture whose middle bar is `na`.
+
+⭐ **Why "runs" and not "per-point":** a fill is an AREA between two series, and an area
+needs a polygon; a colour that changes mid-polygon has no meaning. Runs are the smallest
+unit on which a fill colour *can* be defined, which is why this is a ruling about the
+draw and not about the carriage.
+
+---
+
 # R11 — ITEM (j) RENDERS A CONDITIONAL FILL (owner, 2026-09-14)
 
 ⛔ **(j) must not begin by hunting a static colour. There is none, and that is correct.**
