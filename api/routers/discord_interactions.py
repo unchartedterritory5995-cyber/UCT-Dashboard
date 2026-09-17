@@ -399,16 +399,26 @@ def _emit_ack_timing(request) -> dict | None:
         from api.services.discord_render import ids, observe
         seen = getattr(request.state, "drender_interaction", None) or {}
         cmd = str(((seen.get("data") or {}).get("name")) or "") or None
+        # ⛔⛔ R54 (D-15) — THE INTERACTION TYPE RIDES IN-BAND, OR THIS STREAM LIES.
+        # An AUTOCOMPLETE carries the same `data.name` as the command it is completing, so
+        # without this every `/flow` keystroke that reaches us is indistinguishable from a
+        # member actually running `/flow`. Measured 2026-09-17: an ack for `cmd:"flow"` at
+        # 13:54:16Z with no message in the channel and no command sent for another six minutes.
+        # Consumers filter with `observe.is_command_arrival`; unknown is never a command.
+        itype = seen.get("type")
+        itype = itype if isinstance(itype, int) else None
         entry_to_ack_ms = (_t.perf_counter() - entry_perf) * 1000.0
         out = {"entry_to_ack_ms": entry_to_ack_ms}
-        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms)
+        observe.event("ack", cid=ids.current(), cmd=cmd, hop="entry_to_ack", ms=entry_to_ack_ms,
+                      itype=itype)
         try:
             send_to_entry_ms = (entry_wall - int(ts)) * 1000.0
         except (TypeError, ValueError):
             send_to_entry_ms = None          # unparsable header: absent, never zero
         if send_to_entry_ms is not None:
             out["send_to_entry_ms"] = send_to_entry_ms
-            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms)
+            observe.event("ack", cid=ids.current(), cmd=cmd, hop="send_to_entry", ms=send_to_entry_ms,
+                          itype=itype)
         return out
     except Exception:  # noqa: BLE001
         return None

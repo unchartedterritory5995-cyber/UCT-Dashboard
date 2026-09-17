@@ -43,6 +43,19 @@ log line that happened to survive; they are Discord's own record of when it call
 A census that quietly called itself complete would be the worse instrument, so `--analyze`
 prints the floor caveat on its own line and the report repeats it.
 
+⭐⭐ AND ONE THING THIS CENSUS IS STRUCTURALLY IMMUNE TO, WHICH THE ACK LOG IS NOT (R54, D-15).
+An AUTOCOMPLETE (`itype 4`) creates no message, so it can never enter this population — the
+same property that makes button clicks invisible here makes autocompletes harmless here. It is
+recorded because the OTHER obvious source for an arrival rate is NOT immune: the `drender` ack
+stream carries one ack per autocomplete round-trip, tagged with the SAME `cmd` as the command
+being completed. Measured 2026-09-17 — an ack for `cmd:"flow"` at 13:54:16Z, six minutes before
+any `/flow` was sent, with no message in the channel. Anyone reading arrival rates or ack
+latency out of that stream MUST filter with `observe.is_command_arrival` (itype == 2); counting
+autocompletes inflates the rate and deflates the latency, and both errors flatter the pod.
+⛔ Do not "fix" this file by adding that filter — it would be inert here, and an inert filter
+reads as protection. The immunity is in the SOURCE, and that is why it is stated rather than
+coded.
+
 ⛔ NO SECRET AND NO MEMBER IDENTITY IS WRITTEN. The bot token is read from the environment and
 never printed. Message content, embeds and attachment URLs are never written — a chart
 attachment URL carries a signed CDN token and `/r/chart` URLs carry the render token (C-13).

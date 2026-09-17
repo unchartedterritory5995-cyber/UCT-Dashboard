@@ -64,7 +64,17 @@ LOOP_STALL_PAGE_COOLDOWN_S = 1800.0
 LOOP_NOISE_MS = 50.0
 
 _SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
-_FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key")
+_FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key", "itype")
+
+#: Discord's interaction types, as the API defines them. R54 (D-15): the ack emitter records
+#: this IN-BAND so a reader can tell a COMMAND from an autocomplete round-trip.
+#: ⚰️ MEASURED 2026-09-17: a `drender` ack for `cmd:"flow"` was emitted at 13:54:16Z, six
+#: minutes before any `/flow` was sent and with no message in the channel — the ticker
+#: autocomplete, which this app answers because the choices are dynamic. Every ack in that
+#: stream looked like a command arrival, so any rate or latency figure taken over
+#: `evt:"ack", cmd:"flow"` counted autocompletes as commands and pulled latency DOWN
+#: (22.9 ms and 12.1 ms are indistinguishable once the type is gone).
+ITYPE_PING, ITYPE_COMMAND, ITYPE_COMPONENT, ITYPE_AUTOCOMPLETE, ITYPE_MODAL = 1, 2, 3, 4, 5
 ALERT_WEBHOOK_ENV = "DISCORD_RENDER_ALERT_WEBHOOK"
 
 
@@ -84,6 +94,20 @@ def event(evt: str, **fields) -> dict:
             payload[k] = round(v, 1) if isinstance(v, float) else scrub(v)
     log.info("%s %s", EVENT_TOKEN, json.dumps(payload, separators=(",", ":"), default=str))
     return payload
+
+
+def is_command_arrival(ev: dict) -> bool:
+    """⛔ THE FILTER EVERY RATE OR LATENCY READING OVER ACK EVENTS MUST APPLY (R54).
+
+    True only for a real slash-command arrival. An autocomplete round-trip is an ack too, and
+    counting one as a command inflates arrival rates and deflates latency.
+
+    ⛔ UNKNOWN IS NOT A COMMAND. An event with no `itype` predates R54 or came from a path that
+    does not record it, and answering True there would quietly restore the contamination for
+    every historical line — which is the whole population an arrival census reads. A caller that
+    genuinely wants "everything" should say so explicitly rather than rely on this returning True
+    for an absence."""
+    return ev.get("itype") == ITYPE_COMMAND
 
 
 @contextmanager
