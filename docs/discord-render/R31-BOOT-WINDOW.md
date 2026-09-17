@@ -83,3 +83,46 @@ for the ≥1 s class (2.94/pod-h, 4 events) and contributes **zero** ≥5 s even
   `(sha, boot)` identity with its 120 s tolerance, the first-reading clause and the
   rise-against-the-preceding-reading detector were each a measured bug; a second copy here would
   be a second authority over one number.
+
+---
+
+## Re-run at 09:28 ET, with 3 more pods and 4 more events — the finding strengthened
+
+⭐ **Shown as a SERIES, not an overwrite.** A number that moves should be visible moving; replacing
+the first reading would hide that this is a small-n measurement still filling in.
+
+```
+  41 pods, 46 stall events >= 1000 ms, 35.7 h, 31 gaps        (was 38 / 42 / 35.2 h)
+
+  uptime (min)  pod-hours   n>=1s  per pod-h   n>=5s  per pod-h     max ms
+           0-3       1.20       7       5.84       5       4.17      38869
+           3-5       1.12       1       0.89       1       0.89      10470
+           5-8       1.47       1       0.68       0       0.00       1519
+          8-11       1.30       3       2.31       2       1.54      12108
+         11-15       1.43       4       2.81       0       0.00       4420
+         15-20       1.35       3       2.23       1       0.74       6093
+         20-25       1.22       1       0.82       0       0.00       3042
+           25+      25.22      26       1.03       4       0.16      80249
+
+  boot (0-15 min): 16 events over  6.52 pod-h = 2.46/pod-h     (was 1.94)
+  tail (15+  min): 30 events over 27.79 pod-h = 1.08/pod-h     (unchanged)
+  ratio boot/tail: 2.27x                                        (was 1.80x)
+```
+
+**Every new event landed in the boot window**, and four of them were ≥5 s. The tail did not move
+at all. So:
+
+- the ≥1 s ratio went **1.80× → 2.27×**;
+- minutes **0–3** now carry **4.17 ≥5 s events per pod-hour** against the settled tail's **0.16** —
+  a ~26× separation on n=5;
+- the 3–5 minute band, which was clean in the first run, now holds the **10,470 ms event that
+  actually paged** (uptime 103.6 s).
+
+⚠️ **This is what a small-n measurement filling in looks like, and the honest reading is the
+DIRECTION, not the ratio.** Both runs agree that the boot window is worse per unit time and that
+the ≥5 s class is where the separation lives; neither pins the multiplier, and the boot buckets
+still hold ~1.1–1.5 pod-hours each against the tail's 25.2.
+
+⛔ **And the minute-11-to-15 band still pages nobody** — 4 events ≥1 s, **zero** ≥5 s, across both
+runs. Whatever the "minute-11-to-15 block" hypothesis was about, this dataset does not show it
+reaching tier 1.
