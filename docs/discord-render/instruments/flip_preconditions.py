@@ -933,8 +933,23 @@ def check_chaos_real(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
 SMOKE_ROWS_TOTAL = 15
 N_SMOKE = "3.5 real-Discord smoke"
 
+#: ⛔ EVERY MARK KEEPS ITS EMOJI ANCHOR, and that is not decoration. On 2026-09-17 an evidence
+#: file's own PROSE — spelling out the four mark words to explain them — was counted as four
+#: marks, and the index scored 11/1/5/1 instead of 10/0/4/0. The emoji is what separates a RESULT
+#: from a sentence about results.
+#: `NOT RUN` closes on `**` so it can never swallow `NOT RUNNABLE`, which is a different fact:
+#: unrun is a to-do, NOT RUNNABLE is a property of the pod (rows 2/3/5/7 while V2 is dark).
 _SMOKE_MARKS = {"passed": r"✅\s*\*\*PASS", "failed": r"🔴\s*\*\*FAIL",
-                "notrun": r"⛔\s*\*\*NOT RUN", "partial": r"🟡\s*\*\*PARTIAL"}
+                "notrun": r"⛔\s*\*\*NOT[ -]RUN\*\*", "partial": r"🟡\s*\*\*PARTIAL",
+                "notrunnable": r"(?:🚫|⛔)\s*\*\*NOT[ -]RUNNABLE", "inconclusive": r"🟠\s*\*\*INCONCLUSIVE"}
+
+#: R50 (owner ruling, D-15). An index declares the COMMIT it was run against and the DATE it was
+#: run, both IN BAND. Neither is optional: a smoke result without a SHA cannot be attached to a
+#: build, and a run date read from a FILENAME is a guess about a directory name — the same class
+#: as the S2 filename selector this file already removed once.
+_SMOKE_SHA = re.compile(r"commit[^\n`]{0,60}`([0-9a-f]{7,40})`", re.I)
+_SMOKE_RUN_AT = (re.compile(r"^\*\*Run date:\*\*\s*(\d{4}-\d{2}-\d{2})", re.I | re.M),
+                 re.compile(r"\brun\s+(\d{4}-\d{2}-\d{2})\b", re.I))
 
 #: ⛔ WHAT MAKES AN INDEX THIS ROW'S INDEX IS WHAT IT SAYS, NOT WHERE IT SITS. The row used to find
 #: its evidence with `glob("smoke*/INDEX.md")`, so a run recorded in a directory named anything else
@@ -944,17 +959,40 @@ _SMOKE_INDEX_MARK = re.compile(r"^#\s.*\b3\.5\b.*smoke", re.I | re.M)
 _SHOT_SUFFIXES = (".png", ".jpg", ".jpeg")
 
 
+def _smoke_run_at(text: str) -> str | None:
+    """The run date the index declares about ITSELF. ⛔ Never the filename, never the mtime."""
+    for rx in _SMOKE_RUN_AT:
+        m = rx.search(text)
+        if m:
+            return m.group(1)
+    return None
+
+
 def _smoke_indexes(ev: Evidence) -> tuple[list, list]:
-    """(declared 3.5 indexes, other INDEX.md files named so they are never silently ignored)."""
+    """(declared 3.5 indexes, other INDEX.md files named so they are never silently ignored).
+
+    A declared index is ACCEPTED only when it says which commit it was run against and when it
+    ran. Both are rejections, not warnings: an index missing either cannot be ordered against its
+    siblings or attached to a build, and scoring it anyway is how a stale run gets read as current."""
     mine, other = [], []
     for idx in sorted(ev.evidence_dir.glob("**/INDEX.md")):
         text, why = _read_text(idx)
         if why:
             other.append((idx, why))
-        elif _SMOKE_INDEX_MARK.search(text or ""):
-            mine.append((idx, text))
-        else:
+            continue
+        if not _SMOKE_INDEX_MARK.search(text or ""):
             other.append((idx, "does not declare itself a 3.5 smoke index"))
+            continue
+        sha = _SMOKE_SHA.search(text or "")
+        run_at = _smoke_run_at(text or "")
+        if not sha:
+            other.append((idx, "declares no commit SHA — a smoke result that names no build "
+                               "cannot be scored (R50)"))
+        elif not run_at:
+            other.append((idx, "declares no run date — without one the latest run cannot be "
+                               "identified except by filename, which is a guess (R50)"))
+        else:
+            mine.append({"path": idx, "text": text, "sha": sha.group(1), "run_at": run_at})
     return mine, other
 
 
@@ -978,7 +1016,7 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     indexes, other = _smoke_indexes(ev)
     # Screenshots are counted from the subtree of a DECLARED index, so the count describes the run
     # this row is judging rather than every image under a directory whose name starts with "smoke".
-    shots = [q for idx, _ in indexes for q in idx.parent.rglob("*")
+    shots = [q for e in indexes for q in e["path"].parent.rglob("*")
              if q.suffix.lower() in _SHOT_SUFFIXES]
     if not indexes:
         # ⛔ "SCREENSHOTS BUT NO INDEX" AND "NOTHING AT ALL" ARE DIFFERENT FACTS, and the row must
@@ -999,11 +1037,31 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
                        if other else "")
                     + ("; the typed script is ready at evidence/smoke-script.md"
                        if script.exists() else "; no script written either"))
-    # Count the rows the INDEX itself marks. ⛔ Read the verdict, never the artifact count.
+    # ⛔⛔ R50 — THE LATEST COMPLETE INDEX IS SCORED. EARLIER ONES ARE HISTORY.
+    # ⚰️ This used to SUM marks across every index in the tree, so a FAIL recorded on 2026-09-14
+    # held the row red forever no matter what a later, cleaner run found — and two partial runs
+    # that both claimed row 1 could sum their way toward MET. Summing is the defect SMOKE-3.5.md
+    # was written to end; this is a correction to that document's stated semantics, not a
+    # threshold change, and it can move the row in BOTH directions.
+    # ⛔ Latest is decided by the date the index declares about ITSELF, never by filename order.
+    latest = max(indexes, key=lambda e: (e["run_at"], str(e["path"])))
+    history = [e for e in indexes if e is not latest]
     marks = {k: 0 for k in _SMOKE_MARKS}
-    for _, text in indexes:
-        for key, pattern in _SMOKE_MARKS.items():
-            marks[key] += len(re.findall(pattern, text))
+    for key, pattern in _SMOKE_MARKS.items():
+        marks[key] += len(re.findall(pattern, latest["text"]))
+
+    def _hist() -> str:
+        """Earlier runs are NAMED, never summed. A prior FAIL is a fact a reader wants."""
+        if not history:
+            return ""
+        bits = []
+        for e in sorted(history, key=lambda x: x["run_at"], reverse=True):
+            fails = len(re.findall(_SMOKE_MARKS["failed"], e["text"]))
+            bits.append(f"{e['run_at']} on {e['sha'][:12]} had "
+                        + (f"{fails} FAIL" if fails else "no FAIL"))
+        return "; prior: " + ", ".join(bits[:3])
+
+    scored = f" [latest {latest['run_at']} on {latest['sha'][:12]}]"
     if not any(marks.values()):
         return _row(N_SMOKE, NOT_MEASURABLE,
                     f"{len(indexes)} INDEX file(s) carrying no row verdict at all — an index that "
@@ -1020,26 +1078,46 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
         return _row(N_SMOKE, NOT_MET,
                     f"{marks['failed']} FAIL mark(s) ({marks['passed']}/{SMOKE_ROWS_TOTAL} rows "
                     f"marked PASS, {unaccounted} row(s) no mark speaks for) — a smoke with a red "
-                    f"row is a smoke that found something")
+                    f"row is a smoke that found something" + scored + _hist())
+    # ⛔ TWO DIFFERENT KINDS OF "NOT PASSED", AND COLLAPSING THEM IS A LIE IN EITHER DIRECTION.
+    # `outstanding` is work nobody has done. `structural` is work the POD forbids — rows 2/3/5/7
+    # assert a V2 renderer contract and `DISCORD_RENDER_V2_ENABLED` is unset, so no amount of
+    # running produces a PASS. Reporting those as "unrun" reads as a to-do list; reporting them
+    # as PASS would be scoring the flag instead of the product.
     outstanding = marks["notrun"] + marks["partial"] + unaccounted
+    structural = marks["notrunnable"] + marks["inconclusive"]
     if marks["passed"] >= SMOKE_ROWS_TOTAL and outstanding:
         # ⛔ MORE PASS MARKS THAN ROWS, WHILE ROWS ARE STILL UNRUN. Two partial indexes that both
         # claim row 1 would otherwise sum to 15 and carry the row to MET. The arithmetic, not the
-        # evidence, would have been what flipped it.
+        # evidence, would have been what flipped it. (R50 scores ONE index, so this now catches a
+        # single index double-claiming its own rows rather than two indexes summing.)
         return _row(N_SMOKE, NOT_MET,
-                    f"{marks['passed']} PASS mark(s) across {len(indexes)} index(es) — but "
+                    f"{marks['passed']} PASS mark(s) in one index — but "
                     f"{marks['notrun']} NOT RUN and {marks['partial']} PARTIAL are still "
-                    f"outstanding, so the marks are being double-counted, not earned")
+                    f"outstanding, so the marks are being double-counted, not earned"
+                    + scored + _hist())
     if marks["passed"] >= SMOKE_ROWS_TOTAL:
         return _row(N_SMOKE, MET,
-                    f"{marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS across {len(indexes)} "
-                    f"index(es), {len(shots)} screenshot(s), 0 outstanding")
+                    f"{marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS, {len(shots)} screenshot(s), "
+                    f"0 outstanding" + scored + _hist())
+    if structural and not outstanding:
+        # ⭐ EVERY RUNNABLE ROW PASSED. This is as green as the row can be while V2 is dark, and
+        # saying so is the point: the remaining rows are not a backlog and nobody should try to
+        # "finish" them. It is still NOT MET — the gate asks whether the smoke passed, and rows
+        # nobody can run have not passed.
+        return _row(N_SMOKE, NOT_MET,
+                    f"{marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS and {structural} row(s) NOT "
+                    f"RUNNABLE / INCONCLUSIVE by construction — every row that CAN be run passed. "
+                    f"The remainder assert a V2 renderer contract and the flag is unset, so they "
+                    f"are not a backlog; this row cannot reach MET before the flip"
+                    + scored + _hist())
     return _row(N_SMOKE, NOT_MET,
                 f"only {marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS "
-                f"({marks['notrun']} NOT RUN mark(s), {marks['partial']} PARTIAL, {unaccounted} "
-                f"row(s) no mark speaks for, {len(shots)} screenshot(s), {len(indexes)} index(es)) "
+                f"({marks['notrun']} NOT RUN mark(s), {marks['partial']} PARTIAL, "
+                f"{structural} NOT RUNNABLE/INCONCLUSIVE, {unaccounted} "
+                f"row(s) no mark speaks for, {len(shots)} screenshot(s)) "
                 f"— a partial smoke is not a smoke; the unrun rows are the ones nobody has seen "
-                f"fail")
+                f"fail" + scored + _hist())
 
 
 N_ALERTS = "#render-alerts locked to admins"

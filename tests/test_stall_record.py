@@ -57,6 +57,33 @@ def test_tier1_pages_at_any_uptime():
     assert d["page"] is True and d["tier"] == 1
 
 
+def test_a_block_just_past_the_ack_budget_pages_at_low_uptime():
+    """⛔⛔ R51, AND THE CASE THAT BOUGHT IT. On 2026-09-17 a 3,572.1 ms block at uptime 281 s
+    scored tier=null and paged nobody, under a 5,000 ms tier 1. Discord closes an interaction
+    at 3,000 ms, so that block was a CERTAIN member-visible failure that no rule could report.
+    Tier 1 is now the ack budget itself: at or past it, at any uptime, it pages."""
+    d = stall_record.page_decision(3100.0, uptime_s=10.0, last_page_at=0.0, now=10_000.0)
+    assert d["page"] is True and d["tier"] == 1, (
+        "a block past the 3 s ack budget must page at any uptime")
+
+
+def test_a_block_just_under_the_ack_budget_is_recorded_and_not_paged():
+    """⛔ THE NON-VACUITY HALF OF R51. Without it the rule above passes just as well if
+    everything pages, and a tier that fires on every blocked second is muted within a week.
+    2,900 ms is under the budget: the interaction still lands, so it is evidence, not an alarm.
+    """
+    d = stall_record.page_decision(2900.0, uptime_s=10.0, last_page_at=0.0, now=10_000.0)
+    assert d["record"] is True, "a near-budget block is still evidence and must be recorded"
+    assert d["page"] is False, "below the ack budget must not page at low uptime"
+
+
+def test_tier1_is_exactly_the_discord_ack_budget():
+    """⛔ The number has a REASON, and the reason is checkable. If someone moves tier 1 without
+    moving the ack budget it is guarding, these stop agreeing and this says so by name."""
+    assert observe.LOOP_STALL_PAGE_ALWAYS_MS == 3000.0, (
+        "R51: tier 1 IS the Discord ack budget; raising it needs a directive citing the fix")
+
+
 def test_tier2_pages_only_past_the_uptime_floor():
     below = stall_record.page_decision(1200.0, uptime_s=500.0, last_page_at=0.0, now=10_000.0)
     above = stall_record.page_decision(1200.0, uptime_s=901.0, last_page_at=0.0, now=10_000.0)
@@ -164,8 +191,13 @@ def test_the_thresholds_come_from_observe_not_a_copy():
     would silently break `mutation_harness_adapters`, which mutates the constant at its real home."""
     import inspect
     src = inspect.getsource(stall_record)
-    assert "1000.0" not in src, "LOOP_STALL_ALERT_MS was copied into stall_record"
-    assert "5000.0" not in src, "LOOP_STALL_PAGE_ALWAYS_MS was copied into stall_record"
+    # ⛔ DERIVED, NEVER TYPED. This read `"5000.0" not in src` — a literal beside the constant
+    # it guards, so R51's move to 3,000 ms would have left the rail hunting a number that no
+    # longer exists and passing for the wrong reason. Same class as the flip gate's
+    # `says="only 1/15"` and SMOKE-3.5's "three" over a list of four (D-15).
+    for name, value in (("LOOP_STALL_ALERT_MS", observe.LOOP_STALL_ALERT_MS),
+                        ("LOOP_STALL_PAGE_ALWAYS_MS", observe.LOOP_STALL_PAGE_ALWAYS_MS)):
+        assert str(value) not in src, f"{name} was copied into stall_record"
     assert stall_record._thresholds()[0] == observe.LOOP_STALL_ALERT_MS
     assert stall_record._thresholds()[1] == observe.LOOP_STALL_PAGE_ALWAYS_MS
 
