@@ -1730,3 +1730,110 @@ does not care about the pod; a median does.
 4. parity: `rf_rows` and `rf_bytes` unchanged — the flag must not change the work
 5. no new failure mode in the sampler's refusals
 
+
+### 4. R6 EXECUTED — the flip works, and the instrument built to prove it could not
+
+**The flip was executed and verified. `flag_observed` was structurally incapable of
+reporting it, and said so with total confidence.**
+
+| step | result |
+|---|---|
+| `railway variables --set BREADTH_RESIDENT_RECON_ENABLED=1` on `web` | exit 0 |
+| variable read back, with a positive and a negative control | `=1`; 251 → **252** variables, exactly one added |
+| redeploy | **auto-redeployed** — new deploy of the same commit `9081799f2`, no burst slot |
+| deploy's own record | **SUCCESS**; previous same-commit deploy marked REMOVED |
+| running process | uptime 30,682 → **269** — a genuinely new pod |
+| **instrument says** | `flag_declared=on`, **`flag_observed=off`**, `flag_agrees=False` |
+
+⛔⛔ **`rf_resident` IS NEVER PUBLISHED, SO `flag_observed` COULD ONLY EVER SAY "off".**
+`breadth_daily_ohlc.py` notes it correctly on **every** branch (1 resident / 0 SQLite), but
+`breadth_timing.server_timing()` writes a **hard-coded scalar allowlist** — `rf_rows`,
+`rf_bytes`, `rf_busy_retries`, `rf_stmts`, `rf_stmt_min/max/sum`, `rf_pagecache`,
+`rf_conn_reused` — and `rf_resident` is not in it. `rf_pagecache` is, because the
+page-cache flag's author added it there; the resident flag's author added the `note()` and
+not the publish.
+
+⭐ **The disagreement field was disagreeing with itself.** `flag_declared` vs
+`flag_observed` exists precisely so a mixed pool is visible in the row rather than
+reasoned about afterwards — and the half that was wrong was the observation. **Every
+`flag_observed` value written before 2026-09-17 is VACUOUS** and must not be read as
+evidence of a flag state.
+
+⭐ **THE FLIP IS PROVEN STRUCTURALLY INSTEAD, and the escape generalises.** The two readers
+differ in what they *do*, and that is published:
+
+| reader | phases |
+|---|---|
+| SQLite | `rf_open` · `rf_pragma` · `rf_execute` · `rf_fetch` · `rf_conn_reused` |
+| resident | none of those — `rf_materialise` only (it parses held JSON strings) |
+
+The post-flip read carried **none of the five**. Absence of the fetch phases is positive
+evidence for the resident reader, and it is a property of the request rather than of a
+header's allowlist. **The phase set is what the pod DID; `rf_resident` is what an allowlist
+chose to mention.** Both `breadth_sampler.flag_evidence` and `breadth_pool_report`
+(`observed_flag`) now derive from the phase set, and the report derives rather than trusting
+the stored label, so a pool collected across the fix is still grouped correctly.
+
+#### ⛔ FIVE `deep_cold` ROWS WERE CACHE HITS, AND TWO OF THEM WERE PUBLISHED
+
+`reader` phase **0.0**, totals of 69–168 ms against a ~300 ms population. Cause: the sampler
+forces a miss by varying the span, and **each `--once` run is a fresh process that computes
+the same span**, so four consecutive one-shots re-read a span the previous one had warmed.
+The long-running loop varies it correctly.
+
+⛔ Two are in reader `b8873db0f2ab`, and **they are why its published minimum was 70.2 ms**.
+Corrected: n 14 → **12**, p50 271.5 → **276.1**, min 70.2 → **251.6**. ⭐ `kind` records what
+the sampler INTENDED; `reader` records what the pod DID — and when they disagree the pod
+wins, which is the same rule as `flag_declared` vs `flag_observed`, one layer down.
+`reader_ran()` now drops them, mutation-proved.
+
+#### R6 VERDICT — `DEFERRED`, with the exact n
+
+| pool | reader | n (all) | n (settled ≥600 s) |
+|---|---|---|---|
+| **A** flag OFF | `7864c894526e` | 175 | **155** |
+| **B** flag ON | `7864c894526e` | 2 | **1** |
+
+**Pool B did not reach n ≥ 20 and cannot today: the sampler's 60/day cap is exhausted**, and
+item 4 of the addendum says leave it at 60. Per the addendum's own rule — *leave the flag in
+the state with the larger settled pool* — the flag is **reverted to OFF**, because 155 ≫ 1.
+
+⚠️ **The one settled resident read is 491.0 ms against Pool A's 497.2 ms on the same
+deploy.** That is one sample and settles nothing; it is recorded so the next session starts
+from a number rather than an expectation. The build cost is real and separate:
+**~7.5 s on the first read after a boot**, once per pod, then gone.
+
+### 5. ⛔⛔ THE RATIFIED 33× HAS DRIFTED TO 15×, AND THE READER DID NOT CHANGE
+
+Recomputed 2026-09-17 on 155 settled rows, per deploy:
+
+| deploy | n | p50 | max | vs D-042 at the max |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 | 389.3 | **141×** |
+| `9906a7fcd` | 7 | 302.2 | 469.3 | 117× |
+| `6128705c4` | 42 | 307.9 | 754.7 | 73× |
+| `465b12e36` | 26 | 313.4 | 1,680.6 | **33× ← the published figure** |
+| `02328569b` | 7 | 331.0 | 1,129.2 | 49× |
+| **`9081799f2`** | **54** | **497.2** | **3,752.1** | **15×** |
+
+**Pooled: p95 ≤ 3,752.1 ms ⇒ 15×**, against the published 33×.
+
+⛔ **This is NOT a regression in the reader, and it must not be reported as one.** Every row
+still does identical work — `rf_rows` = 4,529 and `rf_bytes` = 4,523,328 take exactly one
+value each across the whole pool. `9081799f2` draws the **slow mode** far more often, and it
+now contributes 54 of 155 settled rows.
+
+⭐ **A pooled p95 across deploys that disagree by 79% describes the MIX OF DEPLOYS SAMPLED,
+not the reader** — which is why the tool prints every constituent and flags a spread ≥30%
+rather than letting the number stand alone. The published 33× was computed when that spread
+was 26%.
+
+**OWNER DECISION NEEDED.** The conservative headline is a choice between:
+- **15×** — the pooled bound over everything measured, honest and pessimistic, but dominated
+  by one deploy's host;
+- **33×** — unchanged, and now describing a subset;
+- **per-deploy** — report the range 15–141× and stop pretending one number is a property of
+  the reader.
+
+This session does **not** pick. The number was ratified an hour ago on data that has since
+moved, and quietly re-picking it is precisely the second-authority defect.

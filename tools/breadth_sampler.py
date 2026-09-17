@@ -111,15 +111,54 @@ DAILY_CAP = int(os.environ.get("BREADTH_SAMPLER_CAP", "60"))
 #: mixing two configurations and the disagreement must be visible in the row rather
 #: than reasoned about afterwards.
 FLAG_DECLARED = os.environ.get("BREADTH_SAMPLER_FLAG_DECLARED", "unknown")
-#: The phase the resident-recon reader adds. Its presence in a sample's timing is the
-#: pod telling us which reader served the request.
+#: The scalar the resident reader notes. ⚰️ IT IS NEVER PUBLISHED, SO IT CANNOT BE THE
+#: DISCRIMINATOR — see below. Kept because it costs nothing and becomes the cheapest
+#: signal the day `server_timing()` learns to emit it.
 RESIDENT_PHASE = "rf_resident"
+
+#: ⛔ THE REAL DISCRIMINATOR IS THE PHASE SET, NOT A FLAG KEY.
+#:
+#: ⚰️ 2026-09-17: `flag_observed` was derived from `rf_resident` being present in a
+#: sample's timing, and `rf_resident` IS NOT PUBLISHED. `breadth_daily_ohlc.py` notes it
+#: correctly on every branch (1 on the resident path, 0 on the SQLite path), but
+#: `breadth_timing.server_timing()` writes a HARD-CODED list of scalars — rf_rows,
+#: rf_bytes, rf_busy_retries, rf_stmts, rf_stmt_min/max/sum, rf_pagecache,
+#: rf_conn_reused — and `rf_resident` is not in it. `rf_pagecache` IS, because the
+#: page-cache flag's author added it there; the resident flag's author added the note
+#: and not the publish.
+#:
+#: ⭐ SO THIS FUNCTION COULD ONLY EVER RETURN "off", FOR EVERY ROW EVER SAMPLED, WHATEVER
+#: THE FLAG WAS SET TO. It was not measuring the reader; it was measuring its own
+#: allowlist — and it said "off" with total confidence on a pod that was demonstrably
+#: running the resident reader. Every `flag_observed` value in the pool before this fix
+#: is VACUOUS and must not be read as evidence of a flag state.
+#:
+#: The two readers are distinguishable by what they DO, which is published:
+#:   SQLite path   -> rf_open, rf_pragma, rf_execute, rf_fetch, rf_conn_reused
+#:   resident path -> none of those; rf_materialise only (it parses held JSON strings)
+#: Absence of the fetch phases is therefore the positive evidence for the resident
+#: reader, and it is a property of the request rather than of the header's allowlist.
+FETCH_PHASES = ("rf_open", "rf_pragma", "rf_execute", "rf_fetch", "rf_conn_reused")
 
 
 def flag_evidence(timing: dict) -> dict:
-    """Per-row flag evidence: what we declared, and what the pod's phases show."""
+    """Per-row flag evidence: what we declared, and which reader the pod actually ran.
+
+    ⛔ Three outcomes, never two. "unknown" is a real answer and must stay distinct
+    from "off": a read that published no phases at all tells us nothing about the
+    reader, and collapsing it into "off" is how an unreadable instrument becomes a
+    confident measurement."""
     keys = sorted(k for k in (timing or {}) if isinstance(k, str))
-    observed = "on" if RESIDENT_PHASE in keys else ("off" if keys else "unknown")
+    if not keys:
+        observed = "unknown"
+    elif RESIDENT_PHASE in keys:
+        observed = "on"                      # published one day; free to honour now
+    elif any(p in keys for p in FETCH_PHASES):
+        observed = "off"                     # it opened a connection and fetched
+    elif "rf_materialise" in keys:
+        observed = "on"                      # materialised without ever fetching
+    else:
+        observed = "unknown"                 # neither signature — do not guess
     return {"flag_declared": FLAG_DECLARED,
             "flag_observed": observed,
             "flag_agrees": (FLAG_DECLARED in ("unknown", observed)),
