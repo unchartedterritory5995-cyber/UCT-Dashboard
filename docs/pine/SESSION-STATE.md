@@ -39,11 +39,39 @@
 > EXIT 0 — `manifestProse` 11/11; ast dir + `paneTablesFit` **184 files / 2,858
 > tests**.
 >
-> ### ⛔ NEXT: **finish Part 1.3 — Python lane by filename, then the vite build
-> ALONE, then the three EXIT lines and the delta table. Then 1.4 push.**
-> ⚠️ `--reporter=basic` does NOT exist in this vitest: it dies at reporter load
-> having run nothing and the log carries **no totals line**. Second sighting of
-> that class this programme; read the totals line, never the exit code alone.
+> ## ✅ PART 1.3 — THE THREE EXIT LINES
+>
+> | lane | result |
+> |---|---|
+> | full vitest | **10 failed / 1,557 passed / 1 skipped files · 13 failed / 22,582 passed / 37 skipped tests** · 359s · **`VITEST EXIT: 1`** · **0 timeouts** (`grep -c "Test timed out"` = 0, so all 13 are assertions) |
+> | Python twin, 25 files by name, 2 serial scopes | A **399 passed · 5 skipped**, B **430 passed · 1 xfailed** — **0 failed**, both `EXIT 0`; scope guard 13+12 all present |
+> | vite build, **alone** | **`EXIT 0`**, 21.25s — `[uct] closedTable: dropped 36 prose keys, 99.6kB off the bundle` |
+>
+> ⛔⛔ **THE WRAPPER SAID "exit code 0" AND THE RUN EXITED 1.** The background task
+> reported success because the command ended in `echo`; the real status was written
+> INTO the log and read from there. Third sighting of that class in this repo, and
+> the reason the verdict is always read from the totals line.
+> ⚠️ Also: **`--reporter=basic` does not exist in this vitest.** It dies at reporter
+> load having executed nothing and the log carries **no totals line at all**.
+>
+> ## ⭐⭐ THE DELTA TABLE — AND THE COUNT MATCHED WHILE THE SET DID NOT
+>
+> Baseline (a7.4, `:616`) **10 files / 13 tests**; now **10 files / 13 tests**.
+> **Two files left the baseline and two arrived.** A count comparison would have
+> read "back to baseline, nothing to do" and shipped two unexamined reds.
+>
+> | file | baseline | now | class · evidence |
+> |---|---|---|---|
+> | `engine/ast/manifestProse.test.js` | green | **GREEN** | ⭐ **THE MERGE'S RED — FIXED** `f7ebc97b7`. Red only in combination: master's `breadth_*` dict key `_session` vs a manifest key |
+> | `surfaces/manifest.test.js` | — | **RED 1** | **MASTER'S — LEFT RED.** `git show origin/master:app/src/App.jsx` declares `/admin/wisdom` (1 match) and its surfaces manifest carries **no** wisdom row (0) ⇒ master alone is red. This branch touches **no** file under `app/src/surfaces` and no router file. **The WISDOM lane's; it does not enter this register** |
+> | `engine/__tests__/stockChartWiring.test.jsx` | — | **RED 1 in company** | **INTERMITTENT — RE-LABELLED.** Clean tree, **alone, twice → 216/216, EXIT 0**. The same file as j.2's misattribution; the rule that cost that lesson is the rule that classified it |
+> | `context/AuthContext.test.jsx` | RED 1 (environment) | **GREEN** | **INTERMITTENT — RE-LABELLED.** Was "green alone, red in company"; now green in company too |
+> | `builder/paramSingleTranslation.test.js` | RED 1 (**OURS — DEFECT, OWED**) | **GREEN** | ⚠️ **CAUSE NOT ESTABLISHED.** Green in company AND alone (19/19, EXIT 0), but **no commit has touched the test or its subject since the baseline**, so it was not fixed by an edit. ⛔ **The OWED entry must NOT be closed on this evidence** — it is either intermittent or fixed by something unnamed, and those are different facts |
+> | the other **8** baseline files | RED 11 | RED 11 | unchanged, exactly as classified at a7.4 (`pineBoxSuggestVoice` 3, `ThemeTrackerPage.chartmount` 2, the rest 1 each) |
+>
+> ✅ **Every one of the 13 attributed. Zero reds owned by this branch.**
+>
+> ### ⛔ NEXT: **Part 1.4 — push; PR #145 body only if `PR-BODY-COMBINED.md` moved.**
 >
 > ### ⛔ THEN: **(j) j.3 §1.2 — the red acceptance. The contract is SETTLED.**
 >
