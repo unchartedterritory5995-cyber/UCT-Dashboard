@@ -2,6 +2,67 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — ✅ R35c + R35d BUILT. CLOUDS CARRIES. ⛔ ONE FINDING BLOCKS SHIPPING.
+>
+> ⛔⛔ **PARAMETER IDS SHIFT ON A LIVE SCRIPT — read this before anything else.**
+> Measured on `uncharted-volume-v2`, before/after, by swapping `pine.js`:
+>
+> ```
+> before  3 params   __uct_param_3 = "HVE lookback (bars)"
+> after   4 params   __uct_param_3 = "Avg Vol Line Opacity"
+>                    __uct_param_4 = "HVE lookback (bars)"
+> ```
+>
+> Making the opacity input foldable MINTS a parameter and RENUMBERS what follows.
+> **Parameter ids address saved member definitions** — *"the manifest and the saved
+> computation must come from ONE translation result, or the parameter ids address a
+> tree nobody built."* A saved definition pinning `__uct_param_3` would now address
+> a different knob. ⛔ **R35c/R35d are complete and green but MUST NOT SHIP until
+> parameter-id stability is ruled (and migrated if needed).** Nothing merged,
+> nothing on master. Found because a test addressed the knob by hard-coded id and
+> silently began testing a different one; that test now resolves by LABEL.
+>
+> ✅ **CLOUDS' 20 FILLS CARRY**, with per-layer alpha: layers 0 / 10 / 19 =
+> transparency **95 / 70 / 47.5**, DERIVED in the test from the script's own three
+> constants so a hard-coded value fails two of three. Its pane document is now **24
+> rows — 23 authored + R34's ONE condition row**, twenty fills over one `isBullish`
+> minting exactly one, which demonstrates R34 on the real script for the first time.
+>
+> **Re-baseline, 269 scripts: SHAPE MOVES 0.** Colour moves 3 — Clouds (predicted)
+> and **both Volume scripts (UNPREDICTED, explained and pinned)**: the census
+> enumerated colour-returning user functions, while these come from the ALPHA
+> delegation — `input.int(90)` folded by `constantValueOf`'s existing
+> "a declared input folds to its own default" policy. ⚠️ **So the disclosure is
+> wider than `input.color`:** a member moving that OPACITY slider still gets the
+> author's default. `oosMeasuredBaseline`'s set-diff: no OOS script moved.
+>
+> ⭐ **THE MUTATION THAT ESCAPED IS THE USEFUL ONE.** M5 (delete the "is it a static
+> colour?" gate) caught NOTHING: the existing series control walks a ternary, which
+> returns null with or without the gate. The gate's real job is
+> `color.t(color.new(<series>, 30))` — that DOES match the `color.new` branch, so
+> without the gate its literal 30 returns as the transparency of a non-static
+> colour. Rail added, RED without the gate, M5 re-run to prove it fires.
+> M1 RED×3 · M2 RED×3 · M3 RED×5 · M4 (hard-coded alpha) RED×3 including the
+> per-layer test. Restored byte-exact to `7e8ff7157467ce92…`.
+>
+> ⭐ **THE BRIDGE THE DESIGN DID NOT ANTICIPATE:** Clouds reaches `color.t` through a
+> BINDING, not through the expression, so the Resolver would follow the name, meet
+> `color.t` and throw. `foldColourLeaves` folds the colour leaves first and hands on
+> pure arithmetic — each authority doing only what it owns.
+>
+> ⚠️ **AND ONE SPECIFIED BOUNDARY DOES NOT EXIST.** R35c said "refuse a colour body
+> that is not a single expression". That is not implementable as stated: a
+> function's locals are ordinary `expr` bindings and its VALUE is the tail
+> expression, so both shapes look identical at the binding, and a multi-statement
+> colour body folds by the same name→`expr` step used for any top-level name.
+> Nothing interprets a statement. The REAL boundary — the tail must fold — is
+> railed; the deviation is pinned as its own test so a reader trips over it.
+>
+> GREEN: `engine/ast` **187 files / 2884 tests EXIT 0**; `memberPane` 7/66 EXIT 0;
+> chunk B EXIT 1 with 7 failures, **none new** (5 pre-existing at HEAD;
+> `enumerationSites` + `flipCGeometry` PASS ALONE at 72 tests — load-sensitive, the
+> population `stockChartWiring` belongs to).
+
 > ### ⏱️ 2026-09-17 (latest) — R35c GRANTED, 1.1 MEASURED, **BUILD NOT STARTED**.
 >
 > ⛔⛔ **THE GRANTED SCOPE CARRIES NOTHING, SO NOTHING WAS BUILT.** 1.1 ran first,

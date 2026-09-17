@@ -814,7 +814,24 @@ reporter load **having executed nothing** and produced no totals line at all.
   branch at all. Census (`tools/pine_user_fn_body_census.py`, 328 files, **1,412**
   user functions): **27** return a colour, **43** calls sit in a colour position,
   **4 scripts** — and **every one is a SINGLE EXPRESSION**.
-  🛑 **R35c was GRANTED; 1.1 measured first and the build did NOT start.** The bridge
+- ✅ **R35c + R35d BUILT — Clouds' 20 fills carry per-layer colour** (`282107be8`).
+  `staticColourOf` gained ONE branch: a single-expression user colour helper is
+  substituted and re-walked, with substitution delegated to `resolveInFrame` and
+  arithmetic to `constantValueOf`; `color.t` of a static colour folds beside it,
+  **not** in the Resolver. Layers 0 / 10 / 19 = transparency **95 / 70 / 47.5**,
+  derived in the test from the script's own constants. Clouds' pane document is now
+  **24 rows — 23 authored + R34's ONE condition row**, which demonstrates R34 on the
+  real script for the first time. Re-baseline over 269 scripts: **SHAPE MOVES 0**,
+  colour moves 3 (Clouds predicted; both Volume scripts unpredicted, explained and
+  pinned — an `input.int` alpha now folds to its default, so the disclosure is wider
+  than `input.color`).
+- ⛔⛔ **BUT IT MUST NOT SHIP YET: PARAMETER IDS SHIFT ON A LIVE SCRIPT.** On
+  `uncharted-volume-v2`, making the opacity input foldable mints a parameter and
+  renumbers what follows — `__uct_param_3` moves from *HVE lookback* to *Avg Vol
+  Line Opacity*. **Parameter ids address saved member definitions.** R35c/R35d are
+  complete, green and mutation-proved on this branch; whether they can land needs a
+  ruling on parameter-id stability and, if required, a migration.
+- 🛑 **R35c's 1.1 (superseded by the build above, kept for the record).** The bridge
   turned out to be a **shipped pattern one value-kind over** — `textNodeOf`
   (`pine.js:10041`) already inlines a user-fn call in a TEXT position, and
   `colorNodeOf` says in-file it is *"the same shape, one branch shorter"*. The frame
