@@ -272,3 +272,65 @@ order of magnitude, and it is a much smaller change than a process pool.
 is three commits wide — but the more likely reading is that **the 122 ms was measured against a
 synthetic feed and never described production at all**, which would make it a fixture that could
 not establish the property it was quoted for, rather than a regression.
+
+---
+
+## 6 · ⛔⛔ THE JOIN LANDED AND IT REFUTES THE SWEEP HYPOTHESIS
+
+W2 asked for the join in these words: *"every settled-pod stall ≥ 3 s must land inside a sweep
+window or be listed as unexplained; report the count."* Here is the count.
+
+**16 sweep windows** captured forward (receipt timestamp = END, window = `[end − duration_ms, end]`)
+against **20 recorded events ≥ 3,000 ms** in the durable record:
+
+```
+INSIDE a sweep window:  1
+OUTSIDE:               19
+```
+
+Of the 19 outside, **four fall inside time the capture actually covers** — so they are genuinely
+unexplained by the sweep, not merely unobserved:
+
+```
+17:10:37Z  5,894.0 ms  uptime 214.3
+17:10:47Z  3,805.0 ms  uptime 224.0
+17:17:30Z  7,894.3 ms  uptime 627.8      <- SETTLED pod
+18:00:10Z  4,626.9 ms  uptime 653.4      <- SETTLED pod
+```
+
+The other fifteen sit in windows the capture does not reach. ⛔ **Those are NO COVERAGE, not
+evidence** — an absence is only evidence if the instrument could have seen a presence.
+
+### 6a · What this settles
+
+**THE SCREENER SWEEP IS NOT THE CAUSE OF THE ≥3 s LOOP STALLS.** One event in sixteen windows is
+not a mechanism; four events land in covered time and outside every window, including both
+settled-pod events, which are the class OI-44's census says dominates. The hypothesis I called
+"the leading candidate" in §3a and "the right SHAPE for OI-44" in §4 is **REFUTED**, and the
+correction in §5 — that the 56 s is probably I/O and releases the GIL — predicted exactly this.
+
+⭐ **The sweep defect is still real and still worth fixing, on its own terms.** `held_lock_ms`
+now measured **n=16, range 28,155–96,658 ms** against a documented 122 ms — up to **790×** — with
+the market fetch performed *inside* `_BUILD_LOCK` (`:826` acquire, `:873` fetch). That blocks the
+nightly builder and an admin refresh, which is precisely the collision the file's comment argues
+cannot happen. It is a lock-contention defect, it should be fixed by hoisting the fetch out of the
+lock, and **it is not C-02**.
+
+### 6b · What it does NOT settle, and the honest state of OI-44
+
+C-02's shared-loop half is **still open, with no named cause.** What the join bought is the
+elimination of the loudest candidate — which is worth having, because it was about to be fixed as
+though it were the answer, and the fix would have shipped, measured clean on its own terms, and
+left the stalls exactly where they are.
+
+⭐ **That is the failure this programme keeps paying for, caught one step earlier than usual:** a
+plausible mechanism, a real measured defect, and a confident story connecting them. The receipt
+distribution was true; the GIL argument was wrong; the join is what told the difference.
+
+**Next candidates, from the same evidence and in order:** the 3–9 s cluster's duration profile
+matches neither the sweep (28–97 s) nor the boot storm alone — it wants a per-event join against
+a *continuous* log capture, which is the only shape that works on a pod whose 500-line buffer
+reaches back ~3 minutes. The remaining named-but-unmeasured in-process work is the warm cycle
+(`hot warm hit its 20s budget after 23.1s`), `ticker-names-prewarm` (36.7 s), `rs_ranking` over
+3,696 symbols, `bars_reconciliation`, and `darkpool_intraday` — all APScheduler jobs on the same
+process, none of them yet joined to a single event.
