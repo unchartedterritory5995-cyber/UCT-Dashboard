@@ -1,6 +1,32 @@
-> **NEXT WAKE REASON:** the D-15 work order after the merge — **R52 (OI-44, the top item)**,
-> then R53 (SPY timeout, flow-worker READ-ONLY), then R55/R56. Clock-gated: **R57 / OI-13 step 6,
-> Friday 2026-09-18 ~08:23 ET (R29 span)**.
+> **NEXT WAKE REASON:** owner's word on the SECOND MASTER PUSH. Every remaining fix (R52's and
+> R53's) is written or specified and **cannot ship** — *"a second master push"* is a D-14 stop
+> condition that D-15 carries forward verbatim, and this session's one push was the directed
+> merge `e50c0552d`. Clock-gated behind that: **R57 / OI-13 step 6, Friday 2026-09-18 ~08:23 ET**.
+>
+> **BLOCKED-stop-condition** — R52 fix (screener sweep off the GIL) · R53 fix (pre-V2 `/flow`
+> passes `flow_source`). Both need master push #2.
+> **BLOCKED-evidence** — R56's C-09 closure. See §D-15 below; the cited race result is
+> pre-rebase, its instrument is not in the tree, and no artifact exists.
+> **BLOCKED-until-FRIDAY** — R57 / OI-13 step 6 (R29 span), ~08:23 ET.
+> **BLOCKED-permission** — C2/C3 Task Scheduler entries (owner action, unchanged).
+
+## ⛔ R56 — C-09 CANNOT BE CLOSED ON THE CITED EVIDENCE (BLOCKED-evidence)
+
+R56 directs recording C-09 CLOSED on *"RenderGate live in-process on ≥ 2 pods; real-path races
+50/50; M1-M4 RED"*. **RenderGate is verified live** (`api/services/discord_interactions.py:77`,
+`RENDER_SLOTS = RenderGate(render_slot_count())`). The races half is not citable:
+
+- `docs/discord-render/D09-PREFLIGHT-DELTA-2026-09-15.md:148-149` lists, as outstanding step 6:
+  *"**Re-run the real-path races** (`c09_real_path_races.py`) on the rebased tip — the existing
+  50/50 result was measured **pre-rebase**, and a rebase over 151 commits…"*
+- **`c09_real_path_races.py` is not in `docs/discord-render/instruments/`** (only `c09_c02_probe.py`).
+- No result artifact exists under `docs/discord-render/evidence/`.
+
+⛔ So the one number R56 rests on was measured against a different tree, its own preflight queued
+it for re-measurement, and the tool that produced it is absent. **R-CITE: a citation you cannot
+quote is struck.** Closing a gate row on it would be the exact failure this programme has paid
+for — and it moves a row toward MET, which is the direction that needs the most evidence, not the
+least. The row stays 🔴 OPEN pending a re-run on the current tip.
 
 # D-14 — the durable checklist. READ THIS FIRST ON RESUME.
 
