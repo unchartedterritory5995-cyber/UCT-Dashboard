@@ -4,6 +4,17 @@ Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
+# 2026-09-17 — deploy trigger for R61 (the daily OI chain cache).
+# `api/massive_oi_snapshots.py` is REACHABLE from this worker — it is what logs
+# `[massive-oi] SPY: 41 pages, 10000 total results` on this service — and it is NOT
+# on the watch list below. So R61 would ship INERT here with every test green: the
+# fix would live on master, the worker would keep re-walking 41 pages per request,
+# and nothing would report a problem. `tools/flow_worker_watch_coverage.py` failed
+# the diff and named the file; this touch is the fix the rail prescribes.
+# ⛔ IT IS ALSO WHY R61 CANNOT SHIP TONIGHT. This trigger bounces the worker, which
+# drops the Massive OPRA socket, and Massive does not replay — the gap is permanent
+# until the T+1 flat file. R61 goes in the Friday 06:00–08:30 ET window under R60,
+# after the previous session's flat file is confirmed loaded.
 # 2026-09-13 - deploy trigger. `api/services/bar_quarantine.py` and
 # `api/services/bars_disk_cache.py` are REACHABLE from this worker but are not
 # on the watch list below, so a fix to them ships inert here unless a watched
