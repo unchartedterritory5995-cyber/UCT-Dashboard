@@ -193,14 +193,38 @@ def cmd_memory(args: list[str]) -> int:
     return 0 if used < ceiling else 1
 
 
-def push_window_closed(et) -> bool:
-    """Is the master-push window closed at this ET datetime?
+#: ⛔⛔ F-OPS-1 — THE PUSH WINDOW IS A FILE TIER, NOT A CLOCK, AND THIS PRINTED THE CLOCK.
+#: ⚰️ `docs/runbooks/deploy-windows.md` (owner-approved 2026-09-11) says in its own opening
+#: line that it REPLACES the blanket RTH freeze and is "the single authority on push timing".
+#: This function kept printing that blanket rule for six days afterwards - and it is the FIRST
+#: line every session reads, so the stale authority was the one in front of everyone while the
+#: live one sat in a runbook. Two authorities over one value, and the loud one was wrong.
+#: ⛔ Worse, `cmd_et` returned EXIT 1 whenever it judged the window closed, so the designated
+#: ET authority FAILED every weekday afternoon and any caller checking its status read a
+#: correct time reading as an error.
+#: ⭐ The tier is a property of the FILES a push touches, so no clock can answer it. This now
+#: reports the authority instead of pre-empting it.
+DEPLOY_WINDOWS = "docs/runbooks/deploy-windows.md"
 
-    Mon-Fri 09:00-16:00 ET. Pure, so it can be tested at a named instant instead of
-    whenever the suite happens to run - the bug this whole subcommand exists for was a
-    time READING, and a rail that reads the same clock proves nothing.
+
+def window_authority_line(root=None) -> str:
+    """One line describing the real authority, DERIVED from it. Never a clock.
+
+    ⛔ UNREADABLE is a third state: if the runbook is missing, say so. "No window" and "the
+    runbook is gone" must never print the same sentence.
     """
-    return et.weekday() < 5 and 9 <= et.hour < 16
+    import pathlib
+    import re as _re
+    base = pathlib.Path(root) if root else pathlib.Path(__file__).resolve().parents[1]
+    p = base / DEPLOY_WINDOWS
+    if not p.is_file():
+        return "push window: %s UNREADABLE - tier unknown" % DEPLOY_WINDOWS
+    text = p.read_text(encoding="utf-8", errors="replace")
+    tiers = _re.findall(r"^###\s+Tier\s+(\d+)", text, _re.M)
+    m = _re.search(r"[Oo]wner-approved\s+(\d{4}-\d{2}-\d{2})", text)
+    when = m.group(1) if m else "date unrecorded"
+    return ("push window: BY FILE TIER - %s, %d tier(s), owner-approved %s"
+            % (DEPLOY_WINDOWS, len(tiers), when))
 
 
 def cmd_et(args: list[str]) -> int:
@@ -214,7 +238,13 @@ def cmd_et(args: list[str]) -> int:
     rule was broken by arithmetic, not by judgement.
 
     A clock that is wrong by four hours and CONFIDENT is worse than no clock. This is the
-    one authority; never hand-roll the conversion again.
+    one authority for the TIME; never hand-roll the conversion again.
+
+    ⚠️ THE 09:00-16:00 WINDOW NAMED ABOVE IS HISTORY, NOT A LIVE RULE. It is kept because it
+    is what the incident was about. The live authority is `docs/runbooks/deploy-windows.md`
+    (owner-approved 2026-09-11), which replaced the blanket RTH freeze with a FILE TIER — see
+    `window_authority_line`. F-OPS-1: this function printed the superseded rule for six days,
+    in the first line every session reads.
     """
     if args:
         return _refuse("et takes no arguments")
@@ -224,11 +254,14 @@ def cmd_et(args: list[str]) -> int:
         return _refuse("zoneinfo unavailable - cannot resolve ET, and guessing is the bug")
     now = dt.datetime.now(dt.timezone.utc)
     et = now.astimezone(ZoneInfo("America/New_York"))
-    closed = push_window_closed(et)
-    print("UTC %s | ET %s | master-push window: %s"
+    print("UTC %s | ET %s | %s"
           % (now.strftime("%Y-%m-%d %H:%M"), et.strftime("%Y-%m-%d %H:%M %Z %a"),
-             "CLOSED (Mon-Fri 09:00-16:00 ET)" if closed else "open"))
-    return 1 if closed else 0
+             window_authority_line()))
+    # ⛔ ALWAYS 0. The time reading is the thing this subcommand exists to get right, and it
+    # succeeded. Returning 1 for "the window is closed" made the ET authority fail every
+    # weekday afternoon and turned a correct reading into an error for any caller that
+    # checked status (F-OPS-1).
+    return 0
 
 
 def main(argv=None) -> int:
