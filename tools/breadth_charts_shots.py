@@ -135,10 +135,19 @@ def _fixture(span_sessions: int) -> dict:
     # Reconstructed sessions: the first 40 % of the span, per the audit's 191-of-365 shape.
     reconstructed = dates[: int(n * 0.4)]
 
+    # ⛔⛔ `dates` IS PART OF THE CONTRACT AND WAS MISSING FROM THE FIRST VERSION.
+    # `docs/breadth/api-series.md:38-43`: the response carries `dates` ascending, each
+    # date once, every `series` column the same length, and `sessions == len(dates)`.
+    # `useBreadthSeries` reads `data.dates` and falls back to EMPTY — so the omission did
+    # not throw. It produced a shell rendering against an empty x-axis, and the shots
+    # looked fine. ⭐ A fixture that does not obey the contract it stands in for tests the
+    # product against a shape the server never sends; `test_the_fixture_obeys_the_series_contract`
+    # is the rail, and it is the reason this was caught before V2-2 drew against it.
     return {
         "from": dates[0],
         "to": dates[-1],
         "sessions": n,
+        "dates": dates,
         "keys": FIXTURE_KEYS,
         "series": series,
         "reconstructed": reconstructed,
@@ -343,10 +352,16 @@ def _assert_landed(page, case: str, flags: dict) -> None:
                 const r = el.getBoundingClientRect()
                 return r.width > 0 && r.height > 0
             }
-            const v2 = document.querySelector('[data-testid="breadth-charts-v2"]')
-            // V1 draws with ECharts, which mounts a <canvas>.
-            const v1 = document.querySelector('main canvas, #root canvas')
-            return { v2: vis(v2), v1: vis(v1),
+            const v2el = document.querySelector('[data-testid="breadth-charts-v2"]')
+            // ⛔⛔ "A CANVAS EXISTS" IS A PROXY FOR "V1 IS RENDERING", AND IT BROKE THE
+            // DAY V2 STARTED DRAWING. Both render with ECharts, so both mount a
+            // <canvas>; this check then reported "both branches on screen" for a gate
+            // that was working perfectly. That is the kind-2 failure in this harness's
+            // own instrument — the rule says read what you MEAN, so: a V1 canvas is one
+            // that is NOT inside the V2 subtree.
+            const canvases = [...document.querySelectorAll('#root canvas')]
+            const v1el = canvases.find(c => !(v2el && v2el.contains(c))) || null
+            return { v2: vis(v2el), v1: vis(v1el),
                      text: (document.body.innerText || '').slice(0, 300) }
         }"""
     )
