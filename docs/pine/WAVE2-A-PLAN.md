@@ -2574,6 +2574,79 @@ STARTED; half-landed atomic work is the worse outcome.*
 constant alpha in the corpus starts carrying the moment this folds, and each one
 changes a translation. That census is j.3b's first step, not its last.
 
+## ✅ THE CENSUS RAN, AND IT INVERTED THIS RULING'S PREMISE (2026-09-17, `bdb6e8ef2`)
+
+`tools/pine_colour_fn_census.py` · `docs/pine/j3b-colour-fn-census.md` · control
+**PASS both ways** (56 == 56, same SET, re-verified in the integrating session).
+
+⛔⛔ **NO FOLD CARRIES ANYTHING, BECAUSE THERE WAS NO SLOT TO CARRY INTO.** Of **254
+fill colour positions** across 325 files, the number that would carry a colour under
+**any** candidate — (i), (i-C), or a corpus-wide constant folder — is **ZERO**.
+R32 asked for the narrowest fold; the binding constraint was never the fold.
+
+| | measured |
+|---|---|
+| fills whose colour is a ternary (Clouds) | 20 / 20 |
+| both branches fold under **(i)** | **0** |
+| both branches fold under **(i-C)** | 20 |
+| fills that would **carry** under any of them | **0** |
+
+⇒ Under R32's own test, **(i) provably cannot carry Clouds — and neither can (ii).**
+Clouds needs **(i-C) + `color.new` base recursion + the carrier**, all three.
+
+## ✅ j.3b(a) BUILT — THE CONDITIONAL-FILL CARRIER (`293e0c3f2`)
+
+Estimate 60, stop 120, actual ~115. The fold is **not** built.
+
+**Two structural findings the Python census could not see**, being properties of the
+JS lane, and both changed the implementation:
+
+1. ⛔ **The resolver does not exist when fills are collected.** `new Resolver(...)` is
+   built **per output, inside the output loop**, ~170 lines below the fill collector —
+   a `fill()` may name plots declared after it, so the walk must finish first. The
+   colour is now read at `resolveFillHandles`, the first point where both the handles
+   and a resolver can exist. ⚰️ Inferring that scope from line ordering earned a
+   `ReferenceError` — *reading the call site is not reading the request*, again.
+2. ⛔ That would have been a **third** `Resolver` construction site, beside a comment
+   already warning *"the budget reaches both resolvers or it protects neither"*.
+   `makeResolver()` makes the warning structural instead of advisory.
+
+⚰️ **AND A RULE THIS PLAN DID NOT ANTICIPATE, RAILED BEFORE THE PROOF.**
+`keltner-center-of-gravity-channel:91` is `nzz ? color.new(color.blue, 70) :
+color.new(color.blue, 90)` — one hex, two transparencies. The schema holds ONE
+`opacity`, so carrying it paints a **flat** band where the author drew a fading one.
+**A conditional whose branches fold to the same colour is DECLINED**, and the decline
+is **DECLARED** (`colorDynamic`), because silence is a defect.
+
+⭐⭐ **RE-BASELINE: PREDICTED 5 SCRIPTS / 7 FILLS, MEASURED 1 SCRIPT / 1 FILL.** The
+census counts colour positions in SOURCE TEXT; carriage also needs both handles to
+resolve, and `resolveFillHandles` drops the rest. Three of the five named scripts
+carry no fills at all. **The prediction is kept in the test rather than corrected
+away** — a source census bounds what COULD carry, never what DOES.
+
+## ⏸️ j.3b(b) — THE PANE DOOR, NOT STARTED
+
+The member-pane door carries no dynamic colour for plots **or** fills, so
+`colorMode: 'column:<key>'` has nothing to name. It needs a **synthetic hidden
+condition row** (`source`/`ast` from `colorCondition`, `mode` via `evaluateFormula`)
+— ⛔ **deduped by formula**: Clouds' 20 fills share ONE `isBullish`, and without
+dedup the document gains 20 identical columns. A second atomic sub-part; it did not
+fit the block's clock and was therefore not begun.
+
+## ⛔ H.9 — FOR THE OWNER: BASE RECURSION IS ITS OWN RULING
+
+Carrying **Clouds** needs, on top of the carrier above:
+
+| | | cost |
+|---|---|---|
+| **`color.new` base recursion** | recurse the base through `staticColourOf`, so a name bound to `input.color(...)` resolves | **20 scripts / 139 colour positions move** — ruling-sized, needs its own re-baseline |
+| **(i-C)** | (i) + a plan-time numeric user-fn call in the alpha | blast radius **0 scripts** |
+
+⭐ The census's own recommendation, and it matches what was built: **carrier →
+base recursion → (i-C)**. ⛔ (ii), the general folder, is **not** recommended: it buys
+**1 script** over the base-recursion baseline, its non-colour blast radius is
+unmeasured, and it would put a plan-time evaluator in front of moving-average code.
+
 ---
 
 # ⛔⛔ STANDING RULE — **INTERMITTENT IS NOT LOAD-SENSITIVE** (owner, 2026-09-15)

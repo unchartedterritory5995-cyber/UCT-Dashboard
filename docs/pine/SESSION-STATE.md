@@ -178,7 +178,50 @@
 > against the standing **file-tools-only** rule. Restore was byte-exact and
 > sha-verified so nothing was damaged; mutations go through file tools from here.
 >
-> ### ⛔ NEXT: **Part 2 (census, running) → Part 3 (j.3b build).**
+> ## ✅ j.3b CENSUS + CARRIER (`bdb6e8ef2` red → `293e0c3f2`)
+>
+> ⛔⛔ **THE CENSUS INVERTED R32's PREMISE.** Of **254 fill colour positions** across
+> 325 files, the number that would carry under **any** fold — (i), (i-C) or a
+> corpus-wide folder — is **ZERO**. A fold resolves colours into a slot that did not
+> exist. ⇒ (i) provably cannot carry Clouds **and neither can (ii)**; the binding
+> constraint was the CARRIER, whose absence is why j.3a was **built, tested, green
+> and unreachable.** Control PASS both ways (56 == 56, same SET), re-verified here.
+>
+> ✅ **CARRIER BUILT.** Two structural findings the Python census could not see:
+> the **resolver is built per output, inside the loop, ~170 lines below the fill
+> collector** (so it cannot be passed at `:11287`; the colour is read at
+> `resolveFillHandles`), and avoiding a **third** `Resolver` construction site gave
+> `makeResolver()` — the file's own "the budget reaches both resolvers or it protects
+> neither" warning made structural.
+> ⚰️ **A conditional whose branches fold to the SAME colour is DECLINED** (keltner:
+> one hex, two transparencies → a flat band where the author drew a fade), and the
+> decline is **DECLARED**. Railed before the mutation that justified it.
+> ⭐⭐ **Re-baseline predicted 5 scripts / 7 fills; MEASURED 1 / 1** — a source-text
+> census bounds what COULD carry, never what DOES. Prediction kept in the test.
+> Four mutations, each caught by the right rail. EXIT: 15/15 · chunk A **184 files /
+> 2,853** · chunk B **115 files / 2,399** with one red = `stockChartWiring`, the known
+> INTERMITTENT (alone ×2 → 216/216; **third** classification today).
+>
+> ⭐ **AND R31 EARNED ITS KEEP IN ANGER, FIRST USE.** Editing `PR-BODY-WAVE2.md` and
+> forgetting to regenerate went **3 failed** on the spot — the exact drift that ran
+> undetected through j.1 and j.2. Combined is now **52,586 bytes**,
+> `sha256 23149cf171151a315f3f1f636b6c832451acd222ef972b37c60e5494c32619b3`.
+>
+> ### ⛔ NEXT, IN THIS ORDER:
+> 1. **j.3b(b) — the PANE DOOR.** A synthetic hidden condition row (`source`/`ast`
+>    from `colorCondition`, `mode` via `evaluateFormula`), ⛔ **deduped by formula**
+>    (Clouds' 20 fills share ONE `isBullish`; without dedup the document gains 20
+>    identical columns). Not started; a second atomic sub-part.
+> 2. **H.9 — OWNER'S CALL.** `color.new` **base recursion** (20 scripts / 139
+>    positions, ruling-sized, its own re-baseline) **+ (i-C)** (blast radius 0).
+>    Clouds needs BOTH **and** the carrier. ⛔ (ii) is NOT recommended: 1 script over
+>    baseline, unmeasured non-colour radius, a plan-time evaluator in front of
+>    moving-average code.
+> 3. Then the capture, j.4, and R29.
+>
+> ### ⛔ R29 — **#145 STAYS DRAFT.** Failed condition, named: **Clouds' fills still
+> carry no colour**, so a capture would show 20 bands in the fallback colour. Its
+> control asserts exactly that. Merging was never authorised.
 >
 > ### ⛔ AND THE CONSEQUENCE FOR PARTS 3-4, STATED RATHER THAN DISCOVERED LATER:
 > Clouds' fills still carry **no** colour, so a capture today shows 20 bands in the

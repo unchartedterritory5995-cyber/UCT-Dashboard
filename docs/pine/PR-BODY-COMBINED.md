@@ -764,7 +764,22 @@ reporter load **having executed nothing** and produced no totals line at all.
   ⭐ Segmentation is **two-level**: colour decides where `fillStyle` changes,
   finiteness decides where polygons split, so a STATIC band with an `na` hole is
   still one `fillStyle` over three polygons and the shipped call list cannot move.
-- ⛔ **j.3b — the translator half — is NOT started, and the reason is a measurement.**
+- ✅ **j.3b(a) — the conditional-fill CARRIER — is in.** A `fill()` now carries
+  `colorUp`/`colorDown`/`colorCondition`, read through the same `outputPresentation`
+  call a `plot()` makes (R10 by construction). ⭐ A census of **254 fill colour
+  positions across 325 files** measured that **no fold — narrow, narrow-plus-numeric
+  or corpus-wide — would have carried anything**, because a fold resolves colours
+  into a slot that did not exist: the binding constraint was the carrier, and its
+  absence is why j.3a was built, tested, green and **unreachable**.
+  ⚰️ **A conditional whose two branches fold to the SAME colour is DECLINED** — one
+  hex with two transparencies would paint a flat band where the author drew a fading
+  one — and the decline is **declared**, not silent.
+  ⭐ Re-baseline **predicted 5 scripts / 7 fills, measured 1 / 1**: a source-text
+  census bounds what *could* carry, never what *does*. The prediction is kept in the
+  test rather than corrected away.
+- ⏸️ **j.3b(b) — the pane door — is NOT started**: a synthetic hidden condition
+  column, deduped by formula, so `colorMode: 'column:<key>'` has something to name.
+- ⛔ **The FOLD is NOT started, and the reason is a measurement.**
   Clouds' fills still carry **no** colour. The sentence below was written before this
   wave and is still exactly right — what is new is that it is now *costed*:
   `isBullish ? getBullFillColor(0) : getBearFillColor(0)` resolves to
