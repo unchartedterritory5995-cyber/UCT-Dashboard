@@ -91,3 +91,47 @@ here."* So it is deferred, and the shape of it is:
 
 ⛔ A flow-worker deploy drops the Massive OPRA socket and the gap is permanent until the T+1 flat
 file, so it is an after-hours change with the owner's word, not a convenience.
+
+---
+
+## 6 · W1b — the ack path, fixed and re-measured under the SAME conditions
+
+**Merge `110f250b7` deployed 21:41:42Z SUCCESS.** SHA verified two ways: ancestry
+(`110f250b7` is an ancestor of `origin/production` and is its tip) and in-process (pod reports
+`110f250b7406`, uptime 43 s).
+
+⚠️ **Another workstream's deploy record superseded mine mid-build** (16:31:23 → 16:33:39 CT), so
+the record I polled was not the one my push created. **That is exactly why the rule is to prove
+liveness by ANCESTRY and not by a deploy record or an uptime** — the ancestry check is what
+established my code was live; the record would have misled.
+
+**The measurement, on a pod ~100 s into its boot — the same window that produced 65,462.6 ms:**
+
+```
+21:43:23  drender ack cmd=flow hop=entry_to_ack  ms=2.2     itype=2   <- the COMMAND
+21:43:23  drender ack cmd=flow hop=send_to_entry ms=462.1   itype=2
+```
+
+| | before (W1, 18:35:21Z) | after (W1b, 21:43:23Z) |
+|---|---|---|
+| `entry_to_ack` | **65,462.6 ms** | **2.2 ms** |
+| pod state | ~2 min into boot | ~100 s into boot |
+| member saw | *"The application did not respond"* | a rendered card |
+
+⛔ **n=1 against n=1, and I am not going to call it a rate.** What it is: a difference in kind
+under comparable conditions, on the exact code path that was moved. The standing rail is
+structural, so the ordering cannot silently come back regardless of what any single measurement
+says.
+
+### 6a · And the equity path renders
+
+`/flow NVDA` returned a flow card with its attachment. That is the non-vacuity half of the
+partition work: an equity still resolves to `stocks` and still produces a card, so the change did
+not simply move everything to `etfs`.
+
+### 6b · SPY is still the flow-worker item, unchanged
+
+`/flow SPY` still ends in *"the options-flow service didn't answer in time"* — the honest
+sentence, naming the real class — because flow-worker still walks **41 pages / 10,000 contracts**
+per request for that symbol. That fix lives on flow-worker and is **deferred** under D-16, with
+the three candidate shapes written up in §5.
