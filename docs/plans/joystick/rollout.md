@@ -126,8 +126,14 @@ as that rather than implied.
 prefix, triaged into `71-open-items-proposals.md`. **D-47** (per-mode editor) and **D-38** (Undo
 duration) reopen **only** from that feedback.
 
-> ✅ **BUILT 2026-09-15 — `fix/d39-chip-clearance`, PR #146, gated, awaiting Patrick's merge.**
-> [A] came back all-clear, so it was built at the **sweep's** scope. Hub-side only; rule 12 intact.
+> ⚠️ **BUILT 2026-09-15 — `fix/d39-chip-clearance`, PR #146, gated, awaiting Patrick's merge.**
+> Built at the **sweep's** scope. Hub-side only; rule 12 intact.
+> ⛔⛔ **AND THE PREMISE IT WAS BUILT UNDER DID NOT HOLD.** It was scoped against an assumed
+> all-clear; on **2026-09-17** the owner reported *"tons of bugs … too glitchy … needs a lot of
+> work"* and called for the feature to be **simplified a ton**. D-39 is a 40×28px chip-occlusion
+> fix. It is still correct, still gated, and it is now **nowhere near the top of the list** — and if
+> the simplification ruling removes or redesigns the chip, this PR may be moot. ⛔ Do not merge it as
+> though it closed §3 c's concern. See `triage/2026-09-14-owner-bug-triage.md`.
 > ⛔ **The 6-pair acceptance runs AFTER the merge** — `hub_chip_clearance.py --base <deployed>` needs
 > a real layout engine on the real build, so this step is not closed by the PR existing.
 
