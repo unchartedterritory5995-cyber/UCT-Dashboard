@@ -1,14 +1,19 @@
-> **NEXT WAKE REASON:** owner's word on the SECOND MASTER PUSH. Every remaining fix (R52's and
-> R53's) is written or specified and **cannot ship** — *"a second master push"* is a D-14 stop
-> condition that D-15 carries forward verbatim, and this session's one push was the directed
-> merge `e50c0552d`. Clock-gated behind that: **R57 / OI-13 step 6, Friday 2026-09-18 ~08:23 ET**.
+> **NEXT WAKE REASON (D-16):** a DEPLOY WINDOW for the W1/R53 merge. It is preflighted and the
+> merge commit exists — `16e161f5f` on `w1-landing`, off master `f4ad45ce4`. The pre-push guard
+> refuses on its **in-flight** clause, which R58's attestation carve-out does NOT cover (that is
+> burst-only, with recency/in-flight OK). Other workstreams deployed 4× in the hour
+> (`e50c0552d`, `0ec4d52e9`, `77dad414d`, `f4ad45ce4`), so every window closes before it opens.
+> Waiter armed to ~18:40Z; push the moment recency and in-flight are both clear.
 >
-> **BLOCKED-stop-condition** — R52 fix (screener sweep off the GIL) · R53 fix (pre-V2 `/flow`
-> passes `flow_source`). Both need master push #2.
-> **BLOCKED-evidence** — R56's C-09 closure. See §D-15 below; the cited race result is
-> pre-rebase, its instrument is not in the tree, and no artifact exists.
-> **BLOCKED-until-FRIDAY** — R57 / OI-13 step 6 (R29 span), ~08:23 ET.
+> **BLOCKED-deploy-window** — W1/R53 merge `16e161f5f`. Ready, 1,160 passed / 0 failed on the
+> LANDING tree, mutations 3/3 RED. Not a code problem; a queue problem.
+> **BLOCKED-until-FRIDAY** — W6 / R57 / OI-13 step 6 (R29 span), ~08:23 ET.
 > **BLOCKED-permission** — C2/C3 Task Scheduler entries (owner action, unchanged).
+>
+> ✅ **W4 DONE** — C-09 re-measured on the current tip and CLOSED; forensics row 11/14 → 12/14.
+> ⛔ **W2 JOIN DONE AND IT REFUTES THE SWEEP** — 1 event inside a sweep window, 19 outside, four
+> of those in covered time including both settled-pod events. **C-02 has no named cause again.**
+> The sweep's lock defect is real (n=16, up to 790× its documented 122 ms) and is NOT C-02.
 
 ## ⛔ R56 — C-09 CANNOT BE CLOSED ON THE CITED EVIDENCE (BLOCKED-evidence)
 
