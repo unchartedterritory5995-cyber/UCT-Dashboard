@@ -12569,13 +12569,39 @@ function alphaNumberOf(node, env, ctx) {
   if (!ctx || !ctx.resolver) return null
   const numeric = foldColourLeaves(node, env, 0)
   if (numeric === null) return null
+  // ⛔⛔ R36 — THIS FOLD RESOLVES; IT DOES NOT MINT. `__uct_param_N` ids ADDRESS
+  // SAVED MEMBER DEFINITIONS, and the mint at `Resolver.resolveCall` is a SIDE
+  // EFFECT of walking an `input.*` call — so reading an input's default to colour
+  // a band was silently creating a member-visible control and RENUMBERING every
+  // parameter after it.
+  //
+  // ⚰️ MEASURED on `uncharted-volume-v2`: `avg_transp = input.int(90, 'Avg Vol
+  // Line Opacity')` feeding `color.new(color.white, avg_transp)` took the script
+  // from 3 declared parameters to 4 and moved `HVE lookback (bars)` from
+  // `__uct_param_3` to `__uct_param_4`. A saved definition pinning `_3` would
+  // have addressed a different knob.
+  //
+  // ⭐ THE SAME RESTRAINT R13 ALREADY RULED FOR THE CLOSING PASS — *"THIS PASS
+  // RESOLVES; IT DOES NOT MINT"* — and R13 states the general form: a Track F
+  // parameter is a literal that survives into a RENDERED OUTPUT'S TREE. A
+  // presentation fold contributes no tree; its answer becomes a colour or an
+  // opacity, so it has no literal to adjust and must mint nothing.
+  //
+  // ⛔ WITHHELD AROUND THE CALL RATHER THAN IN A SECOND RESOLVER, because there
+  // is exactly ONE site where a presentation fold asks the Resolver anything. A
+  // parallel non-minting factory would be a second policy to keep in step.
+  // ⚠️ `finally`, not a trailing restore: `resolve` throws for anything that is
+  // not plan-time, which is the ORDINARY case here, and a mint left disabled
+  // would silently stop the output loop minting for the rest of the output.
+  const minted = ctx.resolver.paramMint
+  ctx.resolver.paramMint = null
   try {
     const tree = ctx.inline
       ? ctx.resolver.resolveInFrame(ctx.inline, numeric)
       : ctx.resolver.resolve(numeric)
     const v = constantValueOf(tree)
     return v !== null && Number.isFinite(v) ? v : null
-  } catch { return null }
+  } catch { return null } finally { ctx.resolver.paramMint = minted }
 }
 
 /** ⭐⭐ R35c's LEAF BRIDGE — fold the COLOUR-derived numbers before the Resolver
