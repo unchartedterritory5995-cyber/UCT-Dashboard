@@ -49,6 +49,7 @@ export const JOYSTICK_HUB_PREF_KEY = 'joystick_hub'
  *   stickyFan: boolean,
  *   highContrast: boolean,
  *   traceGestures: boolean,
+ *   surface: 'simplified'|'full',
  *   overrides: Readonly<Record<string, unknown>>,
  * }}
  */
@@ -72,8 +73,28 @@ export const HUB_SETTINGS_DEFAULTS = Object.freeze({
    * The trace itself never leaves the device (`gestureTrace.js`): no endpoint, no beacon, no sink.
    */
   traceGestures: false,
+  /**
+   * ⭐ WHICH ACTION SURFACE THE FAN DRAWS — owner ruling R4, 2026-09-17.
+   *
+   * `'simplified'` is the strong cut and is the DEFAULT: 37 actions, at most six bubbles on any
+   * one fan. `'full'` restores all 62. The table and the four tests that produced it are in
+   * `registry.js`'s `STRONG_CUT` block comment.
+   *
+   * ⛔ IT IS HERE, IN THE §8 BLOB, BECAUSE THE DEFAULT MOVED. Changing what every admin sees in
+   * preview without shipping a way back is the defect this repo already paid for once with "Hide
+   * joystick", whose recovery screen was scheduled for a later phase: *"a control that can be
+   * dismissed and not recovered is a defect regardless of how good the toast copy is."* The cut
+   * is a bigger change than a hide, and the way back must not be a source edit.
+   *
+   * ⚠️ NOT admin-gated, unlike `traceGestures`. It selects between two surfaces of one shipped
+   * control rather than exposing a diagnostic, and at stage 1 only admins reach the card at all.
+   */
+  surface: 'simplified',
   overrides: Object.freeze({}),
 })
+
+/** The two surfaces, so nothing downstream has to re-type either string. */
+export const HUB_SURFACES = Object.freeze(['simplified', 'full'])
 
 /**
  * Fold a possibly-partial, possibly-stale stored value over the defaults.
@@ -190,6 +211,12 @@ export default function useHubSettings() {
       ...baseSettings,
       enabled: resolveEnabled(storedEnabled),
       traceGestures: resolveTraceGestures(baseSettings.traceGestures),
+      // ⛔ AN UNRECOGNISED STORED SURFACE FALLS BACK TO THE DEFAULT, never through to `fanFor`.
+      // `withDefaults` folds a MISSING key; it does not police a present-but-wrong one, and a
+      // blob is user-writable through `POST /api/auth/preferences`. `setHubSurface` already
+      // coerces anything that is not 'full', so this is the second of two independent reasons —
+      // stated here because the coercion there reads as an implementation detail, not a contract.
+      surface: baseSettings.surface === 'full' ? 'full' : 'simplified',
     }),
     [baseSettings, storedEnabled, resolveEnabled, resolveTraceGestures],
   )

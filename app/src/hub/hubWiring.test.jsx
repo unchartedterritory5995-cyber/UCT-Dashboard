@@ -234,6 +234,11 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     // navigate WIRING still ships (the full surface draws it, and Settings → Joystick switches
     // to it) but there is no navigate bubble on the default fan to aim at. This test proves the
     // wiring, so it runs on the surface that has one.
+    //
+    // ⛔ THE PREFERENCE IS WHAT SELECTS IT — `HubRoot` calls `setHubSurface(settings.surface)` in
+    // its render body, so seeding the stored blob is the only thing that reaches the projection.
+    // The module-state call below is belt-and-braces for the two assertions taken outside React.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'full' }) }
     setHubSurface('full')
 
     await renderHub('/morning-wire')

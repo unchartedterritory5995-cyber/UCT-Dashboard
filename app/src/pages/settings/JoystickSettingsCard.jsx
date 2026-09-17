@@ -146,7 +146,7 @@ export default function JoystickSettingsCard() {
 
       {/* ⭐ The rest of §8's schema. Every one of these keys already existed in
           `useHubSettings`'s defaults and was persisted; none of them was reachable. */}
-      <div style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
+      <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
 
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel} htmlFor="joystick-handedness">Handedness</label>
@@ -158,6 +158,30 @@ export default function JoystickSettingsCard() {
           >
             <option value="right">Right — pad on the right</option>
             <option value="left">Left — pad on the left</option>
+          </select>
+        </div>
+
+        {/* ⭐⭐ THE SURFACE SWITCH — owner ruling R4, 2026-09-17, and the way back from it.
+            The strong cut is the DEFAULT (37 actions, at most six bubbles on a fan); this is what
+            restores all 62. `registry.js`'s STRONG_CUT block carries the four tests that decided
+            which actions survived and the table of what went.
+
+            ⛔ IT SHIPS IN THE SAME COMMIT AS THE DEFAULT CHANGE, deliberately. This repo has
+            already paid for the other order once: "Hide joystick" shipped a persistent hide whose
+            Settings recovery was scheduled for a later phase, and the ruling out of it was that a
+            control which can be dismissed and not recovered is a defect however good the copy is.
+            Changing the default surface is a larger move than a hide, and "edit registry.js" is
+            not a recovery path. */}
+        <div className={styles.voiceRow}>
+          <label className={styles.voiceLabel} htmlFor="joystick-surface">Actions shown</label>
+          <select
+            id="joystick-surface"
+            data-testid="joystick-surface"
+            value={settings.surface}
+            onChange={(e) => set('surface')(e.target.value)}
+          >
+            <option value="simplified">Simplified — the actions a thumb needs</option>
+            <option value="full">Full — every action, including navigation</option>
           </select>
         </div>
 
@@ -276,7 +300,7 @@ export default function JoystickSettingsCard() {
            * ⚠️ It can be large — up to 500 rows. The existing fallback textarea below stays the
            * human-readable path if the inspector proves awkward to select from. */
           data-hub-trace={settings.traceGestures ? gestureTraceJson() : undefined}
-          style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}
+          style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}
         >
           <div className={styles.voiceRow}>
             <label className={styles.voiceLabel}>

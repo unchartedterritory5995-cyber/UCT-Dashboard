@@ -287,7 +287,13 @@ describe('§3.8(b) — the Calendar bubble is a real door on /dashboard', () => 
   // two rendering tests below cannot drift onto different surfaces — the whole point of the
   // block is that the bubble a member SEES and the bubble a push RESOLVES are one list.
   beforeEach(async () => {
-    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true }) }
+    // ⛔ SET THE PREFERENCE, NOT THE MODULE STATE. `HubRoot` calls `setHubSurface(settings.surface)`
+    // in its render body, so a bare `setHubSurface('full')` here is overwritten before the fan is
+    // ever projected — the test would silently measure the default surface while believing it had
+    // selected the variant. This is the wiring working: the stored preference is the one authority
+    // over which surface draws, and a test that pokes module state is testing a path the product
+    // no longer takes.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'full' }) }
     stubHubCapable()
     const { setHubSurface } = await import('./registry')
     setHubSurface('full')
@@ -313,6 +319,7 @@ describe('§3.8(b) — the Calendar bubble is a real door on /dashboard', () => 
     // ⭐ The other half of the pair above, and the one that makes the cut a MEASURED fact about
     // the product rather than a claim about a table. Voice still renders, so the absence of
     // Calendar is an absence and not a hub that failed to mount.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'simplified' }) }
     const { setHubSurface } = await import('./registry')
     setHubSurface('simplified')
     await renderHub('/dashboard')
