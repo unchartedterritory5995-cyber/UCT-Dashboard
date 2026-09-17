@@ -930,9 +930,32 @@ def adopt_orphans(client, *, now: Optional[datetime] = None) -> dict:
     return dict(report)
 
 
+def _same_night_scoring(ctx) -> dict:
+    """R70's rider on the reap: score a night the tick a night's LAST pass is reaped.
+
+    ⛔⛔ IT CAN NEVER FAIL THE REAP. Reap's contract is to advance batches and persist paid
+    results; scoring is a rider on top of that. A reconciliation that raises costs one scoring
+    cycle — the next tick retries, because a failed claim is retryable — while raising here would
+    abandon a tick's reaped work and re-open every batch it had just closed.
+
+    ⚠️ It is called AFTER the batches have been advanced, deliberately: the night that completes
+    on THIS tick has to be scored on THIS tick, which is the whole ruling.
+    """
+    try:
+        from api.services.wisdom.extract import same_night
+
+        return same_night.score_completed_nights(ctx)
+    except Exception as exc:
+        log.exception("[wisdom-extract] same-night scoring failed; the reap is unaffected")
+        return {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+
+
 def reap(ctx, *, client=None) -> dict:
     """Short tick (wisdom_extract_reap, :16/:46): advance every open batch, handle ended ones,
-    reconcile orphans, and report progress, cost so far and ETA."""
+    reconcile orphans, and report progress, cost so far and ETA.
+
+    ⭐ R70: a night whose passes are ALL reaped is reconciled and floored before this returns.
+    """
     out: dict = {"dry_run": ctx.dry_run}
     if not spend_allowed(ctx):
         out.update(status="skipped", reason=spend_refusal(ctx))
@@ -947,6 +970,11 @@ def reap(ctx, *, client=None) -> dict:
     if not open_batches and not submitting:
         out["status"] = "idle"
         out["totals"] = _totals()
+        # ⛔ THE IDLE TICK SCORES TOO. A night completes on the tick that reaps its last batch,
+        # and that tick takes the branch below — but if the scoring itself failed there (a claim
+        # left 'failed' is retryable), every following tick is IDLE, and an early return here
+        # would mean the retry never happens.
+        out["same_night"] = _same_night_scoring(ctx)
         return out
     if client is None:
         client = make_client()
@@ -980,6 +1008,7 @@ def reap(ctx, *, client=None) -> dict:
     out["status"] = "ok"
     ctx.log(f"reap: {len(progress)} open batch(es); cost so far ${out['totals']['actual_usd']:.2f}; "
             f"eta {out['eta_s']}s; {dict(report)}")
+    out["same_night"] = _same_night_scoring(ctx)
     return out
 
 

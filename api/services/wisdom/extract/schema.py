@@ -76,4 +76,11 @@ CREATE TABLE IF NOT EXISTS wisdom_extract_record_keys (
 ALTER TABLE wisdom_extract_requests ADD COLUMN pass_index INTEGER;
 ALTER TABLE wisdom_extract_requests ADD COLUMN run_id TEXT;
 """),
+    # ⛔ R70 same-night scoring asks "is every pass of this night terminal yet?" on EVERY reap tick
+    # (:16 and :46, forever), which is a GROUP BY over run_id. extract_003 added the column and no
+    # index, so that question was a full table scan of a ledger that only grows — cheap this month
+    # and not in a year. Additive and idempotent: an index is not a schema a reader can break on.
+    ("extract_004_run_id_index",
+     "CREATE INDEX IF NOT EXISTS ix_extract_requests_run "
+     "ON wisdom_extract_requests(run_id, status)"),
 ]
