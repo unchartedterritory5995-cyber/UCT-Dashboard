@@ -173,10 +173,25 @@ recoverable only from web's `[flow] fetch failed …` warning line or flow-worke
 log via the `cid` query parameter, and **both age out of Railway's retained window**.
 Capture them during the run or not at all.
 
-⚠️ **PRE-MARKET.** Row 5 was run at 08:10 ET on 2026-09-15 and 2026-09-14 and refused
-both times. Pre-market is a plausible benign explanation and is NOT established. The
-named missing observation: the same row at ~10:00 ET on a weekday, with the web log line
-captured inside the retention window.
+☠️ ~~**PRE-MARKET.** Row 5 was run at 08:10 ET on 2026-09-15 and 2026-09-14 and refused
+both times. Pre-market is a plausible benign explanation and is NOT established.~~
+**STRUCK 2026-09-17 — the hypothesis is dead and the missing observation was captured.**
+
+- The named missing observation — *"the web log line captured inside the retention window"* — is
+  now on file: **`[flow] fetch failed SPY (30): timed out`**, read 90 s after the run
+  (`evidence/smoke-2026-09-17/ROW5-FLOW-CAUSE.md`). It is a **timeout on the web→flow-worker hop**,
+  and the code had already classified it as `flow_timeout` before throwing the classification away.
+  ⚠️ **Capture it within ~35 minutes or not at all** — measured: at 13:35Z the retained buffer no
+  longer reached 13:00.
+- **Pre-market is dead as an explanation.** In the same pre-market session, six minutes apart,
+  `/flow SPY days:30` timed out at 09:09 ET and `/flow NVDA days:30` returned a full card with
+  **246 contracts** at 09:15 ET. A feed that answers an equity read in seconds is not a feed that
+  is reconnecting. ⚠️ The pair spans a deploy (`d9455a6d64a5` → `26147924dcbd`), so it is "same
+  session across a swap", not a single-pod control — the conclusion survives that, the phrasing
+  should not overstate it.
+- ⛔ **Nothing has replaced the hypothesis.** Both reads used the same `stocks` partition on the
+  same hop, so the difference is the SYMBOL, not the session. Why SPY specifically fails to answer
+  in 30 s is **open**.
 
 ⚠️ **A COLD POD CHANGES ROW 1's TIMING.** On 2026-09-15 row 1 delivered in ~35–45 s on a
 pod that had booted three minutes earlier; the 2026-09-14 run measured `ms=2881`. Record
