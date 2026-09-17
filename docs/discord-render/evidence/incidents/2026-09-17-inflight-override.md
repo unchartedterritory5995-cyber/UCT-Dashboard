@@ -85,11 +85,35 @@ finished is a forecast wearing a measurement's clothes** — and the direction o
 flattering one, which is how it survived a re-read.
 
 ⚠️ **I cannot cleanly attribute either of them to my push, and I am not going to claim I can.**
-`2cb3ef508` finished **SUCCESS**, not REMOVED — so my push did not mark it dead mid-swap, which
-is the specific harm the clause names. And a *"~1 min `/api/*` blip"* is the documented ordinary
-cost of any web swap, so two isolated 502s four minutes apart are equally consistent with two
-swaps each completing normally — which is exactly what two sessions pushing inside one window
-produces.
+A *"~1 min `/api/*` blip"* is the documented ordinary cost of any web swap, so two isolated 502s
+four minutes apart are equally consistent with two swaps each completing normally — which is
+exactly what two sessions pushing inside one window produces.
+
+⚰️⚰️ **STRUCK, AND IT WAS THE LOAD-BEARING SENTENCE: *"`2cb3ef508` finished SUCCESS, not
+REMOVED — so my push did not mark it dead mid-swap, which is the specific harm the clause
+names."* That reasoning does not work, and the field it rests on cannot answer the question in
+either direction.**
+
+Read at 22:48Z, `2cb3ef508` is **REMOVED**. So is every other deploy in the list:
+
+```
+status distribution over the 20 most recent web deploys:  SUCCESS 1, REMOVED 19
+the single SUCCESS row is e7369556d - the deploy that is active right now
+```
+
+⭐ **`REMOVED` is simply the terminal state of any superseded deploy.** A deploy that built
+cleanly, served for an hour and was then replaced ends REMOVED; a deploy killed three seconds
+into its build also ends REMOVED. The status field distinguishes "is this the active deploy"
+and nothing else — so reading `SUCCESS` off `2cb3ef508` in the minutes it *was* active, and
+concluding it had not been harmed, was reading a field that could not have said otherwise once
+my deploy took over.
+
+⛔ **This is the same class as everything else in this record: a PROXY standing in for the thing
+it was asked about** — and it failed in the flattering direction, which is why it read as
+evidence and got published. The conclusion (*cannot attribute*) survives; the argument for it is
+withdrawn. What actually remains is weaker and more honest: **nothing in the deploy list can
+tell me whether my push harmed theirs, because the only field that would say so is overwritten
+by the very act of my deploy becoming active.**
 
 ⚠️ **The second 502 does NOT strengthen the attribution, and it would be easy to pretend it
 does.** It is as consistent with my swap as with theirs, and the window contained both. What it
