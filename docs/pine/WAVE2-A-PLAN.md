@@ -588,6 +588,64 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+## ⛔⛔ R33b STOPS AS H.10 — (i-C) IS (ii) BY ANOTHER NAME. NOT IMPLEMENTED.
+
+**The determination the ruling asked for, on five measured legs.** Nothing was
+built; `staticColourOf` is unchanged since `8e7bed1d3`.
+
+**1. The definition lane has no statement form, and (i-C)'s body is statements.**
+`NODE_TYPES` is frozen at 11 and this engine already records why —
+*"The definition lane is an EXPRESSION language — `NODE_TYPES` has no statement
+form and no collection form"* (`arrayVectors.js`). Clouds' numeric helper is two
+local-binding **statements** and a return:
+
+```
+getAdjustedTransparency(layerIndex, userTransparency) =>
+    baseTransparency = maxTransparency - transparencyStep * layerIndex
+    adjustedTransparency = baseTransparency + (100 - baseTransparency) * (userTransparency / 100)
+    math.min(adjustedTransparency, 100)
+```
+
+Representing that needs a **12th `NODE_TYPE`**; evaluating it outside the tree
+needs a **walker the AST does not own**. Both are named STOP conditions.
+
+**2. The machinery is wholly absent, not a small delta — measured.** Even (i)'s
+own minimal case, a SINGLE-expression numeric user function as the alpha
+(`f(x) => x * 2`, `color.new(#112233, f(10))`), yields `colorDynamic: true`
+today. Parsing is not the blocker: all three probe shapes translate with
+**0 refusals** and emit their plot. What is missing is user-function substitution
+entirely.
+
+**3. (i-C) contains a user-function COLOUR substitution, which is (ii)'s own
+definition.** (i-C) is *(i) plus a numeric user-fn alpha*, and (i) already
+substitutes a user function whose body is one colour expression. A substituter
+for colour bodies **and** numeric bodies, applied at colour positions, is
+verbatim the census's (ii): *"the general plan-time evaluator over user
+functions, measured only in colour positions."* The gap between (i-C) and (ii) is
+which body shapes are admitted — a policy on the grammar, not a structure.
+
+**4. ⭐ THE IN-SCOPE READING CARRIES NOTHING.** The ruling permits *"only a
+plan-time numeric fold reached from `staticColourOf` and nowhere else"*. Clouds
+does not have that shape: its fills read
+`color=isBullish ? getBullFillColor(0) : getBearFillColor(0)`, so the colour goes
+through a user COLOUR function before any alpha is reached. A numeric-only fold
+leaves all 20 fills exactly as dynamic as they are now — and **0 scripts in the
+measured population have the direct shape it would serve.** The half that is in
+scope has no consumer; the half with a consumer is out of scope.
+
+**5. Blast radius, verified as the ruling required.** Across **328 scripts** —
+266 `corpus/committed`, 59 `tests/fixtures/pine_oos`, 3 `tests/fixtures/member` —
+exactly **ONE** script has a `color.new` alpha that is a user-function call:
+`uncharted-clouds.pine`, **2 call sites**. The census's "0 scripts" is confirmed
+and sharpened: it is 0 *corpus* scripts, and Clouds is the sole consumer of the
+entire fold.
+
+⛔ **CONSEQUENCE: Clouds' 20 fills still carry no colour, and the `it.fails` in
+`colourBaseRecursion.test.js` stays red on purpose.** The carrier (j.3b(a)), the
+renderer (j.3a) and the pane door (R34) are all in and all proven; the fold is
+the one missing link and it is an owner decision, not an engineering one. Part 4
+captures Clouds in exactly that state.
+
 ---
 
 # ✅ R34 — THE PANE DOOR CARRIES A SYNTHETIC CONDITION COLUMN, DEDUPED BY FORMULA (owner, 2026-09-17)

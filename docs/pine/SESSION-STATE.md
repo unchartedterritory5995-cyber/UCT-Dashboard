@@ -51,14 +51,46 @@
 > ×3 and `BuilderSheet.pine` / `ImportBox.thinkscript` ×1 fail **identically** at
 > HEAD; `stockChartWiring` **passes alone** (217/217), red only in company.
 >
-> ▶️ **NEXT: R33b — `(i-C)`.** Its blast radius was reported as 0 scripts, which is
-> now known to be measured on the same over-counting basis. **The gate stands:** if
-> it needs a general evaluator it is (ii) by another name and **STOPS as H.10**; if
-> it needs only a plan-time numeric fold reached from `staticColourOf` and nowhere
-> else, it is in scope. `smart-money-volume-index-algoalpha` is the one genuine
-> remainder from R33a's 20 — 16 named colour args, 12 expression alphas, 9
-> expression bases — and is the natural first specimen. Then Part 4 (rig, Clouds
-> capture through the MEMBER door, vendor capture, j.4 per-layer table, R29).
+> ⛔⛔ **R33b STOPS AS H.10 — (i-C) IS (ii) BY ANOTHER NAME. NOTHING WAS BUILT.**
+> The full determination is in `WAVE2-A-PLAN.md` under R33b; five measured legs:
+>
+> 1. **No statement form.** `NODE_TYPES` is frozen at 11 and the engine already
+>    records *"the definition lane is an EXPRESSION language — `NODE_TYPES` has no
+>    statement form"* (`arrayVectors.js`). Clouds' `getAdjustedTransparency` is two
+>    local-binding **statements** plus a return ⇒ needs a **12th NODE_TYPE**, or a
+>    walker outside the tree. Both are named STOP conditions.
+> 2. **The machinery is absent, not a delta** — measured: even a single-expression
+>    numeric user fn as the alpha (`f(x) => x * 2`) yields `colorDynamic` today.
+>    Parsing is NOT the blocker: all probe shapes translate with **0 refusals**.
+> 3. **(i-C) contains (i)'s user-function COLOUR substitution**, so it is a
+>    substituter for colour AND numeric bodies at colour positions — verbatim the
+>    census's own definition of **(ii)**.
+> 4. ⭐ **THE IN-SCOPE READING CARRIES NOTHING.** Clouds' fills read
+>    `isBullish ? getBullFillColor(0) : getBearFillColor(0)` — the colour goes
+>    through a user COLOUR fn before any alpha. A numeric-only fold leaves all 20
+>    fills dynamic, and **0 scripts** in the measured population have the direct
+>    shape it would serve. The in-scope half has no consumer; the half with a
+>    consumer is out of scope.
+> 5. **Blast radius verified as the ruling required:** across **328 scripts** (266
+>    corpus + 59 OOS + 3 member) exactly **ONE** has a `color.new` alpha that is a
+>    user-fn call — Clouds, **2 call sites**. It is the sole consumer of the fold.
+>
+> ⛔ **Clouds' 20 fills therefore still carry no colour**, and the `it.fails` in
+> `colourBaseRecursion.test.js` stays red on purpose. Carrier, renderer and pane
+> door are all in and proven; the fold is the one missing link and it is an
+> **owner decision**, not an engineering one.
+>
+> ▶️ **NEXT: PART 4** — rig, Clouds capture through the MEMBER door (in exactly the
+> state above), vendor capture under Gate v2.1, j.4 per-layer table (21 layers, 20
+> fills, both tables, both tiers), H.8's line REPORTED not asserted, then the R29
+> draft→ready decision. ⚠️ Owed and unchanged: `paramSingleTranslation` (green,
+> cause NOT established) and the binder-level `notes` channel for a definition with
+> fills and no visible host.
+>
+> ℹ️ One R33a remainder for whenever a colour ruling next opens:
+> `smart-money-volume-index-algoalpha` (16 named colour args, 12 expression alphas,
+> 9 expression bases) and `anchored-vwap-pinch-handoff` (9 POSITIONAL colour args,
+> a perfectly foldable chain that `outputPresentation` never reads).
 
 > ### ⏱️ 2026-09-17 — MASTER IS IN, AND PART 1.3 IS PART-DONE.
 >

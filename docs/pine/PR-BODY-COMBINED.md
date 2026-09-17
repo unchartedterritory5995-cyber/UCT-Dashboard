@@ -799,6 +799,20 @@ reporter load **having executed nothing** and produced no totals line at all.
   and folds perfectly but is never read, because reading a positional colour
   argument belongs to `outputPresentation`, not `staticColourOf`. **Sizing any
   further colour ruling against that census inherits the overstatement.**
+- ⛔⛔ **R33b STOPPED AS H.10 — `(i-C)` is `(ii)` by another name. Nothing was built.**
+  Five measured legs: `NODE_TYPES` is frozen at 11 with **no statement form**, and
+  Clouds' numeric helper is two local-binding **statements** plus a return, so it
+  needs a 12th node type or a walker outside the tree — both named STOP conditions;
+  the machinery is **absent, not a delta** (even `f(x) => x * 2` as an alpha yields
+  `colorDynamic` today, with **0 refusals** — parsing is not the blocker); `(i-C)`
+  contains `(i)`'s user-function **colour** substitution, which is verbatim the
+  census's definition of `(ii)`; the **in-scope reading carries nothing**, because
+  Clouds' fills read `isBullish ? getBullFillColor(0) : …` and go through a user
+  COLOUR function before any alpha, while **0** scripts have the direct shape a
+  numeric-only fold would serve; and the blast radius, verified across **328
+  scripts**, is **ONE** — Clouds, 2 call sites, the sole consumer of the entire fold.
+  ⭐ So the fold is an **owner decision, not an engineering one**, and the carrier,
+  the renderer and the pane door are all in and proven around it.
 - ⛔ **The FOLD is NOT started, and the reason is a measurement.**
   Clouds' fills still carry **no** colour. The sentence below was written before this
   wave and is still exactly right — what is new is that it is now *costed*:
