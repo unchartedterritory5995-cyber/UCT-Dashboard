@@ -300,6 +300,59 @@ acceptable form from here is
 *"`<function>` at `<file:line>`, from `evidence/<run-id>/ring.json` entry N"*, or
 *"not named; the ring showed X"*.
 
+## 0.4 RETRACTION + 2.8c — the door guard is VERIFIED ON PRODUCTION (2026-09-17)
+
+⚰️ **RETRACTED: "the production UI has moved under the rig's selector."** I wrote that after
+six INCONCLUSIVE cells and it is false. I read the cell's own diagnostic sentence — *"the
+control took the click but produced no call to `/embeds` — a label is not a door"* — as a
+measurement. **It is a hypothesis the instrument formed**, and the measurement was on the line
+directly above it, which I did not read.
+
+### What the artifact actually says
+
+`docs/notebook/evidence/20260917T122035-2.2-ring-on-the-drivable-door/raw.txt`, every cell:
+
+```
+queued: {... 'queuedForThisNote': 1, 'dirty': True,
+         'sentenceInQueuedEntry': True, 'sentenceInDurableCopy': True, 'onLine': False}
+door:   {'ok': True, 'via': 'Send to Journal → Current note'}
+⇒ INCONCLUSIVE  ... produced no call to /embeds
+```
+
+⭐ **`ok: True` is not "a click happened".** `WIDGET_EMBED_JS` returns it ONLY after it (1)
+finds `[aria-label="Send to Journal — choose where"]`, (2) clicks it, (3) enumerates the
+chooser's options, (4) finds one matching `/^current note/i`, and (5) **clicks that option**.
+Every one of those succeeded. The selector is intact and the member's real door was driven to
+completion.
+
+### 2.8c — the guard's production proof
+
+The door fired into `sendCaptureToJournal(..., target: 'note')` on a note with **`dirty: True`
+AND a queued entry**, and **no `/embeds` call followed**. That is `noteHasUnsentWork` returning
+`{unsent: true, why: 'both'}` and the guard returning `STILL_SYNCING_MESSAGE` instead of calling
+`t.run` — its exact contract, observed on production, six times.
+
+✅ **D1's production proof.** The guard closes the member exposure on the live path.
+
+⛔ **AND IT MEANS THE RIG CAN NO LONGER REPRODUCE THE LOSS ON PRODUCTION, BY DESIGN.** Every
+append cell now stops at the mitigation. `fix5-production-re-run` got a real RED on 2026-09-15
+because it ran BEFORE the guard shipped. **The tracer was never the variable, and neither was
+the selector — the mitigation is.** Naming the writer has to move off the rig.
+
+⚠️ **STATED, NOT SMOOTHED: the toast copy is NOT in the artifact.** The cell never looks for
+rendered text, so `"This note is still syncing — try again in a moment."` cannot be cited from
+this run. What is cited is the behavioural signature — door driven to completion, unsent work
+present, no `/embeds`. The copy-contract string is asserted by
+`doorDefersWhileUnsent.test.js`, not by this evidence. **A cell that cannot see the toast
+cannot distinguish "the guard deferred" from "the door silently did nothing"** — they are
+distinguished here only because the guard is the sole thing on that path that suppresses the
+call. That gap is why the cell needs a fourth outcome.
+
+### The five append cells are re-labelled
+
+Not RED (nothing was lost) and not INCONCLUSIVE (something definite happened):
+**DEFERRED-BY-GUARD — mitigated; loss path closed; fix 6 pending to restore the door.**
+
 ## 1. The symptom, in one paragraph
 
 A member drives an **append door** (`Send to Journal → Current note`, from a

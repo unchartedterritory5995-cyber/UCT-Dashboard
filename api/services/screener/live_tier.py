@@ -747,6 +747,13 @@ def _blank_receipt(**over) -> dict:
         "feed_blackout": False,
         "lock_wait_ms": 0.0,
         "held_lock_ms": 0.0,
+        # ⭐ R62 (D-17): the market fetch is now OUTSIDE the lock, so its cost has to stay
+        # visible somewhere or the fix would look like the work vanished. `held_lock_ms` should
+        # fall to the documented order of magnitude and `snapshot_ms` should carry what moved.
+        # ⛔ Declared HERE, in the template, not written only on the path that measures it —
+        # `test_every_cycle_returns_the_same_key_set` exists because a receipt whose key set
+        # varies by path cannot be compared across cycles, and it caught exactly that.
+        "snapshot_ms": 0.0,
         "duration_ms": 0.0,
     }
     r.update(over)
@@ -822,6 +829,24 @@ def run_sweep() -> dict:
     # `POST /api/screener/refresh` landing inside a sweep, which already answers
     # `already_in_flight` honestly and is retryable. `held_lock_ms` is on EVERY
     # receipt so this stays a measurement rather than a claim.
+    # ⛔⛔ R62 (D-17) — THE MARKET FETCH HAPPENS BEFORE THE LOCK, AND THE COMMENT ABOVE IS WHY.
+    # ⚰️ `full_market_snapshot()` used to run INSIDE the lock (in `_sweep_locked`). It is a
+    # ~13,000-symbol network read behind a 30 s cache, and the sweep's cadence is 60 s, so
+    # essentially every cycle paid a cold fetch WHILE HOLDING `_BUILD_LOCK`. Measured on
+    # production 2026-09-17, n=16 receipts: `held_lock_ms` **28,155-96,658 ms**, median ~56 s —
+    # against the 122 ms median the comment above promises, up to **790x**, a ~94% duty cycle
+    # rather than ~0.2%, and three-plus cycles overrunning their own interval (APScheduler logged
+    # "skipped: maximum number of running instances reached (1)").
+    # ⭐ THE LOCK'S INVARIANT IS ABOUT THE ANCHORS, NOT THE MARKET. It exists so the 03:00 rows
+    # are not read while the builder rewrites them; a quote feed has nothing to do with that. So
+    # the fetch moves out and the lock now covers only `_read_anchor_rows` + derive + write.
+    # ⚠️ NOT A C-02 FIX. The join (16 sweep windows vs 20 loop stalls >= 3 s: 1 inside, 19
+    # outside) refuted the sweep as a loop-stall cause, and a network fetch releases the GIL
+    # anyway. This is a lock-contention defect with a one-line fix, shipped on its own merits.
+    t_snap = time.time()
+    snap = scan_volume.full_market_snapshot() or {}
+    receipt["snapshot_ms"] = round((time.time() - t_snap) * 1000, 2)
+
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
         receipt["skipped_reason"] = "build_in_flight"
@@ -834,7 +859,7 @@ def run_sweep() -> dict:
     # and `held_lock_ms` in exactly the same state, with one release site.
     t_held = time.time()
     try:
-        _sweep_locked(receipt, ymd, scan_volume)
+        _sweep_locked(receipt, ymd, scan_volume, snap)
     except sqlite3.OperationalError:
         # The one thing a once-per-process DDL flag can get wrong: the file it
         # was true of is gone (a wiped volume, a fresh mount, a test swapping
@@ -865,12 +890,16 @@ def _forget_schema() -> None:
     _SCHEMA_READY.discard(snapshot_db.get_db_path())
 
 
-def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
+def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
     """The derivation and the write, both UNDER the build lock — the anchors
-    must be read from a snapshot that is not being rewritten underneath us."""
+    must be read from a snapshot that is not being rewritten underneath us.
+
+    ⛔ R62 (D-17): `snap` is FETCHED BY THE CALLER, BEFORE THE LOCK, and handed in. It is a
+    ~13,000-symbol network read and has nothing to do with the anchors this lock protects.
+    Holding the lock across it is what made `held_lock_ms` ~56 s (n=16, 28,155-96,658 ms)
+    against the 122 ms this module's own comment documents."""
     rows = _read_anchor_rows()
     receipt["rows_considered"] = len(rows)
-    snap = scan_volume.full_market_snapshot() or {}
     receipt["feed_symbols"] = len(snap)
 
     # Pass 1 — ONE reason per symbol, so `considered == written + Σskipped`

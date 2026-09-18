@@ -340,3 +340,48 @@ def pytest_collection_modifyitems(config, items):
         reason = WISDOM_EXPECTED_FAILURES.get(nodeid)
         if reason:
             item.add_marker(_pytest.mark.xfail(strict=True, reason=f"R21 baseline — {reason}"))
+
+
+@pytest.fixture(autouse=True)
+def _no_test_leaks_a_dependency_override():
+    """⛔⛔ NO TEST MAY LEAVE A `dependency_overrides` ENTRY ON THE SHARED APP.
+
+    ⚰️ **F-CI-36 COST 41 FAILURES IN CI AND A REVERTED SHARD SPLIT.**
+    `tests/test_thesis_reviews_router.py` installed
+    `app.dependency_overrides[get_current_user] = lambda: {"id": user_id}` on the REAL
+    `api.main.app` and never removed it. Every later test in the same process then got a
+    stub user with **no plan and no subscription**, so an UNAUTHENTICATED request stopped
+    returning 401 (the override supplies a user) and the paid gate returned **402**.
+
+    ⭐ **It was invisible until the shard partition moved.** At 8 buckets the writer and the
+    victim were in different processes; at 12 they shared one. **A defect that only appears
+    when the partition changes is a defect the partition is not allowed to own.**
+
+    ⛔ **THE CLASS IS WIDE.** Measured over `tests/**` with comments and docstrings
+    stripped: **96 files install an override, 51 clear one, and 55 do neither.** Fixing 55
+    files one at a time leaves the 56th to be written tomorrow; this makes the cleanup
+    structural instead.
+
+    ⛔ **RESTORE, NEVER `.clear()`** — another fixture may legitimately have installed an
+    override before this test, and clearing would trade one leak for a different breakage.
+
+    ⛔ **LAZY BY CONSTRUCTION.** It touches `sys.modules`, never `import api.main`: forcing
+    the whole application to import for every test in the tree is exactly the collection
+    cost this repository has been OOM-killed by.
+
+    ⭐ Safe as a FUNCTION-scoped fixture because **no module-, class-, package- or
+    session-scoped fixture anywhere under `tests/` touches `dependency_overrides`** —
+    measured by AST, with a control confirming the same walk sees 77 non-function-scoped
+    fixtures overall. Nothing relies on an override surviving between tests.
+    """
+    mod = sys.modules.get("api.main")
+    before = dict(mod.app.dependency_overrides) if mod is not None else None
+    try:
+        yield
+    finally:
+        mod = sys.modules.get("api.main")
+        if mod is not None:
+            # `before is None` means the app was imported DURING this test, so the state to
+            # restore is the empty mapping a fresh FastAPI app carries.
+            mod.app.dependency_overrides.clear()
+            mod.app.dependency_overrides.update(before or {})

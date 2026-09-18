@@ -583,3 +583,93 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* ─── W2 / R2 — the admin-preview REPORT affordance ──────────────────────────────────────────────
+   ⛔ DELIBERATELY NOT IN THE HUB'S VISUAL LANGUAGE. This is scaffolding, not product: a dashed
+   outline and a system font, so an admin judging the hub is never judging this. It must not read as
+   a feature under evaluation — the owner's verdict is about the hub, and a reporting control
+   dressed like the hub would contaminate it.
+   ⛔ TOKENS ONLY, NO HEX FALLBACKS. `hubComponents.test.jsx` forbids a literal hex anywhere in this
+   file and it caught the first draft of this block. A `var(--x, <literal>)` fallback is still one, and
+   it is also the wrong instinct: an undefined token should be FIXED, not papered over
+   (`lesson_an_undefined_css_var_is_a_silent_no_op`). Every token below was checked as defined in
+   tokens.css before use.
+   ⛔ It sits OUTSIDE the fan, reachable in one tap whether the hub is showing or hidden. */
+.reportButton {
+  position: fixed;
+  left: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  z-index: var(--z-hub-rest);
+  padding: 6px 12px;
+  min-height: var(--tap-min);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.reportSheet {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 64px);
+  z-index: var(--z-hub-open);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.reportSheetHead { font-weight: 600; }
+.reportOptional { color: var(--text-muted); font-weight: 400; }
+
+.reportInput {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text);
+  /* ⚠️ 16px, not smaller: iOS Safari ZOOMS THE WHOLE PAGE when a focused input is under 16px, which
+     on a phone mid-report throws the hub off screen — the exact moment the owner is trying to
+     report something about it. */
+  font-size: 16px;
+}
+
+.reportMeta { color: var(--text-muted); font-size: var(--text-xs); }
+.reportError { color: var(--color-danger); font-size: var(--text-xs); }
+
+.reportActions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.reportCancel,
+.reportSend {
+  min-height: var(--tap-min);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.reportCancel {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.reportSend {
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--bg-base);
+}
+
+.reportSend:disabled { opacity: 0.6; }

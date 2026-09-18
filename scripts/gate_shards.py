@@ -563,14 +563,30 @@ def do_not_build_sweep(run=None) -> dict:
             "hits": hits[:20], "output": out.strip()[-2000:]}
 
 
-def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
-             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2,
+def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=None,
+             run_shard_fn=None, file_count_fn=None, max_workers: int = 2,
              exclude: tuple[str, ...] = (), exclude_reasons: tuple[str, ...] = ()) -> dict:
     """Run the gate, or refuse. Returns the manifest dict.
 
     Every failure mode raises `GateError` naming itself, so a caller can never mistake one for
     another — and so the test can assert WHICH one fired.
     """
+    # ⛔⛔ LATE-BOUND, LIKE `run_shard_fn` BESIDE THEM — and the inconsistency was a real bug.
+    # ⚰️ These two were `tree_state_fn=tree_state` and `file_count_fn=count_test_files`:
+    # DEFAULT ARGUMENTS, evaluated once when this module is imported, capturing the ORIGINAL
+    # functions forever. So `monkeypatch.setattr(gate_shards, "tree_state", ...)` — which is
+    # what every caller reasonably expects to work, and what
+    # `test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` actually does — reached
+    # NOTHING. That test drives a "dirty tree" refusal; with the patch inert it called the
+    # REAL tree_state, found the tree CLEAN, skipped the refusal and ran a REAL SIX-SHARD
+    # GATE inside a unit test.
+    #
+    # ⭐ WHICH IS WHY IT LOOKED INTERMITTENT: it PASSED whenever the working tree happened to
+    # be dirty (the real tree_state answered "dirty", the refusal fired, rc=2 in a second) and
+    # HUNG whenever the tree was clean. Every hang was right after a commit; every pass was
+    # mid-edit. Four hypotheses were spent on that pattern before the binding was read.
+    tree_state_fn = tree_state_fn or tree_state
+    file_count_fn = file_count_fn or count_test_files
     run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir, max_workers, tuple(exclude)))
 
     # ⛔ THE WRAPPER'S OWN OUTPUT IS NOT TREE DRIFT, AND THIS COST A SECOND RUN.

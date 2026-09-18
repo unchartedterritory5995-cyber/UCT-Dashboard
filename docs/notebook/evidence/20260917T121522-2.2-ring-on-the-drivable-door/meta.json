@@ -1,0 +1,18 @@
+{
+  "id": "2.2-ring-on-the-drivable-door",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "append_widget_embed",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md",
+    "--trace-writes"
+  ],
+  "exit": 0,
+  "started": "2026-09-17T12:15:22",
+  "seconds": 312.3,
+  "why": "\u26d4 THE ORDERING WAS THE PROBLEM, NOT THE DOOR. Three INCONCLUSIVE attempts on `append_widget_embed` + `slow PUT (landed, ring populated)` all reported 'the control took the click but produced no call to /embeds \u2014 a label is not a door'. But `fix5-production-re-run` drove THE SAME FAMILY to a real RED reading with NO --ordering. So the door is drivable and the slow-PUT sequencing is what leaves it unready at click time. This entry replicates the KNOWN-DRIVABLE invocation verbatim and adds ONLY --trace-writes, so the single variable is the tracer. R-RAW: the raw ring reaches evidence/ before any summary."
+}

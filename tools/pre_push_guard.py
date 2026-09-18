@@ -6,23 +6,16 @@
 
 TWO GUARDS, TWO DIFFERENT FAILURES:
 
-  1. ⚰️ **THE CLOCK — RETIRED (R18, owner ruling 2026-09-15). IT NO LONGER
-     REFUSES ANYTHING.** It once refused a master push between **09:25 and 16:05
-     ET on trading days** unless the diff was entirely within the paths
-     `docs/runbooks/deploy-windows.md` cleared for daytime. The owner's words
-     retiring it: *"we no longer have mid day blocks ever."* The constants
-     `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are
-     DELIBERATELY KEPT — `deploy-windows.md`, `tools/flow_worker_watch_coverage.py`
-     and this tool's JSON still read the Tier classification — but the clause
-     returns OK. See the R18 note beside that return before changing any of it.
+  1. ⚰️ **THE CLOCK — DELETED. There is no market-hours window.**
+     Owner ruling 2026-09-17: *"I am sick of the no push window during market
+     hours. Remove that from whatever is causing this every day. Remove that
+     permanently."* R18 had retired the REFUSAL in 2026-09-15 while keeping the
+     constants, the override env var and a log line that all still named
+     09:25–16:05 — so every session reading this file re-learned a rule that no
+     longer existed, and every prompt reading their output re-inherited it.
+     Presence was the problem, not the predicate. All of it is now gone, and
+     `tests/test_no_market_hours_window.py` fails the gate if it returns.
 
-     The incident it was written from is kept, because the lesson outlived the
-     rule: on 2026-09-14 the integrator reasoned that a push should wait for the
-     16:00 close, wrote that decision down, set a background timer to gate it —
-     and pushed at **15:49 ET** anyway, acting on a mental estimate of elapsed
-     time that had drifted ~25 minutes. `web` and `chart-renderer` both restarted
-     in the last eight minutes of RTH. **A decision written down is not a decision
-     enforced** — which is exactly why clauses 2 and 3 are code, not guidance.
   2. **THE QUEUE** — the one-merge-at-a-time rule, below.
 
 ⚰️ **THE RULE WAS ALREADY WRITTEN AND IT WAS NOT FOLLOWED.** `CLAUDE.md` carries
@@ -61,16 +54,29 @@ commit still means the pod is settled, which is the property that matters for
 *your* push. Requiring your own parent would refuse every legitimate push in a
 repo five workstreams share.
 
-**Bypass** — deliberate, loud, and logged. ⛔ TWO SEPARATE OVERRIDES, ON PURPOSE:
-overriding "the pod is mid-swap" is not the same act as overriding "the market is
-open", and one variable for both would let a reflex for the cheap one silently
-buy the expensive one.
+**The levers — TWO, both scoped, neither global** (R66, owner ruling D-18, 2026-09-17):
 
-    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master                  # the QUEUE
-    UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push …         # the CLOCK
+    # a BURST-only refusal, recency and in-flight passing on their own:
+    UCT_BURST_ATTESTED_BY="<a human who can see every workstream>" \
+    UCT_BURST_ATTESTED_AT="<ISO, within 15 min>" git push origin HEAD:master
 
-Every bypass appends to `logs/pre-push-guard-bypass.log` with the user, the time
-and the state that was overridden, so a bypass is a record rather than a silence.
+    # production is serving something that must come off NOW, and HEAD reverts it:
+    UCT_ROLLBACK_REASON="<why members need this>" \
+    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master
+
+⚰️ **THIS SAID "ONE OVERRIDE … the deploy queue" AND THAT IS HOW THE 2026-09-17
+INCIDENT HAPPENED.** `UCT_SKIP_PREPUSH_GUARD=1` did override the queue — all of
+it. A session needing to pass the **burst** clause alone reached for it, and it
+waived the **in-flight** clause too; the push landed inside another workstream's
+swap. The scoped attestation that exits burst and provably cannot exit recency or
+in-flight had existed since D-10 and was not used, **because a global one existed.**
+
+⛔ Nothing here waives recency, in-flight, unreadable or unparsable. Those are
+measurements of the world, and no amount of looking changes them — you wait.
+
+Every accepted lever appends to `logs/pre-push-guard-bypass.log` with the user,
+the time, a machine-readable `reason_code` and the state that was overridden, so
+it is a record rather than a silence.
 """
 from __future__ import annotations
 
@@ -95,6 +101,93 @@ SERVICE = "web"
 #: sets `drainingSeconds: 30`, and the old container is still answering inside it.
 MIN_SETTLE_SECONDS = 150
 BYPASS_ENV = "UCT_SKIP_PREPUSH_GUARD"
+
+#: R66 (D-18) — the GLOBAL levers are retired, because on 2026-09-17 the wrong one was reachable
+#: and it got pulled. The guard already carried R19's SCOPED attestation (burst only, never
+#: recency or in-flight, `pre_push_guard.py:635`), fully tested — including
+#: `test_an_attestation_NEVER_satisfies_the_in_flight_clause`. It was not used. A global
+#: `UCT_SKIP_PREPUSH_GUARD=1` was, and it waived every clause: the push landed while another
+#: workstream's deploy was BUILDING, and a 502 was observed at 22:16:50Z.
+#: ⭐ THE FIX IS NOT MORE CARE, IT IS FEWER LEVERS. A correct scoped mechanism beside a global
+#: one is a correct mechanism nobody reaches for under time pressure.
+#: ⚰️⚰️ AND R66 NEARLY ADDED A SIXTH LEVER WHILE RETIRING THE FIFTH. This block first
+#: carried a `WINDOW_OVERRIDE_ENV` constant naming the retired deploy-window override
+#: variable, and refused any push that had it set, reasoning that "a lever aimed at a retired
+#: gate still points at the gates that remain". `tests/test_no_market_hours_window.py` went
+#: red on it, and the rail was right: the owner's permanent-removal ruling (2026-09-17) says
+#: **presence was the problem, not the predicate** — "a retired rule that prints its own name
+#: on every push is not retired, it is advertised". Nothing reads that variable any more, so
+#: an operator who still has it set gets exactly the retired behaviour: silence. Refusing it
+#: by name would have put the window's vocabulary back into the guard, its tests and its
+#: runbook - which is why this comment does not spell the variable out either.
+#: ⭐ The distinction that matters: `UCT_SKIP_PREPUSH_GUARD` is a LIVE lever and is scoped
+#: below; the deploy-window override is a DEAD NAME, and the right treatment for a dead name
+#: is to stop saying it.
+ROLLBACK_REASON_ENV = "UCT_ROLLBACK_REASON"
+
+
+def _deploy_identity(dep: "dict | None") -> str:
+    """R67: what makes two reads 'the same deploy state'. ⛔ id AND status AND timestamp — a
+    deploy that flipped BUILDING→SUCCESS between the reads is a different world, and an identity
+    that watched only the id would call it unchanged.
+
+    ⚰️ THE KEY NAMES ARE `latest_deployment`'s, AND THE FIRST DRAFT INVENTED TWO OF THEM. It read
+    `id` and `created_at` where the payload carries `id` and **`createdAt`**, so every SUCCESS
+    row hashed to the same `-|SUCCESS|-` and the comparison could only ever see a STATUS change.
+    A second read that cannot distinguish two different successful deploys is the proxy failure
+    this guard exists to catch, wearing the costume of the fix."""
+    d = dep or {}
+    return "%s|%s|%s" % (d.get("id") or "-", d.get("status") or "-", d.get("createdAt") or "-")
+
+
+def _head_message(head: "str | None") -> str:
+    """The commit message of what is being pushed. Empty on any failure — unreadable is never a
+    pass, and the caller treats empty as 'not a revert'."""
+    exe = shutil.which("git")          # ⛔ resolved, never shell=True (the .cmd-shim trap)
+    if not exe:
+        return ""
+    try:
+        out = subprocess.run([exe, "-C", str(ROOT), "log", "-1", "--format=%B", head or "HEAD"],
+                             capture_output=True, text=True, errors="replace", timeout=20)
+        return out.stdout if out.returncode == 0 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def rollback_intent(head_message: str, production_commit: "str | None") -> dict:
+    """R66: `UCT_SKIP_PREPUSH_GUARD` survives for ONE purpose — reverting what is live right now.
+
+    ⛔ Three conditions, all required, because any two of them are satisfiable by an ordinary
+    push in a hurry: a stated reason, a commit that says in its own body which commit it reverts,
+    and that commit being the one PRODUCTION IS SERVING. A revert of something that is not live
+    is an ordinary change and waits like one.
+
+    ⭐ The production commit comes from the deploy record, not from a branch name — `origin/
+    production` can move under us, and what matters is what members are being served."""
+    reason = (os.environ.get(ROLLBACK_REASON_ENV) or "").strip()
+    if not reason:
+        return {"ok": False, "why": "%s is not set — a bypass with no stated reason is not a "
+                                    "rollback, it is a bypass" % ROLLBACK_REASON_ENV}
+    if not production_commit:
+        return {"ok": False, "why": "the live commit could not be read, so 'reverts what is live' "
+                                    "cannot be established — unreadable is never a pass"}
+    body = head_message or ""
+    marker = "This reverts commit "
+    reverted = ""
+    for line in body.splitlines():
+        if line.strip().startswith(marker):
+            reverted = line.strip()[len(marker):].strip().rstrip(".")
+            break
+    if not reverted:
+        return {"ok": False, "why": "HEAD does not say %r — git writes that line for a real "
+                                    "revert, and a hand-written message is not one" % marker.strip()}
+    n = min(len(reverted), len(production_commit), 12)
+    if reverted[:n].lower() != production_commit[:n].lower():
+        return {"ok": False, "why": "HEAD reverts %s but production is serving %s — a revert of "
+                                    "something that is not live waits like any other change"
+                                    % (reverted[:12], production_commit[:12])}
+    return {"ok": True, "why": "rollback of the live commit %s: %s" % (production_commit[:12], reason),
+            "reason": reason, "reverts": reverted[:12]}
 BYPASS_LOG = ROOT / "logs" / "pre-push-guard-bypass.log"
 
 OK, REFUSE, UNREADABLE = "OK", "REFUSE", "UNREADABLE"
@@ -120,6 +213,19 @@ def _read_rows() -> dict:
     if "v" not in _ROWS_MEMO:
         _ROWS_MEMO["v"] = _read_rows_uncached()
     return _ROWS_MEMO["v"]
+
+
+def _forget_rows() -> None:
+    """R67's second read must reach the CLI, not the memo.
+
+    ⚰️ Without this the second read is STRUCTURALLY VACUOUS: `latest_deployment()` goes through
+    `_read_rows()`, the memo answers from the first call's bytes, the two identities are equal by
+    construction, and the guard prints nothing while proving nothing. The unit tests could never
+    have seen it — they monkeypatch `latest_deployment` itself, so the memo is not in their path
+    at all. ⭐ The memo's own reason (guard 2 and guard 3 must describe ONE world in one refusal
+    message) is still right and is why this is an explicit, narrow forget rather than its
+    deletion: the deliberate re-read happens after both of those have spoken."""
+    _ROWS_MEMO.clear()
 
 
 def _read_rows_uncached() -> dict:
@@ -162,6 +268,9 @@ def latest_deployment() -> dict:
     d = raw["rows"][0]
     meta = d.get("meta") or {}
     return {"state": "READ", "status": d.get("status"), "createdAt": d.get("createdAt"),
+            # ⛔ `id` is carried for R67's second read ONLY. `decide()` does not look at it, and
+            # must not: two deploys of the SAME commit are two different deploys.
+            "id": d.get("id"),
             "commit": (meta.get("commitHash") or "")[:9],
             "message": (meta.get("commitMessage") or "").split("\n")[0][:60]}
 
@@ -501,15 +610,6 @@ def decide_cadence(dep: dict, *, now: "dt.datetime | None" = None,
 # GUARD 2 — THE CLOCK (owner ruling A2, 2026-09-14)
 # ═════════════════════════════════════════════════════════════════════════════
 
-#: The closed window, ET, on trading days. Half-open: 09:25:00 is refused,
-#: 16:05:00 is allowed. Owner ruling A2, verbatim: "refuses any master push
-#: between 09:25 and 16:05 ET on trading days".
-RTH_GUARD_OPEN = (9, 25)
-RTH_GUARD_CLOSE = (16, 5)
-
-#: ⛔ AN EXACT VALUE, NOT `=1`. Typing this is an act; typing `1` is a reflex.
-CLOCK_OVERRIDE_ENV = "UCT_DEPLOY_WINDOW_OVERRIDE"
-CLOCK_OVERRIDE_VALUE = "I-ACCEPT-AN-RTH-RESTART"
 
 # ⛔⛔ DERIVED FROM `docs/runbooks/deploy-windows.md`, NOT INVENTED. The runbook is
 # the single authority on push timing; these two lines are quoted from it verbatim
@@ -613,105 +713,6 @@ def uncleared_paths(paths) -> list[str]:
     return sorted(p for p in paths if not is_cleared(p))
 
 
-def next_allowed_et(now_et: "dt.datetime") -> "dt.datetime":
-    """The concrete instant this push stops being refused: today's 16:05 ET.
-
-    A refusal only ever happens INSIDE the window on a trading day, so the next
-    allowed instant is always the window's close on the same date."""
-    return now_et.replace(hour=RTH_GUARD_CLOSE[0], minute=RTH_GUARD_CLOSE[1],
-                          second=0, microsecond=0)
-
-
-def _hhmm(t) -> str:
-    return "%02d:%02d" % t
-
-
-def decide_clock(clock: dict, paths) -> tuple[str, str]:
-    """(verdict, reason). Pure — the tests drive it directly, no git and no import."""
-    if clock.get("state") == UNREADABLE:
-        # ⛔ THE LOAD-BEARING BRANCH. A guard that passes when it cannot tell the
-        # time is not a guard — it reports "fine" precisely when it has stopped
-        # working, which is how 15:49 became 16:00 in somebody's head.
-        return REFUSE, ("cannot determine the market clock (%s). REFUSING: a guard that "
-                        "passes when it cannot tell the time is not a guard.\n"
-                        "  next allowed:   UNKNOWN — fix the clock, or override deliberately "
-                        "with %s=%s" % (clock.get("why"), CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE))
-
-    now_et = clock["now_et"]
-    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
-
-    # ⛔⛔ R18 — THE RTH DEPLOY WINDOW IS RETIRED, PROGRAMME-WIDE.
-    # Owner ruling, stated in chat 2026-09-15, entered by Claude (chat): "there are no
-    # mid-day deploy blocks." The 09:25-16:05 ET refusal is withdrawn. This function no
-    # longer gates on the clock at all — it reads it, reports it, and returns OK.
-    #
-    # ⛔ WHAT DID **NOT** CHANGE, AND WHY THIS IS NOT A WEAKER GUARD. Every other clause
-    # stands untouched, and they are the ones that were actually load-bearing:
-    #   * the CADENCE rail (600 s recency + 3 commits/hour burst) — the clause that
-    #     catches the real failure, a push landing inside another deploy's 3-5 min build
-    #     and marking it REMOVED mid-flight (2026-09-12 and 2026-09-14, both measured);
-    #   * last web deploy SUCCESS, and no deploy in flight;
-    #   * fail-closed on an unreadable clock or unreadable deploy history.
-    # ⭐ The window was a PROXY for "do not disturb members", and it was a bad one: it
-    # blocked a docs push at 11:00 and permitted two stacked merges at 16:06. The cadence
-    # rail measures the thing the window was guessing at.
-    #
-    # ⚠️ THE UNREADABLE-CLOCK BRANCH ABOVE IS DELIBERATELY KEPT, and it is now the only
-    # consumer of the clock. R18 lists "fail-closed on unreadable clock" among the clauses
-    # to leave intact, so it stays — but a reader should know the tension: a guard that
-    # refuses on a clock it no longer gates on is stricter than it needs to be. That is the
-    # ruling's call, recorded here rather than quietly "improved".
-    #
-    # ⚠️ `RTH_GUARD_OPEN`/`_CLOSE`, `uncleared_paths` and `CLEARED_PREFIXES` are KEPT: the
-    # Tier classification is still read by `docs/runbooks/deploy-windows.md`,
-    # `tools/flow_worker_watch_coverage.py` and the JSON output. They no longer REFUSE.
-    if not clock.get("trading_day"):
-        return OK, ("%s is not a trading day (session=%s) — and since R18 the RTH deploy "
-                    "window is retired anyway." % (stamp, clock.get("session")))
-    n_paths = "unknown" if paths is None else str(len(paths))
-    return OK, ("%s — the %s-%s ET deploy window is RETIRED (R18, owner ruling "
-                "2026-09-15). %s changed path(s); cadence and deploy-state clauses still "
-                "apply." % (stamp, _hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE), n_paths))
-
-
-def _retired_rth_refusal(clock, paths):  # pragma: no cover - retained for history
-    """⚰️ THE REFUSAL R18 RETIRED. Kept as a record of what the window used to say, and
-    deliberately unreachable: `decide_clock` no longer calls it. Deleting it outright would
-    leave the next reader unable to see what the rule WAS when they find R18 in a ledger."""
-    now_et = clock["now_et"]
-    stamp = now_et.strftime("%Y-%m-%d %H:%M:%S ET")
-    if paths is None:
-        why = ("the changed-path set could not be read (git did not answer), so the diff "
-               "CANNOT be shown to be cleared")
-        listed = "  not cleared:    UNKNOWN — git did not answer; an unread diff is never exempt"
-    else:
-        unclear = uncleared_paths(paths)
-        if not paths:
-            why = ("the diff is EMPTY, which is a failed measurement rather than a cleared "
-                   "one — an empty result is a failed invocation until proven otherwise")
-            listed = "  not cleared:    UNKNOWN — the diff came back empty; that is not the same as clean"
-        else:
-            shown = unclear[:6]
-            more = "" if len(unclear) <= 6 else " (+%d more)" % (len(unclear) - 6)
-            why = ("%d of %d changed path(s) are NOT cleared for a daytime push"
-                   % (len(unclear), len(paths)))
-            listed = "  not cleared:    %s%s" % (", ".join(shown), more)
-
-    nxt = next_allowed_et(now_et)
-    secs = max(0, int((nxt - now_et).total_seconds()))
-    return REFUSE, "\n".join([
-        "REFUSING A MASTER PUSH — the market is open and this diff is not cleared for daytime.",
-        "  refused:        a push whose destination is master (it restarts web and chart-renderer)",
-        "  now:            %s  (session=%s, a trading day)" % (stamp, clock.get("session")),
-        "  window:         %s-%s ET on trading days" % (_hhmm(RTH_GUARD_OPEN), _hhmm(RTH_GUARD_CLOSE)),
-        "  why:            %s" % why,
-        listed,
-        "  next allowed:   %s  — in %dm %02ds" % (nxt.strftime("%Y-%m-%d %H:%M:%S ET"),
-                                                  secs // 60, secs % 60),
-        "  cleared today:  docs/markdown, tests/**, tools/**, scripts/**, app/**  "
-        "(docs/runbooks/deploy-windows.md, Tier 1)",
-        "  deliberate override: %s=%s" % (CLOCK_OVERRIDE_ENV, CLOCK_OVERRIDE_VALUE),
-    ])
 
 
 def main(argv=None) -> int:
@@ -737,18 +738,12 @@ def main(argv=None) -> int:
         return _audit()
 
     # ── THE CLOCK first: it costs no network, and it is the one the owner ruled on.
+    # ⛔ THERE IS NO CLOCK GATE. `read_clock` is kept for REPORTING only (the JSON's
+    # session/trading_day fields); nothing here refuses on the time of day, and nothing
+    # prints a window. Owner ruling 2026-09-17, permanent. See the module docstring.
     clock = read_clock()
     paths = changed_paths(a.base, a.head)
-    cverdict, creason = decide_clock(clock, paths)
-    clock_overridden = (cverdict != OK
-                        and os.environ.get(CLOCK_OVERRIDE_ENV, "").strip() == CLOCK_OVERRIDE_VALUE)
 
-    if cverdict != OK and not clock_overridden and not a.json:
-        # ⛔ Return BEFORE asking Railway anything. A refused push has no queue
-        # question to answer, and a guard that still spends 2s on the CLI teaches
-        # everyone that the refusal is slow rather than that it is right.
-        print("[pre-push] %s" % creason)
-        return 1
 
     dep = latest_deployment()
     verdict, reason = decide(dep)
@@ -771,7 +766,7 @@ def main(argv=None) -> int:
 
     if a.json:
         print(json.dumps({
-            "verdict": OK if (verdict == OK and cverdict == OK and kverdict == OK) else REFUSE,
+            "verdict": OK if (verdict == OK and kverdict == OK) else REFUSE,
             "cadence": {"verdict": kverdict, "reason": kreason,
                         "clause": kclause.get("name"),
                         "attestation": {k: (v.isoformat() if hasattr(v, "isoformat") else v)
@@ -779,28 +774,14 @@ def main(argv=None) -> int:
                         "recent_window_s": RECENT_PUSH_WINDOW_SECONDS,
                         "burst_window_s": BURST_WINDOW_SECONDS,
                         "burst_min": BURST_MIN_DEPLOYS},
-            "clock": {"verdict": cverdict, "reason": creason,
+            "clock": {"gate": "REMOVED (owner ruling 2026-09-17)",
                       "session": clock.get("session"), "trading_day": clock.get("trading_day"),
                       "now_et": clock["now_et"].isoformat() if clock.get("now_et") else None,
                       "changed_paths": paths,
                       "uncleared": None if paths is None else uncleared_paths(paths)},
             "queue": {"verdict": verdict, "reason": reason, "deployment": dep},
         }, indent=1))
-        return 0 if (verdict == OK and cverdict == OK and kverdict == OK) else 1
-
-    if clock_overridden:
-        # ⛔ LOUD. A window override is a member-visible restart during the session;
-        # it should never scroll past unread.
-        _log_bypass({"status": "CLOCK-WINDOW", "commit": clock.get("session")}, creason,
-                    code="CLOCK-WINDOW")
-        print("=" * 78)
-        print("[pre-push] ⚠️  DEPLOY WINDOW OVERRIDDEN via %s" % CLOCK_OVERRIDE_ENV)
-        print("[pre-push] ⚠️  RESTARTING web AND chart-renderer DURING THE SESSION.")
-        print("[pre-push] ⚠️  Logged to %s" % BYPASS_LOG)
-        print("[pre-push] what was overridden:\n%s" % creason)
-        print("=" * 78)
-    else:
-        print("[pre-push] %s" % creason)
+        return 0 if (verdict == OK and kverdict == OK) else 1
 
     if burst_attested:
         # ⛔ LOGGED VERBATIM. An attestation nobody can review afterwards is a
@@ -822,23 +803,56 @@ def main(argv=None) -> int:
         print("[pre-push] attestation REJECTED (%s): %s"
               % (attest.get("state"), attest.get("why")))
 
+    # ── R66: the global skip survives for ROLLBACK ONLY ───────────────────────
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
+        intent = rollback_intent(_head_message(a.head), (dep or {}).get("commit"))
+        if not intent["ok"]:
+            print("[pre-push] ⛔ %s is ROLLBACK-ONLY since D-18. %s"
+                  % (BYPASS_ENV, intent["why"]))
+            print("[pre-push]    ⚰️ On 2026-09-17 this lever waived EVERY clause — including the "
+                  "in-flight one — and the push landed inside another workstream's swap.")
+            print("[pre-push]    For a BURST-only refusal use the scoped attestation: %s and %s."
+                  % (ATTEST_BY_ENV, ATTEST_AT_ENV))
+            return 1
         # ⛔ BOTH reasons are logged. Overriding a queue refusal and overriding a
         # cadence refusal are different acts, and a log that records only the first
         # cannot tell the reviewer which one was waved through.
-        _log_bypass(dep, "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason))
-                                   if v != OK) or reason, code="QUEUE-SKIP")
-        print("[pre-push] BYPASSED via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
-        print("[pre-push] what was overridden: %s" % reason)
-        if kverdict != OK:
-            print("[pre-push] ...and the cadence guard: %s" % kreason)
+        _log_bypass(dep, "ROLLBACK: %s | %s" % (
+            intent["reason"],
+            "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason)) if v != OK) or reason),
+            code="ROLLBACK")
+        print("[pre-push] ROLLBACK allowed via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
+        print("[pre-push] %s" % intent["why"])
         return 0
 
     print("[pre-push] %s" % reason)
     print("[pre-push] %s" % kreason)
     if verdict != OK or kverdict != OK:
         print("[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.")
-        print("[pre-push]    Wait, then push again. Deliberate override: %s=1" % BYPASS_ENV)
+        if kclause.get("name") == "burst" and verdict == OK:
+            print("[pre-push]    This is a BURST-only refusal with recency and in-flight passing "
+                  "on their own. A human who can see every workstream may attest: set %s and %s "
+                  "(ISO, within %dm) and push again."
+                  % (ATTEST_BY_ENV, ATTEST_AT_ENV, ATTEST_MAX_AGE_SECONDS // 60))
+        else:
+            print("[pre-push]    Wait, then push again. ⛔ No lever waives this: an attestation "
+                  "exits the BURST clause only, and %s is rollback-only." % BYPASS_ENV)
+        return 1
+
+    # ── R67: THE LAST ACT IS A SECOND READ, AND THE PUSH RIDES THIS SAME PROCESS ──
+    # ⚰️ 2026-09-17: the guard was read, reported "710s settled — safe to push, nothing
+    # building", and by the time the push executed another workstream's deploy had started and
+    # was BUILDING. The first read was TRUE and USELESS — the world moved between the check and
+    # the act. ⭐ Re-reading as the last statement before returning 0 does not remove the race
+    # (nothing inside one process can), but it shrinks the window from "however long the human
+    # took" to "one API round trip", and it REFUSES rather than guesses when the two disagree.
+    _forget_rows()
+    dep2 = latest_deployment()
+    if _deploy_identity(dep2) != _deploy_identity(dep):
+        print("[pre-push] ⛔ THE DEPLOY STATE CHANGED WHILE THIS GUARD RAN — refusing.")
+        print("[pre-push]    first read : %s" % _deploy_identity(dep))
+        print("[pre-push]    second read: %s" % _deploy_identity(dep2))
+        print("[pre-push]    Something started deploying between the two reads. Wait for it.")
         return 1
     return 0
 

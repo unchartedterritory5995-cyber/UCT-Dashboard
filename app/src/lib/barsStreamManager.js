@@ -17,7 +17,7 @@
 
 import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
-export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py pairs[:50]
+export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
 export const REBUILD_DEBOUNCE_MS = 400
 const INITIAL_RETRY_MS = 5000
 // No bar AND no heartbeat within this window ⇒ the connection is silently dead

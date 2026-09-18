@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -30,48 +30,67 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-**Measure it, don't quote it** — the list is the `NAV` array at the top of
-`app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
-At 2026-08-09 it reads:
+⛔ **THIS SECTION IS GENERATED. Do not hand-edit it, and do not hand-count it.**
 
-Dashboard · Morning Wire · **Charts** · **AI Search** (`/ai-search`) · UCT 20 ·
-Breadth · Calendar · Screener · Options Flow · **Flow Record**
-(`/flow-scoreboard`) · **Live Flow** (`/live-massive`) · Post Market ·
-Model Book · **The Desk** · Journal · **Community** · Support
+```sh
+node tools/nav_manifest.mjs            # this table, plus the route diff
+node tools/nav_manifest.mjs --self-check
+```
 
-⚰️ The 2026-08-09 reading of this line listed **Patterns** — there is no
-`/patterns` route and no such NAV entry (measured 2026-09-01); the string only
-survived in `tools/mobile_audit.py`'s hand-typed route list, where it made the
-harness audit the 404 page while `/ai-search`, `/flow-scoreboard`,
-`/live-massive`, `/desk` and `/community` were never audited at all.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
+on **2026-09-14**. Regenerate after any change to that array.
+
+| label | route |
+|---|---|
+| UCT Terminal | `/calendar` |
+| Charts | `/charts` |
+| Morning Wire | `/morning-wire` |
+| Dashboard | `/dashboard` |
+| AI Search | `/ai-search` |
+| UCT 20 | `/uct-20` |
+| Breadth | `/breadth` |
+| Screener | `/screener` |
+| Options Flow | `/options-flow` |
+| Flow Record | `/flow-scoreboard` |
+| Live Flow | `/live-massive` |
+| Model Book | `/model-book` |
+| The Desk | `/desk` |
+| Journal | `/journal` |
+| Community | `/community` |
+| Support | `/support` |
+
+**16 entries.** Every one resolves to a registered route
+(`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**phantom-entry defect this section used to commit is currently absent**, and the
+generator is what keeps saying so.
+
+⚠️ **`/post-market` is NOT in this list and used to be.** It is still a real route;
+it is simply not a sidebar entry. **7** reachable member-facing routes have no
+nav entry — **F-NAV-1**, recorded in
+`docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md`, deliberately NOT
+in this section: *what the sidebar shows* and *what the router serves* are two facts, and
+the whole reason this section kept going stale is that it tried to hold both.
+
+⚰️ **What this section used to say, and why the generator exists.** It named an
+array called `NAV` (the identifier is `NAV_ITEMS`), listed **Calendar** (the label is
+**UCT Terminal**), and listed **Post Market**, which is not an entry at all. Before that
+it listed **Patterns**, a page no route reached — and that string survived into
+`tools/mobile_audit.py`'s hand-typed route list, where it made the harness audit the 404
+page while five real routes were never audited. **A hand-typed list beside the array it
+describes is the defect this file records over and over** (the writer-index `FOUR`, the
+COT router's "4 routes", the setup catalog's "24").
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
 Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
-admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision
-2026-08-26); phones still land on the Daily tab (key `overview` — it replaced
-the old duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`,
-whose finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
+admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision 2026-08-26);
+phones still land on the Daily tab (key `overview` — it replaced the old
+duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`, whose
+finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
 
-⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
-`/theme-tracker` is a `LegacyRedirect` (see below). **Traders is still not a nav
-entry, but it is no longer unreachable** — this said *"reachable from nothing but
-`Traders.test.jsx`"*, which was true until 2026-08-09 and is the reason it got
-fixed: `GET /api/traders` was mounted and paid-gated the whole time, and
-`api/services/voice_client_action_tools.py` navigated members to `/traders`,
-which `App.jsx` did not route. **`/traders` is a real route now**; its door is the
-voice assistant, not the sidebar. Rail:
-`tests/test_navigation_targets_resolve.py`, which resolves every value in
-`PAGE_ALIASES` and every key in `voice.py::_PAGE_DESCRIPTIONS` against App.jsx's
-route table — it is what caught the second one, `"uct 20" → /uct20`, against a
-route that has always been `/uct-20`. It also **omitted** Charts, Patterns,
-Live Flow, The Desk and Community; called Breadth's "Views" tab "Heatmap"; dropped
-"Overview"; and did not say Analogues is admin-gated. Every one of those is wrong, in
-the first section a new engineer reads — and the two phantom entries are the worse
-half: **a nav entry documented for a page no route reaches teaches the next engineer
-that the orphan is the idiom.** *(Deliberately no count here: a typed count beside the
-list it describes is the defect this whole file keeps re-committing. Diff the two.)*
-
-**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`. Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in `app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
+**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were
+retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`.
+Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in
+`app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below
@@ -925,8 +944,22 @@ it does for a member. `/smoke-login` burns the token on first use.
 `web` only. **Removal instruction, to be run when the programme closes:**
 
 ```sh
-railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+railway variable delete SMOKE_LOGIN_LINK_ENABLED --service web
 ```
+
+⚰️ **The command above was `railway variables --service web --unset …` and that now ERRORS**
+(`unexpected argument '--unset'`). Railway CLI **v4.35.0** moved it to a subcommand, and the
+noun is **singular**: `railway variable delete KEY --service web`. Measured 2026-09-17 by the
+breadth/promotion-record session.
+
+⛔⛔ **AND THE HALF THAT ACTUALLY BITES: `--set` REDEPLOYS, `delete` DOES NOT.** Measured: nine
+minutes after a delete, no new deployment, `uptime_seconds` climbing 1508 → 2019 unbroken — so
+**the variable was gone from the SERVICE and still live in the PROCESS.** `--kv` read it as
+absent and the pod kept serving the old configuration. **The direction that looks safer is the
+one that fails silently:** an operator who deletes, reads back, sees it gone and stops has
+recorded a revert that never happened. Follow a delete with
+`railway redeploy --service web --yes` and confirm from the POD (a real boot: uptime reset,
+and the behaviour you expected), never from `--kv`.
 
 ⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
 lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
@@ -2650,18 +2683,52 @@ In short: which services restart depends on which files a push touches, and only
 restart is expensive.
 
 - **Docs, tests, tools, scripts, `app/**` → push any time.** These restart web only.
-  Cost is a ~1 min `/api/*` blip and a possible lost scheduler slot (APScheduler's job
-  store is in memory, so a slot whose minute passes during the swap is lost outright,
-  not run late). If a scheduled job is due in the next minute or two, wait for it.
+  Cost is an `/api/*` blip and a possible lost scheduler slot (APScheduler's job store
+  is in memory, so a slot whose minute passes during the swap is lost outright, not
+  run late). If a scheduled job is due in the next minute or two, wait for it.
+  ⚰️ This line used to restate the blip as *"~1 min"*, and the runbook is the single
+  authority on that number — restating it here was the second-authority-over-one-value
+  defect this file keeps paying for. **Read `docs/runbooks/deploy-windows.md`'s Tier 1
+  section for the measured figure (82–119 s, n=1) and the platform reason it cannot be
+  fixed with a readiness gate** — `web` has a Railway volume mounted, and Railway
+  documents that a volume-attached service can never overlap deploys regardless of
+  healthcheck config. The only lever is deploy frequency, not deploy mechanics.
 - **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
 
 ⛔⛔ **NEVER `git push --no-verify`, AND NEVER `-n`.** It skips every hook, leaves
 no trace anywhere, and is the one path that looks exactly like the 2026-09-14
-stacked push that nobody could attribute. If a hook is wrong, fix the hook or use
-the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
-`logs/pre-push-guard-bypass.log` and is therefore reviewable. ⭐ Since 2026-09-14
+stacked push that nobody could attribute. If a hook is wrong, fix the hook.
+
+⛔⛔ **AND `UCT_SKIP_PREPUSH_GUARD=1` IS NO LONGER "the logged override" — IT IS
+ROLLBACK-ONLY (R66, owner ruling D-18, 2026-09-17).** This paragraph used to end
+*"or use the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
+`logs/pre-push-guard-bypass.log` and is therefore reviewable."* Every word of that
+was true, and it is how the wrong lever got pulled: on 2026-09-17 a session needing
+to pass the **burst** clause alone reached for the global skip, which waived the
+**in-flight** clause too, and the push landed inside another workstream's swap.
+
+⭐ **The guard already had the right lever and had had it since D-10** — R19's
+*scoped* attestation (`UCT_BURST_ATTESTED_BY` + `UCT_BURST_ATTESTED_AT`, ISO, ≤15
+min), which exits the BURST clause and provably cannot satisfy recency or
+in-flight. Nobody reached for it **because a global one existed.** The fix is fewer
+levers, not more care.
+
+- **Burst-only refusal, recency and in-flight passing on their own** → the scoped
+  attestation, by a named human at a named minute.
+- **Anything else** → wait. `tools/pre_push_guard.py` now refuses the global skip
+  unless HEAD is a real revert (`This reverts commit …`) of the commit the deploy
+  record says production is **serving**, with `UCT_ROLLBACK_REASON` set.
+
+⚰️ R66 also tried to make the *retired* deploy-window override refuse by name
+rather than be a no-op. `tests/test_no_market_hours_window.py` went red on the
+mere name and was right: **presence was the problem, not the predicate.** Nothing
+reads it, so an operator who still has it set gets exactly the retired
+behaviour — silence — and the right treatment for a dead name is to stop saying
+it. That is why only ONE variable is named above.
+
+⭐ Since 2026-09-14
 this is also belt-and-braces rather than the only line: the **`master deploy gate`**
 workflow serialises master pushes at GitHub (`concurrency: master-deploy`,
 `cancel-in-progress: false`) and Railway's **Wait for CI** holds the build until
@@ -2677,6 +2744,32 @@ gap is a TIME gap, not a logic gap: `tools/pre_push_guard.py` reads the queue at
 the moment of the push and is correct at that moment, but a build takes 3–5
 minutes and a gate takes longer. *"The queue was clear when I started my gate"* is
 true and useless. The wait is on the DEPLOY, not on the check.
+
+⛔⛔ **A REDEPLOY STORM IS INVISIBLE TO BURST AND MAXIMALLY VISIBLE TO RECENCY.** Measured
+2026-09-17, verified independently by two sessions: **ONE landing produced FIVE deploy
+records**, three of them inside 16 seconds.
+
+```
+deploy records in last 60 min : 7
+DISTINCT commits (what BURST counts) : 3     77dad414d x5 · 0ec4d52e9 x1 · e50c0552d x1
+newest record age (what RECENCY counts) : 16.1 min
+```
+
+⭐ **The two clauses disagree about the same event, and both are behaving correctly.** Burst
+dedupes by commit — deliberately, so a variable flip costs no slot — so five deploys of one
+commit look like **one** landing to it. Recency counts *records*, so the same five look like
+**five**, and each one restarts the 600 s clock. A waiting session sees a countdown that
+resets over and over while `origin/master` never moves: `541 → 431 → 320 → 516 → 398`.
+
+⛔ **THE DIAGNOSTIC RULE: watch for a NEW SHA, not for the timer moving.** A resetting
+countdown with a static `origin/master` is a redeploy storm, not a third pusher — and it is
+the shape most likely to be misread as "somebody keeps landing ahead of me". (It was, by me.)
+
+⚠️ **A storm is not automatically a fault.** Checked before concluding: `/api/health` 200 with
+`uptime_seconds` stable across three probes, `master == production`, and the change involved
+was dev tooling with no importer under `api/` or `app/`. Not a crash loop, nothing to roll
+back. **Cause not proven** — the best available reading is the promotion workflow plus the
+`production` watch double-firing, and that is recorded as unproven rather than asserted.
 
 ⛔⛔ **AND THE GUARD THAT ENFORCES THIS HAS A ~3.5 MINUTE BLIND WINDOW, BY CONSTRUCTION.**
 Measured 2026-09-16: **Railway creates the deploy record MINUTES after the push, and the
@@ -2725,6 +2818,115 @@ not evidence that the measurement was.
 keys on. If those are two different sentences, it is a proxy, and it must be labelled as
 one or replaced.
 
+### ⛔ NEVER `git commit -m` FOR A MESSAGE WITH IDENTIFIERS — use a quoted heredoc
+
+> **`git commit -F - <<'MSG'` … `MSG`.** The quoted heredoc expands NOTHING — backticks, `$`,
+> `!` all pass through verbatim. `-m "…"` cannot be made safe by care, because the shell has
+> already eaten the string before git ever sees it.
+
+⚰️ **Measured 2026-09-17.** A commit was written with `git commit -m "…"` containing backticks
+around three identifiers. The shell command-substituted them away, and the commit landed with
+holes exactly where `probe`, `mint_session_token` and `--unset` should have been — in a message
+whose entire purpose was to name those three.
+
+⭐ **THE MITIGATION IS THE FLAG, NOT THE CHARACTER.** "Remember not to use backticks in `-m`" is
+a rule that depends on spotting one character in a long string, and it is the kind you lose at
+3am. "Never use `-m` for a message with identifiers in it" is checkable **before you type it**.
+
+⛔ **AND THE TELL IS AS WEAK AS A TELL GETS:** `bash: probe: command not found` on **stderr**, at
+commit time, in a stream nobody reads when the commit succeeds. The commit **exits 0**. `git log`
+then renders the holes as ordinary prose, because **a sentence with a missing word still reads
+like a sentence**. ⚠️ **A commit message is the one artifact with no reader between writing and
+permanence** — no review, no test, no gate. Nothing downstream will ever tell you it is wrong.
+
+### ⛔ A DEFAULT ARGUMENT IS BOUND AT IMPORT — late-bind every injectable seam
+
+> **`def f(..., thing_fn=None)` and resolve it in the body. NEVER `thing_fn=real_function`.**
+
+A parameter default is evaluated ONCE, when the module is imported, and captures the original
+object forever. So `monkeypatch.setattr(module, "real_function", fake)` — which is what every
+caller reasonably expects to work — **reaches nothing**, and the test silently exercises the
+real function.
+
+⚰️ **Measured 2026-09-17, and it had been eating runs for a day.** `scripts/gate_shards.py`
+carried **two conventions in one signature**:
+
+```
+tree_state_fn=tree_state          <- default argument, bound at import
+run_shard_fn=None                 <- late-bound, two lines away
+file_count_fn=count_test_files    <- default argument, bound at import
+```
+
+`test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` patches
+`gate_shards.tree_state` to fake a dirty tree and assert the refusal releases the lock. With
+the patch inert it called the REAL `tree_state`, found the tree clean, skipped the refusal, and
+**ran a real six-shard gate inside a unit test** — real `npx vitest`, minutes of it, against a
+300 s ceiling.
+
+⭐⭐ **AND IT LOOKED LIKE FLAKINESS.** It PASSED whenever the working tree happened to be dirty
+(the real `tree_state` answered "dirty", the refusal fired, rc=2 in a second) and HUNG whenever
+it was clean. Every hang was immediately after a commit; every pass was mid-edit. **A test whose
+outcome depends on `git status` is not flaky — it is reading the wrong thing**, and from the
+outside those are indistinguishable. That is what let it survive four wrong diagnoses.
+
+⛔ **The rail must prove the patch is CALLED, not just that the default is `None`.** A signature
+assertion alone passes if the body ignores the parameter
+(`test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them`).
+
+⭐ **Class sweep (§10.35), 2026-09-17:** an AST pass over **364 files** in `scripts/` and
+`tools/` found **3** remaining `x_fn=module_level_callable` defaults —
+`deploy_watch.py:93 arm(probe_fn=probe)`, `deploy_watch.py:99 watch(probe_fn=probe)`,
+`window_check.py:883 reauthenticate(mint=mint_session_token)`. **None is monkeypatched anywhere
+in `tests/`**, so none is inert today. Left as-is with that reason recorded rather than changed
+for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
+the seam first, or it will be testing the real function while believing otherwise.
+
+### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
+
+Kinds 1 and 2 are *the instrument was wrong*. Kind 3 is the nastiest, because the record is
+**right, and read, and still the reason the thing does not get done**. Two faces, found
+independently by two sessions on the same night:
+
+| face | it substitutes for | the instance |
+|---|---|---|
+| **3a** the record was right, **read**, and **not acted on** | a **FIX** | `"the `_drive` children still pay the sweep … Stated, not hidden"` — a true docstring, written by the person who then spent four hypotheses rediscovering it |
+| **3b** the record was right **when written**, and the **world moved under it** | a **RE-CHECK** | a ratified 33× headline that had drifted to 15× on unchanged code; and `test_the_policy_constants_are_what_the_owner_authorised` asserting `MIN_UPTIME_S == 600` after the owner authorised 300 — **the rail that exists to make policy drift deliberate had itself drifted, and was failing on the authorised value** |
+
+⛔ **NEITHER IS CATCHABLE BY TESTING HARDER.** 3a passes every test — the statement is true.
+3b passes every test it was written against — it is asserting the world of the day it was
+written. The only thing that finds either is asking, of a record you already trust:
+
+> ### ⭐ **"When was this last true?"**
+
+⚰️ **AND IT CAUGHT THE AUTHORS OF THIS SECTION, WITHIN AN HOUR OF WRITING IT.** One session told
+another that a fix was "on master now"; it was **committed, not landed**, and master still
+served the command that errors. The claim was true in intent and false in fact, the other
+session accepted it without checking, and it was caught only because the owner asked whether it
+had actually shipped. ⭐ **"Committed" answers neither *is it written* nor *did it ship*.** The
+whole check is one line, and it is the same two-question discipline as the deploy rule:
+
+```sh
+git merge-base --is-ancestor <sha> origin/master   # did it SHIP
+git show origin/master:<path> | grep …             # what does master SAY today
+```
+
+⭐⭐ **THE CLEANEST INSTANCE OF 3b, because nothing was ever red.** For two days this
+programme reported *"no rig window has been taken"* and treated it as the rig being
+unavailable. The observation was **true the whole time**. What had changed is what it was
+*about*: the window queue held no `pending` entries, so the runner's own answer was
+*"queue empty — nothing staged"*. **The windows opened. There was nothing staged to spend
+them on.** A runner with nothing to do looks exactly like a rig that was never free —
+and unlike a drifted constant or a stale ratio, there was no failing test, no red, and
+nothing to notice. It failed by being quietly, accurately unhelpful.
+
+⚠️ **A documented cost is not a bounded cost, and a ratified number is not a current one.**
+Writing a hazard down, and having it ratified, both *feel* like handling it. Four more of the
+same shape turned up in one file in one night: a report tool defaulting to a pool path the
+pool had left months earlier and emitting a complete-looking summary of nothing; a rail
+comparing a fixed SHA against `origin/master` and reporting the world moving as a defect; and
+a document whose opening banner read "THIS IS A DRAFT, THE PROGRAMME IS NOT DONE" above its
+own closing statement that it was closed.
+
 ⚠️ **THE TWO KINDS ARE NOT DISJOINT, AND THE TABLE IS A CHECKLIST, NOT A FILING SYSTEM.**
 `%an` is both: it MOVED (every commit now carries one name) and it was ALWAYS a proxy
 (authorship standing in for "which session"). So ask BOTH questions of every instrument —
@@ -2765,6 +2967,28 @@ flow-worker case entirely, and that case is real.
 ⛔ **Neither should be restored, and neither should be re-derived from its surviving
 rationale.** This file has had a rescinded restriction reinstated that way twice: the
 mechanism under a struck rule explains a class of bug, it is not the rule.
+
+⛔⛔ **THE MARKET-HOURS PUSH WINDOW WAS REMOVED PERMANENTLY BY OWNER RULING, 2026-09-17.**
+Verbatim: *"I am sick of the no push window during market hours. Remove that from whatever
+is causing this every day. Remove that permanently."*
+
+⚰️ It had already been "retired" once — R18, 2026-09-15 — and it kept coming back, because
+only the REFUSAL was retired. The constants, the override env var, the docstring and a log
+line printed on **every push** all still named 09:25–16:05 ET, so every session that read
+the guard re-learned the rule and every prompt that read their output re-inherited it.
+⭐ **Presence was the problem, not the predicate.** A retired rule that prints its own name
+on every push is not retired, it is advertised.
+
+All of it is deleted from `tools/pre_push_guard.py`, its hook, its tests and
+`docs/runbooks/deploy-windows.md`. **`tests/test_no_market_hours_window.py` fails the master
+gate if it returns**, and asserts the guard is *time-of-day invariant* — identical output at
+10:00 and 22:00 ET on identical deploy state — so it cannot return under a different name.
+
+⛔ **The two live clauses are untouched and are the whole policy: recency (≥600 s settled)
+and burst (≥3 distinct web deploys in 60 min).** ⚠️ And `CLEARED_PREFIXES` exempts **nothing**
+from them — it was the *clock's* daytime-clearance list, `decide_cadence` never consulted it,
+and a docs-only push is paced exactly like an `api/**` one. Measured from the guard source
+2026-09-17, because the opposite had been assumed.
 
 ⚰️ **How the wrong version of this was nearly written into a rule:** a Wave Q1
 session read a deployment list by SHA and never read the `status` column, which

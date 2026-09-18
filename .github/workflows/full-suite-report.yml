@@ -1,0 +1,869 @@
+# promotion-gate: no — REPORT-ONLY, by this file's own header below: the suite jobs
+#   (vitest/pytest/collect_profile) run with `continue-on-error: true` and publish a
+#   RECORD to `ci-results`, deliberately never blocking ("no branch protection and no
+#   required check, deliberately... a required check would block the 31 pushes the
+#   signing session is built on"). Added 2026-09-18 — this file shipped without a
+#   `promotion-gate:` marker, which `tools/promotion_gate.py` treats as UNCLASSIFIED
+#   and REFUSES every promotion for, fail-closed, repo-wide, until classified. Every
+#   commit on master since this file landed (including this one's own predecessors)
+#   sat un-promoted to `production` for that reason.
+# ─── THE FULL SUITES, REPORTED — NOT ENFORCED ───────────────────────────────
+#
+# ⚰️ WHY THIS EXISTS. Measured 2026-09-15: this repository holds **1,353 vitest files
+# and 1,429 pytest files**, and CI runs **22 and 6** of them respectively. Every other
+# test — 2,754 files, 99.0% — has only ever run on one laptop, at the moment someone
+# chose to type the command. `chordCollision.test.js`, the rail that found F-S2-1,
+# appears in ZERO workflows.
+#
+# ⛔⛔ THE SUITE JOBS ARE REPORT-ONLY AND STAY THAT WAY. `vitest`, `pytest` and
+# `collect_profile` keep `continue-on-error: true`: they publish a RECORD, and a red test
+# in a suite with ~85 known-failing pytest entries must not read as a broken pipeline.
+#
+# ⭐⭐ THE `gate` JOB IS PROMOTED (E CP26, 2026-09-15) AND NO LONGER CARRIES IT.
+#   PROMOTION CRITERION — ≥1 run observed FAILING and ≥1 observed PASSING — MET by the
+#   published record, not by assertion: run #24 -> NEW_FAILURES (41, every one real),
+#   run #25 -> NO_NEW_FAILURES. A gate nobody has seen fail is not a gate; a gate nobody
+#   has seen pass is worse. Both are now on `ci-results`.
+#
+# ⛔⛔ AND STILL NO BRANCH PROTECTION AND NO REQUIRED CHECK, deliberately, for as long as
+# `tools/merge_all.py` pushes master DIRECTLY. A required check would block the 31 pushes
+# the signing session is built on. **Promotion means the check's colour is TRUTHFUL, not
+# that it blocks** — two different decisions, and only the first has been taken.
+#
+# ⛔ IT DOES NOT TOUCH THE LAYER-0 PRE-PUSH GUARD. That guard serialises master pushes
+# and is unrelated; nothing here runs on master.
+#
+# ─── KNOWN RED, AT LANDING ──────────────────────────────────────────────────
+#
+# The first runs WILL be red. Diff against this list before calling anything new:
+#
+#   | test file                                        | finding | why |
+#   |--------------------------------------------------|---------|-----|
+#   | app/src/pages/ThemeTrackerPage.chartmount.test.jsx| PACKET-T| STALE - asserts an
+#   |                                                  |         | auto-open removed by
+#   |                                                  |         | 453ecc3ec. Green once
+#   |                                                  |         | Packet T lands.
+#   | app/src/components/screener/reachable.test.js     | R-29    | BY DESIGN - names
+#   |                                                  | F-S1-2  | focusDivergence.js
+#   |                                                  |         | (S4 CP1) and
+#   |                                                  |         | surfaces/manifest.js
+#   |                                                  |         | (S1 CP1), both
+#   |                                                  |         | deliberately unmounted.
+#
+# ⚠️ THE LIST ABOVE IS NOT A FULL INVENTORY, AND SAYING SO IS THE POINT. It was
+# derived from SCOPED local runs, because this box cannot run either suite whole:
+# `pytest tests/` has reached 18 GB and been OOM-killed here (`--collect-only` alone
+# reached 6.6 GB), and a concurrent full run once swept a worktree's `node_modules` and
+# its `.git` file. **The first CI run is therefore the first complete measurement this
+# repository has ever had**, and its output is the inventory. Copy it into this header,
+# with a finding id per row, before anyone argues about promotion.
+
+name: full suite (report-only)
+
+on:
+  push:
+    branches: [feat/s7-price-level]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# ⛔ Never cancel a previous run: the whole value of this job is a complete record of
+# which tests were red on which commit, and a cancelled run leaves a hole that reads
+# exactly like a green one.
+concurrency:
+  group: full-suite-${{ github.ref }}
+  cancel-in-progress: false
+
+# ⛔ Read at the top. ONLY the `publish` job raises this, and only to write the
+# orphan `ci-results` branch — never a source branch, never master.
+permissions:
+  contents: read
+
+# ⛔⛔ THE BASELINE THIS SUITE IS JUDGED AGAINST. One constant, one place.
+# ⭐ The suite has ~85 failing pytest entries and 21 vitest ones on a good day. A gate that
+# waits for ZERO never arrives, and one that says "green" the moment it is quiet is the
+# `lesson_gate_that_cannot_fail` shape. The question is "is anything failing now that was
+# not failing in THIS run?" - and the answer is derived by `tools/ci_inventory.py`, never
+# copied into a table here.
+# ⚠️ A baseline ACCEPTS everything in it. Run 35008710335 (#19) carries 122 failure
+# entries, including the two that E CP21's install newly revealed - they are filed as
+# findings BEFORE being baselined, so the baseline forgives nothing silently.
+env:
+  BASELINE_RUN_ID: "35008710335"
+
+jobs:
+  # E CP6 — the shard list is DERIVED, never typed into this file. A hand-typed matrix
+  # beside tools/pytest_shards.py is the enumeration-beside-its-source defect, and here it
+  # would mean a test file silently in no shard.
+  plan:
+    name: derive the shard plan
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      profile_dirs: ${{ steps.p.outputs.profile_dirs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # ⛔ The partition is PROVED before it is used. A plan that is not a partition runs a
+      # file twice or never, and "never" is indistinguishable from a pass downstream.
+      - name: Prove the partition, then emit it
+        id: p
+        run: |
+          python tools/pytest_shards.py --self-check
+          python tools/pytest_shards.py --plan
+          echo "shards=$(python tools/pytest_shards.py --list)" >> "$GITHUB_OUTPUT"
+          echo "profile_dirs=$(python tools/collect_profile_dirs.py)" >> "$GITHUB_OUTPUT"
+
+  vitest:
+    name: vitest — all files (report-only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        working-directory: app
+        run: npm ci
+      # ⛔ `npx vitest run -t <pattern>` is a REGEX and a filter matching nothing exits
+      # 0 — a false PASS. No filter is used here for exactly that reason.
+      - name: Run
+        working-directory: app
+        # E CP4: the default reporter feeds the human log and the totals-line
+        # assertion; the junit report is what `tools/ci_extract.py` turns into
+        # per-test failure text. Counts alone are a status badge, not a diagnosis.
+        run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=../vitest-junit.xml 2>&1 | tee ../vitest.log
+      # ⛔ A RUN WITHOUT A TOTALS LINE IS NOT A RUN. The pipe above means this step's
+      # exit code is tee's, so the totals line is asserted explicitly rather than
+      # inferred from a status.
+      - name: Assert the run produced a totals line
+        if: always()
+        run: |
+          grep -E "Test Files|Tests " vitest.log || {
+            echo "::error::vitest produced no totals line — this is NOT a green run"
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-log
+          path: |
+            vitest.log
+            vitest-junit.xml
+
+  pytest:
+    name: pytest — ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # ⛔ E CP6: 20, not 45. Run #4 ran the WHOLE tree for 2,671 s against a 45-minute cap
+    # and never printed a totals line. A job that cannot print totals within its cap is
+    # SPLIT, not extended — caps come down as shards prove their duration, never up.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        # ⚰️ T2 CP1 — the line that installed five packages is why 479 of 481 test modules
+        # never collected. requirements.txt is a strict superset of that list.
+        run: python -m pip install --quiet -r requirements.txt
+      # ⚰️⚰️ E CP21 — 109 OF RUN #18'S 226 PYTEST FAILURE ENTRIES WERE ONE MISSING
+      # INSTALL. Several suites drive a **JS lane**: they run `node` against the repo's own
+      # sources to check that the Python and JavaScript implementations agree. Those tests
+      # deliberately raise `LaneUnavailable` rather than SKIP -
+      #
+      #     "NOT a skip: a lane that cannot run has not agreed with anything,
+      #      and three of this file's claims are only checkable there."
+      #
+      # ⭐ That is the right design, and it means the ENVIRONMENT has to supply the lane.
+      # This job installed `requirements.txt` and nothing else, so `app/node_modules` did
+      # not exist, the loader hook hit `node:internal/modules/cjs/loader MODULE_NOT_FOUND`,
+      # and every one of those tests failed for a reason that says nothing about the code.
+      # ⛔ Installed for EVERY shard, not a hand-kept list of "the shards that need node" -
+      # that list is the enumeration-beside-its-source defect waiting to happen.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install the JS lane
+        working-directory: app
+        run: npm ci
+      - name: Run
+        # ⚰️ E CP18 - `--timeout-method=thread` DID EXACTLY WHAT THIS COMMENT SAID IT
+        # PREVENTED. It said a hang "fails BY NAME instead of taking the shard's whole 20
+        # minutes down with it and reporting nothing"; measured on run #15, the thread
+        # method ABORTS THE PROCESS, so `tests-04` (hung in `wait_until_warm`'s sleep) and
+        # `tests-07` produced **no totals line and no junit at all** - the shard's entire
+        # result, not just the hung test. ⭐ `signal` raises inside the test instead: the
+        # test fails by name, the run continues, and the totals line is printed.
+        run: |
+          python tools/pytest_shards.py --files "${{ matrix.shard }}" > shard_files.txt
+          wc -l < shard_files.txt | xargs echo "files in this shard:"
+          xargs -a shard_files.txt python -m pytest -q -p no:cacheprovider \
+            --timeout=120 --timeout-method=signal \
+            --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
+          # ⛔ CAPTURE PIPESTATUS WITH NOTHING IN BETWEEN. `${PIPESTATUS[0]}` is reset by the
+          # next command, and reading it one `echo` later once printed "exit 0" beside
+          # output listing two failures.
+          PYTEST_RC=${PIPESTATUS[0]}
+          echo "pytest rc: $PYTEST_RC"
+      # ⛔⛔ E CP18 - A RUN WITHOUT A TOTALS LINE IS NOT A RUN, and this job did not say so.
+      # The vitest job has carried that assertion since E CP1; the pytest job that REPLACED
+      # the single pytest run never got one. Because the run is piped through `tee`, the
+      # step's exit code is tee's, so a shard that hung printed nothing and reported
+      # **success** to the runner.
+      #
+      # ⚰️ E CP20 - AND THE FIRST VERSION OF THIS STEP WAS A SECOND AUTHORITY THAT PASSED
+      # ON NOISE. It grepped `[0-9]+ (passed|failed|error)` over the raw log, and on run #16
+      # `tests-07` matched `0 error` and `37 failed` from log BODY text - so the step went
+      # green while `ci_summarize` reported no totals line at all. Two instruments, one
+      # question, opposite answers. ⭐ The summariser is the one authority on "is there a
+      # totals line"; this step now reads ITS verdict instead of asking again in a
+      # different language. Summarise first, then assert.
+      - name: Summarise this shard
+        if: always()
+        run: |
+          touch pytest.log
+          python tools/ci_summarize.py --suite pytest --log pytest.log --out summary.json
+      - name: Assert this shard produced a totals line
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          d = json.load(open("summary.json", encoding="utf-8"))
+          if not d.get("totals_line_found"):
+              print("::error title=shard %s produced no totals line::the run was killed or "
+                    "never finished; its counts are ABSENT, not zero"
+                    % os.environ.get("SHARD", "?"))
+              sys.exit(1)
+          print("totals line:", d.get("runner_line"))
+          PY
+        env:
+          SHARD: ${{ matrix.shard }}
+      # ⛔ E CP19/CP20 — `pytest-junit.xml` is what `ci_extract` turns into per-test failure
+      # TEXT, and `pytest.log` is what the summariser reads. Both must reach the publisher.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-shard-${{ matrix.shard }}
+          path: |
+            pytest.log
+            pytest-junit.xml
+            summary.json
+  # E7 — COLLECTION PROFILE. Report-only: it measures what importing the tree costs,
+  # which is the question behind every OOM this repo has recorded. Never gates anything.
+  collect_profile:
+    name: collect-profile — ${{ matrix.dir }}
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.profile_dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⭐⭐ F-CI-32 — FULL HISTORY, EVERYWHERE, AND IT IS WORTH 27 FAILURE ENTRIES.
+          # Measured on run #27's published record: **27 of 121 entries (22%)** name a git
+          # object or ref a depth-1 checkout does not have — `invalid object name
+          # '4eec5e0aa'` (13), `rule12Paths` with no base ref (4), `surfaceMatrixIsCurrent`
+          # (4), `readout` (3), and four more. ⚰️ A previous session called those 22 STALE
+          # TESTS and proposed rewriting or deleting them; `4eec5e0aa` is a LIVE ancestor
+          # 292 commits back, committed two days earlier. Nothing was stale — the checkout
+          # was shallow.
+          # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
+          # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+      - name: Collect-only, timed and measured
+        run: |
+          /usr/bin/time -v python -m pytest --collect-only -q "${{ matrix.dir }}" \
+            -p no:cacheprovider > collect.log 2> time.log || true
+          tail -3 collect.log || true
+          grep -E "Maximum resident set size|Elapsed \(wall clock\)" time.log || true
+      - name: Reduce to one row
+        if: always()
+        run: |
+          touch collect.log time.log
+          python tools/collect_profile_dirs.py --row "${{ matrix.dir }}" \
+            --collect-log collect.log --time-log time.log --out row.json
+          cat row.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          # ⚰️ E CP7 — GitHub artifact names FORBID `/` (and \ : < > | * ? ").
+          # `collect-profile-tests/api` was rejected, which FAILED the upload step
+          # and therefore the whole job. Measured on run #6: all FOUR dirs with a
+          # slash failed and the ONE without (`tests`) succeeded — 5/5 correlation.
+          # ⛔ The job did its work and then threw it away at the last step, which
+          # reads downstream as "that directory has no profile" — an absence the
+          # aggregator correctly reports as unmeasured rather than zero.
+          name: collect-profile-${{ matrix.id }}
+          path: row.json
+
+  publish:
+    name: publish the result into the repo (ci-results)
+    needs: [plan, vitest, pytest, collect_profile]
+    if: always()
+    runs-on: ubuntu-latest
+    # ⛔ F-CI-8 — PUBLISHERS QUEUE, THEY DO NOT COLLIDE. Two runs reaching this job together
+    # both did `git push origin ci-results` with no retry and no lock; one lost. This is the
+    # PRIMARY defence. `cancel-in-progress: false` is load-bearing: cancelling a publisher
+    # would destroy the record it was about to write, which is the failure F-CI-7 names.
+    concurrency:
+      group: ci-results-publish
+      cancel-in-progress: false
+    # ⛔ THE ONLY JOB THAT CAN WRITE, and it writes one orphan branch.
+    # ⚰️ E CP20 - `actions: read` is what makes the jobs fetch below AUTHENTICATED. Run
+    # #17's fetch was anonymous, came back empty, and every shard's runner verdict was
+    # published as a FAILURE.
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # F-CI-32 / F-CI-30. The derived flaky set asks "could any code change explain
+          # this test changing state?", and that question is `git diff <shaA> <shaB>` plus
+          # `git show <sha>:<workflow>` over commits a depth-1 checkout does not have.
+          # MEASURED ON THIS JOB ONLY first, deliberately: the twelve pytest shards are the
+          # expensive place to be wrong, and this is the one job that needs the history.
+          # With a shallow checkout the answer is UNREADABLE, which is NOT "comparable" --
+          # the set comes back empty and the gate behaves exactly as it did before.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The record builder's one dependency
+        # ⚰️ RUN #23 MEASURED WHY THIS STEP EXISTS. The publish job deliberately ran on
+        # the STDLIB ALONE — it installs no requirements — and F-CI-30's equivalence test
+        # has to PARSE a workflow to say WHICH JOB changed. With no parser, `_load_yaml`
+        # returned None and **7 of 8 consecutive pairs read UNREADABLE**; the derived set
+        # fell from 5 to 1.
+        # ⭐ It failed in the SAFE direction and said so in the field: UNREADABLE is not
+        # "comparable", so no flake was invented and every NEW entry would still have
+        # fired the gate. ⛔ pyyaml only — the stdlib-alone property is worth keeping.
+        run: python -m pip install --quiet pyyaml
+      - uses: actions/download-artifact@v4
+        with: { name: vitest-log, path: logs }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { pattern: pytest-shard-*, path: shards }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { pattern: collect-profile-*, path: profile }
+        continue-on-error: true
+
+      # ⛔ A MISSING LOG IS NOT A GREEN SUITE. If a job died before writing one, the
+      # summary must say `totals_line_found: false`, which is what an empty file yields.
+      # ⚰️ E CP8 — THIS STEP USED TO RUN *AFTER* `Summarise`, which CONSUMES the
+      # file it writes. `ci_aggregate --jobs jobs.json` read a path that did not
+      # exist yet, so every shard's `job_result` came back UNREADABLE and the suite
+      # could never report ok — no matter how the shards actually did.
+      # ⭐ It degraded HONESTLY rather than silently (the aggregator treats a missing
+      # payload as UNREADABLE, never as success), which is the only reason this was
+      # findable by reading the file instead of a 403-protected log.
+      # E CP5 — THE RUNNER'S VERDICT, not the log's text. The repo is public, so this
+      # endpoint answers with the workflow token or without one; either way it is the
+      # runner reporting on itself rather than a regex guessing from output.
+      - name: Fetch this run's job outcomes
+        if: always()
+        run: |
+          # ⚰️ E CP20 - THIS CURL WAS ANONYMOUS AND RUN #17 GOT NOTHING BACK. The
+          # comment above said the public endpoint "answers with the workflow token or
+          # without one", which is true of a single request and not of a shared runner IP
+          # against a 60/hour anonymous limit. Run #16 read 20 jobs; run #17 read zero, and
+          # the record published `all_success=False (0/12)` for twelve jobs that had all
+          # succeeded. ⭐ The token costs one header.
+          curl -sSL -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            -o jobs.json || echo '{}' > jobs.json
+          # ⛔ GUARDED, and as a block rather than a one-liner. `|| echo '{}'` covers
+          # curl's EXIT CODE, not malformed output: a rate-limited or truncated body is
+          # written by -o and then raises here, failing the step and with it the whole
+          # publish job — the one job whose failure loses the entire record (F-CI-7).
+          # ⭐ A verification line must never be able to destroy the thing it verifies.
+          python - <<'PY' || true
+          import json
+          try:
+              d = json.load(open("jobs.json"))
+          except Exception as e:
+              d = {}
+              open("jobs.json", "w").write("{}")
+              print("jobs.json unreadable, reset to {}:", e)
+          n = len(d.get("jobs", []))
+          print("jobs seen:", n)
+          if n == 0:
+              # ⛔ An empty payload is not a quiet default: every downstream verdict
+              # becomes UNREADABLE, and that has to be visible without a log.
+              print("::error title=jobs payload EMPTY::the runner's own job outcomes could "
+                    "not be read; every shard verdict will be UNREADABLE")
+          PY
+
+      # ⛔ ORDER OF CONSUMPTION IS PROVEN, NOT ASSUMED. Every artifact this job reads is
+      # reported EXISTS + SIZE before the read. ⚰️ E CP8 was a read-before-create that no
+      # test could see: `jobs.json` was consumed 27 lines before it was written and every
+      # shard silently came back UNREADABLE while all twelve were in fact green.
+      - name: Prove the artifacts exist before reading them
+        if: always()
+        run: |
+          python tools/ci_publish.py --check-artifact jobs.json \
+            --check-artifact logs/vitest.log --check-artifact logs/vitest-junit.xml || true
+          echo "--- shard results ---"
+          ls -la shards 2>/dev/null || echo "UNREADABLE: shards/ does not exist"
+          for d in shards/*/; do
+            [ -d "$d" ] || continue
+            if [ -f "$d/summary.json" ]; then
+              echo "$d/summary.json exists, $(wc -c < "$d/summary.json") bytes"
+            else
+              echo "UNREADABLE: $d/summary.json does not exist"
+            fi
+          done
+
+      # ⚰️ E CP11 — THE SAFETY NET WAS AT STEP 11 OF 12. E CP9 wrote the
+      # phone-readable summary before the PUSH, which covers a push failure — but
+      # publish has failed at ~22 s for three runs running, i.e. LONG before step 11,
+      # so no summary was written either. ⭐ A fallback placed after the thing that
+      # fails is not a fallback. This skeleton lands as early as anything can, built
+      # only from job results, which cannot be missing.
+      - name: Write a skeleton summary FIRST, from data that cannot be missing
+        if: always()
+        run: |
+          {
+            echo "# CI run ${GITHUB_RUN_ID} on ${GITHUB_REF_NAME}"
+            echo
+            echo "| job | result |"
+            echo "|---|---|"
+            echo "| plan | ${{ needs.plan.result }} |"
+            echo "| vitest | ${{ needs.vitest.result }} |"
+            echo "| pytest (all shards) | ${{ needs.pytest.result }} |"
+            echo "| collect_profile | ${{ needs.collect_profile.result }} |"
+            echo
+            echo "_Skeleton written before any artifact was read. If nothing follows"
+            echo "this line, publish died before it could build the full record._"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarise
+        if: always()
+        run: |
+          touch logs/vitest.log
+          python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
+          # E CP6: pytest is now N shards. Its suite-level numbers come from the
+          # aggregator, which refuses to let a MISSING shard read as zero.
+          ls -la shards || true
+          python tools/ci_aggregate.py \
+            --shards-dir shards --expect '${{ needs.plan.outputs.shards }}' \
+            --dir-prefix pytest-shard- \
+            --jobs jobs.json --out p_suite.json
+          python tools/collect_profile_dirs.py --aggregate profile --out collect_profile.json
+          cat collect_profile.json
+
+      # E CP4 — the error TEXT, bucketed, beside the counts.
+      - name: Extract the failure text
+        if: always()
+        run: |
+          # ⚰️ E CP19 - `--pytest-log logs/pytest.log` NAMED A PATH THAT STOPPED
+          # EXISTING when E CP6 sharded pytest. Each shard uploads its OWN pytest.log and
+          # pytest-junit.xml, so this read nothing, wrote nothing, and the record still
+          # promised three files: 3 of its 6 named detail paths did not exist in run #15,
+          # and the failure TEXT for 136 pytest failures was simply absent.
+          # ⭐ The args are BUILT from what is on disk rather than typed, so a thirteenth
+          # shard is included the day it exists.
+          # ⛔ `if` blocks, not `[ -f x ] && …`. GitHub runs this with `bash -e`, and a
+          # failing `&&` list is a non-zero command: one shard missing its junit would
+          # abort the whole step. The guard must not be able to kill the thing it guards.
+          ARGS=""
+          for d in shards/*/; do
+            if [ -f "$d/pytest.log" ]; then
+              ARGS="$ARGS --pytest-log $d/pytest.log"
+            fi
+            if [ -f "$d/pytest-junit.xml" ]; then
+              ARGS="$ARGS --pytest-junit $d/pytest-junit.xml"
+            fi
+          done
+          echo "shard inputs: $ARGS"
+          python tools/ci_extract.py $ARGS \
+            --vitest-log logs/vitest.log \
+            --vitest-junit logs/vitest-junit.xml \
+            --out-dir "extract/$GITHUB_RUN_ID"
+          cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          cp collect_profile.json "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
+          cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
+          ls -la "extract/$GITHUB_RUN_ID"
+
+      # ⚰️ E CP12 - THIS STEP WAS A 50-LINE PYTHON PROGRAM INSIDE A YAML HEREDOC,
+      # and it has failed in every run since E CP6 sharded the suite: `p["runner_line"]`
+      # raised KeyError because `ci_aggregate.py` never emitted the key `ci_summarize.py`
+      # did. Runs #6, #8 and #9 all died here, 19-61 s in, and `Publish onto the orphan
+      # ci-results branch` was SKIPPED each time, so no record has landed since run #4.
+      # ⭐ A program that lives in a YAML string cannot be run, so nothing ever ran it.
+      # It is now `tools/ci_record.py`, with `--self-check` mutation-proving that a
+      # missing producer key NAMES itself in `contract_gaps` instead of killing publish.
+      # ⛔ A VERIFICATION LINE MUST NEVER DESTROY THE THING IT VERIFIES — the same rule
+      # already written above `Fetch this run's job outcomes`. The builder's self-check
+      # is worth running on the runner (it is where the producer/consumer contract is
+      # actually exercised), but a red self-check must leave the record PUBLISHED and
+      # merely visibly red, never skip the publish step. `continue-on-error` rewrites
+      # `conclusion`; the truth stays in this step's `outcome`.
+      - name: Self-check the record builder — visible, never fatal
+        if: always()
+        continue-on-error: true
+        run: python tools/ci_record.py --self-check
+
+      - name: Build the record
+        if: always()
+        env:
+          VITEST_RESULT: ${{ needs.vitest.result }}
+          PYTEST_RESULT: ${{ needs.pytest.result }}
+          SUITE_TIMEOUT_MINUTES: "45"
+        run: |
+          # ⛔ E CP19 - `--detail-dir` is where the detail files live AT BUILD TIME.
+          # Without it the record cannot check its own `detail` paths and says so
+          # (`NOT VERIFIED`) rather than naming files nobody wrote.
+          python tools/ci_record.py --v v.json --p p_suite.json --jobs jobs.json \
+            --detail-dir "extract/$GITHUB_RUN_ID" --out record.json
+
+      # ⛔⛔ THIS STEP MUST NEVER EXIT NON-ZERO, and that is not timidity. It runs
+      # INSIDE the publisher, and E CP17 is the record of what happens when a verification
+      # line can destroy the thing it verifies: an artifact check that also pushed left
+      # `.git/rebase-merge` behind and cost five runs. The DIFF is computed here so it is
+      # published WITH the record; the job that FAILS on it is `gate`, below, which runs
+      # after the record is safely on the branch.
+      - name: Diff against the baseline (computed here, never fatal here)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -e
+          B="$BASELINE_RUN_ID"
+          # ⚰️ E CP24 — RUN #21's GATE READ `INVALID: collected is 0` FOR A RUN THAT
+          # COLLECTED 24,445. `extract/<run>/` is not a record yet: `summary.json` is written
+          # into it only by the PUBLISH step, which runs after this one. The tool was right
+          # and the wiring handed it a directory that was not what it claimed to be — and it
+          # failed CLOSED, naming the field, which is the only reason this took one read.
+          cp record.json "extract/$GITHUB_RUN_ID/summary.json"
+          mkdir -p "base/$B"
+          git fetch origin ci-results
+          for f in pytest_failures.txt vitest_failures.txt summary.json; do
+            if git show "FETCH_HEAD:results/$B/$f" > "base/$B/$f" 2>/dev/null; then
+              echo "baseline $f: $(wc -c < "base/$B/$f") bytes"
+            else
+              rm -f "base/$B/$f"
+              echo "::error title=baseline unreadable::results/$B/$f is not on ci-results"
+            fi
+          done
+          # ── F-CI-30: materialise the WHOLE record store so the flaky set can be DERIVED
+          # from it. There is no quarantine file here, and no file anybody can edit.
+          # ⛔ The CURRENT run is copied in beside the published ones, or this run's own
+          # flips could never be seen and the newest evidence would always be one run old.
+          mkdir -p allruns/results
+          git archive FETCH_HEAD results 2>/dev/null | tar -x -C allruns || \
+            echo "::warning title=record store unreadable::the flaky set will be EMPTY, and an empty set means every NEW entry fires the gate"
+          cp -r "extract/$GITHUB_RUN_ID" "allruns/results/$GITHUB_RUN_ID" 2>/dev/null || true
+          echo "record store: $(ls allruns/results 2>/dev/null | wc -l) run(s)"
+          python tools/ci_inventory.py \
+            --baseline "$B" --current "$GITHUB_RUN_ID" \
+            --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
+            --results-root allruns/results --repo . \
+            --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
+          cat diff.md
+          cat diff.md >> "$GITHUB_STEP_SUMMARY"
+          V=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['verdict'])" 2>/dev/null || echo UNREADABLE)
+          echo "::notice title=baseline diff::$V (baseline $B)"
+          cp "extract/$GITHUB_RUN_ID/diff.json" diff.json 2>/dev/null || true
+
+      - name: Derive the flaky set (F-CI-30)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -e
+          # ⛔ ONE finding per flaky test, WRITTEN BY THE TOOL into the record — never by
+          # hand, and never a list anybody maintains. The set is re-derived from the record
+          # on every run, so a test leaves it the moment the evidence stops supporting it.
+          python tools/ci_inventory.py --flaky \
+            --results-root allruns/results --repo . \
+            --flaky-out "extract/$GITHUB_RUN_ID/flaky_findings.md" \
+            --out "extract/$GITHUB_RUN_ID/flaky.json" || true
+          if [ -f "extract/$GITHUB_RUN_ID/flaky_findings.md" ]; then
+            cat "extract/$GITHUB_RUN_ID/flaky_findings.md" >> "$GITHUB_STEP_SUMMARY"
+            N=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/flaky.json'))['flaky_size'])" 2>/dev/null || echo UNREADABLE)
+            echo "::notice title=derived flaky set::FLAKY_SIZE=$N — excluded from NEW, never re-run"
+          else
+            echo "::warning title=flaky set::not derived. NEW is reported in full, which is the safe direction."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: ci-diff
+          path: diff.json
+
+      # ⛔ THE STEP SUMMARY IS WRITTEN BEFORE THE PUSH IS ATTEMPTED, unconditionally.
+      # F-CI-7: runs #5 and #6 both had this job fail, so no record exists for either and
+      # the only evidence sits behind a 403. The outcome must be readable in the Actions tab
+      # even when the repo record never lands — a publisher that fails silently is a
+      # measurement system with a hole exactly where the bad news goes.
+      - name: Write the phone-readable summary
+        if: always()
+        run: |
+          python - <<'PY' > step_summary.md
+          import json, pathlib
+          try:
+              rec = json.loads(pathlib.Path("record.json").read_text(encoding="utf-8"))
+          except Exception as e:
+              print("# CI record UNREADABLE\n\nrecord.json could not be read: %s" % e)
+              raise SystemExit(0)
+          p, v = rec.get("pytest", {}), rec.get("vitest", {})
+          print("# CI run %s — %s" % (rec.get("run_id"), rec.get("verdict")))
+          print()
+          print("| suite | collected | failed | ok |")
+          print("|---|---|---|---|")
+          print("| vitest | %s | %s | %s |" % (v.get("collected"), v.get("failed"), v.get("ok")))
+          print("| pytest | %s | %s | %s |" % (p.get("collected"), p.get("failed"), p.get("ok")))
+          print()
+          for k in ("shards_total", "shards_success", "shards_cancelled",
+                    "shards_missing", "shards_without_totals", "per_test_timeouts"):
+              if k in p:
+                  print("- **%s**: %s" % (k, p[k]))
+          if p.get("ok_basis"):
+              print("- basis: `%s`" % p["ok_basis"])
+          # E CP12 - a producer that stopped emitting something the record builder reads
+          # no longer kills publish, so it has to be LOUD somewhere a phone can see it.
+          gaps = rec.get("contract_gaps") or []
+          if gaps:
+              print()
+              print("### CONTRACT GAPS - the record was built with fields missing")
+              for g in gaps:
+                  print("- `%s`" % g)
+          PY
+          cat step_summary.md
+          cat step_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      # ⛔⛔ E CP14 - THE STEP THAT LOSES THE RECORD MUST NAME ITS OWN FAILURE.
+      # Runs #10 and #11 both died here in 2 s with all 19 other jobs green, and the log
+      # endpoint is 403 without a login - so two checkpoints have now been spent reasoning
+      # about a command nobody could read. ⭐ This is E CP11's lesson one level down: the
+      # skeleton summary made the JOB legible; this makes the STEP legible. An ERR trap
+      # writes the failing command, its exit code and the remote refs into
+      # $GITHUB_STEP_SUMMARY, which a phone can read without an account.
+      - name: Publish onto the orphan ci-results branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          _publish_failed() {
+            cmd="$1"; rc="$2"
+            # ⛔⛔ THE STEP SUMMARY IS NOT READABLE WITHOUT A LOGIN, AND NEITHER IS THE LOG.
+            # Measured: the log endpoint is 403 anonymously, `summary_partial` is 404 — but
+            # `GET /repos/{o}/{r}/check-runs/{id}/annotations` answers ANONYMOUSLY on a
+            # public repo. ⭐ So the failing command goes out as a `::error::` annotation
+            # too: that is the one channel that reaches a reader with no account, which is
+            # what F-CI-7 actually asks for. GitHub's own auto-annotation says only
+            # "Process completed with exit code 1", which names nothing.
+            echo "::error title=publish failed::${cmd} (exit ${rc})"
+            {
+              echo
+              echo "### ⛔ publish step FAILED"
+              echo
+              echo "- failing command: \`${cmd}\`"
+              echo "- exit code: ${rc}"
+              echo
+              echo "Remote-tracking refs at the moment of failure:"
+              echo '```'
+              git for-each-ref --format='%(refname)' refs/remotes 2>&1 | head -20
+              echo "--- branch ---"
+              git rev-parse --abbrev-ref HEAD 2>&1
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+          trap '_publish_failed "$BASH_COMMAND" "$?"' ERR
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          RUN="$GITHUB_RUN_ID"
+          mkdir -p "/tmp/out/$RUN"
+          cp record.json "/tmp/out/$RUN/summary.json"
+          cp step_summary.md "/tmp/out/$RUN/summary.md" 2>/dev/null || true
+          # ⛔ The orphan checkout below wipes the working tree, so anything that must
+          # survive it is copied OUT first. /tmp is outside the repo and survives.
+          # ⚰️ E CP13 — AND THE PUBLISHER ITSELF IS ONE OF THOSE THINGS. E CP9 added
+          # `python tools/ci_publish.py` as the last line of this step, AFTER the checkout
+          # that wipes the tree — and `ci-results` carries only README.md + results/**,
+          # no `tools/` at all, so the script is deleted from disk moments before it is
+          # invoked. Run #10 died here in 2 s with every other step green. ⭐ The comment
+          # directly above named the hazard and the new line walked into it anyway.
+          cp tools/ci_publish.py "/tmp/ci_publish.py"
+          if [ -d "extract/$RUN" ]; then
+            cp -r "extract/$RUN/." "/tmp/out/$RUN/" 2>/dev/null || true
+          fi
+          if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
+            # ⛔ EXPLICIT REFSPEC. `git fetch origin ci-results` writes FETCH_HEAD and,
+            # under actions/checkout@v4's single-branch refspec, need not create
+            # refs/remotes/origin/ci-results at all - reproduced on a clone of that shape,
+            # where `git checkout ci-results` then fails with "pathspec did not match".
+            # ⚠️ NOT claimed as the cause of runs #10/#11 - runs #3 and #4 checked this
+            # branch out on the runner, so the ref demonstrably resolves there. This is the
+            # difference between an operation that is well-defined and one relying on DWIM.
+            git fetch origin +refs/heads/ci-results:refs/remotes/origin/ci-results
+            git checkout -B ci-results origin/ci-results
+            # ⚰️ E CP13 — E CP9 removed the WRITER of results/latest.json and left the FILE
+            # on the branch. A stale pointer nobody updates is worse than no pointer: a
+            # reader who finds it believes it, and it has named run #4 as "latest" through
+            # six runs. The publisher deletes it, once, idempotently — the branch's only
+            # writer is the right one to do it, under this job's concurrency group.
+            git rm -f --ignore-unmatch results/latest.json >/dev/null 2>&1 || true
+          else
+            git checkout --orphan ci-results
+            git rm -rf . >/dev/null 2>&1 || true
+            printf '%s\n' "# ci-results" "" \
+              "Machine-readable results of the report-only full-suite workflow." \
+              "One DIRECTORY per run under results/<run_id>/, containing summary.json" \
+              "plus that run's detail files." "" \
+              "There is deliberately NO latest.json: it was the only path two publishers" \
+              "both wrote, and therefore the only place they could conflict. Derive the" \
+              "newest record instead — tools/ci_latest.py, or max run_id over" \
+              "results/*/summary.json. Zero records means ZERO-RECORDS, never 'no failures'." \
+              "Written by .github/workflows/full-suite-report.yml. Do not edit by hand." \
+              > README.md
+          fi
+          mkdir -p "results/$RUN"
+          cp -r "/tmp/out/$RUN/." "results/$RUN/"
+          git add results README.md 2>/dev/null || git add results
+          git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || {
+            echo "::error title=publish failed::nothing to commit — no record was produced"
+            exit 1; }
+          # ⛔ Bounded fetch/rebase/push. On final failure this EXITS NON-ZERO: a publisher
+          # that swallows a push failure leaves no record and says nothing (F-CI-7).
+          # ⭐ The rebase cannot conflict now that latest.json is gone — each run writes only
+          # results/<run_id>/, a path no other run touches.
+          # ⛔ From /tmp, not from tools/ — see the copy above. The repo's tools/ does not
+          # exist on this branch, and a path that does not exist reads as a crash with no
+          # record, which is F-CI-7 all over again.
+          # ⛔ `--push` is REQUIRED for this tool to do anything to the branch. Without it
+          # it reports and returns. ⚰️ E CP17: it used to push whatever it was asked to do,
+          # so the artifact-check step above — which runs before any `git config` and is
+          # wrapped in `|| true` — silently attempted a rebase, failed on an empty ident,
+          # and left `.git/rebase-merge` for this step to trip over.
+          python "/tmp/ci_publish.py" --branch ci-results --push
+
+  # ⛔⛔ THE GATE. This is the ONLY job whose failure means "this change made things
+  # worse", and it is baseline-relative by construction: NO_NEW_FAILURES, never "green".
+  # ⚠️ `continue-on-error: true` sits HERE, at the job level, and it is what keeps the
+  # workflow report-only. Promotion is: remove this line and add the check to branch
+  # protection - a SEPARATE checkpoint, deliberately not this one.
+  gate:
+    name: no NEW failures against the baseline
+    needs: [publish]
+    if: always()
+    runs-on: ubuntu-latest
+    # ⭐⭐ E CP26 — PROMOTED. `continue-on-error: true` is GONE from this job, so the check's
+    # colour is now the verdict's colour: NEW_FAILURES, INVALID or DID_NOT_RECONCILE turn it
+    # red. E's criterion was met by the record itself — run #24 published NEW_FAILURES and
+    # run #25 published NO_NEW_FAILURES, so the gate has been observed answering both ways.
+    #
+    # ⛔⛔ **AND NO BRANCH PROTECTION, AND NO REQUIRED CHECK, WHILE `merge_all` PUSHES
+    # MASTER DIRECTLY.** A required check would block the 31 pushes the signing session is
+    # built on, and a merge path that cannot honour a check must not be given one. Promotion
+    # here means the colour is TRUTHFUL, not that it blocks — those are two different
+    # decisions and only the first is this checkpoint's.
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: ci-diff, path: d }
+        # ⛔ The DOWNLOAD may fail softly; the VERDICT step below then finds no diff.json and
+        # exits 1 saying UNREADABLE. Keeping it here means "the artifact is missing" is
+        # reported by the step that can say WHY, not by a bare action failure.
+        continue-on-error: true
+      - name: Read the verdict
+        run: |
+          if [ ! -f d/diff.json ]; then
+            echo "::error title=gate UNREADABLE::no diff.json was produced - the diff could "\
+          "not be computed, which is not the same as no new failures"
+            exit 1
+          fi
+          python - <<'PY'
+          import json, sys
+          d = json.load(open("d/diff.json", encoding="utf-8"))
+          v, c = d["verdict"], d["counts"]
+          print("verdict: %s" % v)
+          print("baseline %s -> current %s" % (d["baseline_run_id"], d["current_run_id"]))
+          print("NEW %d - FIXED %d - UNCHANGED %d - MISSING %d"
+                % (c["new"], c["fixed"], c["unchanged"], c["missing"]))
+          print(d["arithmetic"])
+          summary = ["## gate: %s" % v, "",
+                     "| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
+                     "| **%d** | %d | %d | **%d** |"
+                     % (c["new"], c["fixed"], c["unchanged"], c["missing"]), ""]
+          for k in d["new"][:30]:
+              summary.append("- NEW `%s`" % k)
+          # ⛔ F-CI-41: a MISSING entry is reported WITH THE REASON IT STOPPED RUNNING.
+          # "MISSING 1" tells nobody whether a test was deleted on purpose or quietly
+          # stopped being collected, and only the second is a verdict.
+          for k, bd in sorted((d.get("missing_buckets") or {}).items())[:30]:
+              summary.append("- MISSING `%s` — **%s** — %s" % (k, bd[0], bd[1]))
+          for k in d.get("file_level_resolved", [])[:10]:
+              summary.append("- a suite that could not LOAD now loads: `%s` (FIXED)" % k)
+          import os
+          p = os.environ.get("GITHUB_STEP_SUMMARY")
+          if p:
+              open(p, "a", encoding="utf-8").write("\n".join(summary) + "\n")
+          if v != "NO_NEW_FAILURES":
+              print("::error title=gate %s::%s" % (v, d["arithmetic"]))
+              sys.exit(1)
+          PY

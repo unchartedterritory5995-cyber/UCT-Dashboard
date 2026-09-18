@@ -318,3 +318,183 @@ def test_the_v2_flow_handler_passes_the_resolved_partition(monkeypatch):
         job = commands._job(_slash("flow", ticker), "flow", f"/flow {ticker}")
         commands._handle_flow(Ctx(job))
         assert (seen["tkr"], seen["source"]) == (ticker, want)
+
+
+# ── R53 (D-16): the PRE-V2 dispatch must choose the partition ──────────────────────────────
+#
+# ⚰️ MEASURED 2026-09-17, twice in one day. `/flow ticker:SPY days:30` in #render-smoke, at
+# 07:10 ET and again at 10:00 ET, both times: "⚠️ The flow feed is reconnecting — couldn't read
+# SPY right now. Try again in a moment." The pod log carried the real cause and the member never
+# saw it: `[flow] fetch failed SPY (30): timed out`, 30.1 s after the ack.
+#
+# ⛔ THE TEST ABOVE (`..._reads_the_partition_it_is_given...`) PASSES WITH THAT BUG, because it
+# hands `run_flow_card_job` an explicit `source=`. The defect was one layer up, at the DISPATCH,
+# which passed none — so the signature default `stocks` applied and SPY, an ETF, was searched
+# where `flow_source`'s own docstring measured 0 contracts against 182 under `etfs`.
+# ⭐ So these drive the REAL ROUTE and assert on the PARAMS FLOW-WORKER RECEIVES. A rail that
+# reads the reply text would pass on a card rendered from the wrong partition.
+
+
+def _flow_route(monkeypatch):
+    from tests.discord_harness import _app_client, _keypair
+    monkeypatch.delenv("DISCORD_RENDER_V2_ENABLED", raising=False)   # the pre-V2 path, on purpose
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    return client, sk, rt
+
+
+def _flow_payload(ticker, days="30", uid="42"):
+    from tests.discord_harness import UT_GUILD
+    return {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
+            "member": {"user": {"id": uid}},
+            "data": {"name": "flow", "options": [{"name": "ticker", "type": 3, "value": ticker},
+                                                 {"name": "days", "type": 3, "value": days}]}}
+
+
+def _drive(monkeypatch, ticker, *, responder=None):
+    """Drive the real route and return (params flow-worker saw, member replies)."""
+    from tests.discord_harness import _post
+    from api.services import discord_interactions as di
+    di.reset_rate_for_tests()
+    client, sk, rt = _flow_route(monkeypatch)
+    seen, edits = [], []
+
+    def get(url, params=None, timeout=None):
+        seen.append(dict(params or {}))
+        if responder is not None:
+            return responder(url, params, timeout)
+        return httpx.Response(200, json={"ok": True, "contracts": [{"c": 1}], "window": {}},
+                              request=httpx.Request("GET", url))
+    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr(rt, "render_ticker_flow_card", lambda d: b"png", raising=False)
+    monkeypatch.setattr(rt.di, "edit_original", lambda *a, **k: edits.append(k) or True)
+    monkeypatch.setattr(rt, "_post_image_webhook", lambda *a, **k: (True, "ok"), raising=False)
+    _post(client, sk, _flow_payload(ticker))
+    return seen, edits
+
+
+def test_the_pre_v2_dispatch_chooses_the_partition_from_the_symbol(monkeypatch):
+    """⛔ THE LOAD-BEARING ONE. An ETF must be read from `etfs`; the dispatch, not the caller,
+    decides. Reverting the dispatch to pass no source makes this red and nothing else."""
+    from api import massive_processor
+    monkeypatch.setattr(massive_processor, "is_index_source", lambda s: s in {"SPY"})
+    seen, _ = _drive(monkeypatch, "SPY")
+    assert seen, "flow-worker was never called — the dispatch did not reach the fetch"
+    assert seen[0]["source"] == "etfs", (
+        f"the pre-V2 dispatch searched the {seen[0]['source']!r} partition for an ETF — this is "
+        f"the 2026-09-17 SPY timeout, and the member is told the feed is reconnecting")
+    assert seen[0]["symbol"] == "SPY"
+
+
+def test_an_equity_still_reads_the_stocks_partition(monkeypatch):
+    """⛔ NON-VACUITY. Without this, pinning every symbol to `etfs` passes the test above."""
+    from api import massive_processor
+    from api.services import cap_universe
+    monkeypatch.setattr(massive_processor, "is_index_source", lambda s: s in {"SPY"})
+    monkeypatch.setattr(cap_universe, "etf_symbols", lambda: frozenset({"SMH"}))
+    seen, _ = _drive(monkeypatch, "NVDA")
+    assert seen and seen[0]["source"] == "stocks", (
+        "an equity was moved off the stocks partition — /flow NVDA rendered from etfs today")
+
+
+def test_an_unknown_symbol_takes_flow_sources_documented_default(monkeypatch):
+    """A symbol neither classifier knows resolves per `flow_source`'s documented default —
+    `stocks` — rather than raising or guessing."""
+    from api import massive_processor
+    from api.services import cap_universe
+    monkeypatch.setattr(massive_processor, "is_index_source", lambda s: False)
+    monkeypatch.setattr(cap_universe, "etf_symbols", lambda: frozenset())
+    seen, _ = _drive(monkeypatch, "ZZZQ")
+    assert seen and seen[0]["source"] == "stocks"
+
+
+# ── R53 (D-16): the failure SENTENCE names its cause class ─────────────────────────────────
+
+
+def _reply_text(edits):
+    return " ".join(str(e.get("content") or "") for e in edits)
+
+
+def test_a_timeout_names_the_timeout_and_never_says_reconnecting(monkeypatch):
+    """⛔⛔ THE SENTENCE THE CONTRACT EXISTS TO END. `contract.py` records it verbatim: for two
+    weeks /flow answered "The flow feed is reconnecting" to a 30 s timeout, to a flow-worker
+    restart, and to every other non-ok read. The class was ALREADY computed and thrown away."""
+    def boom(url, params, timeout):
+        raise httpx.TimeoutException("timed out")
+    _, edits = _drive(monkeypatch, "SPY", responder=boom)
+    txt = _reply_text(edits)
+    assert txt, "the member got no reply at all"
+    assert "reconnecting" not in txt.lower(), f"the catch-all came back: {txt!r}"
+    assert "didn't answer in time" in txt, f"a timeout did not name itself: {txt!r}"
+
+
+def test_an_upstream_error_says_something_DIFFERENT_from_a_timeout(monkeypatch):
+    """⛔ NON-VACUITY FOR THE SENTENCE. One new sentence replacing one old sentence is not a
+    taxonomy — two causes must read differently, or nothing was gained."""
+    def err(url, params, timeout):
+        return httpx.Response(503, json={}, request=httpx.Request("GET", url))
+    _, edits = _drive(monkeypatch, "SPY", responder=err)
+    txt = _reply_text(edits)
+    assert "reconnecting" not in txt.lower()
+    assert "returned an error" in txt, f"an upstream 503 did not name itself: {txt!r}"
+    assert "didn't answer in time" not in txt, "an upstream error was reported as a timeout"
+
+
+def test_an_EMPTY_read_is_still_the_no_significant_flow_sentence(monkeypatch):
+    """⛔ An ok-but-empty read is NOT a failure and must not acquire a failure sentence. This is
+    the branch the partition fix actually moves SPY out of."""
+    def empty(url, params, timeout):
+        return httpx.Response(200, json={"ok": True, "contracts": [], "window": {}},
+                              request=httpx.Request("GET", url))
+    _, edits = _drive(monkeypatch, "SPY", responder=empty)
+    txt = _reply_text(edits)
+    assert "no significant options flow" in txt, f"an empty read lost its sentence: {txt!r}"
+    assert "reconnecting" not in txt.lower()
+
+
+def test_the_ACK_PATH_never_calls_the_partition_classifier():
+    """⛔⛔ THE RULE THIS EXISTS FOR: NOTHING THAT CAN BLOCK BELONGS BEFORE THE DEFER.
+
+    ⚰️ W1 resolved the partition at the DISPATCH, which put a cold `flow_source` — it lazily
+    imports `api.massive_processor` and loads the ETF universe — on the ack path. Local cold
+    call 125.9 ms, warm 0.5 ms. On the live pod, the first `/flow` after that deploy measured
+    `entry_to_ack = 65,462.6 ms` with the next command at 1.4 ms, and Discord answered the member
+    "The application did not respond".
+
+    ⚠️ 65 s is ~500x the local cold cost, so the cold call is a SUSPECT, not a proven cause. The
+    rail does not depend on settling that: work whose cost you cannot bound does not go in front
+    of a 3,000 ms budget.
+
+    ⛔ THIS IS A STRUCTURAL CHECK, AND DELIBERATELY SO. A dynamic one cannot tell the difference
+    here: `TestClient` runs background tasks inside the same `client.post` call, so "the
+    classifier ran" and "the classifier ran after the response" are indistinguishable at runtime.
+    An ordering assertion written that way would pass either way — which is worse than none. So
+    the ORDER is asserted against the source: the dispatch hands the job no `source`, and the job
+    resolves it. The VALUE on the wire is pinned by the tests above.
+    """
+    import ast
+    import inspect
+    from api.routers import discord_interactions as rt
+
+    src = inspect.getsource(rt)
+    tree = ast.parse(src)
+
+    # every `background.add_task(run_flow_card_job, ...)` in the module
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Attribute) and n.func.attr == "add_task"
+             and n.args and isinstance(n.args[0], ast.Name)
+             and n.args[0].id == "run_flow_card_job"]
+    assert calls, "the flow dispatch was not found — this rail stopped watching anything"
+    for c in calls:
+        kw = {k.arg for k in c.keywords}
+        assert "source" not in kw, (
+            "the dispatch passes `source=` again, which puts the partition classifier back on "
+            "the ack path in front of Discord's 3 s budget")
+
+    # ⛔ NON-VACUITY: the job MUST still resolve it, or the check above is satisfied by a path
+    # that never chooses a partition at all.
+    job = inspect.getsource(rt.run_flow_card_job)
+    assert "flow_source(" in job, "the job no longer resolves the partition either"

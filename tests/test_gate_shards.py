@@ -1530,3 +1530,48 @@ def test_the_autouse_stub_is_actually_in_force_for_run_gate():
     import gate_shards as _gs
     assert _gs.do_not_build_sweep()["stubbed_by"] == __name__, (
         "the autouse sweep stub is not in force; run_gate tests will shell out for ~115s each")
+
+
+def test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them():
+    """⛔⛔ THE BUG THIS PINS COST FOUR HYPOTHESES AND SEVERAL DEAD RUNS.
+
+    `run_gate`'s seams were DEFAULT ARGUMENTS (`tree_state_fn=tree_state`), evaluated once at
+    import and capturing the original functions forever — so
+    `monkeypatch.setattr(gate_shards, "tree_state", ...)` reached NOTHING.
+    `test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` does exactly that to drive a
+    dirty-tree refusal; with the patch inert it called the REAL tree_state, found the tree
+    CLEAN, skipped the refusal and ran a REAL SIX-SHARD GATE inside a unit test.
+
+    ⭐ AND THAT IS WHY IT READ AS INTERMITTENT: it passed while the working tree happened to be
+    dirty and hung when it was clean. A test whose outcome depends on `git status` is not flaky,
+    it is reading the wrong thing — but from the outside the two are indistinguishable, which is
+    what made it survive four wrong diagnoses.
+
+    ⛔ `run_shard_fn` was late-bound all along, two lines away. One function, two conventions.
+    """
+    import inspect
+    import gate_shards as gs
+
+    sig = inspect.signature(gs.run_gate)
+    for seam in ("tree_state_fn", "run_shard_fn", "file_count_fn"):
+        assert sig.parameters[seam].default is None, (
+            f"{seam} has a def-time default; a module-level patch cannot reach it")
+
+    # ⭐ NON-VACUITY: prove the patch actually LANDS, by driving the real run_gate through it.
+    # Asserting the signature alone would pass if the body ignored the parameter entirely.
+    seen = {}
+
+    def fake_tree_state():
+        seen["called"] = True
+        return ("abc123", ["?? planted-dirty.py"])
+
+    real = gs.tree_state
+    gs.tree_state = fake_tree_state
+    try:
+        with pytest.raises(GateError) as e:
+            gs.run_gate(1, pathlib.Path("."), run_shard_fn=lambda i: REAL_ANSI_PASS,
+                        file_count_fn=lambda: 196)
+    finally:
+        gs.tree_state = real
+    assert seen.get("called"), "the module-level patch never reached run_gate"
+    assert "dirty" in str(e.value).lower(), f"expected the dirty-tree refusal, got {e.value}"

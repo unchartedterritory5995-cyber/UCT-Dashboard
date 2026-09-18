@@ -152,6 +152,17 @@ const rel = (abs) => path.relative(SRC, abs).split(path.sep).join('/')
 //                   reaches it through that pre-existing client. The hub adds no request of its own.
 const WRITE_PATHS = [
   {
+    endpoint: '/api/hub/reports',
+    method: 'POST',
+    via: 'hub/hubReport.js',
+    owner: 'hub',
+    what: "W2 / owner ruling R2, 2026-09-17 — the one-tap owner report. ⛔ ADMIN ONLY (the endpoint "
+      + "returns 403 to a member, 401 to anonymous) and it fires ONLY from an explicit tap on the "
+      + "Report control. `gestureTrace.js` still has NO sink of its own; this module reads its "
+      + "existing export and sends it. Nothing is posted on a timer, on navigation, or on unload — "
+      + "`hubReport.test.jsx` rails the tap, not the transport.",
+  },
+  {
     endpoint: '/api/j2/positions/{param}',
     method: 'PUT',
     via: 'hub/sections/journalSection.js',
@@ -260,7 +271,7 @@ describe('the hub write-path manifest', () => {
     }
   })
 
-  it('the manifest is seven paths — three hub-owned, four through pre-existing app clients', () => {
+  it('the manifest is eight paths — four hub-owned, four through pre-existing app clients', () => {
     // The count, kept LAST and deliberately weakest: it is a tripwire on the shape of the claim, not
     // the claim itself. The three assertions above are what actually hold.
     //
@@ -272,10 +283,17 @@ describe('the hub write-path manifest', () => {
     //     because the app's only caller is a COMPONENT (VoiceInputButton), not a client.
     //   · R-17 added `PUT /api/j2/notes/{param}`, owner 'app' — `notebook.linkTicker` files a note
     //     under a ticker through the Notebook's own `useJ2Note(id).update`.
-    // ⭐ The hub-owned pair became a TRIO and that is the half that matters: every addition to this
+    //   · W2 / owner ruling R2, 2026-09-17, added `POST /api/hub/reports`, owner 'hub' — the
+    //     one-tap owner report. ⛔ It is the first hub write that carries a GESTURE TRACE off the
+    //     device, which is precisely why it belongs in a manifest a reviewer has to read: the
+    //     recorder's own header still says "NO SINK, NO NETWORK, EVER", and the narrow relaxation
+    //     that makes this legal (admin only, explicit tap, no background send) is stated there and
+    //     railed in `hubReport.test.jsx`.
+    // ⭐ The hub-owned trio became FOUR and that is the half that matters: every addition to this
     // manifest is a write a reviewer has to have seen.
-    expect(WRITE_PATHS).toHaveLength(7)
+    expect(WRITE_PATHS).toHaveLength(8)
     expect(WRITE_PATHS.filter((p) => p.owner === 'hub').map(key)).toEqual([
+      'POST /api/hub/reports',
       'PUT /api/j2/positions/{param}',
       'POST /api/hub/planned-trades',
       'POST /api/voice/transcribe',

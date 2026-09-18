@@ -187,15 +187,13 @@ def run_job(job_id: str, *, force: bool = False, dry_run: bool = False,
 
 
 def _run_job(job_id: str, *, force: bool, dry_run: bool, now: Optional[datetime]) -> dict:
-    from api.services.wisdom.core import flags, heartbeat, ids, store, timeutil
+    from api.services.wisdom.core import flags, timeutil
 
     spec = find_spec(job_id)
     if spec is None:
         return {"job_id": job_id, "status": "unknown_job"}
     now = timeutil.to_et(now) if now is not None else timeutil.now_et()
     due_key = spec.due_key(now) if spec.due_key else None
-    run_id = ids.sha24(job_id, now.isoformat(), time.time_ns(), threading.get_ident())
-    started = timeutil.iso_et(timeutil.now_et())
 
     skip: Optional[str] = None
     if not force and not flags.ingest_enabled():
@@ -205,9 +203,43 @@ def _run_job(job_id: str, *, force: bool, dry_run: bool, now: Optional[datetime]
     elif spec.trading_days_only and not force and not timeutil.is_trading_day(now.date()):
         skip = "not a trading day"
 
+    return run_tracked(job_id, spec.fn, due_key=due_key, now=now, force=force, dry_run=dry_run,
+                       skip=skip)
+
+
+def run_tracked(job_id: str, fn: Callable[["JobContext"], dict], *, due_key: Optional[str] = None,
+                now: Optional[datetime] = None, force: bool = False, dry_run: bool = False,
+                skip: Optional[str] = None) -> dict:
+    """Run ONE callable under this module's bookkeeping: the durable claim, the run row, the
+    heartbeat and the failure page. `_run_job` is exactly this plus a JobSpec's gates.
+
+    ⛔⛔ IT IS PUBLIC BECAUSE SOME WORK IS EVENT-TRIGGERED, NOT SCHEDULED (R70). Same-night
+    scoring fires when a night's LAST extraction pass is reaped — there is no cron slot for "the
+    batch finished" — and it still has to be claimed once per night, recorded in wisdom_job_runs
+    where a morning check can read it, and paged when it fails. A second recorder beside this one
+    would be the guard-repeated defect one artifact along: two places writing job history, free to
+    drift, neither mutation-provable against the other.
+
+    ⚠️ `due_key` IS THE SLOT AND IT IS THE CALLER'S TO NAME. A JobSpec derives it from `now`; the
+    rider cannot — the reap that completes a night runs hours after the night's stamp was minted,
+    so the slot is the NIGHT, which lives in the run ids, not on the clock.
+
+    ⛔ It does NOT check any flag. Gates belong to whoever owns the work: `_run_job` applies the
+    master switch and the spec's kill switch, and the reap rider inherits the reap job's own
+    `WISDOM_EXTRACT_ENABLED` gate. Re-reading a flag here would be a second copy of a guard.
+
+    A raise from `fn` is caught, recorded as a failed run and paged. An infrastructure failure
+    (the store itself) propagates — `run_job` is the wrapper that turns that into a dict.
+    """
+    from api.services.wisdom.core import heartbeat, ids, store, timeutil
+
+    now = timeutil.to_et(now) if now is not None else timeutil.now_et()
+    run_id = ids.sha24(job_id, now.isoformat(), time.time_ns(), threading.get_ident())
+    started = timeutil.iso_et(timeutil.now_et())
+
     claimed = False
     if skip is None and due_key is not None and not dry_run:
-        skip = _claim(job_id, due_key, started)
+        skip = claim_slot(job_id, due_key, started)
         claimed = skip is None
 
     if skip is not None:
@@ -226,7 +258,7 @@ def _run_job(job_id: str, *, force: bool, dry_run: bool, now: Optional[datetime]
     ctx = JobContext(job_id=job_id, now_et=now, due_key=due_key, force=force, dry_run=dry_run, run_id=run_id)
     status, result, error = "ok", {}, None
     try:
-        out = spec.fn(ctx)
+        out = fn(ctx)
         result = dict(out) if isinstance(out, dict) else {"result": out}
     except Exception as exc:
         status = "failed"
@@ -242,10 +274,7 @@ def _run_job(job_id: str, *, force: bool, dry_run: bool, now: Optional[datetime]
             (finished, status, _dumps(result), error, run_id),
         )
         if claimed:
-            conn.execute(
-                "UPDATE wisdom_job_claims SET finished_at = ?, status = ? WHERE job_id = ? AND due_key = ?",
-                (finished, status, job_id, due_key),
-            )
+            finish_slot(conn, job_id, due_key, status, finished)
         if not dry_run:
             heartbeat.beat(conn, job_id, status, error=error)
     if status == "failed":
@@ -255,8 +284,16 @@ def _run_job(job_id: str, *, force: bool, dry_run: bool, now: Optional[datetime]
             "result": result, "error": error}
 
 
-def _claim(job_id: str, due_key: str, now_iso: str) -> Optional[str]:
-    """Durable claim so two pods (deploy overlap) never both do one slot's work."""
+def claim_slot(job_id: str, due_key: str, now_iso: str) -> Optional[str]:
+    """Durable claim so two pods (deploy overlap) never both do one slot's work.
+
+    Returns None when this caller now OWNS the slot, or the sentence saying why it does not.
+
+    ⛔⛔ THIS ROW IS THE IDEMPOTENCE GUARD, and it is the only one. A caller may pre-filter slots
+    it can already see are done — that is an optimisation and must be provable as one — but the
+    INSERT ... ON CONFLICT below is what makes a second attempt a no-op, including a second
+    attempt in another process that never saw the first.
+    """
     from api.services.wisdom.core import store
 
     with store.write() as conn:
@@ -277,6 +314,15 @@ def _claim(job_id: str, due_key: str, now_iso: str) -> Optional[str]:
             (job_id, due_key, now_iso),
         )
     return None
+
+
+def finish_slot(conn, job_id: str, due_key: str, status: str, finished_at: str) -> None:
+    """Close a claim this caller took. ⛔ Written here so the claim's two statements have ONE
+    owner — a second UPDATE elsewhere is how a slot comes to be left 'running' forever."""
+    conn.execute(
+        "UPDATE wisdom_job_claims SET finished_at = ?, status = ? WHERE job_id = ? AND due_key = ?",
+        (finished_at, status, job_id, due_key),
+    )
 
 
 # ── catch-up and watchdog (run by core/jobs.py) ─────────────────────────────

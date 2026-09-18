@@ -24,6 +24,15 @@ router = APIRouter()
 
 MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
 
+#: The per-connection cap on `sym:tf` BARS pairs. Named 2026-09-15 (D3 CP2): it was
+#: an inline `pairs[:50]` several hundred lines below, and `barsStreamManager.js`
+#: carried a second 50 whose comment called itself a "mirror of
+#: api/routers/stream.py pairs[:50]" — a magic number citing a magic number, with
+#: nothing able to notice if one moved. Same VALUE as MAX_SSE_TICKERS, different
+#: FACT: that one is Finnhub's per-key subscription ceiling, this one bounds how
+#: much one browser may ask this pod to fan out. They are free to diverge.
+MAX_BARS_PAIRS = 50
+
 # ── admission control ────────────────────────────────────────────────────────
 # ⭐ COPIED, NOT INVENTED. Every other stream in this codebase already owns this
 # exact shape — `massive_stream.MAX_SUBSCRIBERS` (300),
@@ -358,7 +367,7 @@ async def stream_bars(
 
     if not pairs:
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
-    pairs = pairs[:50]  # cap to prevent runaway subscriptions per connection
+    pairs = pairs[:MAX_BARS_PAIRS]  # cap to prevent runaway subscriptions per connection
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.

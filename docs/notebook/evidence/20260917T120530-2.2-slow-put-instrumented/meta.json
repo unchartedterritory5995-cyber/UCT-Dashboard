@@ -1,0 +1,18 @@
+{
+  "id": "2.2-slow-put-instrumented",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "append_widget_embed",
+    "--ordering",
+    "slow PUT (landed, ring populated)",
+    "--trace-writes",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+  ],
+  "exit": 0,
+  "started": "2026-09-17T12:05:30",
+  "seconds": 79.4,
+  "why": "D2's whole point: the instrumented slow-PUT cell with the write tracer injected, so the RAW RING reaches docs/notebook/evidence/ BEFORE any summary (R-RAW). The reading that names the writer is a SEPARATE step taken with the artifact open \u2014 this entry only produces the artifact. Non-vacuity: the ring must contain at least one write with an app-code stack frame, else INCONCLUSIVE and the injector is the suspect, not the product."
+}
