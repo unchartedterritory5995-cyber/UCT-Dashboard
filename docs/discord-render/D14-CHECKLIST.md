@@ -1,14 +1,7 @@
-> **NEXT WAKE REASON (D-16):** **W2b** — OI-44 attribution: correlate the durable stall
-> record's wall-clock timestamps (now covering `c025f6b2d`/`b43db5846` onward) against what else
-> runs then — breadth collector, EOD updaters, `/api/push`. No blocker; it is simply the next
-> unblocked item. Then W5 (R59 hardening merge), W8 (accuracy audit).
->
-> ✅ **W3 DONE 2026-09-18** — `c3fd509f7` pushed to `discord-render-hardening`. All 16
-> loop-blocking async routes (`/api/oi/confirmation-map` + 15 `/api/admin/*` diagnostics) wrapped
-> in `run_in_threadpool`; the scanner's route-handler count went 17 → 1 (the one left is
-> `enrich_oi` in the partner-owned `api/live_massive_router.py`, recorded not fixed). New gate
-> `tests/test_oi44_loop_blockers_gate.py`, mutation-proved 2/2 RED. Full account: `D14-LOG.md`,
-> entry `2026-09-18 01:41 ET`.
+> **NEXT WAKE REASON (D-16):** **W3** — wrap the member-reachable `async` sqlite handler
+> (`/api/oi/confirmation-map`) in `run_in_threadpool`, then the 15 admin routes in one batch with
+> a scanner self-check so the class cannot return. No blocker; it is simply the next unblocked
+> item. Then W5 (R59 hardening merge), W8 (accuracy audit).
 >
 > ✅ **W1 + W1b SHIPPED AND ACCEPTED.** `16e161f5f` then `110f250b7`, both deployed, both SHA-
 > verified two ways. The failure sentence names its cause class (the catch-all is gone) and
