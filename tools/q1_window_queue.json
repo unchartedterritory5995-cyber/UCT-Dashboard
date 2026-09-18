@@ -4,8 +4,145 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
-      "id": "w2-deferred-by-guard-banking-run",
+      "id": "p2-metadata-settle-first-folder",
       "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `folder` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "folder",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 3,
+      "result": {
+        "exit": 0,
+        "seconds": 686.3,
+        "tail": "⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T102847-p2-metadata-settle-first-folder",
+        "evidence_ok": true
+      },
+      "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
+    },
+    {
+      "id": "p2-metadata-settle-first-ticker",
+      "status": "done",
+      "why": "P2 stage-1 proof, guard still FULL. The `ticker` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "ticker",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 3,
+      "result": {
+        "exit": 0,
+        "seconds": 211.3,
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T15:55:30.794576+00:00` · 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T105245-p2-metadata-settle-first-ticker",
+        "evidence_ok": true
+      },
+      "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
+    },
+    {
+      "id": "p2-metadata-settle-first-tags",
+      "status": "done",
+      "why": "P2 stage-1 proof, guard still FULL. The `tags` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "tags",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 2,
+      "result": {
+        "exit": 0,
+        "seconds": 259.8,
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T15:59:50.652415+00:00` · 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T105618-p2-metadata-settle-first-tags",
+        "evidence_ok": true
+      },
+      "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
+    },
+    {
+      "id": "p2-metadata-settle-first-hero",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `hero` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "hero",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 1,
+      "result": {
+        "exit": 1,
+        "seconds": 6.8,
+        "tail": "rig profile: C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent` / STOP: the rig profile is locked by a running Chrome (lockfile). Close it, or kill by marker, before starting a run.",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T083403-p2-metadata-settle-first-hero",
+        "evidence_ok": true
+      },
+      "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
+    },
+    {
+      "id": "p2-2.8b-second-writer-while-away",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. 2.8b is fix 4's production proof and it runs THE EDITOR PATH - the path `persist` now guards after Q1 fix 6. A second signed-in context moves the server revision while the first is away and offline; the member returns and their words must survive. GREEN here is the evidence that fix 6 did not break the designed rebase path on production. ⛔ It has timed out before (exit 124); an INCONCLUSIVE is requeued, never banked.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "folder",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "attempts": 3,
+      "result": {
+        "exit": 124,
+        "seconds": 1800.1,
+        "tail": "TIMED OUT",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T080337-p2-2.8b-second-writer-while-away",
+        "evidence_ok": true
+      },
+      "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to.",
+      "ordering_why": "⛔ RUN LAST. It costs 22-30 min of a ~57 min window and has twice eaten the whole thing, leaving the four quick metadata cells unrun. Ordering it last banks 4 of 5 P2 cells even when 2.8b times out again."
+    },
+    {
+      "id": "w2-deferred-by-guard-banking-run",
+      "status": "held",
       "why": "W2. ONE banking run of append_widget_embed with the FOURTH OUTCOME (W1) live, to bank the DEFERRED-BY-GUARD reading with a raw artifact. D1 is proven on production and the five append cells can no longer reach the loss path, so this run is not trying to reproduce anything: it is recording, once, that the door was driven to completion and the guard stopped it with the member told. Expected verdict DEFERRED-BY-GUARD; RED would mean the guard did not hold and is a finding; INCONCLUSIVE means the toast was not on screen and nothing was measured.",
       "expect": "DEFERRED-BY-GUARD",
       "cmd": [
@@ -15,7 +152,8 @@
         "append_widget_embed",
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
-      ]
+      ],
+      "held_why": "⛔ P3 MAY NOT RUN BEFORE P2 IS GREEN - it is a named STOP condition. This cell is stage 2 (the door itself, with NOTEBOOK_DOOR_GUARD flipped to unknown-only). It is released only after the P2 cells below all read GREEN with raw artifacts, and only with a window inside 30 minutes and the flag verified in-process. Held, not deleted, so the next reader sees a decision."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",

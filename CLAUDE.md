@@ -1796,6 +1796,114 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⚰️⚰️ A GLOBAL PROCESS COUNT IS NOT A MEASUREMENT OF *YOUR* RUN
+
+> **Counting processes by a command-line substring counts the whole box. On a
+> machine with concurrent sessions and a leak, that number is about the machine,
+> not about the thing you launched. Baseline, launch, measure the DELTA, and
+> carry a control proving your run happened at all.**
+
+⚰️ Measured 2026-09-18, and it is recorded because the wrong version was
+**published twice** — in a commit message and in a report — before it was checked.
+
+**The claim I made:** *"`--maxWorkers=1` does not bound vitest here; the repo's
+config (`maxWorkers: '50%'`) overrides it"*, on the evidence that ~15
+vitest-matching processes were live during a gate launched with `--max-workers 1`.
+
+**What that count actually was:** every process on the box whose command line
+contained `vitest` — including another workstream's leak and other sessions'
+suites. It was never a measurement of my run.
+
+**What a controlled measurement says** — baseline `node.exe`, launch, sample the
+delta, plus a control asserting a totals line appeared:
+
+| `--maxWorkers` | 1 | 2 | 6 | 12 |
+|---|---|---|---|---|
+| peak node delta | 5 | 7 | 9 | 15 |
+
+Monotonic, ≈ bound + 3–4 fixed overhead. ⭐ **The CLI bound is honoured and always
+was.** Rail: `test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config` (opt-in).
+
+⛔⛔ **AND THE COST OF BELIEVING IT WOULD HAVE BEEN A CODE CHANGE.** A fix to the
+gate's shard command was authorised on the strength of this finding. The finding
+was wrong; the command was already correct. **Changing working code to satisfy a
+mismeasurement is the defect, not the remedy** — so nothing was changed, and the
+measurement is railed instead.
+
+⚠️ The first two attempts at the counter returned **0** — a filter that matched
+nothing — which is the *"an empty result is a failed invocation until proven
+otherwise"* rule arriving in a new costume. A zero from a process query is a
+broken query until a control says otherwise.
+
+### ⛔⛔ A MEASUREMENT THAT TAKES LONGER THAN THE GAP BETWEEN DISTURBANCES CANNOT COMPLETE
+
+> **Before starting a long measurement, measure the DISTURBANCE INTERVAL. If the
+> run is longer than the gap, it will never finish, and no amount of retrying
+> changes that — it is arithmetic, not luck.**
+
+⚰️ Measured twice in one night, 2026-09-17/18, in two different systems:
+
+| measurement | takes | disturbed every | outcome |
+|---|---|---|---|
+| six-shard gate | 46–92 min | master moved **56 commits in 92 min** | carry-over failed; re-gate; superseded again |
+| a 2.8b rig cell | 12–22 min | production deployed every **~13 min** | 22 of 23 cells INCONCLUSIVE on `/api/auth/me` 502 |
+
+⭐ **THE INSTRUMENT WAS RIGHT BOTH TIMES.** The rig refused to measure through a
+deploy swap rather than inventing a verdict; the carry-over tool refused to carry
+a gate it could not justify. Neither failure was a product fact, and reading
+either as one would have been the error.
+
+⛔ **THE TELL IS A RETRY THAT LOOKS REASONABLE.** Each individual re-run is
+defensible; the third one is where you should notice you are in a loop whose exit
+condition is outside your control. Name the interval, compare it to the runtime,
+and if the run cannot fit, say so and stop — rather than spending hours proving
+arithmetic.
+
+⭐ CLAUDE.md already carried this shape for the *old* carry-over rule (*"a gate
+costs ~25 min and the frontend workstreams were landing every 10, so carry-over
+could NEVER hold — arithmetic, not luck"*). This is the same lesson arriving in a
+second system, which is what makes it a class rather than an anecdote.
+
+### ⛔ "DOCUMENTED" IS NOT "BOUNDED", AND A KNOWN HAZARD IS NOT A HANDLED ONE
+
+> **Writing a hazard down changes nothing about whether it fires. If a record
+> says a cost exists, ask what BOUNDS it — and if nothing does, that is an open
+> risk wearing a footnote.**
+
+Instances from this programme, each of which read as handled:
+
+- `putNoteWithIntent`'s class guard is *documented* as protecting every writer.
+  It protects none that flips `dirty` in the same write.
+- The joystick `Hide` control's missing recovery path was *documented* for
+  support. "A recorded workaround is not a recovery path — it is a record of one
+  being missing."
+- C2 of the carry-over rule is *specified* in CLAUDE.md and has been
+  **structurally unevaluable on every landing** — nothing in the repo emits the
+  import graph it requires. A written check nobody can run is not a check.
+
+⭐ The test is the same one kind 3 asks: **"when was this last true, and what
+would tell me if it stopped being true?"** If the answer to the second half is
+"nothing", the documentation is the whole mechanism.
+
+### ⛔ FLAG-FIRST ROLLBACK — the cheapest lever that can actually reach production
+
+> **Order the levers before you need them, and verify each one IN THE RUNNING
+> PROCESS, never from `--kv`.**
+
+For Q1 fix 6 the order is:
+
+1. **`railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`** — ⚠️ `--set`
+   REDEPLOYS; `delete` does NOT, and a deleted variable can stay live in the
+   process while `--kv` reports it gone.
+2. **The kill switch** `NOTEBOOK_OFFLINE_DEFAULT_ON=0` — second, because it stops
+   a whole wave to fix one write path.
+3. **Revert the commit** — last, and it is a merge, so `-m 1`.
+
+⛔ A mode flag whose default is the SAFE behaviour is the only kind that can be
+shipped ahead of the thing it protects: `NOTEBOOK_DOOR_GUARD` went to production
+**unset**, verified `None` in-process, so the guard kept behaving exactly as it
+had. The lever exists before it is needed, and arming it changed nothing.
+
 ### ⛔⛔ REAPING ANOTHER WORKSTREAM'S LEAK — BY SIGNATURE, BY AGE, BY WORKTREE, NEVER BY NAME
 
 > **Enumerate first and paste the list. Kill only what matches ALL THREE of a

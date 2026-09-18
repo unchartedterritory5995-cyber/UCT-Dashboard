@@ -313,3 +313,118 @@ un-promotable:**
 
 ⚠️ `"enforcement": "evaluate"` is **not** available on a user-owned repo; `disabled` → verify
 → `active` is the substitute, and the verification in (1)/(2) is not optional because of it.
+
+---
+
+## DEPLOY — 2026-09-18 · `8568d13ad` · **Q1 fix 6 + the `NOTEBOOK_DOOR_GUARD` mode flag**
+
+**The writer is fixed. The guard is still fully on. Nothing a member does changes today.**
+
+### What shipped
+
+| | |
+|---|---|
+| **fix 6** | `discardsUnsentWork(prev, incoming)` in `recoverLocalState.js` — ONE authority, asked by BOTH `settleLandedSave` and `persist` |
+| **the lever** | `NOTEBOOK_DOOR_GUARD` = `full` (default) \| `unknown-only`, read PER REQUEST, latched per tab |
+| product files | `useDurableNote.js`, `recoverLocalState.js`, `noteHasUnsentWork.js`, `notebookFlags.js`, `AuthContext.jsx`, `api/routers/auth.py`, `api/services/feature_flag_index.py` |
+| ⛔ NOT touched | `outboxDrain.js` — the writer was in `useDurableNote`; the drain's own sites already prove content |
+
+### The writer, cited
+
+> **`persist` at `useDurableNote.js:480`, spy call 1** —
+> `app/src/pages/journal-2-0/lib/offline/q1AppendWriterCensus.test.jsx`
+
+```
+n:1  writer persist   intent NULL
+     dirty 1 -> 0 · sentence-in-record true -> false · queued 1 -> 0
+```
+
+The FUNCTION is the spy's answer; the LINE is `tools/q1_clean_write_sweep.mjs`'s
+(acorn); `grep -n` agrees with both. Committed RED, with reason + `waits_on`,
+**before** any fix existed.
+
+### Mutation proofs — bytes captured first, restored by sha256, never `git checkout`
+
+| | |
+|---|---|
+| **M1** fix 6's own line reverted | reproduction RED, control GREEN |
+| **M2** `discardsUnsentWork` always false | **3 RED** — incl. **fix 4's** `remountNeverDiscardsUnsent` + `selfForkDoors`. One authority, one mutation, both fixes fall |
+| **M5** the guard mode ignored | 2 RED |
+| **M6** `unknown-only` also releasing UNREADABLE | 1 RED (one, not two — `connectThrows` is a different code path; stated, not rounded up) |
+| **M7** nothing-latched falling permissive | 4 RED, incl. the shipped-behaviour rails |
+
+### Gate
+
+**`gate-runs/2026-09-18T01-20-05`** on `1b0e8f0aa` — tree hash start == end == the
+gated SHA · **1408 files on disk == 1408 summed, RECONCILES** · 20,773 passed / 8
+failed · `expected_red` unexplained 0 · §8 sweep clean. Read BOTH ways: by hand
+**NEW=1**, `verdict_exit_code` **1** — they agree.
+
+The one NEW is **`surfaceMatrixIsCurrent`**, MASTER'S, banked in `additions` with
+owner (the JOYSTICK workstream) and its one-command fix. ⛔ Deliberately NOT
+fixed here: a Notebook change set editing `docs/plans/joystick/` is rule 12
+inverted. Seen failing on three separate trees.
+
+⭐ **Three earlier NEW were TIMEOUTS and were NOT banked.** Each passed alone by a
+wide margin (2856 / 1218 / 616 ms against a 15000 ms limit), and none recurred on
+the quieter second gate — two independent lines of evidence. A banked slot is one
+a real failure could later occupy unnoticed.
+
+⛔ **"No longer failing" was CHECKED, not banked.** All four named tests were run
+directly and pass; master's `61b3d2096` says so in its own subject. No silent drops.
+
+### Carry-over to the landing tree
+
+`C1` ok on everything but `docs/feature_flags.json` (which both sides touched, and
+whose own rail `test_feature_flag_ledger.py` is green on this tree) · `C3` ok ·
+**`C2` COULD NOT BE EVALUATED** · `C4` GREEN on the landing tree — **vitest 18
+files / 447 tests, python 460** · `C5` **PASSED** (see below).
+
+⛔⛔ **C2 IS STRUCTURALLY UNEVALUABLE IN THIS REPO AND THAT IS A REAL GAP.** It
+needs an AST import graph via `--edges-json`, and nothing here emits one
+(`tests_reaching.py` is Python-only). So C2 has been unknown on EVERY landing, and
+carry-over can therefore never hold on its own. ⛔ A dual-language edge emitter
+was deliberately NOT written to close it during this landing: a brand-new,
+unvalidated tool authored to turn an unknown into a green, with a production push
+riding on it, is manufacturing a pass. **Filed as a follow-up, not papered over.**
+C4 is the designed empirical answer, and it earned that here — see below.
+
+### ⭐ C4 CAUGHT A REAL DEFECT THE GATE COULD NOT
+
+Resolving a `docs/feature_flags.json` conflict, I appended master's five new
+entries in an unsorted position; a later master merge brought the same flags in
+their alphabetical slot, and three keys ended up **twice**. The ledger's loader is
+strict and raised on collection. **The full gate had been green — the defect was
+created AFTER it, by the merge.** That is exactly the interaction C4 exists to
+catch on the LANDING tree. ⛔ The two copies were COMPARED before either was
+dropped (all three identical; the script would have refused and printed both
+otherwise), every surviving key asserted by name, and the result re-parsed
+strictly to prove no duplicate remained.
+
+### Three-way verification
+
+| | |
+|---|---|
+| **workflow (C5)** | ⛔ could not be queried directly — the stored credential is not retrievable in this session. **Proven by consequence instead:** `production` only advances when the master deploy gate passes, and it advanced to exactly this SHA |
+| **production ancestry** | `origin/production` == **`8568d13ad`** — our landed SHA, 0 behind master |
+| **OUR OWN deploy record** | **`1b8df35c` → SUCCESS** (BUILDING → DEPLOYING → SUCCESS). Read by ITS OWN status, never the newest row |
+| **`/api/health`** | 200, uptime **52 → 58 → 62 s** — a fresh boot, tied to our own record reaching SUCCESS, not to an uptime we merely observed |
+
+### Flag state on production — verified IN-PROCESS
+
+```
+railway ssh --service web -> NOTEBOOK_DOOR_GUARD = None
+```
+
+**Unset in the RUNNING process**, not merely absent from `--kv`. The guard
+therefore reads its safe default `full`. ⭐ **Fix 6 is live with the mitigation
+still fully in front of it; no member-visible behaviour changed today.**
+
+### Rollback levers, IN ORDER
+
+1. **`railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`** — ⚠️ `--set`
+   REDEPLOYS; `delete` does NOT. Verify in-process via `railway ssh`, never `--kv`.
+   (A no-op while the flag is unset, which is today's state — it becomes the live
+   lever the moment P3 flips it to `unknown-only`.)
+2. **The kill switch `NOTEBOOK_OFFLINE_DEFAULT_ON=0`** — second, not first.
+3. Revert `8568d13ad` — last resort; it is a merge, so revert with `-m 1`.
