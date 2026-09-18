@@ -238,10 +238,28 @@
 }
 
 .bubbleLabel {
-  max-width: 90%;
+  /* ⚰️ WAS `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, and in a 46px circle it
+     truncated 8 of the strong cut's 11 outer actions - "Plan t...", "Move s...", "Breakev...",
+     "Voice n...", "Set tic...", "Templa...", "New no...", "Voice n...". A label that cannot show
+     its own verb IS decoration, and this repeats for over half the shipped surface.
+
+     ⭐ Two lines with a hard word break, tighter tracking, and a line-height that keeps them
+     inside the bubble. Any label >= 8 chars now reads in full. `bubbleInner` labels stay 9px
+     for pass 3 to critique - a label a member can read is a bigger fix than a label they cannot.
+     A CJK-first label whose "word" is one glyph would still truncate to that glyph; recorded
+     rather than caught, because the app is English-only today and this would otherwise be a
+     guard nobody has seen fire. */
+  max-width: 96%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  padding: 0 2px;
 }
 
 /* Remove interpolation, never functionality (spec §5): under reduced motion
