@@ -3,9 +3,27 @@
 > which SQLite touch carries the 80-110s; R49 LIVE REHEARSAL (not yet run — the D-21 checklist
 > is set-flag → confirm in-process → inject breach → confirm the SCHEDULED-TASK monitor unsets it
 > → confirm the page → confirm the log, for BOTH canary and member phase); W8 (accuracy audit,
-> not started); R69 (build+prove locally this weekend for Monday); R62 retry (first window with
-> no api/ deploy in the prior 20 min); W5/canary/Monday-F1/member-flip/close-out downstream of
-> all of the above.
+> **BUILT + rail-proved 2026-09-18, no live/production run yet** — see below); R69 (build+prove
+> locally this weekend for Monday); R62 retry (first window with no api/ deploy in the prior
+> 20 min); W5/canary/Monday-F1/member-flip/close-out downstream of all of the above.
+>
+> ✅ **W8 BUILT AND RAIL-PROVED 2026-09-18.**
+> `docs/discord-render/instruments/w8_accuracy_audit.py` — accuracy audit for `/chart`
+> (bars-derived day_pct vs. an independently-fetched live snapshot, the exact SMH-incident
+> shape from `discord_chart_render.compute_stats`'s own docstring, plus OHLCV/ordering
+> structural checks), `/buzz` (served mention counts vs. a from-scratch raw-SQL tally against
+> `mentions`, never calling `buzz_store.board()`), and `/flow` (structural-only — the true
+> independent OPRA/`flow.db` re-derivation is a named, undone gap, never silently upgraded to
+> "audited"). CoverageLine-style four-count tally (checked/matched/mismatched/not_computable).
+> **Mutation-proved**: 23-case `--self-check`, all pure functions two-sided (fires on a planted
+> defect, stays quiet on a clean input); the SMH-detector itself (`check_chart_vs_snapshot`)
+> was mutated to always agree, reds exactly its own 2 flagging cases and nothing else,
+> reverted, sha-verified. 33-case pytest suite green. A real (degraded, no API keys) local
+> run proved the wiring end-to-end and caught one real bug (`fetch_bars` lives in
+> `api.routers.discord_interactions`, not `.services`) that the self-check's pure-function
+> cases structurally could not have caught. **Not done: a live/production run** (needs
+> `railway ssh` with real `MASSIVE_API_KEY`/`FMP_API_KEY`/`/data/buzz.db`). Full account:
+> `evidence/d18/W8-accuracy-audit-2026-09-18.md`.
 >
 > 🟢 **D-21 PROGRESS 2026-09-18 (this pass) — owner corrected R71's D-20 conclusion.** R71 is
 > **config-as-code, not a login**: Railway's `build.watchPatterns` in `railway.web.json` (web's
