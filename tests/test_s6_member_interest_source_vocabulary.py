@@ -48,6 +48,27 @@ it impossible. It does **not** assert the WEIGHTS (`+3.0 / +2.0 / +1.0` are a
 product judgement about how much a position outranks a flag) — only that the
 NAMES agree. And it reads no production data: the vocabulary is a property of
 the source, and a rail needing a member's data is a rail nobody runs.
+
+──────────────────────────────────────────────────────────────────────────────
+⛔⛔ UPDATED FOR CP2' -- THE AUTHORITY MOVED, THIS RAIL FOLLOWS IT
+──────────────────────────────────────────────────────────────────────────────
+
+CP2' (`api/services/member_interest.py`) subsumed
+`calendar_personalization.get_user_ticker_sets` rather than sitting beside
+it: `get_user_ticker_sets` is now a thin delegate whose body builds its
+return dict via a comprehension over `member_interest.SOURCES`, not a
+literal `return {...}` with string-constant keys. **`server_sources()`
+therefore no longer has anything to parse in `calendar_personalization.py`**
+— the four names live in `member_interest.SOURCE_BUCKETS` now, and that is
+where the authority genuinely is post-migration, not a rail preference.
+Pointing `_SERVER` there is the same "measure it, don't quote it" discipline
+this rail already applies to the other two copies, aimed at the file that
+now actually owns the answer.
+
+This is NOT a weakening of the rail: the three-way comparison, the
+non-vacuity control, and the fail-BY-NAME behaviour are all unchanged. Only
+the SOURCE the server side is read from moved, because the code it describes
+moved.
 """
 from __future__ import annotations
 
@@ -58,12 +79,15 @@ import re
 import pytest
 
 _REPO = pathlib.Path(__file__).resolve().parents[1]
-_SERVER = _REPO / "api" / "services" / "calendar_personalization.py"
+#: ⛔ CP2' moved the authority here from calendar_personalization.py — see
+#: the "UPDATED FOR CP2'" note above.
+_SERVER = _REPO / "api" / "services" / "member_interest.py"
 _CALENDAR = _REPO / "app" / "src" / "pages" / "Calendar.jsx"
 _IMPORTANCE = _REPO / "app" / "src" / "pages" / "calendar" / "importance.js"
 
 #: ⛔ THE DECLARED VOCABULARY — the one place this list is written on purpose.
-#: Read 2026-09-13 from `get_user_ticker_sets`. Everything below is DERIVED and
+#: Read 2026-09-13 from `get_user_ticker_sets`, re-verified 2026-09-18 against
+#: `member_interest.SOURCE_BUCKETS` post-CP2'. Everything below is DERIVED and
 #: compared against it; nothing below re-types it.
 #:
 #: ⚠️ `all_mine` is NOT a source. It is the union the server computes for the
@@ -79,23 +103,30 @@ DERIVED_UNION_KEY = "all_mine"
 # ═════════════════════════════════════════════════════════════════════════
 
 def server_sources() -> set[str]:
-    """The keys `get_user_ticker_sets` actually returns, by AST.
+    """The source names `member_interest.SOURCE_BUCKETS` actually declares,
+    by AST.
 
-    ⛔ AST, not a grep for quoted words: the module mentions every source name
-    in prose and in four helper names, and a text scan would find them there
-    too. The question is what the RETURNED DICT is keyed by.
+    ⛔ AST, not a grep for quoted words, and not an import + attribute read:
+    importing the module under test would execute it, and the whole point of
+    every derivation in this file is to read the DECLARATION without running
+    any of the code it describes. `SOURCE_BUCKETS` is a literal tuple of
+    3-tuples (`(name, bucket, weight)`) — this walks it and takes each inner
+    tuple's FIRST element.
     """
     tree = ast.parse(_SERVER.read_text(encoding="utf-8"))
-    fn = next((n for n in tree.body
-               if isinstance(n, ast.FunctionDef) and n.name == "get_user_ticker_sets"), None)
-    assert fn is not None, "get_user_ticker_sets is gone — this rail's premise has moved"
-    keys: set[str] = set()
-    for node in ast.walk(fn):
-        if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict):
-            for k in node.value.keys:
-                if isinstance(k, ast.Constant) and isinstance(k.value, str):
-                    keys.add(k.value)
-    return keys - {DERIVED_UNION_KEY}
+    assign = next((n for n in tree.body if isinstance(n, ast.AnnAssign)
+                   and isinstance(n.target, ast.Name) and n.target.id == "SOURCE_BUCKETS"), None)
+    assert assign is not None, (
+        "SOURCE_BUCKETS is gone from member_interest.py — this rail's "
+        "premise has moved again; find the new authority before editing "
+        "this function")
+    names: set[str] = set()
+    for elt in assign.value.elts:
+        if isinstance(elt, ast.Tuple) and elt.elts:
+            first = elt.elts[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                names.add(first.value)
+    return names - {DERIVED_UNION_KEY}
 
 
 def _js_array_literal(src: str, name: str) -> set[str]:
@@ -232,19 +263,28 @@ def test_the_union_key_is_NOT_treated_as_a_source():
     """⛔ `all_mine` is the server's derived union. Counting it as a source would
     make every comparison above disagree by exactly one name, and the obvious
     'fix' would be to add `all_mine` to the client copies — which would give the
-    union its own boost and double-count every member's every ticker."""
-    tree = ast.parse(_SERVER.read_text(encoding="utf-8"))
+    union its own boost and double-count every member's every ticker.
+
+    ⛔ CP2' moved: `get_user_ticker_sets` (still `calendar_personalization.py`,
+    NOT `member_interest.py` — it is the thin delegate, not the authority) no
+    longer returns a dict LITERAL; it builds one via `out = {...}` then
+    `out["all_mine"] = ...`. This checks for that subscript-assignment shape,
+    not a `ast.Dict` return, which is why it reads a different file than
+    `server_sources()` above and cannot share that function's AST walk.
+    """
+    calendar_personalization = _REPO / "api" / "services" / "calendar_personalization.py"
+    tree = ast.parse(calendar_personalization.read_text(encoding="utf-8"))
     fn = next(n for n in tree.body
               if isinstance(n, ast.FunctionDef) and n.name == "get_user_ticker_sets")
-    all_keys: set[str] = set()
+    assigned_keys: set[str] = set()
     for node in ast.walk(fn):
-        if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict):
-            for k in node.value.keys:
-                if isinstance(k, ast.Constant):
-                    all_keys.add(k.value)
-    assert DERIVED_UNION_KEY in all_keys, (
-        "the server no longer returns the union key this rail excludes — "
-        "re-read get_user_ticker_sets before trusting the exclusion")
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].slice, ast.Constant)):
+            assigned_keys.add(node.targets[0].slice.value)
+    assert DERIVED_UNION_KEY in assigned_keys, (
+        "get_user_ticker_sets no longer assigns the union key this rail "
+        "excludes — re-read it before trusting the exclusion")
     assert DERIVED_UNION_KEY not in calendar_all_sources()
     assert DERIVED_UNION_KEY not in importance_boost_sources()
 
