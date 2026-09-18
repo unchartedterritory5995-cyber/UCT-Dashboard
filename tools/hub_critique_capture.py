@@ -162,13 +162,21 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
 
                     idle_visible = fan["visible"]
 
-                    # --- pressed ----------------------------------------------------------
+                    # ⛔⛔ NO SCREENSHOT MAY HAPPEN BETWEEN pointerdown AND pointermove.
+                    #
+                    # ⚰️ Pass 2 reported eight fan-open rows INCONCLUSIVE — "the drag did not make
+                    # more bubbles visible than at rest" — while a hand-run probe of the same build
+                    # opened the fan every time. The difference was this screenshot. A Playwright
+                    # screenshot takes ~1s, and `HOLD_MS` is 500: by the time the move arrived the
+                    # ENGINE HAD ALREADY CLASSIFIED THE GESTURE AS A HOLD, which is a scrub, not a
+                    # fan push (`useJoystick.js:408` — "a drag WITHOUT the hold is a fan push").
+                    #
+                    # ⭐ The instrument was changing the gesture it was trying to photograph, and
+                    # it reported the result as a property of the PRODUCT. The fix is to complete
+                    # the gesture first and photograph the state it leaves behind — `stickyFan` is
+                    # on by default, so the fan stays open after release and can be shot at leisure.
                     page.evaluate(PTR_JS, ["pointerdown", 0, 0])
-                    page.wait_for_timeout(120)
-                    rows.append(dict(profile=pname, theme=theme, mode=mode, state="pressed",
-                                     verdict="CAPTURED", file=shot("pressed"), synthetic=True))
-
-                    # --- dragging / fan open ---------------------------------------------
+                    page.wait_for_timeout(60)
                     page.evaluate(PTR_JS, ["pointermove", 0, -46])
                     page.wait_for_timeout(260)
                     fan = page.evaluate(FAN_JS)
