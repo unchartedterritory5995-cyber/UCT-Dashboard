@@ -253,6 +253,53 @@ def test_a_failing_request_is_recorded_not_raised(local, monkeypatch):
     assert len(items) == 1 and items[0].result.type == "errored"
 
 
+# ── R93 (session 23): repeat_penalty and schema-constrained decoding ─────────
+
+def test_repeat_penalty_defaults_on(local):
+    """⚰️ Measured 2026-09-18: at repeat_penalty=1.15, 4 of 4 sampled loopers from the
+    session-22 golden run stopped looping (isolated re-check, no slot contention)."""
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 64,
+         "messages": [{"role": "user", "content": "hi"}]})
+    assert chat["repeat_penalty"] == local_backend.DEFAULT_REPEAT_PENALTY == 1.15
+
+
+@pytest.mark.parametrize("raw, expect", [("1.3", 1.3), ("", 1.15), ("garbage", 1.15), ("1", 1.0)])
+def test_repeat_penalty_env_override(local, monkeypatch, raw, expect):
+    monkeypatch.setenv(local_backend.REPEAT_PENALTY_ENV, raw)
+    assert local_backend.repeat_penalty() == expect
+
+
+def test_schema_constraint_reuses_the_PAID_schema_not_a_second_one(local):
+    """⭐ NO SECOND AUTHORITY. `output_config.format.schema` is built by prompt.build_params()
+    for BOTH backends; this must forward exactly that object, never reconstruct one."""
+    schema = {"type": "object", "required": ["quote"], "properties": {"quote": {"type": "string"}}}
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 64,
+         "messages": [{"role": "user", "content": "hi"}],
+         "output_config": {"format": {"type": "json_schema", "schema": schema}, "effort": "high"}})
+    assert chat["response_format"]["json_schema"]["schema"] is schema
+
+
+def test_no_output_config_means_no_constraint_FAIL_OPEN(local):
+    """⛔ A caller that built params without output_config (every hand-rolled test fixture in
+    this file, and any future one) must get a plain request, never a KeyError."""
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 64,
+         "messages": [{"role": "user", "content": "hi"}]})
+    assert "response_format" not in chat
+
+
+def test_schema_constraint_env_override_turns_it_off(local, monkeypatch):
+    monkeypatch.setenv(local_backend.SCHEMA_CONSTRAINED_ENV, "0")
+    schema = {"type": "object", "required": ["quote"]}
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 64,
+         "messages": [{"role": "user", "content": "hi"}],
+         "output_config": {"format": {"type": "json_schema", "schema": schema}}})
+    assert "response_format" not in chat
+
+
 # ── the runaway ceiling ──────────────────────────────────────────────────────
 
 def test_a_runaway_generation_is_capped(local):

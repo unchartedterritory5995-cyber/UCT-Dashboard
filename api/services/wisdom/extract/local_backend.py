@@ -67,6 +67,37 @@ DEFAULT_TIMEOUT = 600
 MAX_OUTPUT_ENV = "WISDOM_LOCAL_MAX_OUTPUT_TOKENS"
 DEFAULT_MAX_OUTPUT = 1536
 
+#: Session 23, R93 (2026-09-18). Repeats a degenerate n-gram (e.g. a field name over and
+#: over) until the output cap cuts it off. Measured on the 18 segments that hit max_tokens on
+#: attempt 1 of the session-22 golden run: at repeat_penalty=1.15, 4 of 4 sampled loopers
+#: (isolated re-check, no slot contention) stopped looping — clean finish=stop, valid JSON,
+#: no repeated span. Adopted as the DEFAULT because it is a decoding parameter, not part of
+#: "the prompt": it changes no byte the paid path reads, so it earns no extractor_version bump,
+#: the same way the output cap above did not.
+REPEAT_PENALTY_ENV = "WISDOM_LOCAL_REPEAT_PENALTY"
+DEFAULT_REPEAT_PENALTY = 1.15
+
+#: Session 23, R93. The PAID request already carries
+#: `params["output_config"]["format"]["schema"]` — Anthropic's own structured-output contract
+#: (`prompt.api_schema()`), enforced SERVER-SIDE so the model literally cannot emit a record
+#: missing a required field. The local transport built a plain chat completion with no such
+#: constraint: nothing stopped the model from emitting a `records` array whose objects omit
+#: `quote` outright — the golden run's dominant failure (`reject:quote_missing`, not a single
+#: `quote_absent`, meaning the field was ABSENT, not merely wrong).
+#: ⭐ THIS SCHEMA ALREADY TRAVELS IN EVERY CALL'S PARAMS. Turning it on needs no new prompt
+#: content, no new file, and does not touch prompt.py — it forwards what `build_params()`
+#: already built for the paid path, translated into the wire shape this server's OAI-compat
+#: endpoint accepts (`response_format: {type: json_schema, json_schema: {schema: ...}}`).
+#: Measured 2026-09-18 on a segment whose baseline run rejected all 4 emitted records
+#: quote_missing: schema-constrained, 3 of 3 emitted records carried a non-empty quote.
+#: ⚠️ THIS BOUNDS PRESENCE, NOT CORRECTNESS. `required` in JSON Schema can force a string to
+#: exist; it cannot force that string to be a verbatim substring of the segment — a
+#: `quote_absent` rejection (wrong text, not missing) is still possible and this does not
+#: touch it. Default ON because a schema the paid path already trusts can only help; an env
+#: override exists for a controlled comparison against the unconstrained transport.
+SCHEMA_CONSTRAINED_ENV = "WISDOM_LOCAL_SCHEMA_CONSTRAINED"
+DEFAULT_SCHEMA_CONSTRAINED = True
+
 LOOPBACK = ("127.0.0.1", "localhost", "::1", "0.0.0.0")
 
 
@@ -117,6 +148,28 @@ def max_output_tokens() -> int:
     except ValueError:
         return DEFAULT_MAX_OUTPUT
     return max(1, value)
+
+
+def repeat_penalty() -> Optional[float]:
+    """See REPEAT_PENALTY_ENV. Empty/unset means the runtime's own default, expressed here as
+    `None` rather than a literal so a caller cannot mistake it for "penalty of zero", which
+    would mean something else (no penalty at all is expressed by the runtime's `1.0`)."""
+    raw = (os.environ.get(REPEAT_PENALTY_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_REPEAT_PENALTY
+    try:
+        return float(raw)
+    except ValueError:
+        return DEFAULT_REPEAT_PENALTY
+
+
+def schema_constrained() -> bool:
+    """See SCHEMA_CONSTRAINED_ENV. Accepted off values mirror config.backend()'s convention
+    elsewhere in this package: anything but an explicit off literal stays ON."""
+    raw = (os.environ.get(SCHEMA_CONSTRAINED_ENV) or "").strip().lower()
+    if not raw:
+        return DEFAULT_SCHEMA_CONSTRAINED
+    return raw not in ("0", "false", "no", "off")
 
 
 def _timeout() -> float:
@@ -218,6 +271,19 @@ def _params_to_chat(params: dict) -> dict:
         "max_tokens": min(int(params.get("max_tokens") or 4096), max_output_tokens()),
         "stream": False,
     }
+    penalty = repeat_penalty()
+    if penalty is not None:
+        out["repeat_penalty"] = penalty
+    # ⭐ REUSES THE SAME SCHEMA THE PAID PATH ALREADY GETS. `params["output_config"]` is built
+    # by prompt.build_params() for BOTH backends — this reads what is already there rather
+    # than importing prompt.py or restating the schema, so there is no second authority on
+    # what "the schema" is. A caller that built params WITHOUT output_config (any test that
+    # hand-rolls a request) simply gets no constraint, silently — the same fail-open shape as
+    # every other optional field here.
+    schema = ((params.get("output_config") or {}).get("format") or {}).get("schema")
+    if schema_constrained() and isinstance(schema, dict):
+        out["response_format"] = {"type": "json_schema",
+                                  "json_schema": {"name": "wisdom_extraction", "schema": schema}}
     return out
 
 
