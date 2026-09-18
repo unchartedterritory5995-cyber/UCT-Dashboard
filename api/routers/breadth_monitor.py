@@ -772,11 +772,13 @@ def warm_series_deep() -> dict:
     first pays no more than the warm request already paid.
 
     ⛔ NEVER ON THE REQUEST PATH, NEVER BLOCKS `/api/health`. Called from
-    `api/main.py`'s existing delayed background warm thread, wrapped in the
-    same try/except every warm function there already uses — a failure here
-    is logged and changes nothing else. Returns a summary dict rather than
-    raising, so the caller's own `_warm(label, fn)` wrapper needs no special
-    case for this one.
+    `api/main.py`'s `_start_breadth_series_warm_background` — its OWN
+    standalone delayed thread, DC-3(c)/D-056 addendum, deliberately NOT a
+    step inside `_start_dashboard_warm_background`'s sequential chain (that
+    placement left a measured 1-3 minute early-boot exposure window; see
+    this function's caller for why). Wrapped in a try/except there — a
+    failure here is logged and changes nothing else. Returns a summary dict
+    rather than raising either way.
     """
     if not series_boot_warm_enabled():
         return {"ok": False, "reason": "flag off"}

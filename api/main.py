@@ -929,6 +929,45 @@ def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
     threading.Thread(target=_delayed, daemon=True, name="hot-tier-warmer").start()
 
 
+def _start_breadth_series_warm_background(delay_seconds: int = 5) -> None:
+    """DC-3(c)/D-056 addendum — the `/series` deep-read warm as its OWN
+    independent thread, concurrent with `_start_dashboard_warm_background`'s
+    sequential chain, NOT a step inside it.
+
+    ⛔ WHY IT MOVED. D-056's original placement (6th in the dashboard-warm
+    chain, behind flow-tape/movers/themes/news/breadth) left a MEASURED
+    1-3 minute early-boot window where a member's first `/series` request
+    still paid the full cold cost — a probe made 30-90s after boot on that
+    boot's first flag-on deploy still read the ~30s cold path, because the
+    chain hadn't reached its turn yet (`docs/breadth/DECISIONS.md` D-056
+    addendum, "flip verification on its own boot"). At ~31 deploys/day that
+    window is real, repeated member exposure. Moving it to a standalone
+    thread with a SHORT delay — well ahead of the dashboard chain's own
+    initial delay, so it fires before the chain even reaches its FIRST
+    target (flow-tape), never mind its sixth — closes the window without
+    reordering the dashboard chain's own priorities (flow-tape stays first
+    there on purpose; see that function's comment).
+
+    Dark/no-op when `BREADTH_SERIES_BOOT_WARM_ENABLED` is unset — cheap to
+    start unconditionally, matching every other standalone warm starter in
+    this file. Never blocks `/api/health` (no readiness gate; `/api/health`
+    reads only the wire-data cache and process stats — see its own handler).
+    """
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+        try:
+            from api.routers.breadth_monitor import warm_series_deep
+            log.info("[breadth-series-warm] %s", warm_series_deep())
+        except Exception:
+            log.exception("[breadth-series-warm] failed")
+
+    threading.Thread(target=_delayed, daemon=True, name="breadth-series-warmer").start()
+
+
 def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     """Pre-warm the dashboard/landing-facing caches shortly after boot.
 
@@ -937,6 +976,10 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     themes, news, breadth, calendar). Warming them ~20s post-boot moves that cost
     off the user and onto a background thread. Each step is independent + best-
     effort so one failure never blocks the rest.
+
+    ⛔ The `/series` deep-read warm is NOT a step in this chain — see
+    `_start_breadth_series_warm_background`, started alongside this one, on
+    its own short delay so it completes before this chain even begins.
     """
     import threading
 
@@ -967,13 +1010,6 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
         def _breadth():
             from api.routers.breadth_monitor import get_breadth_history
             get_breadth_history(days=90)
-
-        def _breadth_series_deep():
-            # DC-3(b)/D-056 — dark behind BREADTH_SERIES_BOOT_WARM_ENABLED
-            # (default OFF); see warm_series_deep's own docstring for what this
-            # warms and why `_breadth()` above does not already cover it.
-            from api.routers.breadth_monitor import warm_series_deep
-            log.info("[dashboard-warm] breadth-series-deep %s", warm_series_deep())
 
         def _breadth_live():
             # Intraday breadth compares one market snapshot against reference
@@ -1059,7 +1095,6 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
-            _warm("breadth-series-deep", _breadth_series_deep)
             _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
@@ -3558,6 +3593,7 @@ async def lifespan(app: FastAPI):
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
+        _start_breadth_series_warm_background()
         _start_chart_renderer_warm_background()
         # ⛔ The discord-chart hot-warm interval job does NOT register here:
         # `_scheduler` is assigned ~1,300 lines below in this same function, so
