@@ -2435,3 +2435,20 @@ genuinely independent member-equivalent `/series` request on the NEXT foreign
 deploy (not self-triggered by this flip) and confirm it reads within 2× the
 settled p50. Watcher started; addendum follows when captured.
 
+### D-056 addendum · third pre-flip data point, captured before the flip (2026-09-18)
+
+The DC-3(a) watcher captured a THIRD foreign deploy before the flip landed,
+strengthening the diagnosis with a third independent replication:
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| foreign #2 | `925948522cb1` | 6,938.4 ms | 132.8 ms | 3,385.9 ms (49%) | 144,027,648 (~137 MB) |
+
+Same pattern, smaller magnitude — `adv_seed` still the largest single phase,
+`io_read_bytes` still nonzero on the first request only, second request
+instant. The declining magnitude across all three pre-flip samples
+(35,865 → 12,216 → 6,938 ms) is consistent with a shrinking page-cache-cold
+surface as the underlying OS cache warms across deploys on a shared disk —
+not evidence against the diagnosis, since each sample is still its own
+process's genuinely first request.
+
