@@ -2,6 +2,50 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — ✅ OWED LIST CLEARED. FULL VERIFICATION DONE. ONLY THE OWNER ITEMS REMAIN.
+>
+> ✅ **The binder `notes` channel is BUILT** (`d6dd66ff3`). `sync()` returns
+> `{ok, bound, released, notes}`; a fill with no visible host is REPORTED instead
+> of dropped in silence. Additive **by measurement** — the only product caller
+> (`StockChart.jsx:11471`) discards the return, `readout.js` reads
+> `binder.bindings()`, nothing iterates the key set. ⚠️ The note's shape is read
+> from the DOCUMENT, not the ruling: a `plots[]` entry carries **no source line**,
+> so it names the band by `key`/`fill.with` rather than inventing a `line`.
+> Mutations S1/S2/S3 all RED; ⚠️ recorded slip — the hash was captured before
+> IMPLEMENTING rather than before MUTATING, so restoration is verified by
+> exact-string replacement plus a green suite, not by a pre-mutation sha.
+>
+> ✅ **FULL SERIAL VERIFICATION — every one of the 1,577 test files in `src` ran**,
+> reconciled against the full list (1,564 in the six dir-chunks + 10 + 3 at root):
+>
+> | chunk | files | tests | EXIT |
+> |---|---|---|---|
+> | A+B `engine/ast` + `engine/__tests__` + `builder` | 384 | 6,853 | 1 |
+> | C1 `hub lib utils hooks widgets styles` | 169 | 2,210 | 1 |
+> | C2 `pages` | 661 | 7,157 | 1 |
+> | C3 `components` | 734 | 13,199 | 1 |
+> | C4 `__tests__ constants context routes surfaces testing` + 3 root | 13 | 137 | 1 / 0 |
+> | **Python lane, scoped by filename** | 3 | **54** | **0** |
+> | **vite build, alone** | — | — | **0** |
+>
+> ⛔ **ZERO FAILURES ATTRIBUTABLE TO THIS BRANCH.** Every red classified to a named
+> owner: `pineBoxSuggestVoice` ×3 · `BuilderSheet.pine` · `ImportBox.thinkscript`
+> (pre-existing at HEAD, measured today); `EvidenceTab.doors`,
+> `engineEnabledMigration`, `flipCGeometry`, `memberPaneGate`, `enumerationSites`
+> (load-sensitive — each PASSES ALONE, twice); `pollingSites` (**R-P**, master's
+> files), `tapFloor` + the four `journal-2-0` reds (**Notebook's, rule 12** — this
+> branch's diff touches **0** files there, measured); `ThemeTrackerPage.chartmount`
+> (master's, mocks both chart components); `reachable` naming
+> `focusDivergence.js` + `surfaces/manifest.js` (**R-29 / Wisdom lane**);
+> `ChartDrawingOverlay.surfaces` (branch touches it **0** times).
+>
+> ⭐ **`manifestProse` HAS LEFT THE RED SET** — Part 1's 10s → 0.6s fix, confirmed
+> in company across all four chunks.
+>
+> ▶️ **NOTHING IS OWED TO THIS SESSION.** (j) is built at the translator and the
+> pane, verified, and documented. **Only the two owner items remain**, and neither
+> can be done from here — see below.
+
 > ### ⏱️ 2026-09-17 — ✅ R36 BUILT. THE PARAM-ID SHIFT IS CLOSED AND RAILED.
 >
 > ✅ **R36** (`c67668bb8`, ruling at `ef9a6de03`): a presentation fold **resolves

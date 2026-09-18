@@ -133,6 +133,37 @@ reporter load **having executed nothing** and produced no totals line at all.
 
 ---
 
+## Verification — every test file in `src` ran
+
+Serial, one heavy process at a time, EXIT read from the logs. The chunk list is
+reconciled against the full file list: **1,564 in six directory chunks + 10 + 3 at
+root = 1,577**, which is every `*.test.js*` under `app/src`.
+
+| chunk | files | tests | EXIT |
+|---|---|---|---|
+| `engine/ast` + `engine/__tests__` + `builder` | 384 | 6,853 | 1 |
+| `hub lib utils hooks widgets styles` | 169 | 2,210 | 1 |
+| `pages` | 661 | 7,157 | 1 |
+| `components` | 734 | 13,199 | 1 |
+| `__tests__ constants context routes surfaces testing` + root | 13 | 137 | 1 / 0 |
+| Python lane, **scoped by filename** | 3 | 54 | **0** |
+| `vite build`, alone | — | — | **0** |
+
+⛔ **ZERO failures attributable to this branch.** Five are pre-existing at HEAD
+(`pineBoxSuggestVoice` ×3, `BuilderSheet.pine`, `ImportBox.thinkscript`), five
+files are load-sensitive and **pass alone, twice** (`EvidenceTab.doors`,
+`engineEnabledMigration`, `flipCGeometry`, `memberPaneGate`, `enumerationSites`),
+and the rest belong to named other lanes — `pollingSites` (**R-P**, master's
+files), `tapFloor` and four `journal-2-0` reds (**rule 12**; this branch's diff
+touches **0** files there), `ThemeTrackerPage.chartmount` (master's),
+`reachable` naming `focusDivergence.js`/`surfaces/manifest.js` (**R-29 / Wisdom**),
+and `ChartDrawingOverlay.surfaces` (untouched by this branch).
+
+⭐ `manifestProse` has **left** the red set: profiled at ~10 s of test time against
+a 15 s ceiling, fixed to **0.6 s** by reading its 2,716 files concurrently — the
+profile having first refuted the regex suspect (the docstring regexes cost 1–2 ms;
+99% was I/O, and reading as Buffers was no faster).
+
 ## What is NOT in this PR
 
 - **(j) Uncharted Clouds — j.1, j.2 and j.3a ARE IN; j.3b and j.4 ARE NOT.** The
