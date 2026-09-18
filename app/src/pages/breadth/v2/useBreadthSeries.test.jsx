@@ -6,7 +6,9 @@
 // absent reading into a zero.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import useBreadthSeries, { seriesRequest, spanDays, MAX_KEYS, MAX_SESSIONS } from './useBreadthSeries'
+import useBreadthSeries, {
+  seriesRequest, spanDays, MAX_KEYS, MAX_SESSIONS, SESSION_TO_CALENDAR_DAY_RATIO,
+} from './useBreadthSeries'
 
 // A probe component: the hook's return rendered as text, so assertions read the same
 // artifact a surface would.
@@ -56,19 +58,33 @@ describe('seriesRequest', () => {
     expect(r.dropped).toEqual(many.slice(MAX_KEYS))
   })
 
-  it('refuses a span wider than the one exported constant, and asks for nothing', () => {
-    const wide = seriesRequest(['breadth_score'], '2020-01-01', '2026-01-01')
+  it('refuses a span wider than the ratio-scaled cap, and asks for nothing', () => {
+    const wide = seriesRequest(['breadth_score'], '1990-01-01', '2026-01-01')
     expect(wide.tooWide).toBe(true)
     expect(wide.url).toBeNull()
   })
 
   it('allows a span exactly AT the cap — the boundary is inclusive', () => {
+    // ⭐ The boundary is `MAX_SESSIONS × SESSION_TO_CALENDAR_DAY_RATIO` calendar days, not
+    // `MAX_SESSIONS` days — the same `× 1.6` generosity the server applies, mirrored here
+    // since `MAX_SESSIONS` grew large enough (D-054) that comparing it bare against
+    // calendar days would refuse V2-3's own "Max" preset.
+    const cap = MAX_SESSIONS * SESSION_TO_CALENDAR_DAY_RATIO
     const from = new Date(Date.UTC(2026, 0, 1))
-    const to = new Date(from.getTime() + (MAX_SESSIONS - 1) * 86400000)
+    const to = new Date(from.getTime() + (cap - 1) * 86400000)
     const r = seriesRequest(['breadth_score'], from.toISOString().slice(0, 10), to.toISOString().slice(0, 10))
-    expect(spanDays(r.url ? from.toISOString().slice(0, 10) : '', to.toISOString().slice(0, 10))).toBe(MAX_SESSIONS)
+    expect(spanDays(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10))).toBe(cap)
     expect(r.tooWide).toBe(false)
     expect(r.url).not.toBeNull()
+  })
+
+  it('⛔ refuses ONE calendar day past the ratio-scaled boundary', () => {
+    const cap = MAX_SESSIONS * SESSION_TO_CALENDAR_DAY_RATIO
+    const from = new Date(Date.UTC(2026, 0, 1))
+    const to = new Date(from.getTime() + cap * 86400000)
+    const r = seriesRequest(['breadth_score'], from.toISOString().slice(0, 10), to.toISOString().slice(0, 10))
+    expect(r.tooWide).toBe(true)
+    expect(r.url).toBeNull()
   })
 
   it('asks for nothing when there are no keys, no window, or an inverted one', () => {
@@ -94,7 +110,7 @@ describe('useBreadthSeries', () => {
   })
 
   it('does not call the network AT ALL for a refused span', async () => {
-    render(<Probe keys={['breadth_score']} from="2010-01-01" to="2026-01-01" />)
+    render(<Probe keys={['breadth_score']} from="1990-01-01" to="2026-01-01" />)
     await waitFor(() => expect(state().tooWide).toBe(true))
     const asked = fetchMock.mock.calls.filter(c => String(c[0]).includes('/series'))
     expect(asked, 'a refused range still reached the server').toHaveLength(0)

@@ -168,3 +168,9 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 # no pull, merge, rebase, `git worktree add` or `git checkout` can ever put it in the
 # integrator's tree. Somebody has to stand in a throwaway worktree and write it.
 .mutation-sandbox
+
+# Breadth Data Charts screenshot harness working output (DC-2 §3.2).
+# ⛔ The GOLDENS are tracked (docs/breadth-data-charts/shots-golden/); this is the
+# scratch directory a run writes before it is compared, and committing it would
+# make every capture a diff.
+docs/breadth-data-charts/shots/
