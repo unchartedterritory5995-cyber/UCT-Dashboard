@@ -124,6 +124,18 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
         for pname, prof in PROFILES.items():
             for theme in ("dark", "light"):
                 ctx = browser.new_context(color_scheme=theme, **prof)
+                # ⛔⛔ THE APP'S THEME COMES FROM A PREFERENCE, NOT FROM prefers-color-scheme.
+                # `Layout.jsx:81` sets `documentElement.dataset.theme` from `prefs.theme`; the
+                # stylesheet keys on `[data-theme=...]` and `prefers-color-scheme` appears nowhere
+                # in it. Passing Playwright's `color_scheme` therefore changed NOTHING — pass 2's
+                # first run produced twelve frames labelled "light" that were byte-for-byte the
+                # dark ones. A capture that cannot tell its two themes apart is not testing two
+                # themes; it is testing one and filing it twice.
+                ctx.route("**/api/auth/preferences", lambda route: route.fulfill(
+                    status=200, content_type="application/json",
+                    body=json.dumps({"joystick_hub": json.dumps(
+                        {"enabled": True, "handedness": "right", "surface": "simplified"}),
+                        "theme": theme})))
                 ok, who = ensure_account(ctx, base, email, password)
                 if not ok:
                     rows.append(dict(profile=pname, theme=theme, state="auth",
@@ -140,6 +152,17 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
                         page.wait_for_timeout(600)
                     except Exception:
                         pass
+
+                    applied = page.evaluate(
+                        "() => ({ attr: document.documentElement.dataset.theme || null,"
+                        "  bg: getComputedStyle(document.body).backgroundColor })")
+                    if applied["attr"] != theme:
+                        rows.append(dict(profile=pname, theme=theme, mode=mode, state="theme",
+                                         verdict="INCONCLUSIVE",
+                                         why=f"asked for data-theme={theme!r}, page has "
+                                             f"{applied['attr']!r} — the frames below would be "
+                                             f"mislabelled"))
+                        continue
 
                     show = page.evaluate(SHOWING_JS)
                     if not show.get("showing"):
@@ -158,7 +181,8 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
                     rows.append(dict(profile=pname, theme=theme, mode=mode, state="idle",
                                      verdict="CAPTURED", file=shot("idle"), synthetic=True,
                                      mounted=len(fan["mounted"]), visible=fan["visible"],
-                                     chip=fan["chipText"], box=show.get("box")))
+                                     chip=fan["chipText"], box=show.get("box"),
+                                     theme_attr=applied["attr"], page_bg=applied["bg"]))
 
                     idle_visible = fan["visible"]
 
