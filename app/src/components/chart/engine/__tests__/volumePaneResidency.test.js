@@ -571,3 +571,59 @@ describe('⚰️⚰️ A VACATED LEFT SCALE FREEZES THE CHART', () => {
       .toBeLessThan(passTwoAt)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔⛔ A RESIDENT IS AN INTENT — THE SERIES HAS NOT MOVED YET.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('⚰️ MOVING AN EXISTING OVERLAY INTO VOLUME', () => {
+  it('27. the engine says the pane is required the instant Display flips to Volume', () => {
+    // ⚰️⚰️ THE DEFECT, MEASURED IN THE LIVE HARNESS 2026-09-18. With native Volume
+    // removed and NO volume pane on screen, "Display in: Volume" did nothing: the
+    // MA stayed in the candles. `displayTarget` names a resident by INTENT, and in
+    // that frame the series is still sitting in PRICE's pane — so the renderer's
+    // `paneOf('volume')` answered with PRICE's rectangle, `prepareArrangement`
+    // swapped Price out of slot 0 to make room for a pane it already had, the
+    // binder placed the guest at the volume index (Price's old pane), and the
+    // sweep reclaimed the leftover. One pane, and the member's choice lost.
+    //
+    // ⭐ `null` IS THE HONEST MID-TRANSITION ANSWER — the volume key has no pane
+    // YET. The renderer creates one and the binder moves the guest into it.
+    const base = fresh({ volume: { visible: true, separatePane: true } })
+    const added = addInstance(base, 'movingAverage', registry)
+    const id = lastCreatedInstance(base, added).instanceId
+    // A PRICE overlay: source is the candles, home is the candles.
+    const onPrice = setInstanceDisplayTarget(added, id, 'price', registry)
+    const gone = removeVolume(onPrice)
+    expect(volumePaneRequired(optsFor(gone)), 'a price overlay held the volume pane').toBe(false)
+
+    const toVolume = setInstanceDisplayTarget(gone, id, 'volume', registry)
+    expect(resolveDisplayTarget(toVolume.indicatorInstances.find((i) => i.instanceId === id), toVolume))
+      .toBe('volume')
+    expect(volumePaneRequired(optsFor(toVolume)),
+      'the member sent it to Volume and the pane was not required').toBe(true)
+  })
+
+  it('28. …and sending it back to Price gives the pane up again', () => {
+    const base = fresh({ volume: { visible: true, separatePane: true } })
+    const added = addInstance(base, 'movingAverage', registry)
+    const id = lastCreatedInstance(base, added).instanceId
+    const gone = removeVolume(setInstanceDisplayTarget(added, id, 'volume', registry))
+    expect(volumePaneRequired(optsFor(gone))).toBe(true)
+    const back = setInstanceDisplayTarget(gone, id, 'price', registry)
+    expect(volumePaneRequired(optsFor(back)), 'an empty rectangle survived the move out').toBe(false)
+  })
+
+  it('⛔ 29. the renderer never names the CANDLES’ pane as the volume pane', () => {
+    // The ordering contract, read from the source: `_volResidentPane` is what both
+    // `paneOf('volume')` and the native bars' creation index go through, and it
+    // must skip a resident still sitting in Price. Without the skip, `addSeries`
+    // draws the volume bars straight over the candles.
+    const body = readFileSync(path.resolve(BINDER_DIR, '../../../StockChart.jsx'), 'utf8')
+    const fn = body.slice(body.indexOf('const _volResidentPane'), body.indexOf('const _volResidentPane') + 900)
+    expect(fn, 'the price-pane exclusion is gone').toMatch(/priceIdx/)
+    expect(fn).toMatch(/gp\.paneIndex\?\.\(\) === priceIdx\) continue/)
+    // …and both consumers go through it rather than scanning bindings themselves.
+    expect(body).toContain('return _volResidentPane()')
+    expect(body).toContain('const i = _volResidentPane()?.paneIndex?.()')
+  })
+})

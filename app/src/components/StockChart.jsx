@@ -10978,6 +10978,39 @@ export default function StockChart({
     /** The instance ids drawing INSIDE the volume pane — `displayTarget`'s answer,
      *  and the same set `excludeKeys` subtracts from the pane stack. */
     const _volResidents = volumeResidentKeys(cs, engineInstances)
+    /**
+     * The physical pane a volume RESIDENT is in right now — or `null`.
+     *
+     * ⛔⛔ AND IT NEVER ANSWERS WITH THE CANDLES' PANE. A resident is named by
+     * `displayTarget`, which is an INTENT; the series itself does not move until
+     * the binder relocates it. So in the frame where a member sends an existing
+     * Price overlay to Volume, the "resident" is still sitting in Price — and
+     * answering with that pane told `prepareArrangement` that PRICE's rectangle
+     * was the volume one. It duly swapped Price out of slot 0 to make room, the
+     * binder placed the guest at the volume index (now Price's old pane), and the
+     * empty rectangle was reclaimed: ONE pane, and the member's "Display in:
+     * Volume" did nothing. MEASURED in the live harness 2026-09-18.
+     *
+     * ⭐ `null` IS THE HONEST ANSWER MID-TRANSITION — the volume key has no pane
+     * yet. `prepareArrangement` then simply creates one, the binder moves the
+     * guest into it, and the NEXT sync answers properly.
+     */
+    const _volResidentPane = () => {
+      if (!_volResidents.size) return null
+      try {
+        const priceIdx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
+        const gs = engineRef.current?.binder?.bindings?.()
+        if (!Array.isArray(gs)) return null
+        for (const g of gs) {
+          if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
+          const gp = g.series.getPane?.()
+          if (!gp) continue
+          if (Number.isInteger(priceIdx) && gp.paneIndex?.() === priceIdx) continue
+          return gp
+        }
+      } catch { /* pane API unavailable */ }
+      return null
+    }
     const hasVolumeBand = showVolume && volData.length > 0 && !nativeVolSeparate
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
@@ -11209,18 +11242,11 @@ export default function StockChart({
       // same set `excludeKeys` subtracts — so there is no second rule here.
       const _volCreateIndex = (() => {
         if (!nativeVolSeparate) return 0
-        if (!_volResidents.size) return 1
-        try {
-          const bs = engineRef.current?.binder?.bindings?.()
-          if (Array.isArray(bs)) {
-            for (const g of bs) {
-              if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
-              const i = g.series.getPane?.()?.paneIndex?.()
-              if (Number.isInteger(i)) return i
-            }
-          }
-        } catch { /* fall through to the cold-chart answer */ }
-        return 1
+        // ⛔ THE SAME EXCLUSION, FOR THE SAME REASON — a resident that has not been
+        // relocated yet is sitting in PRICE's pane, and creating the bars there
+        // would draw volume over the candles.
+        const i = _volResidentPane()?.paneIndex?.()
+        return Number.isInteger(i) ? i : 1
       })()
       if (!volumeSeriesRef.current) {
         const volOpts = {
@@ -11655,15 +11681,7 @@ export default function StockChart({
             // realiser needs the pane a key currently occupies; with the bars
             // deleted that is the resident's pane, and returning null here would
             // let the sweep reclaim a pane something is still drawing in.
-            if (!_volResidents.size) return null
-            const gs = engineRef.current?.binder?.bindings?.()
-            if (!Array.isArray(gs)) return null
-            for (const g of gs) {
-              if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
-              const gp = g.series.getPane?.()
-              if (gp) return gp
-            }
-            return null
+            return _volResidentPane()
           }
           const bs = engineRef.current?.binder?.bindings?.()
           if (!Array.isArray(bs)) return null
