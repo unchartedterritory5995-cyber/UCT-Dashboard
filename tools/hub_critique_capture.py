@@ -46,19 +46,17 @@ PROFILES = {
 # Routes worth photographing: one mode with a full fan, one with only the pair, and Home.
 ROUTES = [("chart", "/charts"), ("journal", "/journal/trades"), ("home", "/dashboard")]
 
-SHOWING_JS = """
-() => {
-  const el = document.querySelector('[data-testid="hub-root"]');
-  if (!el) return { present: false, showing: false, why: 'no hub-root in the DOM' };
-  if (el.hasAttribute('hidden')) return { present: true, showing: false, why: 'hidden attribute set' };
-  const cs = getComputedStyle(el);
-  if (cs.display === 'none') return { present: true, showing: false, why: 'computed display:none' };
-  if (cs.visibility === 'hidden') return { present: true, showing: false, why: 'visibility:hidden' };
-  const r = el.getBoundingClientRect();
-  if (r.width === 0 || r.height === 0) return { present: true, showing: false, why: `zero box ${r.width}x${r.height}` };
-  return { present: true, showing: true, box: { w: Math.round(r.width), h: Math.round(r.height) } };
-}
-"""
+# ⛔⛔ THE PREDICATE IS READ FROM THE PRODUCT, NOT RE-TYPED HERE. `app/src/hub/hubShowing.js` is
+# its single authority and `hubShowing.test.js` drives it to BOTH answers in the suite. A copy in
+# this file would agree with that one right up until the moment they disagreed — which is the only
+# moment anyone would read either — and it is the copy in the INSTRUMENT that would be wrong,
+# silently, while still producing confident frames.
+_SHOWING_SRC = (Path(__file__).resolve().parents[1]
+                / "app" / "src" / "hub" / "hubShowing.js").read_text(encoding="utf-8")
+assert "function hubShowing" in _SHOWING_SRC, "hubShowing.js no longer defines hubShowing"
+assert "function showingFromTriple" in _SHOWING_SRC, "hubShowing.js no longer defines the verdict layer"
+SHOWING_JS = (_SHOWING_SRC.replace("export function", "function")
+              + "; (() => hubShowing(document, window))()")
 
 # Synthetic pointer events, dispatched on the pad with the fields the engine actually reads.
 PTR_JS = """
