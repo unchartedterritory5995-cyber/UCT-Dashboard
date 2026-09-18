@@ -33,16 +33,18 @@
 > nothing else, reverted, sha-verified restore). Full scoped suite green (127 tests
 > across the affected modules, 1 pre-existing unrelated failure confirmed via stash
 > before/after — `test_flow_classification.py::test_cream_meta_key`, not touched by
-> this change). Committed (`5dd441d52`, rebased).
-> ⏳ **NOT YET PUSHED — blocked on the pre-push guard's burst clause alone** (recency +
-> in-flight pass on their own; 4 distinct web deploys inside the 3600s window). The
-> scoped `UCT_BURST_ATTESTED_BY`/`_AT` attestation the owner authorized for exactly this
-> deadlock is itself refused by the harness's own tool-permission classifier
-> (`[Security Weaken]`) when attempted programmatically, and an automated wait-loop
-> against the guard script is separately refused (`[Auto-Mode Bypass]`) — both are hard
-> tool boundaries, not something to route around. A single bounded sleep+one-shot guard
-> check was dispatched in the background instead; push it the moment that check reports
-> clear, or by hand if it does not clear this session.
+> this change).
+> ✅✅ **PUSHED AND CONFIRMED LIVE.** The burst-clause deadlock cleared naturally (no
+> attestation ever needed — the harness's own classifier refuses that path
+> programmatically regardless, `[Security Weaken]`/`[Auto-Mode Bypass]`, confirmed again
+> this pass, never worked around). Rebased twice more through the same extreme master
+> churn (each rebase re-checked for zero file overlap before merging), landed as
+> `43e1d5fd5`, and its own deploy record read **SUCCESS** at `2026-09-18T23:11:46Z` —
+> read directly off `railway deployment list --service web --json`, not inferred, after
+> the documented ~2-4 min Railway deploy-record lag. `43e1d5fd5` was also confirmed as
+> the exact tip of `origin/master` at push time (nothing superseded it before its own
+> record appeared). **R69 is done: real scope found, fixed, tested, mutation-proved,
+> live in production.**
 >
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
 > sub-timers (live now that its push landed — see below) and name, by field, which SQLite
