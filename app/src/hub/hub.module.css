@@ -31,13 +31,26 @@
 /* The brand's 8-tick compass ring — repeating-conic-gradient (8 * 45deg = a
    full turn) punched into a ring by a radial mask. Dual-declared for Safari. */
 .padRing {
+  /* ⛔ THE PAD READ AS A DISABLED RADIO BUTTON — R8 pass 2, F8.
+     ─────────────────────────────────────────────────────────────────────────────────────────────
+     ⚰️ SHIPPED: 8 ticks around the ring (`0deg 1deg, transparent 1deg 45deg`), each ONE degree
+     wide, in `--hub-tick` at 14% of text-heading. On a 84px pad that made each tick ~0.7px — sub-
+     pixel on every phone this ships to — over a background at 8% opacity. Result: a flat grey
+     circle with no read of "instrument", the exact frame the design bar's §1 calls out (the pad
+     was in the "at rest" element count that used to say three).
+
+     ⭐ EIGHT TICKS AT CARDINAL AND INTERCARDINAL POSITIONS is the right vocabulary — a thumb has a
+     ROTATIONAL relationship with the pad, and eight is what a knurled dial suggests without
+     announcing itself. Kept. What changed: each tick is 4°, at slightly stronger opacity, and the
+     mask is thinner (73%→75% instead of 67%→74%), so the ring reads as a band of marks rather
+     than a full-width plate. */
   position: absolute;
   inset: 5px;
   border-radius: var(--radius-pill);
-  background: repeating-conic-gradient(var(--hub-tick) 0deg 1deg, transparent 1deg 45deg);
-  -webkit-mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
-  mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
-  opacity: 0.7;
+  background: repeating-conic-gradient(var(--hub-tick) 0deg 4deg, transparent 4deg 45deg);
+  -webkit-mask: radial-gradient(circle, transparent 71%, black 73%, black 78%, transparent 80%);
+  mask: radial-gradient(circle, transparent 71%, black 73%, black 78%, transparent 80%);
+  opacity: 0.9;
   pointer-events: none;
 }
 
