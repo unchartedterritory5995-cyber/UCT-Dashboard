@@ -4,8 +4,89 @@
   "_profile": "Every entry names the ONE rig profile explicitly. The default resolves against the CURRENT worktree, which does not hold it, and a missing profile is a SIGNED-OUT profile.",
   "queue": [
     {
-      "id": "w2-deferred-by-guard-banking-run",
+      "id": "p2-2.8b-second-writer-while-away",
       "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. 2.8b is fix 4's production proof and it runs THE EDITOR PATH - the path `persist` now guards after Q1 fix 6. A second signed-in context moves the server revision while the first is away and offline; the member returns and their words must survive. GREEN here is the evidence that fix 6 did not break the designed rebase path on production. ⛔ It has timed out before (exit 124); an INCONCLUSIVE is requeued, never banked.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "folder",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ]
+    },
+    {
+      "id": "p2-metadata-settle-first-folder",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `folder` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "folder",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ]
+    },
+    {
+      "id": "p2-metadata-settle-first-ticker",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `ticker` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "ticker",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ]
+    },
+    {
+      "id": "p2-metadata-settle-first-tags",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `tags` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "tags",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ]
+    },
+    {
+      "id": "p2-metadata-settle-first-hero",
+      "status": "pending",
+      "why": "P2 stage-1 proof, guard still FULL. The `hero` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
+      "expect": "GREEN",
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--family",
+        "hero",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ]
+    },
+    {
+      "id": "w2-deferred-by-guard-banking-run",
+      "status": "held",
       "why": "W2. ONE banking run of append_widget_embed with the FOURTH OUTCOME (W1) live, to bank the DEFERRED-BY-GUARD reading with a raw artifact. D1 is proven on production and the five append cells can no longer reach the loss path, so this run is not trying to reproduce anything: it is recording, once, that the door was driven to completion and the guard stopped it with the member told. Expected verdict DEFERRED-BY-GUARD; RED would mean the guard did not hold and is a finding; INCONCLUSIVE means the toast was not on screen and nothing was measured.",
       "expect": "DEFERRED-BY-GUARD",
       "cmd": [
@@ -15,7 +96,8 @@
         "append_widget_embed",
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
-      ]
+      ],
+      "held_why": "⛔ P3 MAY NOT RUN BEFORE P2 IS GREEN - it is a named STOP condition. This cell is stage 2 (the door itself, with NOTEBOOK_DOOR_GUARD flipped to unknown-only). It is released only after the P2 cells below all read GREEN with raw artifacts, and only with a window inside 30 minutes and the flag verified in-process. Held, not deleted, so the next reader sees a decision."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",
