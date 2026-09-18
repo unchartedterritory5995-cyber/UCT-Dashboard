@@ -1074,3 +1074,87 @@ specification for beyond its name and requirement, and commits PRODUCTION's live
 chain to a multi-night, multi-hundred-to-multi-thousand-dollar autonomous spend. Stopped
 for the owner's decision with the real numbers in hand. Full session record:
 `docs/recon/2026-09-18-session25-haiku-in-container.md`.
+
+### 2026-09-18 — Session 27: R79/R100 landed, then R99/R100-cost-attack — every lever smaller than hoped
+
+**R79 (owner ruling)**: a floored record with no measurement yet (stability/runs NULL, or
+runs < MIN_RUNS) is now **PENDING**, distinct from **BLOCK** (measured and below the floor).
+`floor.passes()`/`sql_clause()` are UNCHANGED — PENDING still withholds publication exactly
+like BLOCK always did. What changed: `enqueue_blocked` only queues genuine BLOCK rows now;
+PENDING is counted (`records_pending`, on the admin `/status` route) but never reaches the
+owner's review queue. This REVERSES R89's own prior, explicitly-documented choice to queue
+PENDING identically to BLOCK — see `floor.py`'s `status()` docstring and the rewritten tests
+in `test_wisdom_item3_floor.py` for the full reasoning either direction.
+
+**R100 (owner ruling)**: `pending_segments` selects fresh segments by
+`config.category_priority_order()` (15 named categories, R15-normalised) before date. Two-phase
+fetch (lightweight sort, then a targeted full refetch) so a 26k-segment backlog doesn't load
+full text just to order it. `WISDOM_EXTRACT_PRIORITY` overrides; unset uses the owner-approved
+default order.
+
+**Both armed for real** (`WISDOM_EXTRACT_ENABLED=1`, N=3, 6,000-request/night limit, $1,800/$400
+programme/night budget) — then **PAUSED** (`WISDOM_EXTRACT_ENABLED=0`) before its first
+scheduled run, at the owner's explicit direction, because the very next session attacked the
+cost basis the arming was built on. Re-arming needs a fresh owner ruling on the priced table
+below, not an assumption that pausing was temporary.
+
+⛔⛔ **THE COST-REDUCTION LEVERS ALL UNDERDELIVERED RELATIVE TO THE HOPE, MEASURED FOR ~$0.77
+REAL SPEND.** Full numbers: `docs/wisdom/COST-REDUCED-PRICING-2026-09-18.md`,
+`docs/recon/2026-09-18-session27-cost-levers.md`.
+
+- **Sonnet measured ~30% cheaper than Opus per segment, not ~80% cheaper.** `claude-sonnet-5`
+  is 2.5x cheaper than Opus per TOKEN ($2/$10 vs $5/$25); the real gap is much smaller because
+  Sonnet generates proportionally more output for this extraction task. Quality is UNMEASURED —
+  the golden run was interrupted at 19 of 83 segments (see the container-restart incident below)
+  and per-type predicted counts at that N are single digits, too small to answer
+  R101_CLEAR_RULE. Completing a real, recordable verdict needs ~$2.58 more than what was spent.
+- **The lexical pre-screen (R102) skips ~8.9% of segments, not 40-60%.** The screen fires on
+  ANY of seven broad signals (cashtag, ticker-shaped token, company name, sector word, price
+  token, principle vocabulary, signal vocabulary) and trading-show narration trips at least one
+  of them almost everywhere — the screen is deliberately loose (golden-v1.1's own design:
+  absence must be the safe claim), which is exactly what caps its value as a cost lever.
+  Zero recall loss measured on the 83-segment golden split. Built
+  (`tools/wisdom/null_screens.py` + `api/services/wisdom/extract/prescreen.py`,
+  `WISDOM_EXTRACT_PRESCREEN_ENABLED`), NOT enabled.
+- **Targeted N (R103) density is 31.3%, not "most segments."** 68.7% of segments produce at
+  least one floored-type record on pass 1 alone and would still need passes 2/3; only 31.3%
+  could ever skip them, saving ~21% of total N=3 spend. Measured from gate-run-3's real 3-pass
+  data; the production pass-scheduling change itself was NOT built, on the reasoning that a 21%
+  return should be priced before the engineering is spent building it.
+- **Output cap (R104) real savings are unquantified.** The measured distribution is real (p50
+  2,259 / p90 10,376 / p99 15,522 / max 18,857 tokens), but a cap's true recall cost depends on
+  where in a truncated response the lost records fall — unmeasurable at $0, since production
+  already retries a `max_tokens` stop at lower effort rather than losing the request outright.
+  A pessimistic (whole-response-lost) upper bound is documented; the honest number needs a real,
+  cheap re-run this session did not spend on.
+- **Cache (R105) is already substantially exploited**: `cache_read_share: 0.7594` on Opus's own
+  gate-run-3 calibration. No further lever identified.
+- **Stacked, honestly:** Opus + prescreen + targeted-N ≈ **$2,300–3,500** for the full corpus at
+  N=3 (down from $3,175–4,872), roughly a quarter to a third off, not an order of magnitude.
+
+⛔⛔ **A CONTAINER RESTART MID-RUN LOST NO MONEY BUT LOST ALL LOCAL STATE, BECAUSE THE STATE WAS
+PUT IN THE WRONG PLACE.** Railway's "sleep when idle" restarted the web pod mid-Sonnet-run (the
+same incident class as `incident_web_bars_coverage_collapse_2026_08_25`). The two in-flight
+batches survived on Anthropic's side untouched (batches are async, server-side, addressable by
+ID regardless of local process state — the same fact session 25 already established for an ssh
+disconnect). **What was lost: `extract_golden_gate.py`'s own `--db`/`--out-dir`/ledger, because
+this session put them under `/tmp`** (ephemeral container filesystem, wiped on restart) instead
+of `/data/wisdom/scratch/` (the persistent volume). `/tmp` was the RIGHT choice for the read-only
+sample/golden data reused from session 25; it was the WRONG choice for anything that needs to
+survive past one process's lifetime. **Rule for the next golden-gate run in-container: `--db`,
+`--out-dir` and `--ledger` all belong under `/data/wisdom/scratch/`, never `/tmp`, whatever else
+is true about the run.** Recovery without any resubmission or double-charge was still possible —
+`run_batch_round`'s custom_id scheme (`g{phase[:1]}{round:02d}x{i:03d}`, `i` a chunk-local index
+into `load_gate_segments()`'s deterministic sorted output) let the exact segment correspondence
+be reconstructed from the batch IDs alone — but that recovery cost real engineering time an
+un-lost run would not have needed.
+
+**Pricing discrepancy resolved for Wisdom, filed for its owner:** Anthropic's real Sonnet-5
+price is $2/$10/MTok (fetched from the official pricing page, 2026-09-18) — `budget.py`'s row
+is correct. `api/services/catalyst/cost_guard.py`'s `claude-sonnet-5` row ($3/$15) duplicates
+the Sonnet-4.6 legacy price onto the 5 key. Wrong, and not this session's file to fix — a
+different subsystem. Filed here so the catalyst engine's owner finds it.
+
+**Nothing armed by this session beyond what session 26 already armed and this session then
+paused.** `R95` (path selection) and `R106` (a monthly spend line) are open owner questions;
+see the recon doc's own "what's still open" section.
