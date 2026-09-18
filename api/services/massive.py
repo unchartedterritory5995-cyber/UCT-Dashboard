@@ -1785,35 +1785,13 @@ def list_reference_tickers(active: bool = True, market: str = "stocks",
     return out
 
 
-def get_split_tickers(from_iso: str, to_iso: str) -> set:
-    """Set of tickers (provider-form) with a stock split whose execution_date falls in
-    [from_iso, to_iso]. Paginated /v3/reference/splits — a handful of calls covers the
-    whole market for a 30–90 day window.
-
-    Lets a return computation tell a REAL split (trust the split-adjusted close) from the
-    provider's PHANTOM adjustment (a name with no real split whose adjusted feed is still
-    divided by a bogus factor → trust the raw close). set() on error."""
-    out: set = set()
-    try:
-        client = _get_client()
-        url = (
-            f"{_REST_BASE}/v3/reference/splits"
-            f"?execution_date.gte={from_iso}&execution_date.lte={to_iso}"
-            f"&limit=1000&apiKey={client._api_key}"
-        )
-        for _ in range(20):  # safety cap on pagination
-            data = client._get(url) or {}
-            for r in (data.get("results") or []):
-                t = r.get("ticker")
-                if t:
-                    out.add(str(t).upper())
-            nxt = data.get("next_url")
-            if not nxt:
-                break
-            url = f"{nxt}&apiKey={client._api_key}"
-    except Exception:
-        return set()
-    return out
+#: ⚰️ D5 CP3 — `get_split_tickers` was retired here (2026-09-18). It was built,
+#: never tested (no test file existed) and reachable by ZERO callers
+#: (`tools/corp_actions_census.py`'s own 106-importer control). Its
+#: functionality — Massive's `/v3/reference/splits`, paginated — is now owned
+#: by `api/services/reference_corp_actions.py::fetch_confirmed_splits`, which
+#: keeps the full row detail (execution date + ratio) this function discarded,
+#: since a "confirmed row" needs more than ticker-set membership.
 
 
 def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:

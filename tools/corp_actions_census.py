@@ -119,15 +119,23 @@ REGISTER: dict[tuple, tuple] = {
         "unadjusted. CP4's dual-compute target; it is also an INERT STRAND "
         "(flow-worker RUNS this file and does not WATCH it), so CP4 must "
         "classify live-or-incidental before it merges."),
-    ("api/services/massive.py", PROVIDER_READ): (
-        OUTSTANDING,
-        "Massive /v3/reference/splits behind get_split_tickers, which the D5 "
-        "pass measured at ZERO call sites against a 106-importer control — "
-        "built, green and reachable by nothing. Retiring it is CP3's, not CP1's."),
+    # ⛔ D5 CP3 (2026-09-18): `massive.get_split_tickers` — the OUTSTANDING row
+    # this used to be — is RETIRED (zero callers, zero tests; superseded
+    # below). The confirmed source now lives in its own file, MIGRATED.
+    ("api/services/reference_corp_actions.py", PROVIDER_READ): (
+        MIGRATED,
+        "D5 CP3 — the one confirmed splits source. Massive /v3/reference/"
+        "splits, its own pagination, writes confirmed_splits rows. Nothing "
+        "reads the ledger yet (CP4/CP7 are the readers)."),
     ("api/services/polygon_extras.py", PROVIDER_READ): (
-        OUTSTANDING,
+        OUTSIDE,
         "Massive /v3/reference/splits AND /v3/reference/dividends — the only "
-        "file reading both. CP3 moves the splits half behind a D1 adapter."),
+        "file reading both. D5 CP3 (2026-09-18) built the one confirmed splits "
+        "source elsewhere WITHOUT migrating this file's live consumer (the "
+        "voice assistant's corporate-actions tool, voice_tool_impls.py:340) — "
+        "'nothing reads the ledger yet' is this checkpoint's own stated scope. "
+        "Migrating the voice tool to read D5's ledger is a separate, later "
+        "change, not a second confirmed-source list."),
     ("api/services/breadth_dividends.py", PROVIDER_READ): (
         OUTSIDE,
         "Massive /v3/reference/dividends, consumed to build the breadth "
@@ -220,6 +228,20 @@ REGISTER: dict[tuple, tuple] = {
         "prebuilt watchlists. Same basis question, a different surface, and it "
         "also constructs its own Massive URL (already quarantined in "
         "tools/massive_guard_census.py). CP7's label."),
+
+    # ⛔ D5 CP3 (2026-09-18) — a false positive, found while re-running the
+    # census: this is NOT a price-adjustment call. `get_gex_data(ticker,
+    # adjusted=...)` selects between two GEX/dealer-positioning DATA SOURCES
+    # (web's frozen pre-cutover snapshot vs flow-worker's own live loop) —
+    # confirmed by reading the file; "adjusted" here shares no meaning with a
+    # split/dividend adjustment basis. Registered OUTSIDE rather than left
+    # UNREGISTERED, keeping the shared instrument's verdict honest for every
+    # other checkpoint that reads it.
+    ("api/services/wisdom/capture/families/gex.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "keyword collision, not a corporate-action call: 'adjusted' here picks "
+        "which GEX/dealer-positioning data source to read (web's frozen "
+        "snapshot vs flow-worker's live loop), never a price series basis."),
 }
 
 
