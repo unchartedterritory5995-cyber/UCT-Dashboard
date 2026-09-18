@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 1671,
+  "passed": 1661,
+  "failed": 10,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 225.78,
+  "failed_files": [
+    "tests/test_ticker_logos.py",
+    "tests/test_ticker_meta.py",
+    "tests/test_two_engines_do_not_agree.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "10 failed, 1661 passed, 266 warnings in 225.78s (0:03:45)",
+  "ok": true
+}
