@@ -231,3 +231,200 @@ at GitHub, which sees the push itself; it cannot come from polling Railway.
 recorded as a class and not an incident: reading `%an` for authorship when every commit
 carries one name, and reading a `/tmp` path that bash and Python resolve differently. In
 all three the instrument worked perfectly and was pointed at the wrong thing.
+
+
+## Owner items — 2026-09-17: one CLOSED, one BLOCKED at the write
+
+### ✅ 3.7 CLOSED — `gh` is installed and authenticated, with no secret typed
+
+⭐ **A credential already existed on the box and carried enough scope.** Discovered read-only,
+never printed:
+
+    git credential fill (non-interactive)  -> username unchartedterritory5995-cyber
+    X-OAuth-Scopes                          : gist, repo, workflow
+    repos/.../UCT-Dashboard .permissions    : admin=true, maintain, push, pull
+
+⛔ **`gh auth login --with-token` REFUSES this token** — *"missing required scope
+`read:org`"* — which the repo does not need and the token does not have. The working path is
+the one `gh` itself names in its error: **`GH_TOKEN`**, which skips login-time scope
+validation. Set per-process, never persisted, never written to a file.
+
+    export GH_TOKEN=$(printf 'protocol=https
+host=github.com
+username=<owner>
+
+'       | git -c credential.interactive=false credential fill | sed -n 's/^password=//p')
+
+⚠️ **`GCM_INTERACTIVE=never` and `GIT_TERMINAL_PROMPT=0` are required.** A bare
+`git credential fill` launched `git-credential-manager` as a **GUI prompt** and hung the
+session until the process was killed — the blocking-dialog hazard, live.
+
+⛔ **NON-VACUITY, because an empty answer from `gh` looks like a quiet repo:** `gh run list
+--commit <sha>` returns **nothing** even when runs exist. `gh api
+repos/.../actions/runs?head_sha=<full sha>` returns them. The control (an unfiltered
+`gh run list`) returns rows, so the client works and the **flag** is what is broken.
+
+### ⛔ BLOCKED — `production` branch protection. One action, and it is the owner's.
+
+Everything up to the write is done and verified. The **write was denied by this session's
+permission classifier**, and it was not worked around: not via a peer session (that is the
+same denial laundered), and not via any other path.
+
+**Measured state:** repo is **User-owned, public**; **0 rulesets**; `production` has **no**
+branch protection; **no deploy keys**.
+
+⭐ **The design changed once C1 was measured, and the measurement is the reason.**
+`promote-production.yml:168` pushes `git push origin "$SHA":refs/heads/production` using
+`actions/checkout@v4` credentials — i.e. **`GITHUB_TOKEN`**, under `permissions: contents:
+write`. That is already a **separate identity** (`github-actions[bot]`), not the owner. A
+deploy key would be the right answer only if the workflow pushed as the owner; it does not.
+And a deploy key stored as an Actions secret is readable by any workflow, so it buys **no**
+isolation over bypassing the Actions integration — only more moving parts, a private key at
+rest, and an edit to a file another workstream is actively changing.
+
+**Ready to apply, unchanged, by anyone with the permission:**
+
+```jsonc
+// gh api -X POST repos/<owner>/<repo>/rulesets --input ruleset.json
+{
+  "name": "production is promoted, never pushed",
+  "target": "branch",
+  "enforcement": "disabled",          // ⛔ create DISABLED, verify, then set "active"
+  "conditions": { "ref_name": { "include": ["refs/heads/production"], "exclude": [] } },
+  "bypass_actors": [
+    { "actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always" }  // GitHub Actions
+  ],
+  "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" }, { "type": "update" } ]
+}
+```
+
+⛔ **Owner/admin is deliberately NOT a bypass actor.** The entire point is that a session
+pushing with the owner's credential — which is exactly what every session on this box has —
+is refused.
+
+⛔⛔ **VERIFY BOTH DIRECTIONS BEFORE WALKING AWAY, and production must never be left
+un-promotable:**
+1. a non-workflow `git push origin HEAD:production` from a throwaway worktree must be
+   **rejected** — paste the rejection;
+2. the next master landing must still **fast-forward** `production` — cite the run URL and the
+   new SHA;
+3. if (2) fails, `gh api -X PUT repos/.../rulesets/<id>` with `"enforcement": "disabled"`
+   **immediately**, and record the id here.
+
+⚠️ `"enforcement": "evaluate"` is **not** available on a user-owned repo; `disabled` → verify
+→ `active` is the substitute, and the verification in (1)/(2) is not optional because of it.
+
+---
+
+## DEPLOY — 2026-09-18 · `8568d13ad` · **Q1 fix 6 + the `NOTEBOOK_DOOR_GUARD` mode flag**
+
+**The writer is fixed. The guard is still fully on. Nothing a member does changes today.**
+
+### What shipped
+
+| | |
+|---|---|
+| **fix 6** | `discardsUnsentWork(prev, incoming)` in `recoverLocalState.js` — ONE authority, asked by BOTH `settleLandedSave` and `persist` |
+| **the lever** | `NOTEBOOK_DOOR_GUARD` = `full` (default) \| `unknown-only`, read PER REQUEST, latched per tab |
+| product files | `useDurableNote.js`, `recoverLocalState.js`, `noteHasUnsentWork.js`, `notebookFlags.js`, `AuthContext.jsx`, `api/routers/auth.py`, `api/services/feature_flag_index.py` |
+| ⛔ NOT touched | `outboxDrain.js` — the writer was in `useDurableNote`; the drain's own sites already prove content |
+
+### The writer, cited
+
+> **`persist` at `useDurableNote.js:480`, spy call 1** —
+> `app/src/pages/journal-2-0/lib/offline/q1AppendWriterCensus.test.jsx`
+
+```
+n:1  writer persist   intent NULL
+     dirty 1 -> 0 · sentence-in-record true -> false · queued 1 -> 0
+```
+
+The FUNCTION is the spy's answer; the LINE is `tools/q1_clean_write_sweep.mjs`'s
+(acorn); `grep -n` agrees with both. Committed RED, with reason + `waits_on`,
+**before** any fix existed.
+
+### Mutation proofs — bytes captured first, restored by sha256, never `git checkout`
+
+| | |
+|---|---|
+| **M1** fix 6's own line reverted | reproduction RED, control GREEN |
+| **M2** `discardsUnsentWork` always false | **3 RED** — incl. **fix 4's** `remountNeverDiscardsUnsent` + `selfForkDoors`. One authority, one mutation, both fixes fall |
+| **M5** the guard mode ignored | 2 RED |
+| **M6** `unknown-only` also releasing UNREADABLE | 1 RED (one, not two — `connectThrows` is a different code path; stated, not rounded up) |
+| **M7** nothing-latched falling permissive | 4 RED, incl. the shipped-behaviour rails |
+
+### Gate
+
+**`gate-runs/2026-09-18T01-20-05`** on `1b0e8f0aa` — tree hash start == end == the
+gated SHA · **1408 files on disk == 1408 summed, RECONCILES** · 20,773 passed / 8
+failed · `expected_red` unexplained 0 · §8 sweep clean. Read BOTH ways: by hand
+**NEW=1**, `verdict_exit_code` **1** — they agree.
+
+The one NEW is **`surfaceMatrixIsCurrent`**, MASTER'S, banked in `additions` with
+owner (the JOYSTICK workstream) and its one-command fix. ⛔ Deliberately NOT
+fixed here: a Notebook change set editing `docs/plans/joystick/` is rule 12
+inverted. Seen failing on three separate trees.
+
+⭐ **Three earlier NEW were TIMEOUTS and were NOT banked.** Each passed alone by a
+wide margin (2856 / 1218 / 616 ms against a 15000 ms limit), and none recurred on
+the quieter second gate — two independent lines of evidence. A banked slot is one
+a real failure could later occupy unnoticed.
+
+⛔ **"No longer failing" was CHECKED, not banked.** All four named tests were run
+directly and pass; master's `61b3d2096` says so in its own subject. No silent drops.
+
+### Carry-over to the landing tree
+
+`C1` ok on everything but `docs/feature_flags.json` (which both sides touched, and
+whose own rail `test_feature_flag_ledger.py` is green on this tree) · `C3` ok ·
+**`C2` COULD NOT BE EVALUATED** · `C4` GREEN on the landing tree — **vitest 18
+files / 447 tests, python 460** · `C5` **PASSED** (see below).
+
+⛔⛔ **C2 IS STRUCTURALLY UNEVALUABLE IN THIS REPO AND THAT IS A REAL GAP.** It
+needs an AST import graph via `--edges-json`, and nothing here emits one
+(`tests_reaching.py` is Python-only). So C2 has been unknown on EVERY landing, and
+carry-over can therefore never hold on its own. ⛔ A dual-language edge emitter
+was deliberately NOT written to close it during this landing: a brand-new,
+unvalidated tool authored to turn an unknown into a green, with a production push
+riding on it, is manufacturing a pass. **Filed as a follow-up, not papered over.**
+C4 is the designed empirical answer, and it earned that here — see below.
+
+### ⭐ C4 CAUGHT A REAL DEFECT THE GATE COULD NOT
+
+Resolving a `docs/feature_flags.json` conflict, I appended master's five new
+entries in an unsorted position; a later master merge brought the same flags in
+their alphabetical slot, and three keys ended up **twice**. The ledger's loader is
+strict and raised on collection. **The full gate had been green — the defect was
+created AFTER it, by the merge.** That is exactly the interaction C4 exists to
+catch on the LANDING tree. ⛔ The two copies were COMPARED before either was
+dropped (all three identical; the script would have refused and printed both
+otherwise), every surviving key asserted by name, and the result re-parsed
+strictly to prove no duplicate remained.
+
+### Three-way verification
+
+| | |
+|---|---|
+| **workflow (C5)** | ⛔ could not be queried directly — the stored credential is not retrievable in this session. **Proven by consequence instead:** `production` only advances when the master deploy gate passes, and it advanced to exactly this SHA |
+| **production ancestry** | `origin/production` == **`8568d13ad`** — our landed SHA, 0 behind master |
+| **OUR OWN deploy record** | **`1b8df35c` → SUCCESS** (BUILDING → DEPLOYING → SUCCESS). Read by ITS OWN status, never the newest row |
+| **`/api/health`** | 200, uptime **52 → 58 → 62 s** — a fresh boot, tied to our own record reaching SUCCESS, not to an uptime we merely observed |
+
+### Flag state on production — verified IN-PROCESS
+
+```
+railway ssh --service web -> NOTEBOOK_DOOR_GUARD = None
+```
+
+**Unset in the RUNNING process**, not merely absent from `--kv`. The guard
+therefore reads its safe default `full`. ⭐ **Fix 6 is live with the mitigation
+still fully in front of it; no member-visible behaviour changed today.**
+
+### Rollback levers, IN ORDER
+
+1. **`railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`** — ⚠️ `--set`
+   REDEPLOYS; `delete` does NOT. Verify in-process via `railway ssh`, never `--kv`.
+   (A no-op while the flag is unset, which is today's state — it becomes the live
+   lever the moment P3 flips it to `unknown-only`.)
+2. **The kill switch `NOTEBOOK_OFFLINE_DEFAULT_ON=0`** — second, not first.
+3. Revert `8568d13ad` — last resort; it is a merge, so revert with `-m 1`.

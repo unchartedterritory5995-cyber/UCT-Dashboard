@@ -109,7 +109,14 @@ def test_the_ledger_does_not_describe_gates_that_no_longer_exist():
     UNION of both axes, so declaring a flag on either one can never read as rot.
     """
     roots = ffi.repo_roots(REPO)
-    existing = set(ffi.gates(roots, REPO)) | set(ffi.visibility_flags(roots, REPO))
+    # ⚠️ AND A THIRD AXIS, 2026-09-17. `NOTEBOOK_DOOR_GUARD` is a MODE:
+    # `is_gate()` is false for it (no ENABLED/DISABLE, no trailing _ON) and it is
+    # not a visibility flag either, so declaring it correctly made this rail
+    # demand its deletion — the rail reporting its own blindness and blaming the
+    # ledger, for the THIRD time. Same one-line fix as the visibility axis.
+    existing = (set(ffi.gates(roots, REPO))
+                | set(ffi.visibility_flags(roots, REPO))
+                | set(ffi.mode_flags(roots, REPO)))
     stale = sorted(set(_ledger()) - existing)
     assert not stale, (
         "docs/feature_flags.json declares gates the code does not read AT ALL. "

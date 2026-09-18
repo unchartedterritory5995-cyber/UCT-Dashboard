@@ -38,10 +38,10 @@ source, it is named as a document, not as a fact.**
 
 | # | Merge | Contents | Lane | State |
 |---|---|---|---|---|
-| 1 | **C1 — honest states** | A-01 (+A-38), A-09, A-10 (stale "as of"), A-12 (basis label), A-15 ("sessions"), A-35, A-34 | C | `UNKNOWN` |
-| 2 | **C2 — chart mechanics** | A-02, A-03, A-06, A-07, A-08, A-22, A-04, runtime magnitude rule replacing `MAX_ABS` | C | `UNKNOWN` |
-| 3 | **C3 — touch & ARIA** | A-19, A-24 | C | `UNKNOWN` |
-| 4 | **R1 — one registry** | canonical `chartMetrics.js`, `heatmapMetrics.js` as adapter, byte-identical `HM_METRICS` | R | `UNKNOWN` |
+| 1 | **C1 — honest states** | A-01 (+A-38), A-09, A-10 (stale "as of"), A-12 (basis label), A-15 ("sessions"), A-35, A-34 | C | ✅ **BUILT, in production** — `d6ac61816`, ancestor of `origin/master` |
+| 2 | **C2 — chart mechanics** | A-02, A-03, A-06, A-07, A-08, A-22, A-04, runtime magnitude rule replacing `MAX_ABS` | C | ✅ **BUILT, in production** — `0148ef52d`; `MAX_ABS` deleted, `chartMagnitude.js` is the live rule |
+| 3 | **C3 — touch & ARIA** | A-19, A-24 | C | ✅ **BUILT, in production** — merge `a9290e7f4` |
+| 4 | **R1 — one registry** | canonical `chartMetrics.js`, `heatmapMetrics.js` as adapter, byte-identical `HM_METRICS` | R | ⚠️ **PARTIAL** — adapter shipped (`6d944b8c8`), golden unregenerated; but **`mark` and `refLines` were never added**, and `mark` IS A-28 |
 | 5 | **B1 — series endpoint (dark)** | projected, pre-encoded, cached `/series` | B | ✅ **DONE** — merged `5a0e224f4`, deploy `5582d6d4`, contract `docs/breadth/api-series.md`, ruling D-041 |
 | 6 | **V2-1 — foundation** | flag, lazy V2 tab, `?tab=charts`, URL state, range pills, persistence, tokens + validated palette, responsive height, header/freshness | V2 | ⚠️ **PARTIAL** — see below |
 | 7 | **V2-2 — stacked panels** | A-05, magnitude split, metric-attached lines per panel, log scale, sticky colours, end labels | V2 | **NOT STARTED** |
@@ -49,12 +49,19 @@ source, it is named as a document, not as a fact.**
 | 9 | **V2-4 — controls** | preset sheet, metrics sheet, compact phone toolbar, A-17, A-18, A-20, A-26, A-27 | V2 | **NOT STARTED** |
 | 10 | **V2-5 — reading & sharing** | tooltip (A-25), keyboard + table (A-23), drill-through (A-29), export (A-30), shading (A-32), unoffered fields (A-33), percentile basis toggle | V2 | **NOT STARTED** |
 
-⚠️ **C1/C2/C3/R1 are `UNKNOWN`, not "done".** `STATUS.md` has no row for them in the format
-searched, and this session did not verify them from code. **What would answer it:** resolve
-each merge's A-numbers against `docs/breadth/COVERAGE.md`, which the roadmap says "maps
-every brief item to its home", and check the named components. Recorded as UNKNOWN rather
-than assumed complete because V2-2's contents reference A-05, and an unbuilt C-lane item
-underneath it would change the order a second time.
+✅ **C1/C2/C3/R1 RESOLVED 2026-09-17** (DC-2 §3.1). C1, C2 and C3 are in production; R1 is
+PARTIAL. Verdicts are anchored to `git merge-base --is-ancestor` against `origin/master`,
+**not** to a tracking doc — because both tracking docs are stale, in opposite directions:
+`COVERAGE.md:35` still shows `C3 🔨 · R1 📋`, and `STATUS.md:253` still says "R1's master
+merge is NOT taken" when it was taken. ⚰️ This paragraph used to say *"resolve each merge's
+A-numbers against `docs/breadth/COVERAGE.md`"* — following that instruction would have
+produced a WRONG answer for two of the four items. ⭐ A doc that tells you where to look is
+worth less than the two-line git question that settles it.
+
+⛔ **The one that matters for V2-3:** R1 declared six per-metric schema fields
+(`01-audit.md:315-317`) and shipped four. **`mark` and `refLines` are absent** —
+and A-28 IS the `mark` field, so V2-3 adds it rather than reading it. Full evidence:
+`01-spec-v2-2-v2-3.md` §0.1-0.2.
 
 ### ⚠️ V2-1 IS PARTIAL, AND THE GAP IS MOST OF ITS ROADMAP SCOPE
 
@@ -65,8 +72,8 @@ What landed (`ee31cbc57`), in the shell's own words:
 
 | V2-1 roadmap content | present? |
 |---|---|
-| flag | ✅ `app/src/pages/breadth/v2/flag.js`, `VITE_BREADTH_CHARTS_V2_ENABLED`, build ARG in `Dockerfile.web:95` |
-| dispatch to V2 | ✅ `BreadthCharts.jsx:84` — `v2Enabled() ? <BreadthChartsV2 /> : <BreadthChartsV1 />` |
+| flag | ✅ `app/src/pages/breadth/v2/flag.js` — ⚰️ **was** `VITE_BREADTH_CHARTS_V2_ENABLED` with a build ARG; **RETIRED 2026-09-17** (DC-2 §2). The ARG, the ENV entry and the ledger row are deleted and the gate is now the RUNTIME `breadth_dc_v2_2/3_enabled` off the auth payload. It had been UNSET on every service for its whole life, so `v2Enabled()` was never true in production. |
+| dispatch to V2 | ✅ `BreadthCharts.jsx` — now `useV2Enabled() ? <BreadthChartsV2 /> : <BreadthChartsV1 />`, true iff an increment is on |
 | read path + honest states | ✅ `useBreadthSeries.js` |
 | flag-off invisibility | ✅ `flagOff.golden.html` + `flagOff.golden.test.jsx`, byte-for-byte DOM |
 | lazy V2 tab / `?tab=charts` | ❓ not seen |
@@ -164,7 +171,7 @@ Also already contractual and load-bearing for V2-3:
 | need | status | source without touching the reader hot path |
 |---|---|---|
 | reconstructed sessions | ✅ on the wire | — |
-| **era note** | ❓ **UNKNOWN** — the roadmap's own words for it were not located this session | would be a router/serialiser projection; **needs the roadmap's A-28/A-39 text read before designing** |
+| **era note** | ✅ **RESOLVED** `01-audit.md:309-311` — the "Era comparability" bullet | ⭐ **NO wire change.** Computed client-side from `universe_count` end-to-end in the window (>20 % ⇒ show the note + a one-tap swap to `hi_ratio`/`lo_ratio`). The "would be a router/serialiser projection" guess in this cell was WRONG — recorded rather than overwritten, because it is the kind of guess that becomes a wire change nobody needed. |
 | series start date ("where a series begins") | ❓ UNKNOWN | derivable client-side from the first non-null per key — **no wire change needed** if so |
 
 ⛔ The 365-session cap is enforced **before** the read, on calendar days, because counting
@@ -283,10 +290,23 @@ server-supplied capability on the auth payload rather than a `VITE_` flag**, whi
 owner-preview, instant flip and instant rollback all real. Needs an owner ruling because it
 changes DC-1 §1.6's shape.
 
-**Q2 — are C1/C2/C3/R1 done?** UNKNOWN (§1.1). Resolve via `COVERAGE.md`.
+**Q2 — are C1/C2/C3/R1 done?** ✅ **RESOLVED 2026-09-17** (DC-2 §3.1) — C1, C2 and C3 are
+BUILT and in production, each confirmed by `git merge-base --is-ancestor` against
+`origin/master`, not by a tracking doc. **R1 is PARTIAL**: the `heatmapMetrics` adapter
+shipped and `HM_METRICS` is derived, but the declared schema fields **`mark` and `refLines`
+do not exist** in `chartMetrics.js` — and `mark` is exactly what A-28 is built on, so V2-3's
+A-28 work is net-new. Full table + citations: `01-spec-v2-2-v2-3.md` §0.1-0.2.
+⚠️ **`COVERAGE.md:35` — the file this question told a reader to resolve it with — is STALE**
+(it still shows `C3 🔨 · R1 📋`), and `STATUS.md:253` is stale in the opposite direction
+("R1's master merge is NOT taken"; it was). Resolving Q2 the way this line instructed would
+have produced a wrong answer, which is why the verdicts are anchored to git.
 
-**Q3 — what is the "era note" (A-28/A-39)?** UNKNOWN; the roadmap text for those A-numbers
-was not located. Needed before V2-3's wire fields can be specified.
+**Q3 — what is the "era note" (A-28/A-39)?** ✅ **RESOLVED 2026-09-17** — it is the **Era
+comparability** bullet at `docs/breadth/01-audit.md:309-311`, quoted verbatim in
+`01-spec-v2-2-v2-3.md` §2.4, with A-28 at `01-audit.md:245` and A-39 at `:256`.
+⭐ **It needs NO wire field.** The guess below (a router/serialiser projection) was wrong: the
+note is computed client-side from `universe_count` within the window. The only requirement is
+that `universe_count` be among the ≤8 requested keys while a count panel is on screen.
 
 **Q4 — is `/series` fast enough for long history?** UNKNOWN and unmeasurable while dark
 (§1.4). The reader's numbers are for a different route and do not transfer.

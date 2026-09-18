@@ -221,6 +221,19 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
     // shipped definition plus the carved-out sections. Derived from the registry,
     // for exactly the reason the old section list had to be.
     search('')
+    // ⚰️⚰️ IT USED TO READ THE OPTIONS STRAIGHT OFF AN EMPTY QUERY, on the
+    // premise stated above: *"an empty query in discovery mode is the whole
+    // catalogue."* That premise held while the Add surface was one ungrouped
+    // list. It has a CATEGORY STRIP now — Popular / Technical / Fundamentals /
+    // Breadth / Symbols / Indexes / ETFs / Formulas — and its landing tab is the
+    // curated `Popular` nine, so an empty query shows nine rows rather than
+    // twenty-two.
+    //
+    // ⭐ THE CLAIM IS UNCHANGED AND IS STILL THE POINT: every registered
+    // definition must be REACHABLE, and `Technical` is where they all are. What
+    // moved is one click, not the guarantee — so the sweep takes that click. A
+    // definition that falls out of the catalogue still fails here by name.
+    fireEvent.click(screen.getByRole('tab', { name: 'Technical' }))
     const options = screen.getAllByRole('option').map((o) => o.getAttribute('data-def-id'))
     for (const def of listDefinitions()) {
       // ⛔⛔ EXCEPT THE WRITTEN EXCLUSIONS, SUBTRACTED HERE AS A CLAIM.
@@ -279,25 +292,54 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     expect(next.indicatorInstances.some(i => i.instanceId === 'legacy:vwap' && i.deleted === true)).toBe(true)
   })
 
-  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — the rows carry no verbs at all', () => {
-    // ⚰️ THREE ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
+  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — a row carries ORDER and nothing else', () => {
+    // ⚰️ FOUR ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
     // expanded row ("accidental removal should not be one click away in a dense
     // list"); then a ✕ on every row header, which the owner asked for after
-    // looking at eleven real rows; now neither, because the row was reduced to a
-    // rail and a name and the verbs went to the right column.
+    // looking at eleven real rows; then neither, because the row was reduced to a
+    // rail and a name and the verbs went to the right column — and this case read
+    // *"the rows carry no verbs at all"* and swept for ANY button on a row.
     //
-    // ⛔ THE INVARIANT ACROSS ALL THREE IS **ONE DOOR**. Two controls for one verb
-    // is the split this tab exists to end — they drift, and a removal that took
-    // the other path would tombstone differently. So the absence is asserted
-    // rather than assumed.
+    // ⚰️ THE OWNER AMENDED THAT (2026-09-17): *"I want small Up / Down arrows at
+    // the RIGHT SIDE of indicator rows... ROW ↑ ↓ = reorder plotted series inside
+    // this pane."* A row does carry a control now.
+    //
+    // ⭐ SO THE INVARIANT IS RESTATED AS WHAT IT ALWAYS MEANT: **ONE DOOR PER
+    // VERB**, and the row is not a door for any verb the Inspector owns. Two
+    // controls for one verb is the split this tab exists to end — they drift, and
+    // a removal that took the other path would tombstone differently. Order is a
+    // NEW verb whose one and only door is on the row; it is not in the Inspector
+    // and the Inspector is not in the row. What is swept for below is therefore
+    // "a row control that is not the order handle", which is the same absence the
+    // old sweep asserted, measured without forbidding the thing that was added.
+    //
+    // ⚰️⚰️ THE ARROWS THEMSELVES ARE GONE (2026-09-17) — owner: *"with many
+    // indicators, this creates a repetitive column of arrows."* Order is a DRAG,
+    // so the door is a grip rather than a pair, and the sweep names the grip. The
+    // VERB did not move and neither did the writer.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
 
-    // Nothing selected: no Remove anywhere, and no icon on any row.
+    // Nothing selected: no Remove anywhere, and no row control except order.
     expect(screen.queryByRole('button', { name: /^Remove / }),
       'a Remove button exists before anything is selected').toBeNull()
     for (const r of rows()) {
-      expect(r.querySelector('button'), `the row ${nameOf(r)} carries a control of its own`).toBeFalsy()
+      for (const b of r.querySelectorAll('button')) {
+        expect(b.hasAttribute('data-row-grip'),
+          `the row ${nameOf(r)} carries a control that is not the order handle`).toBe(true)
+      }
+      // ⛔ AND THE HANDLE SAYS ONLY "Reorder". A verb smuggled onto it would pass
+      // the check above — it IS the grip — and fail this one.
+      // ⚰️ IT WAS A PAIR OF `Move …` BUTTONS AND IT IS ONE `Reorder …` HANDLE.
+      // Same verb, same writer, one control instead of two.
+      const grip = r.querySelector('[data-row-grip]')
+      if (grip) {
+        expect(grip.getAttribute('aria-label'),
+          `the order handle on ${nameOf(r)} carries a verb: ${grip.getAttribute('aria-label')}`)
+          .toMatch(/^Reorder .+ within /)
+        expect(r.querySelectorAll('[data-row-grip]'),
+          `${nameOf(r)} grew a second order handle`).toHaveLength(1)
+      }
     }
 
     // Selected: exactly one, and it is inside the Inspector.
@@ -434,7 +476,11 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={onChange} />)
     openIndicators()
-    act(/Session VWAP/, /^Toggle Session VWAP/)
+    // ⚰️ IT WAS `Toggle Session VWAP`. The switch is the panel's shared one now
+    // and its accessible name is the ACTION rather than the control — `Hide …`
+    // when it is on, `Show …` when it is off — so a member is told the outcome
+    // instead of guessing it. The writer under it did not move.
+    act(/Session VWAP/, /^Hide Session VWAP/)
     const next = lastCall(onChange)
     const inst = (next.indicatorInstances || []).find(i => i.instanceId === 'legacy:vwap')
     expect(inst.hidden, 'the toggle did not hide the line').toBe(true)

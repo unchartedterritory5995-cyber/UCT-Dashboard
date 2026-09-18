@@ -630,6 +630,22 @@ const LEDGER = [
   { file: 'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
     region: 'QUICK_STUDY_IDS — the curated two-tap study roster on the phone ƒx sheet',
     anchor: "const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']", fate: 'keep' },
+  // ⭐ THE INDICATORS LIBRARY'S `Popular` TAB. Same species as `QUICK_STUDY_IDS`
+  // one row above and ledgered for the same reason: "which nine things do most
+  // members add" is a PRODUCT judgment and nothing in this repo can derive it.
+  // Deriving it from `listDefinitions()` order would make the curation registry
+  // order, which is no curation at all.
+  // ⛔ WHAT MAKES IT SAFE IS THAT IT NAMES IDS AND NOTHING ELSE. The name, the
+  // description, the capability and the create door all still come from the
+  // registry through `technicalResults`, so `Moving Average` here is the same
+  // single member-facing definition every other surface offers — there is no
+  // second entry and no second implementation. `resultsForTab` resolves each id
+  // against the live results and `.filter(Boolean)`s, so a renamed or deleted
+  // definition yields a MISSING row, never a wrong one; and legacy `ma` cannot
+  // appear at all, because `LIBRARY_HIDDEN_IDS` drops it upstream.
+  { file: 'app/src/components/chart/discoveryCatalog.js',
+    region: 'POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library',
+    anchor: 'export const POPULAR_DEF_IDS = Object.freeze([', fate: 'keep' },
 ]
 
 /** What Task 12 RETIRED OUTRIGHT — kept in the file because a retired site that
@@ -1143,7 +1159,12 @@ const RETIRED_BY_B4_ALERTS = [
 // ⭐ 14 -> 15 AT MOBILE WAVE 4: `MobileIndicatorSheet.jsx::QUICK_STUDY_IDS`,
 // the phone ƒx sheet's curated six — a product judgment about reach-for
 // frequency, not a registry fact. See its ledger row.
-const SITE_COUNT = 15
+// ⭐ 15 -> 16 AT THE ADD INDICATOR LIBRARY: `discoveryCatalog.js::POPULAR_DEF_IDS`,
+// the `Popular` tab's curated nine. The SAME SPECIES as the row above and
+// decided the same way — which is why the count moving is a decision and not a
+// diff: the two are now the only curation sites in the product, they answer the
+// same question on two surfaces, and if one is ever derived the other must be.
+const SITE_COUNT = 16
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1323,7 +1344,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // two-way key-set equality against the manifest, not a hope; see their rows.
     // ⭐ `{keep: 14}` -> `{keep: 15}` AT MOBILE WAVE 4: the phone ƒx sheet's
     // `QUICK_STUDY_IDS` roster joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 15 })
+    expect(counts).toEqual({ keep: 16 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1407,12 +1428,17 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // eye. The mechanical tell survives: every pair is `["…","keep"]` with NO
     // space after the comma, which is `JSON.stringify`'s format and not the
     // surrounding file's style.
+    // ⭐⭐⭐⭐ AND ONCE MORE FOR `POPULAR_DEF_IDS` — fifteen rows became sixteen when
+    // the Add Indicator library's curated `Popular` tab joined the ledger. Pasted
+    // from the same printer's stdout; it sorts above `closedTable.json` because
+    // `discoveryCatalog.js` precedes `engine/` alphabetically.
     ).toEqual([
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
       ["api/services/ast_interpret.py::FN — the manifest`s functions bound to indicator_compute`s own maths","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
+      ["app/src/components/chart/discoveryCatalog.js::POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library","keep"],
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
       ["app/src/components/chart/engine/ast/interpret.js::FN — the manifest`s functions bound to the chart`s own maths","keep"],
       ["app/src/components/chart/engine/ast/pcf.js::PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time","keep"],
@@ -2033,7 +2059,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // no TradingView-hosted page naming its parameters — still refuses. That
     // asymmetry is the design: mapping `ta.stoch` by the convention "source is
     // usually first" was WRONG BY 126 POINTS of a 0-100 oscillator.
+    // ⭐⭐⭐⭐⭐⭐ AND AGAIN, FOR A FOURTH DISTINCT REASON: `discoveryCatalog.js`
+    // joins the set with `POPULAR_DEF_IDS`, the Add Indicator library's curated
+    // `Popular` tab. It is the same species as `QUICK_STUDY_IDS` on the phone
+    // sheet — a product judgment about which nine things most members reach for,
+    // which `listDefinitions()` order cannot express — and it is ledgered as one.
+    // See its LEDGER row for why naming IDS (and only ids) keeps it safe.
     ).toEqual([
+      'app/src/components/chart/discoveryCatalog.js',
       'app/src/components/chart/engine/ast/interpret.js',
       'app/src/components/chart/engine/ast/pcf.js',
       'app/src/components/chart/engine/ast/pine.js',
@@ -2127,8 +2160,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // function NAMES). Both are `keep`, both live under `app/src` with a `.js`
     // extension, and both are files the discovery scan must be able to keep
     // finding forever — which is the honest direction for a vacuity floor to move.
+    // ⭐ AND 6 → 7 AT THE ADD INDICATOR LIBRARY: `discoveryCatalog.js`, which is
+    // `keep`, lives under `app/src` with a `.js` extension, and holds the
+    // `Popular` tab's curated ids — a file the discovery scan must keep finding.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
-      .toEqual(['app/src/components/chart/engine/ast/interpret.js',
+      .toEqual(['app/src/components/chart/discoveryCatalog.js',
+        'app/src/components/chart/engine/ast/interpret.js',
         'app/src/components/chart/engine/ast/pcf.js',
         'app/src/components/chart/engine/ast/pine.js',
         'app/src/components/chart/engine/instances.js',

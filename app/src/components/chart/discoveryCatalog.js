@@ -797,6 +797,252 @@ export function libraryRows(registry) {
 
 /** The two categories P2.2 adds. Named once so the dialog's hoist and the tests
  *  cannot drift from the adapters. */
+// ═══ THE LIBRARY'S CATEGORY STRIP ═══════════════════════════════════
+//
+// ⭐⭐ A PRESENTATION TAXONOMY OVER CANONICAL FACTS, AND NOTHING ELSE. Every tab
+// below answers from a field some canonical source already wrote:
+//
+//   Popular       a curated list of DEFINITION IDS, intersected with the registry
+//   Technical     `kind: 'technical'` — `technicalResults`, which already drops
+//                 `dataSeries` and legacy `ma` (`LIBRARY_HIDDEN_IDS`)
+//   Fundamentals  ⛔ NOTHING. See `FUNDAMENTALS_STATUS` — this is a data fact, not
+//                 a UI decision, and the tab says so rather than inventing rows
+//   Breadth       `kind: 'breadth'` — the published breadth catalogue, untouched
+//   Symbols       `kind: 'security'` whose server type is neither etf nor index
+//   Indexes       `kind: 'security'`, server type `index`
+//   ETFs          `kind: 'security'`, server type `etf`
+//   Formulas      `kind: 'formula'` — the member's own installed definitions
+//
+// ⛔⛔ NO SECOND CLASSIFICATION IS INVENTED. `securityResults` already carries
+// *"the server's own classification — `stock` / `etf` / `index` / `delisted`"* in
+// `category`, which is the same vocabulary `symbolSearchModel.CHIPS` sends to
+// `/api/ticker-search` as its `type` filter. This file re-reads it; it does not
+// re-derive it, and it hard-codes no ticker into a class.
+//
+// ⛔ AND NO PERSISTENCE. The selected tab is component state for the life of one
+// Add surface. A stored "last category" would be a new preference key on the
+// settings blob for a filter the member re-chooses in one click.
+
+/**
+ * The strip, in reading order. `key` is internal; `label` is what is printed.
+ *
+ * ⚰️⚰️ IT HAD EIGHT TABS AND IT HAS FIVE. `Popular`, `ETFs` and `Formulas` are
+ * off the strip — owner, 2026-09-17 — and the immediate reason is arithmetic:
+ * eight tabs need 509px and the strip has 386, so three of them were always
+ * behind a scroll. Five fit, which is what makes the navigation legible.
+ *
+ * ⛔ AND IT IS A NAVIGATION DECISION, NOT A DELETION. Nothing underneath moved:
+ * `tabOf` still classifies a formula and an ETF, `resultsForTab` still answers for
+ * both keys, and `glyphFamilyOf` still draws them. What changed is which keys this
+ * ONE surface offers as a browse door — the categories that are gone are the ones
+ * with another way in:
+ *   · Popular    was a curated shortcut INTO Technical; Technical is the default
+ *                 now, so the shortcut pointed at where you already are.
+ *   · ETFs       an ETF is a security and arrives through Symbols and through
+ *                 search, with the server's own classification intact.
+ *   · Formulas   `＋ New Formula` in the header is the door to formulas, and it
+ *                 is a CREATE door rather than a browse one.
+ *
+ * ⚠️ `POPULAR_DEF_IDS` AND ITS LEDGER ROW STAY. The curation is still a real
+ * fact about which definitions matter most, `resultsForTab` still honours the
+ * `popular` key, and deleting the list to match a strip would throw away the
+ * judgment rather than the tab.
+ */
+export const LIBRARY_TABS = Object.freeze([
+  Object.freeze({ key: 'technical', label: 'Technical' }),
+  Object.freeze({ key: 'fundamentals', label: 'Fundamentals' }),
+  Object.freeze({ key: 'breadth', label: 'Breadth' }),
+  Object.freeze({ key: 'symbols', label: 'Symbols' }),
+  Object.freeze({ key: 'indexes', label: 'Indexes' }),
+])
+
+/**
+ * POPULAR — curated, by DEFINITION ID.
+ *
+ * ⛔⛔ IDS, NOT ROWS, AND THAT IS THE WHOLE SAFETY OF IT. This list says which
+ * shipped definitions are common; the NAME, the description and the create door
+ * still come from the registry, so "Moving Average" here is the same single
+ * member-facing Moving Average that every other surface offers — there is no
+ * second entry and no second implementation. An id that is not registered simply
+ * does not appear, so removing a definition cannot leave a dead row here.
+ *
+ * ⚠️ LEGACY `ma` IS NOT ON IT and could not be used if it were:
+ * `LIBRARY_HIDDEN_IDS` drops it before this is consulted.
+ */
+export const POPULAR_DEF_IDS = Object.freeze([
+  'movingAverage', 'rsi', 'macd', 'bb', 'volume', 'stoch', 'atr', 'vwap', 'ichimoku',
+])
+
+/**
+ * ⛔⛔ FUNDAMENTALS: AUDITED, AND THERE IS NOTHING SAFE TO PLOT.
+ *
+ * The chart engine's source grammar (`sourceRef.parseSource`) admits three kinds
+ * — a BAR FIELD, a SYMBOL and another INSTANCE's output. There is no fundamental
+ * source, so no fundamental can become a series through canonical infrastructure.
+ *
+ * And the one fundamental the product DOES hold is a snapshot, not a history:
+ * `ast/pcf.js` exposes `CAPITALIZATION` / `MARKETCAP` as a NIGHTLY SCALAR off
+ * `table.scalars.market_cap`, and refuses `Capitalization.1` in its own words —
+ * *"a nightly scalar has no bar to be offset FROM... answering it with today's
+ * value would be a fabricated history."* Drawing today's market cap back across
+ * 400 bars is exactly that fabrication.
+ *
+ * ⭐ SO THE TAB IS HONEST RATHER THAN EMPTY OR ABSENT. Removing it would hide a
+ * direction the product is committed to; filling it would lie about history that
+ * does not exist. It states the reason and offers nothing.
+ */
+export const FUNDAMENTALS_STATUS = Object.freeze({
+  available: false,
+  lede: 'Historical fundamentals are not chartable yet.',
+  why: 'Fundamental data is held as a current snapshot per symbol, with no '
+    + 'point-in-time filing dates behind it — so a line drawn across past bars '
+    + 'would show today\u2019s value as though it had always been true. Market cap, '
+    + 'revenue, EPS and the rest arrive here once that history is real.',
+})
+
+/**
+ * Which tab does one result belong to? Canonical fields only.
+ *
+ * ⚠️ `popular` IS NOT ANSWERED HERE, because it is not exclusive — Moving
+ * Average is both Popular and Technical. Membership of Popular is a separate
+ * test (`POPULAR_DEF_IDS`), so a result has ONE home tab and may also be curated.
+ */
+export function tabOf(res) {
+  if (!res) return null
+  if (res.userDefined === true || res.kind === 'formula') return 'formulas'
+  if (res.kind === 'breadth') return 'breadth'
+  if (res.kind === 'security') {
+    const t = String(res.category || '').toLowerCase()
+    if (t === 'etf') return 'etfs'
+    if (t === 'index') return 'indexes'
+    return 'symbols'
+  }
+  // ⚰️⚰️ THE LAST BRANCH IS A DEFAULT, NOT `kind === 'technical'`, AND THE
+  // DIFFERENCE EMPTIED THE LIBRARY ONCE. `kind` is stamped by `libraryRows`, and
+  // the Indicators tab does NOT go through it — it assembles `BUILT_IN_ROWS`,
+  // `catalogRows` and `userCatalogRows` directly, so a catalogue row arrives here
+  // with an `id`, a `category` and no `kind` at all. Testing for `'technical'`
+  // therefore filed every shipped definition under `null` and `Technical` showed
+  // nothing. Measured: a sweep asserting every registered definition is
+  // browsable saw five options, all of them rows in the LEFT list.
+  // ⭐ SO THE QUESTION IS ASKED THE OTHER WAY ROUND: a row that is not a formula,
+  // not breadth and not a security IS a technical one — which is true of both
+  // shapes and stays true for a shape neither has yet.
+  return 'technical'
+}
+
+// ═══ THE INDICATOR GLYPH ══════════════════════════════════════════
+//
+// ⛔⛔ PRESENTATION, NEVER PERSISTENCE. Nothing writes a glyph onto an instance,
+// a definition or the settings blob: this is a pure function of facts the
+// catalogue already holds, resolved at render time. A chart saved before this
+// existed and one saved after are byte-identical, and deleting this file would
+// cost a picture and nothing else.
+//
+// ⛔ AND IT READS CANONICAL METADATA, NOT THE DISPLAY STRING. Matching on a
+// NAME would break the day a definition is renamed, would give two members
+// different marks for the same study in different locales, and would make the
+// glyph a function of prose. `kind` and the registry's own `category` are the
+// facts; the only per-id entry is the one below, and it says why.
+
+/** ⚠️ OWN-PROPERTY ONLY. A bare `map[key]` would answer `constructor` and
+ *  `toString` for a definition id that happens to spell one — a prototype value
+ *  where a family key belongs. */
+const ownKey = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k)
+
+/** family key → the `UIcon` name that draws it. */
+export const GLYPH_FAMILIES = Object.freeze({
+  trend: 'ind-trend',
+  oscillator: 'ind-oscillator',
+  momentum: 'ind-momentum',
+  band: 'ind-band',
+  volume: 'ind-volume',
+  breadth: 'ind-breadth',
+  fundamental: 'ind-fundamental',
+  security: 'ind-security',
+  formula: 'ind-formula',
+  series: 'ind-series',
+})
+
+/**
+ * ⭐ THE REGISTRY'S OWN `category` IS THE FAMILY, and that is the whole mapping.
+ * `nativeRegistry` files every definition under Trend / Momentum / Volatility /
+ * Volume / Data — which is already a statement about what the study DRAWS, made
+ * by the person who wrote it. Reading it means a definition added tomorrow gets a
+ * correct mark with no edit here.
+ */
+const CATEGORY_FAMILY = Object.freeze({
+  trend: 'trend',
+  momentum: 'oscillator',
+  volatility: 'band',
+  volume: 'volume',
+  data: 'security',
+})
+
+/**
+ * ⚠️ THE ONE PER-ID EXCEPTION, AND IT IS DELIBERATE. MACD is filed under
+ * `Momentum` with RSI and Stochastic, which is correct as a CLASSIFICATION and
+ * wrong as a picture: RSI draws a wave between two bounds and MACD draws a
+ * histogram about zero. A member scanning the library reads the mark, so the mark
+ * has to be what the study looks like.
+ *
+ * ⛔ ONE ENTRY, NOT A TABLE. Every other definition is answered by its category,
+ * and this stays a single exception rather than becoming a second taxonomy — a
+ * per-id map of twenty ids would be the enumeration site `enumerationSites.test.js`
+ * exists to catch, and it would go stale the first time a definition was renamed.
+ */
+const FAMILY_BY_ID = Object.freeze({ macd: 'momentum' })
+
+/**
+ * Which family does this result belong to?
+ *
+ * @param {object} res a `DiscoveryResult` or a catalogue row
+ * @returns {string} a key of `GLYPH_FAMILIES` — always one, never null
+ */
+export function glyphFamilyOf(res) {
+  if (!res) return 'series'
+  if (ownKey(FAMILY_BY_ID, res.id)) return FAMILY_BY_ID[res.id]
+  const tab = tabOf(res)
+  if (tab === 'breadth') return 'breadth'
+  if (tab === 'formulas') return 'formula'
+  if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
+  const cat = String(res.category || '').toLowerCase()
+  // ⛔ THE FALLBACK IS NEUTRAL, NOT A GUESS. A definition whose category this
+  // file has never heard of gets a mark that says only "this draws a series",
+  // which is true of everything and wrong about nothing.
+  return ownKey(CATEGORY_FAMILY, cat) ? CATEGORY_FAMILY[cat] : 'series'
+}
+
+/** The `UIcon` name for one result. */
+export function glyphNameOf(res) {
+  return GLYPH_FAMILIES[glyphFamilyOf(res)] || GLYPH_FAMILIES.series
+}
+
+/** Is this result one of the curated few? */
+export function isPopular(res) {
+  return !!res && tabOf(res) === 'technical' && POPULAR_DEF_IDS.includes(res.id)
+}
+
+/**
+ * The results a tab shows, given everything discovery has produced.
+ *
+ * ⛔ IT FILTERS; IT NEVER FETCHES AND NEVER RANKS. The order it is handed is the
+ * order the canonical sources chose — the registry's, the breadth library's and
+ * the server's — and re-sorting here would be this file deciding it knows better
+ * than the search that produced them.
+ */
+export function resultsForTab(results, tab) {
+  const list = Array.isArray(results) ? results : []
+  if (!tab) return list
+  if (tab === 'popular') {
+    // Curated ORDER, not registry order: the list above is a reading order.
+    const byId = new Map(list.filter(isPopular).map((r) => [r.id, r]))
+    return POPULAR_DEF_IDS.map((id) => byId.get(id)).filter(Boolean)
+  }
+  if (tab === 'fundamentals') return []
+  return list.filter((r) => tabOf(r) === tab)
+}
+
 export const SYMBOL_CATEGORY = 'Symbols'
 export const BREADTH_CATEGORY = 'Breadth'
 

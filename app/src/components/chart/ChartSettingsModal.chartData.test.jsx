@@ -155,10 +155,11 @@ describe('⚰️ switched off is not broken', () => {
     show(cs); openTab()
     expect(groups().some((g) => g.id === r.id), 'precondition: it has a pane').toBe(true)
 
-    // ⚰️ THE SWITCH USED TO BE ON THE ROW. It is the Inspector's ON/OFF pill now
+    // ⚰️ THE SWITCH USED TO BE ON THE ROW. It is the Inspector's own switch now
     // — the rows carry a rail and a name and nothing else — so hiding a series is
     // select-then-toggle. The WRITE is the same `setInstanceHidden`.
-    act(/Relative Strength/, /^Toggle /)
+    // ⚰️ AND IT USED TO BE NAMED `Toggle …`. `Hide EMA 20` / `Show EMA 20`. A control named after itself makes the member guess the outcome; the accessible name is the ACTION now. Same writer, same key.
+    act(/Relative Strength/, /^Hide /)
     expect(groups().some((g) => g.id === r.id), 'a hidden, empty pane is still drawn').toBe(false)
 
     const g = groups().find((x) => x.kind === 'hidden')
@@ -247,7 +248,7 @@ describe('the inspector holds exactly one selection', () => {
     // selected" means to everything that reads this panel.
     expect(inspectorFor()).toBeFalsy()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
   it('⛔ THE LIST POINTS `aria-controls` AT THE REGION ITS SELECTION DRIVES', () => {
@@ -377,7 +378,7 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
   it('⭐⭐ every control the inline editor carried is still in the Inspector', () => {
@@ -392,7 +393,7 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     expect(panel.querySelectorAll('[class*="insField"]').length, 'no field rows').toBeGreaterThan(0)
     // …and the verbs, which used to be an icon on the row.
     expect(insBtn(/^Remove /), 'no Remove').toBeTruthy()
-    expect(insBtn(/^Toggle /), 'no visibility switch').toBeTruthy()
+    expect(insBtn(/^Hide /), 'no visibility switch').toBeTruthy()
   })
 
   it('⭐⭐ CORE AND APPEARANCE ARE DERIVED FROM THE DEFINITION, not listed here', () => {
@@ -665,32 +666,90 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
   })
 })
 
-describe('⚰️⚰️ THE MODAL WIDENS FOR THIS TAB, AND ONLY FOR THIS TAB', () => {
-  it('⚰️⚰️ Indicators is WIDE; every other tab is not, and it goes back', () => {
-    // ⚰️⚰️ THIS CASE HAS ARGUED BOTH WAYS AND IS KEPT FOR THAT REASON. Chart
-    // Data widened the modal to 880 for a two-column pane map + inspector; the
-    // owner judged *"a modal that resizes on the way into one tab"* too high a
-    // price, the editor went inline, and this asserted the width NEVER changed.
+describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => {
+  it('⚰️⚰️⚰️ the shell does not resize when you switch tabs — any of them', () => {
+    // ⚰️⚰️⚰️ THIS CASE HAS NOW ARGUED THREE WAYS, WHICH IS WHY IT IS KEPT.
+    //   1. Chart Data widened the modal to 880 for a two-column pane map, and was
+    //      reverted — *"a modal that resizes on the way into one tab"* was judged
+    //      too high a price, and this asserted the width NEVER changed.
+    //   2. The Inspector took 720 for the same two-column shape at the owner's own
+    //      number, and this flipped to assert Indicators was WIDE and the others
+    //      were not — guarding that the widening stayed scoped to one tab.
+    //   3. The owner then USED it: *"The whole modal visibly grows/shrinks as I
+    //      click tabs. I do NOT like this. Chart Settings is ONE window."*
     //
-    // ⭐⭐ THE OWNER SET 720 FOR THE INSPECTOR (2026-09-17), which reverses the
-    // trade — 160px less than the version that was rejected, on a layout whose two
-    // regions have two different jobs. So the claim flips, and what it now guards
-    // is the part that did NOT change: the other four tabs are still 560, because
-    // widening `.panel` globally would re-lay-out four columns to solve a problem
-    // none of them has.
+    // ⭐ SO THE SHELL IS THE WINDOW'S, UNCONDITIONALLY, and what this now guards is
+    // that no tab can take it back. The width the shell settled on is the one the
+    // Inspector was accepted at. ⚰️ THE CONTENT CAP THAT ONCE SAT BESIDE IT IS
+    // GONE TOO — see the next case; shell and content are one width now, not two
+    // decisions with a 160px gap between them.
+    //
+    // ⛔ MEASURED AS A CLASS IDENTITY, NOT A PIXEL. jsdom lays nothing out, so a
+    // width read here would be 0 on every tab and the case would pass over a real
+    // regression. What CAN be pinned is that the panel's class list is byte-equal
+    // across every tab — which is exactly how the old modifier expressed itself,
+    // so a reintroduced one fails here. The rendered geometry is proved in the
+    // browser, where the seven-switch sweep reads one width and one pair of edges.
     show(base())
     const cls = () => document.body.querySelector('[class*="panel"]').className
     const atPrice = cls()
-    expect(/panelWide/.test(atPrice), 'the Price tab is wide').toBe(false)
+    expect(/panelWide/.test(atPrice), 'a width modifier is back on the panel').toBe(false)
 
-    openTab()
-    expect(/panelWide/.test(cls()), 'the Inspector did not get its width').toBe(true)
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Indicators', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      expect(cls(), `the ${name} tab changed the panel's class — the shell moved`).toBe(atPrice)
+    }
+  })
 
-    // ⛔ AND IT HANDS THE WIDTH BACK. A tab that kept it would have widened the
-    // whole modal permanently by the back door.
-    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-    expect(cls(), 'the width did not go back on the way out').toBe(atPrice)
-    openTab()
-    expect(/panelWide/.test(cls())).toBe(true)
+  it('⚰️⚰️ …and NO TAB IS CAPPED INSIDE IT EITHER', () => {
+    // ⚰️⚰️ THE OPPOSITE OF THIS CASE STOOD HERE FOR ONE PASS. When the shell went
+    // to 720 the four older tabs were held at their original 560px column with a
+    // `.bodyNarrow` modifier, and this asserted that cap was ON for Price Style,
+    // Canvas, Header and Markers and OFF for Indicators — *"the four tabs designed
+    // to a narrower column keep that column INSIDE it rather than stretching."*
+    //
+    // ⛔ IT WAS THE WRONG HALF OF "ONE WINDOW". What the member saw was a tab that
+    // ends 160px before its own window does — owner, 2026-09-17: *"the other tabs
+    // have not been responsively adapted to the new modal width... this creates a
+    // huge dead region on the right."* Price Style made it plainest, because its
+    // three `repeat(3, 1fr)` grids were built to fill the body and were being
+    // handed less of it than the body had.
+    //
+    // ⭐ SO THE SHELL IS THE CONTENT WIDTH, ON EVERY TAB, and the class that made
+    // it otherwise may not come back. The grids do the adapting; nothing was
+    // stretched to fill the gap (see the CSS note on `.bodyNarrow`'s grave).
+    show(base())
+    const body = () => document.body.querySelector('[class*="body"]')
+    const atPrice = body().className
+    expect(/bodyNarrow/.test(atPrice), 'the 560px content cap is back on Price Style').toBe(false)
+
+    // ⚠️⚠️ THIS USED TO DEMAND AN IDENTICAL CLASS STRING, and that was one notch
+    // too blunt. What may never differ per tab is the CONTENT WIDTH — that is the
+    // dead region the owner was looking at. `.bodyFlush` differs per tab and
+    // changes no width at all: it hands back the SCROLLBAR GUTTER `.body` reserves
+    // for the four card tabs that genuinely scroll here, on the one tab that
+    // cannot (Indicators is a `height: 100%` flex column that scrolls inside its
+    // own halves). Reserving a bar that can never appear is what put a second dead
+    // strip down the right of the discovery list.
+    // ⛔ SO THE RAIL NAMES WHAT IT GUARDS. A width cap is still refused by name,
+    // and the gutter class is asserted to appear on exactly the tab that earned it
+    // — which is a stronger claim than "they are all the same string", because it
+    // would also catch the class being left on when the member tabs away.
+    const flush = (atPrice.match(/\S*bodyFlush\S*/) || [])[0]
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      const cls = body().className
+      expect(/bodyNarrow|bodyWide/.test(cls), `${name} caps or widens its own content`).toBe(false)
+      const want = name === 'Indicators'
+      expect(/bodyFlush/.test(cls), want
+        ? 'Indicators is still reserving a scrollbar gutter it cannot use'
+        : `${name} stopped reserving the gutter it genuinely scrolls with`).toBe(want)
+      // …and nothing ELSE varies: strip the one intended difference and the rest
+      // of the class string must be the same on every tab.
+      expect(cls.replace(/\s*\S*bodyFlush\S*/, '').trim(),
+        `${name} carries a content class the other tabs do not`)
+        .toBe(atPrice.replace(/\s*\S*bodyFlush\S*/, '').trim())
+    }
+    expect(flush, 'the gutter class leaked onto Price Style').toBeUndefined()
   })
 })

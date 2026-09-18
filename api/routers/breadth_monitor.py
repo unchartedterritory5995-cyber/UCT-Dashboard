@@ -650,23 +650,75 @@ SERIES_FLAG = "BREADTH_SERIES_ENDPOINT_ENABLED"
 _SERIES_MAX_KEYS = 8
 #: Mirrors the monitor endpoint's own `le=8000` rather than inventing a second ceiling.
 _SERIES_DAY_CEILING = 8000
+#: The DEFAULT WINDOW size when `from` is omitted — a UX choice matching V1's own
+#: default (D-052), NOT a safety bound. Deliberately decoupled from the cap below;
+#: the two used to share one constant and that conflation is what "L-A: cap raise"
+#: is untangling.
 _SERIES_DEFAULT_SESSIONS = 365
+#: The safety cap's fallback. Raised 2026-09-17 (L-A) from 365 once the reader work
+#: had actually landed — see `series_max_sessions()`'s docstring. Sized to cover
+#: V2-3's back-to-2008 "Max" preset (`MAX_HISTORY_FROM` in `BreadthChartsV2.jsx`) —
+#: ~4,700 stored sessions from 2008-01-02 to 2026-09-17 (6,833 calendar days,
+#: ~252 sessions/year less US market holidays) — with real margin, while staying
+#: under `_SERIES_DAY_CEILING` at the ×1.6 conversion (4,700 × 1.6 = 7,520 days).
+#: ⚠️ This is a FIXED session count against a FIXED start date, so the margin
+#: shrinks by ~252 sessions/year as "today" advances; re-derive it, don't just bump
+#: it, when `MAX_HISTORY_FROM` moves or this stops covering "Max".
+_SERIES_MAX_SESSIONS_DEFAULT = 4700
 
 
 def series_max_sessions() -> int:
-    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default 365.
+    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default
+    `_SERIES_MAX_SESSIONS_DEFAULT` (4,700).
 
-    ⛔ THIS EXISTS BECAUSE THE READER IS SLOW, NOT BECAUSE THE RESPONSE IS BIG (D-042).
-    A cold `get_history_deep` over a deep span costs ~55 s on the single uvicorn process —
-    measured on production — and that is spent PRODUCING rows, upstream of anything this
-    endpoint does with them. So the cap has to make a deep read UNREACHABLE, and it is
-    raised only when the reader work lands, never to satisfy a UI that wants more.
+    ⛔⛔ RAISED 2026-09-17 (L-A) — CORRECTING A STALE DOCSTRING, NOT LOOSENING A LIVE
+    ONE. This previously read *"~55 s cold ... measured on production"* citing D-042 —
+    the same defect the (now-closed) Breadth History Reader programme fixed. That
+    number described the reader BEFORE its materialization fix
+    (`api/services/breadth_monitor.py::get_history_deep`: *"used to assemble 174,187
+    OHLC rows into 4,529 rows on every cold request; it is now one indexed read of
+    pre-built rows"*), which had already landed, in this same session, before this
+    docstring was ever written. True when written; the world had moved under it
+    (Kind 3b).
+
+    This endpoint calls that SAME reader (`svc.get_history_deep` — no second reader,
+    see the router docstring), whose current, measured, per-deploy cost is in
+    `docs/breadth-history-reader/FINAL.md` §14.1/§14.3: **p50 277.2-497.2 ms across
+    six deploys, worst observed deploy max 3,752.1 ms** (n=54-77/deploy), against
+    D-042's 54,923 ms cold baseline — 15x-141x depending on deploy. ⚠️ That table was
+    measured against `/api/breadth-monitor`, a DIFFERENT ROUTE sharing this reader —
+    its own post/derive/serialise phases do not transfer, only the reader cost does.
+
+    This endpoint's OWN marginal cost (filter + project + encode, on top of the
+    reader) IS measured directly, in `docs/breadth/api-series.md` (D-035,
+    2026-09-14): the full 2008- span at 8 keys, 4,530 sessions, costs **30.3 ms
+    cold p50 / 36.0 ms cold p95** — a stubbed full-size row set isolating what this
+    endpoint adds, deliberately excluding `get_history_deep`'s own cost (measured
+    separately, above) rather than a local `C:\\data\\breadth_monitor.db` read
+    (12 KB, schema-only, which would have flattered the number).
+
+    **Combined, a cold full-history 8-key request costs roughly the reader's
+    277-497 ms typical (up to ~3.75 s worst observed deploy) plus this endpoint's
+    own ~30-36 ms** — dominated by the reader, and nowhere near the retired 55 s
+    figure.
+
+    ⭐ **This is the condition the owner ruling itself named, not a override of it.**
+    D-043 (`docs/breadth/DECISIONS.md`, 2026-09-14) is the ruling that set this cap:
+    *"the reader gets its own programme... until that programme lands, the cost is
+    made unreachable rather than tolerated"* — and states its own release condition
+    verbatim: *"the cap is raised when the reader work lands, not to satisfy a wider
+    view."* The reader programme (Breadth History Reader / SD-1.7) has since closed;
+    its own `session6-report.md` §2.5, taken mid-programme before the fix had fully
+    landed, additionally recommended no change YET, naming its own exception:
+    *"a member-facing feature that actually requests > 365 sessions"* — which V2-3's
+    back-to-2008 "Max" preset now is. Both conditions this cap was waiting on are
+    met: the reader work landed, and a feature asked for more.
     """
     try:
-        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_DEFAULT_SESSIONS)
-        return v if v > 0 else _SERIES_DEFAULT_SESSIONS
+        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_MAX_SESSIONS_DEFAULT)
+        return v if v > 0 else _SERIES_MAX_SESSIONS_DEFAULT
     except ValueError:
-        return _SERIES_DEFAULT_SESSIONS
+        return _SERIES_MAX_SESSIONS_DEFAULT
 
 
 def series_max_calendar_days(max_sessions: int | None = None) -> int:
@@ -683,6 +735,58 @@ def series_max_calendar_days(max_sessions: int | None = None) -> int:
     """
     return int((max_sessions or series_max_sessions()) * 1.6)
 _SERIES_TTL = 300
+
+#: DC-3 (D-056): dark, default OFF — an ENABLEMENT gate (unset = not running),
+#: same polarity as BREADTH_DC_V2_2/3_ENABLED, not the hub's kill-switch polarity.
+_SERIES_BOOT_WARM_FLAG = "BREADTH_SERIES_BOOT_WARM_ENABLED"
+
+
+def series_boot_warm_enabled() -> bool:
+    return os.getenv(_SERIES_BOOT_WARM_FLAG, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def warm_series_deep() -> dict:
+    """DC-3(b)/D-056 — touch the deep/reconstructed read path ONCE at boot so the
+    OS page cache is warm before any member's first real `/series` request pays
+    the cold cost.
+
+    ⛔⛔ MEASURED, NOT INFERRED (DC-3a). The phase breakdown on a fresh boot's
+    first `/series` request (Server-Timing, `docs/breadth/DECISIONS.md` D-056)
+    showed the cost concentrated almost entirely in ONE phase — `adv_seed`, i.e.
+    `_adv_decline_seed_before()` — which scans `breadth_daily_ohlc`/
+    `breadth_snapshots` for every row before the window's oldest date to seed a
+    cumulative A/D total. `io_read_bytes` climbing (real disk, not page-cache
+    hits — see `breadth_timing.io_counters`'s own H1/page-cache discriminator)
+    on the first request, and the SAME query pattern answering fast on every
+    later request (including a much LARGER span asked immediately after),
+    together are what make this a warmable OS-page-cache cost rather than the
+    reader's own unfixable cold path.
+
+    ⛔ WARMS THE WORST CASE ON PURPOSE. `_adv_decline_seed_before(oldest)`'s
+    scan cost grows with how far back `oldest` reaches, so warming a shallow
+    window (as the existing `_breadth()` dashboard-warm already does, `days=90`
+    — well inside the collector floor, never touching this path at all) would
+    warm nothing this function exists to fix. This reaches back to
+    `MAX_HISTORY_FROM` (2008-01-02, `BreadthChartsV2.jsx`) — the same span
+    V2-3's own "Max" preset asks for — so whichever member opens Data Charts
+    first pays no more than the warm request already paid.
+
+    ⛔ NEVER ON THE REQUEST PATH, NEVER BLOCKS `/api/health`. Called from
+    `api/main.py`'s `_start_breadth_series_warm_background` — its OWN
+    standalone delayed thread, DC-3(c)/D-056 addendum, deliberately NOT a
+    step inside `_start_dashboard_warm_background`'s sequential chain (that
+    placement left a measured 1-3 minute early-boot exposure window; see
+    this function's caller for why). Wrapped in a try/except there — a
+    failure here is logged and changes nothing else. Returns a summary dict
+    rather than raising either way.
+    """
+    if not series_boot_warm_enabled():
+        return {"ok": False, "reason": "flag off"}
+    days = series_max_calendar_days(_SERIES_MAX_SESSIONS_DEFAULT)
+    t0 = time.monotonic()
+    rows = svc.get_history_deep(days, end=None, anchor="le")
+    return {"ok": True, "days": days, "rows": len(rows),
+            "elapsed_ms": round((time.monotonic() - t0) * 1000, 1)}
 
 
 def require_series_flag() -> None:
@@ -749,6 +853,14 @@ def get_breadth_series(
     rows and rolling warm-up are whatever that function says they are.
     """
     t0 = time.monotonic()
+    # ⛔⛔ DC-3 (2026-09-18): `get_history_deep`'s own `_bt.phase(...)` calls were
+    # SILENTLY NO-OPPING here — phase()/mark() are no-ops without an open context,
+    # and nothing on this path ever called `begin()`. Wired identically to the
+    # monitor route below so the SAME reader phases (already computed inside
+    # `get_history_deep` regardless of caller) become visible on THIS route's own
+    # Server-Timing header and log line too. See `breadth_timing._ROUTES`.
+    from api.services import breadth_timing
+    breadth_timing.begin(span="series")
     requested = [k.strip() for k in (keys or "").split(",") if k.strip()]
     # Dedupe, order preserved — a repeated key must not consume the budget twice.
     seen = set()
@@ -780,9 +892,9 @@ def get_breadth_series(
         raise HTTPException(
             status_code=400,
             detail=(f"span {span_days} days exceeds the {max_sessions}-session cap "
-                    f"({max_days} calendar days). The cap exists because a cold deep read "
-                    f"costs ~55s on the web process (D-042); it is raised when the reader "
-                    f"work lands, not to satisfy a wider view."))
+                    f"({max_days} calendar days). Raised 2026-09-17 once the reader "
+                    f"work behind D-042 actually landed; still capped so a span past "
+                    f"what has been measured cannot reach an unmeasured reader depth."))
     if span_days > _SERIES_DAY_CEILING:                  # belt: the monitor route's own ceiling
         raise HTTPException(
             status_code=400,
@@ -793,34 +905,40 @@ def get_breadth_series(
     hit = cache.get(ck)
     if hit is not None:
         _log_series(requested, span_days, None, True, t0)
+        breadth_timing.note(cache="hit", cache_tier="series_body", rows=None)
+        breadth_timing.mark("route_return")
         return Response(content=hit, media_type="application/json",
                         headers={"Cache-Control": "private, max-age=60"})
 
     # Over-fetch by CALENDAR days then filter: calendar days >= stored sessions, so the
     # window always covers the span, and `sessions` below is counted from what is stored.
+    _rt0 = time.perf_counter()
     rows = [r for r in svc.get_history_deep(span_days, end=to_date, anchor="le")
             if r.get("date", "") >= from_date]
-    rows.sort(key=lambda r: r.get("date", ""))
-
-    known = series_known_keys(rows)
-    missing = [k for k in requested if k not in known]
-    present = [k for k in requested if k in known]
-
-    payload = {
-        "from": from_date,
-        "to": to_date,
-        "sessions": len(rows),
-        "dates": [r["date"] for r in rows],
-        "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
-        "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
-        "missing": missing,
-    }
-    body = json.dumps(payload, separators=(",", ":"))
+    breadth_timing.note(reader_ms=(time.perf_counter() - _rt0) * 1000.0, rows=len(rows),
+                        cache="miss")
+    with breadth_timing.phase("route_tail"):
+        rows.sort(key=lambda r: r.get("date", ""))
+        known = series_known_keys(rows)
+        missing = [k for k in requested if k not in known]
+        present = [k for k in requested if k in known]
+        payload = {
+            "from": from_date,
+            "to": to_date,
+            "sessions": len(rows),
+            "dates": [r["date"] for r in rows],
+            "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
+            "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
+            "missing": missing,
+        }
+    with breadth_timing.phase("serialise"):
+        body = json.dumps(payload, separators=(",", ":"))
     # ⛔ Cached under the `breadth_history_` prefix DELIBERATELY: every snapshot write
     # already calls `cache.delete_prefix("breadth_history_")`, so this needs no new
     # invalidation path and none can be forgotten.
     cache.set(ck, body, ttl=_SERIES_TTL)
     _log_series(requested, span_days, len(rows), False, t0)
+    breadth_timing.mark("route_return")
     return Response(content=body, media_type="application/json",
                     headers={"Cache-Control": "private, max-age=60"})
 

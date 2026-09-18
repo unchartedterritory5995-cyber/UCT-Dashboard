@@ -42,6 +42,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 
@@ -50,10 +51,26 @@ import time
 # one resource this programme cannot get more of today. Same bug that made
 # tools/flag_ledger_audit.py read as an auth failure for a month (CLAUDE.md).
 try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, ValueError):
-    pass
+    # ⛔⛔ LINE-BUFFERED, AND THAT CLAUSE IS NOT COSMETIC.
+    #
+    # ⚰️ Measured 2026-09-18. A detached run hit its 1800s ceiling and was killed
+    # (exit 124). Python had BLOCK-buffered stdout into the redirect file, so the
+    # kill discarded everything: raw.txt contained the single word "TIMED OUT".
+    # Zero cells, zero swap-waits, zero banner - and I read that emptiness as "it
+    # hung at startup" when Chrome's own creation timestamp proved it had started
+    # normally 3 seconds in.
+    #
+    # ⛔ R-RAW says a run with no raw artifact is INCONCLUSIVE. Buffering turns
+    # EVERY killed run into exactly that, and a timeout is precisely the run whose
+    # trail you most need. The evidence must reach disk as it happens.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except (AttributeError, ValueError, TypeError):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SENTINEL = "F5-MATRIX"
@@ -95,6 +112,95 @@ ENDPOINT = {
     "append_financial_fact": "/facts/",
     "append_document_excerpt": "/excerpts",
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# W1 - THE FOURTH OUTCOME: the door guard DEFERRED
+#
+# ⛔⛔ D1 CHANGED WHAT AN ABSENT `/embeds` CALL MEANS. `noteHasUnsentWork` is
+# live on production and the capture chokepoint now DEFERS while a note has
+# unsent work, so the append cells cannot reach the loss path by design. The
+# cell's old reading of that was *"the control took the click but produced no
+# call to `/embeds` - a label is not a door"*, filed INCONCLUSIVE. That sentence
+# is a diagnosis of a BROKEN SELECTOR, and it was published as one; the owner
+# corrected it. The door was driven to completion and the guard stopped it.
+#
+# ⭐ THREE OUTCOMES WHERE THERE WAS ONE, and they are different facts:
+#
+#   DEFERRED-BY-GUARD  the member SAW the sentence, no `/embeds` call was made,
+#                      and the note still has queued work. The mitigation is
+#                      working and the member was told.
+#   RED                an `/embeds` call happened while work was unsent - the
+#                      guard did not hold, which is the defect itself.
+#   INCONCLUSIVE       no toast AND no call. A silent nothing: the click may
+#                      have missed, the toast may have shipped invisible (this
+#                      repo has shipped two of those), or the guard may have
+#                      deferred without telling anyone. All three are
+#                      unmeasured, and none of them is a pass.
+#
+# ⛔ THE COPY CONTRACT IS THE EVIDENCE, not a state flag. Two toasts have
+# shipped invisible in this repo - one passed `message` where the component
+# reads `msg`, one was owned by the branch its own action unmounts - and both
+# left every structural assertion green. So this reads RENDERED TEXT.
+
+#: ⛔ DERIVED FROM THE PRODUCT, NEVER RETYPED. A sentence typed into an
+#: instrument agrees with itself and says nothing about what a member sees; the
+#: constant is exported precisely so its one authority can be read.
+def guard_sentence(repo: pathlib.Path = REPO) -> str | None:
+    src = repo / "app" / "src" / "pages" / "journal-2-0" / "lib" / "offline" / "noteHasUnsentWork.js"
+    try:
+        text = src.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    m = re.search(r"STILL_SYNCING_MESSAGE\s*=\s*'([^']+)'", text)
+    return m.group(1) if m else None
+
+
+#: Read what the member can actually see. ⛔ `innerText`, not `textContent`:
+#: textContent returns text inside `display:none` subtrees, which is exactly how
+#: an invisible toast would read as a visible one.
+GUARD_TOAST_JS = """() => {
+  const b = document.body
+  return {text: b ? (b.innerText || '') : '', had_body: Boolean(b)}
+}"""
+
+
+def toast_in(rendered: str | None, sentence: str | None) -> bool:
+    """⛔ Pure, so the verdict can be driven without a browser.
+
+    UNKNOWN IS NOT SEEN: an unreadable page or an underivable sentence answers
+    False, which sends the cell to INCONCLUSIVE rather than to a verdict.
+    """
+    if not rendered or not sentence:
+        return False
+    return sentence in rendered
+
+
+#: The verdict's three branches, PURE. `PROCEED` means the door really fired and
+#: the ordinary RED/GREEN logic downstream owns the answer.
+DEFERRED = "DEFERRED-BY-GUARD"
+
+
+def judge_append_door(*, endpoint_hits: int, toast_seen: bool, queued_for_note: int):
+    """→ (verdict, why) for a decided cell, or (None, reason) to PROCEED."""
+    if endpoint_hits:
+        return None, "the door's own endpoint was called - the ordinary path decides"
+    if toast_seen and queued_for_note >= 1:
+        return DEFERRED, (
+            "the door was driven to completion and the capture chokepoint DEFERRED: "
+            "the member was shown the sentence, no call to the door's endpoint was "
+            f"made, and the note still holds {queued_for_note} queued entr(ies). "
+            "⭐ This is the MITIGATION working, not a broken selector - and not a "
+            "pass either: the writer is only deferred, never fixed.")
+    if toast_seen:
+        return "INCONCLUSIVE", (
+            "the deferral sentence was shown but the store reported NO queued entry, "
+            "so the guard deferred a note that had nothing to defer - the cell cannot "
+            "tell a mitigation from a false defer")
+    return "INCONCLUSIVE", (
+        "a SILENT NOTHING: no call to the door's endpoint and no deferral sentence "
+        "on screen. The click may have missed, or the toast may have shipped "
+        "invisible (two have, in this repo). Nothing was measured.")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # the six orderings
@@ -547,7 +653,24 @@ def prepare_family(page, family, note_id, stamp, log, rig=None, base=""):
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "rig_limitation": True,
                 "why": "the editor's own attachment input would not take the file: " + str(e)}
-    page.wait_for_timeout(9000)
+    # ⛔ POLL THE THING THAT ANSWERS THE QUESTION. A flat 9s here was a guess at
+    # how long the server takes to process an attachment; the endpoint below can
+    # simply be asked. Same 9s ceiling, so a slow server behaves as before.
+    for _ in range(18):
+        page.wait_for_timeout(500)
+        try:
+            ready = page.evaluate("""async (id) => {
+              try {
+                const r = await fetch('/api/j2/notes/' + id + '/documents', {credentials:'include'});
+                if (!r.ok) return false;
+                const j = await r.json();
+                return Array.isArray(j.documents) && j.documents.length > 0;
+              } catch { return false; }
+            }""", note_id)
+        except Exception:                                # noqa: BLE001
+            ready = False
+        if ready:
+            break
     docs = page.evaluate("""async (id) => {
       const r = await fetch('/api/j2/notes/' + id + '/documents', {credentials:'include'});
       if (!r.ok) return {err: r.status};
@@ -639,8 +762,20 @@ def warm_route(page, family, base, log):
     if not path:
         return {"ok": True, "warmed": None}
     page.goto(base + path, wait_until="domcontentloaded")
-    page.wait_for_timeout(9000)
-    return {"ok": True, "warmed": path}
+    # ⛔ WAIT FOR THE CONDITION, NOT THE CLOCK. This was a flat 9s, fired once per
+    # cell - measured 2026-09-18 at ~27% of a 39-cell run's 1318s, spent whether
+    # or not the route was ready. The CEILING is unchanged, so nothing that used
+    # to pass can now fail; what changes is that a route already warm costs what
+    # it actually costs.
+    warmed_in = 9000
+    try:
+        page.wait_for_load_state("networkidle", timeout=9000)
+        warmed_in = None
+    except Exception:                                    # noqa: BLE001
+        # networkidle never arrived inside the old budget - this route streams or
+        # polls. Fall back to exactly the previous behaviour rather than guessing.
+        pass
+    return {"ok": True, "warmed": path, "warm_wait": warmed_in}
 
 
 
@@ -834,6 +969,126 @@ JUST_RAN_COOLDOWN_SECONDS = 180
 # ("nothing was measured, here is why"); the second is the absence of one. Setup is
 # online and is not the door, so it gets a deadline and must say WHICH step ran out.
 PRECONDITION_BUDGET_SECONDS = 120
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SWAP RESILIENCE — a 502 mid-cell is ANOTHER SESSION'S DEPLOY, not product state
+#
+# ⚰️ MEASURED 2026-09-18. A P2 run spent 1318s and came back 16 GREEN / 23
+# INCONCLUSIVE, and **22 of the 23 were `/api/auth/me` 502**. Master was landing a
+# deploy every ~13 minutes while a 2.8b cell takes 12-22, so the rig could not
+# hold a stable production long enough to finish. The instrument was RIGHT to
+# refuse - it just refused permanently where it could have waited.
+#
+# ⛔ THE BUDGET IS THE WHOLE SAFETY PROPERTY. Waiting without a bound turns a
+# 57-minute window into one hung cell; this programme has already lost a window
+# to an unbounded run (exit 124 at 1802s). Six minutes covers a Railway build
+# (3-5 min) with a little slack, and NOTHING here waits longer.
+SWAP_WAIT_BUDGET_SECONDS = 360
+SWAP_POLL_SECONDS = 10
+#: How many consecutive healthy readings before a pod is called settled.
+SWAP_SETTLE_READINGS = 3
+#: ⛔ A pod younger than this is still booting - its first requests can 502 or
+#: serve a half-warm cache, which is exactly the state that produced the
+#: readings this whole mechanism exists to discard.
+SWAP_MIN_UPTIME_SECONDS = 60
+
+#: Read the pod's own health from the PAGE, so it travels the same origin,
+#: cookies and CDN path the cell's real requests do. ⛔ A curl from the harness
+#: would prove something about the harness's network, not the rig's.
+SWAP_PROBE_JS = r"""async () => {
+  const out = {t: Date.now()};
+  try {
+    const r = await fetch('/api/health', {credentials: 'include', cache: 'no-store'});
+    out.status = r.status;
+    try { const j = await r.json(); out.uptime = j.uptime_seconds; out.wire = j.wire_date; }
+    catch { out.uptime = null; }
+  } catch (e) { out.status = 0; out.err = String((e && e.name) || e); }
+  // ⭐ The BUNDLE HASH is the browser-visible identity of a deploy. It is NOT the
+  // git SHA and is never reported as one - the page cannot see a SHA. It changes
+  // when a new build is served, which is exactly the question being asked.
+  try {
+    const html = await (await fetch('/', {cache: 'no-store'})).text();
+    const m = html.match(/index-([A-Za-z0-9_-]+)\.js/);
+    out.bundle = m ? m[1] : null;
+  } catch { out.bundle = null; }
+  return out;
+}"""
+
+
+#: ⛔ ONE authority for the auth read. The retry after a swap must use the SAME
+#: probe as the first attempt — a second copy would let the two disagree and the
+#: cell would resume on a different question than the one it refused on (R-05).
+AUTH_PROBE_JS = """async () => {
+  try {
+    const r = await fetch('/api/auth/me', {credentials:'include'});
+    return {status: r.status,
+            json: (r.headers.get('content-type') || '').includes('json')};
+  } catch (e) { return {status: 0, err: String(e)}; }
+}"""
+
+
+def swap_settled(readings, min_uptime: int = SWAP_MIN_UPTIME_SECONDS,
+                 need: int = SWAP_SETTLE_READINGS):
+    """Is a single, stable pod serving? → (settled, why)
+
+    ⛔ PURE, so `--self-check` can drive every branch with planted readings and
+    no browser. `readings` is oldest-first.
+
+    ⛔ THE FIRST 200 AFTER A 502 IS NOT SETTLED, and that is the entire point.
+    A swap serves: old pod 200 (uptime 3000) → 502 → new pod 200 (uptime 3).
+    Accepting the first 200 back would measure a pod that is still booting.
+    """
+    if not readings:
+        return False, "no readings at all"
+    tail = readings[-need:]
+    if len(tail) < need:
+        return False, f"only {len(readings)} reading(s); need {need} consecutive"
+    if any(r.get("status") != 200 for r in tail):
+        bad = [r.get("status") for r in tail]
+        return False, f"a non-200 inside the settle window: {bad}"
+    ups = [r.get("uptime") for r in tail]
+    if any(not isinstance(u, (int, float)) for u in ups):
+        return False, f"health answered 200 without a usable uptime: {ups}"
+    if ups[-1] < min_uptime:
+        return False, f"uptime {ups[-1]}s < {min_uptime}s — the pod is still booting"
+    # ⛔ STRICTLY increasing. Equal readings mean the clock did not move between
+    # polls, which is indistinguishable from a cached response.
+    if any(b <= a for a, b in zip(ups, ups[1:])):
+        return False, f"uptime not strictly increasing ({ups}) — another swap in flight"
+    bundles = {r.get("bundle") for r in tail if r.get("bundle")}
+    if len(bundles) > 1:
+        return False, f"the served bundle changed inside the window: {sorted(bundles)}"
+    return True, (f"uptime {ups[0]}→{ups[-1]}s strictly monotonic over {need} readings, "
+                  f"bundle {sorted(bundles)[0] if bundles else 'unreadable'}")
+
+
+def wait_for_swap(page, log, budget: int = SWAP_WAIT_BUDGET_SECONDS) -> dict:
+    """Poll until ONE pod is stably serving, or the budget runs out.
+
+    → {"settled": bool, "why": str, "events": [...], "waited": float}
+
+    ⛔ Every reading goes into `events` and every event reaches the raw artifact.
+    A wait nobody can audit is a wait nobody can distinguish from a hang.
+    """
+    started = time.time()
+    events, settled, why = [], False, "budget exhausted before a pod settled"
+    while time.time() - started < budget:
+        try:
+            r = page.evaluate(SWAP_PROBE_JS)
+        except Exception as e:                                  # noqa: BLE001
+            r = {"status": 0, "err": f"{type(e).__name__}"}
+        r["at"] = time.strftime("%H:%M:%SZ", time.gmtime())
+        events.append(r)
+        log(f"      swap-wait: status={r.get('status')} uptime={r.get('uptime')} "
+            f"bundle={str(r.get('bundle'))[:10]} ({int(time.time() - started)}s)")
+        settled, why = swap_settled(events)
+        if settled:
+            break
+        page.wait_for_timeout(SWAP_POLL_SECONDS * 1000)
+    return {"settled": settled, "why": why, "events": events,
+            "waited": round(time.time() - started, 1)}
+
+
 
 
 def rig_window_refusal(now=None, query=None):
@@ -1288,13 +1543,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
     try:
         # ── 0. AUTH. A signed-out rig makes every reading below meaningless, and a
         #    401 here is a different fact from a 502. Ask before spending anything. ──
-        who = page.evaluate("""async () => {
-          try {
-            const r = await fetch('/api/auth/me', {credentials:'include'});
-            return {status: r.status,
-                    json: (r.headers.get('content-type') || '').includes('json')};
-          } catch (e) { return {status: 0, err: String(e)}; }
-        }""")
+        swap_events = []
+        who = page.evaluate(AUTH_PROBE_JS)
         if not (isinstance(who, dict) and who.get("status") == 200 and who.get("json")):
             # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG. The first version of this refusal said
             # "the rig is not signed in" for EVERY non-200 — including the 502 it
@@ -1307,16 +1557,42 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                          "session event — do NOT create a new profile; a fresh profile "
                          "is a signed-out profile.")
             elif st in (500, 502, 503, 504):
-                cause = ("PRODUCTION was unavailable (5xx), almost always a deploy swap. "
-                         "Nothing is wrong with the rig. Requeue and retry in a later "
-                         "window.")
+                # ⛔⛔ A DEPLOY SWAP IS WAITED OUT, NOT REPORTED. Another session
+                # landing on master 502s this cell for a minute or two; refusing
+                # permanently threw away 22 of 23 cells on 2026-09-18. Wait for
+                # ONE pod to settle, then ask again ONCE.
+                log(f"      /api/auth/me → {st}: a deploy swap. Waiting for a pod to settle "
+                    f"(bounded {SWAP_WAIT_BUDGET_SECONDS}s)…")
+                sw = wait_for_swap(page, log)
+                swap_events.append(sw)
+                if sw["settled"]:
+                    log(f"      settled after {sw['waited']}s — {sw['why']}; re-asking auth ONCE")
+                    who = page.evaluate(AUTH_PROBE_JS)
+                    if isinstance(who, dict) and who.get("status") == 200 and who.get("json"):
+                        log("      auth is back — resuming the cell")
+                        st = 200
+                    else:
+                        return {"verdict": "INCONCLUSIVE",
+                                "why": (f"a deploy swap settled after {sw['waited']}s but "
+                                        f"/api/auth/me still answered {who} — swap not "
+                                        f"settled for THIS cell. INSTRUMENT fact, not a "
+                                        f"product finding. swap events: {len(sw['events'])}")}
+                else:
+                    return {"verdict": "INCONCLUSIVE",
+                            "why": (f"swap not settled: waited {sw['waited']}s of "
+                                    f"{SWAP_WAIT_BUDGET_SECONDS}s and {sw['why']}. Another "
+                                    f"session is deploying faster than a cell can run. "
+                                    f"INSTRUMENT fact, NOT a product finding. "
+                                    f"swap events: {len(sw['events'])}")}
+                cause = ""  # handled above; flow continues with st == 200
             elif not st:
                 cause = "the request never completed — no network, or the page was gone."
             else:
                 cause = "an unexpected status; classify it before spending a window."
-            return {"verdict": "INCONCLUSIVE",
-                    "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
-                            f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
+            if st != 200:
+                return {"verdict": "INCONCLUSIVE",
+                        "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
+                                f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
         x = _expired("auth check")
         if x:
             return x
@@ -1337,20 +1613,37 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
         page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded",
                   timeout=45000)
-        page.wait_for_timeout(7000)
         # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
         # behind an auth gate; a slow first paint or a pod that has just swapped
         # loses the cell for a reason that has nothing to do with the property
         # under test. Retry the MOUNT before spending the window on it.
+        #
+        # ⛔⛔ WAIT FOR THE ELEMENT, DO NOT SAMPLE FOR IT. This was
+        # `query_selector` inside a 5-second sleep loop - a POINT-IN-TIME check,
+        # so an editor that mounted at t=8s went unseen until t=12s and one that
+        # mounted at t=34s was never seen at all. Measured 2026-09-18: THREE of
+        # six orderings in one folder cell died on "the editor never mounted",
+        # on a run where production never swapped (zero swap-waits), so the
+        # sampling was losing cells the product was ready to serve.
+        #
+        # ⭐ `wait_for_selector` polls continuously and returns the instant the
+        # node appears. The CEILING is unchanged (~33s across two attempts and a
+        # reload), so nothing that used to pass can now fail - what changes is
+        # that a mount at any moment inside that ceiling is caught.
         pm = None
-        for _try in range(4):
-            pm = page.query_selector(".ProseMirror")
+        for _try in range(2):
+            try:
+                pm = page.wait_for_selector(".ProseMirror", timeout=16000, state="attached")
+            except Exception:                                # noqa: BLE001
+                pm = None
             if pm is not None:
                 break
-            page.wait_for_timeout(5000)
-            if _try == 1:
-                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
-                page.wait_for_timeout(6000)
+            if _try == 0:
+                # ⛔ One reload, and only one: a lazy chunk that failed to fetch
+                # will not heal by being asked a third time, and the budget
+                # belongs to the measurement.
+                page.goto(f"{base}/journal/notebook?note={note_id}",
+                          wait_until="domcontentloaded")
         if pm is None:
             return {"verdict": "INCONCLUSIVE",
                     "why": "the editor never mounted for the probe note after 4 tries and a "
@@ -1488,11 +1781,32 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # For an append family the row only counts if its OWN endpoint was hit.
         if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
             hit = [p for p in posts if ENDPOINT[family] in p["u"]]
-            if not hit:
-                return {"verdict": "INCONCLUSIVE",
-                        "why": (f"the control took the click but produced no call to "
-                                f"`{ENDPOINT[family]}` — a label is not a door. "
-                                f"note calls this cell: {len(posts)}")}
+            # ⛔ READ THE TOAST BEFORE JUDGING THE ABSENCE OF A CALL. Since D1
+            # the chokepoint defers while a note has unsent work, so "no call"
+            # is now THREE different facts and the cell must name which.
+            rendered = None
+            try:
+                got = page.evaluate(GUARD_TOAST_JS)
+                rendered = (got or {}).get("text")
+            except Exception as e:                       # noqa: BLE001
+                log(f"      guard toast: UNREADABLE ({type(e).__name__})")
+            expected = guard_sentence()
+            if expected is None:
+                log("      guard toast: the product's sentence could not be DERIVED "
+                    "— treating the toast as unseen rather than guessing it")
+            seen = toast_in(rendered, expected)
+            q_now = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                              "sentence": sentence})
+            queued_now = (q_now or {}).get("queuedForThisNote") or 0
+            log(f"      guard toast seen: {seen} · queued for this note: {queued_now} "
+                f"· {ENDPOINT[family]} calls: {len(hit)}")
+            verdict, why = judge_append_door(endpoint_hits=len(hit), toast_seen=seen,
+                                             queued_for_note=queued_now)
+            if verdict is not None:
+                return {"verdict": verdict,
+                        "why": (f"{why} · door via {res.get('via', 'n/a')} · "
+                                f"note calls this cell: {len(posts)} · "
+                                f"toast: {'\u201c' + expected + '\u201d' if seen else 'not on screen'}")}
 
         # ── 5b. WAIT FOR THE DRAIN TO ACTUALLY FINISH ──────────────────
         #
@@ -1685,7 +1999,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
                f" · left the note: **{navigated_away}**"
-               f"{nav_note} · {int(time.time() - from_cell)}s")
+               f"{nav_note} · {int(time.time() - from_cell)}s"
+               # ⛔ A CELL THAT SURVIVED A DEPLOY SWAP SAYS SO IN ITS OWN ROW.
+               # Otherwise a GREEN taken across somebody else's deploy is
+               # indistinguishable from one taken on a quiet box, and the next
+               # reader cannot weigh it.
+               + (f" · ⚠️ survived {len(swap_events)} deploy swap(s): "
+                  + "; ".join(f"waited {e['waited']}s, {e['why']}" for e in swap_events)
+                  if swap_events else ""))
         # ⛔ And it is only a spoiled cell if the words LANDED first. A door that
         # fired after a failed attempt still met queued work, which is the case
         # the matrix is about.
@@ -1773,6 +2094,110 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                 log(f"      ⛔ cleanup failed ({type(e).__name__}) — orphans may remain")
 
 
+def _self_check() -> int:
+    """⛔ THE FOURTH OUTCOME, DRIVEN WITHOUT A BROWSER, WITH PLANTED DOM.
+
+    `toast_in` and `judge_append_door` are pure for exactly this reason: a
+    verdict nobody has watched fail is not a verdict
+    (`lesson_gate_that_cannot_fail`).
+    """
+    fails = []
+    real = guard_sentence()
+    if not real:
+        fails.append("the product's deferral sentence could not be DERIVED from "
+                     "noteHasUnsentWork.js — the cell would treat every deferral as "
+                     "a silent nothing")
+        real = "This note is still syncing"          # keep the rest of the cases runnable
+
+    # planted DOM, in the three shapes a real page can take
+    PAGE_WITH_TOAST = f"Notebook\nMy note\n{real}\nOther chrome"
+    PAGE_SILENT = "Notebook\nMy note\nOther chrome"
+
+    cases = [
+        # (endpoint_hits, page text, queued, expected verdict, why-this-case-exists)
+        (0, PAGE_WITH_TOAST, 1, DEFERRED,
+         "toast + no call + queued work is the mitigation working"),
+        (1, PAGE_SILENT, 1, None,
+         "a real call must PROCEED to the ordinary RED/GREEN path, guard or no guard"),
+        (0, PAGE_SILENT, 1, "INCONCLUSIVE",
+         "a SILENT nothing is not a deferral — it is unmeasured"),
+        (0, PAGE_WITH_TOAST, 0, "INCONCLUSIVE",
+         "a toast with NOTHING queued cannot be told from a false defer"),
+        (0, None, 1, "INCONCLUSIVE",
+         "an UNREADABLE page is not an absent toast"),
+        (1, PAGE_WITH_TOAST, 1, None,
+         "a call PLUS a toast still proceeds — the call is what the cell is about"),
+    ]
+    for hits, page_text, queued, want, why in cases:
+        got, _ = judge_append_door(endpoint_hits=hits,
+                                   toast_seen=toast_in(page_text, real),
+                                   queued_for_note=queued)
+        if got != want:
+            fails.append(f"{why}: expected {want!r}, got {got!r}")
+
+    # ── SWAP RESILIENCE, driven with planted readings and no browser ────────
+    U = lambda st, up, b='abc': {'status': st, 'uptime': up, 'bundle': b}
+    swap_cases = [
+        # (readings, expect_settled, why-this-case-exists)
+        ([U(200, 120), U(200, 130), U(200, 140)], True,
+         'three healthy readings on one stable pod is settled'),
+        ([U(200, 3000), U(0, None), U(200, 3)], False,
+         '⛔ THE FIRST 200 AFTER A 502 IS NOT SETTLED - the new pod is 3s old'),
+        ([U(200, 10), U(200, 20), U(200, 30)], False,
+         'a pod under the uptime floor is still booting, however monotonic'),
+        ([U(200, 120), U(200, 130), U(200, 5)], False,
+         'a RESET inside the window means another swap landed mid-wait'),
+        ([U(200, 120), U(200, 130), U(200, 130)], False,
+         'equal uptimes are indistinguishable from a cached response'),
+        ([U(200, 120), U(502, None), U(200, 140)], False,
+         'a non-200 inside the settle window voids it'),
+        ([U(200, 120, 'aaa'), U(200, 130, 'aaa'), U(200, 140, 'bbb')], False,
+         '⛔ the served BUNDLE changing mid-window is a deploy landing under us'),
+        ([U(200, 120), U(200, 130)], False,
+         'two readings are not three - the window must be full'),
+        ([], False, 'no readings at all cannot be settled'),
+        ([{'status': 200, 'uptime': None}, {'status': 200, 'uptime': None},
+          {'status': 200, 'uptime': None}], False,
+         '200 without a usable uptime is not evidence of a settled pod'),
+    ]
+    for readings, want, why in swap_cases:
+        got, _ = swap_settled(readings)
+        if got is not want:
+            fails.append(f'SWAP {why}: expected settled={want}, got {got}')
+
+    # ⛔ NON-VACUITY: the settle rule must actually be capable of BOTH answers.
+    if not swap_settled([U(200, 120), U(200, 130), U(200, 140)])[0]:
+        fails.append('SWAP: the happy path cannot settle — the rule can only say no')
+    if swap_settled([U(200, 1), U(200, 2), U(200, 3)])[0]:
+        fails.append('SWAP: a freshly-booted pod settled — the uptime floor is inert')
+
+    # ⛔ THE BUDGET IS THE SAFETY PROPERTY. A permanent 502 must end BOUNDED.
+    if SWAP_WAIT_BUDGET_SECONDS > 420:
+        fails.append(f'SWAP: the wait budget {SWAP_WAIT_BUDGET_SECONDS}s is long enough '
+                     'to eat a rig window; this programme has already lost one to an '
+                     'unbounded run')
+
+    # ⛔⛔ THE MUTATION CONTROL, run in-process: with toast detection removed the
+    # DEFERRED case MUST NOT pass. A cell that answers DEFERRED without reading
+    # the copy contract is asserting the member saw something nobody checked.
+    blind, _ = judge_append_door(endpoint_hits=0, toast_seen=False, queued_for_note=1)
+    if blind == DEFERRED:
+        fails.append("MUTATION CONTROL: with the toast unseen the cell still answered "
+                     "DEFERRED-BY-GUARD — the copy contract is decorative")
+
+    # ⛔ and the derivation itself must be able to fail
+    if toast_in(PAGE_WITH_TOAST, None) or toast_in(None, real):
+        fails.append("toast_in must answer False when either half is missing")
+
+    for f in fails:
+        print("  \u26d4", f)
+    print("self-check:",
+          "PASS — the fourth outcome distinguishes a deferral, a real call, a silent "
+          "nothing and a false defer, and cannot answer DEFERRED without the toast"
+          if not fails else "FAIL")
+    return 1 if fails else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile")
@@ -1807,10 +2232,14 @@ def main() -> int:
                     help="apply the offline route change to EVERY family, so the "
                          "navigation can be isolated from the family. Marks the "
                          "cell so it is never mistaken for a plain row.")
+    ap.add_argument("--self-check", action="store_true",
+                    help="drive the fourth outcome against planted DOM; no browser")
     ap.add_argument("--ignore-window", action="store_true",
                     help="run anyway. Only for a window verified by hand; "
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
+    if getattr(args, "self_check", False):
+        return _self_check()
 
     if args.second_writer:
         SECOND_WRITER["door"] = args.second_writer_door

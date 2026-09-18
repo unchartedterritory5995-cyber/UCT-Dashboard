@@ -67,7 +67,10 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
+  securityResults, breadthResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
+  glyphNameOf, glyphFamilyOf,
 } from './discoveryCatalog'
+import UIcon from '../ui/UIcon'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
 // facade adapters — so "what does QQQ match" has one answer on both surfaces.
@@ -87,6 +90,8 @@ import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/
 import { ohlcCapabilityOf } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
 import { symbolFamily } from '../../hooks/useBreadthSymbols'
+import useBreadthSymbols from '../../hooks/useBreadthSymbols'
+import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
   resolveDisplayTarget, displayTargetOptions, hasExplicitTarget, automaticTargetOf,
 } from './engine/displayTarget'
@@ -106,6 +111,7 @@ import { paneMap, paneRowMeta } from './chartDataMap'
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
 import { movePane, movePaneTo } from './engine/paneOrder'
+import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -230,7 +236,28 @@ export default function ChartSettingsIndicators({
   //             category, left by Back, Escape or clearing the box.
   const [mode, setMode] = useState('active')
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState(null)
+  // ⚰️⚰️ IT WAS A FREE-TEXT `category`, filtered against whatever string each
+  // result happened to carry — `Momentum`, `Volatility`, `Symbols`, `Your
+  // formulas`. That is the CATALOGUE's own vocabulary, which is right for
+  // grouping headings and wrong for a strip a member chooses from: it had a tab
+  // per definition category and no notion of Indexes, ETFs or Popular at all.
+  // ⭐ `LIBRARY_TABS` IS A PRESENTATION TAXONOMY OVER CANONICAL FACTS — see
+  // `discoveryCatalog.tabOf`, which reads `kind` and the server's own security
+  // type and derives nothing. `Popular` is the landing tab because it is the
+  // curated answer to "what do most people add".
+  const [tab, setTab] = useState('technical')
+  // ⛔⛔ SEARCH IS UNIVERSAL UNTIL THE MEMBER SAYS OTHERWISE, and this boolean is
+  // the whole of that rule. `Popular` is a LANDING state, not a filter the member
+  // chose — so leaving it applied over a query would mean typing `QQQ` returned
+  // nothing, because a ticker is not a popular indicator. That is exactly the
+  // direct-search contract the brief protects: *"do not make ticker search
+  // harder."*
+  //
+  // ⭐ SO: no query → the tab browses. A query → everything matches, and the strip
+  // shows nothing selected, which is the honest picture of "searching all of it".
+  // Click a tab WHILE searching and it narrows, and stays narrowed until the box
+  // is cleared. One flag, three behaviours, no hidden mode.
+  const [tabPinned, setTabPinned] = useState(false)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
   // The modal is unmounted when closed (`if (!open) return null`), so this
   // component is fresh on every open and the initial value IS the deep link. An
@@ -243,6 +270,21 @@ export default function ChartSettingsIndicators({
   const dragKeyRef = useRef(null)
   const [dragging, setDragging] = useState(null)
   const [dropBefore, setDropBefore] = useState(null)   // rowId — ONE at a time (§11)
+  /* ⛔⛔ THE SERIES DRAG KEEPS ITS OWN THREE, AND IT IS NOT TIDINESS. `dragging` /
+     `dropBefore` above belong to ARRANGE, which reorders PANES and writes
+     `paneOrder`; these reorder SERIES inside one pane and write
+     `paneSeriesOrder`. The two modes cannot be on screen at once today — which is
+     exactly the argument for not sharing the variables, because the day one of
+     them changes, a shared `dropBefore` is a pane key being read as a row id by a
+     writer that will happily accept it. Two orders, two states.
+     ⚠️ `seriesArmed` IS THE PRECISION RULE (§5). `draggable` goes on the ROW so
+     the drag ghost is the row rather than eight pixels of dots — but only after
+     the GRIP has been pressed, so a member reaching for `SMA 200` to edit it
+     cannot start a reorder by moving the mouse two pixels mid-click. */
+  const seriesDragRef = useRef(null)                  // { rowId, paneKey }
+  const [seriesArmed, setSeriesArmed] = useState(null)
+  const [seriesDrag, setSeriesDrag] = useState(null)  // rowId being carried
+  const [seriesDrop, setSeriesDrop] = useState(null)  // { paneKey, beforeId|null }
   // ⭐ THE TEMPORARY GOLD LANDING MARK. `search → add → SEE IT LAND` is the whole
   // promise of a right-side Add surface, and the thing that lands is a row in a
   // list the member is already looking at. A toast would announce it somewhere
@@ -717,7 +759,31 @@ export default function ChartSettingsIndicators({
   // ⚠️ IT RUNS ONLY WHILE BROWSING. `enabled` is the hook's own gate: a closed
   // catalogue makes no request and holds no state, which is the same discipline
   // `UserFormulaFeed` follows one file up.
-  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, mode === 'browse')
+  // ⚰️⚰️ THERE WERE THREE RIGHT-HAND STATES AND THERE ARE TWO. `mode === 'active'`
+  // with nothing selected used to render an orientation screen — a mark, a
+  // sentence and a `Browse indicators` button — and the owner tested it: *"we
+  // tested it. It is unnecessary. It creates an extra conceptual state and wastes
+  // a click."* Opening Indicators to look for something now IS looking for
+  // something.
+  //
+  // ⭐ SO DISCOVERY IS THE DEFAULT, NOT A DESTINATION. `browse` is still the
+  // explicit mode a member enters from `＋ Add Indicator`; what changed is that
+  // ACTIVE-with-no-selection resolves to the same surface, so there is ONE
+  // discovery component reached two ways rather than an empty state in front of
+  // it. The right side now answers exactly two questions: what can I add, and how
+  // is this one configured.
+  const discovering = mode === 'browse' || (mode === 'active' && !selected)
+  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, discovering)
+  // ⚠️ THE SAME WINDOW `useSymbolDiscovery` NORMALISES AGAINST, so a browsed row
+  // and a searched row report the same capability for the same instrument. The
+  // hook defaults to these two; naming them here keeps the browse path honest
+  // rather than letting it answer `UNKNOWN` for everything.
+  const TF = 'D'
+  const BARS = 400
+  // ⛔ THE ROWS ARE ALREADY FETCHED. `useBreadthSymbols` requests
+  // `/api/breadth-symbols` ONCE per module and hands back the cache — this adds
+  // no request, exactly as `useSymbolDiscovery`'s own header records.
+  const breadthAll = useBreadthSymbols()
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -740,19 +806,99 @@ export default function ChartSettingsIndicators({
     return { rows, byKey }
   }, [symbolResults])
 
+  // ─── BROWSE, FOR THE TABS THAT HAVE SOMETHING TO SHOW WITHOUT A QUERY ─────
+  //
+  // ⛔⛔ NO NEW CATALOGUE AND NO NEW REQUEST. Symbols and ETFs browse the SAME
+  // `POPULAR_RESULTS` the desktop dropdown and the phone sheet already share —
+  // exported *"so the two surfaces can never drift on what popular means"*, and
+  // now three. Indexes browses `INDICES_PRESET`, whose own comment states it IS
+  // the full universe (`api/index_bars.py INDEX_MAP`), so that tab is complete
+  // rather than a sample. Breadth browses the rows `useBreadthSymbols` has
+  // already fetched once per module. All three go through `securityResults` /
+  // `breadthResults`, so a browsed row and a searched row are the same shape with
+  // the same capability and the same create door.
+  const browsed = useMemo(() => {
+    const secs = securityResults(POPULAR_RESULTS, { tf: TF, bars: BARS })
+    const idx = securityResults(INDICES_PRESET, { tf: TF, bars: BARS })
+    const brd = breadthAll && typeof breadthAll.all === 'function'
+      ? breadthResults(breadthAll.all(), { tf: TF, bars: BARS }) : []
+    return [...secs, ...idx, ...brd]
+  }, [breadthAll])
+
+  // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
+  // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
+  //
+  // `addRow` is kind-blind on purpose: it looks the clicked row's key up here,
+  // and a hit goes to `createFromResult` (the ONE composition that honours a
+  // `create` descriptor) while a miss falls through to `addInstance(row.id)`.
+  // That fall-through is correct for a CATALOGUE row, whose id names a real
+  // engine definition. It is a silent no-op for a ticker: there is no definition
+  // called `SPX`, so `addInstance` refuses BY IDENTITY, `commit` sees
+  // `next === settings`, and the click writes nothing.
+  //
+  // ⛔ AND THE MAP WAS BUILT FROM THE **QUERY'S** RESULTS ALONE. With no query
+  // there are none — `results` swaps in `browsed` for exactly that case — so a
+  // member who clicked the `Indexes` tab and pressed `S&P 500 Index` was clicking
+  // a row whose result this lookup had never been told about. Measured on master:
+  // Technical added; Symbols, Indexes and Breadth were dead through BOTH doors
+  // (the `＋ Add` is an `aria-hidden` span, so it bubbles to the same handler).
+  //
+  // ⭐ SO THE MAP COVERS WHAT IS ON SCREEN, WHICHEVER HALF THAT IS. No new
+  // dispatcher, no second add path: the fix is that the UI can now find the
+  // result for a row it is already rendering. The query's answer overwrites the
+  // browsed one on a key collision — the same precedence `results` applies a few
+  // lines below, so the row a member sees and the result it creates from are the
+  // same object.
+  const resultByKey = useMemo(() => {
+    const m = new Map()
+    for (const res of browsed) if (res && res.key) m.set(res.key, res)
+    for (const res of symbolResults) if (res && res.key) m.set(res.key, res)
+    return m
+  }, [browsed, symbolResults])
+
   const results = useMemo(() => {
     const byQuery = catalog.filter((r) => matches(r, query))
-    const local = category ? byQuery.filter((r) => r.category === category) : byQuery
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
     // answer to this query — `useSymbolDiscovery` asked the server and the breadth
     // library with it — and a second substring test over a name the server ranked
-    // would drop `Invesco QQQ Trust` for the query `Invesco` on a bad day. The
-    // CATEGORY chip still applies, because that is this surface's own filter.
-    const sym = category
-      ? symbolRows.rows.filter((r) => r.category === category)
-      : symbolRows.rows
-    return [...local, ...sym]
-  }, [catalog, query, category, symbolRows])
+    // would drop `Invesco QQQ Trust` for the query `Invesco` on a bad day.
+    //
+    // ⭐ WITH NO QUERY THE BROWSE ROWS STAND IN FOR THE REMOTE ONES. `Symbols`,
+    // `Indexes` and `ETFs` are search-driven tabs — there is no endpoint that
+    // lists every ticker — so an empty box shows the canonical popular/index
+    // sets rather than an empty tab that reads as broken. A query replaces them
+    // with the real answer.
+    const live = query ? symbolRows.rows : browsed
+    // ⛔ DEDUPED, THE QUERY'S ANSWER WINNING. A browsed `QQQ` and a searched
+    // `QQQ` are the same instrument with the same key.
+    //
+    // ⚰️⚰️ AND THE IDENTITY IS `key || catalog:id`, WHICH IS NOT PEDANTRY. The
+    // CATALOGUE half of this list is assembled above from `BUILT_IN_ROWS`,
+    // `catalogRows` and `userCatalogRows` DIRECTLY — not through `libraryRows` —
+    // so those rows carry an `id` and no `key` at all. Deduping on `r.key` alone
+    // therefore saw `undefined` for every catalogue row, kept the first and
+    // dropped the rest: measured, a chart with a tombstoned overlay searched
+    // `moving average` and got `Restore EMA 9` and nothing else, because the
+    // revive row sorted first and `Moving Average` collided with it on
+    // `undefined`. Prefixing the catalogue side keeps it from ever colliding with
+    // a discovery key either (`ma` the definition vs `MA` the ticker).
+    const seen = new Set()
+    const out = []
+    for (const r of [...byQuery, ...live]) {
+      if (!r) continue
+      const k = r.key || `catalog:${r.id}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push(r)
+    }
+    return out
+  }, [catalog, query, symbolRows, browsed])
+
+  /** The tab actually FILTERING right now — `null` means "everything". */
+  const activeTab = (query && !tabPinned) ? null : tab
+
+  /** What the selected tab shows — the filter, applied last. */
+  const tabResults = useMemo(() => resultsForTab(results, activeTab), [results, activeTab])
 
   const refusals = useMemo(
     () => userRefusalRows((userDefRows || []).map((r) => r && r.definition), userDefErrors)
@@ -760,31 +906,44 @@ export default function ChartSettingsIndicators({
     [userDefRows, userDefErrors, query],
   )
 
-  // Groups DERIVED in first-appearance order, the member's own hoisted to the
+  // Headings DERIVED in first-appearance order, the member's own hoisted to the
   // front — the same partition `IndicatorLibraryDialog` makes, and for the same
   // reason (a formula you wrote should not be below four shipped categories).
+  //
+  // ⚠️ THESE ARE THE CATALOGUE'S OWN GROUP NAMES (`Momentum`, `Trend`,
+  // `Symbols`…), NOT the tabs. A tab is what the member chose to look at; a
+  // heading is how that tab's contents sort themselves inside it.
   const groups = useMemo(() => {
-    const order = [...new Set(results.map((r) => r.category))]
-    const mine = new Set(results.filter((r) => r.userDefined).map((r) => r.category))
+    const order = [...new Set(tabResults.map((r) => r.category))]
+    const mine = new Set(tabResults.filter((r) => r.userDefined).map((r) => r.category))
     const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
     // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (owner §9). A member who types `QQQ`
     // means the instrument, and burying Symbols under four shipped categories is
-    // the same defect `useSymbolDiscovery` already fixed WITHIN its own list. The
-    // hook has put the exact hit first, so this only has to hoist its heading.
-    //
-    // ⛔ AND ONLY ON AN EXACT MATCH. Hoisting Symbols for every query would put a
-    // list of tickers above "Moving Average" for the query `moving average`.
+    // the same defect `useSymbolDiscovery` already fixed WITHIN its own list.
     const first = symbolRows.rows[0]
     const exact = first && String(first.id).toUpperCase() === String(query).trim().toUpperCase()
       ? first.category : null
     return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
-  }, [results, symbolRows, query])
+  }, [tabResults, symbolRows, query])
 
-  const categories = useMemo(() => [...new Set(catalog.map((r) => r.category))], [catalog])
-
-  const enterBrowse = useCallback(() => setMode('browse'), [])
+  // ⛔ ONE DISCOVERY SURFACE, TWO DOORS. `＋ Add Indicator` sets the EXPLICIT
+  // mode even when discovery is already on screen — which is what makes the focus
+  // effect below fire and put the caret in the box. It never creates a second Add
+  // state; `browse` and `active`-with-no-selection render the same component.
+  const enterBrowse = useCallback(() => {
+    setMode('browse')
+    // ⚠️ FOCUS EVEN IF THE MODE DID NOT CHANGE. Pressing the button while already
+    // discovering is a statement of intent to search, and the effect below only
+    // fires on a mode TRANSITION.
+    try { searchRef.current?.focus() } catch { /* noop */ }
+  }, [])
   const leaveBrowse = useCallback(() => {
-    setMode('active'); setQuery(''); setCategory(null)
+    // ⛔ THE SELECTION IS NOT DESTROYED (owner §20). `mode` goes back to `active`
+    // and `selected` is untouched, so a member who was editing `EMA 20`, went
+    // looking for something and changed their mind lands back on `EMA 20`.
+    // ⚠️ AND WITH NO SELECTION THIS IS UNREACHABLE — the arrow that calls it is
+    // not rendered, because `active` with nothing selected IS discovery.
+    setMode('active'); setQuery(''); setTab('technical'); setTabPinned(false)
     try { searchRef.current?.blur() } catch { /* noop */ }
   }, [])
 
@@ -793,6 +952,11 @@ export default function ChartSettingsIndicators({
   // to ask twice. It is keyed on the MODE rather than done inside `enterBrowse`
   // so that `pickCategory` — the other way in — gets it too, and so a re-render
   // while already browsing never steals the caret back from where they put it.
+  // ⛔⛔ ON `browse`, NOT ON `discovering`. Discovery is the DEFAULT now, so
+  // keying this on the surface would take the caret the instant the Indicators tab
+  // is opened — stealing focus from the modal's own landing element, and from a
+  // member who arrived by keyboard and is still on the tab strip. The audit rule
+  // holds: focus follows an EXPRESSED intent (`＋ Add Indicator`), never a render.
   useEffect(() => {
     if (mode !== 'browse') return
     try { searchRef.current?.focus() } catch { /* noop */ }
@@ -805,20 +969,18 @@ export default function ChartSettingsIndicators({
   // its Inspector unchanged — the mode is a lens over the same state, not a
   // separate place with its own.
   const enterArrange = useCallback(() => {
-    setMode('arrange'); setQuery(''); setCategory(null); setNarrowView('list')
+    setMode('arrange'); setQuery(''); setTab('technical'); setTabPinned(false); setNarrowView('list')
   }, [])
   const leaveArrange = useCallback(() => {
     setMode('active')
     dragKeyRef.current = null; setDragging(null); setDropBefore(null)
   }, [])
 
-  // Focus the box when a CATEGORY chip put us in browse mode, so typing narrows
-  // without a second click. Not on every entry: focusing the box is itself one of
-  // the ways in, and re-focusing it there fights the caret.
-  const pickCategory = useCallback((c) => {
-    setCategory(c); setMode('browse')
-    try { searchRef.current?.focus() } catch { /* noop */ }
-  }, [])
+  // ⚰️ `pickCategory` STOOD HERE. It was the door the retired bottom-of-list
+  // `Browse` chips opened — pick a category, enter browse mode, focus the box.
+  // The category strip under Search is that door now, and it is already IN browse
+  // mode when it is visible, so there is no second entry to keep.
+
 
   const addRow = useCallback((row) => {
     // ⚰️⚰️ ONE CREATED OBJECT, ONE CANONICAL IDENTITY — AND THIS DOOR MINTED A
@@ -861,7 +1023,7 @@ export default function ChartSettingsIndicators({
       return true
     }
     armAdd()
-    const res = symbolRows.byKey.get(row.key)
+    const res = resultByKey.get(row.key)
     if (res) {
       if (!commit(createFromResult(settings, res, registry))) pendingAddRef.current = null
       return
@@ -874,7 +1036,7 @@ export default function ChartSettingsIndicators({
     // persisting a no-op would mark the preset custom for a click that did nothing
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
-  }, [settings, onChange, registry, symbolRows, armAdd, leaveBrowse])
+  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -930,6 +1092,71 @@ export default function ChartSettingsIndicators({
   }
   const dropOn = (id, beforeId) => {
     const next = movePaneTo(settings, paneKeysNow, id, beforeId, paneOpts)
+    if (next !== settings) onChange?.(next)
+  }
+
+  // ─── SERIES REORDERING, **INSIDE** ONE PANE ────────────────────────
+  //
+  // ⛔⛔ THREE ORDERS, THREE CONTROLS, AND THEY MAY NEVER BE CONFLATED.
+  //   · these arrows          reorder SERIES inside the pane they are already in
+  //   · Arrange               reorders whole PANES
+  //   · the Inspector's Display   moves a series to ANOTHER pane
+  // A row arrow cannot reach the second or the third: it steps inside one pane's
+  // own membership list, so there is no index at either end that names anything
+  // outside it, and the only key it writes is `paneSeriesOrder`.
+  //
+  // ⚠️ ONLY REAL PANES, the same gate `arrangeable` uses. `hidden` and `orphans`
+  // are rows that are not drawing anywhere; ordering them would be ordering a
+  // rectangle that does not exist.
+  const orderable = (group) => !!group && ['price', 'volume', 'pane'].includes(group.kind)
+  const memberIds = (group) => (group && group.rows ? group.rows : []).map((r) => r.id)
+  const canNudgeRow = (group, rowId, delta) =>
+    orderable(group) && canMoveSeries(settings, group.id, memberIds(group), rowId, delta)
+  /**
+   * Where a drop would land, from the pointer's position over one row.
+   *
+   * ⛔ THE MIDPOINT, NOT THE EDGE. A row is 26px tall; asking "is the pointer in
+   * the top 6px" makes the last position in a pane almost unreachable, so the top
+   * half means BEFORE this row and the bottom half means after it — and "after
+   * the last row" is expressed as `beforeId: null`, which is the same absence
+   * `moveSeriesTo` already understands as "put it last".
+   */
+  const dropSlotFor = (group, overRowId, e) => {
+    const ids = memberIds(group)
+    const at = ids.indexOf(overRowId)
+    if (at < 0) return null
+    const box = e.currentTarget.getBoundingClientRect()
+    const after = e.clientY > box.top + box.height / 2
+    return after ? (ids[at + 1] || null) : overRowId
+  }
+
+  const endSeriesDrag = () => {
+    seriesDragRef.current = null
+    setSeriesArmed(null); setSeriesDrag(null); setSeriesDrop(null)
+  }
+
+  const dropSeries = (group, beforeId) => {
+    const held = seriesDragRef.current
+    endSeriesDrag()
+    // ⛔⛔ THE PANE BOUNDARY, CHECKED AT THE DOOR AS WELL AS IN THE WRITER (§9).
+    // `moveSeriesTo` is already structurally safe — it steps inside ONE pane's
+    // membership — but refusing here is what stops a drag that WANDERED over
+    // Volume from quietly landing the row at the bottom of its own pane instead.
+    // A drag that leaves its pane does nothing at all, which is the honest
+    // outcome: moving a series to another pane is `Display`, and it writes a
+    // different key.
+    if (!held || !orderable(group) || held.paneKey !== group.id) return
+    const next = moveSeriesTo(settings, group.id, memberIds(group), held.rowId, beforeId)
+    if (next !== settings) onChange?.(next)
+  }
+
+  const nudgeRow = (group, rowId, delta) => {
+    if (!orderable(group)) return
+    const next = moveSeriesWithinPane(settings, group.id, memberIds(group), rowId, delta)
+    // ⛔ NO WRITE AT A BOUNDARY. `moveSeriesWithinPane` hands back the SAME object
+    // when the step would leave the pane, so a member holding ↑ on the top row
+    // never produces a settings write — which is what keeps "opening Indicators
+    // writes nothing" true for the arrows too.
     if (next !== settings) onChange?.(next)
   }
 
@@ -1042,6 +1269,14 @@ export default function ChartSettingsIndicators({
     const on = rowVisible(row)
     const isSel = selected === row.id
     const tint = rowColor(row)
+    // ⛔ A PANE OF ONE HAS NOTHING TO REORDER (§11), so its grip is not a control
+    // — and it is not removed either, because a row that loses its grip when a
+    // sibling is deleted would shift its name 14px left under the pointer.
+    const movable = orderable(group) && group.rows.length > 1
+    const isHeld = seriesDrag === row.id
+    const markBefore = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === row.id
+    const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
+      && group.rows[group.rows.length - 1] && group.rows[group.rows.length - 1].id === row.id
     return (
       <div
         key={row.id}
@@ -1052,9 +1287,123 @@ export default function ChartSettingsIndicators({
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
         data-structure-row="true"
         data-landed={landed === row.id ? 'true' : undefined}
-        className={`${styles.insRow} ${isSel ? styles.insRowSel : ''} ${on ? '' : styles.insRowOff} ${landed === row.id ? styles.insRowLanded : ''}`}
+        data-movable={movable ? 'true' : 'false'}
+        className={[
+          styles.insRow,
+          isSel ? styles.insRowSel : '',
+          on ? '' : styles.insRowOff,
+          landed === row.id ? styles.insRowLanded : '',
+          isHeld ? styles.insRowHeld : '',
+          markBefore ? styles.insRowDropBefore : '',
+          markLast ? styles.insRowDropAfter : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => selectRow(row.id)}
+        /* ⛔⛔ `draggable` IS ARMED, NOT STANDING. The whole row is the drag body
+           — so the ghost the member carries is the thing they grabbed — but the
+           attribute only appears after the GRIP took a mousedown. §5 asks whether
+           whole-row dragging is safe here and the answer measured out as no: the
+           row's primary job is SELECT, a click is a mousedown plus a two-pixel
+           wobble, and a list where choosing an indicator sometimes reorders it is
+           worse than one where reordering needs a handle. Favour precision. */
+        draggable={movable && seriesArmed === row.id ? true : undefined}
+        onDragStart={movable ? (e) => {
+          if (seriesArmed !== row.id) { e.preventDefault(); return }
+          seriesDragRef.current = { rowId: row.id, paneKey: group.id }
+          try {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData('text/plain', row.id)
+          } catch { /* jsdom has no dataTransfer */ }
+          setSeriesDrag(row.id)
+        } : undefined}
+        onDragOver={movable ? (e) => {
+          const held = seriesDragRef.current
+          // ⛔ A FOREIGN PANE IS NOT A TARGET AND SAYS SO. Without
+          // `preventDefault` the browser refuses the drop and shows the no-drop
+          // cursor, which is the feedback §9 wants: the member finds out mid-drag
+          // that a series does not move house this way.
+          if (!held || held.paneKey !== group.id || held.rowId === row.id) return
+          e.preventDefault()
+          try { e.dataTransfer.dropEffect = 'move' } catch { /* jsdom */ }
+          const beforeId = dropSlotFor(group, row.id, e)
+          setSeriesDrop((p) => (p && p.paneKey === group.id && p.beforeId === beforeId)
+            ? p : { paneKey: group.id, beforeId })
+        } : undefined}
+        onDrop={movable ? (e) => {
+          e.preventDefault(); e.stopPropagation()
+          dropSeries(group, dropSlotFor(group, row.id, e))
+        } : undefined}
+        onDragEnd={endSeriesDrag}
       >
+        {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
+            ↓ on every row, two of them permanently dimmed at each pane's edges.
+            They were correct and they were LOUD: owner, 2026-09-17: *"with many
+            indicators, this creates a repetitive column of arrows and makes the
+            list feel crowded... the member should think 'I can grab this
+            indicator and move it', not 'I have to find the correct tiny arrow'."*
+            ⭐ ONE GRIP, ON THE LEFT, AND VISIBLE AT REST. ⚰️ It used to fade in
+            on row hover, which hid the whole reorder capability behind a gesture a
+            member had no reason to make and left every idle row with a blank 13px
+            gutter where the slot is reserved. It is quiet rather than absent now —
+            the ladder lives in `.insRowGrip` — and nothing about its geometry, its
+            column or the row's spacing changed.
+            ⛔ IT IS NOT THE MICRO-RAIL AND MUST NEVER BE MISTAKEN FOR IT (§4). The
+            rail two pixels to its right is the series' PLOT COLOUR — an identity
+            — and this is an affordance; so the grip is neutral grey, never tinted,
+            and it is dots where the rail is a solid bar.
+            ⛔ AND THE SLOT IS ALWAYS THERE. A pane that drops from two members to
+            one would otherwise pull every remaining name 14px left. */}
+        <span
+          className={styles.insRowGripSlot}
+          aria-hidden={movable ? undefined : 'true'}
+        >
+          {movable && (
+            <button
+              type="button"
+              className={styles.insRowGrip}
+              data-row-grip={row.id}
+              tabIndex={isSel ? 0 : -1}
+              aria-label={`Reorder ${meta.name} within ${group.name}`}
+              aria-keyshortcuts="ArrowUp ArrowDown"
+              title="Drag to reorder"
+              /* ⛔ THE GRIP DOES NOT SELECT, AND IT DOES NOT LET THE ROW SELECT
+                 EITHER. `stopPropagation` on the click is what keeps grabbing a
+                 row distinct from opening it — a member repositioning `SMA 200`
+                 must not watch the Inspector swing to it. */
+              onMouseDown={(e) => { e.stopPropagation(); setSeriesArmed(row.id) }}
+              onMouseUp={() => setSeriesArmed(null)}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
+              /* ⭐⭐ THE KEYBOARD PATH, AND IT IS NOT A CONSOLATION PRIZE. Removing
+                 the arrows removed the only way a member without a pointer could
+                 reorder anything, and §13 is explicit that this may not happen.
+                 The grip IS the control: focus it and the up/down arrows move the
+                 series, which is the established sortable pattern and, more to
+                 the point, ends at `nudgeRow` — the SAME writer the old arrows
+                 used and the same one the drop uses. Three doors, one
+                 `paneSeriesOrder`.
+                 ⛔ AT A BOUNDARY IT SIMPLY DOES NOTHING. `moveSeriesWithinPane`
+                 returns the same object, so there is no write and no wrap — the
+                 old disabled-arrow ghosts are not replaced by a silent surprise.
+                 ⚠️ AND FOCUS FOLLOWS THE ROW. Without this a member pressing ↓
+                 three times moves the series once and then loses the handle,
+                 because React re-renders the list in the new order. */
+              onKeyDown={(e) => {
+                const delta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+                if (!delta) return
+                e.preventDefault(); e.stopPropagation()
+                if (!canNudgeRow(group, row.id, delta)) return
+                nudgeRow(group, row.id, delta)
+                requestAnimationFrame(() => {
+                  try {
+                    listRef.current
+                      ?.querySelector(`[data-row-grip="${CSS.escape(row.id)}"]`)?.focus()
+                  } catch { /* jsdom has no CSS.escape */ }
+                })
+              }}
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
+          )}
+        </span>
         {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
             `flex: none`, nudged half a pixel onto the text's x-height. Not a
             swatch (retired: reads as a bullet), not a chevron (retired), not a
@@ -1065,12 +1414,32 @@ export default function ChartSettingsIndicators({
           style={tint ? { background: tint } : undefined}
           aria-hidden="true"
         />
-        <span className={styles.insRowName}>{meta.name}</span>
+        {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
+            35% `Relative Strength Index (period 14)` ellipsizes — which is
+            explicitly acceptable — but the member must still be able to find out
+            what it says without selecting it. `title` is this panel's existing
+            convention for exactly that, and the canonical name is untouched:
+            nothing is abbreviated, persisted or renamed. */}
+        <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
         {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
             the toolbar the brief rules out; the row is dimmed AND says why, so a
             member scanning the column sees which lines are off without hovering
             anything, and a screen reader is told rather than shown. */}
         {!on && <span className={styles.insRowOffTag}>Off</span>}
+        {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
+            the far right, boundary members carrying a dimmed, `aria-disabled`
+            ghost so the column would not ripple as rows moved. Every word of that
+            reasoning was right about the control and wrong about the LIST: seven
+            indicators meant fourteen buttons and four permanent ghosts down one
+            edge, and the owner read the result as *"a repetitive column of
+            arrows."*
+            ⭐ DRAG REPLACES THEM, AND IT REMOVES THE BOUNDARY PROBLEM RATHER THAN
+            SOLVING IT (§12). There is no first-row ↑ to disable when the member
+            simply drops the row where they want it.
+            ⛔ WHAT DID NOT GO IS THE STEP ITSELF. `nudgeRow` is still here, on the
+            grip's arrow keys — see its note — so `canMoveSeries` still answers the
+            boundary question and §13's accessible Move Up / Move Down still
+            exists. What left the screen is fourteen permanent icons. */}
       </div>
     )
   }
@@ -1238,7 +1607,81 @@ export default function ChartSettingsIndicators({
       || f.type === 'color'
       || !!(styleKeys && styleKeys.has(f.key))
     const shown = (row.fields || []).filter((f) => !(f.showIf && !f.showIf(row.values)))
-    return { core: shown.filter((f) => !isLook(f)), look: shown.filter(isLook) }
+
+    // ⚰️⚰️ AN INERT FIELD IS NEVER A CORE FIELD, and that is what finally made
+    // the two moving averages read as one product. CORE answers *what does this
+    // compute* — the things a member can actually change. A legacy overlay
+    // declares `offset` and `plotStyle` with `disabled: NOT_WIRED`: they are
+    // placeholders for capabilities the renderer does not have, and one of them
+    // (`offset`) sat in the middle of CORE, so EMA 9's primary block read
+    // `Type / Period / Offset` while the engine MA's read `Source / Period /
+    // Type / Display`. Two different editors, for one concept.
+    //
+    // ⛔ NOT DELETED — DEMOTED. They still render, still disabled, still carrying
+    // their reason to a screen reader, at the END of Appearance where an
+    // unavailable option belongs. Removing them would be a functional change made
+    // for a visual reason, and the owner asked for an audit rather than a cull.
+    const inert = shown.filter((f) => !!f.disabled)
+    const live = shown.filter((f) => !f.disabled)
+    const core = live.filter((f) => !isLook(f))
+    const look = [...live.filter(isLook), ...inert]
+
+    // ⭐⭐ AND THE ONE MEMBER CONCEPT GETS ONE ORDER. Declaration order is the
+    // definition author's, which is right for everything else and wrong here: the
+    // two MA implementations declare their inputs in different orders, so the same
+    // four controls came out as `Type, Period` on one and `Source, Period, Type` on
+    // the other. The order below is the member's reading order — what it reads,
+    // how long, which kind, where it draws — and it is applied only to rows that
+    // DECLARE themselves that concept.
+    if (row.memberConcept === 'movingAverage') {
+      const rank = { source: 0, period: 1, type: 2, maType: 2 }
+      core.sort((a, b) => (rank[a.key] ?? 9) - (rank[b.key] ?? 9))
+    }
+    return { core, look }
+  }, [])
+
+  /**
+   * The two CORE facts a LEGACY moving average has but cannot be asked.
+   *
+   * ⚰⚰ THE SPLIT THIS CLOSES. `cs.overlays` has no `source` and no placement:
+   * the renderer averages the CLOSE and draws on the PRICE pane, full stop. So the
+   * legacy editor simply had no Source and no Display row, while the engine MA had
+   * both — and a member comparing EMA 9 with the average beside it saw two
+   * unrelated forms. The facts are true of a legacy overlay; only the telling was
+   * missing.
+   *
+   * ⛔⛔ READ-ONLY, AND NOT A DISABLED SELECT. A greyed dropdown says "there are
+   * other choices you may not have"; there are none. These are VALUES — the same
+   * shape the Color swatch is — and they say what this average reads and where it
+   * draws, which is exactly what the engine MA's two controls report.
+   *
+   * ⛔ AND NOTHING HERE IS INVENTED. The source comes from `paneRowMeta`, which
+   * already declares `Close` for an overlay row and has since the read model was
+   * written; the destination comes from the pane group `chartDataMap` actually
+   * filed the row under. No new authority, no stored value, no migration — making
+   * either of them editable would need renderer and persistence work, which is the
+   * line this pass does not cross.
+   */
+  const readOnlyCore = useCallback((row, group, sourceWords) => {
+    if (row.memberConcept !== 'movingAverage') return []
+    const out = []
+    const hasSource = (row.fields || []).some((f) => f.type === 'source')
+    if (!hasSource && sourceWords) {
+      out.push({ key: '__source__', label: 'Source', value: sourceWords,
+        why: 'A moving average added before sources existed always averages the close.' })
+    }
+    // ⚠️ A REAL PANE, NOT A REPAIR LIST. `chartDataMap` files a switched-off row
+    // under "Not shown" and a stranded one under "Needs attention"; neither is a
+    // DESTINATION, and printing one as this average's Display would be the panel
+    // stating a place the chart does not draw. A legacy overlay always draws on
+    // price, so the honest answer is withheld rather than guessed when the row is
+    // not currently in a pane.
+    const inRealPane = group && ['price', 'volume', 'pane'].includes(group.kind)
+    if (!row.engineOwned && inRealPane && group.name) {
+      out.push({ key: '__where__', label: 'Display', value: group.name,
+        why: 'A moving average added before display destinations existed always draws on the price pane.' })
+    }
+    return out
   }, [])
 
   /**
@@ -1297,6 +1740,92 @@ export default function ChartSettingsIndicators({
     return null
   }, [settings, registry])
 
+  /** A CORE fact that is true and not editable — see `readOnlyCore`. */
+  const renderReadOnly = (f) => (
+    <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true"
+      data-measure="wide" title={f.why}>
+      <span className={styles.insFieldLabel}>{f.label}</span>
+      <span className={styles.insFieldCtl}>
+        {/* ⛔ NOT A CONTROL, AND IT MUST NOT LOOK LIKE ONE. No border, no chevron,
+            no focus ring — a member who clicks it should find nothing happens and
+            not feel the panel is broken. `aria-readonly` says the same thing to a
+            screen reader, and the `title` carries the one-line reason. */}
+        <span className={styles.insFieldValue} aria-readonly="true">{f.value}</span>
+      </span>
+    </div>
+  )
+
+  /**
+   * HOW MUCH ROOM DOES THIS CONTROL'S VALUE ACTUALLY NEED?
+   *
+   * ⚰️⚰️ EVERY CONTROL USED TO TAKE THE WHOLE CELL. `.insFieldCtl > select` and
+   * `> input` were `width: 100%`, which was the right first answer — one rule, one
+   * right edge, nothing hand-tuned — and it made `Period` a 275px box holding the
+   * characters `200`, and `SMA`/`EMA` a 275px dropdown over two three-letter
+   * words. Owner, 2026-09-17: *"controls such as Period, Type, Line Style, Line
+   * Width, Offset are unnecessarily stretched across most of the editor width."*
+   *
+   * ⛔ THE ANSWER IS CONTENT, NOT A KEY NAME. Sizing by `f.key` would be a table
+   * of special cases that goes stale the moment a definition declares a new input;
+   * this reads what the control actually holds, so a definition nobody has written
+   * yet is sized correctly on its first render.
+   *
+   *   `compact`  a number, or an enum whose labels are TOKENS rather than words —
+   *              `1px`, `2px`, `SMA`, `Off`. Four characters is the line: past it
+   *              a label is a word (`Dashed`, `Solid`) and a 100px box starts
+   *              clipping the chevron off the end of it.
+   *   `medium`   an enum with real words in it (`Dashed`, `Histogram`)
+   *   `wide`     a SEMANTIC IDENTITY — a source or a destination. These are the
+   *              controls the owner explicitly protected: `QQQ · Close`,
+   *              `Automatic · Price`, `RSI (14)`, another pane's name. Solving
+   *              oversized controls by truncating these would trade one defect for
+   *              a worse one.
+   *   `bare`     a swatch or a switch — it has its own size and never took the
+   *              cell in the first place.
+   */
+  const measureOf = useCallback((f) => {
+    if (!f) return 'wide'
+    if (f.type === 'color' || f.type === 'toggle') return 'bare'
+    if (f.type === 'source') return 'wide'
+    if (f.type === 'number') return 'compact'
+    if (f.type === 'select') {
+      const longest = (f.options || []).reduce((n, o) => Math.max(n, String(o?.[1] ?? '').length), 0)
+      return longest <= 4 ? 'compact' : 'medium'
+    }
+    return 'wide'
+  }, [])
+
+  /**
+   * TWO CHOICES ARE A SEGMENT, NOT A DROPDOWN.
+   *
+   * ⛔ DECLARED BY THE DATA, not by `f.key === 'maType'`. A two-option enum whose
+   * labels are short IS a segmented control — that is what a segmented control is
+   * for — and stating the rule this way means `MA_TYPES` (`SMA` / `EMA`) picks it
+   * up without being named, while `barStyle` (`Columns` / `Histogram`) correctly
+   * does not.
+   */
+  const isSegment = (f) => f && f.type === 'select'
+    && Array.isArray(f.options) && f.options.length === 2
+    && f.options.every((o) => String(o?.[1] ?? '').length <= 5)
+
+  // ⚰️⚰️ `packFields` / `renderPacked` STOOD HERE AND ARE RETIRED. They paired
+  // adjacent non-`wide` controls onto one line — `Period [20]   Type [SMA|EMA]` —
+  // which closed the dead space the compact widths opened up and produced the
+  // arrangement that pass was asked for.
+  //
+  // ⛔ THE OWNER TRIED IT AND PREFERRED THE SINGLE FILE (2026-09-17): *"Keep the
+  // selected indicator editor in a SINGLE-FILE VERTICAL PROPERTY LIST. Do NOT
+  // return to the recent paired layout."* A property list is read DOWN — one
+  // label column, one control column, one row per setting — and pairing made the
+  // eye travel in an S. The compact widths are what the pass was really for and
+  // they stay; what goes is the second column.
+  //
+  // ⭐ SO EVERY ROW IS FULL-WIDTH AND EVERY CONTROL IS NOT. That is the whole
+  // design: labels share one column, controls start at one x, and each control is
+  // as wide as its value needs — see `measureOf` and the `data-measure` rules.
+  // Whitespace AFTER a correctly sized control is fine; whitespace INSIDE a giant
+  // input holding `20` is what this is not.
+
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
     const dis = !!f.disabled
@@ -1306,8 +1835,15 @@ export default function ChartSettingsIndicators({
     const inert = dis
       ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
       : {}
+    const seg = isSegment(f)
     return (
-      <div key={f.key} className={styles.insField} data-field={f.key} title={f.disabled || undefined}>
+      <div
+        key={f.key}
+        className={styles.insField}
+        data-field={f.key}
+        data-measure={seg ? 'segment' : measureOf(f)}
+        title={f.disabled || undefined}
+      >
         <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
@@ -1339,7 +1875,57 @@ export default function ChartSettingsIndicators({
               onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
             />
           )}
-          {f.type === 'select' && (
+          {/* ⭐⭐ A TWO-CHOICE ENUM IS A SEGMENT. ⛔ NOT A DROPDOWN: a native select
+              over `SMA` / `EMA` costs two clicks, opens an operating-system menu
+              in the middle of a dark premium panel, and spends 275px saying
+              nothing until it is opened. The segment says both answers at rest
+              and switches in one click.
+              ⛔ AND IT WRITES THE IDENTICAL VALUE. Same `onRowPatch`, same option
+              tuple, same canonical field — this is a control swap and nothing
+              else; `MA_TYPES` and the two persistence paths under it are
+              untouched. */}
+          {f.type === 'select' && seg && (
+            <span
+              className={styles.insSeg}
+              role="radiogroup"
+              aria-label={f.label}
+              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
+              /* ⭐ ARROW KEYS MOVE THE CHOICE, which is what a radio group is
+                 defined to do and what a member reaches for after tabbing to it.
+                 Home/End are the same two answers here, so they are not bound. */
+              onKeyDown={(e) => {
+                if (dis) return
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight'
+                  && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+                e.preventDefault()
+                const at = f.options.findIndex(([v]) => String(v) === String(val))
+                const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1
+                const to = f.options[(Math.max(at, 0) + step + f.options.length) % f.options.length]
+                if (to) onRowPatch?.(row, { [f.key]: to[0] })
+              }}
+            >
+              {f.options.map(([v, l]) => {
+                const picked = String(v) === String(val)
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={picked}
+                    /* ⛔ ROVING TABINDEX. A radio group is ONE tab stop — landing
+                       on every option in turn is how a two-choice control becomes
+                       two controls for a keyboard member. */
+                    tabIndex={picked ? 0 : -1}
+                    disabled={dis}
+                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : {})}
+                    className={`${styles.insSegBtn} ${picked ? styles.insSegBtnOn : ''}`}
+                    onClick={() => onRowPatch?.(row, { [f.key]: v })}
+                  >{l}</button>
+                )
+              })}
+            </span>
+          )}
+          {f.type === 'select' && !seg && (
             <select
               className={styles.indSelect} {...inert} value={val ?? ''}
               onChange={(e) => {
@@ -1363,6 +1949,7 @@ export default function ChartSettingsIndicators({
     const kind = kindLabel(row, def, rawSourceOf(row, def))
     const on = rowVisible(row)
     const { core, look } = partitionFields(row, def)
+    const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
     const plotStyle = styleControl(row)
     const duplicate = duplicateWriter(row)
@@ -1390,23 +1977,44 @@ export default function ChartSettingsIndicators({
               <span className={styles.insHeadKind}>{kind}</span>
             )}
           </span>
+          {/* ⚰️⚰️ IT WAS AN OUTLINED `• ON` PILL, and it read as a STATUS BADGE
+              rather than a control — owner, 2026-09-17: *"it feels more like a
+              status badge than an interactive visibility control."* A bordered
+              chip with a dot and a word is what this panel uses to LABEL things;
+              a thing you flip should look like the other things you flip.
+              ⭐ SO IT IS THE PANEL'S OWN SWITCH — `.toggle` / `.toggleKnob` /
+              `.toggleOn`, the same component `Overlap candles` uses four rows
+              below it, at a header-sized variant that changes nothing but the
+              geometry. ⛔ NOT A SECOND TOGGLE SYSTEM: the classes are the shared
+              ones and `.insVis` only resizes them.
+              ⛔ AND NO VISIBLE WORD. The header already says WHICH indicator this
+              is and the switch says whether it draws; `ON` beside a switch
+              restates the switch, and `Visible` restates the header's own
+              subject. The label a screen reader gets is the ACTION, not the
+              state — `Hide EMA 20` / `Show EMA 20` — which is what a member is
+              about to do rather than what they are looking at, and it carries a
+              `title` so a pointer gets the same sentence.
+              ⛔ SAME WRITER, SAME STATE. `setRowVisible(row, !on)` is untouched:
+              this is a control swap, not a visibility change. */}
           <button
             type="button" role="switch" aria-checked={on}
-            aria-label={`Toggle ${meta.name}`}
-            className={`${styles.insOnOff} ${on ? styles.insOnOffOn : ''}`}
+            aria-label={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+            title={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+            className={`${styles.toggle} ${styles.insVis} ${on ? styles.toggleOn : ''}`}
             onClick={() => setRowVisible(row, !on)}
           >
-            <span className={styles.insOnDot} aria-hidden="true" />
-            {on ? 'On' : 'Off'}
+            <span className={styles.toggleKnob} />
           </button>
         </div>
 
         {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display) && (
+        {(core.length > 0 || display || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
+            {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
             {core.map((f) => renderField(row, f))}
             {display}
+            {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
           </section>
         )}
 
@@ -1451,22 +2059,16 @@ export default function ChartSettingsIndicators({
     )
   }
 
-  /**
-   * NOTHING SELECTED — quiet, and still a door.
-   *
-   * ⛔ NOT A BLANK RECTANGLE AND NOT A MARKETING PANEL. One sentence saying what
-   * the column is for, one count so the member can see the list is real, and the
-   * same Add door the heading carries.
-   */
-  const renderInspectorEmpty = () => (
-    <div className={styles.insEmpty} data-testid="inspector-empty">
-      <div className={styles.insEmptyLede}>Select an indicator to edit it.</div>
-      <div className={styles.insEmptyNote}>
-        {flatRows.length} {flatRows.length === 1 ? 'series' : 'series'} on this chart
-      </div>
-      <button type="button" className={styles.insAddBtn} onClick={enterBrowse}>＋ Add to Chart</button>
-    </div>
-  )
+  // ⚰️⚰️ `renderInspectorEmpty` STOOD HERE AND IS DELETED. It has been three
+  // things in three passes: a lede and a count, then a full inventory of the
+  // chart's series, then a mark with two doors. Each replaced a real defect in the
+  // one before it, and the third was tested and judged unnecessary — owner,
+  // 2026-09-17: *"it creates an extra conceptual state and wastes a click."*
+  //
+  // ⭐ THE ANSWER WAS THAT THE STATE SHOULD NOT EXIST. A member opening Indicators
+  // with nothing selected is looking for something; the surface for that already
+  // exists and is three lines below. `discovering` renders it directly, and the
+  // right side now has exactly two states — DISCOVER and EDIT.
 
   /**
    * ARRANGE's right-hand side — deliberately almost nothing.
@@ -1564,7 +2166,7 @@ export default function ChartSettingsIndicators({
       : AUTO_TARGET
 
     return (
-      <div className={styles.insField} data-field="__display__" key="display-in">
+      <div className={styles.insField} data-field="__display__" data-measure="wide" key="display-in">
         <span className={styles.insFieldLabel}>Display</span>
         <span className={styles.insFieldCtl}>
           <select
@@ -1647,7 +2249,8 @@ export default function ChartSettingsIndicators({
       const choices = availableStyles(plot, styleCtx)
       const label = single ? 'Plot style' : `${plot.label || plot.key} style`
       return (
-        <div className={styles.insField} data-field={`__style__:${plot.key}`} key={`style-${plot.key}`}>
+        <div className={styles.insField} data-field={`__style__:${plot.key}`} data-measure="medium"
+          key={`style-${plot.key}`}>
           <span className={styles.insFieldLabel}>{label}</span>
           <span className={styles.insFieldCtl}>
             <select
@@ -1680,7 +2283,7 @@ export default function ChartSettingsIndicators({
     // creates them must keep offering. A row carrying a `create` descriptor is
     // asked nothing; it simply adds.
     // ⭐ AND A RESTORE ROW IS AN ADD ROW TOO — see `discoveryCatalog.libraryRowFor`.
-    const creates = symbolRows.byKey.has(row.key) || row.restores === true
+    const creates = resultByKey.has(row.key) || row.restores === true
     const on = creates ? false : isRowOn(row, settings)
     // ⛔ DISCOVERY IS NOT CHARTABILITY. The facade reports what the SERVER already
     // said — a delisted ticker, an index the bars route will not serve — and
@@ -1703,6 +2306,10 @@ export default function ChartSettingsIndicators({
         data-result-key={row.key || row.id}
         data-result-kind={row.kind || undefined}
         data-user-defined={row.userDefined ? 'true' : 'false'}
+        /* ⚠️ THE DESCRIPTION LIVES HERE NOW — see the note where its line used to
+           be. `title` on the row rather than on the name, so the whole row is the
+           hover target for it. */
+        title={row.description || undefined}
         tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
         onClick={() => { if (canAdd) addRow(row) }}
@@ -1710,6 +2317,17 @@ export default function ChartSettingsIndicators({
           if ((e.key === 'Enter' || e.key === ' ') && canAdd) { e.preventDefault(); addRow(row) }
         }}
       >
+        {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
+            COLOUR: the LEFT column's micro-rail says *this is the plotted line you
+            already have, in its own colour*, and this says *this is the KIND of
+            thing you are looking at*. Two visual languages, kept apart on purpose
+            — blurring them would make a catalogue row look like a chart series.
+            ⛔ `gold={false}` — `UIcon` paints gold by default and twenty gold marks
+            down a list would spend the one accent this product reserves for "you
+            are here" on furniture. `aria-hidden`: the row already says its name. */}
+        <span className={styles.resGlyph} data-glyph={glyphFamilyOf(row)} aria-hidden="true">
+          <UIcon name={glyphNameOf(row)} size={20} gold={false} strokeWidth={1.5} />
+        </span>
         <span className={styles.resMain}>
           <span className={styles.resTitleRow}>
             <span className={styles.resName}>{row.name}</span>
@@ -1733,7 +2351,38 @@ export default function ChartSettingsIndicators({
               <span className={styles.resTier}>{row.tier}</span>
             )}
           </span>
-          {row.description && <span className={styles.resBlurb}>{row.description}</span>}
+          {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
+              NAME. `securityResults` builds a ticker row as `name: QQQ`,
+              `shortName: ETF`, `description: Invesco QQQ Trust` — so dropping the
+              description here would leave a row reading `QQQ  ETF` and nothing
+              else, which is an identity a member cannot confirm. That is not an
+              educational sentence, it is the second half of the name, so it goes
+              INLINE rather than on a second line (owner §15: *"a security/company
+              name can be secondary inline text if useful, but avoid a tall
+              two-line result"*).
+              ⛔ SECURITIES ONLY, AND BY `kind` RATHER THAN BY LOOKING AT THE TEXT.
+              A breadth row's description restates its name and a technical one is
+              prose; neither earns the space. */}
+          {row.kind === 'security' && row.description
+            /* ⚠️⚠️ AND ONLY WHEN IT SAYS SOMETHING THE NAME DOES NOT. The two
+               security adapters disagree about which field holds what: a SEARCH
+               row is `name: QQQ` / `description: Invesco QQQ Trust`, while a
+               BROWSE row carries the company in BOTH. Measured in the harness —
+               `Apple Inc. AAPL Apple Inc.` — so the guard is a comparison rather
+               than a rule about which adapter produced the row. */
+            && row.description.trim() !== String(row.name || '').trim() && (
+            <span className={styles.resSub}>{row.description}</span>
+          )}
+          {/* ⚰️⚰️ THE DESCRIPTION WAS A SECOND LINE HERE AND IS NOW THE ROW'S
+              TOOLTIP. It cost 34px of every row — with the padding, a result was
+              80px tall and THREE of them fitted the viewport. Owner, 2026-09-17:
+              *"the user already knows they are browsing indicators, and the
+              descriptions are costing too much vertical space... I want roughly
+              7–9 visible."*
+              ⛔ MOVED, NOT DELETED. The sentence is on the row's `title` (see the
+              `<li>` above), so it is one hover away and still reaches a screen
+              reader through the accessible description — what it stops doing is
+              setting the height of a catalogue nobody reads end to end. */}
           {/* The server's own words, where it gave any — `delisted 2022-10-27`,
               `index history not served by /api/bars-history`. Never a guess. */}
           {refused && row.capabilityReason && (
@@ -1781,28 +2430,70 @@ export default function ChartSettingsIndicators({
   // securities and breadth behind `matches()` + `useSymbolDiscovery`; a member
   // types `RSI`, `QQQ` or `% Above 50 EMA` and the difference underneath never
   // surfaces.
-  const renderAddSurface = () => (
+  const renderAddSurface = () => {
+    const tabLabel = (LIBRARY_TABS.find((t) => t.key === activeTab) || { label: 'anything' }).label
+    return (
     <div className={styles.insAdd} data-testid="add-surface">
       <div className={styles.insHead}>
-        <button
-          type="button"
-          className={styles.insBack}
-          onClick={leaveBrowse}
-          aria-label="Back to active indicators"
-        >←</button>
+        {/* ⚰️⚰️ IT WAS UNCONDITIONAL, AND IT USED TO MEAN SOMETHING: discovery was a
+            place you went FROM the orientation screen, so there was always
+            somewhere to come back to. That screen is gone and discovery is the
+            default, so an arrow rendered with nothing selected would return the
+            member to… discovery. Owner: *"no dead back arrow."*
+            ⭐ IT APPEARS EXACTLY WHEN THERE IS A SELECTION TO RETURN TO — a member
+            who was editing `EMA 20`, pressed `＋ Add Indicator` and changed their
+            mind gets `EMA 20` back. No history stack: the selection IS the
+            history, and it was never cleared. */}
+        {/* ⚠️⚠️ AND ALWAYS AT NARROW, WHICH IS NOT A SECOND RULE — it is the same
+            one. The arrow exists when leaving discovery LEADS SOMEWHERE, and on a
+            phone it always does: the two regions are one at a time, so the left
+            list is off screen while Add is up and this is the only way back to
+            it. Measured: without this a member with nothing selected had no exit
+            from Add on a narrow layout at all. */}
+        {(selectedRow || narrow) && (
+          <button
+            type="button"
+            className={styles.insBack}
+            onClick={leaveBrowse}
+            aria-label={selectedRow
+              ? `Back to ${paneRowMeta(selectedRow, groupOfRow(selectedRow.id), settings, defOf).name}`
+              : 'Back to the chart structure'}
+          >←</button>
+        )}
         <span className={styles.insHeadText}>
-          <span className={styles.insHeadName}>Add to Chart</span>
+          <span className={styles.insHeadName}>Add Indicator</span>
         </span>
+        {/* ⚰️ IT WORE `.insHeadAct` — the same faint grey as `Arrange`, which is a
+            MODE SWITCH, and at the far end of a header a member reads for a
+            title. Owner, 2026-09-17: *"the existing + New Formula action is too
+            dark/subtle and easy to miss."*
+            ⭐ A GHOST BUTTON, NOT A GOLD ONE. It is the SECONDARY task on this
+            surface — search is the primary one — so it gets an outline and real
+            ink and stops there. Filling it would put the loudest object on the
+            panel next to the thing it must not outrank. */}
         {onCreateFormula && (
           <button
             type="button"
-            className={styles.insHeadAct}
+            className={styles.insNewFormula}
             data-testid="settings-new-formula"
             onClick={() => onCreateFormula()}
             title="Build your own indicator — conditions, plain English, Pine or ThinkScript"
-          >＋ New Formula</button>
+          >
+            <span className={styles.insNewFormulaPlus} aria-hidden="true">＋</span>
+            New Formula
+          </button>
         )}
       </div>
+      {/* ⚰️⚰️ A LINE OF EXPLANATORY COPY STOOD HERE — *"Search and add
+          indicators, symbols, breadth and your own formulas."* It was written when
+          this surface was new and the search box said less; the placeholder says
+          the same thing now, one line lower, at the moment a member is actually
+          looking at the field. Owner, 2026-09-17: *"the interface is
+          self-explanatory."*
+          ⛔ DELETED, NOT HIDDEN. The 12px of margin under it goes with it (see the
+          `.insAddLede` grave), because leaving the gap behind would be the "merely
+          hide the sentence" the brief rules out — the space belongs to the results
+          now. */}
 
       <div className={styles.insSearchRow}>
         <div className={styles.indSearchWrap}>
@@ -1812,10 +2503,27 @@ export default function ChartSettingsIndicators({
             type="search"
             role="searchbox"
             className={styles.indSearch}
-            placeholder="Search indicators, symbols, breadth…"
+            /* ⛔ IT NAMES ONLY WHAT IS GENUINELY SEARCHABLE. `fundamentals` is
+               deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
+               that can return nothing is the "fake availability" the brief rules
+               out. */
+            placeholder="Search indicators, symbols, breadth or formulas…"
             aria-label="Search indicators"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              // ⚰️⚰️ TYPING ALWAYS RETURNS TO A UNIVERSAL SEARCH, and the first
+              // version of this rule did not. It un-pinned only on CLEARING, so a
+              // member who clicked `Popular` and then typed `QQQ` got nothing —
+              // measured in the harness — because a ticker is not a popular
+              // indicator. §18 asks for both *"search within the selected
+              // category"* and *"do not make ticker search harder"*, and when they
+              // collide the second one wins: a query is a new question.
+              // ⭐ NARROWING IS STILL THERE AND IS STILL THE MEMBER'S: click a tab
+              // while the results are up and it filters, and it stays filtered
+              // until they type again.
+              setTabPinned(false)
+              setQuery(e.target.value)
+            }}
             onKeyDown={(e) => {
               // ⛔ STOPPED HERE ON PURPOSE. The modal's Escape handler is a WINDOW
               // listener that closes the whole settings modal; inside the Add
@@ -1825,12 +2533,12 @@ export default function ChartSettingsIndicators({
               if (e.key === 'Escape') { e.stopPropagation(); leaveBrowse() }
             }}
           />
-          {(query || category) && (
+          {query && (
             <button
               type="button"
               className={styles.indClear}
               aria-label="Clear search"
-              onClick={() => { setQuery(''); setCategory(null); searchRef.current?.focus() }}
+              onClick={() => { setQuery(''); setTabPinned(false); searchRef.current?.focus() }}
             >✕</button>
           )}
         </div>
@@ -1841,14 +2549,70 @@ export default function ChartSettingsIndicators({
           the anchor would still describe where the list was BEFORE they moved — and
           the next insertion would "correct" to a position they had already left,
           which is a jump rather than the absence of one. */}
+      {/* ── THE CATEGORY STRIP, DIRECTLY UNDER SEARCH ────────────────────
+          ⚰️ WHAT IT REPLACES WAS A `Browse` BLOCK OF CHIPS AT THE **BOTTOM** of the
+          results, argued for at the time: *"with an empty box the list above IS
+          every category, grouped — so chips at the top would be a filter offered
+          before anything needed filtering."* That was true of a list that showed
+          everything at once. The taxonomy is a NAVIGATION now, not a filter over
+          a list already on screen, so it belongs where a member looks first.
+          ⛔ A `tablist`, NOT A ROW OF BUTTONS. Each tab controls the same results
+          region; `aria-selected` and roving tabindex are what make one tab stop
+          with arrow keys, which is what a member reaches for after tabbing out of
+          the search box. */}
+      <div className={styles.insTabsWrap}>
+        <div
+          className={styles.insTabs}
+          role="tablist"
+          aria-label="Indicator categories"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+            e.preventDefault()
+            const at = LIBRARY_TABS.findIndex((t) => t.key === activeTab)
+            const step = e.key === 'ArrowRight' ? 1 : -1
+            const next = LIBRARY_TABS[(Math.max(at, 0) + step + LIBRARY_TABS.length) % LIBRARY_TABS.length]
+            if (next) { setTab(next.key); setTabPinned(true) }
+          }}
+        >
+          {LIBRARY_TABS.map((t) => {
+            const on = t.key === activeTab
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                /* ⚠️ WITH NOTHING SELECTED (a universal search) THE FIRST TAB IS
+                   THE STOP, so the strip never drops out of the tab order. */
+                tabIndex={on || (!activeTab && t.key === LIBRARY_TABS[0].key) ? 0 : -1}
+                data-tab={t.key}
+                /* ⚠️ THE CHOSEN TAB SCROLLS ITSELF INTO VIEW. The strip is wider
+                   than the column, so an arrow-key walk would otherwise select
+                   something off the end of it — a keyboard member choosing a
+                   category they cannot see. `nearest` moves the minimum. */
+                ref={on ? ((el) => { try { el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) } catch { /* jsdom */ } }) : undefined}
+                className={`${styles.insTab} ${on ? styles.insTabOn : ''}`}
+                onClick={() => { setTab(t.key); setTabPinned(true) }}
+              >{t.label}</button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className={styles.insAddBody} ref={addBodyRef} onScroll={() => { anchorRef.current = captureAnchor() }}>
-        {category && (
-          <div className={styles.indCatActive}>
-            <span className={styles.indCatActiveName}>{category}</span>
-            <button type="button" className={styles.indCatDrop} onClick={() => setCategory(null)}>All categories</button>
+        {/* ⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS. The audit is
+            written out at `FUNDAMENTALS_STATUS`: the chart's source grammar has no
+            fundamental kind, and the one fundamental the product holds
+            (`market_cap`) is a NIGHTLY SCALAR whose own engine refuses a bar
+            offset because *"answering it with today's value would be a fabricated
+            history."* A row here would be exactly that fabrication. */}
+        {activeTab === 'fundamentals' && !FUNDAMENTALS_STATUS.available && (
+          <div className={styles.insUnavailable} data-testid="fundamentals-unavailable">
+            <div className={styles.insUnavailableLede}>{FUNDAMENTALS_STATUS.lede}</div>
+            <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
           </div>
         )}
-        {results.length === 0 && refusals.length === 0 && (
+        {activeTab !== 'fundamentals' && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -1857,8 +2621,14 @@ export default function ChartSettingsIndicators({
             {query
               ? (symbolsLoading
                 ? <>Nothing matches “{query}” yet — still searching symbols…</>
-                : <>Nothing matches “{query}”.</>)
-              : <>Nothing in this category.</>}
+                : (activeTab
+                  ? <>Nothing matches “{query}” in {tabLabel}.</>
+                  : <>Nothing matches “{query}”.</>))
+              /* ⛔ A SEARCH-DRIVEN TAB SAYS SO. `Symbols` and `ETFs` have no
+                 endpoint that lists every instrument, so an empty box is not an
+                 empty CATEGORY — telling a member there is nothing here would be
+                 a different and wrong sentence. */
+              : <>Search to find {tabLabel.toLowerCase()} to add.</>}
           </div>
         )}
         {/* ─── SYMBOLS ARE STILL COMING ──────────────────────────────────
@@ -1890,9 +2660,12 @@ export default function ChartSettingsIndicators({
         )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>
-            <div className={styles.insSectionLabel}>{c}</div>
+            {/* ⚠️ ONE GROUP, ONE HEADING — AND NOT WHEN IT WOULD REPEAT THE TAB.
+                `Popular` and `Formulas` resolve to a single group whose name is
+                the tab's own word; printing it again is furniture. */}
+            {groups.length > 1 && <div className={styles.insSectionLabel}>{c}</div>}
             <ul className={styles.resList} role="listbox" aria-label={c}>
-              {results.filter((r) => r.category === c).map(renderResult)}
+              {tabResults.filter((r) => r.category === c).map(renderResult)}
             </ul>
           </section>
         ))}
@@ -1928,29 +2701,10 @@ export default function ChartSettingsIndicators({
             </ul>
           </section>
         )}
-        {/* ⭐ THE CATEGORY FILTER, AT THE BOTTOM AND NOT THE TOP. With an empty box
-            the list above IS every category, grouped — so chips at the top would
-            be a filter offered before anything needed filtering. They sit under
-            the results, where a member who has scrolled and not found it reaches
-            for them. */}
-        {!query && (
-          <section className={styles.insAddGroup}>
-            <div className={styles.insSectionLabel}>Browse</div>
-            <div className={styles.indCats}>
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={styles.indCat}
-                  onClick={() => pickCategory(c)}
-                >{c}</button>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
-  )
+    )
+  }
 
   // ─── THE PANEL ─────────────────────────────────────────────────────────────
   //
@@ -2006,12 +2760,17 @@ export default function ChartSettingsIndicators({
                       onClick={enterArrange}
                     >Arrange</button>
                   )}
-                  <button
-                    type="button"
-                    className={styles.insHeadAdd}
-                    data-testid="add-enter"
-                    onClick={enterBrowse}
-                  >＋ Add</button>
+                  {/* ⚰️⚰️ A TINY `＋ Add` STOOD HERE, beside `Arrange`, and it is
+                      retired. Two words of chrome in a heading is where an action
+                      goes when nobody has decided how important it is — it was
+                      the same size as `Arrange`, which is a MODE, and it sat at
+                      the top of a list it was supposed to extend. Owner,
+                      2026-09-17: *"remove the tiny + Add from that location...
+                      replace it with a clear button at the BOTTOM of the left
+                      Indicators section."*
+                      ⭐ THE LIST NOW READS AS ONE SENTENCE: these are my
+                      indicators — and then, where the list ends, add another.
+                      See `.insAddIndicator` at the foot of this column. */}
                 </>
               )}
             </div>
@@ -2048,16 +2807,48 @@ export default function ChartSettingsIndicators({
                 {paneGroups.map((g) => renderStructureGroup(g, g.id === 'volume' ? volumeRef : null))}
               </div>
             )}
+
+            {/* ⭐⭐ WHERE THE LIST ENDS. It is OUTSIDE the scrolling structure, so a
+                member with fifteen indicators does not have to scroll to the
+                bottom to find the way to add a sixteenth — the list scrolls
+                under it and this stays put.
+                ⛔ NOT IN ARRANGE. Arrange is about the panes that already exist;
+                offering to add a new series in the middle of restacking is a
+                second job on a surface that deliberately has one. */}
+            {mode !== 'arrange' && (
+              <button
+                type="button"
+                className={styles.insAddIndicator}
+                data-testid="add-enter"
+                onClick={enterBrowse}
+              >
+                <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>
+                Add Indicator
+              </button>
+            )}
           </div>
         )}
 
+        {/* ⚠️⚠️ TWO BOXES CANNOT BOTH OWN THE SCROLLBAR, AND BOTH WERE
+            RESERVING ONE. `.insRight` scrolls when it holds the Inspector or
+            Arrange — a long form is taller than the panel — so it keeps a stable
+            gutter for those. Discovery brings its OWN scroller (`.insAddBody`,
+            because the search box and the category strip must stay put while the
+            results move), and the outer reservation then bought nothing: measured
+            at 10.8px of unreachable strip between the results scrollbar and the
+            workspace edge, on top of `.body`'s 10.4.
+            ⛔ GIVEN BACK ONLY WHERE IT IS PROVABLY UNUSED. The class is keyed on
+            `discovering`, which is the same flag that chooses the surface below
+            — so the mode that scrolls here still reserves, and there is no state
+            where the bar can appear against an unreserved box. */}
         {showRight && (
-          <div className={styles.insRight} data-testid="inspector">
-            {mode === 'browse'
-              ? renderAddSurface()
-              : mode === 'arrange'
-                ? renderArrangeAside()
-                : (selectedRow ? renderInspector(selectedRow) : renderInspectorEmpty())}
+          <div
+            className={`${styles.insRight} ${discovering && mode !== 'arrange' ? styles.insRightFlush : ''}`}
+            data-testid="inspector"
+          >
+            {mode === 'arrange'
+              ? renderArrangeAside()
+              : (discovering ? renderAddSurface() : renderInspector(selectedRow))}
           </div>
         )}
       </div>

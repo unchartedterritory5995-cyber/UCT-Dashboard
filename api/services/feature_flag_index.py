@@ -87,6 +87,88 @@ def visibility_flags(roots: list[Path], base: Path | None = None) -> dict[str, d
     return {k: v for k, v in scan(roots, base).items() if is_visibility_flag(k)}
 
 
+def mode_flags(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any]]:
+    """A THIRD axis: env vars that select a MODE rather than turn a thing on.
+
+    ⛔⛔ WHY THIS EXISTS, and it is the same hole twice. `is_gate()` is a NAME
+    test — ENABLED / DISABLE / a trailing `_ON` — and the module already records
+    the residual in `_VISIBILITY_MARKERS`' header: *"a new flag that decides
+    public exposure without one of these words in its name is not caught."*
+
+    `NOTEBOOK_DOOR_GUARD` (Q1 fix 6's first rollback lever) is that shape a third
+    time. It carries no gate marker, its value is a WORD rather than a boolean,
+    and it decides whether a live member path is guarded. Under `gates()` it was
+    invisible — which is precisely the *"four gates shipped past the index and
+    every flag rail stayed green"* failure `_table_gates` was written for.
+
+    ⭐ THE TABLE IS THE EVIDENCE. A mode flag is declared as
+
+        NOTEBOOK_MODE_FLAGS = {"NAME": (default, (allowed, ...)), ...}
+
+    so the default AND the vocabulary are literals a reader audits, in the same
+    expression the code falls back to. This reads THAT, and reports both.
+
+    ⛔ It is narrowed from the module-level tables directly, never from `scan`,
+    for the same reason `visibility_flags` is: `scan` looks for
+    `os.environ.get("LITERAL")`, and a table read through a loop variable has no
+    literal to find.
+
+    @returns {env_name: {"default": str, "allowed": tuple[str, ...], "sites": [paths]}}
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for root in roots:
+        for path in sorted(Path(root).rglob("*.py")):
+            rel = str(path.relative_to(base)) if base else str(path)
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            # ⛔ RESOLVE MODULE CONSTANTS. A real table spells its vocabulary
+            # with named constants (`DOOR_GUARD_FULL`), not bare strings, so a
+            # Constant-only read returns `None` for every well-written one — an
+            # index that only understands the careless form is worse than none.
+            consts = _module_str_consts(tree)
+
+            def _lit(n):
+                if isinstance(n, ast.Constant):
+                    return n.value
+                if isinstance(n, ast.Name):
+                    return consts.get(n.id)
+                return None
+
+            for node in getattr(tree, "body", []):
+                if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+                    continue
+                target = node.targets[0]
+                if not isinstance(target, ast.Name) or not target.id.endswith("_MODE_FLAGS"):
+                    continue
+                if not isinstance(node.value, ast.Dict) or not node.value.keys:
+                    continue
+                for k, v in zip(node.value.keys, node.value.values):
+                    if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+                        continue
+                    if not (isinstance(v, ast.Tuple) and len(v.elts) == 2):
+                        continue
+                    default, allowed = v.elts
+                    # ⛔ A MODE TABLE WHOSE LITERALS CANNOT BE READ IS RECORDED,
+                    # NOT SKIPPED. Skipping it would reproduce the silence this
+                    # whole function exists to end; `default: None` is loud.
+                    d = _lit(default)
+                    vocab: tuple = ()
+                    if isinstance(allowed, (ast.Tuple, ast.List)):
+                        vocab = tuple(x for x in (_lit(e) for e in allowed.elts)
+                                      if x is not None)
+                    e = out.setdefault(k.value, {"default": None, "allowed": (), "sites": set()})
+                    if e["default"] is None:
+                        e["default"] = d
+                    if not e["allowed"]:
+                        e["allowed"] = vocab
+                    e["sites"].add(rel)
+    for e in out.values():
+        e["sites"] = sorted(e["sites"])
+    return out
+
+
 def _os_aliases(tree: ast.AST) -> set[str]:
     """Every local name this file's `import os [as X]` statements bind.
 

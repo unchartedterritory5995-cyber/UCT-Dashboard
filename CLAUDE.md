@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -30,48 +30,76 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-**Measure it, don't quote it** — the list is the `NAV` array at the top of
-`app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
-At 2026-08-09 it reads:
+⛔ **THIS SECTION IS GENERATED. Do not hand-edit it, and do not hand-count it.**
 
-Dashboard · Morning Wire · **Charts** · **AI Search** (`/ai-search`) · UCT 20 ·
-Breadth · Calendar · Screener · Options Flow · **Flow Record**
-(`/flow-scoreboard`) · **Live Flow** (`/live-massive`) · Post Market ·
-Model Book · **The Desk** · Journal · **Community** · Support
+```sh
+node tools/nav_manifest.mjs            # this table, plus the route diff
+node tools/nav_manifest.mjs --self-check
+```
 
-⚰️ The 2026-08-09 reading of this line listed **Patterns** — there is no
-`/patterns` route and no such NAV entry (measured 2026-09-01); the string only
-survived in `tools/mobile_audit.py`'s hand-typed route list, where it made the
-harness audit the 404 page while `/ai-search`, `/flow-scoreboard`,
-`/live-massive`, `/desk` and `/community` were never audited at all.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
+on **2026-09-18**. Regenerate after any change to that array.
+
+| label | route |
+|---|---|
+| UCT Terminal | `/calendar` |
+| Charts | `/charts` |
+| Morning Wire | `/morning-wire` |
+| Dashboard | `/dashboard` |
+| AI Search | `/ai-search` |
+| UCT 20 | `/uct-20` |
+| Breadth | `/breadth` |
+| Screener | `/screener` |
+| Options Flow | `/options-flow` |
+| Flow Record | `/flow-scoreboard` |
+| Live Flow | `/live-massive` |
+| Catalysts History | `/catalysts/history` |
+| Model Book | `/model-book` |
+| Formula Reference | `/formulas/reference` |
+| The Desk | `/desk` |
+| Journal | `/journal` |
+| Community | `/community` |
+| Support | `/support` |
+
+**18 entries** (was 16 — `/catalysts/history` and `/formulas/reference` added
+2026-09-18, F-NAV-1's own default: a reachable route with real inbound links AND
+non-zero 16-day production traffic gets a sidebar entry). Every one resolves to a
+registered route (`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**phantom-entry defect this section used to commit is currently absent**, and the
+generator is what keeps saying so.
+
+⚠️ **`/post-market` is NOT in this list and used to be.** It is still a real route;
+it is simply not a sidebar entry. **5** reachable member-facing routes still have no
+nav entry (down from 7 — the same default that added the two above leaves these
+six unlisted since each had zero 16-day traffic: `/traders`, `/dark-pool`,
+`/post-market`, `/setup-library`, `/journal-2-0/report`; a sixth candidate,
+`/live-flow`, turned out on re-derivation to be a `LegacyRedirect` into
+`/live-massive`, not a real page, confirming the fork's suspicion rather than
+counting as a gap) — **F-NAV-1**, recorded in
+`docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md`, deliberately NOT
+in this section: *what the sidebar shows* and *what the router serves* are two facts, and
+the whole reason this section kept going stale is that it tried to hold both.
+
+⚰️ **What this section used to say, and why the generator exists.** It named an
+array called `NAV` (the identifier is `NAV_ITEMS`), listed **Calendar** (the label is
+**UCT Terminal**), and listed **Post Market**, which is not an entry at all. Before that
+it listed **Patterns**, a page no route reached — and that string survived into
+`tools/mobile_audit.py`'s hand-typed route list, where it made the harness audit the 404
+page while five real routes were never audited. **A hand-typed list beside the array it
+describes is the defect this file records over and over** (the writer-index `FOUR`, the
+COT router's "4 routes", the setup catalog's "24").
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
 Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
-admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision
-2026-08-26); phones still land on the Daily tab (key `overview` — it replaced
-the old duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`,
-whose finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
+admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision 2026-08-26);
+phones still land on the Daily tab (key `overview` — it replaced the old
+duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`, whose
+finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
 
-⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
-`/theme-tracker` is a `LegacyRedirect` (see below). **Traders is still not a nav
-entry, but it is no longer unreachable** — this said *"reachable from nothing but
-`Traders.test.jsx`"*, which was true until 2026-08-09 and is the reason it got
-fixed: `GET /api/traders` was mounted and paid-gated the whole time, and
-`api/services/voice_client_action_tools.py` navigated members to `/traders`,
-which `App.jsx` did not route. **`/traders` is a real route now**; its door is the
-voice assistant, not the sidebar. Rail:
-`tests/test_navigation_targets_resolve.py`, which resolves every value in
-`PAGE_ALIASES` and every key in `voice.py::_PAGE_DESCRIPTIONS` against App.jsx's
-route table — it is what caught the second one, `"uct 20" → /uct20`, against a
-route that has always been `/uct-20`. It also **omitted** Charts, Patterns,
-Live Flow, The Desk and Community; called Breadth's "Views" tab "Heatmap"; dropped
-"Overview"; and did not say Analogues is admin-gated. Every one of those is wrong, in
-the first section a new engineer reads — and the two phantom entries are the worse
-half: **a nav entry documented for a page no route reaches teaches the next engineer
-that the orphan is the idiom.** *(Deliberately no count here: a typed count beside the
-list it describes is the defect this whole file keeps re-committing. Diff the two.)*
-
-**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`. Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in `app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
+**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were
+retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`.
+Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in
+`app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below
@@ -1777,6 +1805,156 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⚰️⚰️ A GLOBAL PROCESS COUNT IS NOT A MEASUREMENT OF *YOUR* RUN
+
+> **Counting processes by a command-line substring counts the whole box. On a
+> machine with concurrent sessions and a leak, that number is about the machine,
+> not about the thing you launched. Baseline, launch, measure the DELTA, and
+> carry a control proving your run happened at all.**
+
+⚰️ Measured 2026-09-18, and it is recorded because the wrong version was
+**published twice** — in a commit message and in a report — before it was checked.
+
+**The claim I made:** *"`--maxWorkers=1` does not bound vitest here; the repo's
+config (`maxWorkers: '50%'`) overrides it"*, on the evidence that ~15
+vitest-matching processes were live during a gate launched with `--max-workers 1`.
+
+**What that count actually was:** every process on the box whose command line
+contained `vitest` — including another workstream's leak and other sessions'
+suites. It was never a measurement of my run.
+
+**What a controlled measurement says** — baseline `node.exe`, launch, sample the
+delta, plus a control asserting a totals line appeared:
+
+| `--maxWorkers` | 1 | 2 | 6 | 12 |
+|---|---|---|---|---|
+| peak node delta | 5 | 7 | 9 | 15 |
+
+Monotonic, ≈ bound + 3–4 fixed overhead. ⭐ **The CLI bound is honoured and always
+was.** Rail: `test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config` (opt-in).
+
+⛔⛔ **AND THE COST OF BELIEVING IT WOULD HAVE BEEN A CODE CHANGE.** A fix to the
+gate's shard command was authorised on the strength of this finding. The finding
+was wrong; the command was already correct. **Changing working code to satisfy a
+mismeasurement is the defect, not the remedy** — so nothing was changed, and the
+measurement is railed instead.
+
+⚠️ The first two attempts at the counter returned **0** — a filter that matched
+nothing — which is the *"an empty result is a failed invocation until proven
+otherwise"* rule arriving in a new costume. A zero from a process query is a
+broken query until a control says otherwise.
+
+### ⛔⛔ A MEASUREMENT THAT TAKES LONGER THAN THE GAP BETWEEN DISTURBANCES CANNOT COMPLETE
+
+> **Before starting a long measurement, measure the DISTURBANCE INTERVAL. If the
+> run is longer than the gap, it will never finish, and no amount of retrying
+> changes that — it is arithmetic, not luck.**
+
+⚰️ Measured twice in one night, 2026-09-17/18, in two different systems:
+
+| measurement | takes | disturbed every | outcome |
+|---|---|---|---|
+| six-shard gate | 46–92 min | master moved **56 commits in 92 min** | carry-over failed; re-gate; superseded again |
+| a 2.8b rig cell | 12–22 min | production deployed every **~13 min** | 22 of 23 cells INCONCLUSIVE on `/api/auth/me` 502 |
+
+⭐ **THE INSTRUMENT WAS RIGHT BOTH TIMES.** The rig refused to measure through a
+deploy swap rather than inventing a verdict; the carry-over tool refused to carry
+a gate it could not justify. Neither failure was a product fact, and reading
+either as one would have been the error.
+
+⛔ **THE TELL IS A RETRY THAT LOOKS REASONABLE.** Each individual re-run is
+defensible; the third one is where you should notice you are in a loop whose exit
+condition is outside your control. Name the interval, compare it to the runtime,
+and if the run cannot fit, say so and stop — rather than spending hours proving
+arithmetic.
+
+⭐ CLAUDE.md already carried this shape for the *old* carry-over rule (*"a gate
+costs ~25 min and the frontend workstreams were landing every 10, so carry-over
+could NEVER hold — arithmetic, not luck"*). This is the same lesson arriving in a
+second system, which is what makes it a class rather than an anecdote.
+
+### ⛔ "DOCUMENTED" IS NOT "BOUNDED", AND A KNOWN HAZARD IS NOT A HANDLED ONE
+
+> **Writing a hazard down changes nothing about whether it fires. If a record
+> says a cost exists, ask what BOUNDS it — and if nothing does, that is an open
+> risk wearing a footnote.**
+
+Instances from this programme, each of which read as handled:
+
+- `putNoteWithIntent`'s class guard is *documented* as protecting every writer.
+  It protects none that flips `dirty` in the same write.
+- The joystick `Hide` control's missing recovery path was *documented* for
+  support. "A recorded workaround is not a recovery path — it is a record of one
+  being missing."
+- C2 of the carry-over rule is *specified* in CLAUDE.md and has been
+  **structurally unevaluable on every landing** — nothing in the repo emits the
+  import graph it requires. A written check nobody can run is not a check.
+
+⭐ The test is the same one kind 3 asks: **"when was this last true, and what
+would tell me if it stopped being true?"** If the answer to the second half is
+"nothing", the documentation is the whole mechanism.
+
+### ⛔ FLAG-FIRST ROLLBACK — the cheapest lever that can actually reach production
+
+> **Order the levers before you need them, and verify each one IN THE RUNNING
+> PROCESS, never from `--kv`.**
+
+For Q1 fix 6 the order is:
+
+1. **`railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`** — ⚠️ `--set`
+   REDEPLOYS; `delete` does NOT, and a deleted variable can stay live in the
+   process while `--kv` reports it gone.
+2. **The kill switch** `NOTEBOOK_OFFLINE_DEFAULT_ON=0` — second, because it stops
+   a whole wave to fix one write path.
+3. **Revert the commit** — last, and it is a merge, so `-m 1`.
+
+⛔ A mode flag whose default is the SAFE behaviour is the only kind that can be
+shipped ahead of the thing it protects: `NOTEBOOK_DOOR_GUARD` went to production
+**unset**, verified `None` in-process, so the guard kept behaving exactly as it
+had. The lever exists before it is needed, and arming it changed nothing.
+
+### ⛔⛔ REAPING ANOTHER WORKSTREAM'S LEAK — BY SIGNATURE, BY AGE, BY WORKTREE, NEVER BY NAME
+
+> **Enumerate first and paste the list. Kill only what matches ALL THREE of a
+> command-line SIGNATURE, an AGE floor, and a WORKTREE. Re-enumerate after.
+> Never by process name alone, and never mid-gate.**
+
+⚰️ Measured 2026-09-17. `uct-worktrees/breadth-dc` leaked a `vite preview` server
+every few minutes and reaped none: **76 processes, 2,138 MB, ages 147–267
+minutes**, plus ~40 `npx` wrappers. It killed a six-shard gate twice — and the
+second kill took the *waiter* armed to watch for a quiet box, which is how little
+headroom was left.
+
+**The rule, and each clause stops a different mistake:**
+
+| clause | what it prevents |
+|---|---|
+| **SIGNATURE** — the command line contains `vite preview` or `esbuild` | `Stop-Process -Name node` kills every Node on the box, including the gate, the rig and other sessions |
+| **WORKTREE** — the command line resolves under the *named* worktree | another workstream's identical-looking server is not yours to reap |
+| **AGE** — older than 10 minutes | a process seconds old is something STARTING, not something leaked. Two breadth-dc processes were 3 minutes old at reap time and were correctly spared |
+| **NEVER a vitest** | a test run is work in flight; wait for it, and if it is foreign you do not get to decide it is finished |
+| **NEVER mid-gate** | nothing touches the box while a gate runs — that is what makes the manifest readable |
+
+⭐ **KILL THE CHILDREN AND THE WRAPPERS FOLLOW.** The ~40 `npx-cli.js` processes
+did not match the signature (their command line never names the worktree) and
+were deliberately left alone — **39 of them exited on their own** once their
+`vite` children died. A wrapper is not a separate leak; reaping by the narrow
+signature is both safer and sufficient.
+
+⛔⛔ **AND `FreePhysicalMemory` IS A PROXY — `Memory\Available MBytes` IS THE
+NUMBER.** WMI's free memory EXCLUDES the standby list, which Windows reclaims on
+demand, so it under-reports what a process can actually allocate. Ask the
+performance counter. (Measured the same day: 4.44 GB "free" vs 4.53 GB available —
+close *here*, because the standby list happened to be small at 0.34 GB, and that
+is exactly the kind of agreement that teaches you to trust the wrong instrument.)
+
+⚠️ **A REAP IS NOT A GUARANTEE OF HEADROOM, AND THE ARITHMETIC SHOULD BE DONE
+BEFORE THE RUN.** Reaping 96 processes and 2.1 GB moved this box from ~3.3 GB to
+~4.5 GB available — and **not to the 8 GB a full gate wants**, because the real
+holders were a 6.9 GB `llama-server.exe`, 4.4 GB of Chrome and 4.6 GB of
+`claude.exe` sessions, **none of which is in any reap signature**. Reaping the
+leak you are allowed to reap does not entitle you to the box.
+
 ### ⛔⛔ RESOURCE RULES — AT MOST **3** AGENTS ON THIS BOX, AND THE WHISPER JOB RUNS ALONE
 
 > **Owner ruling 2026-09-13, written from three separate self-inflicted failures in two days.**
@@ -2664,18 +2842,52 @@ In short: which services restart depends on which files a push touches, and only
 restart is expensive.
 
 - **Docs, tests, tools, scripts, `app/**` → push any time.** These restart web only.
-  Cost is a ~1 min `/api/*` blip and a possible lost scheduler slot (APScheduler's job
-  store is in memory, so a slot whose minute passes during the swap is lost outright,
-  not run late). If a scheduled job is due in the next minute or two, wait for it.
+  Cost is an `/api/*` blip and a possible lost scheduler slot (APScheduler's job store
+  is in memory, so a slot whose minute passes during the swap is lost outright, not
+  run late). If a scheduled job is due in the next minute or two, wait for it.
+  ⚰️ This line used to restate the blip as *"~1 min"*, and the runbook is the single
+  authority on that number — restating it here was the second-authority-over-one-value
+  defect this file keeps paying for. **Read `docs/runbooks/deploy-windows.md`'s Tier 1
+  section for the measured figure (82–119 s, n=1) and the platform reason it cannot be
+  fixed with a readiness gate** — `web` has a Railway volume mounted, and Railway
+  documents that a volume-attached service can never overlap deploys regardless of
+  healthcheck config. The only lever is deploy frequency, not deploy mechanics.
 - **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
 
 ⛔⛔ **NEVER `git push --no-verify`, AND NEVER `-n`.** It skips every hook, leaves
 no trace anywhere, and is the one path that looks exactly like the 2026-09-14
-stacked push that nobody could attribute. If a hook is wrong, fix the hook or use
-the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
-`logs/pre-push-guard-bypass.log` and is therefore reviewable. ⭐ Since 2026-09-14
+stacked push that nobody could attribute. If a hook is wrong, fix the hook.
+
+⛔⛔ **AND `UCT_SKIP_PREPUSH_GUARD=1` IS NO LONGER "the logged override" — IT IS
+ROLLBACK-ONLY (R66, owner ruling D-18, 2026-09-17).** This paragraph used to end
+*"or use the logged override (`UCT_SKIP_PREPUSH_GUARD=1`), which writes to
+`logs/pre-push-guard-bypass.log` and is therefore reviewable."* Every word of that
+was true, and it is how the wrong lever got pulled: on 2026-09-17 a session needing
+to pass the **burst** clause alone reached for the global skip, which waived the
+**in-flight** clause too, and the push landed inside another workstream's swap.
+
+⭐ **The guard already had the right lever and had had it since D-10** — R19's
+*scoped* attestation (`UCT_BURST_ATTESTED_BY` + `UCT_BURST_ATTESTED_AT`, ISO, ≤15
+min), which exits the BURST clause and provably cannot satisfy recency or
+in-flight. Nobody reached for it **because a global one existed.** The fix is fewer
+levers, not more care.
+
+- **Burst-only refusal, recency and in-flight passing on their own** → the scoped
+  attestation, by a named human at a named minute.
+- **Anything else** → wait. `tools/pre_push_guard.py` now refuses the global skip
+  unless HEAD is a real revert (`This reverts commit …`) of the commit the deploy
+  record says production is **serving**, with `UCT_ROLLBACK_REASON` set.
+
+⚰️ R66 also tried to make the *retired* deploy-window override refuse by name
+rather than be a no-op. `tests/test_no_market_hours_window.py` went red on the
+mere name and was right: **presence was the problem, not the predicate.** Nothing
+reads it, so an operator who still has it set gets exactly the retired
+behaviour — silence — and the right treatment for a dead name is to stop saying
+it. That is why only ONE variable is named above.
+
+⭐ Since 2026-09-14
 this is also belt-and-braces rather than the only line: the **`master deploy gate`**
 workflow serialises master pushes at GitHub (`concurrency: master-deploy`,
 `cancel-in-progress: false`) and Railway's **Wait for CI** holds the build until
@@ -2827,6 +3039,72 @@ assertion alone passes if the body ignores the parameter
 in `tests/`**, so none is inert today. Left as-is with that reason recorded rather than changed
 for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
 the seam first, or it will be testing the real function while believing otherwise.
+
+### ⛔⛔ TWO INSTRUMENTS AGREEING IS EVIDENCE ABOUT THEIR SHARED INPUT
+
+> **When two independent tools agree on something surprising, the thing they
+> SHARE is the first suspect — not the flaw you are about to attribute to both.**
+
+⚰️ Measured 2026-09-17, Wave Q1. A vitest spy reported a call site at
+`useDurableNote.js:957` in a **563-line file**, and an independent acorn parse
+reported `:952`. Two instruments, two languages, no shared code — so I concluded
+both were reading a transformed module, labelled the spy's output *"not a source
+line"*, and wrote that into the file as a correction.
+
+⛔ **The instruments were right. The FILE was corrupt, and I had corrupted it.**
+A patch script read the file preserving its CRLF endings and wrote it back
+through a writer that translated newlines to CRLF *again*, so 556 line endings
+became CR-CR-LF. A bare CR **is** a line terminator in ECMAScript, so both tools
+counted ~1.7× the lines — correctly.
+
+⭐ **The tell was free and I walked past it:** `wc -l` said 563 the whole time.
+**When a derived number disagrees with the artifact itself, suspect the artifact
+before the readers.** Agreement between independent instruments is the strongest
+signal available that their common input moved; reading it as corroboration of a
+shared defect inverts the one thing independence buys you.
+
+⚠️ **`tools/check_repo_hygiene.py` cannot catch this shape**, by design: it
+reports a path only when line endings are the **ONLY** difference, and a file
+you are also editing has content changes too. The byte-level check is
+`grep -c $'\r\r\n'`, or count CR against CRLF and require them equal.
+
+⛔ **And the write pattern that causes it, because it looks correct:**
+
+```python
+s = io.open(P, encoding='utf-8', newline='').read()      # PRESERVES \r\n
+io.open(P, 'w', encoding='utf-8', newline='\r\n').write(s)   # translates AGAIN
+```
+
+Normalise to `\n` in memory first, or write with `newline=''`. This is R-2's
+neighbour: R-2 is about matching the *stored blob's* endings, this is about not
+translating twice on the way there.
+
+### ⛔ A GUARD ON THE INCOMING RECORD CANNOT PROTECT THE OUTGOING ONE
+
+> **A guard keyed on the value a function is HANDED does not constrain the value
+> already in the store. If a writer can change the field the guard reads, in the
+> same write, the guard is not on that path.**
+
+⚰️ Wave Q1 fix 6, 2026-09-17. `putNoteWithIntent` carried an explicit class
+guard — *"a null intent is not permission to delete unsent work"* — written
+`else if (noteRecord.dirty)`. It reads the record being written. A writer that
+flips `dirty: 1 → 0` in the same transaction satisfies the `else` and takes the
+cursor-delete branch, deleting the member's queued words. The guard was correct,
+documented, mutation-proved at its own layer, and **structurally unable to see
+the case it was written for**.
+
+⭐ The companion guard has to read **the record already in the store**, because
+that is the only place the unsent work still exists at that moment. Both stay;
+they are complementary, and neither is redundant.
+
+⛔ **Corollary, and it is the same disease as the three-copies rule:** the
+identical invariant also lived in `settleLandedSave` and NOT in `persist`, so
+one implementation had one hole — and the hole was invisible **because the other
+copy read as coverage for both**. The fix is ONE exported predicate both writers
+ask (`discardsUnsentWork`), never a second copy
+(`lesson_a_guard_repeated_is_a_guard_unproved`). Its mutation proof is what
+demonstrates the extraction is real: killing the shared predicate reds **both**
+fixes' rails at once.
 
 ### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
 

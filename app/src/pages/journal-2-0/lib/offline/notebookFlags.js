@@ -39,7 +39,45 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_offline_read_on: false,
   notebook_conflict_ux_on: false,
   notebook_attachments_on: false,
+  notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
+
+/**
+ * ⛔⛔ THE DOOR GUARD'S MODE. Q1 fix 6 makes the append route safe at the
+ * WRITER; the guard is the mitigation that has stood in front of it. Proving
+ * fix 6 on production needs the rig to REACH that route, and the guard defers
+ * every cell — so "prove it, then release the guard" is circular unless the
+ * mode can move without a deploy.
+ *
+ *   full          the shipped behaviour: defer on dirty, on queued, and on a
+ *                 store that cannot be read
+ *   unknown-only  defer ONLY when the answer is genuinely not known
+ *
+ * ⛔ THE DEFAULT IS THE SAFE MODE, here as on the server, and an unrecognised
+ * value takes it. Both ends must agree, and they are railed to.
+ */
+export const DOOR_GUARD_FULL = 'full'
+export const DOOR_GUARD_UNKNOWN_ONLY = 'unknown-only'
+export const DOOR_GUARD_MODES = Object.freeze([DOOR_GUARD_FULL, DOOR_GUARD_UNKNOWN_ONLY])
+
+/** ⛔ ONE PLACE THAT KNOWS WHICH KEYS ARE MODES. Without it the `typeof ===
+ *  'boolean'` tests below answer "absent" for every value a mode could ever
+ *  carry — so a payload containing ONLY the mode would never latch, and the
+ *  mode would never arrive. */
+const MODE_KEYS = Object.freeze({ notebook_door_guard: DOOR_GUARD_MODES })
+
+const flagPresent = (payload, k) => (MODE_KEYS[k]
+  ? typeof payload?.[k] === 'string' && payload[k].trim() !== ''
+  : typeof payload?.[k] === 'boolean')
+
+const flagValue = (payload, k) => {
+  const allowed = MODE_KEYS[k]
+  if (!allowed) return typeof payload?.[k] === 'boolean' ? payload[k] : FLAG_FALLBACKS[k]
+  const v = typeof payload?.[k] === 'string' ? payload[k].trim().toLowerCase() : null
+  // ⛔ UNRECOGNISED TAKES THE DEFAULT, which is the SAFE mode. A typo degrades
+  // to more guarding, never to less.
+  return allowed.includes(v) ? v : FLAG_FALLBACKS[k]
+}
 
 let latched = null
 let latchedAt = null
@@ -58,21 +96,21 @@ export function latchNotebookFlags(payload) {
       // somebody flipped the switch while this tab was open — and it is exactly
       // what `notebookFlagsDebug()` exists to show. It is still not applied.
       for (const k of Object.keys(FLAG_FALLBACKS)) {
-        if (payload && typeof payload[k] === 'boolean' && payload[k] !== latched[k]) {
+        if (payload && flagPresent(payload, k) && flagValue(payload, k) !== latched[k]) {
           ignoredDisagreements += 1
         }
       }
       return latched
     }
     if (!payload) return null
-    const has = Object.keys(FLAG_FALLBACKS).some((k) => typeof payload[k] === 'boolean')
+    const has = Object.keys(FLAG_FALLBACKS).some((k) => flagPresent(payload, k))
     // ⛔ A payload with none of these keys is an OLDER BACKEND, not a decision.
     // Latching `false` from it would kill the wave on every member the moment a
     // stale pod answered one request.
     if (!has) return null
     const next = {}
     for (const k of Object.keys(FLAG_FALLBACKS)) {
-      next[k] = typeof payload[k] === 'boolean' ? payload[k] : FLAG_FALLBACKS[k]
+      next[k] = flagValue(payload, k)
     }
     latched = next
     latchedAt = Date.now()
@@ -87,6 +125,19 @@ export function notebookFlag(key) {
   if (!latched) return null
   const v = latched[key]
   return typeof v === 'boolean' ? v : null
+}
+
+/**
+ * The door guard's latched mode.
+ *
+ * ⛔ NOTHING LATCHED ⇒ THE SAFE MODE, never null and never the permissive one.
+ * A tab that has not yet heard from the server is a tab that must keep
+ * guarding: the cost of a false defer is one "try again in a moment"; the cost
+ * of a false pass is the member's words.
+ */
+export function doorGuardMode() {
+  const v = latched ? latched.notebook_door_guard : null
+  return DOOR_GUARD_MODES.includes(v) ? v : DOOR_GUARD_FULL
 }
 
 /** Has ANY payload latched? The first-render gate asks this. */

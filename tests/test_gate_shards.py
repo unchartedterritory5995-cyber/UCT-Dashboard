@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import pathlib
 import re
 import subprocess
@@ -1575,3 +1576,92 @@ def test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them():
         gs.tree_state = real
     assert seen.get("called"), "the module-level patch never reached run_gate"
     assert "dirty" in str(e.value).lower(), f"expected the dirty-tree refusal, got {e.value}"
+
+
+def test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config(tmp_path):
+    """⭐⭐ THE MEASUREMENT THAT OVERTURNED A CLAIM I HAD ALREADY PUBLISHED TWICE.
+
+    On 2026-09-18 I asserted - in a commit message and in a report - that
+    `--maxWorkers=1` does NOT bound vitest in this repo, because
+    `vite.config.js` sets `maxWorkers: '50%'` (= 12 forks on this 24-core box)
+    and I had counted ~15 vitest-matching processes during a gate launched with
+    `--max-workers 1`.
+
+    ⛔ THE COUNT WAS THE BROKEN PART. It matched `CommandLine -like '*vitest*'`
+    ACROSS THE WHOLE BOX, while another workstream was leaking node processes and
+    other sessions were running their own suites. It was never a measurement of
+    MY run.
+
+    ⭐ Measured properly - baseline node.exe count, launch, sample the DELTA, and
+    a control asserting the run actually happened - the CLI bound is honoured and
+    the response is monotonic:
+
+        bound   1    2    6   12
+        delta   5    7    9   15        (= bound + ~3-4 fixed overhead)
+
+    ⛔ SO THE GATE'S SHARD COMMAND WAS ALREADY CORRECT AND WAS NOT CHANGED. A fix
+    was authorised on the strength of my finding; the finding was wrong, and
+    changing working code to satisfy it would have been the actual defect.
+
+    This rail is OPT-IN because it spawns two real vitest runs. Run it before
+    trusting any future claim about worker bounds:
+
+        UCT_RUN_REAL_VITEST=1 python -m pytest \
+          tests/test_gate_shards.py::test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config -q
+    """
+    if os.environ.get("UCT_RUN_REAL_VITEST") != "1":
+        pytest.skip("OPT-IN rail: spawns two real vitest runs and samples process counts")
+    app = REPO / "app"
+    if not (app / "node_modules").exists():
+        pytest.skip("app/node_modules absent — cannot invoke the real vitest")
+
+    import subprocess
+    import threading
+    import time as _time
+
+    def peak_delta(bound: int) -> tuple[int, bool]:
+        npx = shutil.which("npx")
+        assert npx, "npx not resolvable — see the rule about shutil.which on Windows"
+
+        def count() -> int:
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\").Count"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            try:
+                return int((out.stdout or "0").strip())
+            except ValueError:
+                return 0
+
+        base = count()
+        proc = subprocess.Popen(
+            [npx, "vitest", "run", "src/pages/journal-2-0/lib/offline/",
+             f"--maxWorkers={bound}"],
+            cwd=str(app), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace")
+        peak = 0
+        buf: list[str] = []
+
+        def drain():
+            for line in proc.stdout:            # noqa: PLR1702
+                buf.append(line)
+
+        t = threading.Thread(target=drain, daemon=True)
+        t.start()
+        while proc.poll() is None:
+            peak = max(peak, count() - base)
+            _time.sleep(2)
+        t.join(timeout=10)
+        # ⛔ NON-VACUITY: a run that never started would report a peak of 0 and
+        # read as "the bound works perfectly".
+        ran = any("Tests" in ln and "passed" in ln for ln in buf)
+        return peak, ran
+
+    low, low_ran = peak_delta(1)
+    high, high_ran = peak_delta(12)
+    assert low_ran, "the --maxWorkers=1 run never produced a totals line — nothing was measured"
+    assert high_ran, "the --maxWorkers=12 run never produced a totals line — nothing was measured"
+    assert high > low, (
+        f"the CLI bound made NO difference (1 -> {low}, 12 -> {high}). Either vitest "
+        f"stopped honouring --maxWorkers, or the process counter is broken again — "
+        f"check the counter FIRST, which is the mistake this rail exists to record.")

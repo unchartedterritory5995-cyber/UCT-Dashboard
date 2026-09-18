@@ -34,6 +34,7 @@ from __future__ import annotations
 import copy
 import functools
 import hashlib
+import re
 import json
 import pathlib
 from typing import Optional
@@ -239,11 +240,41 @@ def system_prompt(vocab: Optional[list[dict]] = None) -> str:
     return _RULES + "\nSETUP VOCABULARY (the only values allowed in setup_vocab)\n" + "\n".join(lines) + "\n"
 
 
-def extractor_version(system_text: Optional[str] = None) -> str:
+def extractor_version(system_text: Optional[str] = None, model: Optional[str] = None) -> str:
     system_text = system_prompt() if system_text is None else system_text
     digest = hashlib.sha256(
         "\n\x1e\n".join([system_text, schema_text(), TRANSPORT_REVISION]).encode("utf-8")).hexdigest()
-    return f"{PROMPT_FAMILY}-{digest[:8]}"
+    # A LOCAL RUN MUST NEVER SHARE A VERSION WITH A PAID ONE. The digest hashes the PROMPT,
+    # not the model, so without this branch a local extraction and a paid one would carry the
+    # same extractor_version - and reconcile.score_silently would then compare records made by
+    # two different models as if they were repeat passes of one. That is not a stability
+    # measurement; it is a model comparison wearing stability of its name.
+    # The PAID version is untouched here, deliberately: wx-v0-fc47bc97 is pinned in the
+    # accepted golden-gate row in production, and changing it would shut the gate.
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        from api.services.wisdom.extract import local_backend
+
+        raw = local_backend.local_model().lower()
+        slug = re.sub("[^a-z0-9]+", "-", raw).strip("-")[:24]
+        return f"wx-local-{slug}-{digest[:8]}"
+
+    # R80, session 24: every PAID model gets its own extractor_version too - not just local
+    # vs paid. Without this, a Haiku run and an Opus run over the same prompt/schema would
+    # carry the IDENTICAL version, and reconcile.score_silently would compare two different
+    # models' extractions as if they were repeat passes of one model. ⛔ THE DIGEST ITSELF IS
+    # UNCHANGED (still system+schema+transport, no model folded in) so wx-v0-fc47bc97 -
+    # pinned in production's accepted gate row - is preserved BYTE-FOR-BYTE for the default
+    # model. Only a model OTHER than the default gets a distinguishing slug; every existing
+    # call site (batch.py, golden.py, audit.py, the gate tool, the routers - none of which
+    # pass `model` today) keeps working unchanged, because the default resolves from
+    # `config.configured_model()`, the SAME place the extraction call itself reads its model.
+    resolved = (model or config.configured_model() or config.DEFAULT_MODEL).strip()
+    if resolved == config.DEFAULT_MODEL:
+        return f"{PROMPT_FAMILY}-{digest[:8]}"
+    slug = re.sub("[^a-z0-9]+", "-", resolved.lower()).strip("-")[:24]
+    return f"{PROMPT_FAMILY}-{slug}-{digest[:8]}"
 
 
 # ── the user message ─────────────────────────────────────────────────────────
@@ -334,16 +365,37 @@ def asr_hints(segment: dict) -> list[str]:
     return hints[:20]
 
 
+#: R97, session 25. Measured against the real API: a Haiku golden run's 35-request batch
+#: came back 35/35 `errored`, every one carrying "This model does not support the effort
+#: parameter." -- Haiku 4.5 rejects `output_config.effort` outright. No money was spent (a
+#: batch item that errors at request-validation is not billed), but the run measured
+#: nothing.
+#: ⛔ NEVER GUESS THIS FORWARD TO OTHER MODELS. Opus 5 is the one model this has ever run
+#: against in production and its accepted gate row depends on this EXACT request shape
+#: (dropping `effort` would change nothing about the version hash -- that only covers
+#: system+schema+transport -- but it WOULD change the real request Anthropic receives,
+#: which is the thing the golden gate measured). So this is an explicit, evidence-only
+#: allowlist of models CONFIRMED not to support the field, added one measured failure at a
+#: time -- never a guess at which OTHER models might also reject it. A model not in this
+#: set keeps getting `effort`; if that model also rejects it, the failure mode is the SAME
+#: as today's Haiku one -- an immediate, free, loud `errored` batch item, never a silent
+#: wrong measurement.
+NO_EFFORT_MODELS = frozenset({"claude-haiku-4-5"})
+
+
 def build_params(segment: dict, source: dict, *, model: str, effort: str, max_tokens: int = MAX_TOKENS,
                  system_text: Optional[str] = None, hints: Optional[list[str]] = None) -> dict:
     """One Messages request. No temperature/top_p/top_k, no prefill, no fallbacks."""
     if effort not in EFFORTS:
         raise ValueError(f"effort must be one of {EFFORTS}")
+    output_format = {"type": "json_schema", "schema": api_schema()}
+    output_config = {"format": output_format} if model in NO_EFFORT_MODELS \
+        else {"format": output_format, "effort": effort}
     return {
         "model": model,
         "max_tokens": int(max_tokens),
         "system": [{"type": "text", "text": system_prompt() if system_text is None else system_text,
                     "cache_control": {"type": "ephemeral"}}],
         "messages": [{"role": "user", "content": user_message(segment, source, hints)}],
-        "output_config": {"format": {"type": "json_schema", "schema": api_schema()}, "effort": effort},
+        "output_config": output_config,
     }

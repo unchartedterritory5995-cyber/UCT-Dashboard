@@ -1,0 +1,17 @@
+{
+  "id": "p2-metadata-settle-first-hero",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "hero",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 1,
+  "started": "2026-09-18T08:34:03",
+  "seconds": 6.8,
+  "why": "P2 stage-1 proof, guard still FULL. The `hero` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof."
+}

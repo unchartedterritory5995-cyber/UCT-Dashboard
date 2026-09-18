@@ -31,7 +31,15 @@ import time
 
 log = logging.getLogger(__name__)
 
-_ROUTE = "/api/breadth-monitor"
+#: ⛔⛔ DC-3 (2026-09-18): added `/series` here rather than duplicating this whole
+#: module for it — `get_history_deep`'s `_bt.phase(...)` calls already exist inside
+#: the reader and were SILENTLY NO-OPPING for `/series` (phase()/mark() are no-ops
+#: without an open context — see their own docstrings), because this middleware's
+#: exact-path match never activated for that path. `/series` shares the identical
+#: reasoning that scoped this to one path in the first place ("has ~30 sibling
+#: admin routes and a log line per sweep call is noise") — it is not one of those
+#: siblings, it is the other real consumer of the same reader.
+_ROUTES = frozenset({"/api/breadth-monitor", "/api/breadth-monitor/series"})
 _ctx: contextvars.ContextVar[dict | None] = contextvars.ContextVar("breadth_timing", default=None)
 
 _PAGE = 4096
@@ -391,19 +399,20 @@ def _span_of(scope) -> str:
 
 
 class BreadthTimingMiddleware:
-    """Pure-ASGI, OUTERMOST, and scoped to exactly one path.
+    """Pure-ASGI, OUTERMOST, and scoped to exactly two paths (`_ROUTES`).
 
     Outermost because GZip must be INSIDE the measurement — compressing 5 MB is one
-    of the stages this exists to price. Scoped to the exact path because
+    of the stages this exists to price. Scoped to exact paths because
     `/api/breadth-monitor` has ~30 sibling admin routes and a log line per sweep
-    call is noise that gets the useful line muted.
+    call is noise that gets the useful line muted — `/series` was added to the set
+    (DC-3) rather than widened to a prefix match, for the same reason.
     """
 
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope.get("type") != "http" or scope.get("path") != _ROUTE:
+        if scope.get("type") != "http" or scope.get("path") not in _ROUTES:
             await self.app(scope, receive, send)
             return
         t0 = time.perf_counter()

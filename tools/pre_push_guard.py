@@ -54,13 +54,29 @@ commit still means the pod is settled, which is the property that matters for
 *your* push. Requiring your own parent would refuse every legitimate push in a
 repo five workstreams share.
 
-**Bypass** — deliberate, loud, and logged. ONE override, because there is one
-thing left to override: the deploy queue.
+**The levers — TWO, both scoped, neither global** (R66, owner ruling D-18, 2026-09-17):
 
-    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master                  # the QUEUE
+    # a BURST-only refusal, recency and in-flight passing on their own:
+    UCT_BURST_ATTESTED_BY="<a human who can see every workstream>" \
+    UCT_BURST_ATTESTED_AT="<ISO, within 15 min>" git push origin HEAD:master
 
-Every bypass appends to `logs/pre-push-guard-bypass.log` with the user, the time
-and the state that was overridden, so a bypass is a record rather than a silence.
+    # production is serving something that must come off NOW, and HEAD reverts it:
+    UCT_ROLLBACK_REASON="<why members need this>" \
+    UCT_SKIP_PREPUSH_GUARD=1 git push origin HEAD:master
+
+⚰️ **THIS SAID "ONE OVERRIDE … the deploy queue" AND THAT IS HOW THE 2026-09-17
+INCIDENT HAPPENED.** `UCT_SKIP_PREPUSH_GUARD=1` did override the queue — all of
+it. A session needing to pass the **burst** clause alone reached for it, and it
+waived the **in-flight** clause too; the push landed inside another workstream's
+swap. The scoped attestation that exits burst and provably cannot exit recency or
+in-flight had existed since D-10 and was not used, **because a global one existed.**
+
+⛔ Nothing here waives recency, in-flight, unreadable or unparsable. Those are
+measurements of the world, and no amount of looking changes them — you wait.
+
+Every accepted lever appends to `logs/pre-push-guard-bypass.log` with the user,
+the time, a machine-readable `reason_code` and the state that was overridden, so
+it is a record rather than a silence.
 """
 from __future__ import annotations
 
@@ -85,6 +101,93 @@ SERVICE = "web"
 #: sets `drainingSeconds: 30`, and the old container is still answering inside it.
 MIN_SETTLE_SECONDS = 150
 BYPASS_ENV = "UCT_SKIP_PREPUSH_GUARD"
+
+#: R66 (D-18) — the GLOBAL levers are retired, because on 2026-09-17 the wrong one was reachable
+#: and it got pulled. The guard already carried R19's SCOPED attestation (burst only, never
+#: recency or in-flight, `pre_push_guard.py:635`), fully tested — including
+#: `test_an_attestation_NEVER_satisfies_the_in_flight_clause`. It was not used. A global
+#: `UCT_SKIP_PREPUSH_GUARD=1` was, and it waived every clause: the push landed while another
+#: workstream's deploy was BUILDING, and a 502 was observed at 22:16:50Z.
+#: ⭐ THE FIX IS NOT MORE CARE, IT IS FEWER LEVERS. A correct scoped mechanism beside a global
+#: one is a correct mechanism nobody reaches for under time pressure.
+#: ⚰️⚰️ AND R66 NEARLY ADDED A SIXTH LEVER WHILE RETIRING THE FIFTH. This block first
+#: carried a `WINDOW_OVERRIDE_ENV` constant naming the retired deploy-window override
+#: variable, and refused any push that had it set, reasoning that "a lever aimed at a retired
+#: gate still points at the gates that remain". `tests/test_no_market_hours_window.py` went
+#: red on it, and the rail was right: the owner's permanent-removal ruling (2026-09-17) says
+#: **presence was the problem, not the predicate** — "a retired rule that prints its own name
+#: on every push is not retired, it is advertised". Nothing reads that variable any more, so
+#: an operator who still has it set gets exactly the retired behaviour: silence. Refusing it
+#: by name would have put the window's vocabulary back into the guard, its tests and its
+#: runbook - which is why this comment does not spell the variable out either.
+#: ⭐ The distinction that matters: `UCT_SKIP_PREPUSH_GUARD` is a LIVE lever and is scoped
+#: below; the deploy-window override is a DEAD NAME, and the right treatment for a dead name
+#: is to stop saying it.
+ROLLBACK_REASON_ENV = "UCT_ROLLBACK_REASON"
+
+
+def _deploy_identity(dep: "dict | None") -> str:
+    """R67: what makes two reads 'the same deploy state'. ⛔ id AND status AND timestamp — a
+    deploy that flipped BUILDING→SUCCESS between the reads is a different world, and an identity
+    that watched only the id would call it unchanged.
+
+    ⚰️ THE KEY NAMES ARE `latest_deployment`'s, AND THE FIRST DRAFT INVENTED TWO OF THEM. It read
+    `id` and `created_at` where the payload carries `id` and **`createdAt`**, so every SUCCESS
+    row hashed to the same `-|SUCCESS|-` and the comparison could only ever see a STATUS change.
+    A second read that cannot distinguish two different successful deploys is the proxy failure
+    this guard exists to catch, wearing the costume of the fix."""
+    d = dep or {}
+    return "%s|%s|%s" % (d.get("id") or "-", d.get("status") or "-", d.get("createdAt") or "-")
+
+
+def _head_message(head: "str | None") -> str:
+    """The commit message of what is being pushed. Empty on any failure — unreadable is never a
+    pass, and the caller treats empty as 'not a revert'."""
+    exe = shutil.which("git")          # ⛔ resolved, never shell=True (the .cmd-shim trap)
+    if not exe:
+        return ""
+    try:
+        out = subprocess.run([exe, "-C", str(ROOT), "log", "-1", "--format=%B", head or "HEAD"],
+                             capture_output=True, text=True, errors="replace", timeout=20)
+        return out.stdout if out.returncode == 0 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def rollback_intent(head_message: str, production_commit: "str | None") -> dict:
+    """R66: `UCT_SKIP_PREPUSH_GUARD` survives for ONE purpose — reverting what is live right now.
+
+    ⛔ Three conditions, all required, because any two of them are satisfiable by an ordinary
+    push in a hurry: a stated reason, a commit that says in its own body which commit it reverts,
+    and that commit being the one PRODUCTION IS SERVING. A revert of something that is not live
+    is an ordinary change and waits like one.
+
+    ⭐ The production commit comes from the deploy record, not from a branch name — `origin/
+    production` can move under us, and what matters is what members are being served."""
+    reason = (os.environ.get(ROLLBACK_REASON_ENV) or "").strip()
+    if not reason:
+        return {"ok": False, "why": "%s is not set — a bypass with no stated reason is not a "
+                                    "rollback, it is a bypass" % ROLLBACK_REASON_ENV}
+    if not production_commit:
+        return {"ok": False, "why": "the live commit could not be read, so 'reverts what is live' "
+                                    "cannot be established — unreadable is never a pass"}
+    body = head_message or ""
+    marker = "This reverts commit "
+    reverted = ""
+    for line in body.splitlines():
+        if line.strip().startswith(marker):
+            reverted = line.strip()[len(marker):].strip().rstrip(".")
+            break
+    if not reverted:
+        return {"ok": False, "why": "HEAD does not say %r — git writes that line for a real "
+                                    "revert, and a hand-written message is not one" % marker.strip()}
+    n = min(len(reverted), len(production_commit), 12)
+    if reverted[:n].lower() != production_commit[:n].lower():
+        return {"ok": False, "why": "HEAD reverts %s but production is serving %s — a revert of "
+                                    "something that is not live waits like any other change"
+                                    % (reverted[:12], production_commit[:12])}
+    return {"ok": True, "why": "rollback of the live commit %s: %s" % (production_commit[:12], reason),
+            "reason": reason, "reverts": reverted[:12]}
 BYPASS_LOG = ROOT / "logs" / "pre-push-guard-bypass.log"
 
 OK, REFUSE, UNREADABLE = "OK", "REFUSE", "UNREADABLE"
@@ -110,6 +213,19 @@ def _read_rows() -> dict:
     if "v" not in _ROWS_MEMO:
         _ROWS_MEMO["v"] = _read_rows_uncached()
     return _ROWS_MEMO["v"]
+
+
+def _forget_rows() -> None:
+    """R67's second read must reach the CLI, not the memo.
+
+    ⚰️ Without this the second read is STRUCTURALLY VACUOUS: `latest_deployment()` goes through
+    `_read_rows()`, the memo answers from the first call's bytes, the two identities are equal by
+    construction, and the guard prints nothing while proving nothing. The unit tests could never
+    have seen it — they monkeypatch `latest_deployment` itself, so the memo is not in their path
+    at all. ⭐ The memo's own reason (guard 2 and guard 3 must describe ONE world in one refusal
+    message) is still right and is why this is an explicit, narrow forget rather than its
+    deletion: the deliberate re-read happens after both of those have spoken."""
+    _ROWS_MEMO.clear()
 
 
 def _read_rows_uncached() -> dict:
@@ -152,6 +268,9 @@ def latest_deployment() -> dict:
     d = raw["rows"][0]
     meta = d.get("meta") or {}
     return {"state": "READ", "status": d.get("status"), "createdAt": d.get("createdAt"),
+            # ⛔ `id` is carried for R67's second read ONLY. `decide()` does not look at it, and
+            # must not: two deploys of the SAME commit are two different deploys.
+            "id": d.get("id"),
             "commit": (meta.get("commitHash") or "")[:9],
             "message": (meta.get("commitMessage") or "").split("\n")[0][:60]}
 
@@ -684,23 +803,56 @@ def main(argv=None) -> int:
         print("[pre-push] attestation REJECTED (%s): %s"
               % (attest.get("state"), attest.get("why")))
 
+    # ── R66: the global skip survives for ROLLBACK ONLY ───────────────────────
     if os.environ.get(BYPASS_ENV, "").strip().lower() in ("1", "true", "yes"):
+        intent = rollback_intent(_head_message(a.head), (dep or {}).get("commit"))
+        if not intent["ok"]:
+            print("[pre-push] ⛔ %s is ROLLBACK-ONLY since D-18. %s"
+                  % (BYPASS_ENV, intent["why"]))
+            print("[pre-push]    ⚰️ On 2026-09-17 this lever waived EVERY clause — including the "
+                  "in-flight one — and the push landed inside another workstream's swap.")
+            print("[pre-push]    For a BURST-only refusal use the scoped attestation: %s and %s."
+                  % (ATTEST_BY_ENV, ATTEST_AT_ENV))
+            return 1
         # ⛔ BOTH reasons are logged. Overriding a queue refusal and overriding a
         # cadence refusal are different acts, and a log that records only the first
         # cannot tell the reviewer which one was waved through.
-        _log_bypass(dep, "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason))
-                                   if v != OK) or reason, code="QUEUE-SKIP")
-        print("[pre-push] BYPASSED via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
-        print("[pre-push] what was overridden: %s" % reason)
-        if kverdict != OK:
-            print("[pre-push] ...and the cadence guard: %s" % kreason)
+        _log_bypass(dep, "ROLLBACK: %s | %s" % (
+            intent["reason"],
+            "; ".join(r for v, r in ((verdict, reason), (kverdict, kreason)) if v != OK) or reason),
+            code="ROLLBACK")
+        print("[pre-push] ROLLBACK allowed via %s — logged to %s" % (BYPASS_ENV, BYPASS_LOG))
+        print("[pre-push] %s" % intent["why"])
         return 0
 
     print("[pre-push] %s" % reason)
     print("[pre-push] %s" % kreason)
     if verdict != OK or kverdict != OK:
         print("[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.")
-        print("[pre-push]    Wait, then push again. Deliberate override: %s=1" % BYPASS_ENV)
+        if kclause.get("name") == "burst" and verdict == OK:
+            print("[pre-push]    This is a BURST-only refusal with recency and in-flight passing "
+                  "on their own. A human who can see every workstream may attest: set %s and %s "
+                  "(ISO, within %dm) and push again."
+                  % (ATTEST_BY_ENV, ATTEST_AT_ENV, ATTEST_MAX_AGE_SECONDS // 60))
+        else:
+            print("[pre-push]    Wait, then push again. ⛔ No lever waives this: an attestation "
+                  "exits the BURST clause only, and %s is rollback-only." % BYPASS_ENV)
+        return 1
+
+    # ── R67: THE LAST ACT IS A SECOND READ, AND THE PUSH RIDES THIS SAME PROCESS ──
+    # ⚰️ 2026-09-17: the guard was read, reported "710s settled — safe to push, nothing
+    # building", and by the time the push executed another workstream's deploy had started and
+    # was BUILDING. The first read was TRUE and USELESS — the world moved between the check and
+    # the act. ⭐ Re-reading as the last statement before returning 0 does not remove the race
+    # (nothing inside one process can), but it shrinks the window from "however long the human
+    # took" to "one API round trip", and it REFUSES rather than guesses when the two disagree.
+    _forget_rows()
+    dep2 = latest_deployment()
+    if _deploy_identity(dep2) != _deploy_identity(dep):
+        print("[pre-push] ⛔ THE DEPLOY STATE CHANGED WHILE THIS GUARD RAN — refusing.")
+        print("[pre-push]    first read : %s" % _deploy_identity(dep))
+        print("[pre-push]    second read: %s" % _deploy_identity(dep2))
+        print("[pre-push]    Something started deploying between the two reads. Wait for it.")
         return 1
     return 0
 

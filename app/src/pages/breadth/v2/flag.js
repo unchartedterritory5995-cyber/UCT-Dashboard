@@ -1,33 +1,62 @@
 /**
- * The Data Charts V2 build-time gate.
+ * The Data Charts V2 gate — RUNTIME since DC-2 §2, read off the auth payload.
  *
- * ⛔⛔ THE READ MUST BE THE FULL STATIC LITERAL — `import.meta.env.VITE_BREADTH_CHARTS_V2_ENABLED`
- * — and never a computed access like `env[NAME]`. Vite replaces these TEXTUALLY at build
- * time; a dynamic key is not replaced, so it is `undefined` in the shipped bundle while
- * reading perfectly in vitest, where `import.meta.env` is an ordinary object. This file
- * was written the dynamic way first and `tests/test_vite_flag_ledger.py` caught it —
- * reporting a "stale ledger row" whose real cause was a flag that could never be on in
- * production. ⭐ That rail is therefore doing double duty: the name it cannot find is
- * also the name Vite cannot bake.
+ * ⚰️ WHAT THIS REPLACES, AND WHY THE REPLACEMENT WAS THE POINT. V2-1 shipped behind
+ * `VITE_BREADTH_CHARTS_V2_ENABLED`, a build-time flag Vite bakes into the bundle. Three
+ * consequences, all of them real and all of them blocking the DC-2 flip:
  *
- * ⛔ READ AT CALL TIME, not captured at module scope. A module-level `const ON = …` is
- * evaluated once per module load, which makes every test in a file share one answer and
- * makes the flag-off golden impossible to drive from both sides.
+ *   1. a flip was a REBUILD and a deploy, not a variable;
+ *   2. a rollback was a deploy too — the slow lever, on the surface most likely to need
+ *      the fast one;
+ *   3. a per-owner preview could not be expressed AT ALL, because there is exactly one
+ *      bundle and it cannot be on for one member and off for everyone else.
  *
- * ⛔ EXACTLY `'1'`, never truthiness. These arrive as STRINGS, so the literal `'0'` and
- * the literal `'false'` are both truthy and a truthy test turns "deliberately off" into
- * "on". Unset is `undefined`, which is off.
+ * ⛔⛔ AND IT WAS NEVER ON. The ledger row recorded `UNSET on every service`, baked
+ * `undefined` — so `v2Enabled()` was false in production for the whole of V2-1's life.
+ * Flipping the new runtime flags while this gate stayed build-time would have been the
+ * repo's own recurring defect in its purest form: a feature built, tested, green, and
+ * connected to nothing, with a member-visible flip that reached nobody.
  *
- * ⚠️ BUILD-time, so flipping it is a rebuild, not a Railway variable read per request.
- * Ledger row: `VITE_BREADTH_CHARTS_V2_ENABLED` in `docs/feature_flags.json`; build ARG in
- * `Dockerfile.web`.
+ * ⛔ THE SHELL NEVER RENDERS ALONE, and that is a safety property rather than a tidiness
+ * one. V2-1 is explicitly NOT a chart — it is a diagnostic list of point counts. A member
+ * who reached it with both increments off would LOSE the shipped V1 charts and get text
+ * in their place, which is a regression dressed as a release. So the tab is V2 only when
+ * at least one increment is on, and that makes "shell without a chart reaches a member"
+ * impossible by construction instead of by remembering.
+ *
+ * ⛔ `=== true`, never truthiness, and the default on an absent context is FALSE. These
+ * are ENABLEMENT gates: a payload that has not arrived, a backend too old to carry the
+ * field, or a tree rendered outside `AuthProvider` must every one of them read as "not
+ * released" — an unreleased surface must never flash into view while the answer is still
+ * loading. (The hub's kill switch is the opposite polarity on purpose; collapsing the two
+ * to `!!` would silently invert one of them.)
+ *
+ * ⛔ READ THROUGH `useContext`, NOT `useAuth()`. `useAuth` THROWS outside a provider, and
+ * the flag-off golden renders `<BreadthCharts />` bare — a throw there would turn "the
+ * gate is off" into a crash, i.e. exactly the state the golden exists to prove is calm.
  */
+import { useContext } from 'react'
+import { AuthContext } from '../../../context/AuthContext'
 
-/** The flag's NAME, for docs and tests. ⛔ Never use it to perform the read (see above). */
-export const V2_FLAG = 'VITE_BREADTH_CHARTS_V2_ENABLED'
-
-export function v2Enabled() {
-  return import.meta.env.VITE_BREADTH_CHARTS_V2_ENABLED === '1'
+/** The payload keys, for docs and rails. ⛔ The server owns these names. */
+export const DC_FLAG_KEYS = {
+  v22: 'breadth_dc_v2_2_enabled',
+  v23: 'breadth_dc_v2_3_enabled',
 }
 
-export default v2Enabled
+/** Both increments, independently. The owner reverts them separately. */
+export function useDcFlags() {
+  const ctx = useContext(AuthContext)
+  return {
+    v22: ctx?.breadthDcV22Enabled === true,
+    v23: ctx?.breadthDcV23Enabled === true,
+  }
+}
+
+/** Does the Data Charts tab render V2 at all? Only if an increment is on — see above. */
+export function useV2Enabled() {
+  const { v22, v23 } = useDcFlags()
+  return v22 || v23
+}
+
+export default useV2Enabled

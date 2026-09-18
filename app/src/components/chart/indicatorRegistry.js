@@ -119,12 +119,28 @@ import { instanceLabel } from './engine/sourceRef'
 import { disambiguateLabels } from './engine/readout'
 import { namesItselfSemantically } from './engine/semanticName'
 
-export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
+/** The two moving averages a member can pick, in the words a trader uses.
+ *
+ *  ⚰️ THE LABELS WERE `Simple` AND `Exponential`, and the engine's own MA has
+ *  always said `SMA` / `EMA`. One chart could therefore show `Average type:
+ *  Exponential` on EMA 9 and `Type: EMA` on the average beside it — two
+ *  vocabularies for one concept, which is the split this whole surface exists to
+ *  hide. The trading words win because they are what the ROW is already called
+ *  (`EMA 9`, `SMA 50`) on the chart, in the legend and in this list.
+ *
+ *  ⛔ THE VALUES ARE UNTOUCHED. `SMA` / `EMA` are what `cs.overlays[n].type`
+ *  stores and what the renderer switches on; only the words beside them changed,
+ *  so no saved chart means anything different than it did. */
+export const MA_TYPES = [['SMA', 'SMA'], ['EMA', 'EMA']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
 export const LINE_WIDTHS = [[1, '1px'], [2, '2px'], [3, '3px'], [4, '4px']]
 export const PLOT_STYLES = [['line', 'Line'], ['histogram', 'Histogram'], ['area', 'Area']]
 
 const NOT_WIRED = 'Coming soon — needs renderer support'
+
+/** The engine definition that IS the member's "Moving Average".
+ *  ⚠️ NAMED ONCE so the row builder and any reader agree; see `memberConcept`. */
+export const MOVING_AVERAGE_DEF = 'movingAverage'
 
 /** Reason shown on the volume-pane controls when the SURFACE owns that layout.
  *  The charts workspace + the multi-chart grid hand StockChart `volumeSeparatePane`
@@ -150,7 +166,7 @@ export const VOLUME_PANE_SURFACE_FIXED = "Fixed by this chart's layout"
  *  authority, and the next field added here would silently land in the wrong
  *  group on a surface nobody thought to update. */
 export const MA_FIELDS = [
-  { key: 'type',      label: 'Average type', type: 'select', options: MA_TYPES },
+  { key: 'type',      label: 'Type',         type: 'select', options: MA_TYPES },
   { key: 'color',     label: 'Color',        type: 'color', appearance: true },
   // ON = the line draws in FRONT of the candles (overlaps); OFF = behind them.
   { key: 'onTop',     label: 'Overlap candles', type: 'toggle', appearance: true },
@@ -576,6 +592,10 @@ export function listEngineIndicators(settings, registry) {
         // the same answer `orderedPaneKeys` gives them on the chart.
         group: meta.shortName || def.id,
         fields,
+        // ⭐ THE ENGINE HALF OF THE SAME DECLARATION — see the overlay row's own
+        // comment. Derived from the definition rather than typed per row, so an
+        // MA instance and an MA overlay arrive at the Inspector wearing one mark.
+        ...(def.id === MOVING_AVERAGE_DEF ? { memberConcept: 'movingAverage' } : {}),
         path: { kind: 'indicator', key: def.id },
         values: drawnValues(def, settings, instance),
         canToggle: true,
@@ -671,6 +691,20 @@ export function listIndicators(settings, opts = {}) {
     label: `${ov?.type || 'SMA'} ${ov?.period ?? ''}`.trim(),
     group: 'Moving averages',
     fields: MA_FIELDS,
+    // ⭐⭐ THE ONE MEMBER-FACING CONCEPT, DECLARED BY BOTH IMPLEMENTATIONS.
+    //
+    // A moving average reaches this list two ways: as a slot in the legacy
+    // `cs.overlays` array (here) and as an engine INSTANCE of the `movingAverage`
+    // definition. They are different storage, different writers and different
+    // input schemas — and to a member they are the same object, which is the
+    // locked product rule (MOVING AVERAGE = ONE USER-FACING CONCEPT).
+    //
+    // ⛔ SO THE INSPECTOR ASKS A DECLARATION, NOT AN ID. `row.memberConcept` is
+    // set by BOTH producers and read by ONE consumer; without it the normalised
+    // editor would have to test `path.kind === 'overlay' || defId ===
+    // 'movingAverage'` inline, which is the definition-id hardcoding the panel's
+    // own header forbids and which the next MA-shaped thing would silently miss.
+    memberConcept: 'movingAverage',
     path: { kind: 'overlay', index },
     // Force `onTop` to a strict boolean so the "Overlap candles" toggle reads
     // right: its renderer treats `val !== false` as ON, so a stored overlay that

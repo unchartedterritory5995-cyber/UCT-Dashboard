@@ -23,7 +23,9 @@ import pytest
 from api.services.wisdom.core import store, timeutil
 from api.services.wisdom.publish import level_alerts, lookalike
 from api.services.wisdom.publish.adapters import d20_gates
-from tests.test_wisdom_publish_adapters_store import add_record, add_segment, add_source, adapters_db, seeded  # noqa: F401
+from tests.test_wisdom_publish_adapters_store import (  # noqa: F401
+    PASSES_FLOOR, add_record, add_segment, add_source, adapters_db, seeded,
+)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SESSION = date(2026, 9, 11)  # a Friday
@@ -155,8 +157,11 @@ def test_a_later_exit_closes_the_call_and_a_missing_bar_is_not_a_quiet_session(s
     with store.read() as conn:
         assert conn.execute("SELECT n_scored FROM wisdom_d20_scoring_runs").fetchone()[0] == 0
     with store.write() as conn:
+        # ⛔ R89 floored CALL, and `open_calls` finds its CLOSERS through the same floored read —
+        # so an unscored exit is INVISIBLE and the call reads as still open. That is the floor
+        # working, not a bug here, and it is why the closer carries a passing score.
         add_record(conn, "recEXIT", "CALL", "segLIVE1", "srcLIVE", author_id="tsdr", ticker="NVDA", stance="exited",
-                   stated_at_et="2026-09-10T11:00:00-04:00", record_hash="exit")
+                   stated_at_et="2026-09-10T11:00:00-04:00", record_hash="exit", **PASSES_FLOOR)
     assert level_alerts.score_silently(_ctx())["open_calls"] == 0
 
 
@@ -177,10 +182,13 @@ def _seed_reference_calls(conn, n=12):
     for i in range(n):
         add_segment(conn, f"segREF{i}", "srcREF", i, f"Synthetic ref call {i}.", "tsdr", kind="message")
         add_record(conn, f"recREF{i}", "CALL", f"segREF{i}", "srcREF", author_id="tsdr", ticker=f"REF{i}",
-                   direction="long", stance="taking", stated_at_et=f"2026-08-{10 + i:02d}T10:00:00-04:00")
-    # a Bracco call must never become a reference
+                   direction="long", stance="taking", stated_at_et=f"2026-08-{10 + i:02d}T10:00:00-04:00",
+                   **PASSES_FLOOR)
+    # a Bracco call must never become a reference. ⭐ It carries a PASSING score on purpose: the
+    # reason it is excluded must stay the AUTHOR filter, not R89's floor sweeping it up first.
     add_record(conn, "recBRACCO", "CALL", "segDISC1", "srcDISC", author_id="bracco", ticker="BRAC",
-               direction="long", stance="taking", stated_at_et="2026-08-20T10:00:00-04:00", record_hash="b")
+               direction="long", stance="taking", stated_at_et="2026-08-20T10:00:00-04:00", record_hash="b",
+               **PASSES_FLOOR)
 
 
 def test_lookalike_scores_candidates_against_owner_calls_without_look_ahead(seeded, monkeypatch):

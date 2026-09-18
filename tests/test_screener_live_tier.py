@@ -1226,3 +1226,70 @@ def test_the_overlay_table_gains_a_newly_added_live_column(live_env):
         f"PRAGMA table_info({live_tier.LIVE_TABLE})")}
     missing = [c for c in snapshot_db._live_write_columns() if c not in after]
     assert not missing, f"init_db left the overlay narrower than it writes: {missing}"
+
+
+# ── R62 (D-17): the market fetch must sit OUTSIDE the build lock ───────────────────────────
+
+
+def test_the_market_fetch_is_not_performed_while_holding_the_build_lock():
+    """⛔⛔ THE DEFECT THIS PINS, WITH ITS NUMBER. `full_market_snapshot()` is a ~13,000-symbol
+    network read behind a 30 s cache, and the sweep's cadence is 60 s — so essentially every
+    cycle paid a cold fetch WHILE HOLDING `snapshot_builder._BUILD_LOCK`.
+
+    Measured on production 2026-09-17, n=16 receipts: `held_lock_ms` **28,155-96,658 ms**,
+    median ~56 s, against the **122 ms median** this module's own comment documents — up to
+    **790x**, a ~94% duty cycle instead of ~0.2%, with cycles overrunning their own 60 s interval
+    (APScheduler logged "skipped: maximum number of running instances reached (1)").
+
+    ⭐ THE LOCK'S INVARIANT IS ABOUT THE ANCHORS, NOT THE MARKET: it exists so the 03:00 rows are
+    not read while the builder rewrites them. A quote feed has nothing to do with that.
+
+    ⛔ STRUCTURAL BY NECESSITY. "Outside the lock" is an ORDERING property; a runtime assertion
+    would have to observe lock state from another thread and would be racy. The AST answers it
+    exactly: the fetch may not appear anywhere inside `_sweep_locked` (the function the lock
+    wraps), and must appear in `run_sweep` before the `acquire` call.
+    """
+    import ast
+    import inspect
+    from api.services.screener import live_tier
+
+    tree = ast.parse(inspect.getsource(live_tier))
+    fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "_sweep_locked" in fns and "run_sweep" in fns, (
+        "the functions this rail watches were renamed — it is no longer watching anything")
+
+    def calls_fetch(node):
+        return [c for c in ast.walk(node)
+                if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                and c.func.attr == "full_market_snapshot"]
+
+    assert not calls_fetch(fns["_sweep_locked"]), (
+        "the ~13,000-symbol market fetch is back inside the build lock — this is the defect that "
+        "made held_lock_ms ~56 s against a documented 122 ms")
+
+    # ⛔ NON-VACUITY: it must still be fetched, and BEFORE the acquire — a rail that only forbids
+    # is satisfied by deleting the call entirely.
+    body = fns["run_sweep"]
+    fetches = calls_fetch(body)
+    assert fetches, "the market fetch vanished from run_sweep — the sweep has no feed at all"
+    acquires = [c for c in ast.walk(body)
+                if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                and c.func.attr == "acquire"]
+    assert acquires, "the build-lock acquire vanished from run_sweep"
+    assert min(f.lineno for f in fetches) < min(a.lineno for a in acquires), (
+        "the market fetch happens after the lock is acquired — it must precede it")
+
+
+def test_the_receipt_reports_what_moved_out_of_the_lock():
+    """⭐ A fix that makes a number fall must say where the time WENT, or it reads as work
+    vanishing. `snapshot_ms` carries the fetch; `held_lock_ms` should now be the build alone.
+    Declared in the receipt TEMPLATE so the key set does not vary by path — the sibling rail
+    `test_every_cycle_returns_the_same_key_set` caught exactly that mistake on this change."""
+    from api.services.screener import live_tier
+    r = live_tier._receipt() if hasattr(live_tier, "_receipt") else None
+    if r is None:                      # the helper is named differently; find it by shape
+        import inspect
+        src = inspect.getsource(live_tier)
+        assert '"snapshot_ms": 0.0,' in src, "snapshot_ms is not declared in the receipt template"
+        return
+    assert "snapshot_ms" in r and "held_lock_ms" in r

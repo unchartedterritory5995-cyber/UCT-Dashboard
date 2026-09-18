@@ -39,10 +39,36 @@ to need a window.
 Docs, markdown, `tests/**`, `tools/**`, `scripts/**`, and frontend (`app/**`).
 
 These restart **web only** (and only if web's watch paths match — see below). Cost:
-`/api/*` blips for roughly a minute, and APScheduler's job store is in memory, so a
-scheduled slot whose minute passes during the swap is lost outright rather than run
-late. Acceptable. ⭐ If you can see a scheduled job due in the next couple of
-minutes, wait for it — otherwise push.
+`/api/*` blips, and APScheduler's job store is in memory, so a scheduled slot whose
+minute passes during the swap is lost outright rather than run late. Acceptable. ⭐ If
+you can see a scheduled job due in the next couple of minutes, wait for it — otherwise
+push.
+
+⚰️ **THIS SAID "roughly a minute" WITH NO MEASUREMENT BEHIND IT.** Measured against a
+NAMED deploy (`4c78692c0`, 2026-09-17, a web-only restart), polled at 20 s: a
+**contiguous run of four 502 samples across 82–119 s** — 1.4×–2× the number this line
+used to carry. n=1; re-measure at every named deploy until n≥5 rather than trust one
+sample as a constant. Raw log:
+`docs/discord-render/evidence/incidents/2026-09-17-web-swap-blip-measured.md`.
+
+⛔⛔ **AND IT IS A PLATFORM FLOOR, NOT A TUNABLE COST — DO NOT PROPOSE A READINESS
+GATE FOR IT.** `web` has a Railway volume mounted at `/data`. Railway's own docs
+(`docs.railway.com/deployments/healthchecks`, fetched 2026-09-17): *"To prevent data
+corruption, we prevent multiple deployments from being active and mounted to the same
+service. This means that there will be a small amount of downtime when re-deploying a
+service that has a volume attached, **even if there is a healthcheck endpoint
+configured**."* No healthcheck tuning, no readiness gate, no `RAILWAY_DEPLOYMENT_OVERLAP_SECONDS`
+setting closes this gap for a volume-mounted service — Railway refuses the overlap
+structurally, to protect the data. ⭐ This is the SAME conclusion
+`api/services/readiness.py`'s docstring already reached from the other direction (its
+2026-07-26 outage): *"the cold-cutover window is still REAL and still unsolved... not
+a probe that withholds the only pod there is."* Two independent investigations, six
+weeks apart, arrived at one answer — the fix would have to remove the volume from
+`web` or split it into a stateless front + a data-owning service, which is an
+architecture change, not a config change. **The only lever actually available is
+deploy FREQUENCY** — fewer merges per day pays this floor fewer times, which is the
+whole argument for batching Tier-1 pushes rather than the "push whenever" reading of
+this rule.
 
 ### Tier 2 — after-hours or weekend only
 Any file on **flow-worker's watch list**.
@@ -358,7 +384,13 @@ refuse every legitimate push in a repo five workstreams share.
 ```sh
 python tools/pre_push_guard.py          # 0 = safe, 1 = refuse, prints the state
 python tools/pre_push_guard.py --audit  # after the fact: SUSPECTED stacked pushes
-UCT_SKIP_PREPUSH_GUARD=1 git push …     # deliberate override, APPENDED to logs/pre-push-guard-bypass.log
+
+# BURST-only refusal (recency + in-flight passing on their own) — the ONLY scoped exit:
+UCT_BURST_ATTESTED_BY="<a human who can see every workstream>" \
+UCT_BURST_ATTESTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" git push …
+
+# ROLLBACK ONLY (HEAD must revert the commit production is SERVING):
+UCT_ROLLBACK_REASON="<why members need this now>" UCT_SKIP_PREPUSH_GUARD=1 git push …
 ```
 
 ⚠️ **`--audit` is a HEURISTIC and says so in its own output.** Railway's deployment list carries
@@ -502,9 +534,27 @@ guard re-learned a rule that no longer existed. **Presence was the problem, not 
 predicate.** All of it is deleted, and `tests/test_no_market_hours_window.py` fails the gate
 if any of it returns.
 
-**There is no clock override, because there is no clock gate.** The one remaining bypass is
-`UCT_SKIP_PREPUSH_GUARD=1`, which overrides the DEPLOY QUEUE and is logged to
-`logs/pre-push-guard-bypass.log`.
+**There is no clock override, because there is no clock gate.**
+
+⛔⛔ **AND SINCE R66 (owner ruling D-18, 2026-09-17) THERE IS NO GLOBAL OVERRIDE EITHER.** This
+line used to read *"The one remaining bypass is `UCT_SKIP_PREPUSH_GUARD=1`, which overrides the
+DEPLOY QUEUE and is logged"* — accurate, and the reason the 2026-09-17 in-flight push happened:
+the operator needed to pass **burst** and the only lever in reach waived **everything**.
+
+| refusal | the only exit |
+|---|---|
+| **burst** alone, recency + in-flight passing independently | `UCT_BURST_ATTESTED_BY` + `UCT_BURST_ATTESTED_AT` (ISO, ≤15 min) — R19's scoped attestation, a named human at a named minute |
+| recency · in-flight · unreadable · unparsable | **none. Wait.** No lever this programme holds waives a measurement of the world |
+| production is serving a commit that must come off now | `UCT_ROLLBACK_REASON` + `UCT_SKIP_PREPUSH_GUARD=1`, and HEAD must actually revert **that** commit |
+
+Every accepted use of either remaining lever is appended to `logs/pre-push-guard-bypass.log`
+with a machine-readable `reason_code` (`BURST-ATTESTED` / `ROLLBACK`).
+
+⚰️ R66's first draft added a third row here: the retired deploy-window override made to **error**
+rather than be a no-op. `tests/test_no_market_hours_window.py` went red on the variable's name
+alone and was right — **presence was the problem, not the predicate.** Nothing reads it, so it is
+already inert, and naming it in order to refuse it would put the window's vocabulary back into
+this runbook. Two levers exist; the table above is the whole list.
 
 **Checking harm after a restart:** `tools/deploy_blip_check.py` reads a log pull and counts HTTP
 statuses **by structured field**. ⚰️ It replaces a check that grepped for `502` and matched the
