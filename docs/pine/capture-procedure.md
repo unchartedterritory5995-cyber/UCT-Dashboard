@@ -478,10 +478,45 @@ table, because the legend sits over the rest. Reading the other three cells woul
 meant enlarging a pane on the owner's layout — a saved-layout change. On an empty layout
 the study owns the whole pane and there is nothing to preserve.
 
-⚠️ **THE LAYOUT URL IS NOT RECORDED HERE YET.** The ruling arrived with a `<PASTE URL>`
-placeholder, so the scratch layout's id is still owed. Until it lands, every capture is
-blocked — deliberately, rather than falling back to the 19-study chart, which this rule
-retires.
+## ✅ THE SCRATCH LAYOUT — RECORDED 2026-09-17 (R37)
+
+```
+https://www.tradingview.com/chart/01f1AcIj/
+```
+
+**`UCT CAPTURE RIG — no studies`**, layout id **`01f1AcIj`**. Created by the session
+under **R37** (owner authorisation, 2026-09-17), which is the one write to the
+owner's TradingView account this programme makes. ⛔ **ONE layout, never a second** —
+if a capture needs a different symbol or timeframe, change it HERE and save; do not
+mint another rig.
+
+⚰️ **IT REPLACES A `<PASTE URL>` PLACEHOLDER THAT BLOCKED EVERY CAPTURE**, deliberately,
+rather than letting the 19-study working chart be used — the fallback this rule retires.
+
+**Verified empty at creation, and the verification is the part worth copying:**
+
+| reading | result |
+|---|---|
+| `getAllStudies()` **before** removal | `["Volume"]` — so the accessor demonstrably SEES |
+| `getAllStudies()` **after** removal + save | `[]` |
+| the chart itself | the Volume pane is visibly gone |
+| right-click → *"Remove N indicators"* | ⚠️ **INCONCLUSIVE** — no menu rendered at the click point |
+
+⛔⛔ **AND `dataSources()` IS THE BLIND ACCESSOR ON THIS BUILD — DO NOT USE IT.** It
+returned **0 of everything**, events included, which is why the probe above carries the
+control this procedure already demands: *"0 indicators" and "the probe looked nowhere"
+are the same observation otherwise.* The §"COUNTING STUDIES" section below describes
+`dataSources()` returning `Splits`/`Earnings` on an empty rig; on this build it returns
+nothing at all, so **`getAllStudies()` is the accessor, and its own before/after is the
+non-vacuity control.**
+
+⚠️ **THE LAYOUT IS THE OWNER'S TO DELETE** whenever this programme closes. It is not
+load-bearing for anything but captures.
+
+⚠️ Two other agent-created layouts already exist in the account and are NOT this rig —
+`UCT AGENT VISIT 2026-09-10 (disposable)` (`e3cTXatd`) and three
+`UCT Vendor Capture — … TEMP` layouts. R37 does not adopt them and does not delete
+them; they are the owner's to clear.
 
 ## ⭐ THE TELL WAS A SCREENSHOT OF THE TEXT BUTTON, NEVER THE URI
 
