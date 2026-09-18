@@ -334,3 +334,123 @@ def test_session_basis_returns_empty_when_raw_closes_are_unavailable(monkeypatch
     monkeypatch.setattr(massive, "get_grouped_daily_closes", boom)
     monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
     assert wr.session_basis(conn, 111) == {}
+
+
+# ── item 5: session_basis FAILURE SEMANTICS ──────────────────────────────────
+#
+# ⛔⛔ A MISSING FACTOR MUST NOT QUIETLY RECREATE F1 FOR A SUBSET OF NAMES. The whole
+# defect was a silent basis disagreement, so "no factor" can never mean "assume 1.0"
+# for a name whose levels exist. The policy, in one place:
+#
+#   raw close missing / zero / negative / non-numeric  -> no factor -> name DROPPED
+#   adjusted close missing / zero / non-numeric        -> no factor -> name DROPPED
+#   provider call raises / whole session unavailable   -> {}        -> SESSION REFUSED
+#   name absent from the levels frame                  -> factor 1.0, counted only in
+#                                                         universe_count (it has no
+#                                                         level to disagree with)
+
+def _basis_conn(rows):
+    import sqlite3
+    c = sqlite3.connect(":memory:")
+    c.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INT, c REAL)")
+    c.executemany("INSERT INTO ohlcv VALUES (?,'D',111,?)", rows)
+    return c
+
+
+@pytest.mark.parametrize("raw_value,why", [
+    (None, "missing"), (0.0, "zero"), (-5.0, "negative"),
+    ("n/a", "non-numeric"), (float("nan"), "NaN"),
+])
+def test_an_unusable_RAW_close_yields_no_factor(monkeypatch, raw_value, why):
+    from api.services import massive
+    conn = _basis_conn([("A", 10.0), ("B", 10.0)])
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"A": raw_value, "B": 10.0})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
+    out = wr.session_basis(conn, 111)
+    assert "A" not in out, f"a {why} raw close must not produce a factor"
+    assert out["B"] == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("adj_value,why", [
+    (None, "missing"), (0.0, "zero"), (-5.0, "negative"),
+])
+def test_an_unusable_ADJUSTED_close_yields_no_factor(monkeypatch, adj_value, why):
+    from api.services import massive
+    conn = _basis_conn([("A", adj_value), ("B", 10.0)])
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"A": 10.0, "B": 10.0})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
+    out = wr.session_basis(conn, 111)
+    assert "A" not in out, f"a {why} adjusted close must not produce a factor"
+
+
+def test_a_name_with_no_factor_is_DROPPED_not_silently_unlifted():
+    """⛔ THE REGRESSION THAT WOULD RECREATE F1. If a level-carrying name with no
+    factor fell through at its as-traded price, the old defect would return for
+    exactly that subset — invisibly, because the session would still look healthy."""
+    lv = _levels(["SPL", "STD"], [[10.0] * 260, [10.0] * 260])
+    # STD sits clearly BELOW its level, so the only new high this session could report
+    # would be a faked one from SPL's un-lifted as-traded price.
+    per = _minutes({"SPL": 100.0, "STD": 8.0})        # SPL trades pre-split
+    out = wr.session_ohlc("2015-08-24", per, lv, 1, members={"SPL", "STD"},
+                          basis={"STD": 1.0})          # SPL has NO factor
+    assert out["universe_count"]["c"] == 1.0, "SPL must be dropped, not counted"
+    assert out["new_52w_highs"]["c"] == 0.0, "and must not fake a new high"
+
+
+def test_the_whole_session_is_refused_when_no_factor_can_be_built(monkeypatch):
+    from api.services import massive
+    conn = _basis_conn([("A", 10.0)])
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
+    assert wr.session_basis(conn, 111) == {}
+
+
+def test_large_split_ratios_are_handled(monkeypatch):
+    """The validation observed real factors at 20x, 10x and 6x, plus reverse-split
+    ratios well below 1. None is special-cased; all are one division."""
+    from api.services import massive
+    conn = _basis_conn([("F20", 5.0), ("F10", 10.0), ("F6", 20.0), ("REV", 400.0)])
+    monkeypatch.setattr(massive, "get_grouped_daily_closes", lambda d, adjusted=True: {
+        "F20": 100.0, "F10": 100.0, "F6": 120.0, "REV": 20.0})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2011-01-03")
+    out = wr.session_basis(conn, 111)
+    assert out["F20"] == pytest.approx(0.05)     # 20:1 forward split since
+    assert out["F10"] == pytest.approx(0.10)     # 10:1
+    assert out["F6"] == pytest.approx(1 / 6.0)   # 6:1
+    assert out["REV"] == pytest.approx(20.0)     # 1:20 REVERSE split since
+
+
+# ── item 10: NO DOUBLE ADJUSTMENT ────────────────────────────────────────────
+
+def test_the_factor_is_applied_exactly_ONCE():
+    """⛔ RAW x FACTOR x FACTOR is the regression this rails. Lifting a name by f must
+    be indistinguishable from feeding the already-lifted price with a factor of 1 — if
+    anything downstream re-applied the factor, these two would diverge by f."""
+    lv = _levels(["A"], [[10.0] * 260])
+    f = 0.1
+    lifted_by_basis = wr.session_ohlc(
+        "2015-08-24", _minutes({"A": 100.0}), lv, 1, members={"A"}, basis={"A": f})
+    premultiplied = wr.session_ohlc(
+        "2015-08-24", _minutes({"A": 100.0 * f}), lv, 1, members={"A"}, basis={"A": 1.0})
+    assert lifted_by_basis is not None and premultiplied is not None
+    for k in ("pct_above_50sma", "new_52w_highs", "new_52w_lows", "advancing",
+              "universe_count"):
+        assert lifted_by_basis[k]["o"] == premultiplied[k]["o"], k
+        assert lifted_by_basis[k]["h"] == premultiplied[k]["h"], k
+        assert lifted_by_basis[k]["l"] == premultiplied[k]["l"], k
+
+
+def test_the_authoritative_close_is_NOT_lifted_again():
+    """`eod_prices` already comes from the ADJUSTED series, so the basis factor must
+    not touch it. If it were lifted too, the Close would be scaled twice."""
+    lv = _levels(["A"], [[10.0] * 260])
+    per = _minutes({"A": 100.0})                  # as-traded, needs the 0.1 lift
+    out = wr.session_ohlc("2015-08-24", per, lv, 1, members={"A"},
+                          basis={"A": 0.1}, eod_prices={"A": 10.0})
+    # 10.0 vs a 10.0 level -> at its level, not above it. Double-lifting would make
+    # the close 1.0 and the name would read far BELOW its level instead.
+    assert out["advancing"]["c"] == 0.0
+    assert out["new_52w_highs"]["c"] == 1.0       # 10.0 >= 10.0*0.999
