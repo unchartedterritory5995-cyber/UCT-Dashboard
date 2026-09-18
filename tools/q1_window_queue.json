@@ -252,20 +252,21 @@
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
       "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
-      "attempts": 1,
+      "attempts": 0,
       "result": {
         "exit": 0,
-        "seconds": 564.2,
+        "seconds": 512.7,
         "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T182431-p2-2.8b-marker-expired",
+        "evidence": "docs/notebook/evidence/20260918T184108-p2-2.8b-marker-expired",
         "evidence_ok": true
-      }
+      },
+      "restaged_why": "Re-staged with attempts reset AFTER the setup retry landed (117d1b5c9). All three of its attempts predate that fix and each ended 6-of-7 GREEN with a single flaky setup cell \u2014 the exact failure the retry addresses, and the next chunk to run WITH the retry (`slow-put`) banked on attempt 1. The code underneath changed, so this is a different experiment, not a fourth try."
     },
     {
       "id": "p2-2.8b-slow-put",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b chunk 5 of 6 \u2014 the `slow PUT` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
       "expect": "GREEN",
       "cells": 7,
@@ -285,7 +286,17 @@
       "timeout": 969,
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
-      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass."
+      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 401.5,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-18T23:55:24.136016+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T184941-p2-2.8b-slow-put",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-reload-mid-flight",
