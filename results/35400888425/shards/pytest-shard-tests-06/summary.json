@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 2123,
+  "passed": 2086,
+  "failed": 18,
+  "errored": 0,
+  "skipped": 19,
+  "wall_s": 205.02,
+  "failed_files": [
+    "tests/test_feature_flag_ledger.py",
+    "tests/test_flow_aggregate.py",
+    "tests/test_flow_classification.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_fundamentals_snapshot_store.py",
+    "tests/test_gate_box_lock.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "18 failed, 2086 passed, 19 skipped, 15031 warnings in 205.02s (0:03:25)",
+  "ok": true
+}

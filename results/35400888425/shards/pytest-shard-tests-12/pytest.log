@@ -1,0 +1,158 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 33%]
+..............................................s......................... [ 37%]
+........sss.......................................................s..... [ 41%]
+..................................................s....F................ [ 45%]
+........................................................................ [ 49%]
+........................s............................................s.. [ 53%]
+........................................................................ [ 57%]
+................................s....................................... [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+...............F........................................................ [ 74%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+........................................................................ [ 86%]
+........................................................................ [ 91%]
+..s....................................................................F [ 95%]
+........................................................................ [ 99%]
+..........                                                               [100%]
+=================================== FAILURES ===================================
+_____________ test_tools_refuse_paths_inside_the_shared_data_root ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tools_refuse_paths_inside0')
+
+    def test_tools_refuse_paths_inside_the_shared_data_root(tmp_path):
+        common = _load("extract_common")
+>       assert common._inside_shared_root("C:\\data\\wisdom.db") and common._inside_shared_root("/data/x/y.db")
+E       AssertionError: assert (False)
+E        +  where False = <function _inside_shared_root at 0x7fecf75359e0>('C:\\data\\wisdom.db')
+E        +    where <function _inside_shared_root at 0x7fecf75359e0> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+
+tests/test_wisdom_extract_tools.py:125: AssertionError
+_____________________ test_admin_routes_answer_401_403_200 _____________________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_admin_routes_answer_401_40/wisdom.db')
+real_app = (<fastapi.applications.FastAPI object at 0x7fed028a3080>, True)
+client = <starlette.testclient.TestClient object at 0x7fecf7604170>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fecf7605eb0>
+
+    def test_admin_routes_answer_401_403_200(seeded, real_app, client, monkeypatch):
+        from tests.authclients import ADMIN, FREE_MEMBER, signed_in_as
+    
+        app, _ = real_app
+        monkeypatch.delenv("WISDOM_BADGES_ENABLED", raising=False)
+        for path in ADMIN_PATHS:
+            assert client.get(path).status_code == 401, path
+        with signed_in_as(FREE_MEMBER, app):
+            for path in ADMIN_PATHS:
+                assert client.get(path).status_code == 403, path
+        with signed_in_as(ADMIN, app):
+            for path in ADMIN_PATHS:
+                assert client.get(path).status_code == 200, path
+            assert client.get("/api/admin/wisdom/publish/adapters/badges?tickers=NVDA").json() == {}
+            preview = client.get("/api/admin/wisdom/publish/adapters/badges?tickers=NVDA,AMD&preview=true").json()
+>           assert set(preview) == {"NVDA"} and preview["NVDA"]["preview"] is True
+E           AssertionError: assert (set() == {'NVDA'}
+E             
+E             Extra items in the right set:
+E             'NVDA'
+E             
+E             Full diff:
+E             + set()
+E             - {
+E             -     'NVDA',
+E             - })
+
+tests/test_wisdom_publish_adapters_routes.py:94: AssertionError
+_______ test_every_yfinance_module_has_a_binding_proof_or_a_named_reason _______
+
+    def test_every_yfinance_module_has_a_binding_proof_or_a_named_reason():
+        """Read the module list off the AST rather than trusting the set above.
+    
+        A new module that imports yfinance lands in none of the three buckets and
+        is named here — so "someone adds a module and forgets the guard" becomes a
+        red test instead of a silent bypass discovered from a production log.
+        """
+        from tests.test_yf_guard_census import PRE_EXISTING_BINDING_PROOFS, QUARANTINE
+    
+        accounted = BOUND_HERE | set(PRE_EXISTING_BINDING_PROOFS) | set(QUARANTINE)
+        reaching = set(cen.importers(cen.repo_root()))
+    
+        unaccounted = sorted(reaching - accounted)
+>       assert not unaccounted, (
+            "these modules reach yfinance and have no binding proof:\n"
+            + "\n".join(f"    {m}" for m in unaccounted)
+            + "\n\nAdd a `test_<module>_reaches_yfinance_through_the_guard` here."
+        )
+E       AssertionError: these modules reach yfinance and have no binding proof:
+E             api/services/financial_statements.py
+E         
+E         Add a `test_<module>_reaches_yfinance_through_the_guard` here.
+E       assert not ['api/services/financial_statements.py']
+
+tests/test_yf_guard_binds.py:254: AssertionError
+=============================== warnings summary ===============================
+tests/test_wisdom_bans.py:627
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:627: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_wisdom_bans.py::test_the_rails_import_only_the_standard_library[tests/test_wisdom_bans.py]
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_wisdom_capture_routes.py::test_the_capture_routes_are_mounted_gated_and_dry_by_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1742: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1745: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_wisdom_extract_catalog_categories.py:189: gitignored artifact absent: /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/extract/catalog-estimate-defaults.json
+SKIPPED [3] tests/test_wisdom_extract_golden_gate_cli.py:44: needs the real golden-v1.1.jsonl (gitignored)
+SKIPPED [1] tests/test_wisdom_extract_prompt.py:178: golden labels are gitignored and not present here
+SKIPPED [1] tests/test_wisdom_extract_segmenter.py:288: golden set / samples are gitignored and not present on this checkout
+SKIPPED [1] tests/test_wisdom_golden_freeze.py:154: golden set not on this box (gitignored)
+SKIPPED [1] tests/test_wisdom_identity_study.py:258: needs the 3 persisted PAID gate runs (gitignored); found 0 of 0 total under /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/gate-runs
+SKIPPED [1] tests/test_wisdom_ledger_tokens.py:257: no persisted ledger in this checkout (gitignored tree)
+SKIPPED [1] tests/test_wisdom_vocab_authority.py:202: set WISDOM_ENGINE_DB to uct_intelligence.db to re-measure (tools/wisdom/core_vocab_engine_check.py)
+FAILED tests/test_wisdom_extract_tools.py::test_tools_refuse_paths_inside_the_shared_data_root - AssertionError: assert (False)
+ +  where False = <function _inside_shared_root at 0x7fecf75359e0>('C:\\data\\wisdom.db')
+ +    where <function _inside_shared_root at 0x7fecf75359e0> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+FAILED tests/test_wisdom_publish_adapters_routes.py::test_admin_routes_answer_401_403_200 - AssertionError: assert (set() == {'NVDA'}
+  
+  Extra items in the right set:
+  'NVDA'
+  
+  Full diff:
+  + set()
+  - {
+  -     'NVDA',
+  - })
+FAILED tests/test_yf_guard_binds.py::test_every_yfinance_module_has_a_binding_proof_or_a_named_reason - AssertionError: these modules reach yfinance and have no binding proof:
+      api/services/financial_statements.py
+  
+  Add a `test_<module>_reaches_yfinance_through_the_guard` here.
+assert not ['api/services/financial_statements.py']
+3 failed, 1725 passed, 10 skipped, 6 warnings in 243.99s (0:04:03)
