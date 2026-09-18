@@ -170,6 +170,7 @@ UNITS = [
     ("d4-cp4-build-record", ["bc9f14428"], False),          # F-D4-1 corrected cache key
     ("s7-price-level-f6-build-record", ["19ab13537"], False),  # F-S7-6, dark-sweep only
     ("d5-cp3-build-record", ["3bf13974a"], False),          # confirmed-splits ledger, nothing reads it yet
+    ("d5-cp4-build-record", ["da2930cec"], False),          # dual-compute, dark, INCIDENTAL not live
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

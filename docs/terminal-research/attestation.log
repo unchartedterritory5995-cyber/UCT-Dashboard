@@ -134,3 +134,20 @@ deployment list read at attestation time:
   2a9dd8567 REMOVED   2026-09-18T16:46:55.628Z
 attested by: Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
 
+=== ET 2026-09-18 16:06 EDT Fri ===
+batch: d5-cp3-build-record
+guard refusal:
+[pre-push] the newest web deployment is SKIPPED (888791525 Merge branch 'feat/notebook-kill-switch' into HEAD) — a swap is in flight; pushing now marks it REMOVED mid-swap and members get a 502.
+[pre-push] 3 distinct web deploys in the last 60 min (888791525, d517e7cd7, 25d9e93ad) — master is under concurrent development and a build may be in flight from a session this one cannot see. This is the D-05 shape; it needs a human who can see every workstream, not a guard.
+[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+[pre-push]    Wait, then push again. ⛔ No lever waives this: an attestation exits the BURST clause only, and UCT_SKIP_PREPUSH_GUARD is rollback-only.
+error: failed to push some refs to 'https://github.com/unchartedterritory5995-cyber/UCT-Dashboard.git'
+deployment list read at attestation time:
+  888791525 SKIPPED   2026-09-18T19:46:48.125Z
+  d517e7cd7 SKIPPED   2026-09-18T19:44:29.738Z
+  25d9e93ad SUCCESS   2026-09-18T19:31:50.373Z
+  bf100aadf SKIPPED   2026-09-18T18:58:50.014Z
+  bd03e8cba REMOVED   2026-09-18T18:38:43.450Z
+  d9630abd9 REMOVED   2026-09-18T18:25:19.234Z
+attested by: Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+
