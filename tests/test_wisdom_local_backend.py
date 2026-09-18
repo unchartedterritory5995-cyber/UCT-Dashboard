@@ -253,6 +253,43 @@ def test_a_failing_request_is_recorded_not_raised(local, monkeypatch):
     assert len(items) == 1 and items[0].result.type == "errored"
 
 
+# ── the runaway ceiling ──────────────────────────────────────────────────────
+
+def test_a_runaway_generation_is_capped(local):
+    """⚰️ Measured 2026-09-17: three slots sat at n_gen 2055 and climbing at 3.87 tok/s while
+    the run made no progress for seven minutes. The extractor asks for 32000 max_tokens, which
+    is sane against the paid model; unbounded, a local runaway burns ~12 minutes and THEN fails
+    as truncated JSON anyway."""
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 32000,
+         "messages": [{"role": "user", "content": "hi"}]})
+    assert chat["max_tokens"] == local_backend.DEFAULT_MAX_OUTPUT
+
+
+def test_the_cap_only_ever_LOWERS(local):
+    """⛔ A caller asking for less than the ceiling is asking for less on purpose. A bare
+    assignment would silently RAISE it, which is the opposite of a cap."""
+    chat = local_backend._params_to_chat(
+        {"model": "m", "system": "S", "max_tokens": 64,
+         "messages": [{"role": "user", "content": "hi"}]})
+    assert chat["max_tokens"] == 64
+
+
+def test_the_ceiling_does_not_clip_a_real_extraction(local):
+    """⭐ The cap must separate 'runaway' from 'verbose but real'. The largest legitimate
+    extraction measured over 13 good segments was 805 output tokens (p50 311, p90 753); a cap
+    that clipped those would silently UNDERSTATE the model's quality — the same direction of
+    error as the markdown fence, and just as invisible in the per-type table."""
+    assert local_backend.DEFAULT_MAX_OUTPUT > 805
+
+
+@pytest.mark.parametrize("raw, expect", [("2048", 2048), ("", 1536), ("  4096 ", 4096),
+                                         ("nonsense", 1536), ("0", 1)])
+def test_the_ceiling_is_env_overridable_and_never_absurd(local, monkeypatch, raw, expect):
+    monkeypatch.setenv(local_backend.MAX_OUTPUT_ENV, raw)
+    assert local_backend.max_output_tokens() == expect
+
+
 # ── the model's own packaging ────────────────────────────────────────────────
 
 def test_a_fenced_extraction_is_unwrapped():

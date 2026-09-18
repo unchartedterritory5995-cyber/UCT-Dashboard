@@ -53,6 +53,20 @@ SLOTS_ENV = "WISDOM_LOCAL_LLM_SLOTS"
 DEFAULT_SLOTS = 4
 DEFAULT_TIMEOUT = 600
 
+#: Ceiling on the OUTPUT of one extraction. The extractor asks for 32000 because that is sane
+#: against the paid model; a local 7B has a failure mode the paid model does not — it runs away,
+#: repeating until something stops it.
+#: ⚰️ Measured 2026-09-17: three slots sat at n_gen 2055 and climbing at 3.87 tok/s while the run
+#: made no progress for seven minutes. Unbounded, each such request runs to the slot's context
+#: wall (~2800 output tokens, ~12 min) and THEN fails as truncated JSON — so the cap changes how
+#: LONG a doomed request takes, not whether it succeeds.
+#: ⭐ 1536 is ~2x the largest legitimate extraction observed (805 tokens over 13 good segments;
+#: p50 311, p90 753) and truncates 0 of them. It is deliberately NOT tight: the cap must separate
+#: "runaway" from "verbose but real", and a cap that clips real extractions would silently
+#: understate the model's quality — the same direction of error as the markdown fence.
+MAX_OUTPUT_ENV = "WISDOM_LOCAL_MAX_OUTPUT_TOKENS"
+DEFAULT_MAX_OUTPUT = 1536
+
 LOOPBACK = ("127.0.0.1", "localhost", "::1", "0.0.0.0")
 
 
@@ -93,6 +107,16 @@ def slots() -> int:
     except ValueError:
         return DEFAULT_SLOTS
     return n if n >= 1 else DEFAULT_SLOTS
+
+
+def max_output_tokens() -> int:
+    """The output ceiling for one local extraction. See MAX_OUTPUT_ENV."""
+    raw = (os.environ.get(MAX_OUTPUT_ENV) or "").strip()
+    try:
+        value = int(raw) if raw else DEFAULT_MAX_OUTPUT
+    except ValueError:
+        return DEFAULT_MAX_OUTPUT
+    return max(1, value)
 
 
 def _timeout() -> float:
@@ -189,7 +213,9 @@ def _params_to_chat(params: dict) -> dict:
         "model": local_model(),
         "messages": messages,
         "temperature": 0,
-        "max_tokens": int(params.get("max_tokens") or 4096),
+        # ⛔ min(), never a bare assignment: a caller asking for LESS than the ceiling is asking
+        # for less on purpose and must get it. The cap only ever lowers.
+        "max_tokens": min(int(params.get("max_tokens") or 4096), max_output_tokens()),
         "stream": False,
     }
     return out
