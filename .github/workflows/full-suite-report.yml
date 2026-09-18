@@ -83,7 +83,7 @@ concurrency:
 permissions:
   contents: read
 
-# ⛔⛔ THE BASELINE THIS SUITE IS JUDGED AGAINST. One constant, one place.
+# ⛔⛔ THE BASELINE THIS SUITE IS JUDGED AGAINST.
 # ⭐ The suite has ~85 failing pytest entries and 21 vitest ones on a good day. A gate that
 # waits for ZERO never arrives, and one that says "green" the moment it is quiet is the
 # `lesson_gate_that_cannot_fail` shape. The question is "is anything failing now that was
@@ -92,6 +92,15 @@ permissions:
 # ⚠️ A baseline ACCEPTS everything in it. Run 35008710335 (#19) carries 122 failure
 # entries, including the two that E CP21's install newly revealed - they are filed as
 # findings BEFORE being baselined, so the baseline forgives nothing silently.
+#
+# ⛔⛔ R-ROLLING-BASELINE (E CP38) — RETIRED FOR MASTER. A fixed constant on a SHARED
+# branch measures every concurrent workstream's own drift against one frozen point, so a
+# wide NEW count on master is mostly other people's work, not this programme's. The "Diff
+# against the baseline" step below derives the master baseline itself — the previous VALID
+# master run, never a constant — via `ci_inventory.py --baseline previous-valid-master`.
+# This constant now governs ONLY feat/PR runs, where the comparison point is a deliberate
+# feat-branch anchor. Point it at the latest valid MASTER run when re-anchoring a feat
+# branch, per this repo's own re-anchor practice — never hand-pick a "clean-looking" one.
 env:
   BASELINE_RUN_ID: "35008710335"
 
@@ -596,23 +605,13 @@ jobs:
         continue-on-error: true
         run: |
           set -e
-          B="$BASELINE_RUN_ID"
           # ⚰️ E CP24 — RUN #21's GATE READ `INVALID: collected is 0` FOR A RUN THAT
           # COLLECTED 24,445. `extract/<run>/` is not a record yet: `summary.json` is written
           # into it only by the PUBLISH step, which runs after this one. The tool was right
           # and the wiring handed it a directory that was not what it claimed to be — and it
           # failed CLOSED, naming the field, which is the only reason this took one read.
           cp record.json "extract/$GITHUB_RUN_ID/summary.json"
-          mkdir -p "base/$B"
           git fetch origin ci-results
-          for f in pytest_failures.txt vitest_failures.txt summary.json; do
-            if git show "FETCH_HEAD:results/$B/$f" > "base/$B/$f" 2>/dev/null; then
-              echo "baseline $f: $(wc -c < "base/$B/$f") bytes"
-            else
-              rm -f "base/$B/$f"
-              echo "::error title=baseline unreadable::results/$B/$f is not on ci-results"
-            fi
-          done
           # ── F-CI-30: materialise the WHOLE record store so the flaky set can be DERIVED
           # from it. There is no quarantine file here, and no file anybody can edit.
           # ⛔ The CURRENT run is copied in beside the published ones, or this run's own
@@ -622,15 +621,40 @@ jobs:
             echo "::warning title=record store unreadable::the flaky set will be EMPTY, and an empty set means every NEW entry fires the gate"
           cp -r "extract/$GITHUB_RUN_ID" "allruns/results/$GITHUB_RUN_ID" 2>/dev/null || true
           echo "record store: $(ls allruns/results 2>/dev/null | wc -l) run(s)"
-          python tools/ci_inventory.py \
-            --baseline "$B" --current "$GITHUB_RUN_ID" \
-            --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
-            --results-root allruns/results --repo . \
-            --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
+          # ⛔⛔ R-ROLLING-BASELINE (E CP38) — `BASELINE_RUN_ID` is RETIRED for MASTER runs.
+          # A fixed baseline on a shared branch measures every workstream's drift against
+          # one frozen point; the baseline for a master run is the previous VALID master
+          # run instead, DERIVED by the tool itself from the record store above — never a
+          # constant. `BASELINE_RUN_ID` stays live for feat/PR runs, where the comparison
+          # point is a deliberate feat-branch anchor, not a moving one.
+          if [ "$GITHUB_REF_NAME" = "master" ]; then
+            python tools/ci_inventory.py \
+              --baseline previous-valid-master --current "$GITHUB_RUN_ID" \
+              --current-dir "extract/$GITHUB_RUN_ID" \
+              --results-root allruns/results --repo . \
+              --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
+          else
+            B="$BASELINE_RUN_ID"
+            mkdir -p "base/$B"
+            for f in pytest_failures.txt vitest_failures.txt summary.json; do
+              if git show "FETCH_HEAD:results/$B/$f" > "base/$B/$f" 2>/dev/null; then
+                echo "baseline $f: $(wc -c < "base/$B/$f") bytes"
+              else
+                rm -f "base/$B/$f"
+                echo "::error title=baseline unreadable::results/$B/$f is not on ci-results"
+              fi
+            done
+            python tools/ci_inventory.py \
+              --baseline "$B" --current "$GITHUB_RUN_ID" \
+              --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
+              --results-root allruns/results --repo . \
+              --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
+          fi
           cat diff.md
           cat diff.md >> "$GITHUB_STEP_SUMMARY"
           V=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['verdict'])" 2>/dev/null || echo UNREADABLE)
-          echo "::notice title=baseline diff::$V (baseline $B)"
+          NO=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['counts'].get('new_others','-'))" 2>/dev/null || echo -)
+          echo "::notice title=baseline diff::$V new-ours=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['counts'].get('new_ours','-'))" 2>/dev/null || echo -) new-others=$NO unattributed=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json'))['counts'].get('new_unattributed','-'))" 2>/dev/null || echo -) baseline=$(python -c "import json;print(json.load(open('extract/$GITHUB_RUN_ID/diff.json')).get('baseline_run_id','?'))" 2>/dev/null || echo ?)"
           cp "extract/$GITHUB_RUN_ID/diff.json" diff.json 2>/dev/null || true
 
       - name: Derive the flaky set (F-CI-30)
@@ -849,11 +873,24 @@ jobs:
           print("baseline %s -> current %s" % (d["baseline_run_id"], d["current_run_id"]))
           print("NEW %d - FIXED %d - UNCHANGED %d - MISSING %d"
                 % (c["new"], c["fixed"], c["unchanged"], c["missing"]))
+          # ⛔⛔ R-ROLLING-BASELINE (E CP38) — printed whenever attribution ran (master
+          # runs): the SAME split the owner reads, derived by the SAME pass that produced
+          # NEW, so this line and the diff's own attribution table can never disagree.
+          if "new_ours" in c:
+              print("NEW-OURS %d - NEW-OTHERS %d - UNATTRIBUTED %d"
+                    % (c["new_ours"], c["new_others"], c["new_unattributed"]))
+          if d.get("first_run"):
+              print("⛔ FIRST_RUN — no prior VALID run existed to compare against; this is "
+                    "NOT a clean bill of health.")
           print(d["arithmetic"])
           summary = ["## gate: %s" % v, "",
                      "| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
                      "| **%d** | %d | %d | **%d** |"
                      % (c["new"], c["fixed"], c["unchanged"], c["missing"]), ""]
+          if "new_ours" in c:
+              summary.append("**NEW-OURS %d · NEW-OTHERS %d · UNATTRIBUTED %d**"
+                             % (c["new_ours"], c["new_others"], c["new_unattributed"]))
+              summary.append("")
           for k in d["new"][:30]:
               summary.append("- NEW `%s`" % k)
           # ⛔ F-CI-41: a MISSING entry is reported WITH THE REASON IT STOPPED RUNNING.
