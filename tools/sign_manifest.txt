@@ -92,6 +92,7 @@
 #!after: k-cp17-build-record <- k-cp16-build-record
 #!after: k-cp19-build-record <- k-cp17-build-record
 #!after: k-cp18-build-record <- k-cp19-build-record
+#!after: k-cp20-build-record <- k-cp18-build-record
 #!after: t-cp2-build-record <- s2-accelerator-chord-pre-implementation-gate
 #!after: e-cp34-build-record <- t-cp2-build-record
 #!after: e-cp35-build-record <- e-cp34-build-record
@@ -159,3 +160,4 @@ docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementatio
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | T-CP2 | 21c37a3bc
 docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | CP34 | aa663d7e2
 docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | CP35 | 922385382
+docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 4d8e70f28

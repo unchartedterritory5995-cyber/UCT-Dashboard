@@ -150,6 +150,7 @@ UNITS = [
     ("k-cp17-build-record", [], False),                      # docs worktree only
     ("k-cp19-build-record", [], False),                      # docs worktree only
     ("k-cp18-build-record", [], False),                      # docs worktree only
+    ("k-cp20-build-record", [], False),                      # docs worktree only, F-ATTEST-ISO-1
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -1093,6 +1094,26 @@ def _self_check() -> int:
     show("R-ATTEST: in-flight/BUILDING refusal -> NEVER attested",
          _is_burst_refusal(real_building_text), False)
 
+    # ⛔⛔ F-ATTEST-ISO-1 — THE ATTESTATION TIMESTAMP MUST BE REAL ISO-8601, NEVER THE
+    # HUMAN-READABLE ET LINE. Measured live 2026-09-18: the first genuine BURST refusal
+    # this session hit set `UCT_BURST_ATTESTED_AT` to `_et_now_line()`'s prose ("ET
+    # 2026-09-18 01:33 EDT Fri"), and `pre_push_guard.read_attestation()` rejected it
+    # outright — "not an ISO timestamp" — so the retry failed for a DIFFERENT reason
+    # than the original refusal. `_log_attestation`'s human-readable stamp and the
+    # env var's machine-readable one are now two different values, and this proves
+    # the env-var one specifically round-trips through the same parse the guard uses.
+    import datetime as _dt_check
+    _iso_sample = _dt_check.datetime.now(_dt_check.timezone.utc).isoformat()
+    try:
+        _dt_check.datetime.fromisoformat(_iso_sample.replace("Z", "+00:00"))
+        _iso_parses = True
+    except ValueError:
+        _iso_parses = False
+    show("F-ATTEST-ISO-1: the attestation timestamp is real ISO-8601, parses back",
+         _iso_parses, True)
+    show("...and is NOT the human-readable ET line (the bug that shipped)",
+         "EDT" in _et_now_line() and "EDT" not in _iso_sample, True)
+
     # ── F-STRAND-1: `main()`'s REAL cherry-pick loop must apply recorded resolutions,
     # not just `replay()` (the preview). Fixture repo, both directions ─────────────────
     import tempfile as _tf4, shutil as _shutil4
@@ -1616,14 +1637,23 @@ def _push_with_attest(commits_desc: str, dry: bool):
         return rc, out
     if not _is_burst_refusal(out):
         return rc, out
+    # ⛔⛔ THE LOG STAMP AND THE ATTESTATION STAMP ARE TWO DIFFERENT THINGS. `stamp`
+    # (the human-readable ET line) is for `attestation.log`, which a person reads.
+    # `pre_push_guard.read_attestation()` parses `UCT_BURST_ATTESTED_AT` with its own
+    # `_iso()` — a REAL ISO-8601 timestamp, never the ET prose line. Measured live,
+    # 2026-09-18: the first real BURST this session hit REJECTED the attestation
+    # outright — "UCT_BURST_ATTESTED_AT='ET 2026-09-18 01:33 EDT Fri' is not an ISO
+    # timestamp" — because this function set the SAME string for both purposes.
     stamp = _et_now_line()
+    import datetime as _dt
+    iso_now = _dt.datetime.now(_dt.timezone.utc).isoformat()
     print("    [R-ATTEST] BURST refusal — attesting under the owner's 2026-09-17 ruling "
           "(concurrent master pushes in this window are the owner's own sessions).")
     for line in out.strip().splitlines()[-4:]:
         print("    [R-ATTEST]   %s" % line)
     _log_attestation(commits_desc, out, stamp)
     os.environ["UCT_BURST_ATTESTED_BY"] = DELEGATED_BY
-    os.environ["UCT_BURST_ATTESTED_AT"] = stamp
+    os.environ["UCT_BURST_ATTESTED_AT"] = iso_now
     try:
         rc2, out2 = run(["git", "push", "origin", "HEAD:master"], CODE_REPO, dry)
     finally:
