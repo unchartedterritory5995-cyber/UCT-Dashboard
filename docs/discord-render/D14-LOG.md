@@ -622,3 +622,54 @@ named honestly rather than smoothed over, not (yet) a repeating pattern so
 the backoff is unchanged.
 ================================================================================
 ```
+================================================================================
+2026-09-18 09:12 ET | W2b FIRST REAL-LOG ATTEMPT | apscheduler REFUTED by control
+================================================================================
+Item 4/W2b (OI-44 attribution). For the first time, real production stalls
+fell entirely inside the log-tail daemon's captured window -- 12 stalls,
+2026-09-18 ~11:38-13:05Z, aligned against 74k+ timestamped web log lines
+via oi44_align.align().
+
+Self-caught correction, kept as the lesson: the first pass read the
+tool's truncated during-window sample and reported ticker_meta disk-write
+failures as a leading candidate off six lines and a stale count. A sanity
+grep across the whole file (10 total occurrences, not 127) caught it before
+publishing. A proper Counter-based full-window logger distribution found
+api.routers.calendar dominant instead (50/133), not ticker_meta (10/133).
+
+Leading candidate raised, then killed by its own control: apscheduler.
+executors.default was dominant in the two LARGEST stalls (170/237 lines,
+50/99 lines -- roughly 50-70% of each window). Before writing that up, ran
+the required control: the same logger-distribution count against 5 ordinary
+non-stall 26s windows spread across the captured span. Result: apscheduler
+is EQUALLY dominant off-stall (35-65% share). The hypothesis is refuted,
+not softened -- apscheduler dispatch is what a busy pod's log stream looks
+like all the time, not a stall signal.
+
+Separate real finding, not fixed here: every apscheduler job in these logs
+has logged under one identical generic name since 2026-08-29 --
+memory_probe.py::instrument_scheduler resets wrapped.__name__ but not
+wrapped.__qualname__, and APScheduler's own get_callable_name (apscheduler/
+util.py) reads __qualname__ for a plain function, never __name__. Traced to
+source, confirmed against the installed apscheduler package. Same bug in
+contention_trace_temp.py's own instrument_scheduler (2026-09-05), which
+double-wraps without fixing it. This is the literal reason drilling into
+"which specific job correlates with a stall" is unanswerable from these
+logs today -- only the trigger shape (interval vs. cron, and the cron's
+own hour/day-of-week spec) distinguishes anything, and several distinct
+jobs share the same trigger shape. Recorded rather than fixed: both files
+are live, shared, actively-used diagnostic tools owned by other work, one
+explicitly temporary with its own removal note. One-line fix for whoever
+needs per-job attribution next: wrapped.__qualname__ = getattr(func,
+"__qualname__", "job") beside the existing __name__ reset, in both files.
+
+One of the 12 recorded stalls (12:11:31Z, 1,214.7ms) is very likely not a
+live-traffic loop stall at all -- its surrounding lines are a clean
+massive_ws_worker/liveflow_worker_threaded shutdown sequence, i.e. a
+deploy, not a request-serving stall.
+
+W2b is NOT closed. Next candidate, untested against a control: api.routers.
+calendar / catalyst-engine prominence in two mid-sized stalls. Full
+account: evidence/oi44-attribution/2026-09-18-first-real-alignment.md.
+================================================================================
+```

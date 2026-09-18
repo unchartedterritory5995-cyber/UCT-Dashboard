@@ -1,9 +1,19 @@
-> **NEXT WAKE REASON (D-16):** **W2b** — OI-44 attribution: correlate the durable stall
-> record's wall-clock timestamps against what else runs then — breadth collector, EOD updaters,
-> `/api/push`. The log-tail daemon (`UCT-D14-LogTail`, item 1 of the Friday addendum) is now
-> running continuously so a captured window should finally exist next time this is attempted.
-> No blocker; it is simply the next unblocked item. Then W5 (R59 hardening merge), W8 (accuracy
-> audit).
+> **NEXT WAKE REASON (D-16):** W5 (R59 hardening merge), W8 (accuracy audit), R63(d), R69,
+> canary R38/R39.
+>
+> 🟡 **W2b — FIRST REAL-LOG ATTEMPT DONE 2026-09-18, still not closed.** With the log-tail
+> daemon's captured window, 12 real stalls aligned against 74k+ timestamped `web` log lines for
+> the first time. The leading candidate (`apscheduler.executors.default` dominant in the two
+> largest stalls) was **RAISED then KILLED by its own control** — the same logger is equally
+> dominant (35–65% share) in five ordinary non-stall windows, so it is baseline pod noise, not a
+> signal. A separate, real finding surfaced and is NOT fixed: every apscheduler job in these logs
+> has shared one generic name since 2026-08-29 (`memory_probe.py`'s `instrument_scheduler` resets
+> `__name__` but not `__qualname__`, and APScheduler's `get_callable_name` reads the latter) —
+> per-job attribution from these logs is impossible until that one-line bug is fixed in
+> `memory_probe.py` + `contention_trace_temp.py` (both owned elsewhere, not touched here). Full
+> account: `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`. Next candidate,
+> untested against a control: `api.routers.calendar` / catalyst-engine prominence in two
+> mid-sized stalls.
 >
 > ✅ **W3 DONE AND MERGED 2026-09-18 08:21 ET, `925948522` on master.** NOT on this branch —
 > R59 makes `discord-render-hardening`'s runtime byte-for-byte invariant, and W3 touches
@@ -93,7 +103,7 @@ session** since the W1 merge.
 | **R31** | ✅ **ANSWERED** — `R31-BOOT-WINDOW.md`, two runs shown as a series. Boot (0–15 min) **1.94 → 2.46 stalls/pod-h** against a tail that did not move at **1.08** — ratio **1.80× → 2.27×**; every new event landed in the boot window. Minutes 0–3 now carry **4.17 ≥5 s events/pod-h** against the settled tail's **0.16** (n=5 — read n, not the ratio). **The hypothesised minute-11-to-15 block pages nobody**: 4 events ≥1 s, ZERO ≥5 s, across both runs. |
 | **Q6 vs OI-44** | ✅ **RECONCILED, and they were never in conflict.** D-12 measured a RATE and the census measured a COUNT. Boot is worse per unit time; the tail holds 30 of 42 events and the largest ever (80,249 ms) because a pod spends ~82% of its observed life there. Neither half can be dropped. |
 | **W2 smoke** | ✅ **10 PASS**, 0 FAIL — `evidence/smoke-2026-09-17/INDEX.md`. **Rows 2, 3, 5 and 7 are NOT RUNNABLE by construction** (V2 dark), never FAIL. **Row 5 joined that set today**: it asserts the `etfs` partition via `symbols.flow_source`, whose ONLY caller is the V2 handler — the pre-V2 dispatch passes no `source` at all. Row 6 PASSED. SMOKE-3.5 rows 10 and 12 were also corrected: a retired command and the wrong gear behaviour. |
-| **W2b** | 🟡 **MOVED, NOT CLOSED.** Three log silences (25.3 s · 11.7 s · 6.7 s) align with three of the four recorded stalls. ⛔ **The blocker is NOT named** — seven candidates ran in those windows. Leading NAMED candidate, only because it measures itself: `[discord-chart] hot warm`, 26.8 s and 33.5 s against its own 20 s budget, twice, in two minutes. |
+| **W2b** | 🟡 **STILL NOT CLOSED — first real-log attempt done 2026-09-18.** 12 real stalls aligned against the log-tail daemon's captured window for the first time. Leading candidate (apscheduler dominance in the two largest stalls) was raised then REFUTED by a non-stall control (same ~35-65% share off-stall). Separate finding: apscheduler job names have been indistinguishable since 2026-08-29 (`memory_probe.py` qualname bug, not fixed here) — blocks any further per-job drill-down until someone fixes it. `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`. |
 | **OI-47** | 🟡 **FIXED AND PUSHED, NOT MERGED.** `fix/oi-47-health-early-return` @ `494b20948`: 2/2 mutations RED, 108 tests green. ⛔ **R22's one master push per session is SPENT** (the W1 merge). **A context compaction is not a session boundary** — treating it as one would let the deploy budget be reset by an event with nothing to do with deploy risk. Merge is the next session's first act. ⭐ The "one-line fix" was wrong: the two branches disagreed about the SHAPE, so a top-level `d.get("loop")` would have started answering None the day V2 is enabled. |
 | **instruments** | The first R31 ssh trace was **VACUOUS** — it imported `loopwatch` in a `railway ssh` process and reported that process, not the pod. 19 rows of `running: false`. Replaced by `instruments/r31_boot_trace.py` (loop over HTTP, durable halves by import, every field labelled with its SOURCE). `d14_monitor`'s `token_slot_counts` key matched nothing the payload emits — fixed. |
 | **not explained** | ⚰️ **WITHDRAWN — this row claimed spontaneous restarts and they were DEPLOYS.** See the correction block below. What IS unexplained: the CAUSE of the boot-window stalls (W2b), and the single largest event on record (80,249 ms, SETTLED, `fea2778d85cd`). |
@@ -261,11 +271,17 @@ un-maximises).
   ⛔ **Batching the other workstreams' deploys would NOT fix it** — 27 of 42 are settled-pod stalls,
   so fewer deploys removes some of the 11 boot-class events and none of the 27. This corrects the
   expectation D-14 was written against.
-- [ ] **W2b — OI-44 ATTRIBUTION then FIX** per R43 — `TODO, next after W1 commit A`
+- [ ] **W2b — OI-44 ATTRIBUTION then FIX** per R43 — `IN PROGRESS, first real-log attempt done 2026-09-18`
   The census reads the loop, not the request log, so the cause is still unattributed. W1's durable
-  stall record is the join key (wall-clock + uptime per stall). Leading hypothesis, NOT established:
-  the post-close cluster on `fea2778d85cd` (3.1 s → 20.6 s → 80.2 s → 14.2 s between 16:23 and 17:03 ET)
-  sits where the breadth collector, the EOD updaters and `/api/push` land. Correlate before fixing.
+  stall record is the join key (wall-clock + uptime per stall). 2026-09-18: 12 real stalls aligned
+  against the log-tail daemon's captured `web` log window for the FIRST time (no prior attempt had
+  a captured window). Leading candidate (apscheduler dominance) RAISED then REFUTED by a non-stall
+  control. Blocked from going further by a real, separate bug: apscheduler job names have been
+  indistinguishable since 2026-08-29 (`memory_probe.py` qualname reset misses `__qualname__`) — not
+  fixed here (owned by another workstream's diagnostic tooling). See
+  `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`. The old post-close-cluster
+  hypothesis (`fea2778d85cd`, 16:23-17:03 ET) is superseded — this pass used same-day intraday
+  stalls, not that cluster, and never re-tested it.
 - [ ] **W6 member flip — GATED ON THE OI-44 FIX** — `precondition added 2026-09-17`
   An 80 s loop block is a mass ack failure whatever the render path does, and R41's rollback changes
   which code serves, not whether the loop is blocked. R40's precondition list gains: OI-44 fixed and
