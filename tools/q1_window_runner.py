@@ -79,6 +79,34 @@ def save_queue(q: dict) -> None:
     QUEUE.write_text(json.dumps(q, indent=2) + "\n", encoding="utf-8")
 
 
+def save_entry(entry_id: str, fields: dict) -> None:
+    """Write back ONLY this runner's own fields on ONE entry, onto the CURRENT file.
+
+    ⛔⛔ NEVER save the whole `q` the loop is holding. It was read BEFORE a cell that
+    can run for 55 minutes, so writing it back reverts every edit made in the
+    meantime — silently, and with the run still reporting its own result correctly,
+    so the window looks fine and the cost lands on the NEXT one as a window that
+    opens with nothing staged.
+
+    ⚰️ Measured 2026-09-18: the W2/P3 cells were split into two while 2.8b was
+    running, and the pre-run snapshot would have reverted both.
+    """
+    cur = load_queue()
+    for e in cur.get("queue", []):
+        if e.get("id") == entry_id:
+            e.update(fields)
+            break
+    else:
+        # ⛔ The entry is GONE from the file. Do not re-create it — somebody
+        # removed it deliberately, and resurrecting it with a stale body is
+        # how a queue grows a cell nobody staged. Say so and write nothing.
+        print(f"  [runner] ⚠️ {entry_id} is no longer in the queue — result NOT "
+              f"written back. It is in the log and in the evidence directory.",
+              flush=True)
+        return
+    QUEUE.write_text(json.dumps(cur, indent=2) + "\n", encoding="utf-8")
+
+
 def pending(q: dict) -> list:
     return [e for e in q.get("queue", []) if e.get("status") == "pending"]
 
@@ -337,7 +365,13 @@ def spend_window(once: bool, log=print) -> int:
                 entry["status"] = "failed"
                 outcome = "exit " + str(res["exit"])
             entry["result"] = res
-            save_queue(q)
+            # ⛔ Merge onto the CURRENT file — `q` is a pre-run snapshot and writing
+            # it back would revert anything staged while the cell ran.
+            save_entry(entry.get("id"), {
+                "status": entry["status"],
+                "attempts": entry["attempts"],
+                "result": res,
+            })
             executed_here += 1
             append_log(f"| {opened_at:%Y-%m-%d %H:%M} | `{entry.get('id')}` | {outcome} | "
                        f"{res['tail'][:200].replace('|', '/')} |")
