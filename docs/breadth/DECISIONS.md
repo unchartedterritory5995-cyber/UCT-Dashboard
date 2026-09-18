@@ -2605,3 +2605,29 @@ production ancestry).
 **Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
 confirmed live throughout.** DC-3 (a, b, c) closed.
 
+### D-056 addendum · SHA provenance correction + final production confirmation (2026-09-18)
+
+**Two small corrections to the record above, not to the findings.** The DC-3(c)
+closing addendum cited commits `0dd30b3c6` (code) and `5c513429f`/`6216adb0b`
+(docs) as landed on `breadth/dc-v2` → `master`. Both remain valid commit
+objects, but neither is an ancestor of the CURRENT `master`/`production` —
+each was superseded by an equivalent commit (same diff, different parent
+chain) when this branch was rebased onto a moving `origin/master` during the
+long burst-guard wait that followed. **This is expected git behaviour, not a
+lost landing** — verified by content, not by chasing the stale hash:
+
+```
+git show origin/production:api/main.py | grep _start_breadth_series_warm_background
+  -> present: the function, its docstring cross-reference, and its boot call site
+git show origin/production:docs/breadth/DECISIONS.md | grep -c "DC-3(c)"
+  -> present
+```
+
+**Final state, confirmed directly rather than inferred from an earlier
+report:** `origin/master` and `origin/production` are at the **identical**
+SHA (`45189bc46`), the `web` deploy for that commit shows `SUCCESS`
+(`0e5fd64d`), a fresh-boot `/api/health` reads `{"status":"ok",
+"uptime_seconds":126}`, and `BREADTH_SERIES_BOOT_WARM_ENABLED=1` is confirmed
+live via `railway variables --kv`. DC-2 and DC-3 (a, b, c) are closed with
+nothing pending.
+
