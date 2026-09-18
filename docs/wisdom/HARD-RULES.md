@@ -938,3 +938,59 @@ nothing must refuse, never accept.** A gate whose failure mode is *open* is not 
 > **THE RULE. Never run the golden gate inside the container.** The golden set is quote-bearing
 > and deliberately not deployed, so the only thing it can produce there is a verdict about no
 > data — and today that verdict is `accepted`.
+
+## 2026-09-18 — R93/R94/R95/R96 (session 23): the local attempt's real ceiling, and every
+## path priced with real usage instead of a fresh estimate
+
+**R93 — one bounded local attempt, 90-minute ceiling, honored.** Two fixes landed as
+permanent `local_backend.py` defaults, neither touching `prompt.py`: `repeat_penalty=1.15`
+(kills the repetition-loop collapse that hit 22% of session-22's segments) and
+schema-constrained decoding, reusing `params["output_config"]["format"]["schema"]` — the
+SAME contract Anthropic already enforces for the paid path — via llama-server's
+`response_format: json_schema`. Measured on an isolated segment: 4/4 rejected
+`quote_missing` at baseline → 0/4 with the constraint on. A local-only v2 prompt
+(`local_prompt_v2.py`, its own `wx-local-v2-*` version, few-shot loaded from a gitignored
+data file) added quote-first ordering + an explicit verbatim instruction on top.
+
+⛔ **NET RESULT ON A 20-SEGMENT STRATIFIED SAMPLE (paid / v1 / v2 all sliced from the SAME
+segments via `gate_records.load_phase`, the R12 canonical re-score path): FAIL on all six
+types, both v1 and v2. Zero true positives against golden's specific expected records.**
+The mechanism moved — `quote_missing` was eliminated by the schema constraint; the dominant
+remaining failure is `reject:quote_absent` (present, not verbatim) — but that mechanism
+shift did not convert into recall against golden's exact set at 7B/Q4_K_M. Full verdict:
+`docs/wisdom/LOCAL-EXTRACTOR-VERDICT.md`.
+
+⛔ **THROUGHPUT IS A SECOND, INDEPENDENT WALL.** Measured v1 rate on this contended box:
+0.79 segments/min (76s/segment). One corpus pass (26,454 segments) is **23.2 days**; N=3 is
+**69.6 days**. v2's added levers measured SLOWER per segment (longer prefill from the
+few-shot turns) — the quality-adjacent fixes here cost clock, they do not buy it back.
+
+**R94 — no GPU host reachable, measured not assumed.** This box: two NVIDIA GT 710s (2GB
+VRAM each — too small to even hold a Q4_K_M 7B's ~4.5GB weights) plus an Intel UHD 770 iGPU
+(untested — no dedicated VRAM, unlikely to beat CPU meaningfully for this workload). No
+WSL2 installed. No SSH config beyond `github.com` in `known_hosts`. No documented remote GPU
+host anywhere in this repo's docs. **Deliberately no LAN scan was run** — the ruling
+explicitly asked for documented/reachable enumeration only, never indiscriminate probing.
+
+**R95 — HOLD, honored structurally.** No paid extraction client was constructed this
+session; `prompt.extractor_version()` was reasserted unchanged (`wx-v0-fc47bc97`) both by
+the existing local-backend suite and by `local_prompt_v2`'s own tests.
+
+**R96 — every path priced, with a blocker stated rather than papered over.** No Anthropic
+API key was reachable this session — not in the shell env, not in a local `.env`, not in the
+OS keyring (`uct-wisdom`/`anthropic`) — so `count_tokens`, the one paid-API call this
+session's ruling permitted, could not be made. The pricing in
+`docs/wisdom/PATH-PRICING-2026-09-18.md` instead reuses REAL, already-paid-for Anthropic
+usage persisted from gate-run-3's own API calls (`data/wisdom/gate-runs/20260915T123550Z/
+segments.jsonl` — real `usage.input_tokens`/`cache_read_input_tokens`/`output_tokens` from
+83 real production-sourced segments). Stronger than a character estimate; still not the
+fresh 500-segment production sample R96 asked for — that gap should close before any of
+these numbers is treated as final. Density proxy (PRINCIPLE/MARKET_SIGNAL-bearing segments):
+21.7%, from the same 83, explicitly the ONLY measured proxy since night 1 never ran.
+
+⭐ **The cheapest path that buys the stated goal (judgement types at trusted quality,
+mechanical types floor-scored) is SWEEP_N1_OPUS + a 2-pass targeted repass on the density
+proxy: $1,103 p50 / $5,096 p90 — not HAIKU_ONLY's $462–$2,133, because Haiku's quality
+against golden is UNMEASURED.** The one cheap measurement that would most change this
+answer: an 83-segment Haiku golden run, priced at $0.48–$2.23 — close enough to free that
+running it before committing to any paid path is close to free optionality.
