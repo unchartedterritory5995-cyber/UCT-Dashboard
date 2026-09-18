@@ -1069,41 +1069,75 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
 
 
 def _start_cold_path_boot_preload() -> None:
-    """R63(c) AMENDED — register the render programme's known `@lru_cache`-forever cold loads
-    and fire them on `cold_start_guard`'s boot thread, immediately (no delay: unlike the
-    dashboard warmers above, these are cheap file reads, not provider calls, and nothing here
-    is discovered by watching a live pod for seconds first).
+    """R63(c) AMENDED (2026-09-18 addendum) — registration is DERIVED from R63(a)'s manifest,
+    never hand-picked. The manifest (`docs/discord-render/instruments/oi44_cold_paths.py
+    --measure`) cold-imports every lazily-imported module in `api/**` in a fresh interpreter and
+    times it; `cold_path_manifest.above_threshold_modules` ranks the ones that measured above
+    50 ms. EVERY one of those is registered here via a generic `importlib.import_module` loader
+    — not a hand-typed subset.
 
-    ⛔ WHY THESE TWO AND NOT MORE, TONIGHT. R63(a)'s cold-path scanner (`oi44_cold_paths.py`)
-    found 502 lazily-imported modules and 1,013 in-function data loaders across `api/**`.
-    `cap_universe.symbols()`/`etf_symbols()` are the two the scanner and the 2026-09-13 W1
-    incident both independently named (`flow_source` lazily imports both `api.massive_processor`
-    and `api.services.cap_universe`) — a real, measured cold-start cost (13.5 ms / 3.8 ms import,
-    ~110 ms first-call data load) on a documented incident path. They also fit this mechanism
-    exactly: `@lru_cache(maxsize=1)`, pure file reads, no TTL, no per-request argument — "load
-    once for the life of the process" is precisely what `cold_start_guard` is for.
+    ⛔⛔ THE TWO CAP_UNIVERSE CACHES ARE THE FIRST ENTRIES, NOT THE LIST. `cap_universe.symbols()`
+    / `etf_symbols()` are `@lru_cache(maxsize=1)` DATA LOADS (~110 ms measured, the 2026-09-13 W1
+    incident's actual cost), which the manifest's plain-import measurement cannot see — the
+    scanner times `import api.services.cap_universe` (~3.8 ms), not the cached call inside it.
+    Registered by hand because they are a different RESOURCE than the module import the manifest
+    already covers, not because the manifest is being second-guessed.
 
-    ⛔⛔ NOT REGISTERED, ON PURPOSE: `api.ticker_types.classify`'s underlying `_load_class_sets()`
-    is TTL-refreshed, not load-once — preloading it here would warm the FIRST load and say
-    nothing about a refresh 24h later still running inline on whatever thread calls `classify()`
-    next. That is a different hazard shape (recurring, not just at boot) and this mechanism does
-    not claim to solve it. Wiring it in without saying so would be exactly the kind of claim this
-    programme has had to walk back before. Recorded, not silently expanded to cover it.
+    ⭐ WHY A PLAIN MODULE IMPORT IS SAFE TO AUTO-REGISTER AND A LOADER SITE IS NOT. Importing a
+    module is idempotent and bounded to whatever runs at module level — preloading it changes
+    WHEN that happens, never WHETHER, because production code already imports it somewhere on
+    its own. An in-function loader (`sqlite3.connect(<path>)`, `json.load(open(<path>))`) is a
+    specific call with specific arguments the scanner's static AST pass cannot safely replicate
+    out of context — calling 1,013 arbitrary loader sites blind at boot could hit paths that
+    don't exist yet, or produce side effects nobody asked for at process start. That half stays
+    R63(b)'s job: observe the REAL calls as they happen (`cold_path_instrument`, already
+    composed into this guard) and let production evidence — not a synthetic harness — say which
+    loaders are worth registering next. See `test_every_manifest_module_above_threshold_is_
+    registered` for the enforcement this claim has to survive.
 
-    ⭐ Populating the remaining 500 modules / ~1,013 loader sites is NOT a boot-time preload
-    problem to solve in one pass — most of those call sites need individual verification (safe
-    to call with no request context? idempotent? side-effect-free?) before they belong in a
-    registry that runs unconditionally at every boot. That is R63(b)'s job: instrument the real
-    cold-path calls, join them to the durable stall record over real pod boots, and let the
-    evidence — not a guess — decide which of the 1,013 are worth adding here next."""
+    ⛔⛔ TICKER_TYPES.CLASSIFY IS STILL NOT REGISTERED, ON PURPOSE, EVEN IF THE MANIFEST NAMES
+    ITS MODULE. Its underlying `_load_class_sets()` cache is TTL-refreshed, not load-once —
+    preloading the import warms the FIRST load and says nothing about a refresh 24h later still
+    running inline on whatever thread calls `classify()` next. A different hazard shape this
+    mechanism does not claim to solve.
+
+    ⛔ A MISSING OR UNREADABLE MANIFEST DEGRADES TO THE TWO HAND-REGISTERED ENTRIES, NEVER TO
+    ZERO SILENTLY AND NEVER TO A CRASH — `cold_path_manifest.load_manifest` returns `None` and
+    logs why; this function proceeds with what it has."""
     from api.services import cap_universe
-    from api.services.discord_render import cold_start_guard
+    from api.services.discord_render import cold_start_guard, cold_path_manifest
 
     cold_start_guard.register("cap_universe.symbols", cap_universe.symbols)
     cold_start_guard.register("cap_universe.etf_symbols", cap_universe.etf_symbols)
+
+    log = logging.getLogger(__name__)
+    manifest = cold_path_manifest.load_manifest()
+    derived = 0
+    if manifest is not None:
+        for row in cold_path_manifest.above_threshold_modules(manifest):
+            mod_name = row["module"]
+
+            def _import_it(_mod=mod_name):
+                import importlib
+                return importlib.import_module(_mod)
+
+            try:
+                cold_start_guard.register("import:%s" % mod_name, _import_it)
+                derived += 1
+            except ValueError:
+                # ⛔ Already registered under this exact name with a DIFFERENT loader — two
+                # authorities over one resource. Never happens for a plain module import (the
+                # loader is freshly built per name every call), kept as a hard stop rather than
+                # a silent skip in case that assumption is ever wrong.
+                log.exception("[cold-start-guard] %r registration conflict", mod_name)
+                raise
+    else:
+        log.warning("[cold-start-guard] no R63(a) manifest found — preloading only the two "
+                   "hand-registered cap_universe resources this boot")
+
     started = cold_start_guard.start_boot_preload()
-    logging.getLogger(__name__).info(
-        "[cold-start-guard] boot preload started for %d resource(s)", started)
+    log.info("[cold-start-guard] boot preload started for %d resource(s) "
+             "(2 hand-registered + %d derived from the manifest)", started, derived)
 
 
 def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
