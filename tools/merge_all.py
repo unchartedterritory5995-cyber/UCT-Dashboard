@@ -1195,7 +1195,50 @@ def run(cmd, cwd, dry):
     return out.returncode, (out.stdout or "") + (out.stderr or "")
 
 
-def merged_into_master(commits, dry):
+def _resolution_landed(stem: str, sha: str, repo, resolutions) -> "bool | None":
+    """True if `sha`'s intended change is ALREADY on origin/master via a recorded
+    resolution that was applied to a PRIOR pick of it — a case `git cherry` can never
+    see, and must not be confused with "not merged."
+
+    ⛔⛔ F-RESOLVED-1 — A RESOLUTION-APPLIED COMMIT CAN NEVER PATCH-MATCH ITS ORIGINAL
+    AGAIN, BY CONSTRUCTION. Resolving a conflict means writing DIFFERENT bytes than the
+    original commit's diff would have produced, so the resulting commit's patch-id
+    necessarily differs from `sha`'s own patch-id forever after. `_cherry_says_merged`
+    reports such a row as "not merged" EVEN THOUGH IT IS, and a caller that trusts that
+    verdict will try to re-pick it — hitting the SAME conflict again, except now the
+    resolution's own recorded "master pre-image" no longer matches (master already
+    carries the RESOLVED content), so `resolution_for` refuses it as a pre-image
+    mismatch and the pick STRANDS. On production infrastructure, not a preview.
+
+    ⚰️ Measured 2026-09-18: `e-cp28-build-record`'s resolution landed via `_pick_with_
+    resolution` for the first time this session (the recorded conftest.py resolution).
+    The very next state check found `git cherry` reporting NOT-MERGED against the tip
+    that its own resolved content is sitting on.
+
+    ⭐ The fix asks a DIFFERENT, correct question: for every path this commit touches, is
+    there a resolution recorded for (stem, path) whose verified `resolved blob` hash
+    equals that path's CURRENT blob on origin/master? If every touched path answers yes,
+    the commit's intended, resolved content IS present — regardless of what its own
+    patch-id says. A commit with even ONE unresolved-or-unmatched path returns False,
+    never guessed as landed.
+    """
+    rc, out = run(["git", "show", "--name-only", "--format=", sha], repo, False)
+    if rc != 0:
+        return None
+    paths = [p for p in out.split() if p.strip()]
+    if not paths:
+        return None
+    for path in paths:
+        cands = [r for r in resolutions if r["row"] == stem and r["path"] == path]
+        if not cands:
+            return False
+        cur = _blob_hash(repo, "origin/master", path)
+        if cur is None or not any(r["resolved blob"] == cur for r in cands):
+            return False
+    return True
+
+
+def merged_into_master(commits, dry, stem=None, resolutions=None):
     """Which of `commits` are ALREADY on origin/master — read from MASTER, not the manifest.
 
     ⚰️⚰️ **K CP5 — THIS SCRIPT COULD NOT BE RUN TWICE.** There was no check of any kind:
@@ -1252,11 +1295,25 @@ def merged_into_master(commits, dry):
     # loop's body, extracted so `replay()` answers "is this unit already on the base I am
     # replaying onto" with the identical logic that decides it for a live push — a second
     # copy of this parsing is a second authority over what "merged" means.
+    # ⛔⛔ F-RESOLVED-1 — resolutions are loaded ONCE here too (lazily, only if the
+    # caller didn't already hand them in), so a resolution-landed commit is recognized
+    # as merged instead of re-stranding on its own already-satisfied pre-image check.
+    res = resolutions
+    if res is None and stem is not None:
+        res, res_corrupt = read_resolutions()
+        if res_corrupt:
+            return None, "REFUSED-CORRUPT-RESOLUTION: %s" % "; ".join(
+                "%s (%s)" % c for c in res_corrupt)
     done = []
     for c in commits:
         got = _cherry_says_merged("origin/master", c, CODE_REPO)
         if got is None:
             return None, "`git cherry` could not read %s" % c[:9]
+        if not got and stem is not None and res:
+            landed = _resolution_landed(stem, c, CODE_REPO, res)
+            if landed is None:
+                return None, "could not read %s's file set to check for a landed resolution" % c[:9]
+            got = landed
         if got:
             done.append(c)
     return done, ""
@@ -1779,7 +1836,7 @@ def main(argv=None) -> int:
         # ⛔ K CP5 — ASK MASTER FIRST. This is what makes the script resumable, and it is
         # a READ, so it runs in dry-run too: a preview that cannot tell you what is
         # already done is not a preview of the run you are about to do.
-        done, why = merged_into_master(commits, a.dry_run)
+        done, why = merged_into_master(commits, a.dry_run, stem=stem, resolutions=resolutions)
         if done is None:
             print("    ⛔ %s — STOPPED. Merged-state UNREADABLE is not 'not merged'; "
                   "guessing here re-merges a unit." % why)

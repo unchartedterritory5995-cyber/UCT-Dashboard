@@ -50,8 +50,19 @@ def _git(repo, *args):
     return r.returncode, (r.stdout or "").strip()
 
 
-def merged_state(repo, commits):
-    """MERGED / NOT-MERGED / UNREADABLE for a unit's commit list, by patch id."""
+def merged_state(repo, commits, stem=None, ma=None, resolutions=None):
+    """MERGED / NOT-MERGED / UNREADABLE for a unit's commit list, by patch id.
+
+    ⛔⛔ F-RESOLVED-1 — A RESOLUTION-APPLIED COMMIT NEVER PATCH-MATCHES ITS ORIGINAL AGAIN.
+    Resolving a conflict (K CP11) means the landed commit's diff differs from the source
+    commit's own diff by construction, so `git cherry` reports NOT-MERGED forever after,
+    even though the row's intended change is correctly on master. Measured 2026-09-18:
+    `e-cp28-build-record` read NOT-MERGED — a permanent false BLOCKER — the moment
+    after its recorded resolution actually landed for the first time. `ma._resolution_landed`
+    (merge_all.py, the SAME check that fixed this for the merge engine itself) is
+    consulted as a fallback so this reader and the engine never disagree about what
+    "merged" means for a resolved row.
+    """
     if not commits:
         return "NO-COMMITS"
     for c in commits:
@@ -60,6 +71,12 @@ def merged_state(repo, commits):
             return "UNREADABLE"
         mine = [l for l in out.splitlines() if l[2:].startswith(c[:9])]
         if mine and mine[-1].startswith("+"):
+            if stem is not None and ma is not None and resolutions:
+                landed = ma._resolution_landed(stem, c, repo, resolutions)
+                if landed:
+                    continue
+                if landed is None:
+                    return "UNREADABLE"
             return "NOT-MERGED"
     return "MERGED"
 
@@ -89,6 +106,12 @@ def verify(until, units=None, repo=None, gates=None, verbose=True):
 
     _git(repo, "fetch", "origin", "master")
     blockers, lines = [], []
+    # ⛔ F-RESOLVED-1 — loaded once, passed to every merged_state() call, so a
+    # resolution-landed row is never misread as a permanent BLOCKER.
+    resolutions, res_corrupt = ma.read_resolutions()
+    if res_corrupt and verbose:
+        print("⛔ REFUSED-CORRUPT-RESOLUTION: %s"
+              % "; ".join("%s (%s)" % c for c in res_corrupt))
 
     def reader(stem):
         p = gates / (stem + ".md")
@@ -97,14 +120,14 @@ def verify(until, units=None, repo=None, gates=None, verbose=True):
         return sg.read_approval(p.read_text(encoding="utf-8"))[0]
 
     for stem, commits, _mv in head:
-        st, mg = reader(stem), merged_state(repo, commits)
+        st, mg = reader(stem), merged_state(repo, commits, stem, ma, resolutions)
         good = (st == "SIGNED") and mg in ("MERGED", "NO-COMMITS")
         lines.append((stem, st, mg, "ok" if good else "BLOCKER"))
         if not good:
             blockers.append("%s: reader=%s merged=%s" % (stem, st, mg))
 
     for stem, commits, _mv in tail:
-        st, mg = reader(stem), merged_state(repo, commits)
+        st, mg = reader(stem), merged_state(repo, commits, stem, ma, resolutions)
         good = (st == "UNSIGNED") and mg in ("NOT-MERGED", "NO-COMMITS")
         lines.append((stem, st, mg, "ok(after)" if good else "BLOCKER"))
         if not good:
