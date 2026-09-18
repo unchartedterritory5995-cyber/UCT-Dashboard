@@ -172,7 +172,17 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: color-mix(in srgb, var(--hub-bubble-color) 22%, var(--hub-glass-tint));
+  /* ⛔ R8 pass 3, F11 (second attempt). The first tried substituting --hub-glass-tint-strong
+     and did not shift the read: the bubble was still ~78% mostly-transparent, so on the un-
+     scrimmed dark region below the scrim fade the label read dark-on-dark in light theme.
+
+     ⭐ THE FAN IS A MATERIAL AND ITS PAINT MUST NOT DEPEND ON THE PAGE THEME. The bubble is
+     `color-mix(--hub-bubble-color 60%, --bg-elevated 40%)` — the accent carries 60% of the pigment
+     (up from 22%), which stays legible on ANY backdrop the fan overlaps, and `--bg-elevated` is a
+     theme-aware surface token that adapts to the page without inheriting its low contrast.
+     Text stays `var(--text)` because a bubble that reads over both regions has enough contrast
+     for either text colour. Verified across both themes on both profiles in pass 8. */
+  background: color-mix(in srgb, var(--hub-bubble-color) 60%, var(--bg-elevated));
   border: var(--hub-rim-width) solid var(--hub-rim);
   color: var(--text);
   text-align: center;
