@@ -1613,20 +1613,37 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
         page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded",
                   timeout=45000)
-        page.wait_for_timeout(7000)
         # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
         # behind an auth gate; a slow first paint or a pod that has just swapped
         # loses the cell for a reason that has nothing to do with the property
         # under test. Retry the MOUNT before spending the window on it.
+        #
+        # ⛔⛔ WAIT FOR THE ELEMENT, DO NOT SAMPLE FOR IT. This was
+        # `query_selector` inside a 5-second sleep loop - a POINT-IN-TIME check,
+        # so an editor that mounted at t=8s went unseen until t=12s and one that
+        # mounted at t=34s was never seen at all. Measured 2026-09-18: THREE of
+        # six orderings in one folder cell died on "the editor never mounted",
+        # on a run where production never swapped (zero swap-waits), so the
+        # sampling was losing cells the product was ready to serve.
+        #
+        # ⭐ `wait_for_selector` polls continuously and returns the instant the
+        # node appears. The CEILING is unchanged (~33s across two attempts and a
+        # reload), so nothing that used to pass can now fail - what changes is
+        # that a mount at any moment inside that ceiling is caught.
         pm = None
-        for _try in range(4):
-            pm = page.query_selector(".ProseMirror")
+        for _try in range(2):
+            try:
+                pm = page.wait_for_selector(".ProseMirror", timeout=16000, state="attached")
+            except Exception:                                # noqa: BLE001
+                pm = None
             if pm is not None:
                 break
-            page.wait_for_timeout(5000)
-            if _try == 1:
-                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
-                page.wait_for_timeout(6000)
+            if _try == 0:
+                # ⛔ One reload, and only one: a lazy chunk that failed to fetch
+                # will not heal by being asked a third time, and the budget
+                # belongs to the measurement.
+                page.goto(f"{base}/journal/notebook?note={note_id}",
+                          wait_until="domcontentloaded")
         if pm is None:
             return {"verdict": "INCONCLUSIVE",
                     "why": "the editor never mounted for the probe note after 4 tries and a "
