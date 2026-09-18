@@ -111,11 +111,18 @@
 }
 
 .fanWedge {
+  /* ⛔⛔ THE WEDGE RENDERS AS AN ARC, NOT A RECTANGLE WITH A CORNER CLIPPED. R8 pass 2, F3.
+     ─────────────────────────────────────────────────────────────────────────────────────────────
+     ⚰️ SHIPPED: `border-radius: 100% 0 0 0` clips the top-left corner to a quarter-circle, but
+     `border-left` and `border-top` still drew two STRAIGHT LINES down the left edge and across the
+     top. So the frame carried an arc AND two ruler-straight rim lines meeting it at 90°. The box
+     read as a bounding rectangle, and the arc as decoration inside it.
+
+     ⭐ THE ARC IS THE SHAPE. Nothing else on this element is a rim — the background radial ends at
+     70%, and the two hard lines were the only reason the wedge appeared rectangular. Removed. */
   position: fixed;
   border-radius: 100% 0 0 0;
   background: radial-gradient(circle at 100% 100%, var(--hub-glass-tint), transparent 70%);
-  border-left: var(--hub-rim-width) solid var(--hub-rim);
-  border-top: var(--hub-rim-width) solid var(--hub-rim);
   opacity: 0;
   transition: opacity 0.18s var(--hub-ease);
   z-index: var(--z-hub-open);
