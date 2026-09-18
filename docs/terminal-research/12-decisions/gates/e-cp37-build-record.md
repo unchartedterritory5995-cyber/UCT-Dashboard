@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+APPROVED ON:      2026-09-18
+APPROVED AT SHA:  99f53fb54
+SCOPE APPROVED:   CP37 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP37 — `test_weekly_exec.py` still called a function E CP35 removed.**
