@@ -360,6 +360,18 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // previous pin, byte for byte. So the one moving part is that value: no key
       // was added or removed, and no per-definition door behaves differently.
       // (Prior value: 78107b0d261ec5dc0d4eaa59918be586245d044b450f89fa7d6cf9b1855d9fc7)
-      .toBe('596ff356bbd69685a073971857eb1876e6c1d9eb62ca715202dc4dffe28cea16')
+      // 2026-09-17: re-pinned for `CHART_DEFAULTS.paneSeriesOrder` — a KEY ADDED to
+      // the merge allow-list so a member's within-pane series order survives a
+      // reload (`engine/paneSeriesOrder.js`). Not a door change and not a value
+      // change to anything that existed.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The merged blob was dumped
+      // key-by-key on this tree and on the tree with `chartDefaults.js` reverted,
+      // and the two dumps diffed: ONE added line (`paneSeriesOrder = {}`), zero
+      // removed, zero changed values — 42 merged keys before, 43 after. Every
+      // per-definition door's enable/input/disable blob therefore carries exactly
+      // one more empty object and is otherwise byte-identical, and `{}` is "no
+      // preference": `resolvePaneSeriesOrder` returns the incoming order untouched.
+      // (Prior value: 596ff356bbd69685a073971857eb1876e6c1d9eb62ca715202dc4dffe28cea16)
+      .toBe('a2d35dcafd3067f47fb03804ece00dd727c1eba27e2204cdbeb02132a93a4a4d')
   })
 })

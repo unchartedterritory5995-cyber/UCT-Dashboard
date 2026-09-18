@@ -472,7 +472,18 @@
   width: 2px;
   height: 10px;
   border-radius: 1px;
-  /* Nudged to sit optically centred on the text's x-height rather than on its
-     baseline box — a rule aligned to the baseline hangs low. */
-  transform: translateY(0.5px);
+  /* ⚰️⚰️ IT WAS BASELINE-ALIGNED, AND A 0.5px NUDGE CANNOT FIX THAT. The row
+     is `align-items: baseline`, and an EMPTY element's baseline is its own bottom
+     margin edge — so the rail's foot was planted on the text's baseline and all
+     10px of it stood ABOVE that line, while the label only reaches ~8px (its cap
+     height). The rail therefore poked out over the top of every name it marks.
+     The `translateY(0.5px)` that used to sit here was written to correct an
+     optical hair and was compensating, half a pixel at a time, for a whole
+     alignment mode.
+     ⭐ `align-self: center` IS THE ACTUAL ANSWER. It takes the rail out of the
+     baseline pass and centres it on the row's cross axis — the text's own line
+     box — which is what "optically centred on the label" means in flex terms. It
+     is one declaration, it needs no number, and it cannot drift with the font
+     size, the line-height or the label the way a pixel offset does. */
+  align-self: center;
 }

@@ -39,6 +39,7 @@ import { describeSourceValue } from './engine/readout'
 import { isInstanceTombstone } from './instanceShape'
 
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
+import { orderPaneRows } from './engine/paneSeriesOrder'
 import { volumeOwnsPane } from './engine/volumePresentation'
 
 /** The group ids that no instance hosts. */
@@ -219,6 +220,29 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
   // the two groups whose members are not drawing at all, so they sit at the end
   // where a repair list belongs. `paneOrder` never contains their ids.
   const panes = [price, ...(separateVolume ? [volume] : []), ...byHost.values()]
+
+  // ⭐⭐ AND THE ROWS INSIDE EACH PANE COME OUT IN THE MEMBER'S OWN ORDER.
+  //
+  // ⚰️ WHAT THEY CAME OUT IN BEFORE WAS AN ACCIDENT OF TWO ARRAYS. `list` is
+  // `listAllIndicators`, which is `cs.overlays` (stored order) CONCATENATED with
+  // `cs.indicatorInstances` — and that second array is re-sorted by DEFINITION
+  // RANK on every canonical write (`instanceControls.withInstances`). So a pane
+  // holding four legacy moving averages and one engine one showed them in an
+  // order nobody chose and the member could not change: legacy block first,
+  // engine block second, ranked within.
+  //
+  // ⛔ THE FIX IS A PREFERENCE READ HERE, NOT A RE-SORT OF EITHER ARRAY. Moving
+  // an element inside `cs.overlays` would renumber every `overlay-<index>` row id
+  // (the slot IS the identity — see `overlayRowId`), and moving one inside
+  // `indicatorInstances` would be undone by the next `withInstances`. Both stay
+  // exactly as stored; `paneSeriesOrder` is a third fact, read at presentation
+  // time, and it spans both implementations because it is keyed by ROW ID.
+  //
+  // ⚠️ PER PANE, AFTER FILING. Membership is decided above by `placeOf` and is
+  // not this line's business — `orderPaneRows` returns the same set it is given,
+  // reordered, and a pane with no stored preference gets its list back untouched.
+  for (const g of panes) g.rows = orderPaneRows(settings, g.id, g.rows, (r) => r && r.id)
+
   const order = resolvePaneOrder(settings, [...byHost.keys()], { volumePane: separateVolume })
   const rank = new Map(order.map((k, i) => [k, i]))
   panes.sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9))
