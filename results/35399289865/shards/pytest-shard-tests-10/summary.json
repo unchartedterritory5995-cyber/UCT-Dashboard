@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 1742,
+  "passed": 1715,
+  "failed": 25,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 407.1,
+  "failed_files": [
+    "tests/test_screener_wave2_analyst_store.py",
+    "tests/test_screener_wave2_earnings_dates.py",
+    "tests/test_secret_scrub.py",
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_spa_head_reachability.py",
+    "tests/test_ticker_logos.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "25 failed, 1715 passed, 2 skipped, 15180 warnings in 407.10s (0:06:47)",
+  "ok": true
+}
