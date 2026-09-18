@@ -167,6 +167,7 @@ UNITS = [
     ("e-cp37-build-record", ["e9741b9d4"], False),          # stale test_weekly_exec rail
     ("e-cp38-build-record", ["17219a837"], False),          # R-ROLLING-BASELINE
     ("d-cp4-build-record", ["8719972c6"], True),            # F-NAV-1 default, MEMBER-VISIBLE
+    ("d4-cp4-build-record", ["bc9f14428"], False),          # F-D4-1 corrected cache key
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

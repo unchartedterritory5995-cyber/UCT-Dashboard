@@ -100,6 +100,7 @@
 #!after: e-cp37-build-record <- e-cp36-build-record
 #!after: e-cp38-build-record <- e-cp37-build-record
 #!after: d-cp4-build-record <- e-cp38-build-record
+#!after: d4-cp4-build-record <- d-cp4-build-record
 #!last: d-cp4-build-record
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
@@ -169,3 +170,4 @@ docs/terminal-research/12-decisions/gates/e-cp36-build-record.md | CP36 | 85bd06
 docs/terminal-research/12-decisions/gates/e-cp37-build-record.md | CP37 | 99f53fb54
 docs/terminal-research/12-decisions/gates/e-cp38-build-record.md | CP38 | 2e91d23c6
 docs/terminal-research/12-decisions/gates/d-cp4-build-record.md | CP4 | 45472396e
+docs/terminal-research/12-decisions/gates/d4-cp4-build-record.md | CP4' | 23a8da7a9
