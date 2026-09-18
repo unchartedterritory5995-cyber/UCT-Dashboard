@@ -1,0 +1,62 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 120,
+    "missing": 0,
+    "baseline": 121,
+    "current": 122,
+    "current_ran": 47304,
+    "new_flaky": 1,
+    "flaky_size": 4,
+    "flaky_new": 0,
+    "flaky_fixed": 1,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 121 = unchanged 120 + fixed 1 + missing 0  |  current 122 = unchanged 120 + new 1 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35391973414",
+  "current_run_id": "35394452339",
+  "baseline_sha": "a7c1a19264ffda5f8581fead3eaa80c4c4cf584f",
+  "current_sha": "0f83795dd21feee290f77a81ad6978158074080d",
+  "commit_range": "a7c1a19264ffda5f8581fead3eaa80c4c4cf584f..0f83795dd21feee290f77a81ad6978158074080d",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a7c1a1926..0f83795dd touched tests/test_ticker_logos.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a7c1a1926..0f83795dd touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
