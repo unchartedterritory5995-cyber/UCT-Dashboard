@@ -36,7 +36,7 @@ import {
 import { storedPaneOrder, resolvePaneOrder, PRICE_PANE } from './engine/paneOrder'
 import { PANE_SERIES_ORDER_KEY } from './engine/paneSeriesOrder'
 import {
-  POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES,
+  POPULAR_DEF_IDS, FUNDAMENTALS_STATUS, tabOf, glyphFamilyOf, GLYPH_FAMILIES, LIBRARY_TABS,
 } from './discoveryCatalog'
 import { INDICES_PRESET } from './symbolSearchModel'
 
@@ -980,7 +980,7 @@ describe('THE INDICATOR GLYPHS — family identity, resolved and never stored', 
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no fiction', () => {
+describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fiction', () => {
   const addBtn = () => screen.getByTestId('add-enter')
   const strip = () => document.body.querySelector('[role="tablist"][aria-label="Indicator categories"]')
   const tabs = () => [...(strip()?.querySelectorAll('[role="tab"]') || [])]
@@ -1035,10 +1035,22 @@ describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no ficti
   it('⭐ THE STRIP IS A TABLIST, DIRECTLY UNDER SEARCH, and Popular is where it lands', () => {
     show(base()); openTab()
     fireEvent.click(addBtn())
+    // ⚰️⚰️ IT WAS EIGHT TABS AND IT IS FIVE. The immediate reason is arithmetic —
+    // eight needed 509px against a 386px strip, so three were always behind a
+    // scroll — and the three that went are the three with another way in:
+    // `Popular` was a shortcut INTO Technical (which is the default now), an ETF
+    // is a security and arrives through Symbols, and formulas are CREATED from
+    // `＋ New Formula` rather than browsed.
+    //
+    // ⛔ PRESENTATION ONLY. `tabOf` still classifies a formula and an ETF and
+    // `resultsForTab` still answers for both keys — asserted below — so nothing
+    // underneath was deleted to shorten a strip.
     expect(tabs().map((t) => t.textContent.trim())).toEqual([
-      'Popular', 'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Indexes', 'ETFs', 'Formulas',
+      'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Indexes',
     ])
-    expect(chosen().textContent.trim()).toBe('Popular')
+    expect(tabs().map((t) => t.textContent.trim()),
+      'Popular is back on the strip').not.toContain('Popular')
+    expect(chosen().textContent.trim(), 'Technical is not the landing tab').toBe('Technical')
     // ⛔ UNDER THE SEARCH BOX, because the strip is NAVIGATION and search is the
     // primary entry point — the retired `Browse` chips sat under the RESULTS.
     const box = screen.getByRole('searchbox')
@@ -1047,34 +1059,94 @@ describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no ficti
     // One tab stop, arrow keys move it — the same contract the SMA/EMA segment has.
     expect(tabs().filter((t) => t.tabIndex === 0)).toHaveLength(1)
     fireEvent.keyDown(strip(), { key: 'ArrowRight' })
-    expect(chosen().textContent.trim()).toBe('Technical')
+    expect(chosen().textContent.trim()).toBe('Fundamentals')
   })
 
-  it('⭐⭐ POPULAR IS CURATED, AND MOVING AVERAGE APPEARS EXACTLY ONCE', () => {
-    // ⛔ THE CURATION NAMES IDS; THE ROWS COME FROM THE REGISTRY. So this is the
-    // same single member-facing Moving Average every other surface offers — there
-    // is no second entry, and legacy `ma` cannot appear because
-    // `LIBRARY_HIDDEN_IDS` drops it upstream.
+  it('⚰️⚰️ POPULAR LEFT THE STRIP AND SURVIVED UNDERNEATH', () => {
+    // ⛔ A NAVIGATION DECISION, NOT A DELETION. The curation is still a real fact
+    // about which definitions matter most, and `resultsForTab` still honours the
+    // key — deleting the list to match a strip would have thrown away the judgment
+    // rather than the tab. What is gone is a browse door that pointed at where the
+    // member already lands.
+    expect(POPULAR_DEF_IDS.length, 'the curation was deleted with the tab')
+      .toBeGreaterThan(4)
+    expect(LIBRARY_TABS.map((t) => t.key), 'Popular is still a browse door')
+      .not.toContain('popular')
+    // …and the same for the other two that came off.
+    for (const key of ['etfs', 'formulas']) {
+      expect(LIBRARY_TABS.map((t) => t.key)).not.toContain(key)
+      expect(tabOf({ kind: key === 'etfs' ? 'security' : 'formula', category: 'etf' }),
+        `${key} stopped being classified when its tab went`).toBeTruthy()
+    }
+  })
+
+  it('⭐ TECHNICAL IS THE LANDING TAB AND HOLDS EVERY SHIPPED DEFINITION', () => {
     show(base()); openTab()
     fireEvent.click(addBtn())
+    expect(chosen().textContent.trim()).toBe('Technical')
     const got = resultNames()
-    expect(got.length, 'Popular is a dump, not a curation').toBeLessThanOrEqual(POPULAR_DEF_IDS.length)
-    expect(got[0], 'the curated ORDER is not being kept').toBe('Moving Average')
-    expect(got.filter((n) => /^Moving Average$/.test(n))).toHaveLength(1)
+    expect(got.filter((n) => /^Moving Average$/.test(n)),
+      'Moving Average is not offered exactly once').toHaveLength(1)
     expect(got.join('|'), 'a member-facing Data Series row is being offered')
       .not.toMatch(/Data Series/i)
+    // ⛔ EVERY POPULAR ID IS REACHABLE HERE, which is what made the shortcut
+    // droppable rather than a loss.
+    const byId = new Set([...document.body
+      .querySelectorAll('[data-testid="add-surface"] [data-def-id]')]
+      .map((e) => e.getAttribute('data-def-id')))
+    for (const id of POPULAR_DEF_IDS) {
+      expect(byId, `${id} was curated as Popular and is not under Technical`).toContain(id)
+    }
   })
 
-  it('⭐ TECHNICAL HOLDS EVERY SHIPPED DEFINITION — Popular is a shortcut, not a gate', () => {
+  it('⚰️⚰️ A RESULT IS ONE LINE — the description is a tooltip, not a paragraph', () => {
+    // ⚰️⚰️ MEASURED IN THE BROWSER: an 80.3px average row put THREE results in a
+    // 316.7px viewport. The description was 34px of that, every row, on a surface
+    // a member scans rather than reads. Owner, 2026-09-17: *"the user already
+    // knows they are browsing indicators... I want roughly 7–9 visible."*
+    //
+    // ⛔ MOVED, NOT DELETED — which is the whole distinction. The sentence is on
+    // the ROW's `title`, so it is one hover away and still reaches a screen reader
+    // as the row's accessible description; what it stops doing is setting the
+    // height of the list.
     show(base()); openTab()
     fireEvent.click(addBtn())
-    fireEvent.click(tabNamed('Technical'))
-    const technical = resultNames()
-    fireEvent.click(tabNamed('Popular'))
-    for (const n of resultNames()) {
-      expect(technical, `${n} is Popular but not reachable under Technical`).toContain(n)
+    const rows = [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resRow"]')]
+      .filter((e) => !/resRows/.test(e.className))
+    expect(rows.length, 'no results rendered — the case proves nothing').toBeGreaterThan(5)
+    for (const r of rows) {
+      expect(r.querySelector('[class*="resBlurb"]'),
+        `${r.textContent.slice(0, 18)} still renders a description line`).toBeNull()
+      // …and what a description said is still available.
+      expect(r.getAttribute('title'), 'the description was lost rather than moved').toBeTruthy()
     }
-    expect(technical.length).toBeGreaterThan(resultNames().length)
+    // ⛔ AND THE ROW KEEPS EVERYTHING THAT IDENTIFIES OR WARNS. Density is not a
+    // licence to drop a capability badge.
+    const ich = rows.find((r) => /Ichimoku/.test(r.textContent))
+    expect(ich.querySelector('[class*="resGlyph"]'), 'the glyph went with the description').toBeTruthy()
+    expect(ich.querySelector('[class*="resName"]').textContent.trim()).toBe('Ichimoku Cloud')
+    expect(ich.querySelector('[class*="resShort"]'), 'the canonical abbreviation went').toBeTruthy()
+    expect(ich.querySelector('[class*="resRepaint"]'),
+      'a genuine capability warning was dropped for density').toBeTruthy()
+  })
+
+  it('⛔⛔ THE SEARCH FIELD NO LONGER GLOWS GOLD, and still shows focus', () => {
+    // ⚰️ IT WAS A 1px ACCENT BORDER PLUS A 1px ACCENT GLOW around the one control
+    // a member touches first, every time, on a panel where gold means "you are
+    // here" and nothing else. Owner: *"remove that treatment."*
+    // ⛔ REMOVED, NOT DELETED. A focus state a keyboard member cannot see is an
+    // accessibility regression, so the rule stays and only its volume changes —
+    // asserted from the stylesheet, because jsdom applies no CSS.
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    const at = css.indexOf('.insAdd .indSearch:focus')
+    expect(at, 'the Add surface no longer styles its own search focus at all')
+      .toBeGreaterThan(-1)
+    const rule = css.slice(at, css.indexOf('}', at))
+    expect(rule, 'the focus rule still names the gold accent').not.toMatch(/--menu-accent|220, 187, 94|#dcbb5e/)
+    expect(rule, 'the gold glow is still there').toContain('box-shadow: none')
+    expect(rule, 'focus-visible lost its own treatment').toContain(':focus-visible')
+    expect(rule, 'there is no visible focus signal left').toMatch(/border-color/)
   })
 
   it('⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS', () => {
@@ -1101,7 +1173,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no ficti
     // contract the brief protects: *"do not make ticker search harder."*
     show(base()); openTab()
     fireEvent.click(addBtn())
-    expect(chosen().textContent.trim()).toBe('Popular')
+    expect(chosen().textContent.trim()).toBe('Technical')
 
     type('rsi')
     expect(chosen(), 'a landing tab is still filtering a search').toBeUndefined()

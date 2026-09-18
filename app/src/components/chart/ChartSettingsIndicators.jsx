@@ -245,7 +245,7 @@ export default function ChartSettingsIndicators({
   // `discoveryCatalog.tabOf`, which reads `kind` and the server's own security
   // type and derives nothing. `Popular` is the landing tab because it is the
   // curated answer to "what do most people add".
-  const [tab, setTab] = useState('popular')
+  const [tab, setTab] = useState('technical')
   // ⛔⛔ SEARCH IS UNIVERSAL UNTIL THE MEMBER SAYS OTHERWISE, and this boolean is
   // the whole of that rule. `Popular` is a LANDING state, not a filter the member
   // chose — so leaving it applied over a query would mean typing `QQQ` returned
@@ -897,7 +897,7 @@ export default function ChartSettingsIndicators({
     // looking for something and changed their mind lands back on `EMA 20`.
     // ⚠️ AND WITH NO SELECTION THIS IS UNREACHABLE — the arrow that calls it is
     // not rendered, because `active` with nothing selected IS discovery.
-    setMode('active'); setQuery(''); setTab('popular'); setTabPinned(false)
+    setMode('active'); setQuery(''); setTab('technical'); setTabPinned(false)
     try { searchRef.current?.blur() } catch { /* noop */ }
   }, [])
 
@@ -923,7 +923,7 @@ export default function ChartSettingsIndicators({
   // its Inspector unchanged — the mode is a lens over the same state, not a
   // separate place with its own.
   const enterArrange = useCallback(() => {
-    setMode('arrange'); setQuery(''); setTab('popular'); setTabPinned(false); setNarrowView('list')
+    setMode('arrange'); setQuery(''); setTab('technical'); setTabPinned(false); setNarrowView('list')
   }, [])
   const leaveArrange = useCallback(() => {
     setMode('active')
@@ -2125,6 +2125,10 @@ export default function ChartSettingsIndicators({
         data-result-key={row.key || row.id}
         data-result-kind={row.kind || undefined}
         data-user-defined={row.userDefined ? 'true' : 'false'}
+        /* ⚠️ THE DESCRIPTION LIVES HERE NOW — see the note where its line used to
+           be. `title` on the row rather than on the name, so the whole row is the
+           hover target for it. */
+        title={row.description || undefined}
         tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
         onClick={() => { if (canAdd) addRow(row) }}
@@ -2166,7 +2170,38 @@ export default function ChartSettingsIndicators({
               <span className={styles.resTier}>{row.tier}</span>
             )}
           </span>
-          {row.description && <span className={styles.resBlurb} title={row.description || undefined}>{row.description}</span>}
+          {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
+              NAME. `securityResults` builds a ticker row as `name: QQQ`,
+              `shortName: ETF`, `description: Invesco QQQ Trust` — so dropping the
+              description here would leave a row reading `QQQ  ETF` and nothing
+              else, which is an identity a member cannot confirm. That is not an
+              educational sentence, it is the second half of the name, so it goes
+              INLINE rather than on a second line (owner §15: *"a security/company
+              name can be secondary inline text if useful, but avoid a tall
+              two-line result"*).
+              ⛔ SECURITIES ONLY, AND BY `kind` RATHER THAN BY LOOKING AT THE TEXT.
+              A breadth row's description restates its name and a technical one is
+              prose; neither earns the space. */}
+          {row.kind === 'security' && row.description
+            /* ⚠️⚠️ AND ONLY WHEN IT SAYS SOMETHING THE NAME DOES NOT. The two
+               security adapters disagree about which field holds what: a SEARCH
+               row is `name: QQQ` / `description: Invesco QQQ Trust`, while a
+               BROWSE row carries the company in BOTH. Measured in the harness —
+               `Apple Inc. AAPL Apple Inc.` — so the guard is a comparison rather
+               than a rule about which adapter produced the row. */
+            && row.description.trim() !== String(row.name || '').trim() && (
+            <span className={styles.resSub}>{row.description}</span>
+          )}
+          {/* ⚰️⚰️ THE DESCRIPTION WAS A SECOND LINE HERE AND IS NOW THE ROW'S
+              TOOLTIP. It cost 34px of every row — with the padding, a result was
+              80px tall and THREE of them fitted the viewport. Owner, 2026-09-17:
+              *"the user already knows they are browsing indicators, and the
+              descriptions are costing too much vertical space... I want roughly
+              7–9 visible."*
+              ⛔ MOVED, NOT DELETED. The sentence is on the row's `title` (see the
+              `<li>` above), so it is one hover away and still reaches a screen
+              reader through the accessible description — what it stops doing is
+              setting the height of a catalogue nobody reads end to end. */}
           {/* The server's own words, where it gave any — `delisted 2022-10-27`,
               `index history not served by /api/bars-history`. Never a guess. */}
           {refused && row.capabilityReason && (

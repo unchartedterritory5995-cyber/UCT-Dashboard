@@ -2049,7 +2049,7 @@
 }
 .insTabs {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
   /* ⚰️ EIGHT CATEGORIES DO NOT FIT A 325px COLUMN AT A READABLE SIZE — measured:
@@ -2067,13 +2067,14 @@
 .insTab {
   flex: 0 0 auto;
   height: 24px;
-  /* ⚠️ 7px, AND IT BUYS ONE MORE TAB RATHER THAN SOLVING ANYTHING. Measured on
-     the wider panel: the eight categories need 532px and the strip has 386, so
-     roughly five and a half fit and the rest scroll. Closing 146px would mean
-     shrinking the text past readable, which the brief rules out by name — so the
-     strip stays a SCROLL, with a fade to say so, arrow keys to walk it and the
-     chosen tab scrolling itself into view. */
-  padding: 0 7px;
+  /* ⚰️ THE NOTE HERE USED TO EXPLAIN WHY THE STRIP HAD TO SCROLL: eight
+     categories needed 509px against 386. Three of them came off the strip (see
+     `LIBRARY_TABS`), so five need about 340 and there is nothing left to scroll.
+     ⚠️ 9px, NOT 7 — the padding goes UP now that there is room, because a 24px
+     tab with 7px of side padding was sized for a problem that no longer exists.
+     The scroll behaviour stays in place for a narrower panel; it simply never
+     fires at the desktop measure. */
+  padding: 0 9px;
   box-sizing: border-box;
   border: 1px solid var(--menu-border, #2b2b2d);
   border-radius: 5px;
@@ -2139,9 +2140,21 @@
 }
 .insAdd .indSearch::placeholder { color: var(--menu-text-dim, #b3b3b9); }
 .insAdd .indSearchIcon { left: 11px; font-size: 14px; color: var(--menu-text-dim, #b3b3b9); }
-.insAdd .indSearch:focus {
-  border-color: var(--menu-accent, #dcbb5e);
-  box-shadow: 0 0 0 1px rgba(220, 187, 94, 0.25);
+/* ⚰️⚰️ THE GOLD RING IS GONE. It was a 1px accent border plus a 1px accent
+   glow — a bright rectangle around the one control a member touches FIRST, every
+   time they open the tab, on a panel where gold is supposed to mean "you are
+   here" and nothing else. Owner, 2026-09-17: *"remove that treatment... it should
+   be much quieter and fit the UCT dark UI."*
+   ⭐ WHAT REPLACES IT IS THE SAME SIGNAL, ONE STEP QUIETER: the border brightens
+   to the panel's own light edge and the field's ground lifts a shade, so it reads
+   as ACTIVE without reading as ALERT. ⛔ NOT REMOVED, AND NOT THE BROWSER'S BLUE:
+   a focus state a keyboard member cannot see is an accessibility regression, so
+   the rule stays and only its volume changes. */
+.insAdd .indSearch:focus,
+.insAdd .indSearch:focus-visible {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 .insAddBody {
   flex: 1;
@@ -2165,7 +2178,12 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-.insAddGroup + .insAddGroup { margin-top: 16px; }
+/* ⚰️ 16 → 10. A family heading should help the eye jump; at 16px of air above a
+   15px label it was costing most of an indicator row per group, and there are
+   five groups in Technical alone. */
+.insAddGroup + .insAddGroup { margin-top: 10px; }
+/* The label sits close to the rows it names, not floating between two families. */
+.insAdd .insAddGroup > .insSectionLabel { margin-bottom: 3px; }
 /* ⚠️⚠️ THE ROW BLEEDS 8px EACH SIDE, AND THIS SURFACE HAS NOTHING TO BLEED INTO.
    `.resRow` pairs `margin: 0 -8px` with `padding: 9px 8px` so its hover background
    reaches the edges of the LIBRARY DIALOG, whose list sits inside 8px of container
@@ -2187,11 +2205,26 @@
    scroller, both of which are inside a column whose width is already settled. */
 .insAdd .resRow {
   display: flex;
-  align-items: flex-start;
-  gap: 11px;
+  /* ⚰️ CENTRED, NOT TOP-ALIGNED. A row is ONE LINE now — glyph, name,
+     abbreviation, badges, action — so there is no second line for the glyph to
+     align its top with. */
+  align-items: center;
+  gap: 10px;
   margin-inline: 0;
-  padding: 10px 8px 11px;
-  border-radius: 6px;
+  /* ⚰️⚰️ 10/11 → 5, AND THAT IS WHERE THE DENSITY COMES FROM ALONGSIDE THE
+     DELETED DESCRIPTION. Measured: an 80.3px average row put THREE results in a
+     316.7px viewport; 5px of padding over a 22px line lands at ~32px, which is
+     seven to nine. ⛔ THE TEXT DID NOT SHRINK — the brief rules that out by name,
+     and the name is still 12.5px. What shrank is the empty space around it.
+     ⚠️ AND THE HIT TARGET DID NOT SHRINK EITHER: `min-height` holds the row at
+     32px whatever its contents, which is a comfortable pointer target for a
+     desktop list and leaves `＋ Add` its own 22px button inside it. */
+  /* ⚠️ 6, NOT 5. Measured across the real catalogue: 5px lands rows at 31px and
+     ten in the viewport, which is past dense into cramped; 6px lands 33px and
+     eight, which is the middle of the 7–9 the owner asked for. */
+  padding: 6px 8px;
+  min-height: 32px;
+  border-radius: 5px;
 }
 /* ⛔⛔ TWO LINES OF DESCRIPTION, AND THE ROW STOPS THERE. Measured before the
    clamp: rows came out 81, 98, 106 and 123px tall depending on how long the
@@ -2200,12 +2233,8 @@
    differently sized rows is the thing that stops the eye.
    ⚠️ NOTHING IS LOST: the full sentence is on the element's `title`, and the
    catalogue's descriptions are written as one line anyway. */
-.insAdd .resBlurb {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+/* ⚰️ `.insAdd .resBlurb` STOOD HERE. No Add-surface row renders a description
+   any more (it is the row's `title`), so the rule had nothing to style. */
 /* A hairline BETWEEN rows, not a border around each — structure without boxes. */
 .insAdd .resRow + .resRow {
   border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.05));
@@ -2223,11 +2252,14 @@
    opposite of what a search list is for: the member is scanning for one name, and
    every row that does not match is a row they had to travel past.
    ⛔ SCOPED TO `.insAdd`. `.resRow` is the library dialog's own class too. */
-/* ⚰️⚰️ AND THEN THE FIRST PASS CUT IT TOO FAR. 7px of padding left the
-   rows bunched together with descriptions hard to scan (owner, after using it).
-   The answer is not the old ~60px row; it is room BETWEEN entries rather than
-   inside them, so the list stays dense while each result reads as one object. */
-.insAdd .resRow { padding-top: 10px; padding-bottom: 10px; }
+/* ⚰️⚰️⚰️ A `padding-top/bottom: 10px` OVERRIDE STOOD HERE AND IS RETIRED. It was
+   written when a row carried a DESCRIPTION — *"room BETWEEN entries rather than
+   inside them, so the list stays dense while each result reads as one object"* —
+   and it was right about a two-line row. There is one line now, the hairline
+   between rows does the separating, and 10px of padding on a 20px line was
+   costing 9px of every result for nothing. It also sat LATER IN THE FILE than the
+   rule it fought, so the compact padding above silently did not apply: measured
+   41px per row where 33 was designed. Set the padding in ONE place. */
 /* ⭐ THE THREE TIERS, ON ONE ROW. Name PRIMARY — it is what the member is
    scanning for. Description SECONDARY with a real line-height, because it is the
    sentence that decides whether this is the right indicator. Abbreviation stays
@@ -2491,6 +2523,9 @@
   transition: border-color 120ms, background 120ms;
 }
 .indSearch::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+/* ⚠️ THE SHARED RULE KEEPS ITS ACCENT — `.indSearch` is also the library
+   dialog's and the source picker's search box, and this pass is about the Add
+   surface. The override above is scoped to `.insAdd` for that reason. */
 .indSearch:focus { border-color: var(--menu-accent, #dcbb5e); }
 /* The native search widget's own clear button — we render our own, aligned. */
 .indSearch::-webkit-search-cancel-button { appearance: none; }
@@ -2893,8 +2928,33 @@
 .resRow:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
 .resRowOn { cursor: default; }
 .resRowOn:hover { background: transparent; }
+/* ⚰️ IT WAS A COLUMN — a title row stacked over a description. The description
+   is gone (it is the row's tooltip now), so the column has one child and becomes
+   the line itself. */
+.insAdd .resMain { flex-direction: row; align-items: center; gap: 0; }
 .resMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .resTitleRow { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+/* ⛔ AND IT DOES NOT WRAP IN THE ADD SURFACE. A wrapped badge would silently put
+   a row back to two lines and undo the whole pass; the NAME truncates instead,
+   which is the same bargain the left column already makes. */
+.insAdd .resTitleRow { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; gap: 6px; }
+.insAdd .resName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ⚠️ A SECURITY'S SECOND HALF OF ITS NAME, on the same line. It takes whatever
+   the ticker and the badge leave and ellipsizes — never a second row. */
+.resSub {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--menu-text-dim, #8a8a8f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.insAdd .resShort,
+.insAdd .resMine,
+.insAdd .resPill,
+.insAdd .resTier,
+.insAdd .resRepaint { flex: none; }
 .resName { font-size: 12.5px; font-weight: 600; color: var(--menu-text, #ededed); }
 .resShort {
   font-size: 9.5px;

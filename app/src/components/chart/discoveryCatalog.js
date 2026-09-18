@@ -823,16 +823,37 @@ export function libraryRows(registry) {
 // Add surface. A stored "last category" would be a new preference key on the
 // settings blob for a filter the member re-chooses in one click.
 
-/** The strip, in reading order. `key` is internal; `label` is what is printed. */
+/**
+ * The strip, in reading order. `key` is internal; `label` is what is printed.
+ *
+ * ⚰️⚰️ IT HAD EIGHT TABS AND IT HAS FIVE. `Popular`, `ETFs` and `Formulas` are
+ * off the strip — owner, 2026-09-17 — and the immediate reason is arithmetic:
+ * eight tabs need 509px and the strip has 386, so three of them were always
+ * behind a scroll. Five fit, which is what makes the navigation legible.
+ *
+ * ⛔ AND IT IS A NAVIGATION DECISION, NOT A DELETION. Nothing underneath moved:
+ * `tabOf` still classifies a formula and an ETF, `resultsForTab` still answers for
+ * both keys, and `glyphFamilyOf` still draws them. What changed is which keys this
+ * ONE surface offers as a browse door — the categories that are gone are the ones
+ * with another way in:
+ *   · Popular    was a curated shortcut INTO Technical; Technical is the default
+ *                 now, so the shortcut pointed at where you already are.
+ *   · ETFs       an ETF is a security and arrives through Symbols and through
+ *                 search, with the server's own classification intact.
+ *   · Formulas   `＋ New Formula` in the header is the door to formulas, and it
+ *                 is a CREATE door rather than a browse one.
+ *
+ * ⚠️ `POPULAR_DEF_IDS` AND ITS LEDGER ROW STAY. The curation is still a real
+ * fact about which definitions matter most, `resultsForTab` still honours the
+ * `popular` key, and deleting the list to match a strip would throw away the
+ * judgment rather than the tab.
+ */
 export const LIBRARY_TABS = Object.freeze([
-  Object.freeze({ key: 'popular', label: 'Popular' }),
   Object.freeze({ key: 'technical', label: 'Technical' }),
   Object.freeze({ key: 'fundamentals', label: 'Fundamentals' }),
   Object.freeze({ key: 'breadth', label: 'Breadth' }),
   Object.freeze({ key: 'symbols', label: 'Symbols' }),
   Object.freeze({ key: 'indexes', label: 'Indexes' }),
-  Object.freeze({ key: 'etfs', label: 'ETFs' }),
-  Object.freeze({ key: 'formulas', label: 'Formulas' }),
 ])
 
 /**
