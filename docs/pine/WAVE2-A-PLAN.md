@@ -588,6 +588,45 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# ⏸️ THE BINDER `notes` CHANNEL — 2.1 MEASURED, BUILD NOT STARTED
+
+**The reader census the build needs, done. The build itself is NOT started** — the
+session ran out of room, and half a channel with no mutation proof is worse than
+none. Recorded so the next session starts from measurement rather than from here.
+
+## Every reader of `sync`'s return, measured
+
+| reader | what it does with it |
+|---|---|
+| `StockChart.jsx:11471` — **the only product caller** | **DISCARDS IT.** `engineRef.current.binder.sync({…})`, no assignment |
+| `readout.js:610,668` | reads **`binder.bindings()`**, not the return — confirmed, not assumed |
+| product references to `released` outside `binder.js` | **none** |
+| tests | destructure named keys (`{ F }`, `{ F, result }`), never iterate the key set |
+
+⭐ **SO AN ADDITIVE `notes` IS SAFE BY MEASUREMENT, NOT BY CONVENTION** — nothing
+enumerates the return's keys, so no accommodation commit is needed first. That was
+the one thing capable of turning a one-line widening into a breaking change, and it
+is the reason 2.1 comes before 2.2.
+
+## Where the note has to come from, located
+
+`binder.js:1345-1395`. `isFillHost` is the FIRST VISIBLE binding for an instance
+(`fillHostSeen`); the hosted-fill loop runs only under `if (isFillHost)`. **An
+instance with fills and no visible plot produces no binding at all**, so the loop
+never runs for it and its bands are dropped with nothing said — which is exactly
+the silence the channel is for. The emit therefore belongs in a pass that compares
+instances declaring `plots[].hidden === true` with a `fill.with` against
+`fillHostSeen`, AFTER the binding loop.
+
+⚠️ **ONE FIELD IS NOT YET ESTABLISHED, AND MUST NOT BE GUESSED.** The ruled note
+shape is `{line, code, message}`, but the binder works on the DEFINITION, and it is
+not yet measured whether a `plots[]` entry carries a source line at all. Read the
+document's shape before writing the field — guessing one is the defect this
+programme has already paid for twice this session (`definition.fills`,
+`outputs[].compute`).
+
+---
+
 # ✅ H.11 — DEFERRED BEYOND WAVE 2 (owner, 2026-09-17). Grounds recorded.
 
 > **Stable parameter ids are not Wave 2's to build.** The design below is kept as
