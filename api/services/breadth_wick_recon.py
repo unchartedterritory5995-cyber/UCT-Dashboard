@@ -294,37 +294,55 @@ def session_basis(conn, day_ts: int, tickers=None) -> dict:
     is what must move — the alternative (un-adjusting the levels) would rebuild the very
     frame the validation already proved correct, to reach the same inequality.
 
-    factor = adjusted_close(D) / raw_close(D), both official closes of THE SAME SESSION.
-    The numerator is read from `bars.db` deliberately rather than from the provider's
-    adjusted endpoint: it is the exact series `build_levels` consumed, so the lift lands
-    on that basis and not merely near it.
+    factor = adjusted_close(D) / raw_close(D), BOTH READ FROM THE PROVIDER, both official
+    closes of THE SAME SESSION.
 
-    ⚠️ NOT LOOK-AHEAD. The ratio carries the cumulative corporate-action factor between
-    D and today and nothing else — no future price, no future market state. It is
-    applied per ticker to every price of that ticker, so no within-name comparison moves
-    relative to that name's own levels; only the two sides are put on one scale.
+    ⛔⛔ THE RATIO MUST BE PROVIDER-INTERNAL, and the first cut got this wrong by taking
+    the numerator from `bars.db`. That mixes two sources into one ratio, so ANY
+    disagreement between them is silently reinterpreted as a corporate action. Measured
+    on 2020-03-16: `BCPC` had provider raw 21.26 and provider adjusted 21.26 — the
+    provider asserting NO action — while `bars.db` held 83.67, and the mixed ratio
+    invented a 3.9356x "split" that scaled a correct price into nonsense. `TPC` was the
+    same shape at 0.2719x. Both were manufactured by the formula, not present in the data.
+
+    ⭐ Taking both sides from the provider makes the ratio carry EXACTLY one thing: the
+    cumulative corporate action between D and today. When the provider's own adjusted and
+    raw agree it is telling us there is no action, and the factor is 1.0 by construction
+    rather than by luck — which is why a source disagreement can no longer masquerade as
+    a split. Verified against the control: `AAPL` on 2020-03-16 reads raw 242.21,
+    adjusted 60.5525, factor 0.25 — its 4:1 split, exactly.
+
+    ⚠️ NOT LOOK-AHEAD. The ratio carries the corporate-action factor and nothing else —
+    no future price, no future market state. It is applied per ticker to every price of
+    that ticker, so no within-name comparison moves relative to that name's own levels;
+    only the two sides are put on one scale.
     ⛔ Names whose factor cannot be established are simply absent, and `session_ohlc`
-    fails closed on them.
+    fails closed on the ones whose levels could otherwise be compared.
     """
     from api.services import breadth_live as bl
     from api.services import massive
-    adj = session_eod_closes(conn, day_ts, tickers)
-    if not adj:
-        return {}
+    want = set(tickers) if tickers is not None else None
+    iso = bl._iso(day_ts)
     try:
-        raw = massive.get_grouped_daily_closes(bl._iso(day_ts), adjusted=False) or {}
+        raw = massive.get_grouped_daily_closes(iso, adjusted=False) or {}
+        adj = massive.get_grouped_daily_closes(iso, adjusted=True) or {}
     except Exception:                                  # noqa: BLE001
         return {}
+    if not raw or not adj:
+        return {}
     out = {}
-    for t, a in adj.items():
+    for t, r in raw.items():
         # provider form carries a dot (BRK.B); the frame and the flat file use a dash.
-        r = raw.get(t) or raw.get(t.replace("-", "."))
+        key = t.replace(".", "-")
+        if want is not None and key not in want:
+            continue
+        a = adj.get(t)
         try:
-            r = float(r)
+            r, a = float(r), float(a)
         except (TypeError, ValueError):
             continue
         if r > 0.0 and a > 0.0:
-            out[t] = a / r
+            out[key] = a / r
     return out
 
 

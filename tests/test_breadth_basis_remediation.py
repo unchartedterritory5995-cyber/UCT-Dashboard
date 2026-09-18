@@ -305,20 +305,18 @@ def test_the_rth_session_shape_is_untouched_by_the_fix():
 
 
 def test_session_basis_is_a_ratio_of_two_closes_of_the_same_session(monkeypatch):
-    """The seam itself: adjusted(D)/raw(D), and nothing from any other date."""
+    """The seam itself: the provider's OWN adjusted(D)/raw(D) for one session."""
     import sqlite3
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INT, c REAL)")
-    conn.executemany("INSERT INTO ohlcv VALUES (?,?,?,?)",
-                     [("SPL", "D", 111, 10.0), ("STD", "D", 111, 50.0),
-                      ("SPL", "D", 222, 99.0)])          # a DIFFERENT session
     from api.services import massive
     monkeypatch.setattr(massive, "get_grouped_daily_closes",
-                        lambda d, adjusted=True: {"SPL": 100.0, "STD": 50.0})
+                        lambda d, adjusted=True: ({"SPL": 10.0, "STD": 50.0} if adjusted
+                                                  else {"SPL": 100.0, "STD": 50.0}))
     monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
     out = wr.session_basis(conn, 111)
-    assert out["SPL"] == pytest.approx(0.1)
-    assert out["STD"] == pytest.approx(1.0)
+    assert out["SPL"] == pytest.approx(0.1)             # 10:1 split since D
+    assert out["STD"] == pytest.approx(1.0)             # provider asserts no action
 
 
 def test_session_basis_returns_empty_when_raw_closes_are_unavailable(monkeypatch):
@@ -362,11 +360,8 @@ def _basis_conn(rows):
     ("n/a", "non-numeric"), (float("nan"), "NaN"),
 ])
 def test_an_unusable_RAW_close_yields_no_factor(monkeypatch, raw_value, why):
-    from api.services import massive
-    conn = _basis_conn([("A", 10.0), ("B", 10.0)])
-    monkeypatch.setattr(massive, "get_grouped_daily_closes",
-                        lambda d, adjusted=True: {"A": raw_value, "B": 10.0})
-    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
+    conn = _basis_conn([])
+    _provider(monkeypatch, {"A": raw_value, "B": 10.0}, {"A": 10.0, "B": 10.0})
     out = wr.session_basis(conn, 111)
     assert "A" not in out, f"a {why} raw close must not produce a factor"
     assert out["B"] == pytest.approx(1.0)
@@ -376,13 +371,11 @@ def test_an_unusable_RAW_close_yields_no_factor(monkeypatch, raw_value, why):
     (None, "missing"), (0.0, "zero"), (-5.0, "negative"),
 ])
 def test_an_unusable_ADJUSTED_close_yields_no_factor(monkeypatch, adj_value, why):
-    from api.services import massive
-    conn = _basis_conn([("A", adj_value), ("B", 10.0)])
-    monkeypatch.setattr(massive, "get_grouped_daily_closes",
-                        lambda d, adjusted=True: {"A": 10.0, "B": 10.0})
-    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
+    conn = _basis_conn([])
+    _provider(monkeypatch, {"A": 10.0, "B": 10.0}, {"A": adj_value, "B": 10.0})
     out = wr.session_basis(conn, 111)
     assert "A" not in out, f"a {why} adjusted close must not produce a factor"
+    assert out["B"] == pytest.approx(1.0)
 
 
 def test_a_name_with_no_factor_is_DROPPED_not_silently_unlifted():
@@ -400,23 +393,17 @@ def test_a_name_with_no_factor_is_DROPPED_not_silently_unlifted():
 
 
 def test_the_whole_session_is_refused_when_no_factor_can_be_built(monkeypatch):
-    from api.services import massive
-    conn = _basis_conn([("A", 10.0)])
-    monkeypatch.setattr(massive, "get_grouped_daily_closes",
-                        lambda d, adjusted=True: {})
-    monkeypatch.setattr(bl, "_iso", lambda ts: "2015-08-24")
-    assert wr.session_basis(conn, 111) == {}
+    _provider(monkeypatch, {}, {})
+    assert wr.session_basis(_basis_conn([("A", 10.0)]), 111) == {}
 
 
 def test_large_split_ratios_are_handled(monkeypatch):
     """The validation observed real factors at 20x, 10x and 6x, plus reverse-split
     ratios well below 1. None is special-cased; all are one division."""
-    from api.services import massive
-    conn = _basis_conn([("F20", 5.0), ("F10", 10.0), ("F6", 20.0), ("REV", 400.0)])
-    monkeypatch.setattr(massive, "get_grouped_daily_closes", lambda d, adjusted=True: {
-        "F20": 100.0, "F10": 100.0, "F6": 120.0, "REV": 20.0})
-    monkeypatch.setattr(bl, "_iso", lambda ts: "2011-01-03")
-    out = wr.session_basis(conn, 111)
+    _provider(monkeypatch,
+              {"F20": 100.0, "F10": 100.0, "F6": 120.0, "REV": 20.0},     # as traded
+              {"F20": 5.0, "F10": 10.0, "F6": 20.0, "REV": 400.0})        # adjusted
+    out = wr.session_basis(_basis_conn([]), 111)
     assert out["F20"] == pytest.approx(0.05)     # 20:1 forward split since
     assert out["F10"] == pytest.approx(0.10)     # 10:1
     assert out["F6"] == pytest.approx(1 / 6.0)   # 6:1
@@ -527,3 +514,53 @@ def test_the_split_rail_FAILS_against_the_old_unlifted_behaviour():
                            members={"N"}, basis={"N": 0.1})     # truly 8.0 vs 10.0
     assert old2["pct_above_50sma"]["c"] == 100.0, "old: 80 > 10, spuriously above"
     assert new2["pct_above_50sma"]["c"] == 0.0, "new: 8.0 < 10.0, correctly below"
+
+
+# ── the ratio is PROVIDER-INTERNAL ───────────────────────────────────────────
+
+def _provider(monkeypatch, raw, adj):
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: (adj if adjusted else raw))
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2020-03-16")
+
+
+def test_a_source_disagreement_can_NOT_masquerade_as_a_split(monkeypatch):
+    """⛔⛔ THE SECOND DEFECT THIS PHASE FOUND, from a 0.1% residual nobody had to chase.
+
+    Taking the numerator from `bars.db` and the denominator from the provider mixes two
+    sources into one ratio, so ANY disagreement between them is reinterpreted as a
+    corporate action. Real case, 2020-03-16: BCPC had provider raw 21.26 and provider
+    adjusted 21.26 — no action — while bars.db held 83.67. The mixed ratio invented a
+    3.9356x split and scaled a correct price into nonsense. TPC was the same at 0.2719x.
+    A provider-internal ratio cannot do this: raw == adjusted means factor 1.0."""
+    conn = _basis_conn([("BCPC", 83.67), ("TPC", 5.33)])      # bars.db disagrees
+    _provider(monkeypatch, {"BCPC": 21.26, "TPC": 19.60},
+                           {"BCPC": 21.26, "TPC": 19.60})     # provider: no action
+    out = wr.session_basis(conn, 111)
+    assert out["BCPC"] == pytest.approx(1.0), "no action asserted -> no lift"
+    assert out["TPC"] == pytest.approx(1.0), "no action asserted -> no lift"
+
+
+def test_a_REAL_split_is_still_measured_exactly(monkeypatch):
+    """The control that proves the gate above did not disarm the fix: AAPL on
+    2020-03-16 — provider raw 242.21, adjusted 60.5525 — is its 4:1 split."""
+    conn = _basis_conn([("AAPL", 60.5525)])
+    _provider(monkeypatch, {"AAPL": 242.21}, {"AAPL": 60.5525})
+    assert wr.session_basis(conn, 111)["AAPL"] == pytest.approx(0.25, rel=1e-6)
+
+
+def test_the_factor_does_not_depend_on_bars_db_at_all(monkeypatch):
+    """Whatever bars.db holds, the ratio is the provider's own statement about actions."""
+    _provider(monkeypatch, {"X": 100.0}, {"X": 25.0})
+    a = wr.session_basis(_basis_conn([("X", 25.0)]), 111)
+    b = wr.session_basis(_basis_conn([("X", 999.0)]), 111)     # nonsense bars.db value
+    c = wr.session_basis(_basis_conn([]), 111)                 # bars.db has nothing
+    assert a["X"] == b["X"] == c["X"] == pytest.approx(0.25)
+
+
+def test_provider_dot_form_is_mapped_to_the_frame_dash_form(monkeypatch):
+    """BRK.B provider-side is BRK-B in the frame and the flat file."""
+    _provider(monkeypatch, {"BRK.B": 200.0}, {"BRK.B": 100.0})
+    out = wr.session_basis(_basis_conn([("BRK-B", 100.0)]), 111, tickers=["BRK-B"])
+    assert out["BRK-B"] == pytest.approx(0.5)
