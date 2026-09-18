@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 2107,
+  "passed": 2072,
+  "failed": 33,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 221.81,
+  "failed_files": [
+    "tests/test_gitattributes_eol.py",
+    "tests/test_implied_backfill.py",
+    "tests/test_launch_hardening.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "33 failed, 2072 passed, 2 skipped, 19 warnings in 221.81s (0:03:41)",
+  "ok": true
+}
