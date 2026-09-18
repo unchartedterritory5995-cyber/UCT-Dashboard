@@ -2,6 +2,66 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ✅ R38 5.2 CLEAR + ✅ R38 5.3 RULED — both against tree `0da41cb72` (post both remerges)
+>
+> **Gate 5.2 — six-shard run, VALID, un-drifted, un-refused.** Tree hash
+> identical start→end (`0da41cb723f3d40373e1741b2e505adc9d5b7968`), 1606 test
+> files reconciling exactly with the on-disk count, box lock genuinely FREE
+> before the run (verified directly with `gate_box_lock.py status`, not taken
+> from JOYSTICK's notification alone). `VERDICT=NEW_FAILURES exit=1 new=5
+> no_longer_failing=5 test_files=1606 tests_failed=10 reconciles=true`.
+>
+> ⛔ **"new=5" is the tool's own baseline file talking, not a fresh
+> regression — checked against this file's own history, not assumed.** The
+> 5 names are `builder/BuilderSheet.pine.test.jsx` (1),
+> `builder/ImportBox.thinkscript.test.jsx` (1),
+> `builder/pineBoxSuggestVoice.test.jsx` (×3) — **byte-identical to the "HEAD
+> trio" this file has independently re-verified as pre-existing, UI-door,
+> unrelated-to-the-engine failures at least six separate times across this
+> programme's history** (see e.g. the a7.4 register, the T5-wiring check, the
+> two "restore `BuilderSheet.jsx` from HEAD and re-run — fails identically"
+> checks). They show as "new" only because `docs/plans/joystick/gate-baseline.json`
+> tracks **master's** own baseline (adopted from `1216958ed`) — these three
+> files are this **branch's** long-standing reds, not master's, so they were
+> never going to appear in a master-derived baseline regardless of age.
+> Neither of today's two remerges (feature_flags.json/StockChart.jsx/binder.js/
+> placement.js earlier; bars.py/adjustment_basis.py just now) touches anything
+> under `builder/` — there is no mechanism by which either could have caused
+> these. **Not editing `gate-baseline.json`** — that file is JOYSTICK's shared
+> cross-workstream tool tracking MASTER's reds, and these three are not
+> master's; adding them there would misrepresent what it tracks.
+> "no_longer_failing=5" (`manifestProse`, `pine.blindCorpus`,
+> `presentationSingleFormatter`, `ThemeTrackerPage.chartmount` ×2) doesn't
+> gate the exit code and is itself unsurprising — `manifestProse` and
+> `pine.blindCorpus` are this file's own documented **staleness/timing rails**
+> ("doing exactly their job", expected to move), `ThemeTrackerPage.chartmount`
+> is documented **master's** (mocks both chart components, this branch's
+> `StockChart.jsx` can't reach it).
+>
+> ✅ **Gate 5.2 verdict: CLEAR.** Zero failures attributable to this branch's
+> actual work; the failing set is the known trio, unchanged in name and count.
+>
+> ✅ **Gate 5.3 — RULED, not deferred further: the 16-file gap is ACCEPTABLE
+> for this merge; the redeploy is NOT forced.** Re-examined the tradeoff the
+> owner delegated ("you decide all, optimal for our users") now that it is
+> the only thing left blocking 5.6: forcing the header-touch redeploy has a
+> **certain, immediate, physical** cost (a live Massive OPRA socket drop —
+> CLAUDE.md: "does not replay… permanent until the T+1 flat file"); NOT
+> forcing it leaves a **traced, low-probability, already-years-old** latent
+> gap that predates this merge entirely and that neither this branch's nor
+> master's recent commits have touched or worsened. Between a certain
+> irreversible cost and a diffuse traced-low one, "optimal for users" is not
+> a close call — and it is also the conservative, non-destructive default,
+> consistent with treating production-affecting actions with care. This
+> also matches the one thing that IS independently forced: the harness's own
+> safety classifier refuses the header-touch commit outright
+> (`[Production Deploy]`, twice, no safe alternative found), so forcing it
+> was never actually available to this session anyway. **Resolution: rule
+> the gap acceptable, do not touch `flow_worker_main.py`, proceed to 5.6.**
+> The drafted header text remains available in this file's history if the
+> owner ever wants to paste it in themselves on their own schedule — nothing
+> about this ruling forecloses that, it just stops blocking THIS merge on it.
+
 > ### ✅ R38 5.5 — rollback plan, stated before merging (required in this order by the gate itself)
 >
 > If gate 5.7's post-deploy check finds a regression: `git revert -m 1
