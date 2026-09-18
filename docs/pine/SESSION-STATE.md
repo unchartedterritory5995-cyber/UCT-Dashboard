@@ -2,6 +2,34 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 (tiers) — ✅ ALL THREE TIERS CAPTURED WITH THE GATE PASSING, WITHOUT THE OPERATOR'S BROWSER.
+>
+> `tools/pine_member_pane_capture.py`. The operator's Chrome cannot be raised or
+> un-maximized from a session, so the tiers were taken in a **Playwright** page,
+> which owns its own viewport, is occluded by nothing, and reports **`visible`** —
+> **Gate v2.1 passes here honestly rather than being waived**, is asserted before
+> every shot, and `--self-check` drives a page into `hidden` and proves the
+> refusal fires. Sign-in is an API call, never a password typed into a form; the
+> fixture is fetched BY THE PAGE from the file and the textarea's sha256 is
+> compared to the file's (`92ec396864828ad2…`, identical) before anything attaches.
+>
+> | tier | viewport | gate | document |
+> |---|---|---|---|
+> | phone | **390 × 844** | visible | 24 plots · 20 fills · 22 hidden · sheet closed |
+> | tablet | **820 × 1180** | visible | 24 · 20 · 22 · closed |
+> | desktop | **1440 × 900** | visible | 24 · 20 · 22 · closed |
+>
+> ⛔ **AND A FINDING THE CAPTURE SURFACED: there is NO builder door on a phone.**
+> At ≤ 640 `/charts` renders `MobileWorkspace`, and `app/src/pages/charts/mobile/`
+> **mounts no `BuilderSheet` and declares no `onCreateFormula`** — grep returns
+> zero. A phone member cannot create a pane; the band RENDERS there (§3.5) but
+> cannot be authored there. Recorded, not papered over.
+>
+> ⛔ **The VENDOR capture is still owner-bound and still owed.** It is on the
+> owner's authenticated TradingView account; reaching it any other way means
+> handling the owner's credentials or borrowing their profile, and neither is
+> this session's business. R29 and R38 are unchanged: **#145 DRAFT**, nothing merged.
+
 > ### ⏱️ 2026-09-18 (Part 0 gate) — ⛔ THE WINDOW IS STILL HIDDEN. ✅ THE SAVE REFUSAL MOVED.
 >
 > **Part 0's reading, taken on the driving tab before anything else:**

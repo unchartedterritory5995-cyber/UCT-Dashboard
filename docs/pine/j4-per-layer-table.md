@@ -125,19 +125,49 @@ the sandbox store was written **2026-09-18 01:17:51** and
 
 ### 3.4 Owed, and exactly why
 
-⚠️ **The mobile tiers are NOT captured.** The Chrome window is maximized and
-cannot be resized (`resize_window` reports success; `innerWidth` stays 1920) or
-raised from this session, so the phone (≤640) and tablet (641–1024) renderings of
-the drawn band are owed. They need a human to bring that window forward, or the
-window-raise permission. Restart the rig with:
+### 3.5 ✅ ALL THREE TIERS — captured, with the gate PASSING
 
-```
-UCT_RIG_PORT=8131 python docs/pine/wip/rig/boot_rig.py
-```
+`tools/pine_member_pane_capture.py`. The operator's Chrome could not be raised or
+un-maximized from a session, so the tiers were taken in a **Playwright** page
+instead: it owns its own viewport, is occluded by nothing, and reports
+`visible` — so **Gate v2.1 passes here honestly rather than being waived.** It is
+asserted immediately before every shot, and `--self-check` drives a page into
+`hidden` and proves the refusal fires.
 
-⭐ The build in `app/dist` is already made with `VITE_PINE_MEMBER_PANE_ENABLED=1`,
-which is what puts the attach button on screen at all — the 09-17 attempt had it
-unset, which is why only the Formula tab's `Save` was reachable that night.
+| tier | viewport | gate | document |
+|---|---|---|---|
+| phone | **390 × 844** | visible | 24 plots · 20 fills · 22 hidden · sheet closed |
+| tablet | **820 × 1180** | visible | 24 · 20 · 22 · closed |
+| desktop | **1440 × 900** | visible | 24 · 20 · 22 · closed |
+
+`docs/pine/capture/member-door-clouds-{phone,tablet,desktop}-2026-09-18.png`.
+The band renders at every width; on the phone it is drawn by `MobileWorkspace`,
+the separate shell, and the stack is intact there too.
+
+⛔ **A reported resize with an unchanged width is a FAILURE, and the tool says
+so** — that is exactly the trap the operator's maximized Chrome fell into
+(`resize_window` returned success while `innerWidth` stayed 1920). Each shot
+asserts the page reports the width that was asked for.
+
+### 3.6 ⛔ AND THERE IS NO BUILDER DOOR ON A PHONE AT ALL
+
+The first run opened the builder at every width and the phone leg reported
+`{"gear": false}`. That is not a script fault. At ≤ 640 `/charts` renders
+`MobileWorkspace`, and the phone chart shell — `app/src/pages/charts/mobile/` —
+**mounts no `BuilderSheet` and declares no `onCreateFormula` anywhere**; a grep
+over that directory returns zero. `MobileIndicatorSheet` writes overlays and
+presets; it does not list custom definitions and cannot create one.
+
+⭐ So the two questions are separated, because they are two questions: *can a
+member CREATE a pane at this width* — answered from source, **not on a phone** —
+and *does the pane RENDER at this width*, which is what a tier capture is for and
+which §3.5 answers with one attached instance seen at three widths. **The phone
+gap is recorded as a finding, not papered over by the capture.**
+
+⭐ The build in `app/dist` is made with `VITE_PINE_MEMBER_PANE_ENABLED=1`, which
+is what puts the attach button on screen at all — the 09-17 attempt had it unset,
+which is why only the Formula tab's `Save` was reachable that night. Restart the
+rig with `UCT_RIG_PORT=8131 python docs/pine/wip/rig/boot_rig.py`.
 
 ## 4. ⛔ R29 — #145 STAYS DRAFT. The failing condition, named.
 
