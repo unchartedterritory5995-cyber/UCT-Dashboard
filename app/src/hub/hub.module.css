@@ -70,7 +70,40 @@
 
 .knobFace {
   border-radius: var(--radius-pill);
-  background: var(--hub-knob-face); /* opaque — never translucent; it sits ON the glass */
+  /* ⛔⛔ D3 — THE SPECULAR RIM FOLLOWS THE DRAG. W4 pass 2.
+     ─────────────────────────────────────────────────────────────────────────────────────────
+     ⚰️ WHAT WAS HERE: `inset 0 1px 0 var(--hub-rim-highlight)` on the surfaces that had it —
+     a static top-edge line. A highlight that never moves is a decal, and the design bar's §1
+     names this as the one place this control can beat its reference set cheaply: Apple's
+     Camera zoom dial fakes its specular from a model, and this hub has the real drag vector
+     in hand on every frame.
+
+     `--hub-drag-angle` is written by HubKnob from `state.knob` (0deg = up, 90deg = right),
+     riding the render that already happens to move the knob — see the note at that call site
+     for why that is NOT the H14 hazard D3 warns about.
+
+     ⚠️ --hub-knob-face STAYS THE FINAL LAYER. The knob is opaque BY CONTRACT ("it sits ON the
+     glass, not IN it", HubKnob.jsx) — this is a sheen over that face, never a replacement for
+     it, and only the last layer of a `background` shorthand may carry the colour.
+
+     ⛔ NOT TRANSITIONED, DELIBERATELY. The angle must track the finger 1:1, exactly as
+     `.knobDragging { transition: none }` already does for this element's transform. Easing it
+     would smear the highlight along behind the thumb — the precise thing that reads as lag.
+
+     ⚰️ TWO MISTAKES IN THE FIRST ATTEMPT, BOTH FOUND BY LOOKING AT A FRAME rather than by a
+     number — every contrast row passed in both of them:
+       1. `linear-gradient(180deg, transparent, X)` puts X at the BOTTOM, so at rest the knob
+          read as lit FROM BELOW. 0deg points up, which is where D2 puts the light.
+       2. it painted with --hub-rim-highlight, which is --text-heading at 35% — white on dark,
+          NEAR-BLACK on light. The "specular" became a dark cap on the light theme.
+          --hub-specular is light in every theme, because a reflection is. */
+  background:
+    linear-gradient(
+      var(--hub-drag-angle, 0deg),
+      transparent 38%,
+      var(--hub-specular)
+    ),
+    var(--hub-knob-face);
   border: 1.5px solid var(--hub-rim-highlight);
   box-shadow: var(--hub-shadow);
   display: flex;
@@ -182,8 +215,39 @@
      theme-aware surface token that adapts to the page without inheriting its low contrast.
      Text stays `var(--text)` because a bubble that reads over both regions has enough contrast
      for either text colour. Verified across both themes on both profiles in pass 8. */
-  background: color-mix(in srgb, var(--hub-bubble-color) 60%, var(--bg-elevated));
+  /* ⛔⛔ W4 pass 1 SUPERSEDES THE F11 PARAGRAPH ABOVE — KEPT, NOT DELETED, because it records a
+     real fix and the reason it was the wrong shape. F11 made the bubble a 60%-opaque pill. That
+     cured the dark-on-dark label and spent the material to do it: measured on the shipped bundle,
+     `.pad`, `.chip`, `.actionsButton`, `.coachMark` and `.edgeTabGrip` all carried
+     `blur(18px) saturate(160%)` and the BUBBLE — the one thing a member looks at for the whole
+     gesture — carried none. The fan was the only part of the hub not made of the hub's material.
+
+     ⭐ THE RIM IS GLASS; THE CENTRE IS A BACKPLATE. Two layers in one background:
+       1. a radial ground of --hub-label-plate under the text, so the LABEL has something to be
+          read against on the un-scrimmed region as well as the scrimmed one;
+       2. a translucent accent wash that stays transparent at the edge, so the bubble still reads
+          as a lens rather than a decal.
+     That is the "contrast token inside the material" answer, and it is why the pill does NOT go
+     opaque to buy legibility. ⛔ The ratios are SAMPLED FROM RENDERED PIXELS by
+     `tools/hub_contrast.py`, never asserted here — an acceptance number is a forecast until it is
+     derived, and a comment claiming a ratio is the second-authority defect this repo keeps paying
+     for. */
+  background:
+    radial-gradient(circle at 50% 44%,
+      var(--hub-label-plate) 0%,
+      var(--hub-label-plate) 44%,
+      transparent 78%),
+    linear-gradient(158deg,
+      color-mix(in srgb, var(--hub-bubble-color) 32%, transparent) 0%,
+      color-mix(in srgb, var(--hub-bubble-color) 15%, transparent) 100%);
   border: var(--hub-rim-width) solid var(--hub-rim);
+  /* D2 — an ambient layer AND a key layer from ONE light direction (above, slightly behind the
+     thumb), plus the inset pair that gives the glass an EDGE instead of reading as a sticker. */
+  box-shadow:
+    var(--hub-shadow-ambient),
+    var(--hub-shadow-key),
+    inset 0 1px 0 var(--hub-rim-highlight),
+    inset 0 -1px 0 var(--hub-rim-lowlight);
   color: var(--text);
   text-align: center;
   line-height: 1.1;
@@ -262,11 +326,45 @@
 .fan .bubble {
   opacity: 0;
   transform: scale(0.72);
+  /* ⛔ NO BACKDROP FILTER WHILE THE FAN IS SHUT OR CLOSING. See the note on .fanOpen below. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
+/* ⛔⛔ THE GLASS ENGAGES ONLY ONCE THE FAN HAS SETTLED, AND THAT IS THE WHOLE TRICK.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   `w4-material-plan.md` §0 records a measured decision: **no animating element carries a
+   backdrop-filter**, because a blurred surface that MOVES re-samples its backdrop every frame,
+   and on a phone that is the difference between gliding and smearing. The bubble animates
+   `transform` and `opacity` on every open. So "make the bubbles glass" and that rule collide.
+
+   ⭐ They only collide DURING the animation. `backdrop-filter` is given a ZERO-duration
+   transition with a delay past the spring, so it snaps on ~40 ms after the transform has
+   settled — every animating frame is unfiltered, and the fan a member actually reads is real
+   glass. Removing `.fanOpen` drops back to the `.bubble` transition list, which names no filter,
+   so it snaps OFF instantly and the CLOSING frames are unfiltered too.
+
+   ⛔ IT IS NOT A LICENCE TO ANIMATE A FILTER. Nothing here transitions the filter's VALUE; the
+   duration is 0s. M6 still holds — transform and opacity only.
+
+   ⚠️ AND IT IS A CLAIM THAT MUST BE MEASURED, NOT ASSUMED. M1 is "zero dropped frames over the
+   full drag→open→select→release at 4× CPU throttle". `hubSmoothness.js` on the emulated profiles
+   is what settles whether this is enough; if it is not, the answer is a longer delay or no
+   filter, never a quieter threshold. */
 .fanOpen .bubble {
   opacity: 1;
   transform: none;
+  -webkit-backdrop-filter: blur(var(--hub-blur-bubble)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-bubble)) saturate(var(--hub-saturate));
+  transition:
+    transform 0.26s var(--hub-spring-soft),
+    opacity 0.18s var(--hub-ease),
+    /* ⚠️ The curve is INERT at 0s — it is named anyway because `hubMotionTokens.test.js` requires
+       every transition part to name a token, and "the duration is zero so it does not matter" is
+       exactly the reasoning that lets an unnamed curve back in somewhere it DOES matter. The
+       delay is the load-bearing number here, not the easing. */
+    -webkit-backdrop-filter 0s var(--hub-ease) 0.3s,
+    backdrop-filter 0s var(--hub-ease) 0.3s;
 }
 
 /* Disabled stays legible-but-subdued once the fan is actually open. Specificity note: this is
@@ -315,7 +413,15 @@
   .knobDot,
   .fanWedge,
   .fanSlice,
-  .bubble {
+  .bubble,
+  /* ⛔⛔ `.fanOpen .bubble` MUST BE LISTED SEPARATELY, AND IT IS A SPECIFICITY BUG WAITING TO
+     HAPPEN. W4 pass 1 moved the bubble's open transition onto `.fanOpen .bubble` (0,2,0) so the
+     glass could engage after the spring settles. A bare `.bubble` here is (0,1,0) and LOSES to
+     it — so this whole media block silently stopped reaching the bubble the moment that rule was
+     written, and reduced motion would have kept animating for exactly the members who asked it
+     not to. M7 is "respected", and a rule that cannot win is not respect.
+     ⚠️ Any future rule that raises the bubble's transition specificity must be added here too. */
+  .fanOpen .bubble {
     transition: none;
   }
 }

@@ -118,7 +118,7 @@ metric nobody has seen go red is not a metric (`lesson_gate_that_cannot_fail`).
 
 | # | property | threshold | how |
 |---|---|---|---|
-| M1 | dropped frames, full drag→open→select→release | **zero** | Chrome device emulation, **4× CPU throttle**, mid-tier Android profile **and** an iPhone profile |
+| M1 | dropped frames, full drag→open→select→release | ~~**zero**~~ ⛔ **CONTESTED — see below (D-56)** | Chrome device emulation, **4× CPU throttle**, mid-tier Android profile **and** an iPhone profile |
 | M2 | pointer-event → paint | **< 16 ms at p95** | W3's overlay, recorded into the trace ring |
 | M3 | fan open / close | **< 250 ms** including spring settle | measured, not the CSS duration |
 | M4 | thumb return | **< 200 ms** | ditto |
@@ -131,6 +131,32 @@ metric nobody has seen go red is not a metric (`lesson_gate_that_cannot_fail`).
 honest about motion and jank. It says **nothing** about flick, hold or scrub — those are
 `INCONCLUSIVE-TRANSPORT` until a real finger produces a trace (R9), and no number here may be quoted
 as if it settled them.
+
+### ⛔⛔ M1's ABSOLUTE ZERO IS UNMET BY THE BUILD THAT ALREADY SHIPPED — D-56, 2026-09-18
+
+Measured during W4, 4× CPU throttle, six samples per arm, full `drag→open→select→release`:
+
+| | droppedFrames | mean | fps mean |
+|---|---|---|---|
+| **control** — the bundle already in production | 1, 4, 4, 3, 1, 4 | 2.83 | 52.1 |
+| glass | 3, 5, 4, 4, 1, 2 | 3.17 | 49.5 |
+
+**Both arms fail "zero", including the one members are using.** An absolute frame threshold on this
+rig measures the harness, not the feature.
+
+⭐ **This document already made the opposite ruling, one section down, in a different unit.** The
+Galaxy S24 fps criterion was rewritten to a RATIO precisely because *"an absolute threshold measures
+the device; a ratio measures the feature"* — after an S24 idling at 30.1 fps would have been called
+a hub regression by an absolute ≥45 gate. **M1 is that same mistake, in frames.**
+
+**Proposed (needs the owner's ruling before any pass may claim M1):** *dropped frames over the full
+gesture must not exceed the SAME BUILD's own control by more than one at p50, measured on the same
+rig in the same session.*
+
+⛔⛔ **AND A LIMITATION THAT MUST RIDE ALONGSIDE WHATEVER THE BAR BECOMES.** CPU throttling throttles
+the **main thread**; `backdrop-filter` runs on the **GPU compositor**. So this rig is structurally
+*least* sensitive to the cost the glass introduces, and "no difference detected" is partly what it
+would report either way. **M1-on-an-emulator cannot settle a material question.** R9 stands.
 
 ---
 

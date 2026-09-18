@@ -99,10 +99,32 @@ made the next one visible.**
 | **I3** | twelve frames labelled "light" were the dark ones filed twice. `color_scheme` sets `prefers-color-scheme`, which **appears nowhere in this app's stylesheets** — the theme is `dataset.theme` from `prefs.theme` | the light and dark frames were byte-identical |
 
 **Now standing:** open/closed is decided on **computed opacity** and must exceed the count visible
-at rest; the gesture completes uninterrupted and the state is photographed after (`stickyFan` keeps
-it open); the theme is served through the preferences route and `dataset.theme` is **asserted to
+at rest; the gesture completes uninterrupted and the state is photographed **while the pointer is
+still down**; the theme is served through the preferences route and `dataset.theme` is **asserted to
 match** before any frame is kept, with `page_bg` recorded so the two can never silently converge
 again.
+
+⚰️ **I4 — THIS PARAGRAPH SAID "photographed after (`stickyFan` keeps it open)", AND THE FAN DOES
+NOT STAY OPEN.** Probed on 2026-09-18 during W4, dark theme, iPhone profile:
+
+```
+at rest                    0 visible
+held, 280 ms after move    6 visible
+held, 700 ms after move    6 visible     <- holding past HOLD_MS does not reclassify
+600 ms after release       0 visible     <- stickyFan DEFAULTED
+600 ms after release       0 visible     <- stickyFan STUBBED true
+```
+
+⭐ **The capture tool was correct for a different reason than this file gave.** It evaluates
+`FAN_JS` and takes its screenshot **before** `pointerup`, never after — so nothing was broken; the
+explanation was. This is the same class as I1–I3 above: **a comment naming a mechanism is a claim
+about a run**, and this file recorded three instrument defects while carrying a fourth in its own
+prose.
+
+⛔ **Consequence for any new capture: do not release and then measure.** Hold past the settle —
+700 ms is verified safe, and the move at 60 ms has already classified the gesture as a fan push, so
+the hold cannot turn it into a scrub — and measure while held. `tools/hub_contrast.py` does exactly
+this, and says so at the call site.
 
 ⛔ **No screenshot may be taken between `pointerdown` and `pointermove`.** That is not a style
 note — it is I2, and it will silently turn every drag into a hold.
