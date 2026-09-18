@@ -1,6 +1,7 @@
 > **NEXT WAKE REASON (D-20):** R72's actual code (three sub-timers + contention_trace_temp
-> reuse, needs a real boot to verify — see below), R73, R62 retry (needs a settled window),
-> R69 (flow-worker, proof by Monday 04:00 ET under R60), W8, W5, canary R38/R39.
+> reuse, needs a real boot to verify — see below), R62 retry (needs a settled window — a THIRD
+> deploy today, R73's own, is landing now), R69 (flow-worker, proof by Monday 04:00 ET under
+> R60), W8, W5, canary R38/R39.
 >
 > 🟡 **D-20 PROGRESS 2026-09-18 (this pass):** R71 read-only investigation + derived watch-path
 > list DONE, dashboard flip handed off (`BLOCKED-permission` — no CLI path exists, and this
@@ -12,8 +13,15 @@
 > arithmetic, `cap_universe` is never referenced in `live_tier.py`; redirected to a
 > code-evidenced SQLite-lock-contention hypothesis (`screener.db`'s `busy_timeout=5000`), with
 > the concrete next patch fully specified but NOT built (needs a real boot to verify per R63(c)'s
-> own stated constraint — "needs production time to pass, not more code tonight"). Details:
-> `evidence/d18/{R71-web-watch-paths,R49-rollback-watchdog,R72-boot-window-screener-derive}-2026-09-18.md`.
+> own stated constraint — "needs production time to pass, not more code tonight").
+> ✅ **R73 DONE, MERGED TO MASTER** (`fcc7d5b3b`, fast-forward, pre-push guard cleared): both
+> `memory_probe.py` and `contention_trace_temp.py` now reset `wrapped.__qualname__`, not just
+> `__name__` — APScheduler's `get_callable_name` reads the former. 2 new tests (named functions,
+> never lambdas), 2/2 mutations RED, sha-verified restores both times. ⚠️ **This push is itself a
+> FOURTH deploy-adjacent event today** (after the two unplanned ones and R71's forthcoming watch-
+> path change) — expect one more boot-window episode before R62's retry has a genuinely settled
+> window; do not retry R62 until this deploy's own boot tail (~20 min per today's pattern) clears.
+> Details: `evidence/d18/{R71-web-watch-paths,R49-rollback-watchdog,R72-boot-window-screener-derive}-2026-09-18.md`.
 >
 > 🟡 **W2b — FIRST REAL-LOG ATTEMPT DONE 2026-09-18, still not closed.** With the log-tail
 > daemon's captured window, 12 real stalls aligned against 74k+ timestamped `web` log lines for
