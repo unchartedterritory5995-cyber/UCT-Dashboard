@@ -1,7 +1,8 @@
 // app/src/components/chart/engine/ast/manifestProse.test.js
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import path from 'node:path'
 
 import { stripProse, KEEP, STRUCTURAL , DROP } from './manifestProse.js'
@@ -30,9 +31,8 @@ const AST_DIR = path.join('components', 'chart', 'engine', 'ast')
 let _sourcesMemo = null
 let _accessedMemo = null
 
-/** Every non-test source file in BOTH lanes **that can see the manifest**. */
-function sources() {
-  if (_sourcesMemo) return _sourcesMemo
+/** ⭐⭐ THE PATHS, WALKED SYNCHRONOUSLY — the walk is 86 ms and never the cost. */
+function sourcePaths() {
   const out = []
   for (const base of ['app/src', 'api']) {
     const stack = [path.join(ROOT, base)]
@@ -62,34 +62,79 @@ function sources() {
         if (e.name.includes('.test.')) continue
         if (/^test_.*\.py$/.test(e.name) || e.name.endsWith('_test.py')) continue
         if (e.name === 'manifestProse.js') continue
-        let text = ''
-        try { text = fs.readFileSync(p, 'utf8') } catch (err) { continue }
-        // ⛔⛔ AND THE SAME CLASS CAME BACK, IN NON-TEST CODE. The exclusions above
-        // were written for `test_fmp_client.py`'s `fc._session`, and they fixed
-        // THAT FILE rather than the defect: a bare key name matched anywhere in
-        // two whole trees. The 223-commit merge of 2026-09-17 produced
-        // `api/services/breadth_combined_pass.py`'s `out.get("_session")` and
-        // `breadth_wick_recon.py`'s `out["_session"]` — ordinary product code in
-        // ANOTHER workstream, using a generic dict key that happens to spell a
-        // manifest key. Same false read, same both-directions failure, and the
-        // previous fix could not see it because it keyed on the FILENAME.
-        //
-        // ⭐ SO THE TEST IS NOW "COULD THIS FILE SEE THE MANIFEST AT ALL?" — a
-        // file that never names `closedTable` and does not live in the manifest's
-        // own directory cannot be reading its keys, whatever its dicts are called.
-        // ⚠️ DELIBERATELY INCLUSIVE, AND ON THE RAW TEXT: a file that only
-        // mentions the manifest in a comment still qualifies, because the
-        // dangerous direction is EXCLUDING a real reader (a key gets stripped
-        // that the product reads). The access match below stays strict and still
-        // runs on comment-free text.
-        if (!p.includes(AST_DIR) && !/closedTable/.test(text)) continue
-        out.push(text)
+        out.push(p)
       }
     }
   }
+  return out
+}
+
+/** Every non-test source file in BOTH lanes **that can see the manifest**.
+ *
+ *  ⭐⭐ READ CONCURRENTLY, AND THAT IS THE WHOLE SPEED-UP. Profiled on this
+ *  repo: the directory walk is **86 ms**, `withoutComments` over the kept set is
+ *  **27 ms**, and `accessedKeys`'s 47 regexes are **83 ms** — while reading
+ *  **2,716 files (42 MB) to keep 57 (3.6 MB)** was **3,015 ms warm and ~18 s
+ *  cold**. So 99% of the cost was I/O, and neither the regexes nor the filter
+ *  were ever worth touching.
+ *  ⛔ AND IT IS NOT DECODING: reading each file as a Buffer and scanning bytes
+ *  measured 4,553 ms against 4,473 ms for `utf8`, i.e. no better. Only issuing
+ *  the reads in parallel moved it — **3,015 ms → 348 ms at concurrency 64**.
+ *
+ *  ⛔ THE SET IS UNCHANGED, BY CONSTRUCTION: same walk, same exclusions, same
+ *  `AST_DIR`-or-mentions-`closedTable` filter, same 57 files. This is a speed-up,
+ *  not a narrowing — the mutation in this file's own commit proves the controls
+ *  still fail on a planted regression rather than merely running faster.
+ *
+ *  ⚠️ A NARROWING WOULD HAVE BEEN WRONG. 18 of the 31 kept files outside the
+ *  manifest's directory are PYTHON (`api/services/param_manifest.py`, the
+ *  `ast_*.py` family, `scan_evaluator.py`…), so dropping the `api` tree to save
+ *  1,232 reads would blind the rail to its real second-lane readers. */
+async function loadSources() {
+  if (_sourcesMemo) return _sourcesMemo
+  const paths = sourcePaths()
+  const out = []
+  let next = 0
+  const worker = async () => {
+    for (;;) {
+      const i = next++
+      if (i >= paths.length) return
+      const p = paths[i]
+      let text = ''
+      try { text = await fsp.readFile(p, 'utf8') } catch (err) { continue }
+      // ⛔⛔ THE FILTER, AND THE CLASS IT EXISTS FOR. An earlier cut excluded
+      // `test_*.py` by FILENAME, which fixed `test_fmp_client.py`'s `fc._session`
+      // rather than the defect: a bare key name matched anywhere in two whole
+      // trees. The 223-commit merge of 2026-09-17 produced
+      // `api/services/breadth_combined_pass.py`'s `out.get("_session")` and
+      // `breadth_wick_recon.py`'s `out["_session"]` — ordinary product code in
+      // ANOTHER workstream using a generic dict key that happens to spell a
+      // manifest key. A false read admits prose to the bundle AND excuses a KEEP
+      // entry, so it failed in both directions at once.
+      // ⭐ SO THE QUESTION IS "COULD THIS FILE SEE THE MANIFEST AT ALL?" — a file
+      // that never names `closedTable` and does not live in the manifest's own
+      // directory cannot be reading its keys, whatever its dicts are called.
+      // ⚠️ DELIBERATELY INCLUSIVE, AND ON THE RAW TEXT: a file that only mentions
+      // the manifest in a comment still qualifies, because the dangerous direction
+      // is EXCLUDING a real reader. The access match stays strict and still runs
+      // on comment-free text.
+      if (!p.includes(AST_DIR) && !/closedTable/.test(text)) continue
+      out.push(text)
+    }
+  }
+  await Promise.all(Array.from({ length: 64 }, worker))
   _sourcesMemo = out
   return out
 }
+
+/** The loaded set. ⛔ Throws rather than silently re-reading: a case that runs
+ *  before `beforeAll` would otherwise pay the whole cost again and pass, which is
+ *  how a fixed budget quietly comes back. */
+function sources() {
+  if (!_sourcesMemo) throw new Error('sources() read before beforeAll loaded them')
+  return _sourcesMemo
+}
+
 
 /** ⛔ COMMENTS STRIPPED FIRST, AND THAT IS THE WHOLE DIFFICULTY. These keys are
  *  NAMED in prose constantly — `_functions_cumulative` is cited in a dozen
@@ -140,6 +185,12 @@ function accessedKeys() {
 }
 
 describe('the strip is safe, and the rail derives what safe means', () => {
+  // ⭐ ONE READ FOR THE WHOLE FILE, ISSUED IN PARALLEL. Doing it here rather than
+  // lazily inside the first case keeps every `it` synchronous and keeps the cost
+  // out of whichever case happened to run first — which is how it came to look
+  // like the non-vacuity case was the expensive one.
+  beforeAll(async () => { await loadSources() })
+
   it('⛔⛔ NON-VACUITY — the scan still reaches readers OUTSIDE the manifest\'s directory', () => {
     // ⛔ THE NARROWING'S OWN CONTROL, AND THE FIRST VERSION OF IT COULD NOT FAIL.
     // It asserted `_input_windows`, `_bind_time_constants` and `_benchmarks_scannable`
