@@ -122,6 +122,7 @@ def instrument_scheduler(scheduler) -> None:
 
         try:
             wrapped.__name__ = getattr(func, "__name__", "job")
+            wrapped.__qualname__ = getattr(func, "__qualname__", "job")
             wrapped.__doc__ = getattr(func, "__doc__", None)
         except Exception:
             pass

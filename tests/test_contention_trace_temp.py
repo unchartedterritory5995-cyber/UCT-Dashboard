@@ -94,3 +94,36 @@ def test_instrument_scheduler_removes_job_on_exception():
     except RuntimeError:
         pass
     assert "boom_job" not in ct._active_jobs_snapshot()
+
+
+def test_two_distinct_jobs_log_two_distinct_qualnames():
+    """R73 (D-20): same fix, same reasoning as memory_probe's own test of this name —
+    APScheduler's `get_callable_name` reads `func.__qualname__`, never `__name__`, so
+    resetting only `__name__` (this file's prior behaviour) left every job sharing this
+    wrapper's own generic qualname. Named functions, never lambdas (lambdas all share
+    `__qualname__ == '<lambda>'` and would pass trivially)."""
+    class FakeScheduler:
+        def __init__(self):
+            self.registered = []
+
+        def add_job(self, func, *a, **kw):
+            self.registered.append(func)
+            return func
+
+    def job_alpha():
+        pass
+
+    def job_beta():
+        pass
+
+    sched = FakeScheduler()
+    ct.instrument_scheduler(sched)
+    sched.add_job(job_alpha, id="a")
+    sched.add_job(job_beta, id="b")
+
+    wrapped_alpha, wrapped_beta = sched.registered
+    assert wrapped_alpha.__qualname__ != wrapped_beta.__qualname__
+    assert "job_alpha" in wrapped_alpha.__qualname__
+    assert "job_beta" in wrapped_beta.__qualname__
+    assert "instrument_scheduler" not in wrapped_alpha.__qualname__
+    assert "instrument_scheduler" not in wrapped_beta.__qualname__
