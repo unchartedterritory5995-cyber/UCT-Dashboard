@@ -1,0 +1,100 @@
+{
+  "run_id": "35345422860",
+  "run_number": "45",
+  "sha": "ca18aff7f286107df51e265b739dd08ed46017a9",
+  "branch": "master",
+  "finished": "2026-09-18T13:19:31.234458+00:00",
+  "vitest": {
+    "suite": "vitest",
+    "collected": 20905,
+    "passed": 20880,
+    "failed": 10,
+    "errored": 0,
+    "skipped": 15,
+    "wall_s": 1374.18,
+    "failed_files": [
+      "src/components/chart/engine/ast/manifestProse.test.js",
+      "src/components/screener/reachable.test.js",
+      "src/hooks/pollingSites.rail.test.js",
+      "src/hub/surfaceMatrixIsCurrent.test.js",
+      "src/lib/journal-2-0/format.test.js",
+      "src/pages/breadth/heatmapRegistry.golden.test.js",
+      "src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js",
+      "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js",
+      "src/styles/tapFloor.test.js",
+      "src/surfaces/manifest.test.js"
+    ],
+    "totals_line_found": true,
+    "runner_line": "",
+    "ok": false
+  },
+  "pytest": {
+    "shards_total": 17,
+    "shards_reported": 17,
+    "shards_success": 17,
+    "shards_cancelled": 0,
+    "shards_failed": 0,
+    "shards_unreadable": [],
+    "shards_missing": [],
+    "shards_without_totals": [],
+    "collected": 26111,
+    "passed": 25897,
+    "failed": 120,
+    "per_test_timeouts": 0,
+    "shard_runner_lines": {
+      "dir-api": "292 passed, 1 skipped, 6 warnings in 30.82s",
+      "dir-discord_render": "46 passed, 2 warnings in 12.92s",
+      "dir-pattern_engine": "1 failed, 2615 passed, 9 xfailed, 2 warnings in 23.52s",
+      "dir-theme_curation": "57 passed in 2.53s",
+      "dir-theme_engine": "64 passed, 52389 warnings in 6.01s",
+      "tests-01": "2803 passed, 2 skipped, 5 warnings in 381.59s (0:06:21)",
+      "tests-02": "5 failed, 1685 passed, 10 skipped, 96 warnings in 126.24s (0:02:06)",
+      "tests-03": "2 failed, 1781 passed, 42 skipped, 2 warnings in 196.24s (0:03:16)",
+      "tests-04": "4 failed, 1550 passed, 1 skipped, 224 warnings in 133.13s (0:02:13)",
+      "tests-05": "5 failed, 2560 passed, 6 skipped, 43 warnings in 362.00s (0:06:02)",
+      "tests-06": "15 failed, 2061 passed, 17 skipped, 15030 warnings in 200.85s (0:03:20)",
+      "tests-07": "34 failed, 2071 passed, 2 skipped, 19 warnings in 226.43s (0:03:46)",
+      "tests-08": "3 failed, 1359 passed, 14 warnings in 367.73s (0:06:07)",
+      "tests-09": "4 failed, 2026 passed, 4 skipped, 11 warnings in 166.67s (0:02:46)",
+      "tests-10": "20 failed, 1711 passed, 2 skipped, 15177 warnings in 400.29s (0:06:40)",
+      "tests-11": "25 failed, 1506 passed, 265 warnings in 245.52s (0:04:05)",
+      "tests-12": "2 failed, 1710 passed, 7 skipped, 6 warnings in 252.31s (0:04:12)"
+    },
+    "runner_line": "292 passed, 1 skipped, 6 warnings in 30.82s \u00b7 46 passed, 2 warnings in 12.92s \u00b7 1 failed, 2615 passed, 9 xfailed, 2 warnings in 23.52s \u00b7 57 passed in 2.53s \u00b7 64 passed, 52389 warnings in 6.01s \u00b7 2803 passed, 2 skipped, 5 warnings in 381.59s (0:06:21) \u00b7 5 failed, 1685 passed, 10 skipped, 96 warnings in 126.24s (0:02:06) \u00b7 2 failed, 1781 passed, 42 skipped, 2 warnings in 196.24s (0:03:16) \u00b7 4 failed, 1550 passed, 1 skipped, 224 warnings in 133.13s (0:02:13) \u00b7 5 failed, 2560 passed, 6 skipped, 43 warnings in 362.00s (0:06:02) \u00b7 15 failed, 2061 passed, 17 skipped, 15030 warnings in 200.85s (0:03:20) \u00b7 34 failed, 2071 passed, 2 skipped, 19 warnings in 226.43s (0:03:46) \u00b7 3 failed, 1359 passed, 14 warnings in 367.73s (0:06:07) \u00b7 4 failed, 2026 passed, 4 skipped, 11 warnings in 166.67s (0:02:46) \u00b7 20 failed, 1711 passed, 2 skipped, 15177 warnings in 400.29s (0:06:40) \u00b7 25 failed, 1506 passed, 265 warnings in 245.52s (0:04:05) \u00b7 2 failed, 1710 passed, 7 skipped, 6 warnings in 252.31s (0:04:12)",
+    "ok": false,
+    "ok_basis": "all_success=True (17/17) \u00b7 every_shard_has_totals=True \u00b7 failed=120 \u00b7 missing=0 \u00b7 runner_verdict_unreadable=0"
+  },
+  "runner_line": {
+    "vitest": "",
+    "pytest": "292 passed, 1 skipped, 6 warnings in 30.82s \u00b7 46 passed, 2 warnings in 12.92s \u00b7 1 failed, 2615 passed, 9 xfailed, 2 warnings in 23.52s \u00b7 57 passed in 2.53s \u00b7 64 passed, 52389 warnings in 6.01s \u00b7 2803 passed, 2 skipped, 5 warnings in 381.59s (0:06:21) \u00b7 5 failed, 1685 passed, 10 skipped, 96 warnings in 126.24s (0:02:06) \u00b7 2 failed, 1781 passed, 42 skipped, 2 warnings in 196.24s (0:03:16) \u00b7 4 failed, 1550 passed, 1 skipped, 224 warnings in 133.13s (0:02:13) \u00b7 5 failed, 2560 passed, 6 skipped, 43 warnings in 362.00s (0:06:02) \u00b7 15 failed, 2061 passed, 17 skipped, 15030 warnings in 200.85s (0:03:20) \u00b7 34 failed, 2071 passed, 2 skipped, 19 warnings in 226.43s (0:03:46) \u00b7 3 failed, 1359 passed, 14 warnings in 367.73s (0:06:07) \u00b7 4 failed, 2026 passed, 4 skipped, 11 warnings in 166.67s (0:02:46) \u00b7 20 failed, 1711 passed, 2 skipped, 15177 warnings in 400.29s (0:06:40) \u00b7 25 failed, 1506 passed, 265 warnings in 245.52s (0:04:05) \u00b7 2 failed, 1710 passed, 7 skipped, 6 warnings in 252.31s (0:04:12)"
+  },
+  "outcome": {
+    "vitest": {
+      "job_result": "success",
+      "test_step_outcome": "success",
+      "elapsed_s": 1414.0,
+      "timeout_minutes": 45,
+      "timed_out": false,
+      "timed_out_basis": "job_result=success, elapsed_s=1414, cap_s=2700, threshold_s=2640 (cap-60) -> not a cap cut"
+    },
+    "pytest": {
+      "job_result": "success",
+      "test_step_outcome": "success",
+      "elapsed_s": 115.0,
+      "timeout_minutes": 20,
+      "timed_out": false,
+      "timed_out_basis": "job_result=success, elapsed_s=115, cap_s=1200, threshold_s=1140 (cap-60) -> not a cap cut"
+    }
+  },
+  "verdict": "RED",
+  "detail": {
+    "dir": "results/35345422860",
+    "pytest_collect_errors": "results/35345422860/pytest_collect_errors.txt",
+    "pytest_error_buckets": "results/35345422860/pytest_error_buckets.txt",
+    "pytest_failures": "results/35345422860/pytest_failures.txt",
+    "vitest_failures": "results/35345422860/vitest_failures.txt",
+    "vitest_junit": "results/35345422860/vitest-junit.xml",
+    "collect_profile": "results/35345422860/collect_profile.json"
+  },
+  "contract_gaps": []
+}
