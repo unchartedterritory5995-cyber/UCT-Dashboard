@@ -6,7 +6,7 @@
     {
       "id": "p2-2.8b-second-writer-while-away",
       "status": "pending",
-      "why": "P2 stage-1 proof, guard still FULL. 2.8b is fix 4's production proof and it runs THE EDITOR PATH - the path `persist` now guards after Q1 fix 6. A second signed-in context moves the server revision while the first is away and offline; the member returns and their words must survive. GREEN here is the evidence that fix 6 did not break the designed rebase path on production. ⛔ It has timed out before (exit 124); an INCONCLUSIVE is requeued, never banked.",
+      "why": "P2 stage-1 proof, guard still FULL. 2.8b is fix 4's production proof and it runs THE EDITOR PATH - the path `persist` now guards after Q1 fix 6. A second signed-in context moves the server revision while the first is away and offline; the member returns and their words must survive. GREEN here is the evidence that fix 6 did not break the designed rebase path on production. \u26d4 It has timed out before (exit 124); an INCONCLUSIVE is requeued, never banked.",
       "expect": "GREEN",
       "cmd": [
         "python",
@@ -18,7 +18,17 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
-      ]
+      ],
+      "attempts": 2,
+      "result": {
+        "exit": 0,
+        "seconds": 1318.0,
+        "tail": "\u21d2 INCONCLUSIVE  /api/auth/me answered 502, not 200+JSON ({'status': 502, 'json': False}) \u2014 PRODUCTION was unavailable (5xx), almost always a deploy swap. Nothing is w",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T065034-p2-2.8b-second-writer-while-away",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-metadata-settle-first-folder",
@@ -97,13 +107,13 @@
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
       ],
-      "held_why": "⛔ P3 MAY NOT RUN BEFORE P2 IS GREEN - it is a named STOP condition. This cell is stage 2 (the door itself, with NOTEBOOK_DOOR_GUARD flipped to unknown-only). It is released only after the P2 cells below all read GREEN with raw artifacts, and only with a window inside 30 minutes and the flag verified in-process. Held, not deleted, so the next reader sees a decision."
+      "held_why": "\u26d4 P3 MAY NOT RUN BEFORE P2 IS GREEN - it is a named STOP condition. This cell is stage 2 (the door itself, with NOTEBOOK_DOOR_GUARD flipped to unknown-only). It is released only after the P2 cells below all read GREEN with raw artifacts, and only with a window inside 30 minutes and the flag verified in-process. Held, not deleted, so the next reader sees a decision."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",
       "status": "inconclusive",
       "attempts": 3,
-      "why": "⛔ THE ORDERING WAS THE PROBLEM, NOT THE DOOR. Three INCONCLUSIVE attempts on `append_widget_embed` + `slow PUT (landed, ring populated)` all reported 'the control took the click but produced no call to /embeds — a label is not a door'. But `fix5-production-re-run` drove THE SAME FAMILY to a real RED reading with NO --ordering. So the door is drivable and the slow-PUT sequencing is what leaves it unready at click time. This entry replicates the KNOWN-DRIVABLE invocation verbatim and adds ONLY --trace-writes, so the single variable is the tracer. R-RAW: the raw ring reaches evidence/ before any summary.",
+      "why": "\u26d4 THE ORDERING WAS THE PROBLEM, NOT THE DOOR. Three INCONCLUSIVE attempts on `append_widget_embed` + `slow PUT (landed, ring populated)` all reported 'the control took the click but produced no call to /embeds \u2014 a label is not a door'. But `fix5-production-re-run` drove THE SAME FAMILY to a real RED reading with NO --ordering. So the door is drivable and the slow-PUT sequencing is what leaves it unready at click time. This entry replicates the KNOWN-DRIVABLE invocation verbatim and adds ONLY --trace-writes, so the single variable is the tracer. R-RAW: the raw ring reaches evidence/ before any summary.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -119,7 +129,7 @@
       "result": {
         "exit": 0,
         "seconds": 374.6,
-        "tail": "⇒ INCONCLUSIVE  the control took the click but produced no call to `/embeds` — a label is not a door. note calls this cell: 9",
+        "tail": "\u21d2 INCONCLUSIVE  the control took the click but produced no call to `/embeds` \u2014 a label is not a door. note calls this cell: 9",
         "inconclusive": true,
         "declared_fail": false,
         "evidence": "docs/notebook/evidence/20260917T122035-2.2-ring-on-the-drivable-door",
@@ -130,7 +140,7 @@
       "id": "2.1b-probe-honesty",
       "status": "done",
       "attempts": 1,
-      "why": "R-HON, NOT SKIPPABLE, AND IT RUNS FIRST. Every RED cell in the F5 matrix rests on `sentenceInQueuedEntry`, and that field has never been shown reporting correctly against a KNOWN answer. Plants a known loss and a known success into a THROWAWAY store for a synthetic account, drives the REAL QUEUED_JS (imported, never restated), and requires the probe to report each correctly while the record is already CLEAN — which is the 2.1(b) question: does it read the surviving ENTRY's patch from IndexedDB after reconciliation? If this FAILS, every RED reading is labelled 'probe unverified' and the writer hunt waits.",
+      "why": "R-HON, NOT SKIPPABLE, AND IT RUNS FIRST. Every RED cell in the F5 matrix rests on `sentenceInQueuedEntry`, and that field has never been shown reporting correctly against a KNOWN answer. Plants a known loss and a known success into a THROWAWAY store for a synthetic account, drives the REAL QUEUED_JS (imported, never restated), and requires the probe to report each correctly while the record is already CLEAN \u2014 which is the 2.1(b) question: does it read the surviving ENTRY's patch from IndexedDB after reconciliation? If this FAILS, every RED reading is labelled 'probe unverified' and the writer hunt waits.",
       "cmd": [
         "python",
         "tools/q1_probe_honesty.py",
@@ -141,7 +151,7 @@
       "result": {
         "exit": 0,
         "seconds": 36.0,
-        "tail": "⇒ PASS  2.1(b): the probe reports a planted loss and a planted success correctly, reading the ENTRY with the record already clean",
+        "tail": "\u21d2 PASS  2.1(b): the probe reports a planted loss and a planted success correctly, reading the ENTRY with the record already clean",
         "inconclusive": false,
         "declared_fail": false,
         "evidence": "docs/notebook/evidence/20260917T120331-2.1b-probe-honesty",
@@ -152,7 +162,7 @@
       "id": "2.2-slow-put-instrumented",
       "status": "inconclusive",
       "attempts": 3,
-      "why": "D2's whole point: the instrumented slow-PUT cell with the write tracer injected, so the RAW RING reaches docs/notebook/evidence/ BEFORE any summary (R-RAW). The reading that names the writer is a SEPARATE step taken with the artifact open — this entry only produces the artifact. Non-vacuity: the ring must contain at least one write with an app-code stack frame, else INCONCLUSIVE and the injector is the suspect, not the product.",
+      "why": "D2's whole point: the instrumented slow-PUT cell with the write tracer injected, so the RAW RING reaches docs/notebook/evidence/ BEFORE any summary (R-RAW). The reading that names the writer is a SEPARATE step taken with the artifact open \u2014 this entry only produces the artifact. Non-vacuity: the ring must contain at least one write with an app-code stack frame, else INCONCLUSIVE and the injector is the suspect, not the product.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -168,7 +178,7 @@
       "result": {
         "exit": 0,
         "seconds": 86.3,
-        "tail": "⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: None, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer,",
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: None, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
         "inconclusive": true,
         "declared_fail": false,
         "evidence": "docs/notebook/evidence/20260917T120651-2.2-slow-put-instrumented",
@@ -179,7 +189,7 @@
       "id": "2.8b-second-writer-while-away",
       "status": "failed",
       "attempts": 2,
-      "why": "2.8b — Q1 fix 4's OWN production proof, which has never run. A SECOND context moves the server revision while the first is away and offline; the first returns and its unsent words must still be present and still queued. Existing instrument, no new probe, no cells, no interpretation.",
+      "why": "2.8b \u2014 Q1 fix 4's OWN production proof, which has never run. A SECOND context moves the server revision while the first is away and offline; the first returns and its unsent words must still be present and still queued. Existing instrument, no new probe, no cells, no interpretation.",
       "cmd": [
         "python",
         "tools/q1_f5_matrix.py",
@@ -219,7 +229,7 @@
       "result": {
         "exit": 0,
         "seconds": 227.8,
-        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` · 5 request(s) carried the sentence (la",
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-14T11:54:49.501960+00:00` \u00b7 5 request(s) carried the sentence (la",
         "inconclusive": false,
         "declared_fail": false
       }
@@ -240,7 +250,7 @@
         "docs/notebook/t12-smoke-owner-rig-2026-09-14.md"
       ],
       "attempts": 1,
-      "blocked_on": "nothing — the owner-identity requirement was satisfied by the admin-role run",
+      "blocked_on": "nothing \u2014 the owner-identity requirement was satisfied by the admin-role run",
       "release_when": "Superseded: ruling 2026-09-14 accepted an admin-role run on the rig profile. Kept, not deleted, so the entry cannot be mistaken for work still owed."
     },
     {
@@ -283,7 +293,7 @@
       "result": {
         "exit": 0,
         "seconds": 391.0,
-        "tail": "⇒ RED  offline sentence in the server body: **False** · appended node present: **True** · queued 1 entry(s), baseline `2026-09-15T05:08:14.063022+00:00` · 3",
+        "tail": "\u21d2 RED  offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-15T05:08:14.063022+00:00` \u00b7 3",
         "inconclusive": false,
         "declared_fail": false
       }
