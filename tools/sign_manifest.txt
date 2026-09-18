@@ -165,3 +165,4 @@ docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | CP35 | 922385
 docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 51c47081a
 docs/terminal-research/12-decisions/gates/e-cp36-build-record.md | CP36 | 85bd06d20
 docs/terminal-research/12-decisions/gates/e-cp37-build-record.md | CP37 | 99f53fb54
+docs/terminal-research/12-decisions/gates/e-cp38-build-record.md | CP38 | 2e91d23c6
