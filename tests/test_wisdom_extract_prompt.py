@@ -198,6 +198,47 @@ def test_params_carry_no_sampling_prefill_or_fallbacks_and_cache_the_system():
         prompt.build_params(seg, {}, model="claude-opus-5", effort="turbo")
 
 
+# ── R97, session 25: a model that rejects output_config.effort ───────────────
+
+def test_haiku_gets_no_effort_field():
+    """⛔⛔ Measured against the real API: a Haiku golden run's 35-request batch came back
+    35/35 errored, every one "This model does not support the effort parameter." No money
+    was spent (an errored batch item is not billed), but the run measured nothing."""
+    seg = {"segment_id": "s1", "kind": "section", "text": "ZZZT (Daily)\nnote", "path": "INTRO"}
+    params = prompt.build_params(seg, {"stream": "sunday_scans"}, model="claude-haiku-4-5", effort="high")
+    assert "effort" not in params["output_config"]
+    assert params["output_config"]["format"]["type"] == "json_schema"
+
+
+def test_OPUS_STILL_gets_the_effort_field_byte_for_byte(monkeypatch):
+    """⛔⛔ THE LOAD-BEARING DIRECTION. The fix for Haiku must change NOTHING about the
+    request Opus sends -- its accepted gate row (wx-v0-fc47bc97) depends on this exact
+    shape, and dropping `effort` would be a real, silent change to what Anthropic receives
+    even though it changes no byte of extractor_version (that hash never covered
+    output_config's runtime shape)."""
+    seg = {"segment_id": "s1", "kind": "section", "text": "ZZZT (Daily)\nnote", "path": "INTRO"}
+    params = prompt.build_params(seg, {"stream": "sunday_scans"}, model="claude-opus-5", effort="high")
+    assert params["output_config"] == {"format": {"type": "json_schema", "schema": prompt.api_schema()},
+                                       "effort": "high"}
+
+
+def test_extractor_version_is_UNAFFECTED_by_the_no_effort_allowlist(monkeypatch):
+    """The digest covers system+schema+transport only -- never output_config's runtime
+    shape -- so adding a model to NO_EFFORT_MODELS must change no version at all."""
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    assert prompt.extractor_version() == "wx-v0-fc47bc97"
+    assert prompt.extractor_version(model="claude-haiku-4-5") == "wx-v0-claude-haiku-4-5-fc47bc97"
+
+
+def test_a_model_NOT_in_the_allowlist_still_gets_effort(monkeypatch):
+    """⭐ The allowlist is evidence-only, never a guess forward. An unlisted model (Sonnet,
+    or a future one) keeps getting `effort` -- if it also rejects the field, the failure is
+    the SAME as today's Haiku one: an immediate, free, loud errored batch item."""
+    seg = {"segment_id": "s1", "kind": "section", "text": "ZZZT (Daily)\nnote", "path": "INTRO"}
+    params = prompt.build_params(seg, {"stream": "sunday_scans"}, model="claude-sonnet-5", effort="high")
+    assert "effort" in params["output_config"]
+
+
 def test_displayed_turns_are_exact_slices_of_the_segment_text():
     raw = [{"t": i * 10, "text": ("Host Name: " if i % 3 else "Guest Person: ") + f"line {i} here."}
            for i in range(20)]
