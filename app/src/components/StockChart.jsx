@@ -102,7 +102,7 @@ import {
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
 import { orderPaneRows } from './chart/engine/paneSeriesOrder'
 import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
-import { volumeOwnsPane } from './chart/engine/volumePresentation'
+import { nativeVolumeOwnsPane, volumePaneRequired, volumeResidentKeys } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
@@ -3158,10 +3158,41 @@ export default function StockChart({
   const showVolume = (hideBase || isVolumeRemoved(cs))
     ? false
     : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
-  // Volume in its own pane (no bottom band reserved on the price scale). Only when
-  // volume is actually shown — otherwise no pane exists and its bottom-margin
-  // reservation would leave an empty gap (the breadth "pane won't go away" bug).
-  const volInSeparatePane = showVolume && (blankVolume || volumeSeparatePane || !!cs.volume?.separatePane)
+  // ⭐⭐ DOES THE VOLUME PANE EXIST? — the PRICE-SCALE question, and it is a
+  // question about the RECTANGLE, not about the bars.
+  //
+  // `priceScaleBottomMargin` is declared above as "small gap below price (above a
+  // separate vol pane)", so all eight consumers of this flag want to know whether
+  // that pane is there — whoever is drawing in it. Reserving the gap with nothing
+  // below leaves an empty band (the breadth "pane won't go away" bug); NOT
+  // reserving it with a pane below jams the candles against the divider.
+  //
+  // ⚰️⚰️ IT USED TO BE `showVolume && (blankVolume || volumeSeparatePane ||
+  // cs.volume.separatePane)` AND IT WAS WRONG IN BOTH DIRECTIONS. It could not see
+  // an overlay — the one rule that promotes volume to a pane with no flag set
+  // anywhere, which the legend's own block comment below called out as this
+  // predicate's blind spot — and it collapsed to `false` the moment native Volume
+  // was removed, even with a guest still resident in the pane. See
+  // `engine/volumePresentation.js` for the concept split.
+  //
+  // The instance list the engine last drew, for the crosshair handler — which
+  // reads refs, not props, so the subscription survives a live tick without a
+  // tear-down/resubscribe (see the block comment above `overlayDataRef`).
+  // It is written inside `updateChart`, where `engineInstances` is a local, and
+  // NOT in the mirror effect below: the mirror can only copy component-scope
+  // values, and reading `cs.indicatorInstances` here instead would give the
+  // legend the RAW blob — including the records `normalizeInstances` dropped and
+  // the definitions the engine is not allowed to draw.
+  const engineInstancesRef = useRef(EMPTY_INSTANCES)
+  // ⛔ THE ENGINE'S LIST FIRST, exactly as `chipPaneHost` does: a LEGACY instance
+  // is PROJECTED at read time and never stored, so asking the blob alone would
+  // miss an overlay that is really drawing.
+  const _volPresenceInstances = (engineInstancesRef.current && engineInstancesRef.current.length)
+    ? engineInstancesRef.current : cs.indicatorInstances
+  const _volPresenceOpts = {
+    cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane,
+  }
+  const volumePaneExists = volumePaneRequired(_volPresenceOpts)
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -3896,7 +3927,7 @@ export default function StockChart({
           const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
           if (yHi != null && yLo != null) {
             const f = viewLockFractions(paneH, yHi, yLo)
-            const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+            const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null)
             if (f && !(Math.abs(f.top - mbase.top) < 0.03 && Math.abs(f.bottom - mbase.bottom) < 0.03)) {
               top = f.top; bottom = f.bottom; vLocked = true
             }
@@ -4625,17 +4656,15 @@ export default function StockChart({
   const updateSettingsRef = useRef(null)
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
-  // The instance list the engine last drew, for the crosshair handler — which
-  // reads refs, not props, so the subscription survives a live tick without a
-  // tear-down/resubscribe (see the block comment above `overlayDataRef`).
-  // It is written inside `updateChart`, where `engineInstances` is a local, and
-  // NOT in the mirror effect below: the mirror can only copy component-scope
-  // values, and reading `cs.indicatorInstances` here instead would give the
-  // legend the RAW blob — including the records `normalizeInstances` dropped and
-  // the definitions the engine is not allowed to draw.
-  const engineInstancesRef = useRef(EMPTY_INSTANCES)
-  /** Does volume have a pane of its own right now? See `showVolLegend`'s block —
-   *  the legend's copy of the renderer's own `volumeOwnsPane` answer. */
+  // ⛔ `engineInstancesRef` STOOD HERE AND IS DECLARED ~1500 LINES ABOVE, beside
+  // the volume-presence block that is its first RENDER-TIME reader. A `const` is
+  // in its temporal dead zone until its own line runs, and a read during render
+  // from above it is a `ReferenceError` that takes the whole chart down — not a
+  // lint warning, not an undefined. Moving the declaration is the fix; a `useRef`
+  // has no dependencies and no ordering constraint beyond being unconditional.
+  /** Does the VOLUME PANE exist right now? `volumePaneRequired`'s answer,
+   *  mirrored for `chipPaneHost`. Not "are the bars in a pane" — a guest holds
+   *  the rectangle open after the bars are deleted. See `showVolLegend`'s block. */
   const volumeOwnsItsPaneRef = useRef(false)
   // ── ⛔ THE LEGACY LANE'S CHIP ENTRIES ARE GONE (B5 Task 6) ──────────────────
   //
@@ -5137,7 +5166,7 @@ export default function StockChart({
       try {
         mainPriceScale()?.applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
         })
       } catch {}
       // HORIZONTAL: reframe to the timeframe default (newest at LAST_CANDLE_POS).
@@ -5255,7 +5284,7 @@ export default function StockChart({
         priceManualRangeRef.current = null
         mainPriceScale()?.applyOptions({
           autoScale: true,
-          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
         })
       } catch {}
     }
@@ -9833,7 +9862,7 @@ export default function StockChart({
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+        scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -10921,13 +10950,35 @@ export default function StockChart({
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
     // draggable divider; overlay mode shares pane 0 via the layout's bands.
-    // ⭐ ONE PREDICATE, ASKED — `chartDataMap` re-derived this rule and got a
-    // different answer; see `engine/volumePresentation.js`. The renderer is the
-    // caller that CAN supply every input, so it passes all of them.
-    const volSeparatePane = volumeOwnsPane({
+    // ⭐ ONE SET OF INPUTS, ASKED ONCE — `chartDataMap` re-derived this rule and
+    // got a different answer; see `engine/volumePresentation.js`. The renderer is
+    // the caller that CAN supply every input, so it passes all of them.
+    //
+    // ⭐⭐ BUT TWO QUESTIONS, AND THEY ARE NOT THE SAME QUESTION.
+    //
+    //   `nativeVolSeparate` — are the BARS drawn in a pane instead of a band?
+    //                         Asked by the four places that create, scale and
+    //                         size the native volume series and its MA.
+    //   `volumePaneLive`    — does the RECTANGLE exist? Asked by pane order, pane
+    //                         count, stretch shares, `firstPaneIndex`, the
+    //                         realiser and `placement.js`'s guest branch.
+    //
+    // ⚰️⚰️ ONE VARIABLE ANSWERED BOTH, AND REMOVING VOLUME PROVED IT COULD NOT.
+    // `resolveVolumePresentation` returns `'absent'` the moment volume is not
+    // shown — before it ever asks whether anything is overlaid on it — so
+    // deleting the bars told the pane-existence consumers the pane was gone while
+    // an MA sent to Volume was still resident in it. `placement.js:476` is gated
+    // on the value handed to the binder below, so that guest did not just lose
+    // its rectangle: it bound nothing and disappeared from the chart.
+    const _volPresence = {
       cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane,
-    })
-    const hasVolumeBand = showVolume && volData.length > 0 && !volSeparatePane
+    }
+    const nativeVolSeparate = nativeVolumeOwnsPane(_volPresence)
+    const volumePaneLive = volumePaneRequired(_volPresence)
+    /** The instance ids drawing INSIDE the volume pane — `displayTarget`'s answer,
+     *  and the same set `excludeKeys` subtracts from the pane stack. */
+    const _volResidents = volumeResidentKeys(cs, engineInstances)
+    const hasVolumeBand = showVolume && volData.length > 0 && !nativeVolSeparate
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
     //
@@ -10982,10 +11033,10 @@ export default function StockChart({
     // comes FIRST in pane order and the candles are pane 1 when it exists.
     const _hasIdxPane = !!indexPaneSeriesRef.current
     const _abovePct = _hasIdxPane
-      ? (volSeparatePane
+      ? (volumePaneLive
         ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
         : [_idxPct, 100 - _idxPct])
-      : (volSeparatePane ? [100 - _volPct, _volPct] : [100])
+      : (volumePaneLive ? [100 - _volPct, _volPct] : [100])
     // ─── THE MEMBER'S PANE ARRANGEMENT ───────────────────────────
     //
     // ⭐ ASKED FOR ONCE, HERE, AND PASSED DOWN. `defaultPaneKeys` answers what
@@ -11009,7 +11060,7 @@ export default function StockChart({
     const _paneOrder = resolvePaneOrder(
       cs,
       defaultPaneKeys(engineInstances, _paneKeySets),
-      { volumePane: volSeparatePane },
+      { volumePane: volumePaneLive },
     )
     const paneLayout = computePaneLayout(engineInstances, {
       order: _paneOrder,
@@ -11044,7 +11095,7 @@ export default function StockChart({
       // back correctly, and draws nothing.
       includeKeys: paneOwnKeys(engineInstances, cs),
       separatorPx: SEPARATOR_PX,
-      firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
+      firstPaneIndex: 1 + (volumePaneLive ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
       mainPaneIndex: _hasIdxPane ? 1 : 0,
     })
@@ -11098,7 +11149,7 @@ export default function StockChart({
         mainPriceScale()?.applyOptions({
           scaleMargins: _mainMargins(
             paneLayout, priceScaleTopMargin,
-            volInSeparatePane ? priceScaleBottomMargin : null,
+            volumePaneExists ? priceScaleBottomMargin : null,
           ),
         })
       } catch { /* one bad scale must not take the paint down */ }
@@ -11125,7 +11176,7 @@ export default function StockChart({
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
       // overlaid indicator can take the LEFT axis. Overlay mode keeps the
       // invisible overlay scale ('').
-      const volScaleId = volSeparatePane ? 'right' : ''
+      const volScaleId = nativeVolSeparate ? 'right' : ''
       // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
       // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
       // thin bars with a gap between each, TC2000-style).
@@ -11140,6 +11191,37 @@ export default function StockChart({
         try { chart.removeSeries(volumeSeriesRef.current) } catch {}
         volumeSeriesRef.current = null
       }
+      // ⭐⭐ WHICH PANE DO THE BARS GO INTO? A LITERAL `1` IS ONLY RIGHT ON A CHART
+      // THAT HAS NO VOLUME PANE YET.
+      //
+      // `addSeries(…, 1)` on a one-pane chart CREATES pane 1, and
+      // `prepareArrangement` then moves that pane wherever the member arranged it
+      // — which is why the literal survived. It stops being right the moment the
+      // volume pane ALREADY EXISTS at some other index, and residency is exactly
+      // what makes that reachable: a guest holds the rectangle open while the bars
+      // are away, the member restores Volume, and on a chart with Volume arranged
+      // ABOVE Price the bars are created into PRICE's pane instead.
+      //
+      // ⛔ THE RESIDENT'S OWN PANE, NOT `VOL_PANE_INDEX`. The layout's index is
+      // where the pane is going to BE once the arrangement settles; this needs
+      // where it IS at the moment `addSeries` runs, and only the series already
+      // drawing there can say. `_volResidents` is `displayTarget`'s answer — the
+      // same set `excludeKeys` subtracts — so there is no second rule here.
+      const _volCreateIndex = (() => {
+        if (!nativeVolSeparate) return 0
+        if (!_volResidents.size) return 1
+        try {
+          const bs = engineRef.current?.binder?.bindings?.()
+          if (Array.isArray(bs)) {
+            for (const g of bs) {
+              if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
+              const i = g.series.getPane?.()?.paneIndex?.()
+              if (Number.isInteger(i)) return i
+            }
+          }
+        } catch { /* fall through to the cold-chart answer */ }
+        return 1
+      })()
       if (!volumeSeriesRef.current) {
         const volOpts = {
           // Custom (not type:'volume') so the ThinVolumeSeries custom series
@@ -11154,13 +11236,13 @@ export default function StockChart({
           lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current,
         }
         const vs = volBarStyle === 'histogram'
-          ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, volSeparatePane ? 1 : 0)
-          : chart.addSeries(HistogramSeries, volOpts, volSeparatePane ? 1 : 0)
+          ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, _volCreateIndex)
+          : chart.addSeries(HistogramSeries, volOpts, _volCreateIndex)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volSeriesKey
         lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
       }
-      if (volSeparatePane) {
+      if (nativeVolSeparate) {
         // Own pane: small top margin so bars don't kiss the divider; size the
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
         // autoScale keeps the bars fitted to the SAME slice of the pane on every
@@ -11274,7 +11356,7 @@ export default function StockChart({
         const _vmCut = _vmFade ? String(fadeCutoff) : null
         const baseVM = _vmFade ? volMaData.filter(p => String(p.time) <= _vmCut) : volMaData
         const tailVM = _vmFade ? volMaData.filter(p => String(p.time) >= _vmCut) : null
-        const _vmPane = volSeparatePane ? VOL_PANE_INDEX : 0
+        const _vmPane = nativeVolSeparate ? VOL_PANE_INDEX : 0
         const _vmOpts = {
           lineWidth: 1, lineType: LineType.Curved, priceScaleId: volScaleId,
           priceLineVisible: false, lastValueVisible: false,
@@ -11327,7 +11409,7 @@ export default function StockChart({
     // divider. Attach a SECOND shading instance to the volume pane so the bands extend
     // straight down through it too (owner ask). Only while that pane exists.
     {
-      const _volPane = (volSeparatePane && showVolume && volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
+      const _volPane = (volumePaneLive && showVolume && volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
       if (_volPane) {
         if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
         if (!sessionShadeVolAttachedRef.current) {
@@ -11558,11 +11640,31 @@ export default function StockChart({
       paneCountRequired: paneLayout.paneCountRequired,
       pinned: _hasIdxPane ? 1 : 0,
       priceKey: PRICE_PANE,
-      volumeKey: volSeparatePane ? VOLUME_PANE : null,
+      volumeKey: volumePaneLive ? VOLUME_PANE : null,
       paneOf: (key) => {
         try {
           if (key === PRICE_PANE) return candleSeriesRef.current?.getPane?.() || null
-          if (key === VOLUME_PANE) return volSeparatePane ? (volumeSeriesRef.current?.getPane?.() || null) : null
+          if (key === VOLUME_PANE) {
+            if (!volumePaneLive) return null
+            // The native bars when they are there…
+            if (nativeVolSeparate) {
+              const vp = volumeSeriesRef.current?.getPane?.()
+              if (vp) return vp
+            }
+            // …and otherwise whichever GUEST is holding the rectangle open. The
+            // realiser needs the pane a key currently occupies; with the bars
+            // deleted that is the resident's pane, and returning null here would
+            // let the sweep reclaim a pane something is still drawing in.
+            if (!_volResidents.size) return null
+            const gs = engineRef.current?.binder?.bindings?.()
+            if (!Array.isArray(gs)) return null
+            for (const g of gs) {
+              if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
+              const gp = g.series.getPane?.()
+              if (gp) return gp
+            }
+            return null
+          }
           const bs = engineRef.current?.binder?.bindings?.()
           if (!Array.isArray(bs)) return null
           const hit = bs.find((x) => x && x.instanceId === key && x.series)
@@ -11626,7 +11728,19 @@ export default function StockChart({
         // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.
         paneLayout,
         volOverlaySet,
-        volSeparatePane,
+        // ⭐ …AND SEPARATELY, WHETHER THE BARS ARE ACTUALLY IN THAT PANE. The
+        // guest branch hands out the LEFT axis *so Volume keeps the right one*;
+        // with the bars removed there is no right axis to keep, and a volume pane
+        // whose only resident sits on the left wedges lightweight-charts'
+        // `_adjustSizeImpl` on every draw. One fact, asked where it is known.
+        nativeVolumeInPane: nativeVolSeparate && showVolume && volData.length > 0,
+        // ⛔⛔ PANE EXISTENCE, NOT THE BARS — `placement.js:476` gates the whole
+        // guest branch on this. A member who deletes Volume while an MA of it is
+        // displayed there has removed the BARS, not the pane; handing the native
+        // answer here made that guest fall through to the own-pane branch, find
+        // no pane of its own (a volume guest is a FOLLOWER, so the layout
+        // allocates it none) and bind nothing.
+        volSeparatePane: volumePaneLive,
         VOL_PANE_INDEX,
         // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` read
         // `instance.placement.target || def.placement.target` itself, which is fine
@@ -13022,7 +13136,7 @@ export default function StockChart({
       focusPriceRangeRef.current = null
       const _ov = fitPriceToCandles ? null : overlayData
       const _tv = keepBarsAfterExit ? Math.min(endIdx + padRight, filteredBars.length - 1) : endIdx
-      const _mmI = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _mmI = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null)
       const _mt = Math.max(0, Math.min(0.45, _mmI?.top ?? 0))
       const _mb = Math.max(0, Math.min(0.45, _mmI?.bottom ?? 0))
       const _raw = _windowPriceRange(filteredBars, fromIdx, _tv, _ov)
@@ -13080,7 +13194,7 @@ export default function StockChart({
       // against the top/bottom of the pane (the tallest candle clipping off the top
       // in the Result view). Bake the same top/bottom headroom the default autoscale
       // would apply into the pinned range so the glide lands with proper margins.
-      const _mm = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
+      const _mm = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null)
       const _padVert = (r) => {
         if (!r) return r
         const mt = Math.max(0, Math.min(0.45, _mm?.top ?? 0))
@@ -15171,30 +15285,18 @@ export default function StockChart({
   // (the setting only saves after the drag settles). A rAF sampler reads the actual
   // pane heights every frame and writes the offsets straight to the DOM (no React
   // re-render → no fight → smooth), so they slide with the divider in real time.
-  // ⭐⭐ ONE PREDICATE FOR "VOLUME OWNS A PANE", AND THE LEGEND ASKS IT (2026-09-16).
+  // ⭐⭐ ONE PREDICATE FOR "THE VOLUME PANE EXISTS", AND THE LEGEND ASKS IT.
   //
-  // `volInSeparatePane` is the PRICE-SCALE question — "do I reserve a bottom band
-  // on pane 0?" — and it misses the one rule that can promote volume to a pane
-  // with no flag set anywhere: something OVERLAID on it. `updateChart` asks
-  // `volumeOwnsPane(…)` with every input and gets a pane; a legend reading the
-  // narrower flag would put Volume's row in the PRICE stack while its bars sit in
-  // a pane of their own six pixels below.
+  // ⚰️ IT USED TO ASK ITS OWN COPY, because the price-scale flag twenty pages up
+  // could not see an overlay — a legend reading that narrower flag would put
+  // Volume's row in the PRICE stack while its bars sat in a pane of their own six
+  // pixels below. Both questions are `volumePaneRequired` now, so the copy is the
+  // SAME VALUE and this is a binding rather than a second call. Two readers of one
+  // rule is exactly the shape `chartDataMap` already records from the other side.
   //
-  // ⚰️ THAT IS THE DEFECT `chartDataMap` ALREADY RECORDS FROM THE OTHER SIDE —
-  // two readers of one rule, one of them missing an input, and a panel describing
-  // a chart that is not on screen. This is the same rule, asked the same way.
-  //
-  // ⛔ AND IT READS THE ENGINE'S LIST FIRST, exactly as `chipPaneHost` does: a
-  // LEGACY instance is PROJECTED at read time and never stored, so asking the blob
-  // alone would miss an overlay that is really drawing.
-  const volumeOwnsItsPane = volumeOwnsPane({
-    cs,
-    instances: (engineInstancesRef.current && engineInstancesRef.current.length)
-      ? engineInstancesRef.current : cs.indicatorInstances,
-    shown: showVolume,
-    blankVolume,
-    volumeSeparatePane,
-  })
+  // ⛔ AND IT IS PANE EXISTENCE, NOT THE BARS. `chipPaneHost` routes a guest's
+  // readout into this pane; a guest outlives the bars, so the router must too.
+  const volumeOwnsItsPane = volumePaneExists
   const showVolLegend = showVolume && volumeOwnsItsPane
   // ⛔ MIRRORED INTO A REF BECAUSE `chipPaneHost` IS DECLARED ABOVE THIS LINE and
   // is memoised on `cs` alone. Reading the value directly would either be a
@@ -15714,7 +15816,7 @@ export default function StockChart({
               try {
                 mainPriceScale()?.applyOptions({
                   autoScale: true,
-                  scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+                  scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
                 })
               } catch { /* noop */ }
               // HORIZONTAL: reframe to the timeframe default.

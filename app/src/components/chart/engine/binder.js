@@ -439,6 +439,49 @@ export function createBinder({ chart, LWC }) {
 
   /** Remove every series we hold. Zero calls when we hold nothing, which is what
    *  makes `teardown()` safe to call unconditionally from an unmount path. */
+  /**
+   * The chart's LEFT axis is visible exactly when something is drawn on it.
+   *
+   * ⚰️⚰️ A VACATED LEFT SCALE FREEZES THE WHOLE CHART. `leftPriceScale.visible` is
+   * a CHART-LEVEL option, and `series.priceScale().applyOptions({visible: true})`
+   * on a `'left'` scale turns it on for the chart — which is how a volume-pane
+   * guest gets its own ladder. Nothing ever turned it back off. Once the last
+   * left-axis tenant leaves, `ChartWidget._adjustSizeImpl` still walks every pane
+   * calling `ensureNotNull(paneWidget._leftPriceAxisWidget())`, the pane that has
+   * no left scale any more answers `null`, and the THROW happens inside
+   * `_drawImpl` — so the canvas keeps its LAST GOOD FRAME and nothing afterwards
+   * paints. MEASURED 2026-09-18 in the live pane harness: volume bars deleted with
+   * an MA of Volume still in the pane, and the chart went on showing the bars it
+   * no longer had, through every later edit and every resize.
+   *
+   * ⛔ CALLED FROM BOTH EXITS, AND THE DISABLED ONE IS NOT OPTIONAL. Deleting the
+   * last instance takes `sync` down the `enabled === false` path, which returns
+   * before the scale writes — so the tenant leaves and the axis it turned on
+   * stays on.
+   *
+   * ⭐ THE ANSWER COMES FROM THE PLACEMENTS, not from settings and not from the
+   * volume predicate: the question is "did anything this sync place on `'left'`".
+   *
+   * ⚠️ IDEMPOTENT AND GUARDED: `applyOptions` with the value already in force is a
+   * no-op merge, and the read is skipped entirely on an API that cannot answer.
+   *
+   * @param {boolean} want is anything bound to `'left'` right now
+   */
+  function assertLeftAxis(want) {
+    try {
+      if (typeof chart.options !== 'function' || typeof chart.applyOptions !== 'function') return
+      const cur = chart.options()?.leftPriceScale?.visible
+      // ⛔⛔ A CHART THAT CANNOT ANSWER GETS NO CALL — `undefined !== false` IS NOT
+      // A DIFFERENCE. This is the DARK CONTRACT ("zero calls of any kind"), which
+      // fifteen parity ledgers assert by COUNTING the renderer calls a sync makes.
+      // A loose `cur !== want` fires on every one of their doubles, which report no
+      // options at all, and lands an `applyOptions` in a list whose whole point is
+      // that it is two entries long. Read a real boolean or do nothing.
+      if (typeof cur !== 'boolean' || cur === want) return
+      chart.applyOptions({ leftPriceScale: { visible: want } })
+    } catch { /* older API — the axis stays as it was, which is today's behaviour */ }
+  }
+
   function releaseAll() {
     for (const b of held) attempt(() => chart.removeSeries(b.series))
     held = []
@@ -540,6 +583,9 @@ export function createBinder({ chart, LWC }) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.
       if (held.length) releaseAll()
+      // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
+      // the last indicator arrives HERE, not at pass two.
+      assertLeftAxis(false)
       return { ok: false, reason: 'engine disabled', bound: 0, released: 0 }
     }
 
@@ -958,6 +1004,18 @@ export function createBinder({ chart, LWC }) {
       prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles })
     }
 
+    // ⛔⛔ THE LEFT AXIS IS ASSERTED **BEFORE** ANY SCALE IS WRITTEN, and the order
+    // is the whole of it. `series.priceScale().applyOptions({visible: true})` on a
+    // `'left'` scale flips the chart-level flag WITHOUT recreating the pane
+    // widgets, so the next draw walks panes that have no left axis widget yet and
+    // throws out of `_adjustSizeImpl`. `chart.applyOptions` rebuilds them, so doing
+    // it first means every pane is ready before the tenant arrives.
+    //
+    // MEASURED: asserting it after pass two instead produced exactly three
+    // `Value is null` exceptions on the frame a member restores Volume beside a
+    // guest — the chart recovered, and threw every time.
+    assertLeftAxis(prepared.some((p) => p.scaleId === 'left'))
+
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
     const next = []
     for (const p of prepared) {
@@ -1065,6 +1123,7 @@ export function createBinder({ chart, LWC }) {
     for (const key of pointMemo.keys()) if (!boundKeys.has(key)) pointMemo.delete(key)
 
     held = next
+
 
     // ── PASS THREE (FLIP C ONLY): the panes get their heights ──
     //

@@ -32,7 +32,7 @@ import { describe, it, expect } from 'vitest'
 import { addInstance } from '../instanceControls'
 import { resolvePaneOrder, setPaneOrder, PRICE_PANE, VOLUME_PANE } from '../paneOrder'
 import { defaultPaneKeys } from '../paneLayout'
-import { volumeOwnsPane } from '../volumePresentation'
+import { nativeVolumeOwnsPane } from '../volumePresentation'
 import * as registry from '../nativeRegistry'
 
 const instancesOf = (cs) => (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])
@@ -149,20 +149,20 @@ describe('⛔ a chart with NO arrangement keeps the shipped default', () => {
 
 describe('⛔ ONE volume predicate, asked by everyone', () => {
   it('an overlay forces a pane whatever the flag says', () => {
-    expect(volumeOwnsPane({ cs: { volumeOverlayIndicators: ['rsi'] } })).toBe(true)
-    expect(volumeOwnsPane({ cs: { volume: { separatePane: false }, volumeOverlayIndicators: ['rsi'] } })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs: { volumeOverlayIndicators: ['rsi'] } })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs: { volume: { separatePane: false }, volumeOverlayIndicators: ['rsi'] } })).toBe(true)
   })
 
   it('the props the renderer has, and Chart Data does not, are INPUTS not guesses', () => {
     const cs = { volume: { separatePane: false } }
-    expect(volumeOwnsPane({ cs }), 'the settings-only answer').toBe(false)
-    expect(volumeOwnsPane({ cs, blankVolume: true }), 'a blank volume pane is still a pane').toBe(true)
-    expect(volumeOwnsPane({ cs, volumeSeparatePane: true })).toBe(true)
-    expect(volumeOwnsPane({ cs, shown: false }), 'hidden volume owns nothing').toBe(false)
+    expect(nativeVolumeOwnsPane({ cs }), 'the settings-only answer').toBe(false)
+    expect(nativeVolumeOwnsPane({ cs, blankVolume: true }), 'a blank volume pane is still a pane').toBe(true)
+    expect(nativeVolumeOwnsPane({ cs, volumeSeparatePane: true })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs, shown: false }), 'hidden volume owns nothing').toBe(false)
   })
 
   it('⭐ the flag alone still means a pane', () => {
-    expect(volumeOwnsPane({ cs: { volume: { separatePane: true } } })).toBe(true)
-    expect(volumeOwnsPane({ cs: {} })).toBe(false)
+    expect(nativeVolumeOwnsPane({ cs: { volume: { separatePane: true } } })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs: {} })).toBe(false)
   })
 })

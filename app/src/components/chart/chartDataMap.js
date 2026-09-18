@@ -40,7 +40,7 @@ import { isInstanceTombstone } from './instanceShape'
 
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
 import { orderPaneRows } from './engine/paneSeriesOrder'
-import { volumeOwnsPane } from './engine/volumePresentation'
+import { volumePaneRequired } from './engine/volumePresentation'
 
 /** The group ids that no instance hosts. */
 export const PRICE_GROUP = 'price'
@@ -101,7 +101,11 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
   //
   // ⭐ ONE PREDICATE, ONE SET OF INPUTS. The host owns the props and now hands
   // them to both readers, so there is no second answer left to drift.
-  const separateVolume = volumeOwnsPane({ cs: settings, instances, ...(volumeOpts || {}) })
+  // ⛔ PANE EXISTENCE, NOT THE BARS. This map lists PANES, and a pane a guest is
+  // holding open with the native bars deleted is still a pane the member can see,
+  // reorder and resize. `volumeOwnsPane` answered about the bars; the map that
+  // consumed it then offered arrows for a pane it had dropped from the order.
+  const separateVolume = volumePaneRequired({ cs: settings, instances, ...(volumeOpts || {}) })
 
   const live = new Set([
     ...paneOwnKeys(instances, settings),

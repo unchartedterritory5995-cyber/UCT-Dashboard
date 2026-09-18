@@ -219,7 +219,7 @@ export default function ChartSettingsIndicators({
   // ⭐ A row to open on arrival — the legend gear's deep link (`ind:<rowId>`).
   // Absent on every other way in, which is why the accordion still opens closed.
   // ⚰️ THE RENDERER'S VOLUME INPUTS, HANDED DOWN RATHER THAN RE-DERIVED.
-  // `volumeOwnsPane` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
+  // `volumePaneRequired` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
   // those are PROPS the host passes to `StockChart` — this surface could never
   // see them, so it answered the settings-only question and disagreed with the
   // chart. Absent ⇒ the settings-only answer, which is what a host that does not

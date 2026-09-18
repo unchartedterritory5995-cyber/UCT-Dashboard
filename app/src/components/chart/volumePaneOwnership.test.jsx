@@ -35,7 +35,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
-import { volumeOwnsPane } from './engine/volumePresentation'
+import { nativeVolumeOwnsPane } from './engine/volumePresentation'
 import { resolveDisplayTarget } from './engine/displayTarget'
 import { addInstance, setInstanceInput, setInstanceDisplayTarget } from './engine/instanceControls'
 import * as registry from './engine/nativeRegistry'
@@ -116,7 +116,7 @@ describe('⭐⭐ MA(Volume) IS THE SAME MOVING AVERAGE, AND IT LANDS IN VOLUME�
 
   it('⛔ AND THAT PROMOTES VOLUME TO A REAL PANE — there is nothing else to draw into', () => {
     const { cs } = addMA(mergeChartSettings(JSON.stringify({})), 'volume')
-    expect(volumeOwnsPane({ cs, instances: cs.indicatorInstances, shown: true })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs, instances: cs.indicatorInstances, shown: true })).toBe(true)
   })
 
   it('⭐ …and an explicit move still wins, because a default is never a weld', () => {
@@ -131,15 +131,24 @@ describe('⛔⛔ THE LEGEND ASKS THE SAME QUESTION THE RENDERER DOES', () => {
   // ⚰️ THE CLASS OF DEFECT THIS EXISTS FOR IS ALREADY WRITTEN DOWN ONCE, in
   // `chartDataMap`'s header: two readers of one rule, one of them missing an
   // input, and a panel confidently describing a chart that is not on screen.
-  // `volInSeparatePane` is the PRICE-SCALE question and misses the rule that an
-  // overlay forces a pane; the legend must not use it.
+  // The price-scale flag was the PRICE-SCALE question and missed the rule that an
+  // overlay forces a pane; the legend must not use a narrower predicate.
   const body = STOCK_CHART.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
 
-  it('⭐ the legend’s volume-pane predicate is `volumeOwnsPane`, with every input', () => {
-    const m = /const volumeOwnsItsPane = volumeOwnsPane\(\{([\s\S]*?)\}\)/.exec(body)
-    expect(m, 'the legend no longer asks `volumeOwnsPane` — marker moved').toBeTruthy()
+  it('⭐ the legend and the price scale read ONE pane-existence answer', () => {
+    // ⭐⭐ THE COPY IS GONE, WHICH IS STRICTLY STRONGER THAN THE OLD LEDGER. The
+    // legend used to call the predicate a second time with its own argument list,
+    // and this test policed that list input by input. Both surfaces now bind the
+    // same `volumePaneExists`, so there is no second argument list to drift.
+    const m = /const volumePaneExists = volumePaneRequired\(([\s\S]*?)\)/.exec(body)
+    expect(m, 'the renderer no longer asks `volumePaneRequired` — marker moved').toBeTruthy()
+    expect(body, 'the legend re-derived the answer instead of reading it')
+      .toContain('const volumeOwnsItsPane = volumePaneExists')
+    // …and every input the renderer holds still reaches it.
+    const optsM = /const _volPresenceOpts = \{([\s\S]*?)\}/.exec(body)
+    expect(optsM, 'the presence options object moved').toBeTruthy()
     for (const input of ['cs', 'instances', 'shown', 'blankVolume', 'volumeSeparatePane']) {
-      expect(m[1], `the legend asks a NARROWER question than the renderer: no ${input}`)
+      expect(optsM[1], `the answer is NARROWER than the renderer's inputs: no ${input}`)
         .toContain(input)
     }
   })
@@ -158,7 +167,7 @@ describe('⛔⛔ THE LEGEND ASKS THE SAME QUESTION THE RENDERER DOES', () => {
     // is a price-pane plot. The ternary above is what makes that true rather than
     // hopeful, and this is the case that would notice it becoming unconditional.
     const cs = mergeChartSettings(JSON.stringify({ volume: { separatePane: false } }))
-    expect(volumeOwnsPane({ cs, instances: [], shown: true }),
+    expect(nativeVolumeOwnsPane({ cs, instances: [], shown: true }),
       'a bare chart claims a volume pane it does not have').toBe(false)
   })
 })
