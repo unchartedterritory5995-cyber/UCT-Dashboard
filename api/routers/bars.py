@@ -461,6 +461,31 @@ async def get_bars(
     return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
 
 
+@router.get("/api/bars/{ticker}/adjustment-basis")
+def get_adjustment_basis(
+    ticker: str,
+    _access: dict = Depends(require_bars_access),
+    tf: str = Query(default="D", description="Timeframe: D, W, or M only"),
+):
+    """D5 CHECKPOINT 7 — the adjustment-basis label for one (ticker, tf) series.
+
+    ⛔ SHIPS DARK. Nothing in the frontend calls this yet — the member-facing
+    sentence ("split-adjusted, 2026-09-02" / "as reported") is an explicit,
+    named deferral to S8/S10 (the D5 gate's own approval-line requirement),
+    not an oversight. This endpoint exists so the label is addressable and
+    testable before any UI reads it.
+
+    Additive: a brand-new route, touching no existing `/api/bars/{ticker}`
+    response shape or call site. See `api/services/adjustment_basis.py` for
+    why `dividends` is always `None` and why an "undetermined" answer is
+    preferred over a confident-sounding guess.
+    """
+    from api.services.adjustment_basis import compute_adjustment_basis
+    basis = compute_adjustment_basis(ticker.upper(), tf.upper())
+    return JSONResponse(content={"ticker": ticker.upper(), "tf": tf.upper(),
+                                  "adjustment_basis": basis.to_dict()})
+
+
 def _augment_daily_with_today(response, ticker: str):
     """Append today's DEVELOPING daily bar to a 200 daily-bars response so the
     served payload always ends at the current session.

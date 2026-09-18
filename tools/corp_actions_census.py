@@ -155,6 +155,23 @@ REGISTER: dict[tuple, tuple] = {
         "from a second process. Two copies of one decision; CP4's reason for "
         "existing."),
 
+    # ⛔ D5 CP7 (2026-09-18): calls the SAME `unadjusted_splits` name the two
+    # rows above own, so the census's name-derived detector correctly flags a
+    # new site — but it is not a third rescale. `compute_adjustment_basis`
+    # calls `unadjusted_splits` READ-ONLY, to detect whether the boundary is
+    # present, and never mutates `bars`, never writes the store, never returns
+    # a rescaled series — it returns a LABEL naming which of the two rows
+    # above (if either) already did the rescaling. Registered OUTSIDE, same
+    # pattern as the gex.py keyword-collision row below: the detector is right
+    # to flag the call site, and a human confirms it shares no meaning with
+    # the thing being counted.
+    ("api/services/adjustment_basis.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "reads unadjusted_splits() to LABEL which mechanism owns a series' "
+        "adjustment (vendor / bars_sanitize / bars_split_repair) — never "
+        "rescales a price itself. The two rows above remain the only real "
+        "rescale sites; this is CP7's reader, not a third one."),
+
     # ── VENDOR_ADJUSTED ──────────────────────────────────────────────────────
     # ⛔ These are NOT debt in the same sense: asking a vendor for an adjusted
     # series is often exactly right. What is missing is the LABEL, and that is
