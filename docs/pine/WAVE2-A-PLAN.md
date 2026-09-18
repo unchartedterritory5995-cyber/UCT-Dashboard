@@ -588,6 +588,74 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# 🛑 H.11 — CENSUS AND DESIGN. NOT BUILT. AND A CORRECTION I OWE.
+
+## ⚰️ FIRST, THE CORRECTION — I OVERSTATED THE R35c HAZARD
+
+I published, twice, that *"a saved definition pinning `__uct_param_3` would, after
+this change, address a different knob."* **Measured in the code, that is wrong**,
+and the direction of the error matters: I made it sound like silent corruption.
+
+- A saved definition **carries its own `compute.paramManifest`**, and a
+  parameter's live value is read by walking that document's OWN `compute.ast` at
+  the stored `locators[].astPath` — *"pure JSON traversal, not parsing"*
+  (`param_manifest.py` module docstring). The id is a key WITHIN the saved
+  document, not a reference into a fresh translation.
+- On save, `user_definitions.save()` calls
+  `param_manifest.apply(definition, _prev_definition)`, which canonicalises the
+  submitted roster **against the member's OWN PRIOR SAVE** — *"the STORED bytes
+  reflect the server's trusted manifest, never the client's submitted one, for any
+  parameter identity this user's OWN prior save already established"* — and
+  enforces **condition 15: "an edit may never mint a new identity."**
+
+⭐ **So an id shift does not silently re-point an existing saved definition.** The
+realistic failure is the opposite kind: a member editing a parameterised
+definition after the shift submits a roster whose identities disagree with their
+prior one, and condition 15 **refuses the save** (a 400). That is a broken edit
+flow for existing parameterised definitions — still a real, member-visible defect,
+still exactly what R36 prevents — but it fails LOUDLY, and I said it failed
+silently.
+
+⚠️ **The lesson is the one this file keeps recording, committed by me:** I reasoned
+about a hazard from the shape of an identifier instead of reading the code that
+consumes it. *Reading the call site is not reading the request* — and neither is
+reading the id.
+
+## 4.2 THE CENSUS — can an id be keyed by NAME?
+
+From `docs/pine/param-ids.json` (170 scripts, **744 parameters**):
+
+| | |
+|---|---|
+| parameters with a **blank** declared title | **42** (5.6%) |
+| scripts with a **duplicate** title | **5** |
+| parameters involved in a duplicate | **41** (5.5%) |
+| worst | `multiple-mtf-moving-average-xdecow`: `Offset` ×10, `Enabled` ×10 · `anchored-vwap-pinch-handoff`: `Show` ×12 |
+
+⛔ **SO A NAME-KEYED ID IS STABLE FOR ~89% OF PARAMETERS AND DEGRADES TO POSITIONAL
+FOR THE OTHER ~11%** (83 of 744: 42 nameless, 41 duplicated). A scheme advertised
+as "stable" that is positional for one parameter in nine is the half-guarantee this
+programme keeps paying for, so it is stated up front rather than discovered later.
+
+## 4.3 THE PROPOSAL — not built, and it is a ruling
+
+- **Stable id** = hash of (declared title, input kind, **ordinal among duplicates**).
+  ⚠️ The ordinal is the positional residue: for the 83 above, inserting a sibling
+  before them still shifts the key. Honest scope, not a fix.
+- **Emitted BESIDE `__uct_param_N` during a transition**; the saved-definition
+  reader accepts either; `param-ids.json` gains a stable-id column so both are
+  pinned.
+- **One migration script**, owner-run at a keyboard, under a `VACUUM INTO` backup,
+  asserting a **set difference of exactly the rows it means to touch** — the shape
+  the smoke-account provisioning used.
+- **Estimate: 180 min** (id derivation + dual emission 60, reader acceptance 45,
+  artifact column + rails 30, migration script + its own rails 45).
+
+🛑 **STOP — H.11 is a ruling.** Nothing is built. R36 already removes the
+instance; this removes the class.
+
+---
+
 # ✅ `paramSingleTranslation` — CAUSE ESTABLISHED, OWED ENTRY CLOSED (2026-09-17)
 
 **It was R13** (`482c98bb7` — *"the closing pass resolves without minting"*).
