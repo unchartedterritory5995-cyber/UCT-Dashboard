@@ -993,6 +993,11 @@ SECOND_WRITER_MOUNT_MS = 20000
 #: early yields `None -> None`, which the cell reports as "no variable" — a
 #: measurement failure dressed as an experimental one.
 SECOND_WRITER_REV_BUDGET_S = 20
+
+#: ⛔ The SETUP phase must wait for the editor and for the durable write, never
+#: sample at them. Both budgets are >= the blind sleeps they replace.
+SETUP_EDITOR_MOUNT_MS = 16000
+SETUP_QUEUED_BUDGET_S = 20
 SWAP_POLL_SECONDS = 10
 #: How many consecutive healthy readings before a pod is called settled.
 SWAP_SETTLE_READINGS = 3
@@ -1712,15 +1717,47 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         if not str(probe).startswith("FAILED"):
             return {"verdict": "INCONCLUSIVE",
                     "why": f"CDP did not cut the transport (`{probe}`) — the offline half never happened"}
-        pm = page.query_selector(".ProseMirror")
-        if pm:
-            pm.click()
-            page.keyboard.press("End")
-            page.keyboard.type(" " + sentence)
-        page.wait_for_timeout(6000)
+        # ⛔⛔ WAIT for the editor, never SAMPLE for it. With query_selector a
+        # transiently-unmounted editor makes `pm` None, the typing is SKIPPED, and
+        # the cell then reports "the rig never got the sentence into a queued outbox
+        # entry" — true, and naming the wrong cause: it reads as a STORE problem when
+        # the store was never asked to hold anything. Measured 2026-09-18 on `tags`
+        # (on screen: None, entries: 0).
+        try:
+            pm = page.wait_for_selector(".ProseMirror", timeout=SETUP_EDITOR_MOUNT_MS,
+                                        state="attached")
+        except Exception:  # noqa: BLE001
+            pm = None
+        if pm is None:
+            # ⛔ Say THIS, not "the sentence never reached the store". An editor that
+            # never mounted is a different fact with a different fix.
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"the editor never mounted within "
+                            f"{SETUP_EDITOR_MOUNT_MS}ms of going offline, so the sentence "
+                            f"was never typed — an INSTRUMENT answer, not a finding")}
+        pm.click()
+        page.keyboard.press("End")
+        page.keyboard.type(" " + sentence)
 
         # ── 3b. THE CONTROL: are the member's words actually queued? ──
-        q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+        # ⛔⛔ POLL UNTIL IT LANDS, never a single read after a fixed sleep. The
+        # durable write is asynchronous, so one read 6s after typing reports a
+        # not-yet-flushed write as ABSENT. Measured on `append_document_excerpt`:
+        # on screen True, 1 queued entry, and the durable copy simply had not
+        # caught up at the instant of the read.
+        # ⛔ This does NOT weaken the control — a sentence that never lands still
+        # refuses the cell at the end of the budget. It stops refusing cells where
+        # the sentence landed a second after the rig happened to look.
+        q = None
+        _qdeadline = time.time() + SETUP_QUEUED_BUDGET_S
+        while time.time() < _qdeadline:
+            q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                          "sentence": sentence})
+            if isinstance(q, dict) and q.get("sentenceInQueuedEntry"):
+                break
+            if isinstance(q, dict) and q.get("err"):
+                break  # a store that cannot be READ is not a store that is EMPTY
+            page.wait_for_timeout(500)
         log(f"      queued: {q}")
         if not isinstance(q, dict) or q.get("err"):
             return {"verdict": "INCONCLUSIVE",

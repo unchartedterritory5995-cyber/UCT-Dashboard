@@ -163,7 +163,7 @@
     },
     {
       "id": "p2-2.8b-settle-first",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b chunk 1 of 6 \u2014 the `settle-first` ordering across all seven families, second writer on the `folder` door, 4 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
       "expect": "GREEN",
       "cells": 4,
@@ -183,7 +183,17 @@
       "timeout": 708,
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 4 cells x 87 s = 348 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
-      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass."
+      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
+      "attempts": 3,
+      "result": {
+        "exit": 0,
+        "seconds": 428.7,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-18T21:22:15.229591+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T161713-p2-2.8b-settle-first",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-drain-first",
@@ -207,7 +217,17 @@
       "timeout": 969,
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
-      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass."
+      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 622.4,
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T162424-p2-2.8b-drain-first",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-marker-live",
@@ -353,7 +373,18 @@
         "tools/q1_p3_guard_flip.py",
         "--to",
         "full"
-      ]
+      ],
+      "cells": 5,
+      "timeout": 900,
+      "timeout_why": "\u26d4 DERIVED: 5 cells x ~87s = ~435s (87s is the measured rate, 3301s/38, from the 19:50:30Z run) plus 360s for ONE swap-wait = ~795s, rounded to 900s. The default 1800s would let a stuck run eat a whole window for a cell that should take 7 min.",
+      "cells_are": [
+        "drain-first (the editor could NOT report local state)",
+        "marker LIVE",
+        "marker EXPIRED",
+        "slow PUT (landed, ring populated)",
+        "reload mid-flight (marker from a dead tab)"
+      ],
+      "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",
