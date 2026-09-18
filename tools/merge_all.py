@@ -146,6 +146,7 @@ UNITS = [
     ("k-cp14-build-record", [], False),                      # docs worktree only
     ("k-cp15-build-record", [], False),                      # docs worktree only
     ("k-cp13-build-record", [], False),                      # docs worktree only
+    ("k-cp16-build-record", [], False),                      # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -469,6 +470,56 @@ def _cherry_says_merged(base: str, sha: str, repo):
     return (not mine) or mine[-1].startswith("-")
 
 
+def _pick_with_resolution(sha: str, stem: str, repo, resolutions, base_rev: str):
+    """Cherry-pick `sha` into `repo`'s current HEAD; on conflict, apply a RECORDED
+    resolution (K CP11) for every conflicting file if one exists for each, else STRAND.
+
+    ⛔⛔ F-STRAND-1 — THIS LOGIC USED TO EXIST ONLY IN `replay()`. The REAL per-unit merge
+    loop in `main()` cherry-picked raw, with no idea a resolution mechanism existed at
+    all. Measured 2026-09-17: `replay()`/`--dry-run` reported "CLEAN" through e-cp28 every
+    time, because IT applies the recorded conftest.py resolution — but the first REAL
+    attempt to merge past e-cp28 hit the RAW git conflict and stranded, mid-cherry-pick,
+    on production infrastructure. A preview and the run it previews must share ONE
+    cherry-picking implementation, or the preview previews nothing.
+
+    Returns (ok, applied, label, detail). `applied` is [(path, resolution_filename), ...].
+    `label` is "" on success, else "STRAND" or "STRAND-UNRESOLVED". `detail` is the
+    conflicting-files clause, WITHOUT any caller-specific prefix (position/index), so each
+    caller formats its own line. On failure the pick is aborted — `repo`'s working tree is
+    left clean either way.
+    """
+    rc, out = run(["git", "cherry-pick", sha], repo, False)
+    if rc == 0:
+        return True, [], "", ""
+    _, st = run(["git", "diff", "--name-only", "--diff-filter=U"], repo, False)
+    files = [l for l in st.split() if l.strip()]
+    if not files:   # modify/delete leaves no UU entry
+        _, st2 = run(["git", "status", "--porcelain"], repo, False)
+        files = [l[3:] for l in st2.splitlines() if l[:2] in ("DU", "UD", "AU", "UA")]
+    fixed, why = [], ""
+    for path in files:
+        r, w = resolution_for(stem, path, base_rev, sha, repo, resolutions)
+        if r is None:
+            why = w
+            break
+        fixed.append((path, r))
+    if fixed and len(fixed) == len(files):
+        for path, r in fixed:
+            (pathlib.Path(repo) / path).write_bytes(r["_blob_path"].read_bytes())
+            run(["git", "add", path], repo, False)
+        rc2, out2 = run(["git", "-c", "core.editor=true", "cherry-pick", "--continue"],
+                        repo, False)
+        if rc2 == 0:
+            return True, [(p, r["_file"].name) for p, r in fixed], "", ""
+        why = "cherry-pick --continue failed: %s" % out2.strip()[:120]
+    run(["git", "cherry-pick", "--abort"], repo, False)
+    label = "STRAND-UNRESOLVED" if why and "no recorded" not in why else "STRAND"
+    detail = ("%s  %s — conflicting: %s%s"
+             % (stem, sha, ", ".join(files) or "(unnamed)",
+                ("\n              " + why) if why else ""))
+    return False, [], label, detail
+
+
 def replay(base="origin/master", units=None, repo=None, verbose=True):
     """K CP9 — PERFORM the merge on a throwaway and report the FIRST strand.
 
@@ -543,36 +594,14 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
             if already:
                 skipped.append((stem, sha))
                 continue
-            rc, out = run(["git", "cherry-pick", sha], clone, False)
-            if rc != 0:
-                _, st = run(["git", "diff", "--name-only", "--diff-filter=U"], clone, False)
-                files = [l for l in st.split() if l.strip()]
-                if not files:   # modify/delete leaves no UU entry
-                    _, st2 = run(["git", "status", "--porcelain"], clone, False)
-                    files = [l[3:] for l in st2.splitlines() if l[:2] in ("DU", "UD", "AU", "UA")]
-                # ⛔ K CP11 — a recorded resolution, keyed by BOTH pre-images, or a stop.
-                fixed, why = [], ""
-                for path in files:
-                    r, w = resolution_for(stem, path, resolved, sha, repo, resolutions)
-                    if r is None:
-                        why = w
-                        break
-                    fixed.append((path, r))
-                if fixed and len(fixed) == len(files):
-                    for path, r in fixed:
-                        (clone / path).write_bytes(r["_blob_path"].read_bytes())
-                        run(["git", "add", path], clone, False)
-                        applied.append((stem, path, r["_file"].name))
-                    rc2, out2 = run(["git", "-c", "core.editor=true", "cherry-pick",
-                                     "--continue"], clone, False)
-                    if rc2 == 0:
-                        continue
-                    why = "cherry-pick --continue failed: %s" % out2.strip()[:120]
-                run(["git", "cherry-pick", "--abort"], clone, False)
-                label = "STRAND-UNRESOLVED" if why and "no recorded" not in why else "STRAND"
-                return False, ("[merge-all] ⛔ %s at #%d  %s  %s — conflicting: %s%s"
-                               % (label, i, stem, sha, ", ".join(files) or "(unnamed)",
-                                  ("\n              " + why) if why else ""))
+            # ⛔ K CP11/F-STRAND-1 — the SAME resolution-applying pick `main()`'s real
+            # loop now uses (see `_pick_with_resolution`'s docstring for why sharing this
+            # matters: a preview and the run it previews must cherry-pick identically).
+            ok_pick, picked_applied, label, detail = _pick_with_resolution(
+                sha, stem, clone, resolutions, resolved)
+            if not ok_pick:
+                return False, "[merge-all] ⛔ %s at #%d  %s" % (label, i, detail)
+            applied.extend((stem, path, fname) for path, fname in picked_applied)
         # ⛔ SAY WHICH BASE. A CLEAN that does not name the sha it replayed onto is the
         # sentence that hid a 370-commit-stale base for two sessions.
         note = ""
@@ -1043,6 +1072,66 @@ def _self_check() -> int:
          _is_burst_refusal(real_recency_text), False)
     show("R-ATTEST: in-flight/BUILDING refusal -> NEVER attested",
          _is_burst_refusal(real_building_text), False)
+
+    # ── F-STRAND-1: `main()`'s REAL cherry-pick loop must apply recorded resolutions,
+    # not just `replay()` (the preview). Fixture repo, both directions ─────────────────
+    import tempfile as _tf4, shutil as _shutil4
+    box4 = pathlib.Path(_tf4.mkdtemp(prefix="k13-strand-"))
+    try:
+        def _g4(*args):
+            return subprocess.run(["git", "-C", str(box4), *args], capture_output=True,
+                                  text=True, encoding="utf-8", errors="replace")
+        _NL4 = chr(10)
+        f = box4 / "shared.txt"
+        _g4("init", "-q", "-b", "master")
+        _g4("config", "user.email", "c@example.com")
+        _g4("config", "user.name", "control")
+        f.write_text("line1" + _NL4 + "line2" + _NL4, encoding="utf-8")
+        _g4("add", "-A"); _g4("commit", "-qm", "base")
+        base_sha = _g4("rev-parse", "HEAD").stdout.strip()
+        # master diverges: line2 -> masterX
+        f.write_text("line1" + _NL4 + "masterX" + _NL4, encoding="utf-8")
+        _g4("add", "-A"); _g4("commit", "-qm", "master moves shared.txt")
+        _g4("branch", "-f", "unit-base", base_sha)
+        _g4("checkout", "-q", "-b", "feat", "unit-base")
+        # unit diverges the SAME line differently: line2 -> unitY -- guaranteed conflict
+        f.write_text("line1" + _NL4 + "unitY" + _NL4, encoding="utf-8")
+        _g4("add", "-A"); _g4("commit", "-qm", "unit changes shared.txt")
+        unit_sha = _g4("rev-parse", "HEAD").stdout.strip()
+        _g4("checkout", "-q", "master")
+
+        ok_no_res, _app, label_no_res, detail_no_res = _pick_with_resolution(
+            unit_sha, "fx-strand-row", box4, [], "master")
+        show("F-STRAND-1: a conflict with NO recorded resolution -> STRAND, aborted",
+             ok_no_res, False)
+        show("...named STRAND (not UNRESOLVED -- no candidate rows at all)",
+             label_no_res, "STRAND")
+        rc_clean, st_clean = _g4("status", "--porcelain"), None
+        show("...and the worktree is clean afterward (no stuck CHERRY_PICK_HEAD)",
+             not rc_clean.stdout.strip(), True)
+
+        # now WITH a matching recorded resolution
+        # ⛔ "unit pre-image" is the blob AT the unit's OWN commit (what it carries),
+        # matching `resolution_for`'s `_blob_hash(repo, unit_sha, path)` -- NOT its
+        # parent's content. First version of this fixture used `unit-base` (the parent)
+        # and the control read (False, 0) on a case that should apply cleanly, caught by
+        # running it rather than reading it.
+        m_pre = _g4("rev-parse", "master:shared.txt").stdout.strip()
+        u_pre = _g4("rev-parse", "%s:shared.txt" % unit_sha).stdout.strip()
+        resolved_blob = box4 / "resolved.txt"
+        resolved_blob.write_text("line1" + _NL4 + "BOTH" + _NL4, encoding="utf-8")
+        fake_resolution = [{"row": "fx-strand-row", "path": "shared.txt",
+                            "master pre-image": m_pre, "unit pre-image": u_pre,
+                            "_blob_path": resolved_blob,
+                            "_file": pathlib.Path("fx-strand-row--shared-txt.md")}]
+        ok_res, applied_res, label_res, _detail_res = _pick_with_resolution(
+            unit_sha, "fx-strand-row", box4, fake_resolution, "master")
+        show("F-STRAND-1: the SAME conflict WITH a matching resolution -> applied clean",
+             (ok_res, len(applied_res)), (True, 1))
+        show("...and it is the SAME function replay() now shares (no second copy)",
+             "_pick_with_resolution" in dir(sys.modules[__name__]), True)
+    finally:
+        _shutil4.rmtree(box4, ignore_errors=True)
 
     # ── K CP13: --resume-signed's three checks, against the REAL manifest and packets ──
     ok_r1, msg1 = _check_resume_signed("packet-a-absent-bound-gate", man)
@@ -1605,6 +1694,19 @@ def main(argv=None) -> int:
              "   [--until %s]" % a.until if a.until else ""))
     print()
 
+    # ⛔⛔ F-STRAND-1 — RESOLUTIONS ARE LOADED HERE TOO NOW. Before this fix `main()`'s
+    # real per-unit cherry-pick loop had NO IDEA the K CP11 resolution mechanism existed —
+    # only `replay()` (the preview) loaded and applied them. Measured 2026-09-17: the
+    # first real attempt to merge past e-cp28 hit the RAW conflict `replay()`'s own
+    # resolution silently absorbed on every "CLEAN" preview, and stranded mid-cherry-pick
+    # on the production merge checkout.
+    resolutions, corrupt = read_resolutions()
+    if corrupt:
+        print("⛔ REFUSED-CORRUPT-RESOLUTION: %s"
+              % "; ".join("%s (%s)" % c for c in corrupt))
+        print("   STOPPED. Nothing was cherry-picked, nothing was pushed.")
+        return REFUSED
+
     pending = []   # R-BATCH: [(stem, commits), ...] picked but not yet pushed
     for stem, commits, _hand_flag in units:
         packet = DOCS_REPO / "docs/terminal-research/12-decisions/gates" / (stem + ".md")
@@ -1713,15 +1815,21 @@ def main(argv=None) -> int:
                       "why.")
                 return FAIL
         for c in commits:
-            rc, out = run(["git", "cherry-pick", c], CODE_REPO, a.dry_run)
-            if rc != 0:
-                print("    ⛔ cherry-pick failed: %s\n%s" % (c, out))
-                # ⚰️ A failed cherry-pick leaves .git/CHERRY_PICK_HEAD behind and the
-                # NEXT run dies on it before it reaches this unit. Say so, rather than
-                # leaving the owner to discover it at the start of the resume.
-                print("    ⛔ the code worktree is mid-cherry-pick. Resolve it, or "
-                      "`git -C %s cherry-pick --abort`, before re-running." % CODE_REPO)
+            if a.dry_run:
+                # ⛔ A DRY RUN NEVER MUTATES THE CODE REPO. `_pick_with_resolution` always
+                # cherry-picks for real (it has to, to detect a conflict) — so dry-run
+                # takes the OLD print-only path exactly as before, never calling it.
+                print("    $ git cherry-pick %s" % c)
+                continue
+            ok_pick, picked_here, label, detail = _pick_with_resolution(
+                c, stem, CODE_REPO, resolutions, "origin/master")
+            if not ok_pick:
+                print("    ⛔ %s  %s" % (label, detail))
+                print("    ⛔ the code worktree's cherry-pick was ABORTED (clean). "
+                      "Nothing left mid-pick.")
                 return FAIL
+            for path, fname in picked_here:
+                print("    ✅ recorded resolution applied: %s :: %s" % (path, fname))
         if a.batch:
             # ⛔⛔ K CP13 — R-BATCH. This row is NOT member-visible (is_mv is False, or
             # we would have refused/flushed-and-stopped above), so its pick joins the
