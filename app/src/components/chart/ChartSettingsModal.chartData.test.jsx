@@ -72,17 +72,30 @@ function Host({ initial, onSeen }) {
 const show = (cs) => render(<Host initial={cs} />)
 const openTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
+/** ⚰️⚰️ THE MARKUP THESE READ HAS CHANGED TWICE AND THE QUESTIONS HAVE NOT.
+ *  A pane heading was `.sectionLabel` and is `.insGroupHead`; a row's name was
+ *  `.actLabel` inside an expander button and is `.insRowName` on the row itself;
+ *  SELECTING was clicking that expander and is now clicking the row, because the
+ *  form no longer opens underneath it. Every claim below is the claim it was. */
 const groups = () => [...document.body.querySelectorAll('[data-pane-group]')].map((g) => ({
   id: g.getAttribute('data-pane-group'),
   kind: g.getAttribute('data-pane-kind'),
-  name: g.querySelector('[class*="sectionLabel"]').textContent.trim(),
-  rows: [...g.querySelectorAll('[class*="actLabel"]')].map((n) => n.textContent.trim()),
+  name: g.querySelector('[class*="insGroupHead"]').textContent.trim(),
+  rows: [...g.querySelectorAll('[class*="insRowName"]')].map((n) => n.textContent.trim()),
 }))
-const rowFor = (re) => [...document.body.querySelectorAll('[data-row-id]')]
-  .find((r) => re.test((r.querySelector('[class*="actLabel"]')?.textContent || '').trim()))
-const select = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
+const rowFor = (re) => [...document.body.querySelectorAll('[data-structure-row]')]
+  .find((r) => re.test((r.querySelector('[class*="insRowName"]')?.textContent || '').trim()))
+const select = (re) => fireEvent.click(rowFor(re))
 const inspectorFor = () => document.body.querySelector('[data-inspector-for]')
   ?.getAttribute('data-inspector-for')
+/** The Inspector's own controls for whatever is selected. */
+const inspector = () => document.body.querySelector('[data-inspector-for]')
+const insBtn = (re) => [...(inspector()?.querySelectorAll('button') || [])]
+  .find((b) => re.test(b.getAttribute('aria-label') || b.textContent || ''))
+/** Select a row and press one of its Inspector verbs — the two-step a member
+ *  makes now that the rows carry no action icons of their own. */
+const act = (row, verb) => { select(row); fireEvent.click(insBtn(verb)) }
+const enterArrange = () => fireEvent.click(screen.getByTestId('arrange-enter'))
 
 const base = () => mergeChartSettings({})
 
@@ -142,7 +155,11 @@ describe('⚰️ switched off is not broken', () => {
     show(cs); openTab()
     expect(groups().some((g) => g.id === r.id), 'precondition: it has a pane').toBe(true)
 
-    fireEvent.click(rowFor(/Relative Strength/).querySelector('[role="switch"]'))
+    // ⚰️ THE SWITCH USED TO BE ON THE ROW. It is the Inspector's own switch now
+    // — the rows carry a rail and a name and nothing else — so hiding a series is
+    // select-then-toggle. The WRITE is the same `setInstanceHidden`.
+    // ⚰️ AND IT USED TO BE NAMED `Toggle …`. `Hide EMA 20` / `Show EMA 20`. A control named after itself makes the member guess the outcome; the accessible name is the ACTION now. Same writer, same key.
+    act(/Relative Strength/, /^Hide /)
     expect(groups().some((g) => g.id === r.id), 'a hidden, empty pane is still drawn').toBe(false)
 
     const g = groups().find((x) => x.kind === 'hidden')
@@ -198,94 +215,173 @@ describe('the inspector holds exactly one selection', () => {
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
   })
 
-  it('⛔⛔ removing ANOTHER row leaves the selection alone', () => {
-    // ⚰️ MEASURED IN THE HARNESS: `removeRow` cleared the selection
-    // unconditionally — correct for the accordion it was written for, where the
-    // ✕ and the open form were the same row. With a persistent inspector it
-    // blanked the panel the member was working in every time they tidied up an
-    // unrelated row.
+  it('⭐ REMOVE IS THE INSPECTOR\'S, AND IT TAKES THE SELECTED ROW OFF THE CHART', () => {
+    // ⚰️⚰️ THE ✕ ON EVERY ROW IS RETIRED, and with it the case that removing
+    // ANOTHER row must not blank the panel — a member cannot remove another row
+    // without selecting it first, so the situation is unreachable through the UI.
+    // `deselectIfRemoved` is kept anyway, as the belt behind the same claim, and
+    // the half of it that IS reachable is asserted below.
+    //
+    // ⛔ THE VERB DID NOT MOVE FOR MINIMALISM'S SAKE. A dense structure list is
+    // exactly where a mis-click deletes a configured indicator, and the Inspector
+    // is somewhere a member arrived deliberately. `removeRow` itself — tombstone
+    // for a fixture, `removeInstance` for an instance — is byte-identical.
     let cs = base()
     const r = withDef(cs, 'rsi'); cs = r.cs
     show(cs); openTab()
-    select(/Relative Strength/)
-    expect(inspectorFor()).toBe(r.id)
 
-    fireEvent.click(rowFor(/^EMA 9$/).querySelector('[aria-label^="Remove"]'))
-    expect(rowFor(/^EMA 9$/), 'the other row did not actually go — this is vacuous').toBeFalsy()
-    expect(inspectorFor(), 'removing an unrelated row blanked the inspector').toBe(r.id)
+    act(/^EMA 9$/, /^Remove /)
+    expect(rowFor(/^EMA 9$/), 'the row did not actually go — this is vacuous').toBeFalsy()
+    // …and it took only itself: the rest of the chart is untouched.
+    expect(rowFor(/Relative Strength/), 'an unrelated row went with it').toBeTruthy()
+    expect(rowFor(/^EMA 20$/)).toBeTruthy()
   })
 
-  it('⭐ …and removing the SELECTED row empties it', () => {
+  it('⭐ …and removing the SELECTED row empties the Inspector', () => {
     let cs = base()
     const r = withDef(cs, 'rsi'); cs = r.cs
     show(cs); openTab()
-    select(/Relative Strength/)
-    fireEvent.click(rowFor(/Relative Strength/).querySelector('[aria-label^="Remove"]'))
-    // ⚰️ NO "nothing selected" PLACEHOLDER ANY MORE. The permanent right-hand
-    // column had to fill itself; an inline editor is simply not rendered.
+    act(/Relative Strength/, /^Remove /)
+    // ⭐ THE EMPTY STATE IS A REAL STATE NOW, not an absence. The right column is
+    // permanent, so it says what it is for rather than leaving a blank rectangle
+    // — and it still carries no `data-inspector-for`, which is what "nothing is
+    // selected" means to everything that reads this panel.
     expect(inspectorFor()).toBeFalsy()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
-  it('⛔ every row points `aria-controls` at the region that holds its form', () => {
+  it('⛔ THE LIST POINTS `aria-controls` AT THE REGION ITS SELECTION DRIVES', () => {
+    // ⚰️ IT WAS ON EACH ROW'S EXPANDER, paired with `aria-expanded`, because each
+    // row opened a region of its own. There is one region now and the LIST drives
+    // it, which is the list-and-detail pattern `listbox` is for — so the pointer
+    // belongs on the listbox, and `aria-expanded` has nothing left to describe.
+    //
+    // ⛔ THE CLAIM IS THE ONE IT ALWAYS WAS: a screen-reader user told that
+    // something changed must have a way to find WHAT changed.
     let cs = base()
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
-    const id = rowFor(/Relative Strength/).querySelector('[aria-expanded]').getAttribute('aria-controls')
-    expect(id, 'aria-expanded with nothing to point at').toBeTruthy()
+    const list = document.body.querySelector('[role="listbox"][aria-label="Series on this chart"]')
+    expect(list, 'the structure is not a listbox').toBeTruthy()
+    expect(list.getAttribute('aria-controls'), 'it points somewhere before anything is selected').toBeFalsy()
+
+    select(/Relative Strength/)
+    const id = list.getAttribute('aria-controls')
+    expect(id, 'a selection with nothing to point at').toBeTruthy()
     // ⚠️ ROW IDS CARRY COLONS (`inst:rsi:1`). `getElementById` takes them
     // literally — only a CSS selector would need escaping, and nothing here
     // resolves it that way.
     expect(id).toContain(':')
-    select(/Relative Strength/)
-    expect(document.getElementById(id), 'the open editor is not the region named').toBeTruthy()
+    expect(document.getElementById(id), 'the Inspector is not the region named').toBeTruthy()
     expect(document.getElementById(id).getAttribute('data-inspector-for'))
       .toBe(rowFor(/Relative Strength/).getAttribute('data-row-id'))
   })
+
+  it('⛔ THE ROWS ARE OPTIONS, AND EXACTLY ONE IS SELECTED AND TABBABLE', () => {
+    // ⭐ A ROVING TABINDEX, which is what makes one Tab stop reach the whole list
+    // and the arrows walk it — the keyboard equivalent of the click this design
+    // reduced every row to.
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab(); select(/Relative Strength/)
+    const opts = [...document.body.querySelectorAll('[data-structure-row]')]
+    expect(opts.length).toBeGreaterThan(1)
+    expect(opts.every((o) => o.getAttribute('role') === 'option')).toBe(true)
+    expect(opts.filter((o) => o.getAttribute('aria-selected') === 'true').length).toBe(1)
+    expect(opts.filter((o) => o.getAttribute('tabindex') === '0').length).toBe(1)
+  })
+
+  it('⭐ ↓ AND ↑ WALK THE WHOLE STRUCTURE, PANE BOUNDARIES INCLUDED', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    const list = document.body.querySelector('[role="listbox"][aria-label="Series on this chart"]')
+    const names = () => [...document.body.querySelectorAll('[data-structure-row]')]
+      .map((r) => r.querySelector('[class*="insRowName"]').textContent.trim())
+
+    fireEvent.keyDown(list, { key: 'ArrowDown' })
+    expect(inspectorFor(), 'the first arrow selected nothing').toBeTruthy()
+    fireEvent.keyDown(list, { key: 'End' })
+    // ⛔ END REACHES THE LAST ROW OF THE LAST PANE — the walk is over the FLAT
+    // order, so a member never has to know where one pane stops and the next
+    // starts in order to get to the bottom of their own chart.
+    const last = names()[names().length - 1]
+    expect((inspector().querySelector('[class*="insHeadName"]').textContent || '').trim()).toBe(last)
+    fireEvent.keyDown(list, { key: 'Home' })
+    expect((inspector().querySelector('[class*="insHeadName"]').textContent || '').trim()).toBe(names()[0])
+  })
 })
 
-describe('⚰️ the editor opens INLINE, under the row that owns it', () => {
-  /** The row block an editor is rendered inside — not merely "somewhere". */
-  const editorsRow = () => document.body.querySelector('[data-inspector-for]')?.closest('[data-row-id]')
+describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW', () => {
+  // ⚰️⚰️ A WHOLE DESCRIBE BLOCK IS RETIRED HERE, AND IT IS THE DESIGN THAT WENT,
+  // NOT THE COVERAGE. It asserted that the editor was a CHILD of its own row, that
+  // clicking the open row CLOSED it, and that only one row was open at a time —
+  // three true statements about an INLINE ACCORDION, which the owner retired on
+  // 2026-09-17: *"Do NOT preserve the old interaction where click row → row
+  // expands → everything below moves."*
+  //
+  // ⛔ THE ACCORDION'S REAL DEFECT WAS GEOMETRY. Opening a row pushed every row
+  // beneath it down by the height of a form, so walking a list of eleven meant
+  // reading a panel that reflowed under the pointer on every selection. The cases
+  // below assert the property that replaced it: the left column does not move.
+  const rowTops = () => [...document.body.querySelectorAll('[data-structure-row]')]
+    .map((r) => r.getAttribute('data-row-id')).join('|')
 
-  it('⚰️ the editor is a CHILD of its own row, not a second column', () => {
+  it('⭐⭐ the editor is a SIBLING of the structure — never inside a row', () => {
     let cs = base()
     const r = withDef(cs, 'rsi'); cs = r.cs
     show(cs); openTab()
     select(/Relative Strength/)
-    expect(editorsRow(), 'the editor is not inside any row').toBeTruthy()
-    expect(editorsRow().getAttribute('data-row-id')).toBe(r.id)
+    const panel = document.body.querySelector('[data-inspector-for]')
+    expect(panel, 'no editor at all').toBeTruthy()
+    expect(panel.getAttribute('data-inspector-for')).toBe(r.id)
+    // ⛔ THE ONE THING THE ACCORDION GUARANTEED AND THIS FORBIDS.
+    expect(panel.closest('[data-structure-row]'), 'the editor is nested inside a row again').toBeFalsy()
+    expect(panel.closest('[data-testid="inspector"]'), 'the editor is not in the right column').toBeTruthy()
   })
 
-  it('⭐ clicking the OPEN row closes it again', () => {
+  it('⭐⭐ SELECTING A DIFFERENT ROW SWAPS THE FORM AND MOVES NOTHING ELSE', () => {
+    let cs = base()
+    const a2 = withDef(cs, 'rsi'); cs = a2.cs
+    const b2 = withDef(cs, 'macd'); cs = b2.cs
+    show(cs); openTab()
+
+    const before = rowTops()
+    select(/Relative Strength/)
+    expect(inspectorFor()).toBe(a2.id)
+    expect(rowTops(), 'selecting a row re-laid-out the structure').toBe(before)
+
+    select(/MACD/)
+    expect(inspectorFor()).toBe(b2.id)
+    expect(rowTops(), 'changing selection re-laid-out the structure').toBe(before)
+    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
+  })
+
+  it('⚰️ clicking the SELECTED row again KEEPS it — it does not toggle shut', () => {
+    // ⚰️ THE ACCORDION CLOSED ON A SECOND CLICK, correctly: the row was the
+    // control that opened it. A persistent column must not blank itself because
+    // the member clicked the thing they are already editing — that is a two-pixel
+    // mis-click away from losing the form they are working in.
     let cs = base()
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
     select(/Relative Strength/)
-    expect(inspectorFor()).toBeTruthy()
+    const id = inspectorFor()
+    expect(id).toBeTruthy()
     select(/Relative Strength/)
-    expect(inspectorFor(), 'the row would not close from the control that opened it').toBeFalsy()
+    expect(inspectorFor(), 'a second click emptied the Inspector').toBe(id)
   })
 
-  it('⭐ a second row replaces the first — never two editors at once', () => {
-    let cs = base()
-    const a = withDef(cs, 'rsi'); cs = a.cs
-    const b = withDef(cs, 'macd'); cs = b.cs
-    show(cs); openTab()
-    select(/Relative Strength/)
-    select(/MACD/)
-    expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(1)
-    expect(editorsRow().getAttribute('data-row-id')).toBe(b.id)
-  })
-
-  it('⭐ no selection → no editor anywhere', () => {
+  it('⭐ no selection → no editor, and a real empty state instead', () => {
     let cs = base()
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
-  it('⭐⭐ every control the right column carried is still reachable inline', () => {
+  it('⭐⭐ every control the inline editor carried is still in the Inspector', () => {
     let cs = base()
     const s2 = withSeries(cs, 'QQQ'); cs = s2.cs
     show(cs); openTab()
@@ -294,12 +390,40 @@ describe('⚰️ the editor opens INLINE, under the row that owns it', () => {
     // display destination, plot style, and the row's own declared inputs
     expect([...panel.querySelectorAll('select')]
       .some((x) => /display in/i.test(x.getAttribute('aria-label') || '')), 'no Display-in').toBe(true)
-    expect(panel.querySelectorAll('[class*="indRow"]').length, 'no field rows').toBeGreaterThan(0)
+    expect(panel.querySelectorAll('[class*="insField"]').length, 'no field rows').toBeGreaterThan(0)
+    // …and the verbs, which used to be an icon on the row.
+    expect(insBtn(/^Remove /), 'no Remove').toBeTruthy()
+    expect(insBtn(/^Hide /), 'no visibility switch').toBeTruthy()
+  })
+
+  it('⭐⭐ CORE AND APPEARANCE ARE DERIVED FROM THE DEFINITION, not listed here', () => {
+    // ⭐ `styleInputKeys` reads `plots[].$refs`, which IS the set of inputs that
+    // reach the renderer as style — so a definition sorts its own controls and one
+    // that renames a styled input sorts itself too, with no edit in the view.
+    let cs = base()
+    cs = withSeries(cs, 'QQQ').cs
+    show(cs); openTab(); select(/^QQQ$/)
+    const labels = [...inspector().querySelectorAll('[class*="insSectionLabel"]')]
+      .map((n) => n.textContent.trim())
+    expect(labels).toContain('Core')
+    expect(labels).toContain('Appearance')
+
+    // ⚠️ ADDRESSED BY `data-field`, NOT BY HASHED CLASS NAME. `[class*="insField"]`
+    // also matches `insFieldLabel` and `insFieldCtl` — CSS-module substrings are a
+    // prefix trap, and the version of this that used one found the LABEL SPAN
+    // first and read `null.textContent`.
+    const sectionOf = (key) => inspector().querySelector(`[data-field="${key}"]`)
+      ?.closest('[data-section]')?.getAttribute('data-section')
+    // What it READS is core; what it LOOKS LIKE is appearance. `dataSeries`
+    // declares exactly one of each, and NEITHER is named in the view.
+    expect(sectionOf('source'), 'the instrument is not a Core control').toBe('core')
+    expect(sectionOf('__display__'), 'the destination is not a Core control').toBe('core')
+    expect(sectionOf('color'), 'a colour is not an Appearance control').toBe('appearance')
   })
 })
 
 describe('⚰️ the Track B deep link lands on the inline editor', () => {
-  it('⚰️ `data:<instanceId>` opens Chart Data with THAT row expanded', () => {
+  it('⚰️ `data:<instanceId>` opens Indicators with THAT row SELECTED', () => {
     let cs = base()
     const r = withDef(cs, 'rsi'); cs = r.cs
     // ⚠️ INSTANCE IDS CARRY COLONS. The prefix is sliced by length, never split.
@@ -309,7 +433,13 @@ describe('⚰️ the Track B deep link lands on the inline editor', () => {
     const panel = document.body.querySelector('[data-inspector-for]')
     expect(panel, 'the deep link opened no editor').toBeTruthy()
     expect(panel.getAttribute('data-inspector-for')).toBe(r.id)
-    expect(panel.closest('[data-row-id]').getAttribute('data-row-id')).toBe(r.id)
+    // ⚰️ IT USED TO ASSERT THE PANEL WAS INSIDE THE ROW. It is the right column
+    // now, so the landing is proved the way a member sees it: the row is the
+    // selected one in the structure, and the Inspector is showing it.
+    const row = [...document.body.querySelectorAll('[data-structure-row]')]
+      .find((x) => x.getAttribute('data-row-id') === r.id)
+    expect(row, 'the linked row is not in the structure at all').toBeTruthy()
+    expect(row.getAttribute('aria-selected'), 'the deep link did not select the row').toBe('true')
   })
 
   it('⭐ `ind:<instanceId>` still works — the older spelling is not dropped', () => {
@@ -333,45 +463,82 @@ describe('⭐⭐ PANE REORDERING IS DISCOVERABLE (owner §23, §25)', () => {
   // ⚰️ THE OWNER'S REPORT, 2026-09-16: *"The current pane up/down controls are
   // only discoverable if the pointer happens to hover exactly where the invisible
   // buttons are."* Both the ↑/↓ pair and the drag grip rested at `opacity: 0` and
-  // appeared on `:hover` — so a member who never happened to sweep the pointer
-  // across a pane heading never learned that panes move at all.
+  // appeared on `:hover`, so a member who never happened to sweep the pointer
+  // across a pane heading never learned that panes move at all. The fix was to
+  // rest them VISIBLE, quietly, on every heading.
   //
-  // ⛔ A CSS-ARTIFACT ASSERTION, AND IT HAS TO BE ONE. jsdom applies no
-  // stylesheet, so a rendered probe finds the buttons in the DOM whatever their
-  // opacity — which is precisely how this shipped invisible with the reorder suite
-  // below entirely green. The same instrument `legendV2.test.jsx` uses, for the
-  // same reason.
+  // ⚰️⚰️ AND THEN THAT FIX WAS ITSELF THE PROBLEM. Twelve live controls resting
+  // on six pane headings is the "administering a table of chart objects" the
+  // Inspector exists to remove — the affordance was discoverable and the panel was
+  // no longer calm. The third answer is neither hidden nor permanent: ONE labelled
+  // word, `Arrange`, which puts the controls behind an explicit request.
+  //
+  // ⛔ THE ORIGINAL DEFECT IS STILL WHAT IS BEING GUARDED. `Arrange` is a WORD,
+  // always rendered, in the heading a member is already reading — so nothing has
+  // to be found by accident, which is the property that was lost in the first
+  // place. And the controls it reveals are full-strength, because a member who
+  // asked to arrange things is not helped by chrome that is still shy.
   const css = readFileSync(path.resolve(HERE, 'ChartSettingsModal.module.css'), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')
-  /** The `opacity` a class declares in its OWN rule, defaulting to 1. */
-  const restOpacity = (re, name) => {
-    const rule = re.exec(css)
-    expect(rule, `${name} is gone — the pane heading lost its affordance`).toBeTruthy()
-    const m = /opacity:\s*([\d.]+)/.exec(rule[1])
-    return m ? Number(m[1]) : 1
-  }
 
-  it('⭐ the ↑ / ↓ pair is VISIBLE AT REST', () => {
-    const o = restOpacity(/(?:^|\n)\.cdMove\s*\{([^}]*)\}/, '.cdMove')
-    expect(o, 'the pane move controls are invisible until hover again').toBeGreaterThan(0)
-    // ⛔ AND QUIET, WHICH IS THE OTHER HALF OF THE ASK: *"They may brighten on
-    // hover. Do not make them loud."* A six-pane map must not read as twelve
-    // buttons.
-    expect(o, 'the move controls now shout').toBeLessThan(1)
+  it('⭐ THE DOOR IS A LABELLED WORD IN THE NORMAL VIEW — not an icon, not a hover', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    const btn = screen.getByTestId('arrange-enter')
+    expect(btn, 'there is no way into pane arrangement at all').toBeTruthy()
+    // ⛔ A WORD. An icon would be the same discoverability bet that failed.
+    expect(btn.textContent.trim()).toMatch(/arrange/i)
+    // ⛔ AND VISIBLE AT REST. jsdom applies no stylesheet, so this is a CSS
+    // artifact read — the same instrument `legendV2.test.jsx` uses, and the only
+    // one that can see the failure that shipped here before.
+    // ⚠️ THE RULE IS A GROUPED SELECTOR (`.insHeadAct, .insHeadAdd { … }`), so the
+    // pattern has to allow the class anywhere in the selector list rather than
+    // only at its head — the version that anchored it found nothing and reported
+    // the affordance as MISSING when it was merely sharing a rule with Add.
+    const rule = /(?:^|\n)[^{}]*\.insHeadAct[^{}]*\{([^}]*)\}/.exec(css)
+    expect(rule, '.insHeadAct is gone — the heading lost its affordance').toBeTruthy()
+    expect(/opacity:\s*0(?!\.[1-9])/.test(rule[1]), 'the Arrange word is invisible until hover').toBe(false)
   })
 
-  it('⭐ the drag grip is visible at rest too — a handle nobody sees is no handle', () => {
-    const o = restOpacity(/(?:^|\n)\.cdGrip\s*\{([^}]*)\}/, '.cdGrip')
-    expect(o).toBeGreaterThan(0)
-    expect(o).toBeLessThan(1)
+  it('⛔ THE NORMAL VIEW CARRIES NO PANE-MOVE CONTROLS AT ALL', () => {
+    // The other half of the same decision: calm by default. Twelve buttons over
+    // six headings is what this replaced.
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab()
+    expect([...document.body.querySelectorAll('button')]
+      .some((x) => /pane (up|down)$/i.test(x.getAttribute('aria-label') || '')),
+    'the move arrows are back on the normal view').toBe(false)
+    expect(document.body.querySelector('[draggable="true"]'),
+      'the normal structure list is draggable').toBeFalsy()
   })
 
-  it('⛔ AND HOVER / KEYBOARD FOCUS STILL TAKE THEM TO FULL', () => {
-    expect(css, 'hover no longer emphasises the move controls')
-      .toMatch(/\.cdGroupHead:hover \.cdMove[^{]*\{[^}]*opacity:\s*1/)
-    expect(css, 'a keyboard member gets no emphasis at all')
-      .toMatch(/\.cdMove:focus-within\s*\{[^}]*opacity:\s*1/)
-    expect(css).toMatch(/\.cdGroupHead:hover \.cdGrip\s*\{[^}]*opacity:\s*1/)
+  it('⭐ AND INSIDE ARRANGE THEY ARE PRESENT, FULL-STRENGTH AND LABELLED', () => {
+    let cs = base()
+    const r = withDef(cs, 'rsi'); cs = r.cs
+    show(cs); openTab(); enterArrange()
+    const moves = [...document.body.querySelectorAll('button')]
+      .filter((x) => /pane (up|down)$/i.test(x.getAttribute('aria-label') || ''))
+    expect(moves.length, 'Arrange revealed no move controls').toBeGreaterThan(0)
+    // ⛔ NOT SHY. Nothing in the mode's own rules hides them until hover.
+    const rule = /(?:^|\n)\.insArrBtn\s*\{([^}]*)\}/.exec(css)
+    expect(rule, '.insArrBtn is gone').toBeTruthy()
+    expect(/opacity:\s*0(?!\.[1-9])/.test(rule[1]), 'the move controls hide until hover again').toBe(false)
+    // …and the drag handle is real, on the pane band itself.
+    expect(document.body.querySelector('[data-pane-group][draggable="true"]'),
+      'no pane can be dragged in Arrange').toBeTruthy()
+  })
+
+  it('⭐ Done returns the panel to the calm view', () => {
+    let cs = base()
+    cs = withDef(cs, 'rsi').cs
+    show(cs); openTab(); enterArrange()
+    fireEvent.click(screen.getByTestId('arrange-done'))
+    expect(document.body.querySelector('[data-testid="arrange-list"]'), 'Arrange did not exit').toBeFalsy()
+    expect(screen.getByTestId('arrange-enter'), 'the door did not come back').toBeTruthy()
+    expect([...document.body.querySelectorAll('button')]
+      .some((x) => /pane (up|down)$/i.test(x.getAttribute('aria-label') || ''))).toBe(false)
   })
 })
 
@@ -386,11 +553,16 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
   const paneEl = (id) => document.body.querySelector(`[data-pane-group="${id}"]`)
   const moveBtn = (id, dir) => [...paneEl(id).querySelectorAll('button')]
     .find((b) => new RegExp(`pane ${dir}$`, 'i').test(b.getAttribute('aria-label') || ''))
+  /** ⚰️ THE CONTROLS USED TO BE ON EVERY HEADING IN THE NORMAL VIEW. They live
+   *  inside the Arrange mode now (see the discoverability block above), so every
+   *  case here opens the tab and then asks to arrange — which is the gesture a
+   *  member makes. The WRITERS and the assertions are untouched. */
+  const openArrange = () => { openTab(); enterArrange() }
 
   it('⚰️ Move up puts a pane ABOVE Price — and Move down brings it back', () => {
     let cs = base()
     const r = withDef(cs, 'rsi'); cs = r.cs
-    show(cs); openTab()
+    show(cs); openArrange()
     expect(paneIds()).toEqual([PRICE_PANE, r.id])
 
     fireEvent.click(moveBtn(r.id, 'up'))
@@ -403,16 +575,22 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
   it('⭐ Price itself is orderable — and has no Remove', () => {
     let cs = base()
     cs = withDef(cs, 'rsi').cs
-    show(cs); openTab()
+    show(cs); openArrange()
     expect(moveBtn(PRICE_PANE, 'down')).toBeTruthy()
+    // ⛔ MOVABLE, NEVER DELETABLE. Price is the chart's own candles; there is no
+    // Remove for it anywhere — not on the band in Arrange, and not in the
+    // Inspector, because Price is not a ROW and can never be selected as one.
     const price = document.body.querySelector('[data-pane-group="price"]')
     expect(price.querySelector('[aria-label^="Remove Price"]'), 'Price offered a Remove').toBeFalsy()
+    expect([...document.body.querySelectorAll('button')]
+      .some((b) => /^Remove Price$/i.test(b.getAttribute('aria-label') || '')),
+    'something offered to remove the price pane').toBe(false)
   })
 
   it('⛔ the boundaries disable rather than wrap', () => {
     let cs = base()
     cs = withDef(cs, 'rsi').cs
-    show(cs); openTab()
+    show(cs); openArrange()
     expect(moveBtn(PRICE_PANE, 'up').disabled, 'the top pane could move up').toBe(true)
     const rsiId = paneIds().find((k) => k !== PRICE_PANE)
     expect(moveBtn(rsiId, 'down').disabled, 'the bottom pane could move down').toBe(true)
@@ -424,13 +602,25 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
     const guest = withSeries(cs, 'QQQ'); cs = guest.cs
     cs = setInstanceDisplayTarget(cs, guest.id, paneOfTarget(host.id), registry)
     cs = removeInstance(cs, host.id, registry)
+    // ⚠️ A SECOND REAL PANE, so that Arrange is offered at all. The door is
+    // withheld on a chart with ONE pane — a single pane cannot be restacked and a
+    // control that cannot act is not a control — and without this the case would
+    // pass for the wrong reason: no Arrange button rather than no orphan in it.
+    cs = withDef(cs, 'macd').cs
     show(cs); openTab()
-    const orphans = document.body.querySelector('[data-pane-kind="orphans"]')
-    expect(orphans, 'precondition: there is an orphan group').toBeTruthy()
-    expect([...orphans.querySelectorAll('button')]
-      .some((b) => /pane (up|down)$/i.test(b.getAttribute('aria-label') || '')),
-    'an orphan list offered a pane move').toBe(false)
-    expect(orphans.querySelector('[draggable="true"]'), 'an orphan list was draggable').toBeFalsy()
+    expect(document.body.querySelector('[data-pane-kind="orphans"]'),
+      'precondition: there is an orphan group').toBeTruthy()
+
+    // ⛔⛔ AND IT IS SIMPLY NOT IN ARRANGE AT ALL. `hidden` and `orphans` are lists
+    // of things that are NOT DRAWING; offering to restack them would be offering
+    // to move a rectangle the renderer never allocates. The old panel filtered
+    // them out of the reorder controls; this mode filters them out of the list.
+    enterArrange()
+    const arranged = [...document.body.querySelectorAll('[data-testid="arrange-list"] [data-pane-kind]')]
+      .map((g) => g.getAttribute('data-pane-kind'))
+    expect(arranged.length, 'Arrange listed nothing').toBeGreaterThan(0)
+    expect(arranged).not.toContain('orphans')
+    expect(arranged).not.toContain('hidden')
   })
 
   it('⚰️⚰️ moving a HOST pane carries its guests and rewrites no placement', () => {
@@ -442,15 +632,22 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
 
     const seen = { cs: null }
     render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
-    openTab()
+    openArrange()
+    // ⭐ THE GUESTS ARE VISIBLE ON THE BAND BEING DRAGGED, which is what makes the
+    // move predictable — a member can see what travels before they move it.
+    expect([...document.body.querySelectorAll(`[data-pane-group="${host.id}"] [class*="insArrRow"]`)]
+      .map((n2) => n2.textContent.trim()), 'the guest is not shown as travelling').toContain('QQQ')
+
     fireEvent.click(moveBtn(host.id, 'up'))
 
     const after = seen.cs
     expect(after, 'the move wrote nothing').toBeTruthy()
-    // the guest travelled: it is still listed under its host
+    // …and it really did travel: back in the normal view it is still listed under
+    // its host, which is `chartDataMap`'s answer and not this mode's.
+    fireEvent.click(screen.getByTestId('arrange-done'))
     const hostGroup = [...document.body.querySelectorAll('[data-pane-group]')]
       .find((g) => g.getAttribute('data-pane-group') === host.id)
-    expect([...hostGroup.querySelectorAll('[class*="actLabel"]')].map((n2) => n2.textContent.trim()))
+    expect([...hostGroup.querySelectorAll('[class*="insRowName"]')].map((n2) => n2.textContent.trim()))
       .toContain('QQQ')
     // ⛔ AND NOT ONE PLACEMENT CHANGED. Pane order and Display-in are separate
     // facts; a reorder that rewrote targets would make the two fight.
@@ -462,27 +659,97 @@ describe('⚰️ whole panes can be reordered from the pane map', () => {
     const r = withDef(cs, 'rsi'); cs = r.cs
     const seen = { cs: null }
     render(<Host initial={cs} onSeen={(next) => { seen.cs = next }} />)
-    openTab()
+    openArrange()
     fireEvent.click(moveBtn(r.id, 'up'))
     expect(storedPaneOrder(seen.cs)).toEqual([r.id, PRICE_PANE])
     expect(resolvePaneOrder(seen.cs, [r.id])).toEqual([r.id, PRICE_PANE])
   })
 })
 
-describe('⚰️ the modal no longer resizes when you switch tabs', () => {
-  it('⚰️ Chart Data opens at the SAME width as every other tab', () => {
-    // ⚰️ IT USED TO WIDEN TO 880 for the pane map + inspector columns, and a
-    // modal that resizes on the way into one tab is the cost that bought the
-    // second column. The inline editor removed the reason for it.
+describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => {
+  it('⚰️⚰️⚰️ the shell does not resize when you switch tabs — any of them', () => {
+    // ⚰️⚰️⚰️ THIS CASE HAS NOW ARGUED THREE WAYS, WHICH IS WHY IT IS KEPT.
+    //   1. Chart Data widened the modal to 880 for a two-column pane map, and was
+    //      reverted — *"a modal that resizes on the way into one tab"* was judged
+    //      too high a price, and this asserted the width NEVER changed.
+    //   2. The Inspector took 720 for the same two-column shape at the owner's own
+    //      number, and this flipped to assert Indicators was WIDE and the others
+    //      were not — guarding that the widening stayed scoped to one tab.
+    //   3. The owner then USED it: *"The whole modal visibly grows/shrinks as I
+    //      click tabs. I do NOT like this. Chart Settings is ONE window."*
+    //
+    // ⭐ SO THE SHELL IS THE WINDOW'S, UNCONDITIONALLY, and what this now guards is
+    // that no tab can take it back. The width the shell settled on is the one the
+    // Inspector was accepted at. ⚰️ THE CONTENT CAP THAT ONCE SAT BESIDE IT IS
+    // GONE TOO — see the next case; shell and content are one width now, not two
+    // decisions with a 160px gap between them.
+    //
+    // ⛔ MEASURED AS A CLASS IDENTITY, NOT A PIXEL. jsdom lays nothing out, so a
+    // width read here would be 0 on every tab and the case would pass over a real
+    // regression. What CAN be pinned is that the panel's class list is byte-equal
+    // across every tab — which is exactly how the old modifier expressed itself,
+    // so a reintroduced one fails here. The rendered geometry is proved in the
+    // browser, where the seven-switch sweep reads one width and one pair of edges.
     show(base())
     const cls = () => document.body.querySelector('[class*="panel"]').className
     const atPrice = cls()
-    openTab()
-    expect(cls(), 'Chart Data changed the panel class — the width jumped').toBe(atPrice)
-    expect(/panelWide/.test(cls()), 'the wide modifier is still applied').toBe(false)
-    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-    expect(cls()).toBe(atPrice)
-    openTab()
-    expect(cls()).toBe(atPrice)
+    expect(/panelWide/.test(atPrice), 'a width modifier is back on the panel').toBe(false)
+
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Indicators', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      expect(cls(), `the ${name} tab changed the panel's class — the shell moved`).toBe(atPrice)
+    }
+  })
+
+  it('⚰️⚰️ …and NO TAB IS CAPPED INSIDE IT EITHER', () => {
+    // ⚰️⚰️ THE OPPOSITE OF THIS CASE STOOD HERE FOR ONE PASS. When the shell went
+    // to 720 the four older tabs were held at their original 560px column with a
+    // `.bodyNarrow` modifier, and this asserted that cap was ON for Price Style,
+    // Canvas, Header and Markers and OFF for Indicators — *"the four tabs designed
+    // to a narrower column keep that column INSIDE it rather than stretching."*
+    //
+    // ⛔ IT WAS THE WRONG HALF OF "ONE WINDOW". What the member saw was a tab that
+    // ends 160px before its own window does — owner, 2026-09-17: *"the other tabs
+    // have not been responsively adapted to the new modal width... this creates a
+    // huge dead region on the right."* Price Style made it plainest, because its
+    // three `repeat(3, 1fr)` grids were built to fill the body and were being
+    // handed less of it than the body had.
+    //
+    // ⭐ SO THE SHELL IS THE CONTENT WIDTH, ON EVERY TAB, and the class that made
+    // it otherwise may not come back. The grids do the adapting; nothing was
+    // stretched to fill the gap (see the CSS note on `.bodyNarrow`'s grave).
+    show(base())
+    const body = () => document.body.querySelector('[class*="body"]')
+    const atPrice = body().className
+    expect(/bodyNarrow/.test(atPrice), 'the 560px content cap is back on Price Style').toBe(false)
+
+    // ⚠️⚠️ THIS USED TO DEMAND AN IDENTICAL CLASS STRING, and that was one notch
+    // too blunt. What may never differ per tab is the CONTENT WIDTH — that is the
+    // dead region the owner was looking at. `.bodyFlush` differs per tab and
+    // changes no width at all: it hands back the SCROLLBAR GUTTER `.body` reserves
+    // for the four card tabs that genuinely scroll here, on the one tab that
+    // cannot (Indicators is a `height: 100%` flex column that scrolls inside its
+    // own halves). Reserving a bar that can never appear is what put a second dead
+    // strip down the right of the discovery list.
+    // ⛔ SO THE RAIL NAMES WHAT IT GUARDS. A width cap is still refused by name,
+    // and the gutter class is asserted to appear on exactly the tab that earned it
+    // — which is a stronger claim than "they are all the same string", because it
+    // would also catch the class being left on when the member tabs away.
+    const flush = (atPrice.match(/\S*bodyFlush\S*/) || [])[0]
+    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Price Style']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      const cls = body().className
+      expect(/bodyNarrow|bodyWide/.test(cls), `${name} caps or widens its own content`).toBe(false)
+      const want = name === 'Indicators'
+      expect(/bodyFlush/.test(cls), want
+        ? 'Indicators is still reserving a scrollbar gutter it cannot use'
+        : `${name} stopped reserving the gutter it genuinely scrolls with`).toBe(want)
+      // …and nothing ELSE varies: strip the one intended difference and the rest
+      // of the class string must be the same on every tab.
+      expect(cls.replace(/\s*\S*bodyFlush\S*/, '').trim(),
+        `${name} carries a content class the other tabs do not`)
+        .toBe(atPrice.replace(/\s*\S*bodyFlush\S*/, '').trim())
+    }
+    expect(flush, 'the gutter class leaked onto Price Style').toBeUndefined()
   })
 })

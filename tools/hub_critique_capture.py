@@ -1,0 +1,303 @@
+"""R8 — render the joystick hub in every state, to disk, for the critique loop.
+
+⛔⛔ THIS IS A RENDERING INSTRUMENT, NOT A GESTURE ONE. It drives the engine with SYNTHETIC
+pointer events in Chromium. That is enough to put the control into a visual state and photograph
+it; it is **not** evidence about flick, hold or scrub on glass. R9 stands — those stay
+INCONCLUSIVE-TRANSPORT until a real finger produces a trace. Every manifest row this writes is
+labelled `synthetic: true` so no later reader can quote a screenshot as a gesture result.
+
+⛔ AND IT NEVER PHOTOGRAPHS A LIE. Before a frame is named "fan open" the hub's OWN DOM has to
+agree that the fan is open. A screenshot is the one artifact that looks authoritative no matter
+what it contains, so every state is CONFIRMED from the product's own answer first, and a state
+that could not be reached is recorded as `INCONCLUSIVE` with its reason rather than captured.
+
+⚠️ `PRESENT IS NOT SHOWING.` `HubRoot` keeps `<div data-testid="hub-root">` in the DOM and sets
+the HTML `hidden` attribute, so a `querySelector` presence check answers "did React render a
+container", never "can a member see it". The touch smoke published that exact mistake once. This
+asserts the `hidden` attribute, the computed `display`, AND a non-zero box — and `offsetParent` is
+deliberately NOT used, because the hub is `position: fixed` and that is null while it is plainly
+on screen.
+
+Usage:
+    python tools/hub_critique_capture.py --base http://127.0.0.1:8077 --out <dir> --pass 1
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+# Device profiles. ⛔ BOTH must be coarse-pointer and <= 1023px wide or the hub does not mount at
+# all: `useHubActive.js:84` requires `(max-width: 1023px) and (pointer: coarse)`.
+PROFILES = {
+    "iphone": dict(viewport={"width": 390, "height": 844}, device_scale_factor=3,
+                   is_mobile=True, has_touch=True,
+                   user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+                               "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")),
+    "android": dict(viewport={"width": 412, "height": 915}, device_scale_factor=2.625,
+                    is_mobile=True, has_touch=True,
+                    user_agent=("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+                                "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")),
+}
+
+# Routes worth photographing: one mode with a full fan, one with only the pair, and Home.
+ROUTES = [("chart", "/charts"), ("journal", "/journal/trades"), ("home", "/dashboard")]
+
+# ⛔⛔ THE PREDICATE IS READ FROM THE PRODUCT, NOT RE-TYPED HERE. `app/src/hub/hubShowing.js` is
+# its single authority and `hubShowing.test.js` drives it to BOTH answers in the suite. A copy in
+# this file would agree with that one right up until the moment they disagreed — which is the only
+# moment anyone would read either — and it is the copy in the INSTRUMENT that would be wrong,
+# silently, while still producing confident frames.
+_SHOWING_SRC = (Path(__file__).resolve().parents[1]
+                / "app" / "src" / "hub" / "hubShowing.js").read_text(encoding="utf-8")
+assert "function hubShowing" in _SHOWING_SRC, "hubShowing.js no longer defines hubShowing"
+assert "function showingFromTriple" in _SHOWING_SRC, "hubShowing.js no longer defines the verdict layer"
+SHOWING_JS = (_SHOWING_SRC.replace("export function", "function")
+              + "; (() => hubShowing(document, window))()")
+
+# Synthetic pointer events, dispatched on the pad with the fields the engine actually reads.
+PTR_JS = """
+([type, dx, dy]) => {
+  const pad = document.querySelector('[data-testid="hub-pad"]');
+  if (!pad) return { ok: false, why: 'no hub-pad' };
+  const r = pad.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const ev = new PointerEvent(type, {
+    bubbles: true, cancelable: true, composed: true,
+    pointerId: 1, pointerType: 'touch', isPrimary: true, pressure: type === 'pointerup' ? 0 : 0.5,
+    clientX: cx + dx, clientY: cy + dy,
+  });
+  pad.dispatchEvent(ev);
+  return { ok: true };
+}
+"""
+
+FAN_JS = """
+() => {
+  // ⚰️ THIS COUNTED BUBBLES IN THE DOM, AND THAT COULD NOT DISTINGUISH OPEN FROM CLOSED.
+  // `HubFan` keeps every bubble mounted at all times (spec §5), so `length > 0` is true at rest,
+  // during a drag and after a release alike — pass 1 recorded four "fan-open CAPTURED" rows on a
+  // predicate that was never able to say no. `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`,
+  // in an instrument written the same hour. VISIBILITY is the question, so measure opacity.
+  const els = [...document.querySelectorAll('[data-testid^="hub-bubble-"]')];
+  const vis = els.filter(e => parseFloat(getComputedStyle(e).opacity) > 0.05);
+  const chip = document.querySelector('[data-testid="hub-chip"]');
+  return {
+    mounted: els.map(e => e.getAttribute('data-testid').replace('hub-bubble-', '')),
+    visible: vis.map(e => e.getAttribute('data-testid').replace('hub-bubble-', '')),
+    chipText: chip ? chip.textContent.trim().slice(0, 60) : null,
+  };
+}
+"""
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def ensure_account(ctx, base, email, password, allow_signup=True):
+    """Sign up (idempotent), then log in. The sandbox sets ADMIN_EMAILS but creates no user.
+
+    ⛔ `allow_signup=False` IS MANDATORY AGAINST PRODUCTION. The smoke account already exists and
+    is the ONLY account an automated tool may sign in as; a signup POST there is an unwanted write
+    attempt against the live auth store, and `COMING_SOON_MODE` would refuse it anyway — so the
+    request buys nothing and costs a row in the activity log that looks like an attempted breach.
+    """
+    if allow_signup:
+        try:
+            ctx.request.post(f"{base}/api/auth/signup",
+                             data={"email": email, "password": password, "display_name": "hub critique"},
+                             headers={"Content-Type": "application/json"})
+        except Exception:
+            pass  # already exists, or signup closed — the login below is the real check
+    r = ctx.request.post(f"{base}/api/auth/login",
+                         data={"email": email, "password": password},
+                         headers={"Content-Type": "application/json"})
+    if not r.ok:
+        return False, f"login HTTP {r.status}"
+    body = r.json()
+    return True, body.get("user", {}).get("email")
+
+
+def capture(pw, base, out: Path, pass_no: int, email, password, allow_signup=True):
+    rows = []
+    browser = pw.chromium.launch(args=["--force-color-profile=srgb", "--disable-lcd-text"])
+    try:
+        for pname, prof in PROFILES.items():
+            for theme in ("dark", "light"):
+                ctx = browser.new_context(color_scheme=theme, **prof)
+                # ⛔⛔ THE APP'S THEME COMES FROM A PREFERENCE, NOT FROM prefers-color-scheme.
+                # `Layout.jsx:81` sets `documentElement.dataset.theme` from `prefs.theme`; the
+                # stylesheet keys on `[data-theme=...]` and `prefers-color-scheme` appears nowhere
+                # in it. Passing Playwright's `color_scheme` therefore changed NOTHING — pass 2's
+                # first run produced twelve frames labelled "light" that were byte-for-byte the
+                # dark ones. A capture that cannot tell its two themes apart is not testing two
+                # themes; it is testing one and filing it twice.
+                ctx.route("**/api/auth/preferences", lambda route: route.fulfill(
+                    status=200, content_type="application/json",
+                    body=json.dumps({"joystick_hub": json.dumps(
+                        {"enabled": True, "handedness": "right", "surface": "simplified"}),
+                        "theme": theme})))
+                ok, who = ensure_account(ctx, base, email, password,
+                                         allow_signup=allow_signup)
+                if not ok:
+                    rows.append(dict(profile=pname, theme=theme, state="auth",
+                                     verdict="INCONCLUSIVE", why=who))
+                    ctx.close()
+                    continue
+                page = ctx.new_page()
+                for mode, route in ROUTES:
+                    page.goto(f"{base}{route}", wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_timeout(2500)  # let the SPA settle and the hub mount
+                    # Dismiss the cinematic intro, which plays on every page load.
+                    try:
+                        page.keyboard.press("Escape")
+                        page.wait_for_timeout(600)
+                    except Exception:
+                        pass
+
+                    applied = page.evaluate(
+                        "() => ({ attr: document.documentElement.dataset.theme || null,"
+                        "  bg: getComputedStyle(document.body).backgroundColor })")
+                    if applied["attr"] != theme:
+                        rows.append(dict(profile=pname, theme=theme, mode=mode, state="theme",
+                                         verdict="INCONCLUSIVE",
+                                         why=f"asked for data-theme={theme!r}, page has "
+                                             f"{applied['attr']!r} — the frames below would be "
+                                             f"mislabelled"))
+                        continue
+
+                    show = page.evaluate(SHOWING_JS)
+                    if not show.get("showing"):
+                        rows.append(dict(profile=pname, theme=theme, mode=mode, state="idle",
+                                         verdict="INCONCLUSIVE",
+                                         why=f"hub not showing: {show.get('why')}", present=show.get("present")))
+                        continue
+
+                    def shot(state):
+                        name = f"p{pass_no}_{pname}_{theme}_{mode}_{state}.png"
+                        page.screenshot(path=str(out / name))
+                        return name
+
+                    # --- idle -------------------------------------------------------------
+                    fan = page.evaluate(FAN_JS)
+                    rows.append(dict(profile=pname, theme=theme, mode=mode, state="idle",
+                                     verdict="CAPTURED", file=shot("idle"), synthetic=True,
+                                     mounted=len(fan["mounted"]), visible=fan["visible"],
+                                     chip=fan["chipText"], box=show.get("box"),
+                                     theme_attr=applied["attr"], page_bg=applied["bg"]))
+
+                    idle_visible = fan["visible"]
+
+                    # ⛔⛔ NO SCREENSHOT MAY HAPPEN BETWEEN pointerdown AND pointermove.
+                    #
+                    # ⚰️ Pass 2 reported eight fan-open rows INCONCLUSIVE — "the drag did not make
+                    # more bubbles visible than at rest" — while a hand-run probe of the same build
+                    # opened the fan every time. The difference was this screenshot. A Playwright
+                    # screenshot takes ~1s, and `HOLD_MS` is 500: by the time the move arrived the
+                    # ENGINE HAD ALREADY CLASSIFIED THE GESTURE AS A HOLD, which is a scrub, not a
+                    # fan push (`useJoystick.js:408` — "a drag WITHOUT the hold is a fan push").
+                    #
+                    # ⭐ The instrument was changing the gesture it was trying to photograph, and
+                    # it reported the result as a property of the PRODUCT. The fix is to complete
+                    # the gesture first and photograph the state it leaves behind — `stickyFan` is
+                    # on by default, so the fan stays open after release and can be shot at leisure.
+                    page.evaluate(PTR_JS, ["pointerdown", 0, 0])
+                    page.wait_for_timeout(60)
+                    page.evaluate(PTR_JS, ["pointermove", 0, -46])
+                    page.wait_for_timeout(260)
+                    fan = page.evaluate(FAN_JS)
+                    # ⛔ OPEN means VISIBLE, and it must be MORE visible than it was at rest —
+                    # otherwise the frame proves nothing about the gesture.
+                    if len(fan["visible"]) > len(idle_visible):
+                        rows.append(dict(profile=pname, theme=theme, mode=mode, state="fan-open",
+                                         verdict="CAPTURED", file=shot("fan-open"), synthetic=True,
+                                         visible=fan["visible"], visible_at_rest=idle_visible,
+                                         chip=fan["chipText"]))
+                    else:
+                        rows.append(dict(profile=pname, theme=theme, mode=mode, state="fan-open",
+                                         verdict="INCONCLUSIVE", synthetic=True,
+                                         visible=fan["visible"], visible_at_rest=idle_visible,
+                                         why=("the drag did not make more bubbles visible than "
+                                              "were already visible at rest — either the synthetic "
+                                              "pointer did not open the fan, or the fan is drawn "
+                                              "while closed"),
+                                         file=shot("drag-nofan")))
+
+                    # --- release ----------------------------------------------------------
+                    page.evaluate(PTR_JS, ["pointerup", 0, -46])
+                    page.wait_for_timeout(320)
+                    rows.append(dict(profile=pname, theme=theme, mode=mode, state="released",
+                                     verdict="CAPTURED", file=shot("released"), synthetic=True))
+                ctx.close()
+    finally:
+        browser.close()
+    return rows
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--base", default="http://127.0.0.1:8077")
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--pass", dest="pass_no", type=int, default=1)
+    ap.add_argument("--email", default="hubtest@local.dev")
+    ap.add_argument("--password", default="LocalTest2026!")
+    ap.add_argument("--no-signup", action="store_true",
+                    help="never POST /api/auth/signup — MANDATORY against production")
+    ap.add_argument("--self-check", action="store_true",
+                    help="prove the SHOWING predicate can answer NO as well as YES")
+    args = ap.parse_args()
+
+    from playwright.sync_api import sync_playwright
+
+    if args.self_check:
+        # ⛔ A predicate nobody has seen answer NO is not a predicate. Drive it both ways on
+        # fixtures, with no server involved at all.
+        with sync_playwright() as pw:
+            b = pw.chromium.launch()
+            p = b.new_page()
+            p.set_content('<div data-testid="hub-root" style="width:50px;height:50px"></div>')
+            yes = p.evaluate(SHOWING_JS)
+            p.set_content('<div data-testid="hub-root" hidden style="width:50px;height:50px"></div>')
+            no_hidden = p.evaluate(SHOWING_JS)
+            p.set_content('<div data-testid="hub-root" style="width:0;height:0"></div>')
+            no_box = p.evaluate(SHOWING_JS)
+            p.set_content("<div></div>")
+            no_el = p.evaluate(SHOWING_JS)
+            b.close()
+        ok = (yes["showing"] and not no_hidden["showing"] and not no_box["showing"]
+              and not no_el["showing"] and not no_el["present"])
+        print(f"  showing(visible)      -> {yes}")
+        print(f"  showing(hidden attr)  -> {no_hidden}")
+        print(f"  showing(zero box)     -> {no_box}")
+        print(f"  showing(absent)       -> {no_el}")
+        print("\n  self-check " + ("OK — the predicate answers YES and NO" if ok else "FAILED"))
+        return 0 if ok else 1
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+    with sync_playwright() as pw:
+        rows = capture(pw, args.base, out, args.pass_no, args.email, args.password,
+                       allow_signup=not args.no_signup)
+
+    manifest = dict(pass_no=args.pass_no, base=args.base, seconds=round(time.time() - t0, 1),
+                    captured=sum(1 for r in rows if r["verdict"] == "CAPTURED"),
+                    inconclusive=sum(1 for r in rows if r["verdict"] == "INCONCLUSIVE"),
+                    note=("SYNTHETIC pointer events in Chromium. Valid for MATERIAL and LAYOUT. "
+                          "NOT evidence about flick/hold/scrub on glass — R9."),
+                    rows=rows)
+    (out / f"manifest-pass{args.pass_no}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    log(f"\n  captured {manifest['captured']}  inconclusive {manifest['inconclusive']}  "
+        f"in {manifest['seconds']}s -> {out}")
+    for r in rows:
+        if r["verdict"] == "INCONCLUSIVE":
+            log(f"    INCONCLUSIVE {r.get('profile')}/{r.get('theme')}/{r.get('mode')}/{r.get('state')}: {r.get('why')}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

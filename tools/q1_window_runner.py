@@ -36,12 +36,25 @@ import argparse
 import datetime
 import importlib.util
 import json
+import os
 import pathlib
 import subprocess
 import sys
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+# ⛔⛔ THE OPERATOR CONSOLE ON THIS BOX IS cp1252, AND THIS IS THE TOOL THAT CAN
+# LEAST AFFORD TO DIE PRINTING. `--help` raised UnicodeEncodeError here on
+# 2026-09-17: the runner exists so a window is never lost, and it could be lost
+# to the runner's own banner. `q1_f5_matrix.py` has carried this guard since it
+# was written; the runner did not, which is the same "one copy has it, the other
+# is the hole" shape as Q1 fix 6 itself.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 QUEUE = REPO / "tools" / "q1_window_queue.json"
 RUNLOG = REPO / "docs" / "notebook" / "q1-window-runs.md"
 POLL_SECONDS = 30
@@ -82,21 +95,126 @@ def append_log(line: str) -> None:
         fh.write(line + "\n")
 
 
+EVIDENCE_ROOT = REPO / "docs" / "notebook" / "evidence"
+
+
+def _rel(path: pathlib.Path) -> str:
+    """Repo-relative when it can be; absolute otherwise. ⛔ Never raises: the self-check
+    redirects EVIDENCE_ROOT to a temp dir, and a path helper that throws there would make
+    the rail untestable — which is how a rail stops being run."""
+    try:
+        return path.relative_to(REPO).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def evidence_dir_for(entry_id: str, started: datetime.datetime) -> pathlib.Path:
+    """`docs/notebook/evidence/<run-id>/` — one directory per spent window cell."""
+    safe = "".join(c if (c.isalnum() or c in "-_.") else "-" for c in str(entry_id))[:60]
+    return EVIDENCE_ROOT / f"{started:%Y%m%dT%H%M%S}-{safe}"
+
+
+def write_raw_evidence(ev: pathlib.Path, *, entry: dict, cmd, out: str, code, started, secs) -> dict:
+    """⛔⛔ R-RAW. The raw bytes hit disk BEFORE any summary is computed.
+
+    ⚰️ WHY THIS EXISTS. A window on 2026-09-15 produced the decisive ring, the console
+    showed it, and NOTHING WAS WRITTEN DOWN. `summarise()` surfaced only the dirty flips
+    and discarded the rest, so the one fact the window was spent to obtain — which write
+    dropped the sentence — was computed, displayed and destroyed in the same breath. Two
+    days later `docs/notebook/evidence/` still did not exist and `sentence_lost_writes`
+    had never been read from a real run.
+
+    ⛔ SO THE ORDER IS THE RULE, not a convenience: write, THEN interpret. A run with no
+    raw artifact on disk is INCONCLUSIVE regardless of what the console showed.
+    """
+    report = {"written": False, "why": None, "dir": str(ev), "bytes": 0}
+    try:
+        ev.mkdir(parents=True, exist_ok=True)
+        raw = ev / "raw.txt"
+        raw.write_text(out if out is not None else "", encoding="utf-8", newline=chr(10))
+        meta = {
+            "id": entry.get("id"), "cmd": list(cmd), "exit": code,
+            "started": started.isoformat(timespec="seconds"), "seconds": round(secs, 1),
+            "why": entry.get("why"),
+        }
+        (ev / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8", newline=chr(10))
+        report["bytes"] = raw.stat().st_size
+        # ⛔ AN EMPTY ARTIFACT IS NOT AN ARTIFACT. A zero-byte raw.txt is exactly what a
+        # cell that printed nothing and a capture that silently failed both look like, and
+        # banking either as evidence is how a hole gets a verdict's clothes.
+        report["written"] = report["bytes"] > 0
+        if not report["written"]:
+            report["why"] = "raw.txt is ZERO BYTES — the cell produced no output to preserve"
+    except OSError as e:
+        report["why"] = f"could not write evidence: {e}"
+    return report
+
+
 def run_entry(entry: dict, log=print) -> dict:
     """Run one staged cell. Its own exit code and stdout tail are the result."""
     cmd = entry.get("cmd") or []
     log(f"   ▶ {entry.get('id')}: {' '.join(cmd)}")
     started = datetime.datetime.now()
+    ev = evidence_dir_for(entry.get("id") or "cell", started)
+    # ⭐ The cell is TOLD where to put its own raw artifacts (a ring, a probe dump), so a
+    # cell that has more than stdout to preserve can write it beside raw.txt without the
+    # runner needing to know that cell's shape.
+    env = {**os.environ, "UCT_EVIDENCE_DIR": str(ev)}
     try:
-        p = subprocess.run(cmd, cwd=str(REPO), capture_output=True, text=True,
+        ev.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    try:
+        p = subprocess.run(cmd, cwd=str(REPO), capture_output=True, text=True, env=env,
                            encoding="utf-8", errors="replace", timeout=entry.get("timeout", 1800))
         out = (p.stdout or "") + (p.stderr or "")
         code = p.returncode
-    except subprocess.TimeoutExpired:
-        out, code = "TIMED OUT", 124
+    except subprocess.TimeoutExpired as e:
+        # ⛔⛔ KEEP WHAT THE RUN ALREADY SAID. `TimeoutExpired` CARRIES the output
+        # captured before the kill, and this handler used to discard it and write
+        # the literal string "TIMED OUT" instead.
+        #
+        # ⚰️ Measured 2026-09-18: a 2.8b run hit 1800s and its raw.txt held exactly
+        # those two words — no cells, no swap-waits, not even the startup banner. I
+        # read that emptiness as "it hung at startup"; the rig Chrome's own creation
+        # timestamp proved it had started normally 3 seconds in.
+        #
+        # ⛔ R-RAW makes a run with no raw artifact INCONCLUSIVE, so this handler
+        # turned every timeout into an unreadable one — and a timeout is PRECISELY
+        # the run whose trail you most need.
+        def _txt(v):
+            if v is None:
+                return ""
+            return v if isinstance(v, str) else v.decode("utf-8", "replace")
+
+        partial = _txt(getattr(e, "stdout", None)) + _txt(getattr(e, "stderr", None))
+        budget = entry.get("timeout", 1800)
+        if partial.strip():
+            out = (partial
+                   + "\n\n⛔ TIMED OUT after " + str(budget) + "s — the run was KILLED"
+                   + " here. Everything above is what it had already said; what it"
+                   + " would have said next is genuinely unknown.")
+        else:
+            # ⛔ An EMPTY capture is its own finding, and it is not "it hung".
+            out = ("TIMED OUT after " + str(budget) + "s with NO captured output. "
+                   "⛔ Check the child is LINE-BUFFERED before concluding anything: a"
+                   " block-buffered child writes nothing into the pipe until it exits,"
+                   " so a kill discards the lot and an entirely healthy run reads as a"
+                   " hang at startup.")
+        code = 124
     except Exception as e:  # noqa: BLE001
         out, code = f"{type(e).__name__}: {e}", 125
     secs = (datetime.datetime.now() - started).total_seconds()
+
+    # ⛔⛔ R-RAW: BEFORE the verdict below. Everything after this line is a summary.
+    ev_report = write_raw_evidence(ev, entry=entry, cmd=cmd, out=out, code=code,
+                                   started=started, secs=secs)
+    if ev_report["written"]:
+        extra = sorted(f.name for f in ev.iterdir() if f.name not in ("raw.txt", "meta.json"))
+        log(f"   💾 evidence: {_rel(ev)} "
+            f"({ev_report['bytes']}B raw" + (f", +{len(extra)} artifact(s)" if extra else "") + ")")
+    else:
+        log(f"   ⛔ NO RAW ARTIFACT: {ev_report['why']} — this run is INCONCLUSIVE")
     # ⛔ The verdict line if the cell printed one, else the tail. An exit code
     # alone is not a result — a wrapper's exit says nothing about the suite.
     verdict = ""
@@ -121,8 +239,14 @@ def run_entry(entry: dict, log=print) -> dict:
     # over — fixed for one word and left open for the other, which is how a
     # class survives its own fix.
     declared_fail = ("FAIL at step" in out) or ("⛔ FAIL" in out)
+    # ⛔ R-RAW, enforced rather than asserted: no artifact on disk ⇒ INCONCLUSIVE,
+    # whatever the console showed and whatever the cell exited.
+    if not ev_report["written"]:
+        inconclusive = True
+        tail = f"INCONCLUSIVE — {ev_report['why']} (R-RAW) / {tail}"[:300]
     return {"exit": code, "seconds": round(secs, 1), "tail": tail,
-            "inconclusive": inconclusive, "declared_fail": declared_fail}
+            "inconclusive": inconclusive, "declared_fail": declared_fail,
+            "evidence": _rel(ev), "evidence_ok": ev_report["written"]}
 
 
 def spend_window(once: bool, log=print) -> int:
@@ -215,7 +339,39 @@ def self_check() -> int:
                 if ln.startswith("| 2026")]
         assert len(rows) == 2 and "ANOMALY" in rows[0] and "ANOMALY" not in rows[1], \
             "the rail cannot distinguish an anomaly from a normal run"
-        print("self-check PASS — the ANOMALY rail fires, and a normal row does not trip it")
+        # ── R-RAW: the evidence rail, both directions ────────────────────────────────
+        # ⛔ A rule that writes a file is worthless unless the ABSENCE of that file
+        # actually changes the verdict. Both cases are driven through the real run_entry.
+        global EVIDENCE_ROOT  # noqa: PLW0603
+        keep_ev = EVIDENCE_ROOT
+        EVIDENCE_ROOT = pathlib.Path(tempfile.mkdtemp()) / "evidence"
+        try:
+            speaks = run_entry({"id": "selfcheck-speaks", "cmd":
+                                [sys.executable, "-c", "print('a real cell said something')"]},
+                               log=lambda *a, **k: None)
+            assert speaks["evidence_ok"] is True, "a cell that printed was not preserved"
+            assert speaks["inconclusive"] is False, "a preserved run must not read INCONCLUSIVE"
+            raw = pathlib.Path(speaks["evidence"]) / "raw.txt"
+            assert raw.exists() and raw.stat().st_size > 0, "raw.txt missing or empty"
+            assert "said something" in raw.read_text(encoding="utf-8"), "raw.txt lost the output"
+
+            # ⭐ THE CONTROL, and the one that matters: a cell that emits NOTHING leaves no
+            # artifact, and R-RAW says that is INCONCLUSIVE however it exited. Without this
+            # case the rule would be satisfied by any run at all.
+            silent = run_entry({"id": "selfcheck-silent", "cmd": [sys.executable, "-c", "pass"]},
+                               log=lambda *a, **k: None)
+            assert silent["evidence_ok"] is False, "a silent cell was treated as preserved"
+            assert silent["inconclusive"] is True, (
+                "a run with NO raw artifact was not forced INCONCLUSIVE — R-RAW is decoration")
+            assert "R-RAW" in silent["tail"], "the verdict does not say WHY it is inconclusive"
+            assert silent["exit"] == 0, (
+                "the control must have EXITED CLEANLY, or it proves nothing about a run that "
+                "succeeded and preserved nothing")
+        finally:
+            EVIDENCE_ROOT = keep_ev
+
+        print("self-check PASS — the ANOMALY rail fires, a normal row does not trip it, "
+              "and a run with no raw artifact is forced INCONCLUSIVE (R-RAW)")
         return 0
     finally:
         RUNLOG = keep

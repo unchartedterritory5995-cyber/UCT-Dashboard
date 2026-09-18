@@ -45,7 +45,6 @@ log = logging.getLogger(__name__)
 
 CUSTOM_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 MAX_REQUESTS_PER_BATCH = 2000
-DAILY_SEGMENT_LIMIT = 400
 DAILY_SOURCE_LIMIT = 50
 ORPHAN_AFTER_S = 15 * 60
 ORPHAN_GIVE_UP_S = 6 * 3600
@@ -93,6 +92,16 @@ def key_from_keyring():
 
 
 def make_client():
+    # THE $0 BRANCH, AND IT COMES FIRST ON PURPOSE. Everything below this point reads an API
+    # key and imports the paid SDK; a local run must reach none of it. Branching here rather
+    # than inside the paid construction is what makes "the local path cannot spend" a
+    # structural property instead of a promise - tests assert the SDK is never imported.
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        from api.services.wisdom.extract import local_backend
+
+        return local_backend.make_local_client()
     key = ""
     for name in KEY_VARS:
         key = os.environ.get(name, "").strip()
@@ -221,16 +230,57 @@ def segment_pending_sources(*, limit: int = DAILY_SOURCE_LIMIT, dry_run: bool = 
 # ── building requests ────────────────────────────────────────────────────────
 
 def pending_segments(conn, extractor_version: str, limit: int) -> list[dict]:
-    rows = conn.execute(
-        "SELECT g.* FROM wisdom_segments g JOIN wisdom_sources s ON s.source_id = g.source_id "
+    """Fresh segments (zero extract requests at this version) — R100 (owner ruling, 2026-09-18):
+    ordered by `config.category_priority_order()` first, unknown categories last, then by source
+    date descending within a category, then by (source_id, ordinal) for a total order.
+
+    ⛔⛔ TWO-PHASE FETCH, deliberately. The pending pool can be the whole back catalog (26,454
+    segments at session 25); loading full segment TEXT — the field the ORDER BY never needs —
+    for every one of them just to sort would be a real memory cost paid every night. Phase 1
+    fetches only the columns the sort needs (no `text`, no cue_map, no join beyond `show` and the
+    date coalesce); phase 2 re-fetches full rows, in the derived order, for the `limit`-sized
+    slice phase 1 actually selected.
+
+    ⭐ **Backward-compatible by construction, not by branch.** A segment whose source has no `show`
+    (every fixture written before R100, and every test that doesn't care about category) ranks as
+    "unknown" alongside every other uncategorised segment — which means they all tie on rank and
+    fall through to the SAME date-desc/source_id/ordinal order the query used before this ruling.
+    Category priority only changes anything once `show` values start matching the order.
+    """
+    from tools.wisdom.category_norm import normalize_category
+
+    if int(limit) <= 0:
+        return []
+    order = config.category_priority_order()
+    rank_map = {name: i for i, name in enumerate(order)}
+    unknown_rank = len(order)
+    candidates = [dict(r) for r in conn.execute(
+        "SELECT g.segment_id, g.source_id, g.ordinal, s.show AS show, "
+        "COALESCE(s.recording_started_at_et, s.published_at_et, s.ingested_at) AS sort_date "
+        "FROM wisdom_segments g JOIN wisdom_sources s ON s.source_id = g.source_id "
         "AND s.version = g.source_version WHERE s.incomplete = 0 AND NOT EXISTS ("
         "SELECT 1 FROM wisdom_extract_requests r WHERE r.segment_id = g.segment_id "
-        "AND r.extractor_version = ? AND r.purpose = 'extract') "
-        "ORDER BY COALESCE(s.recording_started_at_et, s.published_at_et, s.ingested_at) DESC, g.source_id, g.ordinal "
-        "LIMIT ?", (extractor_version, int(limit))).fetchall()
+        "AND r.extractor_version = ? AND r.purpose = 'extract')",
+        (extractor_version,)).fetchall()]
+    # ⛔ least-significant key first — Timsort's stability is what lets three single-key sorts
+    # express "rank asc, then date desc, then source_id/ordinal asc" without inverting a date
+    # STRING (ISO-8601 sorts lexicographically; there is no clean negation of a string short of
+    # a second representation).
+    candidates.sort(key=lambda c: (c["source_id"], c["ordinal"]))
+    candidates.sort(key=lambda c: c["sort_date"] or "", reverse=True)
+    candidates.sort(key=lambda c: rank_map.get(
+        normalize_category(c["show"]) if c["show"] else None, unknown_rank))
+    chosen_ids = [c["segment_id"] for c in candidates[:int(limit)]]
+    if not chosen_ids:
+        return []
+    marks = ",".join("?" * len(chosen_ids))
+    full = {r["segment_id"]: dict(r) for r in conn.execute(
+        f"SELECT g.* FROM wisdom_segments g WHERE g.segment_id IN ({marks})", chosen_ids)}
     out = []
-    for row in rows:
-        seg = dict(row)
+    for sid in chosen_ids:
+        seg = full.get(sid)
+        if seg is None:
+            continue
         seg["cue_map"] = segmenter.cue_map_for(conn, seg["segment_id"])
         out.append(seg)
     return out
@@ -405,11 +455,56 @@ def npass_count() -> int:
     return n if n >= 1 else DEFAULT_PASSES
 
 
-def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpose: str = "extract",
+#: ⛔⛔ THE PER-NIGHT REQUEST THROTTLE — R53's other number, and like the budget beside it
+#: **A VALUE, NOT A SWITCH**, for the reason `budget.daily_budget_usd` is written around: an unset
+#: QUANTITY must not mean "submit nothing" (an invisible outage) or "submit everything" (an
+#: invisible bill). So it defaults to the ruled number, and a value that is PRESENT but nonsensical
+#: REFUSES rather than falling back — `WISDOM_DAILY_SEGMENT_LIMIT=4OO` (letter O) quietly becoming
+#: 400 is how a night gets re-sized by nobody.
+#:
+#: ⛔ IT IS READ AT CALL TIME, AND THAT IS THE WHOLE POINT. A default argument
+#: (`limit: int = DAILY_SEGMENT_LIMIT`) is evaluated ONCE, at IMPORT, so the throttle would be
+#: frozen at whatever the environment held when this module was first imported and could only be
+#: changed by a deploy — which is exactly what making it overridable was for. `submit_pending` and
+#: `run_daily` therefore default to None and resolve through here on every call.
+#:
+#: ⭐ It bounds REQUESTS, not segments: at N=3 a 400-request night is 133 segments (`run_daily`).
+DAILY_SEGMENT_LIMIT_ENV = "WISDOM_DAILY_SEGMENT_LIMIT"
+DAILY_SEGMENT_LIMIT = 400
+
+
+class DailySegmentLimitUnusable(ValueError):
+    """A nightly request throttle that is set but unusable. Refused, never silently defaulted."""
+
+
+def daily_segment_limit() -> int:
+    """One night's request ceiling. Raises rather than guessing when the value is unusable."""
+    raw = os.environ.get(DAILY_SEGMENT_LIMIT_ENV)
+    if raw is None or not str(raw).strip():
+        return DAILY_SEGMENT_LIMIT
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        raise DailySegmentLimitUnusable(
+            f"{DAILY_SEGMENT_LIMIT_ENV}={str(raw)[:40]!r} is not a whole number of requests. Refusing "
+            f"rather than falling back to {DAILY_SEGMENT_LIMIT} — a typo must not quietly become a "
+            "throttle.")
+    if value <= 0:
+        raise DailySegmentLimitUnusable(
+            f"{DAILY_SEGMENT_LIMIT_ENV}={value} is not positive. Unset it to use the default "
+            f"({DAILY_SEGMENT_LIMIT}); zero is not a way to pause extraction — "
+            "WISDOM_EXTRACT_ENABLED is.")
+    return value
+
+
+def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: str = "extract",
                    segment_rows: Optional[list[dict]] = None, effort: Optional[str] = None, salt: str = "",
                    out: Optional[dict] = None, run_id: Optional[str] = None,
                    pass_index: Optional[int] = None, include_retries: bool = True,
-                   night_cap_usd: Optional[float] = None) -> dict:
+                   night_cap_usd: Optional[float] = None,
+                   night_date: Optional[str] = None) -> dict:
+    # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
+    limit = daily_segment_limit() if limit is None else int(limit)
     out = dict(out or {})
     version = prompt.extractor_version()
     model = config.configured_model()
@@ -431,14 +526,17 @@ def submit_pending(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, purpos
                                  purpose=purpose, salt=salt, dry_run=ctx.dry_run, out_tokens=out_tokens)
     out["build"] = dict(counts)
     with store.read() as conn:
-        # ⛔ R53: the TIGHTEST ceiling binds. `cap=None` keeps the programme total; a night's
-        # remaining budget, when one is supplied, is passed as the cap only if it is SMALLER —
-        # a per-night value must never RAISE the programme total it sits inside.
+        # ⛔⛔ R65: TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS.
+        # This used to pass `min(programme_cap, night_cap)` as THE cap, which
+        # `select_within_budget` then compared against CUMULATIVE PROGRAMME spend — so a
+        # night line clamped the whole programme to that number and the SECOND night got
+        # nothing while programme headroom sat unused. The programme total is measured
+        # against programme spend; the night line against THAT NIGHT's spend.
         programme_cap = budget.budget_cap_usd()
-        cap = programme_cap if night_cap_usd is None else min(programme_cap, float(night_cap_usd))
         decision = budget.select_within_budget(
-            conn, version, [it["est_cost_usd"] for it in items], cap=cap,
-            exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]))
+            conn, version, [it["est_cost_usd"] for it in items], cap=programme_cap,
+            exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]),
+            night_cap=night_cap_usd, night_date=night_date)
     out["budget"] = decision.as_dict()
     selected = items[:decision.allowed_count]
     out["candidates"] = len(items)
@@ -490,22 +588,39 @@ def spend_accepted() -> bool:
 
 
 def spend_allowed(ctx) -> bool:
-    """May this run spend? The flag, OR a forced run whose operator accepted the spend."""
-    if flags.extract_enabled():
-        return True
-    return bool(getattr(ctx, "force", False)) and spend_accepted()
+    """May this run spend? R64: only an UNFORCED run, and only with the switch on.
+
+    ⛔⛔ A FORCED RUN CAN NEVER SPEND, WHATEVER ANY FLAG SAYS. Measured 2026-09-17: the chain
+    runs `sources` immediately before `extract` in the SAME run, and `sources` lets `force`
+    bypass WISDOM_SOURCES_INGEST_ENABLED outright — so with the extract switch on, ONE ordinary
+    admin request (`POST /api/admin/wisdom/jobs/wisdom_daily_chain/run?force=true`, which is
+    exactly what an operator does to check a switch they just flipped) took the store from 0
+    sources to thousands of segments to three passes of up to 400 requests.
+
+    ⚰️ R52 made force require an acceptance literal WHILE THE SWITCH WAS OFF, and that was the
+    wrong half: the dangerous case is force WITH the switch ON, where this function used to
+    short-circuit to True on the flag before it ever looked at `force`. R64 removes the
+    acceptance literal from the force path entirely — it is not a key, and there is no
+    combination of environment variables that makes a forced run spend.
+
+    ⭐ Paid extraction is reachable on the SCHEDULED chain run only. A deliberate one-off has
+    its own door, which shows the projected cost and makes the operator echo it back.
+    """
+    if getattr(ctx, "force", False):
+        return False
+    return flags.extract_enabled()
 
 
 def spend_refusal(ctx) -> str:
-    """Why it will not spend — naming the switch, and for a forced run the missing acceptance."""
-    if getattr(ctx, "force", False) and not spend_accepted():
-        return (f"WISDOM_EXTRACT_ENABLED is off and this forced run did not accept the spend "
-                f"(set {ACCEPT_SPEND_ENV}={ACCEPT_SPEND_VALUE}). R52: force bypasses scheduling, "
-                f"never the switch that spends.")
+    """Why it will not spend — and for a forced run, that no flag can change the answer."""
+    if getattr(ctx, "force", False):
+        return ("R64: force never spends. A forced run bypasses SCHEDULING only; paid extraction "
+                "happens on the scheduled run, or through the dedicated paid action that shows "
+                "the projected cost. No environment variable changes this.")
     return "WISDOM_EXTRACT_ENABLED is off"
 
 
-def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Optional[Callable] = None) -> dict:
+def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional[Callable] = None) -> dict:
     """Daily chain step: segment new sources, then extract NEW segments only — gated by
     WISDOM_EXTRACT_ENABLED, the golden gate and the budget."""
     version = prompt.extractor_version()
@@ -515,6 +630,8 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
     if not spend_allowed(ctx):
         out.update(status="skipped", reason=spend_refusal(ctx))
         return out
+    # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
+    limit = daily_segment_limit() if limit is None else int(limit)
     out["segmentation"] = segment_pending_sources(dry_run=ctx.dry_run, loader=loader)
     with store.read() as conn:
         gate = golden.gate_status(conn, extractor_version=version, model=model)
@@ -578,6 +695,10 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
         # ⛔ The night's ceiling shrinks as passes are submitted, so pass 3 cannot spend pass 1's
         # budget twice. A pass that would cross it submits nothing rather than part of a pass —
         # a half-submitted pass is the UNRECONCILED case, which costs money and scores nothing.
+        # ⭐ R65: this stays as a cheap IN-RUN pre-check across passes. The authoritative
+        # rationing is now the night-scoped DB comparison inside select_within_budget, so
+        # the FULL night line is passed below — pass 1's submitted rows show up as that
+        # night's pending when pass 2 asks, which is what makes the passes share one night.
         spent_so_far = sum(float(r.get("selected_estimate_usd") or 0.0)
                            for r in out.get("pass_results") or [])
         remaining = night_cap - spent_so_far
@@ -590,7 +711,8 @@ def run_daily(ctx, *, client=None, limit: int = DAILY_SEGMENT_LIMIT, loader: Opt
         sub = submit_pending(ctx, client=client, limit=len(segs) if p > 1 else limit,
                              purpose="extract", segment_rows=segs, salt=f"pass{p}",
                              run_id=run_id, pass_index=p, include_retries=(p == 1),
-                             night_cap_usd=remaining,
+                             night_cap_usd=night_cap,
+                             night_date=ctx.now_et.date().isoformat(),
                              out={"pass_index": p, "run_id": run_id})
         out.setdefault("pass_results", []).append(
             {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",
@@ -859,9 +981,32 @@ def adopt_orphans(client, *, now: Optional[datetime] = None) -> dict:
     return dict(report)
 
 
+def _same_night_scoring(ctx) -> dict:
+    """R70's rider on the reap: score a night the tick a night's LAST pass is reaped.
+
+    ⛔⛔ IT CAN NEVER FAIL THE REAP. Reap's contract is to advance batches and persist paid
+    results; scoring is a rider on top of that. A reconciliation that raises costs one scoring
+    cycle — the next tick retries, because a failed claim is retryable — while raising here would
+    abandon a tick's reaped work and re-open every batch it had just closed.
+
+    ⚠️ It is called AFTER the batches have been advanced, deliberately: the night that completes
+    on THIS tick has to be scored on THIS tick, which is the whole ruling.
+    """
+    try:
+        from api.services.wisdom.extract import same_night
+
+        return same_night.score_completed_nights(ctx)
+    except Exception as exc:
+        log.exception("[wisdom-extract] same-night scoring failed; the reap is unaffected")
+        return {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+
+
 def reap(ctx, *, client=None) -> dict:
     """Short tick (wisdom_extract_reap, :16/:46): advance every open batch, handle ended ones,
-    reconcile orphans, and report progress, cost so far and ETA."""
+    reconcile orphans, and report progress, cost so far and ETA.
+
+    ⭐ R70: a night whose passes are ALL reaped is reconciled and floored before this returns.
+    """
     out: dict = {"dry_run": ctx.dry_run}
     if not spend_allowed(ctx):
         out.update(status="skipped", reason=spend_refusal(ctx))
@@ -876,6 +1021,11 @@ def reap(ctx, *, client=None) -> dict:
     if not open_batches and not submitting:
         out["status"] = "idle"
         out["totals"] = _totals()
+        # ⛔ THE IDLE TICK SCORES TOO. A night completes on the tick that reaps its last batch,
+        # and that tick takes the branch below — but if the scoring itself failed there (a claim
+        # left 'failed' is retryable), every following tick is IDLE, and an early return here
+        # would mean the retry never happens.
+        out["same_night"] = _same_night_scoring(ctx)
         return out
     if client is None:
         client = make_client()
@@ -909,6 +1059,7 @@ def reap(ctx, *, client=None) -> dict:
     out["status"] = "ok"
     ctx.log(f"reap: {len(progress)} open batch(es); cost so far ${out['totals']['actual_usd']:.2f}; "
             f"eta {out['eta_s']}s; {dict(report)}")
+    out["same_night"] = _same_night_scoring(ctx)
     return out
 
 

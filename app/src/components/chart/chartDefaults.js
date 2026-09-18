@@ -308,6 +308,24 @@ export const CHART_DEFAULTS = {
    * is what every chart that has never been resized already does.
    */
   paneSizes: {},
+
+  /**
+   * The member's VISUAL order of the SERIES INSIDE each pane, keyed by pane key.
+   * See `engine/paneSeriesOrder.js`.
+   *
+   * ⚰️⚰️ IT HAS TO BE HERE, AND THIS IS THE THIRD KEY TO LEARN IT THE SAME WAY.
+   * `paneOrder` and `paneSizes` both carry the note above; this one was MEASURED
+   * IN THE BROWSER before it was believed — an arrangement made in Chart
+   * Settings survived every write, and `save blob` → `reconstruct` in the pane
+   * harness put the original order straight back, because `mergeChartSettings`
+   * returns a hard ALLOW-LIST and a key absent from it is destroyed on read.
+   *
+   * ⛔ EMPTY IS NOT "NO ORDER", IT IS "NO PREFERENCE". `resolvePaneSeriesOrder`
+   * returns the incoming order untouched whenever a pane has no entry here, so
+   * every blob written before this field existed renders exactly as it always
+   * did and nothing is migrated on read.
+   */
+  paneSeriesOrder: {},
   // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
   // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
   //
@@ -646,6 +664,20 @@ export function mergeChartSettings(userSettings) {
     paneSizes: (parsed.paneSizes && typeof parsed.paneSizes === 'object' && !Array.isArray(parsed.paneSizes))
       ? Object.fromEntries(Object.entries(parsed.paneSizes)
         .filter(([k, v]) => typeof k === 'string' && k && Number.isFinite(v) && v > 0 && v < 1))
+      : {},
+    // ⭐ SANITISED ON READ, like the two above — a pane key must be a string and
+    // its arrangement a list of strings. ⛔ THE IDS THEMSELVES ARE NOT VALIDATED
+    // AGAINST THE CHART, deliberately: this is a PREFERENCE, not an inventory, and
+    // an id that names nothing right now is exactly how a series that has gone to
+    // another pane keeps the slot it will come home to. `resolvePaneSeriesOrder`
+    // filters to what is live at READ time, so a stale entry costs one string and
+    // can never conjure or hide a row.
+    paneSeriesOrder: (parsed.paneSeriesOrder && typeof parsed.paneSeriesOrder === 'object'
+      && !Array.isArray(parsed.paneSeriesOrder))
+      ? Object.fromEntries(Object.entries(parsed.paneSeriesOrder)
+        .filter(([k, v]) => typeof k === 'string' && k && Array.isArray(v))
+        .map(([k, v]) => [k, v.filter((id) => typeof id === 'string' && id)])
+        .filter(([, v]) => v.length > 0))
       : {},
     // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
     //

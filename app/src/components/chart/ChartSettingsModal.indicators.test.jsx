@@ -33,8 +33,10 @@ import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 // says which mode it is in, and the two helpers below are the two ways a member
 // reaches a control:
 //
-//   `expand(label)` — open one active indicator's settings (the accordion);
-//   `search(text)`  — enter discovery and filter the catalogue.
+//   `expand(label)` — SELECT one active indicator, which is what shows its
+//                     settings (in the Inspector's right column since 2026-09-17,
+//                     in an accordion under the row before that);
+//   `search(text)`  — open the Add surface and filter the catalogue.
 //
 // ⛔ NEITHER HELPER REACHES PAST THE UI. A case that poked component state would
 // pass over a tab whose only door was broken, which is what these exist to catch.
@@ -44,31 +46,62 @@ const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'In
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 const liveVwap = (cs) => (cs.indicatorInstances || []).find(i => i.defId === 'vwap' && !i.deleted)
 
-/** Every active row's expander, which is also every active row's LABEL.
- *  ⚠️ SCOPED TO `[data-row-id]`, NOT TO `[aria-expanded]` ALONE — the modal's
- *  Templates menu button carries `aria-expanded` too, and a bare query counted
- *  it as an indicator. */
-const expanders = () => [...document.body.querySelectorAll('[data-row-id] [aria-expanded]')]
-const activeLabels = () => expanders().map((b) => b.textContent.trim())
+/** Every row in the chart-structure column, and every row's NAME.
+ *  ⚰️⚰️ IT WAS `[data-row-id] [aria-expanded]` — each row's own expander BUTTON,
+ *  scoped that way because the modal's Templates menu also carries
+ *  `aria-expanded`. There is no expander now: a row is a micro-rail and a name,
+ *  its one interaction is CLICK TO SELECT, and `data-structure-row` is what marks
+ *  one. The scoping caution survives in a stronger form — the attribute exists on
+ *  nothing else in the modal. */
+const rows = () => [...document.body.querySelectorAll('[data-structure-row]')]
+const nameOf = (r) => (r.querySelector('[class*="insRowName"]')?.textContent || '').trim()
+const activeLabels = () => rows().map(nameOf)
 
-/** Open (or close) one active row's settings — the same gesture a member makes. */
+/** Select one active row — the same gesture a member makes. */
 const expand = (re) => {
-  const btn = expanders().find((b) => re.test(b.textContent || ''))
-  expect(btn, `no active indicator row matching ${re}`).toBeTruthy()
+  const row = rows().find((r) => re.test(nameOf(r)))
+  expect(row, `no active indicator row matching ${re}`).toBeTruthy()
+  fireEvent.click(row)
+  return row
+}
+
+/** The Inspector — the right column, where a selected row's controls live. */
+const inspector = () => document.body.querySelector('[data-inspector-for]')
+/** Select a row and press one of the Inspector's verbs.
+ *  ⚰️⚰️ REMOVE AND THE VISIBILITY SWITCH USED TO BE ICONS ON THE ROW ITSELF — a
+ *  ✕ and a toggle, on every one of eleven rows. They are the Inspector's now,
+ *  because a dense structure list is exactly where a mis-click deletes a
+ *  configured indicator. The WRITES are unchanged (`removeRow`,
+ *  `setInstanceHidden`); it is one click further in. */
+const act = (row, verb) => {
+  expand(row)
+  const btn = [...inspector().querySelectorAll('button')]
+    .find((b) => verb.test(b.getAttribute('aria-label') || b.textContent || ''))
+  expect(btn, `the Inspector offers no ${verb} for ${row}`).toBeTruthy()
   fireEvent.click(btn)
   return btn
 }
 
-/** Type into the tab's search box — the ONE door into discovery mode. */
+/** Open the Add surface and type into its search box.
+ *  ⚰️ THE BOX USED TO BE PERMANENTLY AT THE TOP OF THE TAB, and focusing it was
+ *  itself the way into discovery. Discovery is the RIGHT column now and `＋ Add`
+ *  is its door, which is what keeps the calm view calm — so reaching the box is
+ *  one click first. Still the ONE door, and still no reach past the UI. */
 const search = (text) => {
+  if (!document.body.querySelector('[data-testid="add-surface"]')) {
+    fireEvent.click(screen.getByTestId('add-enter'))
+  }
   const box = screen.getByRole('searchbox', { name: /Search indicators/i })
-  fireEvent.focus(box)
   fireEvent.change(box, { target: { value: text } })
   return box
 }
 
-/** One catalogue result row, by its long name. */
-const result = (re) => screen.getByRole('option', { name: re })
+/** One catalogue result row, by its long name.
+ *  ⚠️ SCOPED TO THE ADD SURFACE. The structure column stays on screen while a
+ *  member searches — that is the whole point of a right-side Add — and ITS rows
+ *  are `option`s too, so an unscoped `getByRole('option')` matches an indicator
+ *  the chart already has and the case silently asserts against the wrong list. */
+const result = (re) => within(screen.getByTestId('add-surface')).getByRole('option', { name: re })
 
 const WITH_INSTANCE = {
   indicators: { vwap: { enabled: true, color: '#26C6DA', opacity: 100, lineStyle: 'solid', lineWidth: 1 } },
@@ -188,6 +221,19 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
     // shipped definition plus the carved-out sections. Derived from the registry,
     // for exactly the reason the old section list had to be.
     search('')
+    // ⚰️⚰️ IT USED TO READ THE OPTIONS STRAIGHT OFF AN EMPTY QUERY, on the
+    // premise stated above: *"an empty query in discovery mode is the whole
+    // catalogue."* That premise held while the Add surface was one ungrouped
+    // list. It has a CATEGORY STRIP now — Popular / Technical / Fundamentals /
+    // Breadth / Symbols / Indexes / ETFs / Formulas — and its landing tab is the
+    // curated `Popular` nine, so an empty query shows nine rows rather than
+    // twenty-two.
+    //
+    // ⭐ THE CLAIM IS UNCHANGED AND IS STILL THE POINT: every registered
+    // definition must be REACHABLE, and `Technical` is where they all are. What
+    // moved is one click, not the guarantee — so the sweep takes that click. A
+    // definition that falls out of the catalogue still fails here by name.
+    fireEvent.click(screen.getByRole('tab', { name: 'Technical' }))
     const options = screen.getAllByRole('option').map((o) => o.getAttribute('data-def-id'))
     for (const def of listDefinitions()) {
       // ⛔⛔ EXCEPT THE WRITTEN EXCLUSIONS, SUBTRACTED HERE AS A CLAIM.
@@ -235,29 +281,74 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={onChange} />)
     openIndicators()
-    // ⚰️ THIS CLICKED A LABELLED "Remove indicator" BUTTON inside the open row.
-    // That button is retired: once the ✕ shipped in the header it was a second
-    // door onto one verb, two clicks deeper. The ✕ is the door.
-    fireEvent.click(screen.getByRole('button', { name: /^Remove Session VWAP/ }))
+    // ⚰️ IT CLICKED A LABELLED "Remove indicator" INSIDE THE OPEN ROW; then the
+    // ✕ in the row header replaced it as the one door.
+    // ⚰️⚰️ AND NOW BOTH ARE GONE. The Inspector holds the verbs, so removal is
+    // select-then-Remove. The WRITE is the same `removeRow` and the tombstone it
+    // produces is byte-identical — which is what the two assertions below check.
+    act(/Session VWAP/, /^Remove /)
     const next = lastCall(onChange)
     expect(next.indicators.vwap.enabled).toBe(false)
     expect(next.indicatorInstances.some(i => i.instanceId === 'legacy:vwap' && i.deleted === true)).toBe(true)
   })
 
-  it('⛔ the ✕ is the ONLY remove door — the expanded form offers no second one', () => {
-    // ⚰️ BOTH SHIPPED FOR ONE BUILD. The brief wanted Remove behind the expander
-    // ("accidental removal should not be one click away in a dense list"); the
-    // owner then asked for the ✕ on the row, and kept only the ✕. Two controls
-    // for one verb is the split this whole tab exists to end, so the absence is
-    // asserted rather than assumed — a stray second door would tombstone through
-    // its own path and drift.
+  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — a row carries ORDER and nothing else', () => {
+    // ⚰️ FOUR ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
+    // expanded row ("accidental removal should not be one click away in a dense
+    // list"); then a ✕ on every row header, which the owner asked for after
+    // looking at eleven real rows; then neither, because the row was reduced to a
+    // rail and a name and the verbs went to the right column — and this case read
+    // *"the rows carry no verbs at all"* and swept for ANY button on a row.
+    //
+    // ⚰️ THE OWNER AMENDED THAT (2026-09-17): *"I want small Up / Down arrows at
+    // the RIGHT SIDE of indicator rows... ROW ↑ ↓ = reorder plotted series inside
+    // this pane."* A row does carry a control now.
+    //
+    // ⭐ SO THE INVARIANT IS RESTATED AS WHAT IT ALWAYS MEANT: **ONE DOOR PER
+    // VERB**, and the row is not a door for any verb the Inspector owns. Two
+    // controls for one verb is the split this tab exists to end — they drift, and
+    // a removal that took the other path would tombstone differently. Order is a
+    // NEW verb whose one and only door is on the row; it is not in the Inspector
+    // and the Inspector is not in the row. What is swept for below is therefore
+    // "a row control that is not the order handle", which is the same absence the
+    // old sweep asserted, measured without forbidding the thing that was added.
+    //
+    // ⚰️⚰️ THE ARROWS THEMSELVES ARE GONE (2026-09-17) — owner: *"with many
+    // indicators, this creates a repetitive column of arrows."* Order is a DRAG,
+    // so the door is a grip rather than a pair, and the sweep names the grip. The
+    // VERB did not move and neither did the writer.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
-    expect(screen.getByRole('button', { name: /^Remove Session VWAP/ }),
-      'the row lost its ✕').toBeTruthy()
+
+    // Nothing selected: no Remove anywhere, and no row control except order.
+    expect(screen.queryByRole('button', { name: /^Remove / }),
+      'a Remove button exists before anything is selected').toBeNull()
+    for (const r of rows()) {
+      for (const b of r.querySelectorAll('button')) {
+        expect(b.hasAttribute('data-row-grip'),
+          `the row ${nameOf(r)} carries a control that is not the order handle`).toBe(true)
+      }
+      // ⛔ AND THE HANDLE SAYS ONLY "Reorder". A verb smuggled onto it would pass
+      // the check above — it IS the grip — and fail this one.
+      // ⚰️ IT WAS A PAIR OF `Move …` BUTTONS AND IT IS ONE `Reorder …` HANDLE.
+      // Same verb, same writer, one control instead of two.
+      const grip = r.querySelector('[data-row-grip]')
+      if (grip) {
+        expect(grip.getAttribute('aria-label'),
+          `the order handle on ${nameOf(r)} carries a verb: ${grip.getAttribute('aria-label')}`)
+          .toMatch(/^Reorder .+ within /)
+        expect(r.querySelectorAll('[data-row-grip]'),
+          `${nameOf(r)} grew a second order handle`).toHaveLength(1)
+      }
+    }
+
+    // Selected: exactly one, and it is inside the Inspector.
     expand(/Session VWAP/)
+    const doors = screen.queryAllByRole('button', { name: /^Remove / })
+    expect(doors, 'there is not exactly one Remove door').toHaveLength(1)
+    expect(doors[0].closest('[data-inspector-for]'), 'the Remove door is not in the Inspector').toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Remove indicator' }),
-      'a second Remove door came back inside the expanded form').toBeNull()
+      'the old labelled second door came back').toBeNull()
   })
 
   it('🔴 removing a MOVING AVERAGE tombstones its slot — it never SPLICES', () => {
@@ -277,7 +368,7 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const before = base()
     render(<ChartSettingsModal open settings={before} onChange={onChange} />)
     openIndicators()
-    fireEvent.click(screen.getByRole('button', { name: 'Remove EMA 9' }))
+    act(/^EMA 9$/, /^Remove EMA 9$/)
     const next = lastCall(onChange)
 
     expect(next.overlays, 'the slot was spliced out — every later MA just shifted')
@@ -341,23 +432,33 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
     openIndicators()
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Volume' }))
+    act(/^Volume$/, /^Remove Volume$/)
     const next = lastCall(onChange)
     expect(next.volume.removed).toBe(true)
     expect(next.volume.visible, 'removing the pane also flipped the hide toggle').toBe(true)
   })
 
-  it('⭐ Volume shows BOTH its colours on the collapsed row, not just the up one', () => {
-    // ⭐ OWNER, 2026-09-10. One swatch on a two-colour indicator is a lie: the
+  it('⭐ Volume\'s BOTH colours are editable — in the Inspector, by their own names', () => {
+    // ⭐ OWNER, 2026-09-10: one swatch on a two-colour indicator is a lie — the
     // pane draws an UP colour and a DOWN colour, and showing only the first says
-    // the down bars are that colour too.
+    // the down bars are that colour too. The row used to carry both swatches.
+    //
+    // ⚰️⚰️ A ROW CARRIES ONE MICRO-RAIL NOW, and that is not the old lie
+    // returning: a rail is not a colour PICKER, it is Legend V2's "this line is
+    // that line" mark, and the same single rule is what the on-chart legend draws
+    // beside the same name. The EDITING claim — both colours, named — is asserted
+    // where the controls are, which is where a member goes to change one.
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
-    const row = document.body.querySelector('[data-row-id="volume"]')
-    const swatches = row.querySelectorAll('[class*="actSwatch"] [data-color-swatch]')
-    expect(swatches, 'the volume row shows one colour for a two-colour pane').toHaveLength(2)
+    const row = document.body.querySelector('[data-row-id="volume"][data-structure-row]')
+    expect(row.querySelectorAll('[data-color-swatch]'),
+      'the structure row grew colour pickers again').toHaveLength(0)
+    expect(row.querySelector('[class*="insRail"]'), 'the volume row lost its micro-rail').toBeTruthy()
+
+    expand(/^Volume$/)
+    const swatches = inspector().querySelectorAll('[data-color-swatch]')
     expect([...swatches].map(sw => sw.getAttribute('title')))
-      .toEqual(['Volume — Up bars', 'Volume — Down bars'])
+      .toEqual(expect.arrayContaining(['Up bars', 'Down bars']))
   })
 
   it('⭐⭐ …and the TOGGLE only HIDES it: off is not gone, and the settings survive', () => {
@@ -375,7 +476,11 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={onChange} />)
     openIndicators()
-    fireEvent.click(screen.getByRole('switch', { name: /Toggle Session VWAP/ }))
+    // ⚰️ IT WAS `Toggle Session VWAP`. The switch is the panel's shared one now
+    // and its accessible name is the ACTION rather than the control — `Hide …`
+    // when it is on, `Show …` when it is off — so a member is told the outcome
+    // instead of guessing it. The writer under it did not move.
+    act(/Session VWAP/, /^Hide Session VWAP/)
     const next = lastCall(onChange)
     const inst = (next.indicatorInstances || []).find(i => i.instanceId === 'legacy:vwap')
     expect(inst.hidden, 'the toggle did not hide the line').toBe(true)
@@ -464,19 +569,25 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // Absent prop ⇒ absent door — the rule `IndicatorLibraryDialog` follows. A
     // surface with no way to open the one mounted `BuilderSheet` must show no
     // button rather than one that opens nothing.
+    // ⚰️ IT SAT IN THE TAB'S PERMANENT TOP ROW, beside the search box. Both moved
+    // into the Add surface — authoring a formula IS adding something to the chart,
+    // and the calm view is for what is already on it — so the door is opened
+    // first. The RULE is untouched: absent prop ⇒ absent button.
     const { unmount } = render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
+    fireEvent.click(screen.getByTestId('add-enter'))
     expect(screen.queryByRole('button', { name: /New Formula/ })).toBeNull()
     unmount()
 
     const onCreateFormula = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} onCreateFormula={onCreateFormula} />)
     openIndicators()
+    fireEvent.click(screen.getByTestId('add-enter'))
     fireEvent.click(screen.getByRole('button', { name: /New Formula/ }))
     expect(onCreateFormula, 'the launcher renders but is wired to nothing').toHaveBeenCalledTimes(1)
   })
 
-  it('the legend gear deep link opens THAT row, already expanded', () => {
+  it('the legend gear deep link opens THAT row, already SELECTED', () => {
     // ⭐ OWNER: "if I click the settings button next to RSI in the legend, it
     // should take me to chart settings with RSI open to edit right away."
     //
@@ -490,11 +601,15 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} scrollTo="ind:legacy:vwap" />)
     // …and it lands on the Indicators tab without being told twice.
     expect(screen.getByRole('tab', { name: 'Indicators' }).getAttribute('aria-selected')).toBe('true')
-    const row = document.body.querySelector('[data-row-id="legacy:vwap"]')
+    const row = document.body.querySelector('[data-row-id="legacy:vwap"][data-structure-row]')
     expect(row, 'the deep-linked row is not in the active list').toBeTruthy()
-    expect(row.querySelector('[aria-expanded]').getAttribute('aria-expanded'),
-      'the row the gear named is still collapsed — the member has to hunt for it')
+    // ⚰️ IT READ `aria-expanded` ON THE ROW'S OWN EXPANDER. Rows do not expand;
+    // they are selected, and the Inspector shows the selection. Same promise —
+    // *"open to edit right away"* — read where the answer now lives.
+    expect(row.getAttribute('aria-selected'),
+      'the row the gear named is not selected — the member has to hunt for it')
       .toBe('true')
+    expect(inspector().getAttribute('data-inspector-for')).toBe('legacy:vwap')
     // The controls it promised are actually there.
     expect(screen.getByText('Opacity %')).toBeTruthy()
   })
@@ -504,8 +619,9 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     // who merely opened the modal, which is the density the tab exists to fix.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
-    expect(expanders().filter(b => b.getAttribute('aria-expanded') === 'true'),
-      'a row opened itself with no deep link').toHaveLength(0)
+    expect(rows().filter((r) => r.getAttribute('aria-selected') === 'true'),
+      'a row selected itself with no deep link').toHaveLength(0)
+    expect(inspector(), 'an editor opened itself with no deep link').toBeFalsy()
   })
 
   it('Escape in discovery goes BACK — it does not close the modal out from under you', () => {

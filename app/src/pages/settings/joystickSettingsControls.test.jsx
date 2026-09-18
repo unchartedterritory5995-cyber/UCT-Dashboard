@@ -94,6 +94,41 @@ describe('B13 — every §8 key has a control', () => {
     expect(screen.getByTestId('joystick-handedness').value).toBe('left')
   })
 
+  /**
+   * ⭐⭐ THE SURFACE SWITCH — R4's way back, and the reason it is railed the day it ships.
+   *
+   * R4 made the strong cut the DEFAULT surface. Before this control existed, `setHubSurface` had
+   * no product caller at all: the full 62-action surface was built, exported, tested and
+   * reachable from nothing (`lesson_built_tested_green_and_unreachable`), and the only way to
+   * restore the surface an admin had yesterday was to edit `registry.js`.
+   *
+   * ⛔ The round trip is the point, not the render. A `<select>` that shows the right option and
+   * writes nothing looks identical in a screenshot, and this card's whole reason for existing is
+   * that nine keys were persisted and unreachable.
+   */
+  it('the surface switch renders, changes and reads back', () => {
+    renderCard({ surface: 'simplified' })
+    const sel = screen.getByTestId('joystick-surface')
+    expect(sel.value, 'the strong cut is the default a fresh account sees').toBe('simplified')
+
+    fireEvent.change(sel, { target: { value: 'full' } })
+    const next = written({ enabled: true, surface: 'simplified' })
+    expect(next.surface, 'changing the select did not write the key').toBe('full')
+
+    cleanup()
+    renderCard({ surface: next.surface })
+    expect(screen.getByTestId('joystick-surface').value).toBe('full')
+  })
+
+  it('an unrecognised stored surface falls back to the cut, never through to the fan', () => {
+    // A preferences blob is user-writable through `POST /api/auth/preferences`, so "the only two
+    // values are the two in the <select>" is an assumption about the UI, not about the data.
+    renderCard({ surface: 'kitchen-sink' })
+    expect(screen.getByTestId('joystick-surface').value,
+      'an unknown stored surface must resolve to the default, not to an empty select')
+      .toBe('simplified')
+  })
+
   it.each([
     ['joystick-hold-ms', 'holdMs', 500, 900, 300, 1200],
     ['joystick-travel-px', 'travelPx', 24, 40, 16, 48],

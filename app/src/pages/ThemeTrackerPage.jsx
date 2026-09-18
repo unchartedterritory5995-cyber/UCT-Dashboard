@@ -1198,7 +1198,12 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
       // a TOGGLE leaves the flag on whichever parity the release happens to catch.
       // Reported 2026-08-29.
-      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat) {
+      // ⛔ AND `!e.ctrlKey && !e.altKey && !e.metaKey`, ADDED 2026-09-14 (F-S2-1).
+      // Without them this fired on Ctrl+Shift+F / Cmd+Shift+F too — the platform
+      // accelerator chord — so a member reaching for the browser got a silent write
+      // to their flag list. ChartPane.jsx is the shape copied.
+      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat
+          && !e.ctrlKey && !e.altKey && !e.metaKey) {
         const willFlag = !isFlagged(selectedSym)
         toggleFlag(selectedSym)
         setFlagToast(willFlag ? 'added' : 'removed')

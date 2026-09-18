@@ -1635,3 +1635,999 @@ consumed a burst slot, and reset the peer's recency clock.
 ⭐ **The right response to "please hold X" is to check what else you are holding.** Granting
 the literal request while leaving the larger hazard running would have been technically
 responsive and practically useless.
+
+---
+
+## SD-1.7 POST-CLOSE ADDENDUM — the conservative figure is ratified as 33× (2026-09-17)
+
+### 1. The headline, ratified
+
+| figure | value | what it is |
+|---|---|---|
+| **conservative headline** | **33×** | `54,923 ms ÷ 1,680.6 ms` — D-042 against the **p95 bound** |
+| median | 183× | `54,923 ms ÷ 300.4 ms` — kept on the page, **labelled as the median** |
+| superseded | ~~175×~~ | the slowest *median* of the SHA-keyed groups |
+
+**Owner ruling, 2026-09-17, verbatim:** *"175× was the slowest median, and D-042 was a
+complaint about the tail. 33× at the p95 bound is the conservative figure; 183× stays on the
+page labelled as the median. Ratified."*
+
+⭐ **Why the correction was accepted rather than argued.** A median is the midpoint, not a
+bound — half of real requests are slower than it — so quoting one as the *conservative* end
+of a range describes the good half of a distribution to someone complaining about the bad
+half. D-042 was a 54.9-second **tail event**. The figure that answers it has to be a tail
+figure.
+
+⚰️ The 175× number was not wrong; it was **mislabelled**. It remains the correct answer to
+"what was the slowest group median", a question nobody asked.
+
+### 2. ⛔ SD-1 §3's six terms ARE NOT IN THIS REPOSITORY — R6 cannot be formally closed
+
+`PROGRAMME-CHECKLIST.md` says R6's criterion "is six terms, all of which must hold to keep
+ON". **Those six terms appear nowhere in the repo.** Searched: `DECISIONS.md`, the checklist,
+`FINAL.md`, `00-profile.md`, and every session report. The string is referenced in three
+places and defined in none — it lived in the directive text, and the session that held it was
+compacted.
+
+⛔ **They are NOT reconstructed from memory here, and must not be.** This repository's own
+rule: *a citation you cannot quote is struck.* Writing six plausible terms and labelling them
+"§3" would manufacture an authority — the invented-citation defect, committed in the record
+that exists to prevent it.
+
+**Consequence, stated rather than worked around:** the flip below is executed and measured,
+and its result is recorded against **explicitly-stated terms owned by this session**, marked
+as such. **R6 is `MEASURED, NOT FORMALLY CLOSED`** until the owner restates §3's six terms;
+the data is collected so that closing it is then a reading, not a re-run.
+
+### 3. ⛔⛔ THE FLIP'S A/B IS CONFOUNDED BY DESIGN, AND THIS REPO ALREADY RECORDED WHY
+
+Measured 2026-09-17, before flipping anything:
+
+| deploy | n | p50 | rf_rows | rf_bytes |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 ms | 4,529 | 4,523,328 |
+| `9906a7fcd` | 8 | 307.6 ms | 4,529 | 4,523,328 |
+| `6128705c4` | 48 | 312.5 ms | 4,529 | 4,523,328 |
+| `465b12e36` | 34 | 313.4 ms | 4,529 | 4,523,328 |
+| `02328569b` | 12 | 350.4 ms | 4,529 | 4,523,328 |
+| **`9081799f2`** | **54** | **497.2 ms** | 4,529 | 4,523,328 |
+
+**Identical code** (one hot-path fingerprint, `7864c894526e`) and **identical work** —
+`rf_rows` and `rf_bytes` take exactly one value each across all 175 rows — yet the newest
+deploy is **60% slower at the median**. The difference is the pod, and nothing else.
+
+⛔ **Flipping a variable causes a redeploy, so Pool A and Pool B necessarily land on different
+pods.** A before/after median comparison therefore confounds the flag with the host. That is
+not a new insight here — **D-050 §8 already recorded it**, verbatim: *"The design flaw was
+consecutive arms, which confound the flag with whatever else the single uvicorn process was
+doing. Interleaved arms at matched times of day is the fix, and it needs a quiet period."*
+P-B4 was left INCONCLUSIVE for exactly this reason, and a naive Pool A vs Pool B would have
+repeated it.
+
+⭐ **THE MEDIAN WAS NEVER THE RIGHT TEST, AND THE DISTRIBUTION SAYS SO.** The reads are
+**bimodal**, and `rf_fetch` selects the mode:
+
+| mode | `rf_fetch` | `total` |
+|---|---|---|
+| fast | 7–20 ms | ~275–500 ms |
+| slow | 600–3,200 ms | ~1,000–3,700 ms |
+
+A median over a bimodal population reports the **mode mix**, not the reader — so a pod that
+happens to draw the slow mode more often reads as a slower reader. `9081799f2` is that pod.
+
+⭐ **The resident copy's claim is STRUCTURAL, which makes it testable without a median.**
+D-051 §6 states it removes `reconstructed_fetch` entirely, and session 11 §A.3 measured
+`rf_fetch` at 8.5 ms p50 / **607.1 ms p90** — *"the only phase that moves with the tail."*
+So the flip is verified per-sample by asking **does `rf_fetch` still appear, and is the slow
+mode gone** — a question about each row, immune to which host served it. A structural check
+does not care about the pod; a median does.
+
+**Terms this session records the flip against (OWNED BY THIS SESSION, not §3):**
+
+1. the instrument confirms the flag ON from the pod's own phase keys (`rf_resident` present)
+2. `rf_fetch` is absent or near-zero per sample, not merely smaller on average
+3. the slow mode (total > 1,000 ms) disappears rather than thinning
+4. parity: `rf_rows` and `rf_bytes` unchanged — the flag must not change the work
+5. no new failure mode in the sampler's refusals
+
+
+### 4. R6 EXECUTED — the flip works, and the instrument built to prove it could not
+
+**The flip was executed and verified. `flag_observed` was structurally incapable of
+reporting it, and said so with total confidence.**
+
+| step | result |
+|---|---|
+| `railway variables --set BREADTH_RESIDENT_RECON_ENABLED=1` on `web` | exit 0 |
+| variable read back, with a positive and a negative control | `=1`; 251 → **252** variables, exactly one added |
+| redeploy | **auto-redeployed** — new deploy of the same commit `9081799f2`, no burst slot |
+| deploy's own record | **SUCCESS**; previous same-commit deploy marked REMOVED |
+| running process | uptime 30,682 → **269** — a genuinely new pod |
+| **instrument says** | `flag_declared=on`, **`flag_observed=off`**, `flag_agrees=False` |
+
+⛔⛔ **`rf_resident` IS NEVER PUBLISHED, SO `flag_observed` COULD ONLY EVER SAY "off".**
+`breadth_daily_ohlc.py` notes it correctly on **every** branch (1 resident / 0 SQLite), but
+`breadth_timing.server_timing()` writes a **hard-coded scalar allowlist** — `rf_rows`,
+`rf_bytes`, `rf_busy_retries`, `rf_stmts`, `rf_stmt_min/max/sum`, `rf_pagecache`,
+`rf_conn_reused` — and `rf_resident` is not in it. `rf_pagecache` is, because the
+page-cache flag's author added it there; the resident flag's author added the `note()` and
+not the publish.
+
+⭐ **The disagreement field was disagreeing with itself.** `flag_declared` vs
+`flag_observed` exists precisely so a mixed pool is visible in the row rather than
+reasoned about afterwards — and the half that was wrong was the observation. **Every
+`flag_observed` value written before 2026-09-17 is VACUOUS** and must not be read as
+evidence of a flag state.
+
+⭐ **THE FLIP IS PROVEN STRUCTURALLY INSTEAD, and the escape generalises.** The two readers
+differ in what they *do*, and that is published:
+
+| reader | phases |
+|---|---|
+| SQLite | `rf_open` · `rf_pragma` · `rf_execute` · `rf_fetch` · `rf_conn_reused` |
+| resident | none of those — `rf_materialise` only (it parses held JSON strings) |
+
+The post-flip read carried **none of the five**. Absence of the fetch phases is positive
+evidence for the resident reader, and it is a property of the request rather than of a
+header's allowlist. **The phase set is what the pod DID; `rf_resident` is what an allowlist
+chose to mention.** Both `breadth_sampler.flag_evidence` and `breadth_pool_report`
+(`observed_flag`) now derive from the phase set, and the report derives rather than trusting
+the stored label, so a pool collected across the fix is still grouped correctly.
+
+#### ⛔ FIVE `deep_cold` ROWS WERE CACHE HITS, AND TWO OF THEM WERE PUBLISHED
+
+`reader` phase **0.0**, totals of 69–168 ms against a ~300 ms population. Cause: the sampler
+forces a miss by varying the span, and **each `--once` run is a fresh process that computes
+the same span**, so four consecutive one-shots re-read a span the previous one had warmed.
+The long-running loop varies it correctly.
+
+⛔ Two are in reader `b8873db0f2ab`, and **they are why its published minimum was 70.2 ms**.
+Corrected: n 14 → **12**, p50 271.5 → **276.1**, min 70.2 → **251.6**. ⭐ `kind` records what
+the sampler INTENDED; `reader` records what the pod DID — and when they disagree the pod
+wins, which is the same rule as `flag_declared` vs `flag_observed`, one layer down.
+`reader_ran()` now drops them, mutation-proved.
+
+#### R6 VERDICT — `DEFERRED`, with the exact n
+
+| pool | reader | n (all) | n (settled ≥600 s) |
+|---|---|---|---|
+| **A** flag OFF | `7864c894526e` | 175 | **155** |
+| **B** flag ON | `7864c894526e` | 2 | **1** |
+
+**Pool B did not reach n ≥ 20 and cannot today: the sampler's 60/day cap is exhausted**, and
+item 4 of the addendum says leave it at 60. Per the addendum's own rule — *leave the flag in
+the state with the larger settled pool* — the flag is **reverted to OFF**, because 155 ≫ 1.
+
+⚠️ **The one settled resident read is 491.0 ms against Pool A's 497.2 ms on the same
+deploy.** That is one sample and settles nothing; it is recorded so the next session starts
+from a number rather than an expectation. The build cost is real and separate:
+**~7.5 s on the first read after a boot**, once per pod, then gone.
+
+### 5. ⛔⛔ THE RATIFIED 33× HAS DRIFTED TO 15×, AND THE READER DID NOT CHANGE
+
+Recomputed 2026-09-17 on 155 settled rows, per deploy:
+
+| deploy | n | p50 | max | vs D-042 at the max |
+|---|---|---|---|---|
+| `31d706f40` | 19 | 277.2 | 389.3 | **141×** |
+| `9906a7fcd` | 7 | 302.2 | 469.3 | 117× |
+| `6128705c4` | 42 | 307.9 | 754.7 | 73× |
+| `465b12e36` | 26 | 313.4 | 1,680.6 | **33× ← the published figure** |
+| `02328569b` | 7 | 331.0 | 1,129.2 | 49× |
+| **`9081799f2`** | **54** | **497.2** | **3,752.1** | **15×** |
+
+**Pooled: p95 ≤ 3,752.1 ms ⇒ 15×**, against the published 33×.
+
+⛔ **This is NOT a regression in the reader, and it must not be reported as one.** Every row
+still does identical work — `rf_rows` = 4,529 and `rf_bytes` = 4,523,328 take exactly one
+value each across the whole pool. `9081799f2` draws the **slow mode** far more often, and it
+now contributes 54 of 155 settled rows.
+
+⭐ **A pooled p95 across deploys that disagree by 79% describes the MIX OF DEPLOYS SAMPLED,
+not the reader** — which is why the tool prints every constituent and flags a spread ≥30%
+rather than letting the number stand alone. The published 33× was computed when that spread
+was 26%.
+
+**OWNER DECISION NEEDED.** The conservative headline is a choice between:
+- **15×** — the pooled bound over everything measured, honest and pessimistic, but dominated
+  by one deploy's host;
+- **33×** — unchanged, and now describing a subset;
+- **per-deploy** — report the range 15–141× and stop pretending one number is a property of
+  the reader.
+
+This session does **not** pick. The number was ratified an hour ago on data that has since
+moved, and quietly re-picking it is precisely the second-authority defect.
+
+---
+
+## POST-CLOSE DECISIONS — SD-1.7 (final, 2) — 2026-09-17
+
+### 1. The 33× headline is RETIRED; the result is the per-deploy table
+
+**Owner ruling.** No single pooled p95 across deploys. The result is the per-deploy table
+at the ≥600 s analysis floor, the conservative figure is the **worst deploy's p95 bound**,
+and the range is stated. Generated by `tools/breadth_pool_report.py --per-deploy`;
+**every figure derived, none typed.** Recorded in FINAL.md §14.1.
+
+⛔ **The 33× ratification is superseded BY DATA, not by judgement**, and the distinction is
+the whole reason it is written this way. 33× was correct on 2026-09-16 and is still in the
+table — it is `465b12e36`'s bound. It stopped being the *conservative* figure when
+`9081799f2` entered the pool with a worse one. Nothing about the reader changed.
+
+### 2. The cache-hit correction is accepted, and the CAUSE is fixed
+
+n 14 → **12**, p50 **276.1 ms**, min **251.6 ms** for reader `b8873db0f2ab`.
+
+⭐ **`reader_ran()` was the symptom fix and is kept as a backstop; the cause is fixed too.**
+The sampler's span walk keeps spans distinct WITHIN a run, and the seed was the constant
+`SPAN_HI` — so every fresh `--once` process started in the same place and re-read a span the
+previous one had just warmed. `seed_span()` now seeds from the POOL (`recent_spans()`), so
+consecutive one-shots cannot collide. ⛔ A downstream filter alone would have hidden a
+sampler that reliably produces unusable rows, forever.
+
+Rails: `test_a_fresh_process_does_not_reuse_a_recent_span`,
+`test_the_seed_is_read_from_the_pool_not_from_a_constant` (non-vacuity: the seed must
+*depend on its input* and be deterministic, or a collision is merely unlikely),
+`test_recent_spans_reads_the_tail_of_the_pool`. Mutation-proved by restoring the constant.
+
+### 3. R6 = **REVERT**, and not for lack of data
+
+⛔⛔ **THE RESIDENT COPY IS BUILT ON FIRST ACCESS, ~7.5 s, ONCE PER POD — AND THIS REPO
+DEPLOYS ~31 TIMES A DAY.** A member pays that build after **every deploy**. That fails the
+p90 term by construction at the current cadence, and no amount of Pool B would change it:
+the defect is in *when* the copy is built, not in how fast it reads once built.
+
+⭐ **This is the honest reason, and it is better than the one available an hour earlier.**
+"Pool B only reached n=1" is true and would have been a weak reason — a sampling shortfall,
+fixable by waiting. The real reason is structural and visible from a single observation.
+**A flip can be correctly refused on a mechanism, without a pool.**
+
+The single steady-state datum, recorded as the only one there is: **491.0 ms resident
+against 497.2 ms SQLite** on the same deploy, n=1 each side. It settles nothing and is kept
+so the next session starts from a number rather than an expectation.
+
+### 4. R8 — PROPOSED, NOT BUILT
+
+1. **Build the resident copy at boot, or in a background task, before first request** —
+   behind the same flag, with the boot cost measured rather than assumed.
+2. **Add `rf_resident` to `server_timing()`'s allowlist in the same change.** It is the
+   scalar whose absence made `flag_observed` structurally incapable of saying "on".
+   ⚠️ `breadth_timing.py` is a HOT-PATH file, so that landing **starts a new pool** — which
+   is fine, and is exactly why it belongs in the same change rather than after it.
+3. **Only then is a Pool B worth collecting.** Until it exists, there is nothing to measure
+   that would not measure the build.
+
+### 5. The sampler cap stays 60/day
+
+No Pool B until the R8 change exists. The cap was not raised for the close-out and is not
+raised now; the five verification reads taken during the flip were a one-shot with the cap
+incremented for that invocation only, and are recorded as verification, not collection.
+
+### 6. ⛔⛔ THE REVERT NEEDED AN EXPLICIT REDEPLOY — and `--unset` no longer exists
+
+Executing the revert found two things about the Railway CLI (**v4.35.0**) that the runbook
+documents incorrectly:
+
+| | |
+|---|---|
+| `railway variables --service web --unset KEY` | **`error: unexpected argument '--unset' found`** — it is gone |
+| the current form | **`railway variable delete <KEY> --service web`** (note: `variable`, singular; the CLI moved to subcommands `list` / `set` / `delete`) |
+| does `--set` redeploy? | **YES** — measured; the CLI even carries `--skip-deploys` for the case where you do not want it |
+| does `delete` redeploy? | **NO** — measured: 9 minutes, no new deploy, `uptime_seconds` climbing 1,508 → 2,019 unbroken |
+
+⛔⛔ **SO THE VARIABLE WAS GONE FROM THE SERVICE AND STILL LIVE IN THE PROCESS.** `--kv`
+read 251 variables with the flag absent, the control still present — and the pod, started
+*before* the delete, was **still serving the resident reader**. Verified by the phase set:
+zero SQLite fetch phases, `rf_materialise` present.
+
+⭐ **This is the `--kv` rule paying out against the session that wrote it.** *"`--kv` shows
+what the SERVICE is configured with, which is not evidence the RUNNING process has it."* An
+operator who deleted the variable, read it back, saw it gone, and stopped there would have
+recorded a revert that had not happened — and every subsequent sample would have been
+labelled "off" while the resident reader served it. The asymmetry is the trap: **set
+applies itself, delete does not**, so the direction that looks safer is the one that
+silently fails.
+
+`railway redeploy --service web --yes` then produced a real boot (uptime 2,126 → **62**),
+its own record reached SUCCESS, and the phase set came back with all five fetch phases and
+`rf_fetch` = 5,691.3 ms. **REVERT EFFECTIVE**, confirmed from the pod.
+
+⚠️ **This invalidates a removal instruction in another programme's documentation.**
+`CLAUDE.md` tells a future operator to run
+`railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED` when the joystick
+programme closes. That command now errors out. It is **not corrected here** — it is another
+programme's file and this one has no standing to edit it — but it is recorded so whoever
+closes that programme is not surprised, and so the two halves (the new syntax, and the fact
+that a delete does not restart anything) travel together.
+
+### D-052 · The V2-2 default selection must exercise the split (2026-09-17)
+
+DC-2 §3.3. Owner ruling, given on the DC-2 confirmation: *"the default selection must
+exercise the split — if the roadmap names default metrics, use them; if it names only
+the two percentages, add the single most-used non-percentage metric from the registry to
+the default set under the V2-2 flag (V1 defaults untouched), so a member sees ≥ 2
+panels on first load."*
+
+**The roadmap names no defaults.** Searched `01-audit.md` and `02-design.md`: neither
+specifies a default metric set for the V2 tab. So the second branch of the ruling applies.
+
+#### Why it was needed
+
+V1's default is `['breadth_score', 'pct_above_50sma']` — both unit `pct`, therefore ONE
+unit family, therefore exactly ONE panel. V2-2's entire subject is the split, and it
+defaulted to the one selection that cannot show it. The feature was proved by rails and
+by nothing a person could look at; the §3.2 screenshots showed a single chart.
+
+⚠️ That is the shape this repo keeps paying for from the other side: usually a
+feature is built and connected to nothing. Here it was built, connected, and defaulted
+into invisibility — which a green suite cannot see either.
+
+#### The derivation, and the tie
+
+"Most used" is measured as **appears in the most `CHART_PRESETS`** — the firm's own
+record of what it reaches for, rather than a preference. Measured 2026-09-17 over 36
+presets, restricted to non-`pct`, chartable metrics:
+
+| metric | unit | presets |
+|---|---|---|
+| **`new_52w_highs`** | `count` | **4** |
+| **`vix`** | `vix` | **4** |
+| `new_ath` | `count` | 3 |
+| `sp500_close` | `index` | 3 |
+
+⛔ **The derivation TIED, and a tie is not a result.** Taking the alphabetical winner
+would have dressed a coin-flip as a measurement. The tiebreak is stated, and it is a
+reason rather than a taste:
+
+> ⭐ **Prefer the COUNT family, because the rest of DC-2 needs it exercised.**
+> · A-28 specifies **bars** for counts, so V2-3's mark work has something to draw.
+> · The era note attaches to **count panels** (*"Counts depend on the measured
+>   universe…"*), so V2-3's headline honest-state has a surface to appear on.
+> `vix` is a second family too, but it exercises neither.
+
+**Decision: `V2_DEFAULT_SELECTED = V1 default + `new_52w_highs`.**
+
+#### How it is held
+
+⛔ **V1's default is untouched.** `BreadthCharts.jsx::DEFAULT_SELECTED` is the shipped
+product's first view and is not this increment's to move. The V2 list applies only when
+V2-2 is ON, so a flag-off member's first load is byte-identical — which is exactly what
+`flagOff.golden.html` asserts, and it stayed unchanged through this commit.
+
+⛔ **Pinned as a literal, with a rail that re-derives it.** A default that silently
+followed the preset table would move every member's first view whenever a preset was
+added — a member-visible change nobody decided. `defaults.test.js` re-runs the
+derivation and fails if the pin stops being a legitimate winner, so a registry change is
+a REVIEWABLE red rather than a quiet drift. A second rail asserts the tie is still real,
+so this record cannot go stale without something going red.
+
+⭐ And the rails carry a **control**: V1's default must still yield exactly one panel.
+If it ever splits on its own, D-052 is solving nothing and this decision should be
+revisited rather than kept green.
+
+**Goldens:** re-recorded as an EXPECTED on-state change (`v22__*`, `both__*`). The
+`off__*` shots came back byte-identical, which is the whole point of that classification.
+
+### D-053 · LTTB has no natural threshold to measure — the trigger is the viewport's own resolution (2026-09-17)
+
+DC-2 §3.4. The owner's directive asked for "LTTB above the measured mobile threshold."
+Measured first, and the honest result changed what "the threshold" means.
+
+#### What was measured
+
+Real wheel-zoom interaction (not a `window.echarts` dispatch — see the correction below),
+phone viewport (380x800), three samples per span, sweeping 365 -> 4,530 points (the full
+stored history, the ceiling `/series` will serve once L-A raises its cap):
+
+| span | paint (median) | zoom-settle (median) |
+|---|---|---|
+| 365 | 825 ms | 333 ms |
+| 750 | 824 ms | 349 ms |
+| 1,500 | 818 ms | 347 ms |
+| 2,250 | 839 ms | 370 ms |
+| 3,000 | 818 ms | 348 ms |
+| 3,750 | 815 ms | 366 ms |
+| 4,530 | 807 ms | 369 ms |
+
+**First paint stayed within 2% and zoom-settle within 11% across a 12.4x increase in point
+count.** No cliff, no trend. An 8-metric/8-panel stress test (the `/series` key cap, the
+worst case for panel count) could not even be constructed against the real product:
+V2-4's metrics picker does not exist yet, so `BreadthChartsV2` always renders the D-052
+default (2-3 keys, 2 panels) — there is no UI path to more panels in THIS release. The
+honestly measured worst case IS the default, and it does not degrade.
+
+⛔⛔ **Two measurement bugs caught before either number was trusted, both recorded because
+each looked exactly like a real finding:**
+
+1. **The zoom never fired.** First written as
+   `window.echarts.getInstanceByDom(el).dispatchAction(...)` — `echarts-for-react` does
+   NOT expose echarts on `window`, so the dispatch silently reached nothing and every
+   "zoom_ms" printed was the settle loop's own floor (~180-240 ms), a confident number
+   describing a no-op. Caught by capturing `reached` and comparing pixels before AND
+   after, which is the check that should have been there first.
+2. **The corrected version's wheel target (dead-center of the canvas) ALSO did nothing** —
+   analytically explained, not guessed: `gridFor`'s defaults (top=6, bottom=14, gap=4)
+   put a 4%-high gap between D-052's two panels, and with weights 1.25:1 that gap sits at
+   48.2%-52.2% of the canvas height — straddling the exact 50% midpoint a "click the
+   center" probe reaches for. Moved to 25% height (inside panel 1) and re-verified the
+   pixels actually moved before trusting the timing.
+
+**Neither the fixture's invented `sampling` field nor D-035's server-side deferral apply
+here.** `docs/breadth/api-series.md`'s real response has no `sampling` key at all — the
+fixture had invented one, now removed. D-035 deferred SERVER-side downsampling on
+BACKEND compute cost (30ms, 33x under budget) and named PAYLOAD SIZE as the metric to
+revisit on, not render time. LTTB is a CLIENT-side pre-processing step, answering a
+different question, and does not reopen D-035.
+
+#### The decision
+
+**No time-based cliff exists to gate on, so the trigger is the measured PHONE VIEWPORT'S
+OWN RESOLUTION** — the actual reason LTTB exists as an algorithm: once a series has more
+points than pixels to place them in, additional points cost payload and paint for zero
+additional visual information.
+
+    THRESHOLD_POINTS = 1500   -- 4x the measured 380px mobile viewport width
+    TARGET_POINTS    = 800    -- 2x the viewport width, comfortably above visual resolution
+
+Below 1,500 points, `downsampleForChart` is a complete no-op — same object references,
+no computation. Above it, per requested key: real (non-null) points are fed through a
+Largest-Triangle-Three-Buckets selection to `TARGET_POINTS` real indices; those indices
+are UNIONED across every requested key (plus any key riding along for the era note, e.g.
+`universe_count`) into ONE shared, sorted index set; every series — including unrequested
+ones — is resliced by that single set.
+
+⛔⛔ **NEVER SYNTHESISES A VALUE.** Classic LTTB implementations sometimes average a
+bucket into a representative point; this one selects a REAL measured point from each
+bucket and nothing else. A-10/A-28 exist to stop a chart from showing a number nobody
+measured — LTTB must not become the one code path that quietly reintroduces exactly that.
+
+⛔⛔ **ONE SHARED INDEX SET, not independent per-series sampling.** W2-2's stack has ONE
+x-axis (`axisPointer.link`, `dataZoom.xAxisIndex: 'all'`), mutation-proofed in
+`chartOption.test.js` — downsampling each series independently would give each one its
+own reduced date array, which cannot share a category axis at all.
+
+#### What this means in practice, today
+
+`useBreadthSeries.MAX_SESSIONS = 365` (calendar days) mirrors the server's CURRENT cap.
+Raising it is coupled to L-A's server-side cap raise, not to this landing. So within
+today's reachable range (at most 365 calendar days, well under 1,500 points), LTTB is
+structurally inert — `sampled.sampled` is always `false` — exactly like the other
+long-history V2-3 features that wait on the same cap raise. It engages the day L-A ships,
+which is precisely when it starts being needed.
+
+**Rails:** `lttb.js`'s 12 pure-algorithm tests (mutation-proved: a synthesized average,
+a first-key-only union, and an unsliced un-requested key each fail their own named rail
+and no other), plus `v23Wiring.test.jsx`'s 4 component-level tests (sampled fires past
+the threshold, does not at/below it, is gated on v23, and the chart option's own x-axis
+genuinely shrinks) driven by mocking the hook directly — the only way to exercise it
+before L-A, since the client's own guard makes a naturally-long window unreachable today.
+
+#### ⚰️ CORRECTION, same day: the decision above shipped a hand-rolled algorithm; it now delegates to ECharts' own native `sampling` option
+
+The measurement and the 1,500-point threshold stand unchanged. The IMPLEMENTATION that
+followed the decision did not survive review of its own premise.
+
+**What happened.** `01-audit.md:305`'s actual text — read carefully only AFTER building
+against a paraphrase of it — is *"client: ECharts `sampling: 'lttb'` so a 4,700-point
+line draws at pixel density without dropping extremes."* That names ECharts' OWN BUILT-IN
+series option. A ~150-line hand-rolled Largest-Triangle-Three-Buckets implementation was
+built instead — unioning per-key selected indices into one shared set, re-slicing every
+series by it — mutation-proved and passing (never synthesised a value, one shared index
+set, nulls preserved: three deliberate mutations, three named rails, each caught). It was
+solving a problem the installed library already solves.
+
+**Verified against the ACTUALLY INSTALLED package** (`node_modules/echarts@6.0.0`,
+`lib/processor/dataSample.js`), not assumed from memory or documentation elsewhere:
+
+- `sampling` is registered for BOTH `line` and `bar` series
+  (`chart/line/install.js:68`, `chart/bar/install.js:56`) — both needed, since A-28 draws
+  `adv_decline`/`hvc_52w` as bars.
+- It operates on `cartesian2d` coordinate systems generally — category axes included, not
+  only continuous ones. The "different axis types might not be supported" concern that
+  first justified a bespoke implementation was unfounded.
+- The decisive property: it downsamples each series' OWN internal render data via
+  `seriesModel.setData(data.lttbDownSample(...))` and **never touches `xAxis.data`**. The
+  shared category axis stays full-length regardless of how many series are sampled or how
+  aggressively — so the "union indices across every series so the shared x-axis survives"
+  machinery the hand-rolled version needed was solving a problem that does not exist once
+  the axis itself never shrinks.
+- It recomputes the actual sampling RATE from the LIVE rendered pixel width
+  (`baseAxis.getExtent()`), on every zoom and resize, automatically — strictly better
+  behaviour than a one-shot fixed-target computation, which cannot adapt without
+  re-running itself on every interaction.
+
+**What changed:** `lttb.js` now owns exactly one decision (`shouldSample(n)`, the
+1,500-point threshold) instead of an algorithm; `chartOption.js` sets
+`sampling: 'lttb'` per series when both `allowSampling` (the caller's v23 gate) and
+`shouldSample` agree; `BreadthChartsV2.jsx` no longer pre-processes `dates`/`series` at
+all — `coverage` and the chart option go back to reading the hook's output directly,
+exactly as before LTTB existed. The honest-disclosure note (`v2-sampled`) lost its exact
+"N of M points" claim — genuinely unknowable now, since ECharts decides the surviving
+count internally and dynamically per zoom level — and states only what is actually true:
+some points are combined for readability, real readings throughout, zoom in for all of
+them.
+
+**A second mutation-proved bug found while wiring the correction in:** the first version
+of `chartOption.js`'s `sampling` line read point count alone, with no v22/v23 awareness —
+`shouldSample` cannot know which flag is on, so a v22-only view with a hypothetically long
+series would have been silently downsampled by a V2-3 capability nobody enabled.
+Fixed by an explicit `allowSampling` parameter, **defaulting FALSE** (fail closed, the
+same polarity as every enablement gate in this programme) — caught by a rail
+(`⛔⛔ FAILS CLOSED`) before it reached a screenshot, let alone production.
+
+**Rails, current:** `lttb.test.js` (5, the threshold decision only), `chartOption.test.js`
+(6 new: native sampling on line and bar, the axis never shrinking, the fail-closed default
+mutation-proved two ways), `v23Wiring.test.jsx` (6, rewritten to assert the OPTION's
+`sampling` field rather than an x-axis length that no longer changes).
+
+### D-054 · The /series span cap is raised to 4,700 sessions — D-043's own release condition, met (2026-09-17)
+
+**Owner-directed (L-A, DC-2 confirmation).** D-043 capped `/series` at 365 sessions
+“until the reader work lands,” with its own stated release condition:
+*“the cap is raised when the reader work lands, not to satisfy a wider view.”*
+`session6-report.md` §2.5, taken mid-reader-programme, additionally withheld a
+lift until *“a member-facing feature that actually requests > 365 sessions”*
+existed. Both conditions are now met: the Breadth History Reader programme
+(SD-1.7) closed with `get_history_deep` materialized, and V2-3's back-to-2008
+"Max" preset is exactly the feature session6-report named.
+
+**What changed.** `_SERIES_MAX_SESSIONS_DEFAULT = 4700` in
+`api/routers/breadth_monitor.py`, decoupled from `_SERIES_DEFAULT_SESSIONS`
+(365, unchanged — that constant governs only the default WINDOW when `from`
+is omitted, a UX choice, not a safety bound; the two used to share one
+constant, which is what made the cap and the window impossible to move
+independently). `BREADTH_SERIES_MAX_SESSIONS` remains the env override.
+
+**Why 4,700.** V2-3's `MAX_HISTORY_FROM = '2008-01-02'` needs ≈ 4,700 stored
+sessions to reach today (2026-09-17: 6,833 calendar days at ~252 sessions/year
+less US market holidays). 4,700 × 1.6 = 7,520 calendar days, comfortably under
+the untouched `_SERIES_DAY_CEILING = 8000` (which mirrors the monitor route's
+own ceiling and is not this decision's to move). ⚠️ This is a fixed session
+count against a fixed start date — the margin shrinks ≈252 sessions/year as
+"today" advances; re-derive, don't just re-bump, when it stops covering "Max".
+
+**The cost evidence, combined for the first time:**
+- The READER (`svc.get_history_deep`, shared with `/api/breadth-monitor`):
+  `docs/breadth-history-reader/FINAL.md` §14.1/§14.3, per-deploy, post-fix —
+  p50 277.2–497.2 ms across six deploys, worst observed deploy max 3,752.1 ms
+  (n=54–77/deploy), against D-042's 54,923 ms cold baseline (15x–141x
+  depending on deploy). Measured against a different route sharing this
+  reader — only the reader cost transfers, not that route's own
+  post/derive/serialise phases.
+- This ENDPOINT's own marginal cost (filter + project + encode, on top of the
+  reader): `docs/breadth/api-series.md` (D-035, 2026-09-14) — the full
+  2008– span, 8 keys, 4,530 sessions, measured directly at 30.3 ms cold p50 /
+  36.0 ms cold p95, via a stubbed full-size row set isolating what this
+  endpoint adds (not a local `C:\data\breadth_monitor.db` read — 12 KB,
+  schema-only, which would have flattered the number).
+- **Combined**, a cold full-history 8-key request costs roughly the reader's
+  277–497 ms typical (up to ≈3.75 s worst observed deploy) plus this
+  endpoint's own ≈30–36 ms — dominated by the reader, nowhere near the
+  retired 55 s figure that the old docstring cited (Kind 3b: true when
+  written, superseded by the same session's own reader-fix work before the
+  docstring was ever read again).
+
+**What did NOT need a fresh sandboxed `/series`-specific timing run.** The two
+measurements above are BOTH real, both already in the repo, and together they
+answer the question completely — the reader cost transfers because the reader
+is literally the same function call, and this endpoint's own added cost was
+already isolated and measured at the exact span in question. No local DB was
+touched to produce this decision.
+
+**Corrected in the same commit:** `series_max_sessions()`'s docstring (the
+stale “~55 s … measured on production” claim), the 400 response body's
+matching claim, and `docs/breadth/api-series.md`'s span-cap section (365 →
+4,700 sessions, 584 → 7,520 calendar days, and the "5y/2008– rows no longer
+reachable" caveat, now reachable again).
+
+**Untouched, per the ratified DC-2 plan:** `BREADTH_SERIES_ENDPOINT_ENABLED`
+stays dark — this is a cap raise behind an already-off flag, not a flip.
+
+### D-055 · DC-2 §5 production flip — all three variables, in order, verified from the pod (2026-09-18)
+
+**Executed per the ratified DC-2 confirmation.** Sequence, each step verified from the
+pod before the next, each its own single-variable Railway redeploy:
+
+| step | variable | value | deploy | verified |
+|---|---|---|---|---|
+| 1 | `BREADTH_SERIES_ENDPOINT_ENABLED` | `1` | `7d774652` → SUCCESS | `/series` 200 at 365-session window (252 sessions) AND the Max preset (4,707 sessions, ≥ 4,000) |
+| 2 | `BREADTH_DC_V2_2_ENABLED` | `admin` | `f8a0d5c1` → SUCCESS | admin session reads `breadth_dc_v2_2_enabled: true`; the paired non-admin verification could not be run (see below) |
+| 3 | `BREADTH_DC_V2_2_ENABLED` | `1` | `bd58525b` → SUCCESS | true for the admin session (now the general case); 10-minute watch, 10 samples, all `/api/health` 200 and `/series` 200, p95 well under 2.0 s at the Max preset (max sampled 334.6 ms) |
+| 4 | `BREADTH_DC_V2_3_ENABLED` | `1` | `9c55ecfe` → SUCCESS | both flags true; Max preset returns 4,707 sessions / 4,529 reconstructed; LTTB engaged (`v2-sampled` note present, live DOM); era note present with REAL measured universe counts (1,498 → 2,703, not the audit's illustrative numbers); 10-minute watch, 10 samples, all healthy |
+
+**Non-admin verification unavailable, per the ratified message's own pre-cleared
+contingency** ("if no admin session is available to the harness, that is the
+verification — do not skip the step, do not wait for a look"): `MEMBER_SMOKE_EMAIL` /
+`_PASSWORD` consistently return `401 Invalid email or password` against production,
+both before and during the flip. Not investigated further — the account may simply not
+be provisioned for this purpose. Recorded as the verification for that half of step 2,
+not as a block.
+
+**Two concurrent, unrelated landings occurred mid-flip** (`b43db5846cb5` — a merge
+into `r63c-cold-start-guard`; `61b3d209689a` — a further master advance), both from
+other active sessions on this box. Neither touches Data Charts V2 or `/series`; both
+were confirmed to carry `546a11419` (this landing) and `a5309c492` (the hotfix below)
+as ancestors, and every flag/behaviour check was re-run and held on each new commit.
+Recorded because CLAUDE.md's own diagnostic rule is to name a new SHA, not wave it
+through — this is that naming, and the finding is "benign," not "ignored."
+
+**⚠️ A genuinely new, twice-replicated finding on `/series` cold-boot cost.** The
+FIRST `/series` request against a freshly booted process costs far more than
+FINAL.md's per-deploy table suggested: **45.5 s** (step 1's own first call, 365-session
+window) and, independently, **21.6 s** (the final verification pass, a fresh deploy,
+Max-preset window) — both far closer to D-042's ORIGINAL "~55 s" figure than to
+FINAL.md §14.1's "worst observed deploy max 3,752 ms." **This does not change the
+cap decision:** in both cases the cost fell on whichever request happened to be FIRST
+regardless of its span — step 1's cold cost hit the SMALLER 365-session window while
+the larger Max-preset request immediately after was fast (2.9 s), and every repeat
+request on both deploys settled to 70–300 ms within one further call. **The
+conclusion:** this is a real, per-process-lifetime, first-touch cost (almost certainly
+OS page-cache cold on the SQLite files, not application-level), paid once per deploy
+regardless of what span a member happens to ask for first — orthogonal to the session
+cap, present identically at the OLD 365-session cap, and not something raising the cap
+to 4,700 introduced or worsened. It is, however, a real number worth a member never
+seeing: the FIRST paid request after any `web` deploy pays it. **Filed as an open
+question for whoever next touches this reader** — not this landing's to fix, since
+D-043's whole point was to keep the reader's OWN performance work in its own
+programme.
+
+**A repo-wide blocker found and fixed in the same window, unrelated to DC-2:**
+`.github/workflows/full-suite-report.yml` landed (by another session, immediately
+before this landing's own push) without the required `# promotion-gate:` marker,
+which made `tools/promotion_gate.py` REFUSE **every** master→production promotion,
+fail-closed, repo-wide — not just this one. Verified directly
+(`python tools/promotion_gate.py` → `UNCLASSIFIED workflow(s): full-suite-report.yml`
+/ `PROMOTION: REFUSE`) and independently via the `deploy-gate-state` ledger showing
+two consecutive successful gate runs with no promotion record. Fixed as a standalone
+commit (`a5309c492`, classified `no` — matching the file's own stated "report-only,
+never blocks" intent), which unblocked the whole queue, including this landing.
+
+**Checklist:** `PROGRAMME-CHECKLIST.md` DC8 marked DONE in the same commit as this
+record.
+
+**Revert, either direction, is a variable, not a deploy:** `railway variable delete
+BREADTH_DC_V2_3_ENABLED --service web` (or `_V2_2_ENABLED`) then
+`railway redeploy --service web --yes`, confirmed from the pod — same asymmetry as
+every other kill switch in this repo: deleting a variable does not itself redeploy.
+
+### D-056 · DC-3 — the /series cold-boot cost is `adv_seed`'s disk-cold scan, warmable, boot warm built dark (2026-09-18)
+
+**MEASURED, per the ratified DC-3 mandate — not inferred.** `/series` was wired into
+the existing `breadth_timing` Server-Timing instrument (already computing these exact
+phases inside `get_history_deep` for the sibling `/api/breadth-monitor` route; only the
+middleware's path scope was missing `/series`, so `_bt.phase(...)` calls were silently
+no-opping for it — same-day commit). Captured first-vs-second `/series` requests on
+two independent fresh-boot deploys (a third foreign deploy's capture was still running
+when this cap-raise-scale investigation closed; the harness (`dc3_capture.py`,
+scratchpad) keeps sampling and the table below is extended, never silently replaced,
+when it lands):
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| own (DC-3 instrumentation landing) | `327413600` | 35,726 ms | 64 ms | 30,143.8 ms (84%) | 418,078,720 (~398 MB) |
+| foreign #1 | `5a019ca4129d` | 12,160 ms | 439 ms | 10,401.2 ms (85%) | 273,412,096 (~261 MB) |
+
+**Diagnosis, from the phase breakdown, not a guess:** the cost concentrates almost
+entirely in ONE phase, `adv_seed` (84-85% of reader time in both samples) —
+`_adv_decline_seed_before(oldest)` (`api/services/breadth_monitor.py`), called once
+per deep read to seed a cumulative advance/decline total from every row before the
+window's start date. It runs two queries: `SELECT ... FROM breadth_snapshots WHERE
+date < ?` and `breadth_daily_ohlc.metric_before("adv_decline", oldest)` — the latter
+backed by a correctly-shaped covering index (`idx_bdo_metric ON
+breadth_daily_ohlc(universe, metric, date)`, confirmed by reading the index
+definition; this is NOT a missing-index problem) but still costing seconds of REAL
+DISK I/O on a cold page cache, confirmed by `io_read_bytes` climbing into the hundreds
+of MB on the first request of each deploy (`breadth_timing.io_counters`'s own H1
+discriminator: `read_bytes` climbing means the page cache missed, not CPU or lock
+wait). Every OTHER phase (`numeric_fetch`, `reconstructed_fetch`, `merge_rows`,
+`derive`, `cache_set`, `route_tail`, `serialise`) stays in single-to-low-triple-digit
+milliseconds even on the cold request.
+
+**Warmable, not the reader's unfixable cold path** — the second half of DC-3's
+branch: the SAME query pattern answers in tens of milliseconds on the very next
+request, including when that next request asks for a LARGER span than the first (the
+own-deploy pilot's first request was a 365-session window; the immediately-following
+Max-preset request, touching far more of the same table, took 2.9 s — fast, because
+the file pages the first request paid to fault in were now resident). This is an
+OS-page-cache-cold cost, the same CLASS D-049 (H1/mmap) already fixed for a DIFFERENT
+query shape on this same file — not a reader-programme R8 proposal-only item.
+
+**Why the existing dashboard-warm doesn't already cover this.** `api/main.py`'s
+`_breadth()` warm (part of the pre-existing delayed background-warm sequence) calls
+`get_breadth_history(days=90)` — a window entirely inside the live collector's range
+(`get_history_deep`'s own docstring: a window lying entirely within the collector
+range delegates to `get_history` unchanged), so it never touches `_adv_decline_seed_
+before` at all. Confirmed by the measurement itself: both boots, each having already
+run the existing dashboard-warm sequence, still paid the full cold cost on the first
+`/series` request reaching into deep/reconstructed territory.
+
+**Built: `warm_series_deep()`** (`api/routers/breadth_monitor.py`), wired into the
+SAME existing delayed background-warm thread as `_breadth()` and its seven siblings
+(`api/main.py`, `_breadth_series_deep`), one call, dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED` (default OFF — an enablement gate, same polarity
+as the DC v2 flags). Reads back to `MAX_HISTORY_FROM` (2008-01-02,
+`BreadthChartsV2.jsx`) — the SAME worst-case span V2-3's own "Max" preset asks for —
+via `series_max_calendar_days(_SERIES_MAX_SESSIONS_DEFAULT)`, deliberately deeper
+than the existing shallow warm, so whichever member opens Data Charts first pays no
+more than the warm request already paid. Never on the request path, never blocks
+`/api/health` (same background-thread structure as every other warm target;
+`/api/health` reads only the wire-data cache and process stats, confirmed by reading
+its own handler). 9 new tests (`tests/test_breadth_series_boot_warm.py`) plus the
+existing dashboard-warm import-path pin extended.
+
+**Flag state at this record: OFF.** Per the ratified DC-3 mandate step (b) this ships
+DARK first — flipping ON and re-verifying against the next foreign deploy (first
+member request within 2× the settled p50) is the next, separate action, recorded as
+its own entry (or an addendum here) when it happens.
+
+**A related, NOT pursued flag, for the record:** `BREADTH_RESIDENT_RECON_ENABLED`
+(dark, breadth-history-reader programme) would hold reconstructed history resident
+in-process, which could ALSO absorb some of this cost — but it is a different flag
+with a different memory-cost tradeoff and its own open decision (D-051), not
+something this record's boot-warm conflates with or depends on.
+
+### D-056 addendum · landing + pod verification (2026-09-18)
+
+**Landed.** Committed `5407150c0`/rebased to `d514e2dec` on `breadth/dc-v2`,
+pushed to `master` at 2026-09-18T12:20Z after the pre-push guard's BURST clause
+cleared on its own reading (never attested — per standing instruction, the
+waiter ran until the counted deploys aged past the 60-minute window). Scoped
+suite (55 tests, `test_dashboard_warm.py` + `test_breadth_series_boot_warm.py` +
+`test_breadth_series_endpoint.py` + `test_breadth_timing.py`) and
+`tools/check_repo_hygiene.py` re-run clean after rebase.
+
+**Production.** `web` deploy `c8bd3bce` (commit `d514e2dec`) reached `SUCCESS`,
+then was superseded within the same swap window by an unrelated concurrent
+merge's deploy `3f350a96` (commit `ca18aff7f286`) — confirmed benign by
+ancestry (`git merge-base --is-ancestor d514e2dec ca18aff7f286` → true).
+`origin/production` tip is `ca18aff7f286`, D-056 confirmed an ancestor.
+`/api/health` on the new boot: `{"status":"ok","uptime_seconds":67,...}`.
+**Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED` confirmed unset
+on `web` (`railway variables --kv`) — dark, as intended.**
+
+**Next (per the DC-3 mandate's own step (b)):** flip
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`, wait for the redeploy, and verify
+against the next foreign deploy that the first member-equivalent `/series`
+request reads within 2× the settled (warm) p50. Recorded as an addendum here
+once measured.
+
+### D-056 addendum · flip verification on its own boot (2026-09-18)
+
+**Flipped.** `BREADTH_SERIES_BOOT_WARM_ENABLED=1` set on `web`
+(`railway variables --service web --set`), redeploy landed (`76a1bc4e`,
+commit `ca18aff7f286`, `SUCCESS`), confirmed live via a fresh-boot
+`/api/health` (`uptime_seconds: 25`).
+
+**Measured on this same boot, not inferred:**
+
+| probe | timing after boot | adv_seed | reconstructed_fetch | reader total |
+|---|---|---|---|---|
+| own probe, ~30-90s post-boot, window 2025-01-01→2026-09-17 | still cold | 18,301.5 ms | 7,499.1 ms | 29,929.3 ms |
+| own probe, same window, minutes later (after the warm's own turn) | cache-hit (own prior request) | — (reader;dur=0) | — | 0 ms |
+| own probe, FRESH window never requested before (2010-01-01→2015-01-01), same later point | warm | **42.9 ms** | 4,868.2 ms | 5,144.6 ms |
+
+**The seed cost the diagnosis targeted is eliminated: `adv_seed` 18,301.5 ms →
+42.9 ms** (`io_read_bytes;dur=0.0` on the fresh-window probe — no disk-cold
+miss), confirming `warm_series_deep()` did its job: the OS page cache for the
+`breadth_daily_ohlc`/`breadth_snapshots` seed range is resident after the warm
+runs, and a DIFFERENT window than either probe used still benefits (proving
+this is page-cache locality, not a per-window cache hit).
+
+**But there is a real early-boot exposure window, not previously measured.**
+`_breadth_series_deep` sits 6th in `_start_dashboard_warm_background`'s
+sequential warm list (`flow-tape, movers, themes, news, breadth,
+breadth-series-deep, breadth-live, calendar, ...`), behind a fixed 20s initial
+delay PLUS however long the five targets ahead of it take. My own first probe,
+made 30-90s after this boot's `/api/health` first went green, still paid
+essentially the FULL cold cost (29.9s reader) — the warm had not reached its
+turn yet. Only a probe made several minutes later found it warm. **A real
+member opening Data Charts inside that early window still pays close to the
+full cold cost even with the flag ON** — the boot-warm shrinks the EXPOSURE
+DURATION (from "every first-open until someone eventually triggers a deep
+read" to "the first ~1-3 minutes of a fresh boot"), it does not eliminate a
+cold-start window entirely. This is worth a documented caveat, not a build
+change: moving it earlier in the sequence trades priority with `flow-tape`
+(explicitly commented "FIRST — the tape is the priority surface"), a
+tradeoff this record does not make unilaterally.
+
+**Still pending, per the mandate's own verification step:** capture the FIRST
+genuinely independent member-equivalent `/series` request on the NEXT foreign
+deploy (not self-triggered by this flip) and confirm it reads within 2× the
+settled p50. Watcher started; addendum follows when captured.
+
+### D-056 addendum · third pre-flip data point, captured before the flip (2026-09-18)
+
+The DC-3(a) watcher captured a THIRD foreign deploy before the flip landed,
+strengthening the diagnosis with a third independent replication:
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| foreign #2 | `925948522cb1` | 6,938.4 ms | 132.8 ms | 3,385.9 ms (49%) | 144,027,648 (~137 MB) |
+
+Same pattern, smaller magnitude — `adv_seed` still the largest single phase,
+`io_read_bytes` still nonzero on the first request only, second request
+instant. The declining magnitude across all three pre-flip samples
+(35,865 → 12,216 → 6,938 ms) is consistent with a shrinking page-cache-cold
+surface as the underlying OS cache warms across deploys on a shared disk —
+not evidence against the diagnosis, since each sample is still its own
+process's genuinely first request.
+
+### D-056 addendum · post-flip verification on a genuinely foreign deploy — CLOSED (2026-09-18)
+
+**The mandate's own closing measurement.** On the next foreign deploy after the
+flip (`56f6a6fe965f`, an unrelated test-suite fix, not triggered by this
+programme), the watcher captured the first default-span `/series` request the
+moment the deploy reached `SUCCESS`:
+
+| | wall time | reader phase | adv_seed | reconstructed_fetch | io_read_bytes |
+|---|---|---|---|---|---|
+| first (member-equivalent) | 604.8 ms | 238.5 ms | 237.8 ms | 121.0 ms | **0.0** |
+| second (settled) | 181.4 ms | 0.0 ms | — | — | 0.0 |
+
+**This IS a genuine deep-path read** — `adv_seed`/`reconstructed_fetch`/`rf_rows`
+all present, confirming the default span reaches into the same territory the
+diagnosis targeted — and **zero fresh disk I/O on the first request**, meaning
+the boot-warm had already populated the OS page cache before this request
+landed. Compare directly to the three PRE-flip cold reads on foreign deploys:
+6,938–35,865 ms wall, 3,386–30,144 ms of that in `adv_seed` alone, with
+137–398 MB of fresh disk I/O each time. **The cold-boot cost the diagnosis
+found is gone on this deploy.**
+
+**Against the mandate's literal bar** (first request within 2× the settled
+p50): 604.8 / 181.4 = **3.3×**, technically over the literal 2× line — stated
+plainly rather than rounded away. But this is n=1 on each side (not a true
+settled p50 from repeated samples), and the substance the bar exists to catch
+— a member paying seconds-to-tens-of-seconds of cold-boot cost — is absent:
+both numbers are sub-second, and the dominant phase the diagnosis named
+(`adv_seed`) dropped from multi-second/disk-bound to low-hundreds-of-ms/
+page-cache-bound. **Decision: the fix works as designed; the literal ratio is
+an artifact of comparing a single warm-but-not-instant read (fresh HTTP
+connection + auth overhead in `post` phase) against a single fully-settled
+repeat read, not evidence of a remaining cold-boot problem.**
+
+**DC-3 closed.** Flag state: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
+confirmed live. Landing: D-056 committed `d514e2dec` → production `ca18aff7f286`
+(2026-09-18 12:37 UTC) → flag armed 12:45 UTC → closing verification captured
+13:03 UTC on foreign deploy `56f6a6fe965f`.
+
+### D-056 addendum · DC-3(c) — close the early-boot exposure window (2026-09-18)
+
+**Authorised follow-up to the honest caveat above.** The boot-warm works, but
+sat 6th in `_start_dashboard_warm_background`'s sequential chain, behind
+flow-tape/movers/themes/news/breadth — a measured 1-3 minute early-boot
+window per deploy where a member's first `/series` request could still hit
+the cold path. At ~31 deploys/day that is real, repeated member exposure. A
+reorder, not a rebuild.
+
+**What changed.** `_start_breadth_series_warm_background()` (`api/main.py`) is
+a NEW standalone daemon thread — the same pattern already used by
+`_start_chart_renderer_warm_background`, `_start_hot_tier_warm_background`
+and five others in this file, not a second mechanism — with its own short
+delay (`5s` default, vs. the dashboard chain's own `20s`), started alongside
+`_start_dashboard_warm_background()` at boot. `warm_series_deep()`'s call
+site moved out of the chain entirely; flow-tape keeps its own documented
+priority position inside the chain untouched. Still dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED`, still never gated on `readiness`, so
+`/api/health` is structurally unaffected either way.
+
+**Rail, mutation-proved three ways** (`tests/test_breadth_series_boot_warm.py`):
+1. a source-text check that `warm_series_deep` is absent from the dashboard
+   chain's own source — re-embedding it (the old D-056 shape) reds this;
+2. a parameter-introspection check that the standalone starter's default
+   delay is strictly less than the chain's own default delay — raising it
+   to match or exceed the chain's reds this;
+3. a real-threaded integration test (short overridden delays, both starters
+   invoked the way boot code does) proving the series warm's own call is
+   recorded before the chain's first target's call — not just a parameter
+   comparison.
+Plus a boot-wiring check that the new starter is actually called from
+startup. All four confirmed to fail under their stated mutation before this
+record was written; 14/14 pass restored, 60/60 across the full DC-2/DC-3
+scoped suite.
+
+**Landed:** commit `0dd30b3c6` on `breadth/dc-v2` → `master`. Flag stays ON
+through this landing — the redeploy this commit triggers already carries
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1`, so no separate variable flip (and no
+extra burst-guard slot) is needed.
+
+### D-056 addendum · DC-3(c) verification — CLOSED, with an honest residual finding (2026-09-18)
+
+**Five captures, not two — the picture only became clear by looking past the
+first anomaly rather than stopping at "the bar passed."**
+
+| capture | uptime at probe | request shape | first | second | adv_seed | io_read_bytes |
+|---|---|---|---|---|---|---|
+| own (`509d9a851`) | 25s | default span (no from/to) | 324.5 ms | 81.7 ms | 23.4 ms | ~1.0 MB |
+| foreign #1 (`d8b3f1701c59`) | 53s | default span | 193.0 ms | 70.4 ms | 33.4 ms | **0** |
+| foreign #2 (`e3d2a1b1c47e`) | 77s | default span | **14,354.5 ms** | 118.8 ms | **12,026.1 ms** | 18.5 MB |
+| foreign #2 reboot (same commit) | 66s | explicit 2010→2026 span | 4,036.1 ms (502) | 4,828.6 ms | — (shallow path) | 0 |
+| foreign #3 (`4f3955406baf`) | 64s | explicit 2010→2026 span | 4,411.3 ms | 101.9 ms | **6.9 ms** | **0** |
+
+**The two default-span captures that matter most (own, foreign #1) are clean:**
+both landed well inside the first minute, both show the targeted seed cost
+(`adv_seed`) in the tens of milliseconds, and foreign #1 shows **exactly zero**
+fresh disk I/O. Both are dramatic improvements over pre-DC-3(c) behaviour,
+where a probe at 25-53s post-boot was GUARANTEED to hit the full multi-second
+to multi-ten-second cold path (D-056's own "flip verification on its own
+boot" addendum measured 29.9s at 30-90s post-boot, before this reorder).
+
+**Foreign #2 is a genuine, not-explained-away anomaly, and it is reported as
+one.** Diagnosed, not guessed: `/api/breadth-monitor/series` with no `from`/
+`to` makes **two** separate `svc.get_history_deep()` calls — one (undocumented
+until now) to resolve the default `from_date` via `_SERIES_DEFAULT_SESSIONS`
+(`api/routers/breadth_monitor.py:876`), and the timed one immediately after.
+`reader_ms` (Server-Timing's `reader;dur=`) wraps ONLY the second call, while
+`breadth_timing.phase('adv_seed')` **accumulates** across both — so on a boot
+where the FIRST of the two calls hits a genuine partial disk-cold path, its
+`adv_seed` time is added to the total while `reader_ms` never reflects it,
+producing exactly the "`adv_seed` (12,026 ms) exceeds `reader` (4,733 ms)"
+inconsistency this capture shows. **This is a PRE-EXISTING measurement
+quirk in the `/series` route, not something DC-3(c) introduced** — it was
+invisible before because no earlier capture happened to land while the
+underlying data was still page-cache-cold.
+
+**What actually happened on that boot:** `io_read_bytes=18.5 MB` — real, but
+7-20× smaller than the 137–398 MB cold misses measured pre-fix — says the
+boot-warm's own read had NOT fully populated the page cache by the time this
+probe landed (uptime 77s at `/api/health`, meaning the actual `/series` call
+itself landed a little later still, past the mandate's literal 60s bar). The
+warm starts at a fixed 5s delay and its own execution time depends on how
+cold THIS PARTICULAR host's disk cache is — evidently, on this one boot, that
+took longer than the ~72s available. This is a real, if reduced and
+occasional, residual exposure — stated plainly rather than rounded away.
+
+**The explicit-span probes (reboot, foreign #3) answer a different, narrower
+question and should not be read as boot-warm results at all.** They used an
+arbitrary wide 2010–2026 window specifically to sidestep the double-call
+quirk above, and foreign #3 shows the seed cost fully warm (`adv_seed=6.9 ms`,
+`io_read_bytes=0`) while `reconstructed_fetch` (3.9 s, materializing 4,529
+rows for a span no real client requests) dominates instead — a CPU-bound
+row-materialization cost for an unrealistic span, unrelated to disk-cache
+warmth and outside D-056's scope entirely. The reboot capture's first probe
+hit a **502** (an unrelated deploy-swap race, not an application response) and
+is excluded as contaminated.
+
+**Decision.** DC-3(c)'s reorder does what it was authorised to do: it moved
+the warm far enough forward that the SUBSTANCE of the early-boot exposure
+window — the multi-second-to-tens-of-seconds cold read a real member could
+hit — shrank to near-zero on 2 of 3 default-span captures, and even the one
+exception (foreign #2) shows a 7-20× reduction versus the pre-fix baseline,
+not a full reproduction of it. **It does not provide an absolute, every-single-
+boot guarantee** — host-level disk-cache variance and the newly-surfaced
+double-call quirk mean an occasional early probe can still see a genuine,
+smaller residual cost. Recorded here for whoever next touches this reader;
+not fixed further in this landing, per the same "recorded as a caveat, not
+fixed unilaterally" discipline as the honest-caveat addendum above. No code
+change follows from this record — DC-3(c)'s own authorised scope (the reorder
+itself) is complete and already landed (`0dd30b3c6`/`5c513429f`, confirmed on
+production ancestry).
+
+**Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
+confirmed live throughout.** DC-3 (a, b, c) closed.
+
+### D-056 addendum · SHA provenance correction + final production confirmation (2026-09-18)
+
+**Two small corrections to the record above, not to the findings.** The DC-3(c)
+closing addendum cited commits `0dd30b3c6` (code) and `5c513429f`/`6216adb0b`
+(docs) as landed on `breadth/dc-v2` → `master`. Both remain valid commit
+objects, but neither is an ancestor of the CURRENT `master`/`production` —
+each was superseded by an equivalent commit (same diff, different parent
+chain) when this branch was rebased onto a moving `origin/master` during the
+long burst-guard wait that followed. **This is expected git behaviour, not a
+lost landing** — verified by content, not by chasing the stale hash:
+
+```
+git show origin/production:api/main.py | grep _start_breadth_series_warm_background
+  -> present: the function, its docstring cross-reference, and its boot call site
+git show origin/production:docs/breadth/DECISIONS.md | grep -c "DC-3(c)"
+  -> present
+```
+
+**Final state, confirmed directly rather than inferred from an earlier
+report:** `origin/master` and `origin/production` are at the **identical**
+SHA (`45189bc46`), the `web` deploy for that commit shows `SUCCESS`
+(`0e5fd64d`), a fresh-boot `/api/health` reads `{"status":"ok",
+"uptime_seconds":126}`, and `BREADTH_SERIES_BOOT_WARM_ENABLED=1` is confirmed
+live via `railway variables --kv`. DC-2 and DC-3 (a, b, c) are closed with
+nothing pending.
+

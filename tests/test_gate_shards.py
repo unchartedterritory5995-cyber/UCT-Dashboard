@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import pathlib
 import re
 import subprocess
@@ -87,6 +88,12 @@ def _do_not_shell_out_to_the_real_do_not_build_sweep(monkeypatch):
 
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
+    # ⛔ IMPORTED, NEVER RESTATED. `unexplained` lived in THIS FILE until 2026-09-15 and the
+    # product never called it, so the suite enforced a contract the gate did not. It is now
+    # `gate_shards.unexplained` and the rails below drive the SAME function the verdict does;
+    # a copy here would be a second authority agreeing with itself (R-05 / the contract test
+    # whose harness restated the contract).
+    unexplained,
 )
 # ⛔ Bound HERE, at import, so the autouse stub below cannot reach it. The one test that
 # exercises the REAL sweep calls THIS name; every other test gets the stub.
@@ -278,6 +285,27 @@ def test_rail2_capture_against_real_vitest_produces_a_parseable_totals_line(tmp_
     import gate_shards
 
     app = gate_shards.APP
+
+    # ⛔⛔ OPT-IN, BECAUSE ITS COST IS UNBOUNDED AND VARIABLE — not because it is unimportant.
+    # This rail invokes `npx vitest` for real. Measured in this worktree: it completed inside a
+    # 102-second whole-suite run once, and on 2026-09-17 the SAME invocation blew `_capture`'s
+    # 300s ceiling and killed the run with no totals line. npx resolution plus a cold vitest
+    # config load is the variance; nothing about the rail's own assertions changed between those
+    # two runs. An unbounded external call sitting in the default path of a suite that gates a
+    # landing will eventually eat a landing, and it did.
+    #
+    # ⭐ SKIPPED LOUDLY, NEVER SILENTLY. `pytest.ini` sets `-ra`, so this reason is printed in
+    # every summary — a rail that opts itself out quietly is one that reads as verified while
+    # having asserted nothing (`lesson_a_rails_important_half_can_be_opt_in`).
+    #
+    #   RUN IT DELIBERATELY:  UCT_RUN_REAL_VITEST=1 python -m pytest     #       tests/test_gate_shards.py::test_rail2_capture_against_real_vitest_produces_a_parseable_totals_line -q
+    #
+    # ⛔ It is the ONLY thing that proves the far end of our pipe is really vitest and that
+    # `parse_totals` understands the format vitest emits TODAY — so it must be run before any
+    # change to `_capture`, `parse_totals`, or the vitest version. Do not let it rot.
+    if os.environ.get("UCT_RUN_REAL_VITEST") != "1":
+        pytest.skip("OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, "
+                    "unbounded; it killed a landing run on 2026-09-17")
     if not (app / "node_modules").exists():
         pytest.skip("app/node_modules absent — cannot invoke the real vitest")
 
@@ -573,6 +601,23 @@ gate_shards.load_baseline = lambda: {{"measured_at": "rail", "sha": "0" * 40, "f
 # and `exclude_reasons`, and all three rails in this file went red together with a
 # TypeError that never reached a manifest. A stub that must be hand-synced with
 # the function it wraps is a second authority over one signature.
+# ⛔⛔ THE CHILD MUST STUB THE SWEEP TOO, AND THE PARENT'S autouse FIXTURE CANNOT REACH IT.
+# `do_not_build_sweep()` shells out to `tools/q1_do_not_build_sweep.py`, measured at **114.7s**
+# on 2026-09-15 and slower since (the tree has grown to ~9,866 files). `run_gate` calls it with
+# no runner, so every `_drive` child paid a full repo scan — seven of them, ~13 minutes of pure
+# waste for a manifest field not one test in this file reads.
+#
+# ⚰️ THIS WAS A KNOWN, WRITTEN-DOWN COST THAT THEN CAUSED A FAILURE NOBODY CONNECTED TO IT. The
+# autouse stub's own docstring said the `_drive` children "still pay the sweep ... Stated, not
+# hidden" — and when the scoped suite started dying at ~47%% with no totals line, four separate
+# hypotheses were tested and discarded (contention, pytest-randomly, master's conftest, a missing
+# `run_shard_fn` seam) before anyone re-read the sentence that already named it. A cost you have
+# documented is not a cost you have bounded.
+#
+# ⛔ The parent's monkeypatch is process-local. `_drive` spawns a CHILD, so the stub has to be
+# INSIDE this template or it does not exist where it matters.
+gate_shards.do_not_build_sweep = lambda *a, **k: {{
+    "ran": True, "clean": True, "hits": [], "output": "", "stubbed_by": "_DRIVER"}}
 _SEAMS = ("tree_state_fn", "run_shard_fn", "file_count_fn")
 gate_shards.run_gate = lambda shards, od, **kw: _real(
     shards, od,
@@ -702,17 +747,11 @@ def _baseline():
     return json.loads(p.read_text(encoding='utf-8'))
 
 
-def unexplained(baseline: dict) -> list[str]:
-    """expected_red entries with no reason beside them.
-
-    ⛔ ONE implementation, shared by the rail and by its control. A control
-    that re-implements the predicate agrees with ITSELF and says nothing about
-    the thing under test — which is R-05 exactly: the contract test whose
-    harness restated the contract, so both agreed and neither matched the
-    product.
-    """
-    reasons = baseline.get('expected_red_reasons', {})
-    return [e for e in baseline.get('expected_red', []) if e not in reasons]
+# ⛔ `unexplained` USED TO BE DEFINED RIGHT HERE. It is imported at the top of this file now and
+# lives in `scripts/gate_shards.py`, because "one implementation shared by the rail and by its
+# control" was still one implementation SHORT: the product itself did not have it, so a baseline
+# carrying an unexplained waiver passed the gate and failed only the test suite. Promoting it made
+# the gate return `EXIT_UNEXPLAINED_RED`; the rails below drive that path.
 
 
 def test_every_expected_red_entry_names_a_reason_and_what_it_waits_on():
@@ -759,6 +798,115 @@ def test_the_rail_can_fail_a_non_vacuity_control():
     assert unexplained(explained) == [], (
         'the pairing check cannot tell an EXPLAINED entry apart — a check that '
         'answers no to everything passes for the wrong reason')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# C-3 — the predicate above is now part of the VERDICT, not only of the suite.
+# Until 2026-09-15 `unexplained` existed solely in this file: `compare_failures`
+# subtracted every `expected_red` entry out of `new` without asking whether the
+# entry named a reason, so a gate run against a baseline carrying an unsigned
+# waiver printed VERDICT=NO_NEW_FAILURES exit=0.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _clean_manifest(unexplained_entries: list[str]) -> dict:
+    """A manifest that is GREEN in every other direction, so the only thing under test is this.
+
+    ⛔ Deliberately reconciling and deliberately empty everywhere else: if any other field could
+    also produce a non-zero code, the rail below would pass without the new check existing.
+    """
+    return {
+        "summed": {"files": {"total": 10, "failed": 0}, "tests": {"total": 100, "failed": 0}},
+        "per_shard": [{"shard": 1, "files": {"total": 10}}],
+        "test_files_on_disk": 10, "test_files_waived": 0,
+        "file_count_reconciles": True,
+        "vs_baseline": {
+            "new": [], "no_longer_failing": [],
+            "expected_red_seen": [], "expected_red_stale": [],
+            "expected_red_unexplained": list(unexplained_entries),
+        },
+    }
+
+
+def test_an_unexplained_expected_red_entry_gets_ITS_OWN_verdict_class():
+    """⛔ NOT A PASS AND NOT A REGRESSION — the third answer.
+
+    The entry was already subtracted out of `new` by `compare_failures`, so `new: 0` here is an
+    unanswered question wearing a green. The code must be distinguishable from BOTH neighbours:
+    a caller told NEW_FAILURES goes hunting for a regression that does not exist, and a caller
+    told NO_NEW_FAILURES merges on an excuse nobody wrote down.
+    """
+    import gate_shards as gs
+    code = gs.verdict_exit_code(_clean_manifest(['app/x.test.js > a > b']),
+                                say=lambda *a, **k: None)
+    assert code == gs.EXIT_UNEXPLAINED_RED, (
+        f'an expected_red entry naming no reason exited {code}; the gate folded a waiver '
+        f'nobody signed into the pass/fail count')
+    assert code not in (gs.EXIT_NO_NEW, gs.EXIT_NEW_FAILURES), 'the class was collapsed'
+    line = gs.verdict_line(code, expected_red_unexplained=1)
+    assert line.startswith('VERDICT=UNEXPLAINED_RED exit=5'), line
+    assert 'UNKNOWN' not in line
+
+
+def test_control_the_same_run_with_the_entry_EXPLAINED_is_a_clean_pass():
+    """⭐ THE NON-VACUITY CONTROL. Without it the check above would pass just as happily if
+    `verdict_exit_code` returned 5 unconditionally, or if the manifest were malformed in a way
+    that made every run non-green. Same manifest, one field different, opposite answer."""
+    import gate_shards as gs
+    code = gs.verdict_exit_code(_clean_manifest([]), say=lambda *a, **k: None)
+    assert code == gs.EXIT_NO_NEW, (
+        f'a baseline whose every expected_red entry names a reason must exit 0, got {code} — '
+        f'a check that answers UNEXPLAINED_RED to everything proves nothing')
+
+
+def test_control_the_unexplained_class_is_answered_BEFORE_the_thing_it_waives():
+    """⛔ ORDER IS THE POINT, and it is a control in its own right.
+
+    A run that did not reconcile is ALSO not a verdict, and it outranks this one: a partial suite
+    has an incomplete failing set, so there is nothing yet to waive. Asserting both directions
+    pins the order rather than leaving it to whichever `if` happens to come first.
+    """
+    import gate_shards as gs
+    m = _clean_manifest(['app/x.test.js > a > b'])
+    m['file_count_reconciles'] = False
+    assert gs.verdict_exit_code(m, say=lambda *a, **k: None) == gs.EXIT_DID_NOT_RECONCILE, (
+        'an incomplete suite must outrank the waiver check — its failing set is not final')
+    # …and an unexplained entry outranks a STALE expected-red, which is a judgement about an
+    # entry we can at least read.
+    m2 = _clean_manifest(['app/x.test.js > a > b'])
+    m2['vs_baseline']['expected_red_stale'] = ['app/y.test.js > c > d']
+    assert gs.verdict_exit_code(m2, say=lambda *a, **k: None) == gs.EXIT_UNEXPLAINED_RED
+
+
+def test_the_gate_reads_the_promoted_predicate_from_the_REAL_baseline_file(tmp_path, monkeypatch):
+    """⛔ THE WIRING, not the predicate. `unexplained` was correct for a whole day while nothing
+    called it; this drives `run_gate` against a planted baseline and reads the manifest.
+
+    ⭐ And the control is the same run against a baseline whose entry IS explained — the manifest
+    must then publish an EMPTY list, so the key cannot be a constant.
+    """
+    import gate_shards as gs
+    planted = tmp_path / 'baseline.json'
+
+    def _manifest(reasons: dict) -> dict:
+        planted.write_text(json.dumps({
+            'sha': 'deadbeef', 'measured_at': '2026-09-15', 'failures': [],
+            'expected_red': ['app/x.test.js > a > b'], 'expected_red_reasons': reasons,
+        }), encoding='utf-8')
+        monkeypatch.setattr(gs, 'BASELINE', planted)
+        return run_gate(1, tmp_path,
+                        tree_state_fn=lambda: ('0ffe68a14', []),
+                        run_shard_fn=lambda i: REAL_ANSI_PASS,
+                        file_count_fn=lambda: 196)
+
+    bad = _manifest({})
+    assert bad['vs_baseline']['expected_red_unexplained'] == ['app/x.test.js > a > b'], (
+        'run_gate does not publish the unexplained class — the predicate is promoted but unwired')
+    assert 'no reason' in gs.render(bad), 'the rendered manifest hides the unexplained class'
+
+    good = _manifest({'app/x.test.js > a > b': {'why': 'w', 'waits_on': 'n'}})
+    assert good['vs_baseline']['expected_red_unexplained'] == [], (
+        'the manifest reports an unexplained entry that IS explained — the key is a constant')
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1383,3 +1531,137 @@ def test_the_autouse_stub_is_actually_in_force_for_run_gate():
     import gate_shards as _gs
     assert _gs.do_not_build_sweep()["stubbed_by"] == __name__, (
         "the autouse sweep stub is not in force; run_gate tests will shell out for ~115s each")
+
+
+def test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them():
+    """⛔⛔ THE BUG THIS PINS COST FOUR HYPOTHESES AND SEVERAL DEAD RUNS.
+
+    `run_gate`'s seams were DEFAULT ARGUMENTS (`tree_state_fn=tree_state`), evaluated once at
+    import and capturing the original functions forever — so
+    `monkeypatch.setattr(gate_shards, "tree_state", ...)` reached NOTHING.
+    `test_the_wrapper_takes_and_RELEASES_the_lock_around_a_run` does exactly that to drive a
+    dirty-tree refusal; with the patch inert it called the REAL tree_state, found the tree
+    CLEAN, skipped the refusal and ran a REAL SIX-SHARD GATE inside a unit test.
+
+    ⭐ AND THAT IS WHY IT READ AS INTERMITTENT: it passed while the working tree happened to be
+    dirty and hung when it was clean. A test whose outcome depends on `git status` is not flaky,
+    it is reading the wrong thing — but from the outside the two are indistinguishable, which is
+    what made it survive four wrong diagnoses.
+
+    ⛔ `run_shard_fn` was late-bound all along, two lines away. One function, two conventions.
+    """
+    import inspect
+    import gate_shards as gs
+
+    sig = inspect.signature(gs.run_gate)
+    for seam in ("tree_state_fn", "run_shard_fn", "file_count_fn"):
+        assert sig.parameters[seam].default is None, (
+            f"{seam} has a def-time default; a module-level patch cannot reach it")
+
+    # ⭐ NON-VACUITY: prove the patch actually LANDS, by driving the real run_gate through it.
+    # Asserting the signature alone would pass if the body ignored the parameter entirely.
+    seen = {}
+
+    def fake_tree_state():
+        seen["called"] = True
+        return ("abc123", ["?? planted-dirty.py"])
+
+    real = gs.tree_state
+    gs.tree_state = fake_tree_state
+    try:
+        with pytest.raises(GateError) as e:
+            gs.run_gate(1, pathlib.Path("."), run_shard_fn=lambda i: REAL_ANSI_PASS,
+                        file_count_fn=lambda: 196)
+    finally:
+        gs.tree_state = real
+    assert seen.get("called"), "the module-level patch never reached run_gate"
+    assert "dirty" in str(e.value).lower(), f"expected the dirty-tree refusal, got {e.value}"
+
+
+def test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config(tmp_path):
+    """⭐⭐ THE MEASUREMENT THAT OVERTURNED A CLAIM I HAD ALREADY PUBLISHED TWICE.
+
+    On 2026-09-18 I asserted - in a commit message and in a report - that
+    `--maxWorkers=1` does NOT bound vitest in this repo, because
+    `vite.config.js` sets `maxWorkers: '50%'` (= 12 forks on this 24-core box)
+    and I had counted ~15 vitest-matching processes during a gate launched with
+    `--max-workers 1`.
+
+    ⛔ THE COUNT WAS THE BROKEN PART. It matched `CommandLine -like '*vitest*'`
+    ACROSS THE WHOLE BOX, while another workstream was leaking node processes and
+    other sessions were running their own suites. It was never a measurement of
+    MY run.
+
+    ⭐ Measured properly - baseline node.exe count, launch, sample the DELTA, and
+    a control asserting the run actually happened - the CLI bound is honoured and
+    the response is monotonic:
+
+        bound   1    2    6   12
+        delta   5    7    9   15        (= bound + ~3-4 fixed overhead)
+
+    ⛔ SO THE GATE'S SHARD COMMAND WAS ALREADY CORRECT AND WAS NOT CHANGED. A fix
+    was authorised on the strength of my finding; the finding was wrong, and
+    changing working code to satisfy it would have been the actual defect.
+
+    This rail is OPT-IN because it spawns two real vitest runs. Run it before
+    trusting any future claim about worker bounds:
+
+        UCT_RUN_REAL_VITEST=1 python -m pytest \
+          tests/test_gate_shards.py::test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config -q
+    """
+    if os.environ.get("UCT_RUN_REAL_VITEST") != "1":
+        pytest.skip("OPT-IN rail: spawns two real vitest runs and samples process counts")
+    app = REPO / "app"
+    if not (app / "node_modules").exists():
+        pytest.skip("app/node_modules absent — cannot invoke the real vitest")
+
+    import subprocess
+    import threading
+    import time as _time
+
+    def peak_delta(bound: int) -> tuple[int, bool]:
+        npx = shutil.which("npx")
+        assert npx, "npx not resolvable — see the rule about shutil.which on Windows"
+
+        def count() -> int:
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\").Count"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            try:
+                return int((out.stdout or "0").strip())
+            except ValueError:
+                return 0
+
+        base = count()
+        proc = subprocess.Popen(
+            [npx, "vitest", "run", "src/pages/journal-2-0/lib/offline/",
+             f"--maxWorkers={bound}"],
+            cwd=str(app), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace")
+        peak = 0
+        buf: list[str] = []
+
+        def drain():
+            for line in proc.stdout:            # noqa: PLR1702
+                buf.append(line)
+
+        t = threading.Thread(target=drain, daemon=True)
+        t.start()
+        while proc.poll() is None:
+            peak = max(peak, count() - base)
+            _time.sleep(2)
+        t.join(timeout=10)
+        # ⛔ NON-VACUITY: a run that never started would report a peak of 0 and
+        # read as "the bound works perfectly".
+        ran = any("Tests" in ln and "passed" in ln for ln in buf)
+        return peak, ran
+
+    low, low_ran = peak_delta(1)
+    high, high_ran = peak_delta(12)
+    assert low_ran, "the --maxWorkers=1 run never produced a totals line — nothing was measured"
+    assert high_ran, "the --maxWorkers=12 run never produced a totals line — nothing was measured"
+    assert high > low, (
+        f"the CLI bound made NO difference (1 -> {low}, 12 -> {high}). Either vitest "
+        f"stopped honouring --maxWorkers, or the process counter is broken again — "
+        f"check the counter FIRST, which is the mistake this rail exists to record.")

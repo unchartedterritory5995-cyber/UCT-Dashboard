@@ -43,14 +43,54 @@ a stage-2 problem*. Today the hub reaches admins only.
 ⛔ **EMPTY ON PURPOSE.** Pre-built 2026-09-15 so that triage is transcription rather than
 composition. A row invented before the list arrives is a diagnosis of a report nobody has made.
 
+> ## ⛔⛔ [A] ARRIVED 2026-09-17, AND IT IS NOT A BUG LIST — IT IS A VERDICT ON THE WHOLE FEATURE
+>
+> ⚰️ **THIS FILE BRIEFLY RECORDED "ALL CLEAR, NO BUGS REPORTED". THAT WAS WRONG AND IT WAS MY
+> ERROR.** On 2026-09-15 the owner said *"lets assume there are no bugs … Assume I answer all clear
+> no bugs, then what?"* — a **working assumption for planning**, offered so he could see the shape of
+> what followed. I wrote it into the repo as a **measured answer**, which it never was. The entry was
+> hedged ("absence of INTAKE, never evidence of absence") and the hedge was the right instinct, but
+> the headline claimed an intake that had not happened. Caught before it merged, and only because an
+> unrelated deploy guard held the PR. ⛔ **An assumption a human offers you for reasoning is not an
+> input. Do not bank it as one.**
+>
+> ### His words, 2026-09-17, VERBATIM — not paraphrased, not itemised, not diagnosed
+>
+> > *"Wow tons of bugs, need to simplify the joystick a ton imo. Too glitchy and not smooth like a
+> > proper high level highly built feature would be. Seems clunky from the 90s and not high class
+> > smooth Liquid Glass with proper sensible tools too much going on. Needs a lot of work"*
+>
+> ⛔ **DO NOT DECOMPOSE THIS INTO ROWS YET.** Step 1 of the checklist above is *"copy his words
+> verbatim — a paraphrase is already a diagnosis"*, and the single most likely way to get this wrong
+> is to shred a verdict about the whole feature into six tickets that each look fixable. It names
+> four distinct things and only ONE of them is a bug report:
+>
+> | what he said | what kind of thing it is | who decides |
+> |---|---|---|
+> | "tons of bugs" | defects — the only part this ledger can hold, and **the specifics are not yet given** | triage, once itemised |
+> | "too glitchy … not smooth" | a QUALITY bar, not an enumeration | owner |
+> | "clunky from the 90s … not high class smooth Liquid Glass" | a VISUAL/motion direction | owner |
+> | "simplify a ton … too much going on" | a SCOPE ruling against 10 modes / 62 actions | **owner only** |
+>
+> ⭐ **The scope line is the load-bearing one.** "Too much going on" is not satisfied by fixing
+> defects; it is satisfied by REMOVING surface, and what gets removed is a product decision no agent
+> may take. `registry.js` is the single authority for that surface and deleting from it is one line
+> per action.
+>
+> ### ⛔ WHAT THIS DOES TO THE ROLLOUT — stated here because it is the whole point of the intake
+>
+> **Stage 2 turns the hub ON for every member.** The owner has now used it and called it glitchy,
+> clunky and overbuilt. Shipping that to every member is not a go/no-go this ledger can wave
+> through — ⛔ **stage 2 should not be merged on this evidence**, and `rollout.md` §3 a's gate is
+> owner-judgement, not a checklist. Recorded as a blocker here and in `closure.md`'s box 5 rather
+> than left for someone to infer.
+
 | # | his words (verbatim) | mode.action | WRONG / not-nice-yet | repros on stage-1 live? | member-visible after stage 2? | blocks 2? | blocks 3? | ruling needed? |
 |---|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | | |
-| 2 | | | | | | | | |
-| 3 | | | | | | | | |
-| 4 | | | | | | | | |
-| 5 | | | | | | | | |
-| 6 | | | | | | | | |
+| 1 | *"tons of bugs"* | **UNSPECIFIED — awaiting itemisation** | — | UNTESTED | — | **likely** | — | no, needs the list |
+| 2 | *"need to simplify the joystick a ton imo … too much going on"* | registry-wide (10 modes / 62 actions) | not-nice-yet → **SCOPE** | n/a | YES | **YES** | YES | ⛔ **OWNER RULING** |
+| 3 | *"too glitchy and not smooth"* | UNSPECIFIED | **WRONG** (quality bar) | UNTESTED | YES | **likely** | — | needs a bar |
+| 4 | *"clunky from the 90s … not high class smooth Liquid Glass"* | visual / motion | not-nice-yet → **DIRECTION** | n/a | YES | ? | ? | ⛔ **OWNER RULING** |
 
 ⭐ **Column 2 is `mode.action` from §1's inventory, or the word NONE.** NONE is a real answer and a
 useful one: a report that maps to no declared action is either about a surface outside the hub or
@@ -81,11 +121,25 @@ the sweep does a page LOAD per (mode, width) — so some readings were taken str
 overlay and scored its capability pills as page furniture. `hub_chip_clearance.py` now waits the
 intro out before sampling.
 
+> ## ✅ BUILT 2026-09-15 AT SWEEP SCOPE — `fix/d39-chip-clearance`, **PR #146**, awaiting Patrick.
+>
+> [A] came back all-clear, so this was built at the sweep's scope exactly as the clause below
+> anticipated, and **the record says so rather than implying he asked for it.**
+>
+> ⛔ **The acceptance test is NOT closed and cannot be closed here.**
+> `tools/hub_chip_clearance.py --base <deployed>` must go from **6 failures to 0** across journal +
+> notebook at 360/375/430 with the other 21 pairs still passing. It needs a real layout engine on
+> the real build, so it runs **after the merge**. jsdom performs no layout, and a local shake-out is
+> not certification evidence.
+>
+> Gate at build time: `src/hub` + `src/pages/settings` **87 files / 1161 tests, exit 0**, sampler
+> `VERDICT=CLEAR samples=10 min_free_gb=11.66`, zero NEW against baseline 10.
+
 **What [A] must supply before this is built, and what it cannot change:**
 
-- ⬜ whether Patrick reports the chip collision **at all**, and on which screens. If he does not,
-  D-39 is still ruled fix-before-stage-3 and is still built — but at the **sweep's** scope, and the
-  record says so plainly rather than implying he asked for it.
+- ✅ whether Patrick reports the chip collision **at all**, and on which screens. He did not, so
+  D-39 was built at the **sweep's** scope — still ruled fix-before-stage-3, and the record says so
+  plainly rather than implying he asked for it.
 - ⬜ whether he reports it somewhere the 6 pairs do **not** cover. That widens the acceptance set,
   and the new pairs are measured, never assumed.
 - ⛔ **What [A] cannot change: the approach.** `elementFromPoint` at the chip's intended left edge,

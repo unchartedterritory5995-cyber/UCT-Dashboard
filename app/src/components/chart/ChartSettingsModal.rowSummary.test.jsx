@@ -1,6 +1,6 @@
 // app/src/components/chart/ChartSettingsModal.rowSummary.test.jsx
 //
-// ─── THE COLLAPSED ROW SAYS WHERE IT DRAWS AND HOW ──────────────────────────
+// ─── WHAT A ROW SAYS, AND WHAT THE PANE SAYS FOR IT ────────────────────────
 //
 // ⛔⛔ THE LIST USED TO SAY ONLY THE NAME. For an indicator that was enough —
 // everyone knows where RSI draws. Universal Data broke it: `QQQ` and `SPY` sit in
@@ -8,15 +8,21 @@
 // INSTRUMENTS, in panes of their own, drawn as lines. Four questions a member had
 // to open the row to answer.
 //
-// ⭐ THE SUMMARY IS NOT A SECOND OPINION. It reads the same seams the expanded
-// controls do, so these cases also pin that it cannot drift from the selects
-// directly beneath it — change the style through the REAL control and the
-// collapsed row must agree.
+// ⚰️⚰️ THE ANSWER WAS A SUMMARY LINE ON THE ROW, AND IT IS NOT ANY MORE. The
+// Inspector reduced a row to a micro-rail and a name (2026-09-17); every fact the
+// summary printed moved to the surface that could state it without repeating
+// anything — the PANE HEADING for where it draws, the NAME for what it reads when
+// the heading does not already say it, and the Inspector's own controls for the
+// rest. This file followed them there, and its questions are unchanged.
 //
-// ⛔ AND IT MUST STAY OUT OF THE EXPANDER'S ACCESSIBLE NAME. The first version
-// nested it inside that button, which both renamed the control for a screen
-// reader and broke every rail that addresses a row as `/^QQQ$/`. That lesson is
-// kept, twice: as a DOM containment check and as an accessible-name check.
+// ⭐ NOTHING HERE IS A SECOND OPINION. Every assertion reads a surface that is
+// DERIVED from the same canonical helpers the renderer consumes, so these cases
+// also pin that the panel cannot drift from the chart — change the style or the
+// source through the REAL control and the list must agree, with no reopen.
+//
+// ⛔ AND NO ENGINE VOCABULARY MAY REACH A MEMBER. The lesson the old
+// accessible-name cases encoded is kept in the last describe, against the control
+// that replaced the expander they were written for.
 
 import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -88,30 +94,36 @@ function Host({ initial, seen }) {
 const show = (cs, seen) => render(<Host initial={cs} seen={seen} />)
 const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
 
-/** The row block whose expander NAME is exactly this.
- *  ⛔ Anchored on purpose: that is the guarantee the summary must not break. */
-const rowFor = (re) => [...document.body.querySelectorAll('[data-row-id]')]
-  .find((r) => re.test((r.querySelector('[class*="actLabel"]')?.textContent || '').trim()))
 
-const summaryOf = (re) => {
+/** The structure row whose NAME matches.
+ *
+ *  ⚰️⚰️ IT WAS `[class*="actLabel"]` INSIDE AN EXPANDER BUTTON. A row is a
+ *  micro-rail and a name now, and `data-structure-row` marks one.
+ *  ⛔ STILL ANCHORED WHERE A CASE ANCHORS IT: an exact-name match is the whole
+ *  guarantee the contextual suffix must not break by accident. */
+const rowFor = (re) => [...document.body.querySelectorAll('[data-structure-row]')]
+  .find((r) => re.test((r.querySelector('[class*="insRowName"]')?.textContent || '').trim()))
+
+/** What the row PRINTS — the contextual name, and nothing else. */
+const nameOf = (re) => {
   const row = rowFor(re)
   expect(row, `no active row matching ${re}`).toBeTruthy()
-  return (row.querySelector('[class*="actMeta"]')?.textContent || '').trim()
+  return (row.querySelector('[class*="insRowName"]')?.textContent || '').trim()
 }
 
-const openRow = (re) => fireEvent.click(rowFor(re).querySelector('[aria-expanded]'))
-/** The INSPECTOR — the right-hand column, which is where a selected row's
- *  controls now live.
- *
- *  ⭐ THE CONTROLS ARE THE SAME CONTROLS; only the column changed. Chart Data
- *  moved the form out of the row and into a panel beside the pane map, so a
- *  query scoped to `rowFor(...)` now finds the row's NAME and TOGGLE and nothing
- *  else. `data-inspector-for` carries the row id, so these helpers still assert
- *  that the form on screen belongs to the row that was selected — which is the
- *  thing that actually mattered about scoping them to the row. */
+/** The PANE this row is filed under — `chartDataMap`'s grouping, as read. */
+const paneOf = (re) => {
+  const g = rowFor(re)?.closest('[data-pane-group]')
+  return (g?.querySelector('[class*="insGroupHead"]')?.textContent || '').trim()
+}
+
+const openRow = (re) => fireEvent.click(rowFor(re))
+/** The INSPECTOR — the right-hand column, where a selected row's controls live. */
 const inspector = () => document.body.querySelector('[data-inspector-for]')
 const selectIn = (re, labelRe) => {
   const panel = inspector()
+  // ⛔ AND IT MUST BE THIS ROW'S FORM. A stale selection would otherwise let a
+  // case assert against the control of whatever was selected before it.
   if (!panel || panel.getAttribute('data-inspector-for') !== rowFor(re)?.getAttribute('data-row-id')) return undefined
   return [...panel.querySelectorAll('select')]
     .find((s) => labelRe.test(s.getAttribute('aria-label') || ''))
@@ -120,28 +132,37 @@ const selectIn = (re, labelRe) => {
 beforeEach(() => { clearSecondaryBars() })
 afterEach(() => { cleanup(); clearSecondaryBars() })
 
-describe('what the collapsed row says', () => {
-  // ⚰️⚰️ THIS SUITE USED TO ASSERT `Line · Own pane`, AND BOTH HALVES ARE RETIRED
-  // (owner §30, 2026-09-16): *"Do not overstuff rows with implementation metadata
-  // such as: MA / Line · Price."*
+describe('what a row says, and what the PANE says for it', () => {
+  // ⚰️⚰️ THIS SUITE HAS LOST TWO LINES OF METADATA IN TWO STEPS, AND BOTH ARE THE
+  // SAME CORRECTION APPLIED TWICE.
   //
-  // `Line` is the same word on nearly every row and is the control the editor
-  // directly beneath already offers. `Own pane` is a SECOND statement of what the
-  // group heading this row is filed under already says — the rows are grouped by
-  // the pane they draw in (`chartDataMap`), so the destination was printed twice.
+  // (1) §30, 2026-09-16: `Line · Own pane` went. `Line` was the same word on
+  // nearly every row and was already a control directly beneath it; `Own pane`
+  // restated the heading the row was filed under. What survived was `Source: QQQ`
+  // and `Pane unavailable`.
   //
-  // ⭐ WHAT THE ROW STILL ANSWERS is *what does this read* (`Source: QQQ`) and,
-  // when there is no pane to file it under at all, *what happened to it*
-  // (`Pane unavailable`). Both are things the heading cannot say.
+  // (2) The Inspector, 2026-09-17: the summary LINE went entirely. A row is a
+  // micro-rail and a name — *"Do not make every row look like a settings form."*
+  //
+  // ⭐⭐ AND THE FACTS DID NOT GO ANYWHERE. Each one moved to the place that could
+  // state it without repeating anything:
+  //   · WHERE it draws  → the pane heading it is filed under (always did);
+  //   · WHAT it reads   → the NAME, but only when the pane does not already say
+  //                       it (`EMA 20 · QQQ` on Price, plain `EMA 20` inside QQQ),
+  //                       and in full as the Inspector's SOURCE control;
+  //   · WHAT BROKE      → the `Needs attention` heading plus the Display control.
+  // These cases follow them there. The questions are the questions they were.
+
   it('⭐⭐ a direct symbol series is QUIET — its name and its pane say everything', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    expect(summaryOf(/^QQQ$/), 'the row grew furniture back').toBe('')
+    expect(nameOf(/^QQQ$/), 'the row grew furniture back').toBe('QQQ')
+    expect(paneOf(/^QQQ$/)).toBe('QQQ')
   })
 
   it('⛔ …AND A STYLE IS STILL NOT A ROW FACT, whatever it is set to', () => {
     // The control case for the one above: a NON-default presentation must not
-    // bring the metadata line back either.
+    // bring metadata onto the row either.
     const { cs, id } = withSeries(mergeChartSettings({}), 'QQQ')
     const styled = {
       ...cs,
@@ -149,20 +170,19 @@ describe('what the collapsed row says', () => {
         i.instanceId === id ? { ...i, presentation: { plotStyle: 'candles' } } : i)),
     }
     show(styled); openIndicators()
-    expect(summaryOf(/^QQQ$/)).toBe('')
+    expect(nameOf(/^QQQ$/)).toBe('QQQ')
   })
 
-  it('⭐⭐ AND THE PANE IS STILL ANSWERED — by the GROUP the row is filed under', () => {
-    // ⛔ THE FACT DID NOT GO AWAY, THE DUPLICATE DID. `chartDataMap` groups the
-    // rows by the pane each one draws in and the heading names it, which is where
-    // a member reads "where is this" — so removing it from the row is removing a
-    // repeat, not an answer.
+  it('⭐⭐ THE PANE IS ANSWERED BY THE GROUP THE ROW IS FILED UNDER', () => {
+    // ⛔ THE FACT DID NOT GO AWAY, THE DUPLICATE DID. `chartDataMap` groups rows by
+    // the pane each one draws in and the heading names it, which is where a member
+    // reads "where is this" — so keeping it off the row removes a repeat, not an
+    // answer.
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const group = rowFor(/^QQQ$/).closest('[data-pane-group]')
-    expect(group, 'the QQQ row is not filed under any pane').toBeTruthy()
-    expect((group.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
-      .toBe('QQQ')
+    expect(rowFor(/^QQQ$/).closest('[data-pane-group]'),
+      'the QQQ row is not filed under any pane').toBeTruthy()
+    expect(paneOf(/^QQQ$/)).toBe('QQQ')
   })
 
   it('⭐⭐ A GUEST NAMES ITS HOST — a human label, never an instance id', () => {
@@ -170,106 +190,124 @@ describe('what the collapsed row says', () => {
     const b = withSeries(a.cs, 'SPY')
     const moved = setInstanceDisplayTarget(b.cs, b.id, `@${a.id}`, registry)
     show(moved); openIndicators()
-    // ⭐ THE HOST IS NAMED BY THE GROUP THE GUEST IS FILED UNDER, which is where
-    // the answer moved (§30) and is the one place it is not a repeat.
-    const group = rowFor(/^SPY$/).closest('[data-pane-group]')
-    expect((group.querySelector('[class*="sectionLabel"]')?.textContent || '').trim())
-      .toBe('QQQ')
+    expect(paneOf(/^SPY$/)).toBe('QQQ')
     // ⛔ AND THE ADDRESS NEVER LEAKS. `@inst:dataSeries:1` is the engine talking
     // to itself; a member reads the pane by the name of what is in it.
+    const group = rowFor(/^SPY$/).closest('[data-pane-group]')
     expect(group.textContent).not.toMatch(/@inst:|inst:dataSeries/)
-    expect(summaryOf(/^SPY$/)).not.toMatch(/@|inst:/)
+    expect(nameOf(/^SPY$/)).not.toMatch(/@|inst:/)
   })
 
-  it('⭐⭐ A DERIVED SERIES NAMES WHAT IT READS', () => {
+  it('⭐⭐ A DERIVED SERIES NAMES WHAT IT READS — when the pane does not', () => {
+    // ⚰️ IT READ `Source: QQQ` OFF A SUMMARY LINE. The fact is on the NAME now,
+    // and it is CONDITIONAL rather than unconditional — which is the only new idea
+    // in the whole read model. An MA over QQQ sitting on the PRICE pane has to
+    // say so, because the heading says `Price` and two averages of two different
+    // instruments would otherwise print one name.
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
     // ⚠️ `SMA 5`, NOT `Moving Average` — the engine MA names itself from the
     // member's own `maType` and `period` since 2026-09-16 (`engine/semanticName`).
-    const s = summaryOf(/^SMA 5$/)
-    expect(s).toBe('Source: QQQ')
+    expect(paneOf(/^SMA 5 ·/)).toBe('Price')
+    expect(nameOf(/^SMA 5 ·/)).toBe('SMA 5 · QQQ')
   })
 
   it('⛔ …and the SOURCE IS THE SYMBOL ALONE — not the field, not the type', () => {
     const { cs } = withMA(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const s = summaryOf(/^SMA 5$/)
-    expect(s).not.toMatch(/close|numeric|sym:/)
+    expect(nameOf(/^SMA 5 ·/)).not.toMatch(/close|numeric|sym:/)
   })
 
-  it('⛔ NO SOURCE WHEN THE NAME ALREADY IS THE SOURCE — `QQQ · Source: QQQ` says it twice', () => {
+  it('⛔ NO SOURCE WHEN THE NAME ALREADY IS THE SOURCE — `QQQ · QQQ` says it twice', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    expect(summaryOf(/^QQQ$/)).not.toMatch(/Source/)
+    // `meta.labelFrom === 'source'` is the definition's own declaration that its
+    // identity IS what it was pointed at. Read, never guessed.
+    expect(nameOf(/^QQQ$/)).toBe('QQQ')
   })
 
-  it('⭐⭐ PANE UNAVAILABLE — the host left, and the row says so', () => {
+  it('⛔⛔ AND NOT INSIDE ITS OWN PANE EITHER — the heading already said it', () => {
+    // ⭐ THE OTHER HALF OF THE CONDITIONAL, and the half that makes it worth
+    // having. Send the same instance into QQQ's pane and the suffix goes: the
+    // heading directly above the row now carries the word, so the row saying it
+    // again is the exact duplication §30 removed from the summary line.
+    const host = withSeries(mergeChartSettings({}), 'QQQ')
+    const ma = withMA(host.cs, 'QQQ')
+    const inHost = setInstanceDisplayTarget(ma.cs, ma.id, `@${host.id}`, registry)
+    show(inHost); openIndicators()
+    expect(paneOf(/^SMA 5$/)).toBe('QQQ')
+    expect(nameOf(/^SMA 5$/)).toBe('SMA 5')
+  })
+
+  it('⭐⭐ PANE UNAVAILABLE — the host left, and the panel says so', () => {
+    // ⚰️ IT READ THE ROW'S SUMMARY. Two surfaces carry it now, and both have to be
+    // true: the row is filed under `Needs attention` — visible without clicking —
+    // and the Display control shows the STORED target, worded.
     const a = withSeries(mergeChartSettings({}), 'QQQ')
     const b = withSeries(a.cs, 'SPY')
     const moved = setInstanceDisplayTarget(b.cs, b.id, `@${a.id}`, registry)
     const orphaned = removeInstance(moved, a.id, registry)
     show(orphaned); openIndicators()
-    const s = summaryOf(/^SPY$/)
-    expect(s).toMatch(/unavailable/i)
-    // ⛔ AND IT DOES NOT SILENTLY CLAIM SOMEWHERE ELSE. Falling back to "Own pane"
-    // would tell the member their line is fine while it draws nothing at all.
-    expect(s).not.toMatch(/Own pane/)
+
+    expect(paneOf(/^SPY$/)).toMatch(/needs attention/i)
+    // ⛔ AND IT DOES NOT SILENTLY CLAIM SOMEWHERE ELSE. Filing it under Price, or
+    // showing "Own pane", would tell the member their line is fine while it draws
+    // nothing at all.
+    expect(paneOf(/^SPY$/)).not.toMatch(/Own pane|^Price$/)
+
+    openRow(/^SPY$/)
+    const sel = selectIn(/^SPY$/, /display in/i)
+    const selected = [...sel.options].find((o) => o.value === sel.value)
+    expect(selected.textContent).toMatch(/unavailable/i)
   })
 
   it('⛔⛔ NOTHING ON THE FIXTURES — "Line · Main chart" five times is furniture', () => {
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    for (const name of [/^EMA 9$/, /^SMA 200$/, /^Volume$/]) {
-      expect(summaryOf(name), `${name} grew furniture`).toBe('')
+    for (const name of ['EMA 9', 'SMA 200', 'Volume']) {
+      expect(nameOf(new RegExp(`^${name}$`)), `${name} grew furniture`).toBe(name)
     }
   })
 
   it('⛔⛔ AND AN ORDINARY ENGINE INDICATOR IS QUIET TOO — the guard that matters', () => {
     // ⚰️ THE CASE ABOVE PASSES FOR A DIFFERENT REASON THAN IT LOOKS, and a bite
     // check is what showed it: EMA/SMA/Volume are LEGACY overlay rows, not
-    // engine-owned, so `placementSummary` refuses them on its first line and the
-    // `options.length` guard is never reached. Deleting that guard left the whole
-    // suite green.
+    // engine-owned, so the naming rule refuses them on its first line and the
+    // real branch is never reached. Deleting that branch left the whole suite
+    // green.
     //
-    // ⛔ THIS is the guard's subject: an engine definition with ONE place to draw
-    // and one shape to draw it in — a plain price overlay, which declares `price`
-    // and reads no source, so `displayTargetOptions` is empty. Nothing to orient
-    // anybody about, so nothing is printed.
+    // ⛔ THIS is its subject: an engine definition that declares NO source at all
+    // — a plain price overlay — so there is nothing a suffix could ever say.
     let cs = addInstance(mergeChartSettings({}), 'bb', registry)
-    cs = withSeries(cs, 'QQQ').cs      // …and a summarised row beside it, so the
-    show(cs); openIndicators()         //    absence is a CHOICE, not an empty tab
-    // ⚠️ THE CONTROL IS NOW THE **SOURCE** LINE, not the placement one. `Line ·
-    // Own pane` is retired (§30), so the thing that proves this tab still prints a
-    // summary at all has to be a row whose summary survives: an MA over a symbol
-    // says what it reads.
     const { cs: withMa } = withMA(cs, 'QQQ')
-    cleanup(); show(withMa); openIndicators()
-    expect(summaryOf(/^SMA 5$/), 'the control case lost its summary').toBe('Source: QQQ')
-    expect(summaryOf(/Bollinger|^BB/), 'a plain price overlay grew furniture').toBe('')
+    show(withMa); openIndicators()
+    // …and the control case beside it, so the silence is a CHOICE and not an
+    // empty tab: a row that DOES carry a suffix, on the same screen.
+    expect(nameOf(/^SMA 5 ·/), 'the control case lost its suffix').toBe('SMA 5 · QQQ')
+    expect(nameOf(/Bollinger|^BB/), 'a plain price overlay grew furniture')
+      .not.toMatch(/·/)
   })
 })
 
 describe('it follows the real controls, live', () => {
   it('⭐⭐ STYLE — the control still writes, and the row still says nothing about it', () => {
     // ⚰️ IT ASSERTED `Line · Own pane` → `Candles · Own pane`. The style left the
-    // ROW (§30) and stayed exactly where it was already editable: the control
-    // directly beneath it. The claim that survives is the one that mattered — the
-    // write lands — and it is read off the CONTROL rather than off a summary that
-    // no longer restates it.
+    // ROW (§30) and stayed where it was already editable. The claim that survives
+    // is the one that mattered — the write lands — read off the CONTROL.
     const seen = { cs: null }
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs, seen); openIndicators()
-    expect(summaryOf(/^QQQ$/)).toBe('')
+    expect(nameOf(/^QQQ$/)).toBe('QQQ')
     openRow(/^QQQ$/)
     const sel = selectIn(/^QQQ$/, /plot style/i)
     expect([...sel.options].some((o) => o.value === 'candles'),
       'Candles was not offered — this case would pass for the wrong reason').toBe(true)
     fireEvent.change(sel, { target: { value: 'candles' } })
     expect(selectIn(/^QQQ$/, /plot style/i).value, 'the style write did not land').toBe('candles')
-    expect(summaryOf(/^QQQ$/), 'the style came back onto the row').toBe('')
+    expect(nameOf(/^QQQ$/), 'the style came back onto the row').toBe('QQQ')
   })
 
-  it('⭐⭐ SOURCE — re-point the instrument and the summary follows', async () => {
+  it('⭐⭐ SOURCE — re-point the instrument and the NAME follows', async () => {
     // ⛔ THROUGH THE REAL SEARCH, because that is the only door to a symbol the
     // chart is not already holding: `sourceOptions` offers price fields, the
     // instances on this chart and the CURRENT symbol — by design, since there is
@@ -281,137 +319,130 @@ describe('it follows the real controls, live', () => {
       ok: true, json: () => Promise.resolve({ results: [{ ticker: 'SPY', name: 'SPDR', type: 'etf' }] }),
     })))
     show(cs); openIndicators()
-    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: QQQ/)
-    openRow(/^SMA 5$/)
-    fireEvent.change(selectIn(/^SMA 5$/, /source/i), { target: { value: '__search__' } })
+    expect(nameOf(/^SMA 5 ·/)).toBe('SMA 5 · QQQ')
+    openRow(/^SMA 5 ·/)
+    fireEvent.change(selectIn(/^SMA 5 ·/, /source/i), { target: { value: '__search__' } })
     fireEvent.change(screen.getByLabelText('Search symbol'), { target: { value: 'SPY' } })
     fireEvent.click(await screen.findByRole('button', { name: /SPY/ }))
-    // ⛔ NO REOPEN, NO CACHED TEXT. The summary is derived from current state.
-    expect(summaryOf(/^SMA 5$/)).toMatch(/Source: SPY/)
-    expect(summaryOf(/^SMA 5$/)).not.toMatch(/QQQ/)
+    // ⛔ NO REOPEN, NO CACHED TEXT. The name is derived from current state.
+    expect(nameOf(/^SMA 5 ·/)).toBe('SMA 5 · SPY')
     vi.unstubAllGlobals()
   })
 
-  it('⭐ PLACEMENT — a host that disappears turns the guest\'s summary, in place', () => {
+  it('⭐ PLACEMENT — a host that disappears moves the guest, in place', () => {
     const a = withSeries(mergeChartSettings({}), 'QQQ')
     const b = withSeries(a.cs, 'SPY')
     const moved = setInstanceDisplayTarget(b.cs, b.id, `@${a.id}`, registry)
     const seen = { cs: null }
     show(moved, seen); openIndicators()
-    expect(summaryOf(/^SPY$/), 'a guest in a live pane says nothing — the heading does').toBe('')
+    expect(paneOf(/^SPY$/), 'the guest is not in its host pane to begin with').toBe('QQQ')
 
-    // Remove the host through the row's own ✕, which is the member's door.
-    const hostRow = rowFor(/^QQQ$/)
-    fireEvent.click(within(hostRow).getByRole('button', { name: /Remove QQQ/i }))
-    expect(summaryOf(/^SPY$/)).toMatch(/unavailable/i)
+    // ⚰️ IT REMOVED THE HOST THROUGH THE ROW'S OWN ✕. The verbs are the
+    // Inspector's now, so the door is select-then-Remove — the same `removeRow`.
+    openRow(/^QQQ$/)
+    fireEvent.click(within(inspector()).getByRole('button', { name: /Remove QQQ/i }))
+    expect(paneOf(/^SPY$/)).toMatch(/needs attention/i)
   })
 
   it('⭐ DUPLICATES — two of one instrument stay told apart in the list', () => {
     let { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     cs = withSeries(cs, 'QQQ').cs
     show(cs); openIndicators()
-    const names = [...document.body.querySelectorAll('[data-row-id]')]
-      .map((r) => (r.querySelector('[class*="actLabel"]')?.textContent || '').trim())
+    const names = [...document.body.querySelectorAll('[data-structure-row]')]
+      .map((r) => (r.querySelector('[class*="insRowName"]')?.textContent || '').trim())
       .filter((n) => /QQQ/.test(n))
     expect(names).toHaveLength(2)
     expect(new Set(names).size, 'two rows print one name').toBe(2)
     for (const n of names) expect(n).toMatch(/^QQQ/)
   })
+
+  it('⛔⛔ …AND IDENTITY IS THE ROW ID, NOT THE NAME — each can be edited alone', () => {
+    // ⭐ THE CASE THE WHOLE READ MODEL RESTS ON. Two rows that print the SAME
+    // words are still two instances: `data-row-id` is what selects, what the
+    // Inspector addresses, and what every writer takes. If the panel ever keyed
+    // off the label, editing one duplicate would edit the other and nothing on
+    // screen would say so.
+    let a = withSeries(mergeChartSettings({}), 'QQQ')
+    const b = withSeries(a.cs, 'QQQ')
+    show(b.cs); openIndicators()
+    const both = [...document.body.querySelectorAll('[data-structure-row]')]
+      .filter((r) => /QQQ/.test(r.querySelector('[class*="insRowName"]').textContent))
+    expect(both).toHaveLength(2)
+    const ids = both.map((r) => r.getAttribute('data-row-id'))
+    expect(new Set(ids).size, 'two rows share one address').toBe(2)
+
+    fireEvent.click(both[0])
+    expect(inspector().getAttribute('data-inspector-for')).toBe(ids[0])
+    fireEvent.click(both[1])
+    expect(inspector().getAttribute('data-inspector-for')).toBe(ids[1])
+  })
 })
 
-describe('accessibility and CSS scope — the two ways this feature broke before', () => {
-  it('⛔⛔ THE SUMMARY IS NOT PART OF THE EXPANDER\'S NAME', () => {
-    const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
-    show(cs); openIndicators()
-    const expander = rowFor(/^QQQ$/).querySelector('[aria-expanded]')
-    // ⚠️ THE BUTTON LEGITIMATELY CARRIES TWO THINGS: the NAME (`actLabel`) and the
-    // definition's shortName BADGE, so its `textContent` reads `QQQSeries` — two
-    // correct things concatenated. What it must NEVER carry is the summary.
-    expect((expander.querySelector('[class*="actLabel"]').textContent || '').trim()).toBe('QQQ')
-    expect(expander.querySelector('[class*="actMeta"]'),
-      'the summary is inside the expander again').toBeNull()
-    // Nested inside, this read "QQQ Line · Own pane" — a screen reader would
-    // announce that as the CONTROL's name, and every rail addressing the row as
-    // `QQQ` went red.
-    expect(expander.textContent).not.toMatch(/Own pane|Line ·|Source:/)
+describe('accessibility — the way this feature broke before', () => {
+  // ⚰️⚰️ TWO CASES AND TWO CSS RAILS ARE RETIRED HERE, and it is their SUBJECT
+  // that went rather than their point.
+  //
+  // · `THE SUMMARY IS NOT PART OF THE EXPANDER'S NAME` and its aria-labelledby
+  //   back-door twin: there is no summary and no expander. The lesson they encode
+  //   — a row's accessible name is the INSTANCE and nothing else — is asserted
+  //   below against the control that replaced them.
+  // · `THE LAYOUT MODIFIER IS ON THE ROWS WITH METADATA` and `THE SHARED
+  //   .actName RULE IS UNTOUCHED`: both pinned a flex rule on a class shared with
+  //   `ChartSettingsConditions` and `ChartSettingsInfoFields`, scoped by an
+  //   `.actHeadMeta` modifier that existed to make room for a metadata sibling.
+  //   No row has a metadata sibling, `.actHeadMeta` is unused, and `.insRowName`
+  //   is this panel's own class — shared with nothing, so there is no scope to
+  //   keep and nothing for a future edit to globalise.
+
+  it('⛔⛔ A ROW\'S ACCESSIBLE NAME IS THE INSTANCE, and carries no metadata', () => {
+    const host = withSeries(mergeChartSettings({}), 'QQQ')
+    const ma = withMA(host.cs, 'QQQ')
+    show(ma.cs); openIndicators()
+
+    for (const row of document.body.querySelectorAll('[data-structure-row]')) {
+      const name = row.getAttribute('aria-label') || row.textContent.trim()
+      expect(name, `a row announces engine vocabulary: ${name}`)
+        .not.toMatch(/Own pane|Source:|@inst:|sym:|::|legacy:/)
+    }
+    // …and the one row that legitimately carries a source says it in words.
+    expect(nameOf(/^SMA 5 ·/)).toBe('SMA 5 · QQQ')
   })
 
-  it('⛔ …and the expander\'s ACCESSIBLE NAME is the instance, nothing more', () => {
+  it('⛔ THE ROW IS THE TARGET — only ORDER competes with it, and it is two buttons', () => {
+    // ⚰️ THE ROW USED TO HOLD FIVE: a toggle, an expander, a colour swatch, a gear
+    // and a ✕. A screen-reader user tabbing the list met five controls per
+    // indicator and the list stopped being a list. This case then read *"no nested
+    // control competes with it"* and swept for ANY button.
+    //
+    // ⚰️ THE OWNER PUT ONE BACK (2026-09-17), deliberately and with a budget:
+    // *"small Up / Down arrows at the RIGHT SIDE of indicator rows"*, which are
+    // ORDER and nothing else. Two controls per row, not five, and neither of them
+    // duplicates a verb the Inspector owns — so the row is still the target for
+    // SELECTING, which is what this case is really about.
+    //
+    // ⛔ SO THE BUDGET IS ASSERTED RATHER THAN THE ABSENCE. A second control —
+    // or one that is not the order handle — fails here exactly as the gear and the
+    // ✕ would have.    //
+    // ⚰️⚰️ AND THE PAIR BECAME ONE GRIP (2026-09-17). Seven indicators meant
+    // fourteen icons and four permanently dimmed ghosts down one edge — owner:
+    // *"this creates a repetitive column of arrows and makes the list feel
+    // crowded."* Reordering is a DRAG now, so the row's budget went from two
+    // controls to one, and that one is invisible until the pointer or the
+    // keyboard reaches it.
+    // ⛔ THE INVARIANT IS UNCHANGED AND THE BUDGET IS TIGHTER: a row may carry
+    // the ORDER handle and nothing else. A gear, a ✕ or a second handle fails
+    // here exactly as they always would have.
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
-    const row = rowFor(/^QQQ$/)
-    // The summary must not reach the accessible name by ANY route — not as text
-    // content, not through aria-labelledby, not through a describedby that a
-    // reader would announce as the label.
-    const expander = row.querySelector('[aria-expanded]')
-    const name = expander.getAttribute('aria-label') || expander.textContent.trim()
-    // The badge is part of the control's own label and always was; the SUMMARY is
-    // the addition, and it must not be announced as the control's name.
-    expect(name).not.toMatch(/Own pane|Source:|unavailable/)
-    expect(name).toMatch(/^QQQ/)
-    // ⛔ AND NO BACK DOOR: not via aria-labelledby either.
-    const by = expander.getAttribute('aria-labelledby')
-    if (by) {
-      for (const id of by.split(/\s+/)) {
-        const el = document.getElementById(id)
-        if (el) expect(el.textContent).not.toMatch(/Own pane|Source:/)
+    for (const row of document.body.querySelectorAll('[data-structure-row]')) {
+      expect(row.getAttribute('role')).toBe('option')
+      const controls = [...row.querySelectorAll('button')]
+      expect(controls.length, 'a row grew more controls than the order handle')
+        .toBeLessThanOrEqual(1)
+      for (const b of controls) {
+        expect(b.hasAttribute('data-row-grip'),
+          'a row grew a control of its own again').toBe(true)
       }
     }
   })
-
-  it('⛔⛔ THE LAYOUT MODIFIER IS ON THE ROWS WITH METADATA, AND ONLY THOSE', () => {
-    // ⚰️ THE KNOWN DEFECT, RAILED. The overnight version made `.actName` stop
-    // growing GLOBALLY; that class is shared with `ChartSettingsConditions` and
-    // `ChartSettingsInfoFields`, which have no metadata sibling to take the freed
-    // space, so their trailing controls would pack left. Scoped by explicit class
-    // ownership instead: a row with no summary must not carry the modifier, which
-    // is precisely the shape those two components render.
-    // ⚠️ THE SUMMARISED SUBJECT MOVED. `QQQ` used to carry `Line · Own pane` and
-    // now carries nothing at all (§30); a row that still HAS a summary is one that
-    // says what it READS, so the MA over a symbol is the honest subject here.
-    const { cs } = withMA(mergeChartSettings({}), 'QQQ')
-    show(cs); openIndicators()
-
-    const headOf = (re) => rowFor(re).querySelector('[class*="actHead"]')
-    const hasModifier = (re) => /actHeadMeta/.test(headOf(re).className)
-
-    expect(hasModifier(/^SMA 5$/), 'a summarised row is missing the modifier').toBe(true)
-    for (const fixture of [/^EMA 9$/, /^Volume$/, /^SMA 50$/]) {
-      expect(hasModifier(fixture), `${fixture} carries the modifier with no summary`).toBe(false)
-    }
-  })
-
-  it('⛔⛔ THE SHARED `.actName` RULE IS UNTOUCHED — read out of the stylesheet', () => {
-    // jsdom has no layout, so this is asserted at the SOURCE: the shared class
-    // must still grow, and the override must be reachable only through the
-    // modifier. A future edit that globalises it again fails here.
-    // ⚰️ CODE, NEVER PROSE — a lesson this repo has paid for twice. The first
-    // version of this rail scanned the whole file and matched the COMMENT that
-    // documents the old global rule, exactly as a pre-push guard once matched
-    // `shell=True` inside its own docstring. Strip the comments, then assert.
-    const css = readCss().replace(/\/\*[\s\S]*?\*\//g, '')
-    const shared = /\.actName\s*\{[^}]*\}/.exec(css)
-    expect(shared, '.actName rule not found').toBeTruthy()
-    expect(shared[0], 'the SHARED .actName rule stopped growing — this is the defect')
-      .toMatch(/flex:\s*1 1 auto/)
-
-    // …and every rule that shrinks it is scoped by the modifier.
-    for (const m of css.matchAll(/([^\n{}]*\.actName[^\n{}]*)\{([^}]*)\}/g)) {
-      if (!/flex:\s*0 1 auto/.test(m[2])) continue
-      expect(m[1], `an UNSCOPED .actName shrink rule: ${m[1].trim()}`)
-        .toMatch(/\.actHeadMeta/)
-    }
-  })
 })
-
-/** The stylesheet as text. ⛔ Read from disk rather than from the CSS-module
- *  proxy, because vitest hands back a class-name map and not the rules. */
-function readCss() {
-  // eslint-disable-next-line no-undef
-  const fs = require('node:fs')
-  // eslint-disable-next-line no-undef
-  const path = require('node:path')
-  // eslint-disable-next-line no-undef
-  const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
-  return fs.readFileSync(path.join(here, 'ChartSettingsModal.module.css'), 'utf8')
-}

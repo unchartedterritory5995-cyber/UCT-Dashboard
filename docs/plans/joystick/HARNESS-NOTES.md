@@ -1,147 +1,122 @@
-# Device-harness notes — the smoke account, and the traps that cost runs
+# The rendering harness — the sanctioned path when the sandbox cannot boot
 
-Operational notes for anyone driving a real-device session. Owner rulings are marked ⛔.
+> **Two files, ~26 MB of resident memory, and no contact with `C:\data` at all.**
+>
+> ```
+> tools/hub_critique_server.py    the static server: the built SPA + the four API answers the hub needs
+> tools/hub_critique_capture.py   the capture: states, themes, profiles, a manifest, and a self-check
+> app/src/hub/hubShowing.js       the SHOWING predicate — ONE authority, railed in the suite
+> ```
+>
+> ```sh
+> cd app && npm run build                       # once — the harness serves dist/, it does not build
+> python tools/hub_critique_server.py --port 8131 --backdrop
+> python tools/hub_critique_capture.py --base http://127.0.0.1:8131 --out <dir> --pass N
+> python tools/hub_critique_capture.py --self-check          # proves the predicate answers NO
+> ```
 
 ---
 
-## ⛔ THE STANDING RESET — step 0 AND the final step of every device run
+## Why it exists — and it is not a preference
 
-> **Run `python tools/smoke_reset.py` before the session and again after it.**
-> Owner ruling, 2026-09-13.
+`scripts/hub_sandbox_boot.py` is the right instrument for a device certification run: it boots the
+whole FastAPI app, arms the AST-derived env pins, and arms the shared-root tripwire. For
+**photographing a control's material** it is the wrong instrument twice over, and both were
+measured on 2026-09-17/18:
 
-The control state is:
+| | sandbox | harness |
+|---|---|---|
+| resident memory | **~1 GB** | **26 MB** |
+| contact with `C:\data` | pins + tripwire + snapshot rail | **none — no database, no scheduler, no env pin** |
+| survives another session writing the shared root | **no** | yes |
 
-| | |
+⛔ **THE SECOND ROW IS THE ONE THAT BLOCKED THIS PROGRAMME.** `hub_sandbox_boot.py:288` re-hashes
+the whole shared root at +15 s and on **any** difference calls
+`print("ABORTING THE RUN. The sandbox reached live data."); os._exit(2)`. On a box with concurrent
+sessions it **cannot attribute** that difference to the process it is watching — and it did not:
+another session was writing `C:\data\wisdom.db` continuously (three distinct hashes across two
+boots), so the sandbox died 15 seconds into every attempt while this session's own tripwire
+reported **zero** violations. `resource-manifest.md` §7 and §9 carry the full evidence.
+
+⭐ **The harness has no such guard because it needs none.** It reads `app/dist` and answers four
+routes. There is nothing for it to leak.
+
+---
+
+## What it serves, and what it stubs
+
+| route | answer |
 |---|---|
-| `joystick_hub` | **unset** |
-| `coachMarkSeen` | unset |
-| `handedness` | `right` |
-| `traceGestures` | `false` |
-| notes · flags · positions | none |
+| `/api/auth/me` | a synthetic admin at `critique@harness.invalid` — unroutable by construction |
+| `/api/auth/preferences` | the `joystick_hub` blob (enabled, surface) **and `theme`** |
+| `/api/*` (everything else) | `{}` — so the SPA renders its own empty states rather than an error boundary that would cover the hub |
+| `/__harness` | identity, so a capture can prove **which** server it photographed |
+| everything else | `dist/`, with SPA fallback |
 
-The last three follow from the first: with `joystick_hub` unset, every field falls to its
-default, and `right` / `false` *are* the defaults. The script verifies all of it by
-read-back and exits non-zero if the account is not a control. `--self-check` proves the
-verifier can fail (it discriminates 0 / 2 / 1 on clean / stored-enabled / sibling-key-lost).
-
-### Why this exists — the two explanations that got conflated
-
-⚰️ **2026-09-13.** The §3.2 dry run found the smoke account carrying a stored
-`{"enabled":true, ..., "coachMarkSeen":true}` left behind by an earlier run. The hub was
-visible, and there were **two** available explanations for that — *the account is admin*
-and *the account has an explicit stored `true`* — with no way to tell them apart from the
-device. A run in that state cannot speak to the rollout rule at all.
-
-> ⭐ **With the reset applied, at stage 1 the hub is visible ONLY because the account is
-> admin.** That is the entire point. Record it that way in every evidence file, so the two
-> explanations can never again be conflated.
-
-From here on the smoke account exercises the **unset-default path** at each stage — which
-is the path the stage ladder actually decides, and the one `unsetDefault()` owns.
-
-⛔ This does **not** make the account a member. It is promoted to admin at login from
-`ADMIN_EMAILS` (`auth.py:253`) and there is no path to demote it. The *member* default
-stays **verified by test only** — `useHubSettings.test.jsx` (unset non-admin → enabled at
-stage 2) and `exposureGate.test.js`'s digest-pinned stage row.
-
-### ⛔ "Unset" is written as `{}` — deliberately, and here is why
-
-**There is no product path to delete a preference key.** `POST /api/auth/preferences` is an
-UPSERT (`set_user_preference`, one TEXT column). `delete_user_preference` **does exist** in
-`api/services/auth_service.py:1571` — and is imported into `api/routers/auth.py:75` and
-bound to **no route and no caller**. A dead export; recorded 2026-09-13, not this
-programme's to wire.
-
-`{}` is the reachable equivalent, and it is equivalent for the only consumer that decides:
-
-```js
-// useHubSettings.js
-const storedEnabled = stored && typeof stored === 'object' ? stored.enabled : undefined
-```
-
-`{}` is an object whose `.enabled` is `undefined`, so `storedEnabled` is `undefined`,
-`everChose` (`typeof storedEnabled === 'boolean'`) is **false**, and `unsetDefault()`
-decides — the same answer the resolver gives for an absent key. The card's own comment
-lists the absent key and several empty forms as the *same* "never chosen" state.
-
-⚠️ If a `DELETE /api/auth/preferences/{key}` route is ever wired, switch this script to it
-and delete this paragraph — do not leave two ways to mean "unset".
+⛔ **It refuses a busy port rather than binding beside another listener.** Windows permits the
+second bind and then nobody can say which socket answered — *a port assignment is not a server
+identity*. `/__harness` is how a caller confirms it reached this one.
 
 ---
 
-## Credentials
+## ⛔ THE TWO LIMITS. Quote these beside any finding taken here.
 
-`SMOKE_EMAIL` / `SMOKE_PASSWORD`. ⚠️ **On the operator box these are at User scope and are
-absent from the process environment** — a script reading `os.environ` alone fails with a
-message that looks like the credentials do not exist. Set them on the process first:
+### 1 — `/dashboard` mounts no hub
 
-```powershell
-$env:SMOKE_EMAIL     = [Environment]::GetEnvironmentVariable('SMOKE_EMAIL','User')
-$env:SMOKE_PASSWORD  = [Environment]::GetEnvironmentVariable('SMOKE_PASSWORD','User')
-```
+Four rows come back `INCONCLUSIVE: no hub-root in the DOM`, on both profiles and both themes.
+Almost certainly the harness: every API answers `{}` and the Dashboard is the most data-dependent
+route in the app, so a tile is likely throwing into a route-level error boundary that takes
+`Layout` — and therefore the hub — with it.
 
-⛔ Presence only, never values. Never echo them, never commit them, never type a password
-into a mirrored phone.
+⛔ **Recorded as INCONCLUSIVE, never as a defect**, because this harness cannot tell that from a
+real mount failure. ⭐ And it matters more than a missing frame: **Home is the mode R4 cut to a
+single bubble**, so `/dashboard` is exactly the frame that would settle **D-53**, and it is the one
+frame this path cannot take. That question needs the sandbox or production.
 
----
+### 2 — it says nothing about gesture feel
 
-## ⚠️ `curl` cannot reach production from the Bash tool on this box
+Pointer events are **synthetic**. That is enough to put the control into a visual state and
+photograph it. It is **not** evidence about flick, hold or scrub — **R9 stands**, those need a real
+finger. Every manifest row is stamped `synthetic: true` so no later reader can quote a screenshot
+as a gesture result.
 
-Measured 2026-09-13: two probes of `https://uctintelligence.com/api/health` returned
-`http_code=000` after a 25 s timeout — **which reads exactly like an outage**. Python
-`urllib` with a browser UA got HTTP 200 immediately, twice, with a rising uptime.
-
-**Use Python for production probes here.** And remember the standing rule: one probe
-during a deploy swap is not a verdict — re-probe before concluding anything.
-
----
-
-## Driving a BrowserStack Live mirror
-
-- **Open the Live session FIRST, mint the login link SECOND.** The token lives 2 minutes.
-- **Verify the typed URL before pressing go.** A mistyped URL on a mirror once ran a Google
-  search for a live token. The fragment protects the server log, not a search box.
-- ⛔ **Never `ctrl+a` on the mirror** — it types a literal "a".
-- **Map the mirror once, then tap by computation.** Derive from two known control centres:
-  at a 1600×1180 window with DevTools **closed** it measured
-  `screen_x = 476 + 0.914·css_x`, `screen_y = 97 + 0.914·css_y`, and held to ~3 px for a
-  whole session. Blind-tapping a small mirror is how the wrong control gets pressed.
-- **Safari Web Inspector attaches without reloading the device tab** (a console history
-  survived one attach cycle and was cleared on the next — the *tab* is what must not
-  reload). Its console evaluates in the device's page, so it is the read path for
-  `data-hub-trace` and for any DOM measurement.
-- **In-page scrolling fights momentum and re-anchors.** Use
-  `el.scrollIntoView({block:'center'})` from the console and then read
-  `getBoundingClientRect()`; it is deterministic where scrolling is not.
-- ⛔ **A Live session dies on inactivity. Device work and a local gate are SERIALISED** —
-  starting a six-shard gate mid-session cost a device session on 2026-09-12.
+⚠️ And the backdrop is a synthetic field, not live data. The design bar says this control "sits
+over dense, moving data", so **a blur judged here is judged over the easiest backdrop it will ever
+have.** `--backdrop` paints a dense ruled field to make it non-trivial, and it is synthetic by
+construction so it can never be mistaken for product data.
 
 ---
 
-## ⛔ PRESENT IS NOT SHOWING
+## ⚰️ Three defects this instrument had, all caught by the next check
 
-`HubRoot` keeps its container in the DOM and sets the HTML `hidden` attribute, so a
-`querySelector` presence check answers *"did React render the container"*, never *"can a
-member see it"*. `offsetParent === null` is not the signal either — the hub is
-`position: fixed`.
+Kept because each would have published a false result, and the chain is the point — **each fix
+made the next one visible.**
 
-Measure **`hidden` absent + computed `display` ≠ none + visibility visible + a non-zero
-box**. A rendered screenshot is stronger evidence than either.
+| | what it was | how it was caught |
+|---|---|---|
+| **I1** | `fan-open` decided by *"are there `hub-bubble-*` in the DOM"*. `HubFan` mounts every bubble at all times (spec §5), so it was true at rest, mid-drag and after release alike — **one possible answer** | the frames showed six bubbles in an "idle" capture |
+| **I2** | with I1 fixed, eight rows came back INCONCLUSIVE while a hand probe opened the fan every time. The tool took the *pressed* screenshot **between `pointerdown` and `pointermove`**; a Playwright screenshot takes ~1 s and **`HOLD_MS` is 500**, so the engine had already classified a HOLD — a scrub, not a fan push | reproduced the tool's exact sequence rather than picking a side |
+| **I3** | twelve frames labelled "light" were the dark ones filed twice. `color_scheme` sets `prefers-color-scheme`, which **appears nowhere in this app's stylesheets** — the theme is `dataset.theme` from `prefs.theme` | the light and dark frames were byte-identical |
+
+**Now standing:** open/closed is decided on **computed opacity** and must exceed the count visible
+at rest; the gesture completes uninterrupted and the state is photographed after (`stickyFan` keeps
+it open); the theme is served through the preferences route and `dataset.theme` is **asserted to
+match** before any frame is kept, with `page_bg` recorded so the two can never silently converge
+again.
+
+⛔ **No screenshot may be taken between `pointerdown` and `pointermove`.** That is not a style
+note — it is I2, and it will silently turn every drag into a hold.
 
 ---
 
-## ⚠️ Instruments that produced false readings (all three read as product defects first)
+## The predicate, and its rail
 
-1. **`/api/auth/preferences` returns each value as a JSON STRING.** `j.joystick_hub.enabled`
-   is `undefined` by construction — which reads as a missing key. Parse it first.
-2. **A process probe matched its own command line.** A sweep for `--shard` / `gate_shards`
-   counted the bash wrappers *carrying the probe*, reporting 7 concurrent gates and FOREIGN
-   shard workers — the OOM-sweep signature — when exactly one gate was running. Scope on
-   process `Name` plus a specific path fragment.
-3. **A PR "Files tab" scrape harvested path-like tokens from the diff CONTENT**, including
-   every test path listed inside a gate manifest. Parse `diff --git` lines from the raw
-   `.diff` instead; it is unambiguous.
+`app/src/hub/hubShowing.js` is the **single authority** on "can a member see the hub". The Python
+tool **reads that file** and injects it; it does not carry a copy. `hubShowing.test.js` drives it
+to all six answers and asserts each `why` is distinct.
 
-⭐ All three are the same shape: **an instrument reporting a property of itself as a
-property of what it measured.** Add a control that proves the instrument could have seen
-the other answer.
+⚠️ **PRESENT IS NOT SHOWING, and it cuts both ways.** `HubRoot` keeps its container in the DOM and
+sets the `hidden` attribute, so a `querySelector` answers "did React render a container". The touch
+smoke published a chart-shell defect that did not exist on exactly that mistake. And
+`offsetParent === null` is not the signal either — the hub is `position: fixed`, so that is null
+while it is plainly on screen.

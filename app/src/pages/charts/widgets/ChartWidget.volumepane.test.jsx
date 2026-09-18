@@ -71,7 +71,9 @@ test('the workspace settings modal shows Separate pane as not-applicable', () =>
   // Indicators tab lists what the chart draws, collapsed, and opens one row at a
   // time — so reaching the volume pane's own controls takes the gesture a member
   // makes: click the row. The claim below is unchanged.
-  fireEvent.click(document.body.querySelector('[data-row-id="volume"] [aria-expanded]'))
+  // ⚰️ THE ROW'S EXPANDER IS RETIRED — a row is SELECTED and its controls appear
+  // in the Inspector's right column. Same gesture a member makes, one element up.
+  fireEvent.click(document.body.querySelector('[data-row-id="volume"][data-structure-row]'))
 
   const toggle = screen.getByRole('switch', { name: 'Separate pane' })
   expect(toggle).toBeDisabled()

@@ -29,8 +29,10 @@ export const NAV_ITEMS = [
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
+  { to: '/catalysts/history', label: 'Catalysts History', icon: 'star' },
   // CHARTS
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
+  { to: '/formulas/reference', label: 'Formula Reference', icon: 'chart' },
   // JOURNAL
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
   { to: '/journal',      label: 'Journal',       icon: 'journal' },

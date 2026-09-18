@@ -1,0 +1,13 @@
+{
+  "id": "2.1b-probe-honesty",
+  "cmd": [
+    "python",
+    "tools/q1_probe_honesty.py",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+  ],
+  "exit": 0,
+  "started": "2026-09-17T12:03:31",
+  "seconds": 36.0,
+  "why": "R-HON, NOT SKIPPABLE, AND IT RUNS FIRST. Every RED cell in the F5 matrix rests on `sentenceInQueuedEntry`, and that field has never been shown reporting correctly against a KNOWN answer. Plants a known loss and a known success into a THROWAWAY store for a synthetic account, drives the REAL QUEUED_JS (imported, never restated), and requires the probe to report each correctly while the record is already CLEAN \u2014 which is the 2.1(b) question: does it read the surviving ENTRY's patch from IndexedDB after reconciliation? If this FAILS, every RED reading is labelled 'probe unverified' and the writer hunt waits."
+}

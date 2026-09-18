@@ -117,6 +117,35 @@ GATE_TOKEN = "gate_shards.py"
 # nothing to match while "python scripts/gate_shards.py" is untouched.
 DECOY_TOKENS = ("tests/test_gate_shards.py", "test_gate_shards.py")
 
+# ── The broader marker set: what is RUNNING, which is not the same question as what CONTENDS ───
+#
+# ⚰ MEASURED 2026-09-15 20:26. `python tools/gate_box_lock.py status` printed **FREE** while
+# FIFTEEN live processes were on this box: two scoped pytest runs and a vitest with thirteen
+# worker processes, all from other sessions. The lock was not broken — it only tracks runs that
+# ASK for it, and only `gate_shards.py` asks. A caller reading FREE as "quiet" starts a six-shard
+# gate into a loaded box, which is the collision that OOM-swept a worktree on 2026-09-12.
+#
+# ⛔ A SCOPED PYTEST RUN IS LOAD, AND IT IS NOT CONTENTION. `classify_process` — the sampler's
+# verdict matcher — deliberately still answers None for it: promoting pytest to CONTENDED would
+# silently retro-invalidate every other workstream's measurement, and that is an owner call, not
+# a side effect of this change. `classify_load` below is the wider question, and the two share
+# ONE implementation so the tokens can never drift apart.
+PYTEST_NAMES = frozenset({"pytest.exe", "pytest"})
+# ⛔ INVOCATION SHAPES, NOT THE BARE WORD. A python process whose command line merely CONTAINS
+# "pytest" (`python -c "print('pytest')"`, a grep, a path under `.pytest_cache`) is the exact
+# counting-the-searcher defect this file's docstring opens with. Captured from this box:
+# `C:\Python314\python.exe -m pytest tests/test_publish_caption.py ...`.
+PYTEST_TOKENS = ("-m pytest", "/pytest.exe")
+
+# The three load states a probe can honestly report, plus the two that are NOT a count of zero.
+# ⛔⛔ "NOTHING IS RUNNING", "I COULD NOT LOOK" AND "NOBODY ASKED ME TO LOOK" ARE THREE FACTS.
+# A probe that failed and returned 0 is indistinguishable from a genuinely quiet box, and that is
+# how a swallowed error becomes a confident finding.
+LOAD_QUIET = "QUIET"
+LOAD_BUSY = "BUSY"
+LOAD_UNREADABLE = "UNREADABLE"
+LOAD_NOT_PROBED = "NOT_PROBED"
+
 
 
 def say(text: str = "", *, err: bool = False) -> None:
@@ -149,14 +178,24 @@ def _norm(command_line: str) -> str:
     return (command_line or "").replace("\\", "/").lower()
 
 
-def classify_process(name: str, command_line: str, pid: int, *,
-                     self_pids: frozenset[int] = frozenset()) -> str | None:
-    """'gate' | 'vitest' | None — the single authority on what counts as contention.
+def classify_load(name: str, command_line: str, pid: int, *,
+                  self_pids: frozenset[int] = frozenset()) -> str | None:
+    """'gate' | 'vitest' | 'pytest' | None — IS THIS PROCESS LOAD ON THE BOX?
 
     ⭐ PURE, AND NAMED, SO IT CAN BE SHOWN THINGS. The controls in `self_check()` hand it a real
     gate command line, the pytest decoy, and one of the shells that historically matched itself,
-    and require three different answers. A matcher that is inlined into a sweep can only ever be
-    tested by running the sweep, which is how both false findings survived.
+    and require different answers. A matcher that is inlined into a sweep can only ever be tested
+    by running the sweep, which is how both of this file's false findings survived.
+
+    ⛔ THE NAME TEST FIRST, ALWAYS. Every false "gate" this probe has reported was a `bash.exe` or
+    `powershell.exe` whose command line merely CONTAINED the query. A shell that mentions a gate
+    is not a gate, and a grep for "pytest" is not a test run.
+
+    ⚠️ AN UNREADABLE COMMAND LINE ANSWERS None, so this count is a LOWER BOUND on real load —
+    `Get-CimInstance` returns a null CommandLine for processes this user cannot read. That is
+    deliberate and pre-existing: classifying on the process NAME alone would be a guess. The
+    honest consequence is that BUSY is provable and QUIET is the weaker claim, which is why
+    `box_load` reports the count and the evidence rather than a bare boolean.
     """
     if pid in self_pids:
         return None
@@ -164,12 +203,18 @@ def classify_process(name: str, command_line: str, pid: int, *,
     cl = _norm(command_line)
     if not cl:
         return None
+    if n in PYTEST_NAMES:
+        return "pytest"
     if n in PYTHON_NAMES:
         stripped = cl
         for decoy in DECOY_TOKENS:
             stripped = stripped.replace(decoy, "")
         if GATE_TOKEN in stripped:
             return "gate"
+        # ⛔ SEARCHED IN THE UNSTRIPPED LINE. `pytest tests/test_gate_shards.py` is not a gate —
+        # that is the decoy — but it is unmistakably a pytest run, and load is load.
+        if any(tok in cl for tok in PYTEST_TOKENS):
+            return "pytest"
         return None
     if n in NODE_NAMES:
         # vitest workers are the load a gate actually applies; a gate's python parent is nearly
@@ -177,6 +222,23 @@ def classify_process(name: str, command_line: str, pid: int, *,
         if "vitest" in cl:
             return "vitest"
     return None
+
+
+def classify_process(name: str, command_line: str, pid: int, *,
+                     self_pids: frozenset[int] = frozenset()) -> str | None:
+    """'gate' | 'vitest' | None — the single authority on what counts as CONTENTION.
+
+    ⛔⛔ IT DELEGATES; IT DOES NOT RE-MATCH. Two matchers over the same command lines would be two
+    token tables to keep in step, and `lesson_a_guard_repeated_is_a_guard_unproved` says the copy
+    that drifts is the one nobody mutation-proved. One implementation, one narrowing.
+
+    ⛔ AND THE NARROWING IS THE WHOLE DIFFERENCE. A scoped pytest run is LOAD on this box but it
+    is not what this sampler's CONTENDED verdict has ever meant, and widening that verdict would
+    change the answer for every other workstream's measurement without anybody asking for it.
+    `box_load` is where the wider question is asked.
+    """
+    kind = classify_load(name, command_line, pid, self_pids=self_pids)
+    return None if kind == "pytest" else kind
 
 
 # ── Taking a sample ───────────────────────────────────────────────────────────────────────────
@@ -239,13 +301,23 @@ def _self_pids() -> frozenset[int]:
         snap = _snapshot()
     except Exception:
         return frozenset({me})
-    parents = {p["ProcessId"]: p.get("ParentProcessId") for p in snap.get("procs", [])}
-    pids, cur, seen = {me}, me, set()
+    return frozenset(_ancestors(me, snap.get("procs", [])))
+
+
+def _ancestors(pid: int, procs: list[dict]) -> set[int]:
+    """`pid` AND every process above it, from a snapshot already taken.
+
+    ⛔ EXTRACTED FROM `_self_pids`, NOT COPIED BESIDE IT. `box_load` needs the same upward walk
+    for a tree it is told about rather than for its own, and a second copy of a graph walk is a
+    second thing to keep correct.
+    """
+    parents = {p["ProcessId"]: p.get("ParentProcessId") for p in procs}
+    pids, cur, seen = {pid}, pid, set()
     while cur and cur not in seen:
         seen.add(cur)
         pids.add(cur)
         cur = parents.get(cur)
-    return frozenset(pids)
+    return pids
 
 
 def _descendants(root: int, procs: list[dict]) -> set[int]:
@@ -268,6 +340,99 @@ def _descendants(root: int, procs: list[dict]) -> set[int]:
                 out.add(k)
                 stack.append(k)
     return out
+
+
+def load_not_probed(why: str) -> dict:
+    """The record for "nobody looked" — which is NOT a count of zero, and says so in its state.
+
+    ⛔ IT EXISTS SO A CALLER CANNOT OPT OUT OF THE PROBE AND STILL GET A NUMBER. A `load: None`
+    or a `{"total": 0}` from a caller that skipped the snapshot is the same lie as a failed probe
+    reporting a quiet box.
+    """
+    return {"state": LOAD_NOT_PROBED, "readable": False, "at": None, "total": None,
+            "counts": None, "processes": [], "free_gb": None, "excluded_tree": None,
+            "error": why}
+
+
+def box_load(*, exclude_tree: int | None = None, snapshot=None) -> dict:
+    """WHAT IS RUNNING ON THIS BOX RIGHT NOW, by marker — one snapshot, no verdict.
+
+    ⛔⛔ THIS IS NOT A LOCK STATE AND MUST NEVER BE COLLAPSED INTO ONE. "No gate holds the lock"
+    and "the box is busy" are two different facts with two different responses, and the lock
+    reports them as two fields for exactly that reason. This function answers only the second.
+
+    ⛔ A FAILED PROBE RETURNS `UNREADABLE`, NEVER `total: 0`. A zero from a snapshot that did not
+    happen is indistinguishable from a genuinely quiet box; `readable` and `error` are what keep
+    the two apart, and `total` is None rather than a number nobody measured.
+
+    ⭐ `exclude_tree` IS THE ANTI-SELF-MATCH, BOTH DIRECTIONS. Pass a pid and this drops that
+    process, everything ABOVE it (the shell whose command line quotes the gate) and everything
+    BELOW it (a gate's own vitest workers). Without the downward half a running gate would see
+    its own workers as foreign load and could refuse to start — the instrument becoming the
+    finding, one layer out. ⚠️ The upward half can over-exclude: if a genuine intruder happens to
+    be an ancestor of the caller it is dropped. `_self_pids` already makes that trade deliberately
+    and for the same reason; over-excluding under-reports load, which is the direction a caller
+    can still correct by looking, whereas a self-match manufactures an emergency.
+
+    `snapshot` is injectable so a rail can hand it a fixed box without a PowerShell call.
+    """
+    take = snapshot or _snapshot
+    at = _dt.datetime.now().isoformat(timespec="seconds")
+    try:
+        snap = take()
+        procs = list(snap.get("procs") or [])
+    except Exception as e:
+        return {"state": LOAD_UNREADABLE, "readable": False, "at": at, "total": None,
+                "counts": None, "processes": [], "free_gb": None,
+                "excluded_tree": exclude_tree,
+                "error": f"{type(e).__name__}: {e}"[:300]}
+    exclude: set[int] = set()
+    if exclude_tree is not None:
+        exclude |= _ancestors(exclude_tree, procs)
+        exclude |= _descendants(exclude_tree, procs)
+    frozen = frozenset(exclude)
+    counts = {"gate": 0, "vitest": 0, "pytest": 0}
+    seen = []
+    for p in procs:
+        kind = classify_load(p.get("Name", ""), p.get("cl") or "", p["ProcessId"],
+                             self_pids=frozen)
+        if kind:
+            counts[kind] += 1
+            # ⛔ THE COMMAND LINE IS THE EVIDENCE. "15 processes" sends a reader nowhere; this
+            # probe's own history is of counting things that were not there.
+            seen.append({"kind": kind, "pid": p["ProcessId"], "name": p.get("Name"),
+                         "rss_mb": p.get("mb"), "command_line": (p.get("cl") or "")[:400]})
+    free_kb = snap.get("free_kb")
+    return {
+        "state": LOAD_BUSY if seen else LOAD_QUIET,
+        "readable": True,
+        "at": at,
+        "total": len(seen),
+        "counts": counts,
+        "processes": seen,
+        "free_gb": round(free_kb / 1024 / 1024, 2) if isinstance(free_kb, (int, float)) else None,
+        "excluded_tree": exclude_tree,
+        "error": None,
+    }
+
+
+def describe_load(load: dict | None) -> str:
+    """One line a human can act on: the state, the counts, and the loudest pid."""
+    if not load:
+        return "load: NOT MEASURED (no record) — that is not 'quiet'"
+    state = load.get("state")
+    if state == LOAD_BUSY:
+        c = load.get("counts") or {}
+        worst = max(load.get("processes") or [], key=lambda p: p.get("rss_mb") or 0, default=None)
+        tail = (f"; largest pid {worst['pid']} {worst['name']} "
+                f"{(worst.get('command_line') or '')[:90]}" if worst else "")
+        return (f"load: BUSY — {load.get('total')} marked process(es) "
+                f"(gate {c.get('gate', 0)}, vitest {c.get('vitest', 0)}, "
+                f"pytest {c.get('pytest', 0)}){tail}")
+    if state == LOAD_QUIET:
+        return f"load: QUIET — 0 marked processes outside our own tree at {load.get('at')}"
+    # ⛔ Both remaining states say WHY, and neither says a number.
+    return f"load: {state} — {load.get('error')}"
 
 
 def take_sample(self_pids: frozenset[int], *, tree_pid: int | None = None) -> dict:
@@ -430,7 +595,43 @@ CONTROL_CASES = [
      "powershell.exe", r"powershell -NoProfile -Command Get-CimInstance ... 'gate_shards' ...", None),
     ("a node process that is not vitest",
      "node.exe", r"C:\Program Files\nodejs\node.exe server.js", None),
+    # ⛔ THE NARROWING, RAILED FROM BOTH SIDES. A scoped pytest run is real load and this matcher
+    # must still call it None, or every other workstream's CONTENDED verdict changes meaning.
+    ("a scoped pytest run — LOAD, but not this verdict's contention",
+     "python.exe", r"C:\Python314\python.exe -m pytest tests/test_publish_caption.py", None),
 ]
+
+# ⛔ THE WIDER QUESTION, WITH ITS OWN CONTROLS. Captured from this box at 2026-09-15 20:26, the
+# moment `gate_box_lock status` said FREE with fifteen live processes on it.
+LOAD_CONTROL_CASES = [
+    # (label, name, command_line, expected)
+    ("the six-shard gate that held the lock",
+     "python.exe", r"C:\Python314\python.exe scripts/gate_shards.py --shards 6", "gate"),
+    ("a vitest shard runner, another worktree",
+     "node.exe", r'"node" "C:\Users\Patrick\uct-worktrees\notebook-k\app\node_modules\.bin\..\vitest\vitest.mjs" run --shard=5/6', "vitest"),
+    ("⭐ THE ONE THE LOCK COULD NOT SEE: a scoped pytest run from another session",
+     "python.exe", r"C:\Python314\python.exe -m pytest tests/test_publish_caption.py tests/test_publishers.py", "pytest"),
+    ("the same, Windows-spelled",
+     "python.exe", r"C:\Python314\python.exe -m pytest tests\test_publishers.py", "pytest"),
+    ("a pytest launched by its own console script",
+     "pytest.exe", r"C:\Python314\Scripts\pytest.exe tests/test_gate_box_lock.py -q", "pytest"),
+    ("⛔ THE DECOY IS STILL A PYTEST RUN — not a gate, but unmistakably load",
+     "python.exe", r"C:\Python314\python.exe -m pytest tests/test_gate_shards.py -q", "pytest"),
+    # ── and the ones that must answer None ──
+    ("⛔ a python process that merely PRINTS the word",
+     "python.exe", r"""C:\Python314\python.exe -c "print('pytest')" """, None),
+    ("⛔ a shell grepping for pytest — counting the searcher",
+     "bash.exe", r'"C:\Program Files\Git\bin\bash.exe" -c "grep -rn pytest tools/"', None),
+    ("⛔ an ordinary python job that is not a test run",
+     "python.exe", r"C:\Python314\python.exe docs/pine/wip/rig/boot_rig.py", None),
+    ("⛔ a node process that is not vitest",
+     "node.exe", r'"node" "C:\Users\Patrick\AppData\Roaming\npm\node_modules\@railway\cli\bin\railway.js" deployment list', None),
+]
+
+
+def _raise_probe():
+    """A snapshot that fails, for the self-check's UNREADABLE control."""
+    raise RuntimeError("the process snapshot failed (drill)")
 
 
 def self_check() -> int:
@@ -449,11 +650,42 @@ def self_check() -> int:
         if not good:
             say(f"        got {got!r} for {cl[:90]!r}")
 
+    say("\nload-matcher controls — the WIDER question the lock needed")
+    for label, name, cl, expected in LOAD_CONTROL_CASES:
+        got = classify_load(name, cl, pid=999, self_pids=frozenset())
+        good = got == expected
+        ok &= good
+        say(f"  {'ok  ' if good else 'FAIL'} {str(expected):<7} <- {label}")
+        if not good:
+            say(f"        got {got!r} for {cl[:90]!r}")
+
     say("\n  own pid is never a finding")
     got = classify_process("python.exe", "python scripts/gate_shards.py", pid=42,
                            self_pids=frozenset({42}))
     ok &= got is None
     say(f"  {'ok  ' if got is None else 'FAIL'} None    <- the sampler's own process")
+
+    say("\n  box_load — every state must be reachable, and a failure must not read as zero")
+    _busy_snap = {"free_kb": 8 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "procs": [
+        {"ProcessId": 501, "ParentProcessId": 1, "Name": "python.exe", "mb": 40,
+         "cl": "python -m pytest tests/test_publishers.py"},
+    ]}
+    _busy = box_load(snapshot=lambda: _busy_snap)
+    check_pairs = [
+        ("a marked process is seen", _busy["state"] == LOAD_BUSY and _busy["total"] == 1),
+        ("⭐ CONTROL: an empty box is QUIET, not BUSY",
+         box_load(snapshot=lambda: {"free_kb": 1, "total_kb": 2, "procs": []})["state"] == LOAD_QUIET),
+        ("⛔ a FAILED probe is UNREADABLE and carries NO count",
+         (lambda r: r["state"] == LOAD_UNREADABLE and r["total"] is None and r["error"])(
+             box_load(snapshot=_raise_probe))),
+        ("⛔ 'nobody looked' is its own state too",
+         load_not_probed("drill")["state"] == LOAD_NOT_PROBED),
+        ("our own tree is not foreign load",
+         box_load(exclude_tree=501, snapshot=lambda: _busy_snap)["total"] == 0),
+    ]
+    for label, cond in check_pairs:
+        ok &= bool(cond)
+        say(f"  {'ok  ' if cond else 'FAIL'} {label}")
 
     say("\nverdict controls — each answer must be reachable")
     clean = [{"at": "t1", "free_gb": 11.8, "total_gb": 31.8, "foreign": []},

@@ -32,11 +32,21 @@ def at(h, m, day=15):
 
 def test_an_unsettled_pod_is_refused_and_a_settled_one_is_not():
     """Session 7 measured 17,480 ms three minutes after boot against 224 ms settled.
-    A sample taken then measures the boot, not the reader."""
-    ok, why = bs.should_sample(at(3, 0), uptime_s=599, taken_today=0, kill_switch_present=False)
+    A sample taken then measures the boot, not the reader.
+
+    ⚰️ This pinned 599/600 and the owner ratified the floor at 300 (SD-1.7, 2026-09-16),
+    so it failed on the authorised value. ⭐ It is re-expressed against the CONSTANT
+    rather than against a literal: the property is "one below the floor refuses, the
+    floor itself passes", which stays true whatever the floor is, and a future change to
+    the number is then caught by `test_the_policy_constants_are_what_the_owner_authorised`
+    — one place, once. A literal here was a second copy of the policy."""
+    floor = bs.MIN_UPTIME_S
+    ok, why = bs.should_sample(at(3, 0), uptime_s=floor - 1, taken_today=0,
+                               kill_switch_present=False)
     assert not ok and why.startswith("pod_unsettled"), why
-    ok, why = bs.should_sample(at(3, 0), uptime_s=600, taken_today=0, kill_switch_present=False)
-    assert ok, f"600 s is the floor and must PASS, got {why}"
+    ok, why = bs.should_sample(at(3, 0), uptime_s=floor, taken_today=0,
+                               kill_switch_present=False)
+    assert ok, f"{floor} s is the floor and must PASS, got {why}"
 
 
 # ⚰️ `test_inside_the_push_guard_window_is_refused_at_both_edges` WAS HERE AND IS DELETED.
@@ -138,7 +148,16 @@ def test_a_corrupt_log_line_does_not_crash_the_counter(tmp_path):
 # ── the constants are the policy; pin them so a drift is deliberate ─────────
 
 def test_the_policy_constants_are_what_the_owner_authorised():
-    assert bs.MIN_UPTIME_S == 600
+    # ⚰️ THIS ASSERTED 600 AND THE OWNER RATIFIED 300 (SD-1.7, 2026-09-16), so the rail
+    # that exists to make a policy drift DELIBERATE had itself drifted out of date and
+    # was failing on the authorised value. ⭐ A pinned constant is only as good as the
+    # discipline of re-pinning it in the same change as the ruling; this one was pinned
+    # in one place and ruled in another, which is the second-authority defect wearing a
+    # test's clothes. 300 is the COLLECTION floor; 600 is the ANALYSIS floor and lives
+    # in breadth_pool_report.ANALYSIS_UPTIME_FLOOR, which is the only other place a
+    # number of this kind may appear.
+    assert bs.MIN_UPTIME_S == 300, (
+        "MIN_UPTIME_S is the ratified COLLECTION floor; tighten at analysis, never here")
     assert bs.DAILY_CAP == 60
     assert bs.MIN_CADENCE_S >= 35
     assert bs.BACKOFF_S >= 600
@@ -184,11 +203,29 @@ def test_two_shas_with_an_identical_hot_path_pool_and_different_ones_do_not():
                            capture_output=True, encoding="utf-8")
         return p.stdout.strip() if p.returncode == 0 else None
 
-    a, b = rev("30fd58aef"), rev("origin/master")
-    if not a or not b:
-        pytest.skip("reference commits unavailable in this checkout")
-    same, diff = rep.hot_path_identical(a, b, files)
-    assert same, f"expected these to pool; hot files differing: {diff}"
+    # ⚰️ THIS COMPARED A FIXED SHA AGAINST `origin/master`, WHICH MOVES. It asserted
+    # "the 31 commits between M10 and master changed no hot file" — true when written,
+    # and false the moment master took a commit that touched one. It has been failing on
+    # four genuinely-changed hot files. ⭐ A rail whose fixture is a MOVING REFERENCE
+    # does not pin a property; it pins a moment, and then reports the world moving as a
+    # defect. Both halves are now derived: find a commit that touched NO hot file and
+    # compare it with its own parent (must pool), and one that DID (must not).
+    p = subprocess.run(
+        ["git", "log", "-40", "--format=%H", "--"] + ["."],
+        cwd=str(REPO), capture_output=True, encoding="utf-8")
+    pair = None
+    for sha in [x for x in p.stdout.split() if x]:
+        par = rev(sha + "^")
+        if not par:
+            continue
+        same_i, _ = rep.hot_path_identical(par, sha, files)
+        if same_i:
+            pair = (par, sha)
+            break
+    if pair is None:
+        pytest.skip("no recent commit leaves the hot path untouched in this checkout")
+    same, diff = rep.hot_path_identical(pair[0], pair[1], files)
+    assert same, f"expected {pair[1][:9]} to pool with its parent; differing: {diff}"
 
     # ⛔ THE DISCRIMINATOR IS DERIVED, NOT AN OFFSET. A first attempt used
     # `30fd58aef~1` and FAILED: that SHA is the rename's sibling commit, so both sides
@@ -418,3 +455,69 @@ def test_stdout_is_actually_reconfigured_to_utf8_at_entry(tmp_path):
     assert enc.replace("-", "") == "utf8", (
         f"stdout is {enc!r} after import — the entry reconfigure did not take effect, "
         "so any print outside _echo would still raise on this console")
+
+
+# ── the span seed: a fresh process must not re-read a warmed span ────────────
+
+def _sampler():
+    import importlib.util as u
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    spec = u.spec_from_file_location("bs_seed", repo / "tools" / "breadth_sampler.py")
+    m = u.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_a_fresh_process_does_not_reuse_a_recent_span(tmp_path):
+    """⛔ THE CAUSE OF THE CACHE-HIT ROWS, RAILED AT THE CAUSE.
+
+    The walk (`span - 1` per iteration) keeps spans distinct WITHIN one run; the seed
+    was the constant SPAN_HI, so EVERY `--once` process started in the same place.
+    Four consecutive one-shots on 2026-09-17 re-read a span the previous one had just
+    warmed, and three came back as cache hits banked as deep cold reads.
+
+    ⭐ This is the property that makes "two consecutive --once runs produce two
+    reader>0 rows" true, expressed so it can be checked without production: run N and
+    run N+1 must not choose the same span.
+    """
+    m = _sampler()
+    # Run 1 starts from an empty pool.
+    first = m.seed_span([])
+    # Run 2 sees run 1's row already in the pool.
+    second = m.seed_span([first])
+    assert first != second, (
+        f"two consecutive one-shots both chose span {first} — the second re-reads a "
+        "span the first just warmed, and lands a cache hit labelled deep_cold")
+    # And a run after many samples avoids all of them.
+    used = list(range(m.SPAN_HI, m.SPAN_HI - 12, -1))
+    assert m.seed_span(used) not in used
+
+
+def test_the_seed_is_read_from_the_pool_not_from_a_constant(tmp_path):
+    """Non-vacuity: the seed must actually depend on its input, or the test above
+    passes for the wrong reason (e.g. a random seed that happens to differ)."""
+    m = _sampler()
+    a = m.seed_span([])
+    b = m.seed_span([a])
+    c = m.seed_span([a, b])
+    assert len({a, b, c}) == 3, f"seed is not responding to the used set: {a} {b} {c}"
+    # It must be deterministic for a given input -- a random pick would make a
+    # collision merely unlikely rather than impossible.
+    assert m.seed_span([a]) == b, "seed_span is not deterministic for a given pool"
+
+
+def test_recent_spans_reads_the_tail_of_the_pool(tmp_path):
+    """`recent_spans` must parse real rows, and must survive junk lines rather than
+    throwing -- a sampler that dies reading its own log collects nothing."""
+    m = _sampler()
+    p = tmp_path / "pool.jsonl"
+    p.write_text(
+        json.dumps({"span": 7299, "kind": "deep_cold"}) + "\n"
+        + "not json at all\n"
+        + json.dumps({"span": 7298}) + "\n"
+        + json.dumps({"no_span": 1}) + "\n",
+        encoding="utf-8")
+    got = m.recent_spans(path=p)
+    assert got == [7299, 7298], got
+    # A missing pool is an empty list, never an exception.
+    assert m.recent_spans(path=tmp_path / "nope.jsonl") == []

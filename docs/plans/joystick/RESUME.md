@@ -4,6 +4,73 @@
 > session re-derives nothing. Every claim below carries a `file:line` or a SHA. Where a claim is a
 > SNAPSHOT (deployments, flags) it says so — re-read those, do not quote them.
 
+## ⛔⛔ READ THIS BEFORE ANYTHING BELOW IT — THE PROGRAMME PIVOTED 2026-09-17
+
+**Everything under "Where the programme is" describes a launch sequence that is now PAUSED.** It is
+accurate history; it is not the current direction.
+
+### What happened
+
+The owner used the hub on his own phone and judged it unfit:
+
+> *"Wow tons of bugs, need to simplify the joystick a ton imo. Too glitchy and not smooth like a
+> proper high level highly built feature would be. Seems clunky from the 90s and not high class
+> smooth Liquid Glass with proper sensible tools too much going on. Needs a lot of work"*
+
+⭐⭐ **First real-glass evidence the programme has ever had. It outranks every green suite.** Boxes 1
+and 2 were never ticked because no instrument could reach them — Live's 260–427 ms floor against a
+120 ms flick window, no Automate on the account. The measurement finally happened, informally, and
+came back negative.
+
+### The holds — do not touch, do not open, do not merge
+
+| held | at | note |
+|---|---|---|
+| `launch/stage-2-member-preview` | `2ae7e98aa` | stage 2 turns the hub on for **every member** |
+| `launch/stage-3-ga` | `3164cccac` | behind stage 2 |
+| **#146** D-39 chip clearance | `cd5ba1ff2` | correct + gated; likely **moot** if the chip is redesigned |
+| **#147** docs | `6d8375de8` | carries the corrected record; merge when the guard clears |
+
+### ⛔ OWNER RULINGS, 2026-09-17 — VERBATIM
+
+**R1 · Hub code at stage 1 is ADMIN-PREVIEW SURFACE.** Only admins have the hub; the kill switch
+stands. You MAY merge changes confined to the hub yourself — `src/hub/**`, the hub's styles, the
+Settings hub card, and the small backend endpoint in R2 — after a gate with zero NEW against the
+baseline of record, a post-deploy smoke, and the deploy-queue guard clearing without override. You
+may NOT merge changes to `ROLLOUT_STAGE` / `STAGE_NAMES` / `unsetDefault` / `cardVisible` /
+`ROW_DIGESTS`, to `registry.js`'s default surface (see R4), or to anything a member can see at
+stage 1. Every merge is one PR, one deploy, watched to SUCCESS, verified by the artifact.
+
+**R2 · Build the owner's phone into the intake.** The owner will not type a bug list.
+
+**R3 · Fix defects you can prove; measure smoothness you can't feel; never claim a gesture result
+from a mirror** — flick/hold/scrub stay INCONCLUSIVE-TRANSPORT until the owner's finger says
+otherwise, and R2 is how his finger says it.
+
+**R4 · Simplification is an OWNER decision.** You may PROPOSE and you may BUILD the simplified
+registry as a SWITCHABLE VARIANT the owner can flip on his phone, default unchanged. You may not
+change the default surface.
+
+**R5 · No check-ins.** Decide, execute, record. Stop only for a wall you cannot pass; the owner's
+ruling on the simplified variant is delivered by a tap in the app, not a message.
+
+### The workstreams
+
+| # | what | branch | merge |
+|---|---|---|---|
+| W1 | record the pivot | `docs/pivot-w1-2026-09-17` | docs — agent |
+| W2 | the phone is the intake (Report affordance + endpoint + intake tool) | `feat/hub-report-intake` | R1 — agent |
+| W3 | defect sweep + smoothness instrumentation | `fix/hub-gesture-smoothness` | R1 — agent |
+| W4 | Liquid Glass, behind `HUB_VISUAL_V2` | `feat/hub-visual-v2` | R1 — agent |
+| W5 | simplification proposal + `registry.simplified.js` behind `HUB_SURFACE` | `feat/hub-simplified-surface` | R1 — agent |
+| W6 | gate/merge/deploy/verify per branch | — | — |
+
+⭐ **How the scope ruling arrives:** not as a document the owner writes. He flips the two Settings
+toggles on his phone, uses both, and taps **Report** on whichever is wrong. `tools/hub_reports_intake.py`
+turns the table into triage rows. **Read that table first on the next re-fire.**
+
+---
+
 ## Where the programme is
 
 **LAUNCHED is 2 of 6** (`closure.md` §"DEFINITION OF LAUNCHED"). Boxes 3 (post-deploy client smoke)

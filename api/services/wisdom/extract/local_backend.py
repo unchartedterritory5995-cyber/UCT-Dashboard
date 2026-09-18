@@ -1,0 +1,542 @@
+"""A LOCAL extraction backend — the same client surface, zero API spend (R85/R86/R87).
+
+⛔⛔ THE POINT OF THIS MODULE IS THE MONEY. The paid path stays exactly where it was and stays
+the default; this is a second implementation of the interface `batch.py` and the golden gate
+already call, backed by a model running on this machine. It NEVER imports the anthropic SDK,
+never reads an API key, and records every cost as 0.0 — and there are rails asserting each of
+those, because "it happened not to spend this time" is not the same claim as "it cannot".
+
+⛔ ROUTING EXTRACTION THROUGH A SUBSCRIPTION OR AN OAUTH SESSION TO AVOID THE API IS FORBIDDEN
+(owner ruling). $0 means a model on hardware we control, not a different way of billing.
+
+THE INTERFACE IT MUST SATISFY, read off the two callers rather than assumed:
+    client.messages.count_tokens(model=, system=, messages=, output_config=) -> .input_tokens
+    client.messages.batches.create(requests=[{custom_id, params}]) -> .id .processing_status
+    client.messages.batches.retrieve(id)   -> .processing_status
+    client.messages.batches.results(id)    -> iterable of per-request results
+    client.messages.batches.list(limit=)   -> iterable
+    client.messages.stream(**params)       -> the gate tool's single-shot path
+
+⭐ THE BATCH EMULATION IS A DIRECTORY, NOT A LIST IN MEMORY, and that is deliberate. A corpus
+pass is tens of thousands of requests over many hours on a box that OOM-kills things; an
+in-memory queue loses everything to one kill. Each result is written as it completes, so a
+re-run resumes from what is already on disk and `results()` streams from there.
+
+TRANSPORT: an OpenAI-compatible HTTP endpoint on loopback (llama.cpp's `llama-server`), read
+from WISDOM_LOCAL_LLM_URL. HTTP to 127.0.0.1 is not a provider call; the rails assert the host
+is a loopback address so this cannot quietly become one.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import pathlib
+import re
+import time
+import urllib.request
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Iterator, Optional
+
+#: Where the local server listens. Loopback only — asserted, not assumed.
+URL_ENV = "WISDOM_LOCAL_LLM_URL"
+DEFAULT_URL = "http://127.0.0.1:8080/v1/chat/completions"
+MODEL_ENV = "WISDOM_EXTRACT_LOCAL_MODEL"
+DEFAULT_MODEL = "local-unset"
+JOBS_ENV = "WISDOM_LOCAL_JOBS_DIR"
+TIMEOUT_ENV = "WISDOM_LOCAL_LLM_TIMEOUT_SECS"
+#: How many requests to keep in flight. It must not exceed the server's own slot count
+#: (llama-server -np): beyond that the extra requests queue inside the server and the only
+#: thing that grows is latency per request, which looks like the model got slower.
+SLOTS_ENV = "WISDOM_LOCAL_LLM_SLOTS"
+DEFAULT_SLOTS = 4
+DEFAULT_TIMEOUT = 600
+
+#: Ceiling on the OUTPUT of one extraction. The extractor asks for 32000 because that is sane
+#: against the paid model; a local 7B has a failure mode the paid model does not — it runs away,
+#: repeating until something stops it.
+#: ⚰️ Measured 2026-09-17: three slots sat at n_gen 2055 and climbing at 3.87 tok/s while the run
+#: made no progress for seven minutes. Unbounded, each such request runs to the slot's context
+#: wall (~2800 output tokens, ~12 min) and THEN fails as truncated JSON — so the cap changes how
+#: LONG a doomed request takes, not whether it succeeds.
+#: ⭐ 1536 is ~2x the largest legitimate extraction observed (805 tokens over 13 good segments;
+#: p50 311, p90 753) and truncates 0 of them. It is deliberately NOT tight: the cap must separate
+#: "runaway" from "verbose but real", and a cap that clips real extractions would silently
+#: understate the model's quality — the same direction of error as the markdown fence.
+MAX_OUTPUT_ENV = "WISDOM_LOCAL_MAX_OUTPUT_TOKENS"
+DEFAULT_MAX_OUTPUT = 1536
+
+#: Session 23, R93 (2026-09-18). Repeats a degenerate n-gram (e.g. a field name over and
+#: over) until the output cap cuts it off. Measured on the 18 segments that hit max_tokens on
+#: attempt 1 of the session-22 golden run: at repeat_penalty=1.15, 4 of 4 sampled loopers
+#: (isolated re-check, no slot contention) stopped looping — clean finish=stop, valid JSON,
+#: no repeated span. Adopted as the DEFAULT because it is a decoding parameter, not part of
+#: "the prompt": it changes no byte the paid path reads, so it earns no extractor_version bump,
+#: the same way the output cap above did not.
+REPEAT_PENALTY_ENV = "WISDOM_LOCAL_REPEAT_PENALTY"
+DEFAULT_REPEAT_PENALTY = 1.15
+
+#: Session 23, R93. The PAID request already carries
+#: `params["output_config"]["format"]["schema"]` — Anthropic's own structured-output contract
+#: (`prompt.api_schema()`), enforced SERVER-SIDE so the model literally cannot emit a record
+#: missing a required field. The local transport built a plain chat completion with no such
+#: constraint: nothing stopped the model from emitting a `records` array whose objects omit
+#: `quote` outright — the golden run's dominant failure (`reject:quote_missing`, not a single
+#: `quote_absent`, meaning the field was ABSENT, not merely wrong).
+#: ⭐ THIS SCHEMA ALREADY TRAVELS IN EVERY CALL'S PARAMS. Turning it on needs no new prompt
+#: content, no new file, and does not touch prompt.py — it forwards what `build_params()`
+#: already built for the paid path, translated into the wire shape this server's OAI-compat
+#: endpoint accepts (`response_format: {type: json_schema, json_schema: {schema: ...}}`).
+#: Measured 2026-09-18 on a segment whose baseline run rejected all 4 emitted records
+#: quote_missing: schema-constrained, 3 of 3 emitted records carried a non-empty quote.
+#: ⚠️ THIS BOUNDS PRESENCE, NOT CORRECTNESS. `required` in JSON Schema can force a string to
+#: exist; it cannot force that string to be a verbatim substring of the segment — a
+#: `quote_absent` rejection (wrong text, not missing) is still possible and this does not
+#: touch it. Default ON because a schema the paid path already trusts can only help; an env
+#: override exists for a controlled comparison against the unconstrained transport.
+SCHEMA_CONSTRAINED_ENV = "WISDOM_LOCAL_SCHEMA_CONSTRAINED"
+DEFAULT_SCHEMA_CONSTRAINED = True
+
+LOOPBACK = ("127.0.0.1", "localhost", "::1", "0.0.0.0")
+
+
+class LocalBackendUnavailable(RuntimeError):
+    """The local runtime is not reachable. Never falls back to a paid client."""
+
+
+class NotLoopback(ValueError):
+    """The configured URL is not on this machine. Refused: this backend is the $0 path."""
+
+
+def local_url() -> str:
+    url = (os.environ.get(URL_ENV) or "").strip() or DEFAULT_URL
+    host = re.sub(r"^https?://", "", url).split("/")[0].split(":")[0]
+    if host not in LOOPBACK:
+        raise NotLoopback(
+            f"{URL_ENV}={url!r} points at {host!r}, which is not loopback. The local backend "
+            "exists so that extraction costs nothing; pointing it at a remote host would make "
+            "that untrue without changing a single other line.")
+    return url
+
+
+def local_model() -> str:
+    return (os.environ.get(MODEL_ENV) or "").strip() or DEFAULT_MODEL
+
+
+def jobs_root() -> pathlib.Path:
+    override = (os.environ.get(JOBS_ENV) or "").strip()
+    if override:
+        return pathlib.Path(override)
+    return pathlib.Path(os.environ.get("DATA_DIR", "/data")) / "wisdom" / "local-jobs"
+
+
+def slots() -> int:
+    raw = (os.environ.get(SLOTS_ENV) or "").strip()
+    try:
+        n = int(raw) if raw else DEFAULT_SLOTS
+    except ValueError:
+        return DEFAULT_SLOTS
+    return n if n >= 1 else DEFAULT_SLOTS
+
+
+def max_output_tokens() -> int:
+    """The output ceiling for one local extraction. See MAX_OUTPUT_ENV."""
+    raw = (os.environ.get(MAX_OUTPUT_ENV) or "").strip()
+    try:
+        value = int(raw) if raw else DEFAULT_MAX_OUTPUT
+    except ValueError:
+        return DEFAULT_MAX_OUTPUT
+    return max(1, value)
+
+
+def repeat_penalty() -> Optional[float]:
+    """See REPEAT_PENALTY_ENV. Empty/unset means the runtime's own default, expressed here as
+    `None` rather than a literal so a caller cannot mistake it for "penalty of zero", which
+    would mean something else (no penalty at all is expressed by the runtime's `1.0`)."""
+    raw = (os.environ.get(REPEAT_PENALTY_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_REPEAT_PENALTY
+    try:
+        return float(raw)
+    except ValueError:
+        return DEFAULT_REPEAT_PENALTY
+
+
+def schema_constrained() -> bool:
+    """See SCHEMA_CONSTRAINED_ENV. Accepted off values mirror config.backend()'s convention
+    elsewhere in this package: anything but an explicit off literal stays ON."""
+    raw = (os.environ.get(SCHEMA_CONSTRAINED_ENV) or "").strip().lower()
+    if not raw:
+        return DEFAULT_SCHEMA_CONSTRAINED
+    return raw not in ("0", "false", "no", "off")
+
+
+def _timeout() -> float:
+    raw = (os.environ.get(TIMEOUT_ENV) or "").strip()
+    try:
+        return float(raw) if raw else float(DEFAULT_TIMEOUT)
+    except ValueError:
+        return float(DEFAULT_TIMEOUT)
+
+
+# ── token counting ───────────────────────────────────────────────────────────
+
+def estimate_tokens(text: str) -> int:
+    """⚠️ A LENGTH HEURISTIC, AND IT SAYS SO. The real count comes from the server's own usage
+    field once a request has run; this is only for the pre-flight the budget code calls. It is
+    deliberately the same chars//3 shape `batch.char_estimate_tokens` already uses, so the two
+    estimates cannot silently disagree about the same text."""
+    return max(1, len(text) // 3)
+
+
+# ── the result objects, shaped like the SDK's ────────────────────────────────
+
+@dataclass
+class _Usage:
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_creation: Any = None
+
+
+@dataclass
+class _Block:
+    type: str
+    text: str
+
+
+@dataclass
+class _Message:
+    content: list
+    stop_reason: str
+    usage: _Usage
+    stop_details: Any = None
+
+
+@dataclass
+class _Result:
+    type: str
+    message: Optional[_Message] = None
+    error: Any = None
+
+
+@dataclass
+class _Item:
+    custom_id: str
+    result: _Result
+
+
+@dataclass
+class _Counts:
+    processing: int = 0
+    succeeded: int = 0
+    errored: int = 0
+    canceled: int = 0
+    expired: int = 0
+
+
+@dataclass
+class _Batch:
+    id: str
+    processing_status: str
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    request_counts: _Counts = field(default_factory=_Counts)
+
+
+# ── the HTTP call ────────────────────────────────────────────────────────────
+
+def _post(url: str, payload: dict, timeout: float) -> dict:
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001 — the caller decides; never a paid fallback
+        raise LocalBackendUnavailable(f"{type(exc).__name__}: {exc}") from exc
+
+
+def _params_to_chat(params: dict) -> dict:
+    """The extractor speaks Anthropic's shape; the local server speaks OpenAI's."""
+    messages = [{"role": "system", "content": _as_text(params.get("system"))}]
+    for m in params.get("messages") or []:
+        messages.append({"role": m.get("role", "user"), "content": _as_text(m.get("content"))})
+    out = {
+        "model": local_model(),
+        "messages": messages,
+        "temperature": 0,
+        # ⛔ min(), never a bare assignment: a caller asking for LESS than the ceiling is asking
+        # for less on purpose and must get it. The cap only ever lowers.
+        "max_tokens": min(int(params.get("max_tokens") or 4096), max_output_tokens()),
+        "stream": False,
+    }
+    penalty = repeat_penalty()
+    if penalty is not None:
+        out["repeat_penalty"] = penalty
+    # ⭐ REUSES THE SAME SCHEMA THE PAID PATH ALREADY GETS. `params["output_config"]` is built
+    # by prompt.build_params() for BOTH backends — this reads what is already there rather
+    # than importing prompt.py or restating the schema, so there is no second authority on
+    # what "the schema" is. A caller that built params WITHOUT output_config (any test that
+    # hand-rolls a request) simply gets no constraint, silently — the same fail-open shape as
+    # every other optional field here.
+    schema = ((params.get("output_config") or {}).get("format") or {}).get("schema")
+    if schema_constrained() and isinstance(schema, dict):
+        out["response_format"] = {"type": "json_schema",
+                                  "json_schema": {"name": "wisdom_extraction", "schema": schema}}
+    return out
+
+
+def _as_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = []
+        for b in value:
+            if isinstance(b, dict):
+                parts.append(b.get("text") or "")
+            else:
+                parts.append(getattr(b, "text", "") or "")
+        return "\n".join(p for p in parts if p)
+    return str(value)
+
+
+def _unfence(text: str) -> str:
+    """Unwrap a ```json ... ``` fence. Returns the text unchanged if it is not fenced.
+
+    ⭐ WHY THIS LIVES IN THE LOCAL BACKEND AND NOT IN THE SHARED PARSER. Emitting a markdown
+    fence is a property of THIS model, not of the extraction contract — the paid model does not
+    do it. Teaching the shared parser to strip fences would change the PAID path too and put a
+    second authority on "what counts as a well-formed extraction"
+    (`lesson_a_second_authority_over_one_value`). This backend already translates Anthropic's
+    request shape into OpenAI's; unwrapping the model's own packaging is the same adaptation.
+
+    ⚰️ Measured 2026-09-17: on a 6-segment pilot, 1 of 3 completed extractions came back fenced
+    and was scored `json_decode` with `kept=0`. It held four valid records. An unstripped fence
+    reads in the per-type table as the model having failed, so this silently DEPRESSES a quality
+    measurement rather than erroring — the reason it is fixed before the run, not after.
+
+    ⛔ It strips ONLY a fence that both OPENS and CLOSES the text, so a backtick inside a quoted
+    string can never truncate a valid document. A TRUNCATED fenced reply has no closing fence and
+    is deliberately left broken: repairing it would turn an incomplete extraction into a
+    confident-looking one (`lesson_a_swallowed_error_becomes_a_confident_finding`).
+    """
+    s = text.strip()
+    if not s.startswith("```") or not s.endswith("```") or len(s) < 6:
+        return text
+    nl = s.find("\n")
+    if nl == -1:
+        return text
+    opener = s[3:nl].strip()          # "json", "JSON", "" — a language tag, never punctuation
+    if opener and not opener.isalnum():
+        return text
+    return s[nl + 1:-3].strip()
+
+
+def run_one(params: dict) -> _Message:
+    """One extraction, synchronously. Raises LocalBackendUnavailable; never returns a paid call."""
+    data = _post(local_url(), _params_to_chat(params), _timeout())
+    choices = data.get("choices") or []
+    text = ""
+    finish = "end_turn"
+    if choices:
+        text = (choices[0].get("message") or {}).get("content") or ""
+        finish = choices[0].get("finish_reason") or "stop"
+        text = _unfence(text)
+    usage = data.get("usage") or {}
+    return _Message(
+        content=[_Block(type="text", text=text)],
+        stop_reason="max_tokens" if finish == "length" else "end_turn",
+        usage=_Usage(input_tokens=int(usage.get("prompt_tokens") or 0),
+                     output_tokens=int(usage.get("completion_tokens") or 0)),
+    )
+
+
+# ── the batch emulation, on disk ─────────────────────────────────────────────
+
+class LocalBatches:
+    """⭐ A batch is a DIRECTORY. `create` writes the requests then processes them one at a time,
+    appending each outcome to results.jsonl as it lands. A kill loses the request in flight and
+    nothing else; the next `create` for the same batch id resumes."""
+
+    def __init__(self, root: Optional[pathlib.Path] = None):
+        self._root = root
+
+    def root(self) -> pathlib.Path:
+        return self._root if self._root is not None else jobs_root()
+
+    def _dir(self, bid: str) -> pathlib.Path:
+        return self.root() / bid
+
+    def create(self, requests) -> _Batch:
+        requests = list(requests)
+        # ⛔⛔ CANONICAL (sort_keys), because the id must key on what the request MEANS, not on
+        # how this process happened to order a dict. Measured 2026-09-17: two invocations built
+        # 83 requests that were EQUAL as parsed JSON — 0 of 83 differing — and produced two
+        # different digests, so the resume silently opened a second directory and re-ran
+        # everything. The bug was invisible to a content diff and visible only in the bytes.
+        body = "".join(json.dumps(r, sort_keys=True) + "\n" for r in requests)
+        # ⭐⭐ THE ID IS DERIVED FROM THE REQUESTS, NOT FROM THE CLOCK, AND THAT IS THE WHOLE
+        # RESUME STORY. A timestamp id made every re-invocation a NEW directory, so the
+        # documented property — "a kill loses the request in flight and nothing else" — was
+        # true of `_process` and UNREACHABLE from the gate, which only ever calls `create`.
+        # ⚰️ Measured 2026-09-17: an OOM killed a golden run at 12 of 83 segments. The twelve
+        # results were on disk, correct, and orphaned — a fresh run would have re-extracted
+        # all 83. On a box that OOM-kills, a resume nobody can reach is not a resume.
+        # ⛔ Identical requests MUST land on the same directory; that collision IS the feature.
+        # A changed prompt, model or segment changes `params`, so it changes the digest and
+        # earns a new directory — a run can never silently inherit another extractor's answers.
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
+        bid = f"localbatch_{digest}_{len(requests):05d}"
+        d = self._dir(bid)
+        d.mkdir(parents=True, exist_ok=True)
+        # ⛔ write_bytes, NOT write_text: on Windows text mode rewrites "\n" as "\r\n", so the
+        # file on disk would NOT be the bytes the directory is named after. The resume works
+        # either way (the digest is taken from `body` in memory), but an artifact that does not
+        # hash to its own name is a trap for the next reader who tries to verify it.
+        (d / "requests.jsonl").write_bytes(body.encode("utf-8"))
+        self._process(bid)
+        return _Batch(id=bid, processing_status="ended",
+                      request_counts=_Counts(succeeded=self._done_count(bid)))
+
+    def _done_ids(self, bid: str) -> set:
+        p = self._dir(bid) / "results.jsonl"
+        if not p.exists():
+            return set()
+        out = set()
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                out.add(json.loads(line)["custom_id"])
+            except Exception:
+                continue
+        return out
+
+    def _done_count(self, bid: str) -> int:
+        return len(self._done_ids(bid))
+
+    def _process(self, bid: str) -> None:
+        """⭐ CONCURRENT, BOUNDED BY THE SERVER'S SLOTS, AND STILL RESUMABLE. Each result is
+        appended under a lock the moment it lands, so a kill still loses only what was in
+        flight. Running one request at a time against a 4-slot server wastes three quarters of
+        the machine - measured, not assumed: the slots are what -np allocates."""
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
+        d = self._dir(bid)
+        done = self._done_ids(bid)
+        reqs = [json.loads(l) for l in (d / "requests.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+        todo = [r for r in reqs if r["custom_id"] not in done]
+        if not todo:
+            return
+        lock = threading.Lock()
+        fh = (d / "results.jsonl").open("a", encoding="utf-8")
+
+        def one(r):
+            cid = r["custom_id"]
+            try:
+                msg = run_one(r["params"])
+                rec = {"custom_id": cid, "type": "succeeded",
+                       "text": msg.content[0].text,
+                       "stop_reason": msg.stop_reason,
+                       "input_tokens": msg.usage.input_tokens,
+                       "output_tokens": msg.usage.output_tokens}
+            except LocalBackendUnavailable as exc:
+                rec = {"custom_id": cid, "type": "errored", "error": str(exc)[:300]}
+            with lock:
+                fh.write(json.dumps(rec) + "\n")
+                fh.flush()
+
+        try:
+            n = max(1, min(slots(), len(todo)))
+            if n == 1:
+                for r in todo:
+                    one(r)
+            else:
+                with ThreadPoolExecutor(max_workers=n) as pool:
+                    list(pool.map(one, todo))
+        finally:
+            fh.close()
+
+    def retrieve(self, bid: str) -> _Batch:
+        d = self._dir(bid)
+        if not d.exists():
+            return _Batch(id=bid, processing_status="ended", request_counts=_Counts())
+        total = sum(1 for l in (d / "requests.jsonl").read_text(encoding="utf-8").splitlines() if l.strip())
+        done = self._done_count(bid)
+        status = "ended" if done >= total else "in_progress"
+        return _Batch(id=bid, processing_status=status,
+                      request_counts=_Counts(succeeded=done, processing=max(0, total - done)))
+
+    def results(self, bid: str) -> Iterator[_Item]:
+        p = self._dir(bid) / "results.jsonl"
+        if not p.exists():
+            return iter(())
+        items = []
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            if r.get("type") == "succeeded":
+                items.append(_Item(custom_id=r["custom_id"], result=_Result(
+                    type="succeeded",
+                    message=_Message(content=[_Block("text", r.get("text") or "")],
+                                     stop_reason=r.get("stop_reason") or "end_turn",
+                                     usage=_Usage(input_tokens=int(r.get("input_tokens") or 0),
+                                                  output_tokens=int(r.get("output_tokens") or 0))))))
+            else:
+                items.append(_Item(custom_id=r["custom_id"], result=_Result(type="errored", error=r.get("error"))))
+        return iter(items)
+
+    def list(self, limit: int = 20):
+        root = self.root()
+        if not root.exists():
+            return iter(())
+        dirs = sorted((p for p in root.iterdir() if p.is_dir()), reverse=True)[:limit]
+        return iter([self.retrieve(p.name) for p in dirs])
+
+
+class LocalMessages:
+    def __init__(self, root: Optional[pathlib.Path] = None):
+        self.batches = LocalBatches(root)
+
+    def count_tokens(self, **kw):
+        text = _as_text(kw.get("system")) + "".join(
+            _as_text(m.get("content")) for m in (kw.get("messages") or []))
+        return _Usage(input_tokens=estimate_tokens(text))
+
+    def stream(self, **params):
+        """The gate tool's single-shot path. Returns a context manager whose
+        `get_final_message()` yields the same shape the SDK's does."""
+        message = run_one(params)
+
+        class _Ctx:
+            def __enter__(self_inner):
+                return self_inner
+
+            def __exit__(self_inner, *a):
+                return False
+
+            def get_final_message(self_inner):
+                return message
+
+        return _Ctx()
+
+
+class LocalClient:
+    """⛔ Deliberately NOT named or shaped like the SDK's client beyond the methods above, so a
+    reader can never mistake one for the other in a traceback."""
+
+    is_local_backend = True
+    cost_usd = 0.0
+
+    def __init__(self, root: Optional[pathlib.Path] = None):
+        self.messages = LocalMessages(root)
+
+
+def make_local_client(root: Optional[pathlib.Path] = None) -> LocalClient:
+    local_url()          # ⛔ refuses a non-loopback URL before anything is built
+    return LocalClient(root)

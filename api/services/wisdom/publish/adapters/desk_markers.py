@@ -4,6 +4,15 @@ Consumer: `api/services/ticker_mentions.py::mentions_for_symbol`, the one author
 StockChart desk-marker category reads (`GET /api/education/tickers/{sym}/mentions`,
 require_paid). There is no TickerPopup Desk tab (CONTRACTS §0 #24).
 
+⛔⛔ THE PUBLICATION FLOOR GOVERNS BOTH TYPES THIS ADAPTER READS, AND THAT IS WHY R89 EXISTS.
+This is the member door the ruling names: a CALL or MENTION here lands on a member's StockChart
+under a named author. Since R89 (2026-09-17) `floor.FLOORED_TYPES` contains CALL and MENTION, so
+`common.select_records` withholds any record below the floor — including every record with a NULL
+stability, which is all of them until item 2's N=3 voting has run. ⛔ The floor has to be SERVING
+before `WISDOM_DESK_MARKERS_ENABLED` is flipped on; it is not a second thing to remember at flip
+time, and `wisdom_rows` must never gain an `include_unstable=True` to "make the preview look
+populated". An empty preview with the floor serving is the correct reading.
+
 THE GATE LIVES OUTSIDE THE PER-SYMBOL CACHE. `ticker_mentions` caches video rows per
 symbol for 600 s. The flag is read on every call AFTER the cache, so a flip either way
 takes effect on the next request and a cached payload never carries Wisdom rows past a

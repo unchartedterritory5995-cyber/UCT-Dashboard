@@ -45,6 +45,22 @@ def check_direction(p1: str, p2: str, before: str, tip: str) -> tuple[bool, str]
                    f"^1={before[:9]} ^2={tip[:9]}. Refusing rather than guessing.")
 
 
+def merge_is_noop(head: str, before: str) -> bool:
+    """True when the merge moved nothing — the branch was ALREADY on master.
+
+    Pure, so it can be tested without a repository.
+
+    ⛔ This is the case that used to fall through to UNRECOGNISED PARENTS.
+    `git merge --no-ff` on an already-merged branch prints "Already up to date."
+    and exits 0 WITHOUT moving HEAD, so HEAD^1/HEAD^2 are then MASTER'S OWN
+    parents and check_direction reports a phantom problem against a healthy
+    repository. Measured 2026-09-16: it cost a session hours of hunting for a
+    worktree collision that did not exist. Worse, when master's tip is not
+    itself a merge, HEAD^2 does not resolve and git() exits 2.
+    """
+    return head == before
+
+
 def git(root, *a, check=True):
     r = subprocess.run(["git", "-C", str(root), *a],
                        capture_output=True, encoding="utf-8", errors="replace")
@@ -63,6 +79,14 @@ def land(branch: str, main: str, workdir: str, push: bool = True) -> int:
     tip, _ = git(main, "rev-parse", branch)
     print(f"origin/master {before[:9]}   {branch} {tip[:9]}")
 
+    # Already landed? Answer BEFORE building a worktree: the merge below would be a
+    # no-op and its HEAD^1/HEAD^2 would describe master, not this landing.
+    _, rc_anc = git(main, "merge-base", "--is-ancestor", tip, before, check=False)
+    if rc_anc == 0:
+        print(f"  ALREADY LANDED: {tip[:9]} is an ancestor of origin/master {before[:9]}.")
+        print("Nothing to do — nothing pushed.")
+        return 0
+
     git(main, "worktree", "add", "-q", "--detach", str(wt), before)
     try:
         out, rc = git(wt, "-c", "commit.gpgsign=false",
@@ -71,6 +95,12 @@ def land(branch: str, main: str, workdir: str, push: bool = True) -> int:
             git(wt, "merge", "--abort", check=False)
             print(f"MERGE FAILED rc={rc}\n{out}")
             return 3
+
+        head, _ = git(wt, "rev-parse", "HEAD")
+        if merge_is_noop(head, before):
+            print(f"  ALREADY LANDED: the merge moved nothing (HEAD still {head[:9]}).")
+            print("Nothing to do — nothing pushed.")
+            return 0
 
         p1, _ = git(wt, "rev-parse", "HEAD^1")
         p2, _ = git(wt, "rev-parse", "HEAD^2")
@@ -109,11 +139,36 @@ def self_check() -> int:
         if got is not want or marker.lower() not in why.lower():
             print(f"FAIL ^1={p1[:4]} ^2={p2[:4]}: got {got} {why!r}")
             ok = False
+    # the already-merged case: the merge moves nothing and HEAD stays at master.
+    for head, want in ((before, True), (tip, False), (other, False)):
+        if merge_is_noop(head, before) is not want:
+            print(f"FAIL merge_is_noop(head={head[:4]}, before={before[:4]})")
+            ok = False
+
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
 
+def _make_stdio_utf8_safe() -> None:
+    """⚰️ Measured 2026-09-18: a landing crashed AFTER a real `git push` had already run,
+    inside `print(out)`, because the pre-push guard's own refusal text carries characters
+    (this repo's own ⛔/⭐ house style) this Windows console's legacy cp1252 codepage
+    cannot encode. The subprocess READ side was already safe (`git()` decodes with
+    errors="replace"); the crash was on the WRITE side. Reconfigured once, here, rather than
+    wrapping each print call, so a FUTURE print (e.g. inside `git()`'s own error branch,
+    which is the FAILURE-diagnosis path and therefore the one most important to see) is
+    covered too, not just the one that happened to crash first."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def main(argv=None) -> int:
+    _make_stdio_utf8_safe()
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("branch", nargs="?")
     ap.add_argument("--main", default=MAIN_REPO_DEFAULT)

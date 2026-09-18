@@ -14,6 +14,7 @@ import {
 } from './constants.js'
 import { resolveTarget, ringForPointer } from './fanGeometry.js'
 import { recordGestureEvent } from './gestureTrace.js'
+import { createFrameCapture } from './hubSmoothness.js'
 import haptics from '../components/mobile/haptics.js'
 import { escalateCue } from './escalateCue.js'
 
@@ -216,6 +217,20 @@ export default function useJoystick({
    */
   const traceOn = settings.traceGestures === true
   const traceDownRef = useRef(null)
+  /**
+   * ⭐ W3 / R9 — the frame capture for the gesture in flight, or null.
+   *
+   * ⛔ IT LIVES BEHIND THE SAME GATE AS THE TRACE, not a second one. `withTrace()` is only built
+   * when an admin has turned "Record gesture trace" on, so with the toggle off no capture object
+   * is constructed, no rAF loop runs, and the pointer path is byte-identical to what a member
+   * gets. A separate `smoothnessOn` flag would be a second authority over "is this device being
+   * diagnosed" and the two would drift.
+   *
+   * ⛔ AND IT IS A REF, NOT STATE. Writing state from a pointer handler re-renders the hub on
+   * every frame — which is the render-loop class that froze app-wide navigation for 4.5 hours on
+   * 2026-09-10 (rule H14).
+   */
+  const smoothnessRef = useRef(null)
 
   function clearHoldTimer() {
     if (holdTimerRef.current != null) {
@@ -671,12 +686,42 @@ export default function useJoystick({
         travelled: null,
         decision: null,
         target: null,
+        // Present on every row so a reader can tell "this gesture was not measured" from "this
+        // build does not measure" — `null` on the rows between down and up is the former.
+        smoothness: null,
         ...extra,
       })
     } catch {
       /* an instrument must never break the gesture it measures */
     }
   }
+
+  /**
+   * End the in-flight frame capture and hand back its summary, or `null`.
+   *
+   * ⚠️ The summary is recorded VERBATIM. `hubSmoothness.js` already refuses a capture taken in a
+   * hidden tab (`valid:false, voidReason:'hidden'`) and already reports `null` rather than `0`
+   * where the engine cannot observe long tasks. Re-deciding either of those here would put a
+   * second authority on the one judgement the instrument makes.
+   */
+  const stopSmoothness = () => {
+    try {
+      const s = smoothnessRef.current?.stop() ?? null
+      smoothnessRef.current = null
+      return s
+    } catch {
+      smoothnessRef.current = null
+      return null
+    }
+  }
+
+  /**
+   * ⛔ A GESTURE THAT NEVER SEES AN UP MUST NOT LEAVE A rAF LOOP RUNNING. The hub unmounts on
+   * route changes, on the hide path, and whenever `useHubActive` flips — all of which can happen
+   * with a thumb still down. Without this the loop would survive the component and keep
+   * scheduling frames forever, which is a battery drain on the exact device being diagnosed.
+   */
+  useEffect(() => () => { try { smoothnessRef.current?.stop() } catch { /* unmounting */ } }, [])
 
   /**
    * Wrap the raw handlers. ⛔ APPLIED ONLY WHEN THE TOGGLE IS ON — with it off, the object below
@@ -686,12 +731,22 @@ export default function useJoystick({
     onPointerDown: (e) => {
       const stamps = traceStamps(e)
       traceDownRef.current = stamps
+      // ⛔ WRAPPED, like every other line of this instrument. A capture that throws inside a
+      // pointer handler does not measure the gesture, it breaks it — and only on the device
+      // somebody is trying to diagnose.
+      try {
+        smoothnessRef.current?.stop()          // a previous gesture that never saw an up
+        smoothnessRef.current = createFrameCapture()
+        smoothnessRef.current.start()
+        smoothnessRef.current.markInput(stamps.perfNow)
+      } catch { smoothnessRef.current = null }
       const out = onPointerDown(e)
       traceRow('pointerdown', e, stamps, { phase: phaseRef.current, travelled: maxDistRef.current })
       return out
     },
     onPointerMove: (e) => {
       const stamps = traceStamps(e)
+      try { smoothnessRef.current?.markInput(stamps.perfNow) } catch { /* never break the gesture */ }
       const out = onPointerMove(e)
       // `travelled` is the engine's own running maximum AFTER this sample — including the early
       // returns (idle, edge guard), where it is correctly unchanged.
@@ -702,6 +757,7 @@ export default function useJoystick({
       const stamps = traceStamps(e)
       const d = onPointerUp(e)
       traceRow('pointerup', e, stamps, {
+        smoothness: stopSmoothness(),
         phase: d ? d.phase : null,
         elapsed: d ? d.elapsed : null,
         travelled: d ? d.travelled : null,
@@ -717,7 +773,9 @@ export default function useJoystick({
       const phase = phaseRef.current
       const travelled = maxDistRef.current
       const out = onPointerCancel(e)
-      traceRow('pointercancel', e, stamps, { phase, travelled, decision: out ?? null })
+      traceRow('pointercancel', e, stamps, {
+        phase, travelled, decision: out ?? null, smoothness: stopSmoothness(),
+      })
       return out
     },
   })

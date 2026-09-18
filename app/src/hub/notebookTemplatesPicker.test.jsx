@@ -230,9 +230,11 @@ describe('R-19 — the action is back, and the ring is still legal', () => {
     expect(outer).toEqual([
       'notebook.newNote', 'notebook.voiceNote', 'notebook.linkTicker', TEMPLATES_ACTION,
     ])
-    expect(inner).toEqual([
-      'notebook.dailyPlan', 'notebook.postMortem', 'notebook.voice', 'notebook.home',
-    ])
+    // ⚰️ THE INNER RING WAS FOUR AND IS NOW TWO — `notebook.dailyPlan` and `notebook.postMortem`
+    // cut by owner ruling R4 (the strong cut). Both are `kind: 'navigate'`; both stay declared, so
+    // the `full` surface variant still draws them. Same reasoning, same tombstone, as the twin
+    // assertion in linkTickerWritesTheNote.test.jsx.
+    expect(inner).toEqual(['notebook.voice', 'notebook.home'])
     expect(outer.length).toBeLessThanOrEqual(OUTER_MAX)
     expect(inner.length).toBeLessThanOrEqual(INNER_MAX)
   })

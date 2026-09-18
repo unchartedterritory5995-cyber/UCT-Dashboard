@@ -304,9 +304,14 @@ describe('R-17 — the action is on the fan, and it is never the thing it was re
     // at the fourth instead of a count quietly absorbing it.
     expect(outer, 'the outer ring is not the four the notebook declares')
       .toEqual(['notebook.newNote', 'notebook.voiceNote', LINK, 'notebook.templates'])
-    expect(inner).toEqual([
-      'notebook.dailyPlan', 'notebook.postMortem', 'notebook.voice', 'notebook.home',
-    ])
+    // ⚰️ THE INNER RING WAS FOUR AND IS NOW TWO. `notebook.dailyPlan` and `notebook.postMortem`
+    // were cut by owner ruling R4 — the strong cut, `registry.js`'s STRONG_CUT table. Both are
+    // `kind: 'navigate'`, and navigating loses the cursor's place in the notes list, which is the
+    // one thing the cursor exists to hold. Neither becomes unreachable: both are tabs in the
+    // Journal, and both are still DECLARED, so the `full` surface variant still draws them.
+    // ⭐ The list stays SPELLED OUT rather than counted, for exactly the reason above it: a count
+    // absorbs an arrival quietly, and it would absorb a departure quietly too.
+    expect(inner).toEqual(['notebook.voice', 'notebook.home'])
     expect(outer.length).toBeLessThanOrEqual(OUTER_MAX)
     expect(inner.length).toBeLessThanOrEqual(INNER_MAX)
     // And the registry's own conscience agrees, on the declared fan as well as the drawn one.

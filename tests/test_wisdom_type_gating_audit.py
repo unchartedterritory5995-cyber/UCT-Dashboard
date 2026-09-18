@@ -1,9 +1,16 @@
 """R50 — the CALL / MENTION / LEVEL / NEGATIVE_CALL gating audit, as a standing rail.
 
-⛔⛔ WHAT R50 SETTLES AND WHY A DOCUMENT COULD NOT SETTLE IT. The publication floor governs
-PRINCIPLE and MARKET_SIGNAL only — `floor.passes()` returns True for every other type by
-construction — so the moment EXTRACT runs, the other four types are unfloored and reach whatever
-consumer reads them. The session-13 audit found list (i), *member-visible AND ungated*, to be
+⚰️ R89 (owner ruling, 2026-09-17) SUPERSEDED THE SENTENCE THIS FILE OPENED WITH. It read: *"The
+publication floor governs PRINCIPLE and MARKET_SIGNAL only — `floor.passes()` returns True for
+every other type by construction — so the moment EXTRACT runs, the other four types are unfloored
+and reach whatever consumer reads them."* CALL, MENTION and NEGATIVE_CALL are floored now; **LEVEL
+alone** is unfloored, and on evidence (no consumer performs a typed read of it) rather than by
+omission. The censuses below are unchanged and still load-bearing — the floor filters ROWS and is
+never a substitute for classifying a READER — and `test_the_floor_now_governs_three_of_the_four_
+types_and_only_LEVEL_is_unfloored` carries the restated premise.
+
+⛔⛔ WHAT R50 SETTLES AND WHY A DOCUMENT COULD NOT SETTLE IT. The session-13 audit found list (i),
+*member-visible AND ungated*, to be
 EMPTY: every wisdom-owned route is admin / owner / push-secret, and each of the five doors a
 member surface uses to reach wisdom data consults a `member_visible=True` gate that defaults OFF.
 
@@ -223,16 +230,54 @@ def test_the_consumer_census_can_see_a_reader_and_ignores_prose():
     assert "publish/adapters/voice.py" not in found
 
 
-def test_the_floor_is_a_no_op_for_all_four_types_by_construction():
-    """⛔ THE PREMISE OF THE WHOLE AUDIT. If this stops being true, R50's question changes."""
+def test_the_floor_now_governs_three_of_the_four_types_and_only_LEVEL_is_unfloored():
+    """⭐⭐ THIS TEST CHANGED SIDES, AND THAT IS THE POINT OF HAVING WRITTEN IT.
+
+    It used to be `test_the_floor_is_a_no_op_for_all_four_types_by_construction`, and it said so
+    in its own docstring: *"THE PREMISE OF THE WHOLE AUDIT. If this stops being true, R50's
+    question changes."* **R89 (owner ruling, 2026-09-17) stopped it being true**, so the premise
+    is restated here rather than deleted — the same handling as
+    `test_a_forced_chain_run_no_longer_bypasses_the_extract_spend_gate` below.
+
+    ⛔ **What R89 changes about R50, precisely.** R50 asked *"which consumers can surface the four
+    unfloored types, and is list (i) — member-visible AND ungated — empty?"* Three of those four
+    are no longer unfloored, so for CALL, MENTION and NEGATIVE_CALL a member-visible consumer now
+    has **two** things in its way: the member_visible gate R50 catalogued, and the floor. The door
+    and consumer censuses above are unaffected and still load-bearing: the floor is a filter on
+    ROWS, never a substitute for classifying a reader.
+
+    ⚠️ LEVEL is the one that stays unfloored, and it is unfloored on EVIDENCE (no consumer
+    performs a typed read of it), not by omission — the reasoning and its re-derivation are
+    beside `floor.FLOORED_TYPES`.
+    """
     from api.services.wisdom.publish import floor
 
-    assert set(floor.FLOORED_TYPES) == {"PRINCIPLE", "MARKET_SIGNAL"}
-    for rtype in FOUR_TYPES:
-        assert rtype not in floor.FLOORED_TYPES
-        assert floor.passes(rtype, 0.0, 99), f"the floor now blocks {rtype}"
-    # control: it really does block the two it governs
+    assert set(floor.FLOORED_TYPES) == {"PRINCIPLE", "MARKET_SIGNAL", "CALL", "NEGATIVE_CALL", "MENTION"}
+    for rtype in ("CALL", "MENTION", "NEGATIVE_CALL"):
+        assert rtype in floor.FLOORED_TYPES
+        assert not floor.passes(rtype, 0.0, 99), f"R89: the floor must block a below-floor {rtype}"
+        # non-vacuity: the same type at the floor, over MIN_RUNS, still publishes
+        assert floor.passes(rtype, 1.0, floor.MIN_RUNS), f"the floor blocks {rtype} unconditionally"
+    assert "LEVEL" not in floor.FLOORED_TYPES
+    assert floor.passes("LEVEL", 0.0, 99), "LEVEL is the unfloored control and must stay unfloored"
+    # control: it still blocks the two it governed before R89
     assert not floor.passes("PRINCIPLE", 0.0, 99)
+
+
+def test_the_unfloored_set_is_exactly_what_the_writer_can_emit_minus_the_floored_set():
+    """⛔ `UNFLOORED_TYPES` must be DERIVABLE, or it becomes a second authority that drifts.
+
+    A new record type added to `writer.RECORD_TYPES` lands here and has to be ruled on — floored
+    or named unfloored — rather than defaulting to unfloored in silence, which is how an
+    unclassified type reaches a member.
+    """
+    from api.services.wisdom.extract import writer
+    from api.services.wisdom.publish import floor
+
+    assert set(floor.UNFLOORED_TYPES) == set(writer.RECORD_TYPES) - set(floor.FLOORED_TYPES)
+    # non-vacuity, both halves: neither set may be empty, or the difference proves nothing
+    assert floor.UNFLOORED_TYPES and floor.FLOORED_TYPES
+    assert set(floor.FLOORED_TYPES) <= set(writer.RECORD_TYPES), "a floored type the writer cannot emit"
 
 
 # ══ 3. the rehearsal instrument itself ══════════════════════════════════════
@@ -263,9 +308,16 @@ def test_a_forced_chain_run_no_longer_bypasses_the_extract_spend_gate():
                 pytest.fail(f"batch.py:{node.lineno} ANDs ctx.force with extract_enabled again — "
                             "R52 is undone and a forced admin run can spend with the switch off")
     # ⭐ and the replacement really is there, so this does not pass by the file being empty
-    assert "def spend_allowed(" in src and "ACCEPT_SPEND_VALUE" in src, (
-        "the R52 guard is missing — see tests/test_wisdom_forced_run_spend.py, which owns its "
-        "behaviour")
+    # ⚰️ This used to assert ACCEPT_SPEND_VALUE appeared in the file, which R64 made
+    # meaningless: the constant is still DEFINED (the paid action will use it) but it no
+    # longer gates anything, so its presence proved nothing. Check the R64 guard instead.
+    assert "def spend_allowed(" in src, "spend_allowed is gone"
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "spend_allowed")
+    body = ast.unparse(fn)
+    assert "force" in body and "return False" in body, (
+        "R64 is missing from spend_allowed — a forced run must never spend; see "
+        "tests/test_wisdom_forced_run_spend.py, which owns its behaviour")
 
 
 def test_the_rehearsal_never_forces_the_chain():

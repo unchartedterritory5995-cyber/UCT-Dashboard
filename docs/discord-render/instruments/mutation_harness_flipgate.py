@@ -130,7 +130,16 @@ if "--dry-check" in sys.argv:
 #: name; it now reads the document. A fixture whose title does not declare the smoke is not a
 #: "minimal" fixture — it is a different case (an undeclared index), and there is a dedicated case
 #: for that below.
-SMOKE_TITLE = "# 3.5 — the real-Discord smoke (sandbox)\n\n"
+#: ⛔ R50 (D-15): an index must declare the COMMIT it ran against and the DATE it ran, in band.
+#: Both live here so every fixture inherits them and the cases below vary ONE thing at a time;
+#: the dedicated cases that strip each field are further down.
+SMOKE_TITLE = ("# 3.5 — the real-Discord smoke (sandbox), run 2026-09-17\n\n"
+               "Running web commit: `beace00e0024`.\n\n")
+#: An OLDER run, for the latest-wins cases. ⛔ Its directory sorts AFTER the newer one's on
+#: purpose (`smoke-zz-older` vs `smoke-sandbox`), so a scorer that picks by filename picks THIS
+#: one and the case goes red — which is the whole point of the in-band date.
+SMOKE_TITLE_OLD = ("# 3.5 — the real-Discord smoke (sandbox), run 2026-09-14\n\n"
+                   "Running web commit: `0000deadbeef`.\n\n")
 
 
 def labelled_load(*, real=None, model=fp.ec.CLOSED_LOOP, renderer=fp.ec.RENDERER_PRODUCTION,
@@ -568,15 +577,71 @@ def _cases() -> list[Case]:
                                      "| 2-15 | ⛔ **NOT RUN** |\n"),
                    says="only 1/15"))
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
-                   "⛔ fifteen PASS marks spread over two indexes while rows are still NOT RUN — "
-                   "the arithmetic flipping the row, not the evidence",
-                   lambda r, s: (_w(r / idx, SMOKE_TITLE
-                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))),
-                                 _w(r / D / "evidence/smoke-second/INDEX.md",
-                                    SMOKE_TITLE
-                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))
-                                    + "| rest | ⛔ **NOT RUN** |\n")),
+                   "⛔ ONE index double-claiming its own rows — enough PASS marks, rows still "
+                   "NOT RUN. The arithmetic flipping the row, not the evidence.",
+                   lambda r, s: _w(r / idx, SMOKE_TITLE
+                                   + "".join("| n | ✅ **PASS** |\n"
+                                             for _ in range(fp.SMOKE_ROWS_TOTAL))
+                                   + "| rest | ⛔ **NOT RUN** |\n"),
                    says="double-counted"))
+    # ── R50 (D-15): the LATEST index is scored; earlier ones are history ──────────────────
+    # ⚰️ THE CASE THIS REPLACES asserted that PASS marks SUMMED across two indexes. That was the
+    # defect: a FAIL recorded on 2026-09-14 held the row red forever however clean a later run
+    # was, and two partial runs could sum their way toward MET. Cross-index double counting is
+    # now impossible BY CONSTRUCTION — one index is scored — so the old case could not fail for
+    # its stated reason any more, and a case that cannot fail for its reason is not a case.
+    cs.append(Case("smoke", PASS_PLANTED, MET,
+                   "⛔⛔ R50: a clean LATEST index beside an OLDER one carrying a FAIL — scored "
+                   "by the latest, with the old FAIL named in the text, never summed into it",
+                   lambda r, s: (_w(r / idx, SMOKE_TITLE
+                                    + "".join(f"| {i} | ✅ **PASS** |\n"
+                                              for i in range(1, fp.SMOKE_ROWS_TOTAL + 1))),
+                                 _w(r / D / "evidence/smoke-zz-older/INDEX.md",
+                                    SMOKE_TITLE_OLD
+                                    + "| 1 | 🔴 **FAIL** |\n")),
+                   says="prior: 2026-09-14"))
+    cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
+                   "⛔ R50 the other way: the LATEST index carries the FAIL, so the row is red "
+                   "however clean the older run was",
+                   lambda r, s: (_w(r / idx, SMOKE_TITLE
+                                    + "".join(f"| {i} | ✅ **PASS** |\n"
+                                              for i in range(1, fp.SMOKE_ROWS_TOTAL))
+                                    + "| 15 | 🔴 **FAIL** |\n"),
+                                 _w(r / D / "evidence/smoke-zz-older/INDEX.md",
+                                    SMOKE_TITLE_OLD
+                                    + "".join(f"| {i} | ✅ **PASS** |\n"
+                                              for i in range(1, fp.SMOKE_ROWS_TOTAL + 1)))),
+                   says="FAIL mark"))
+    cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
+                   "⛔ R50: an index that names NO COMMIT is rejected — a smoke result that "
+                   "cannot be attached to a build is not a result",
+                   lambda r, s: _w(r / idx,
+                                   "# 3.5 — the real-Discord smoke (sandbox), run 2026-09-17\n\n"
+                                   + "".join(f"| {i} | ✅ **PASS** |\n"
+                                             for i in range(1, fp.SMOKE_ROWS_TOTAL + 1))),
+                   says="declares no commit SHA"))
+    cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
+                   "⛔ R50: an index that names no RUN DATE is rejected — without one 'latest' "
+                   "can only be decided by filename, which is a guess",
+                   lambda r, s: _w(r / idx,
+                                   "# 3.5 — the real-Discord smoke (sandbox)\n\n"
+                                   "Running web commit: `beace00e0024`.\n\n"
+                                   + "".join(f"| {i} | ✅ **PASS** |\n"
+                                             for i in range(1, fp.SMOKE_ROWS_TOTAL + 1))),
+                   says="declares no run date"))
+    cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
+                   "⛔⛔ R50 NON-VACUITY FOR THE SELECTOR: the NEWER index sorts FIRST by path "
+                   "(`smoke-sandbox` < `smoke-zz-older`), so a scorer picking by filename order "
+                   "would score the OLDER clean one and read MET. Only the in-band date is right.",
+                   lambda r, s: (_w(r / idx, SMOKE_TITLE
+                                    + "".join(f"| {i} | ✅ **PASS** |\n"
+                                              for i in range(1, fp.SMOKE_ROWS_TOTAL))
+                                    + "| 15 | 🔴 **FAIL** |\n"),
+                                 _w(r / D / "evidence/smoke-zz-older/INDEX.md",
+                                    SMOKE_TITLE_OLD
+                                    + "".join(f"| {i} | ✅ **PASS** |\n"
+                                              for i in range(1, fp.SMOKE_ROWS_TOTAL + 1)))),
+                   says="latest 2026-09-17"))
     cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
                    "an INDEX that marks nothing — prose is not a result",
                    lambda r, s: _w(r / idx, SMOKE_TITLE

@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  VERTICAL-SCALE HARNESS — "does panning still pinch the chart?"
+
+  Mounts the REAL StockChart against the REAL lightweight-charts renderer, on
+  DETERMINISTIC synthetic bars, so a browser pass can do the one thing the unit
+  suites cannot: perform the actual physical gestures — a drag on the right price
+  scale, then twenty pans and wheel-zooms — and read the resulting geometry back
+  off the renderer rather than off a model of it.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE. The same three locks `pane-harness.html`
+  documents, for the same reason (this machine holds the frozen Main Trading row):
+
+    1. `settingsOverride` carries the whole isolated blob.
+    2. `onSettingsPersist` intercepts EVERY settings write before it can reach
+       `setPref`, and routes it into page state.
+    3. `window.fetch` is wrapped and REFUSES any non-GET to
+       `/api/auth/preferences` outright, logging it in red. Lock 3 does not trust
+       locks 1 and 2 — it is what makes "cannot" a fact rather than a claim.
+
+  ⛔ AND IT NEEDS NO BACKEND. The bars are generated here, seeded, so the run is
+  byte-reproducible and the page works with nothing listening on :8000.
+
+  Dev-server only. `vite build` takes `index.html` as its single input (no
+  `rollupOptions.input` override in vite.config.js), so this entry never ships —
+  the arrangement `pane-harness.html`, `device-harness.html` and `floor2.html`
+  already rely on.
+
+  Run:  npx vite --port 5182     (from app/)
+  Then: http://localhost:5182/vscale-harness.html
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>vertical-scale harness</title>
+    <style>
+      html, body {
+        margin: 0; background: #101216; color: #e6e8ec;
+        font: 12.5px/1.45 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+      }
+      #root { padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/vscale/vscaleHarness.jsx"></script>
+  </body>
+</html>

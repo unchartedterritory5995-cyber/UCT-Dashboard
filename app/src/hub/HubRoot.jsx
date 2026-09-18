@@ -29,10 +29,11 @@ import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
 import { validateConfirmPayload } from './contracts'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
+import HubReportButton from './HubReportButton'
 import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
-import { modesById, fanFor, isPreviewMode } from './registry'
+import { modesById, fanFor, isPreviewMode, setHubSurface } from './registry'
 // ⛔ THE STYLESHEET, FOR ONE CLASS ONLY. `HubRoot` paints nothing itself — every visual piece is a
 // child component with its own styles — but it OWNS the element `escalateCue` flashes when the
 // device cannot vibrate, so it is the one place that can hand both doors the same hashed class
@@ -119,10 +120,23 @@ function HubShell({ setToastMsg }) {
 
 
   const mirrored = settings.handedness === 'left'
-  // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
-  // an unwired action is ABSENT rather than present-and-inert — no "Phase 3" toast on a
-  // deliberate gesture. `fanFor` is a view over the registry; Phase 3 flips `PREVIEW` and every
-  // full fan returns untouched. See registry.js.
+
+  // ⛔⛔ SELECT THE SURFACE IN THE RENDER BODY, ON THE LINE ABOVE THE PROJECTION — not in an
+  // effect. `surfaceMode` is module state that `fanFor` reads, and an effect runs AFTER the
+  // render that already called `fanFor`, so the first frame after a switch would draw the old
+  // surface. That frame is not cosmetic: line 377 below hands the SAME projection to the gesture
+  // engine, and this hub has already shipped a defect where the drawn list and the resolved list
+  // disagreed (`fanResolutionParity.test.js` — three of Home's seven bubbles navigated somewhere
+  // other than their own label, live in production since Increment 2).
+  //
+  // ⭐ It is safe in a render body precisely because it is IDEMPOTENT and DERIVED: same settings
+  // in, same module state out, no subscription, nothing else reads it between these two lines.
+  // React's double-invoked render under StrictMode calls it twice to the same value.
+  setHubSurface(settings.surface)
+
+  // ⛔ THE PROJECTION, not `mode.fan`. It composes TWO answers: the preview ("may this ship at
+  // all") and R4's strong cut ("does this earn a bubble"). An unwired or uncut action is ABSENT
+  // rather than present-and-inert — no "Phase 3" toast on a deliberate gesture. See registry.js.
   const fan = fanFor(activeModeConfig)
 
   // The context object every mode's onTap/onDoubleTap/onScrub/onScrubCommit is
@@ -698,7 +712,7 @@ function HubToastHost({ msg, mirrored }) {
  */
 export default function HubRoot() {
   const eligible = useHubEligible()
-  const { settings } = useHubSettings()
+  const { settings, isAdmin } = useHubSettings()
   const sessionOverride = useHubSessionOverride()
   const [toastMsg, setToastMsg] = useJournalToast()
 
@@ -755,6 +769,12 @@ export default function HubRoot() {
           onRestore={() => { showForSession(); setToastMsg(restoreToast(persistent)) }}
         />
       )}
+      {/* ⛔ W2 / R2 — ADMIN ONLY, and a SIBLING of both branches above so it is reachable in
+          one tap whether the hub is showing or hidden behind the edge tab. It is deliberately NOT
+          inside HubShell: the fan is the thing under test and a Report control inside it would
+          compete for the very real estate the owner says is overcrowded, and would be unreachable
+          in the state where reporting matters most. */}
+      {isAdmin ? <HubReportButton onFiled={setToastMsg} /> : null}
       <HubToastHost msg={toastMsg} mirrored={mirrored} />
     </>
   )

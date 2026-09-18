@@ -79,7 +79,7 @@ import sqlite3
 import time
 from datetime import date, timedelta
 
-from api.services.screener import candle_catalog, snapshot_db, technicals
+from api.services.screener import candle_catalog, contention_trace_temp, snapshot_db, technicals
 
 log = logging.getLogger(__name__)
 
@@ -747,7 +747,32 @@ def _blank_receipt(**over) -> dict:
         "feed_blackout": False,
         "lock_wait_ms": 0.0,
         "held_lock_ms": 0.0,
+        # ⭐ R62 (D-17): the market fetch is now OUTSIDE the lock, so its cost has to stay
+        # visible somewhere or the fix would look like the work vanished. `held_lock_ms` should
+        # fall to the documented order of magnitude and `snapshot_ms` should carry what moved.
+        # ⛔ Declared HERE, in the template, not written only on the path that measures it —
+        # `test_every_cycle_returns_the_same_key_set` exists because a receipt whose key set
+        # varies by path cannot be compared across cycles, and it caught exactly that.
+        "snapshot_ms": 0.0,
         "duration_ms": 0.0,
+        # R72 (D-21): the three SQLite touches inside `_sweep_locked`, timed
+        # separately, each split into busy-wait (retrying because someone else
+        # held the write lock) vs statement (the query itself actually
+        # running). `set_busy_handler` is unavailable on this Python's sqlite3
+        # build, so `_timed_touch` implements the retry itself (busy_timeout=0
+        # on the connection) rather than relying on SQLite's own C-level
+        # retry loop, which would hide exactly the split this exists to show.
+        "sqlite_anchor_read_ms": 0.0,
+        "sqlite_anchor_read_busy_wait_ms": 0.0,
+        "sqlite_upsert_ms": 0.0,
+        "sqlite_upsert_busy_wait_ms": 0.0,
+        "sqlite_prune_ms": 0.0,
+        "sqlite_prune_busy_wait_ms": 0.0,
+        # Reused from `contention_trace_temp.py` (never reimplemented) so a
+        # slow cycle's receipt names what else was running and whether the
+        # WAL sidecar was mid-checkpoint at that instant.
+        "active_jobs_at_sweep": "not_captured",
+        "wal_state_at_sweep": "",
     }
     r.update(over)
     return r
@@ -822,6 +847,24 @@ def run_sweep() -> dict:
     # `POST /api/screener/refresh` landing inside a sweep, which already answers
     # `already_in_flight` honestly and is retryable. `held_lock_ms` is on EVERY
     # receipt so this stays a measurement rather than a claim.
+    # ⛔⛔ R62 (D-17) — THE MARKET FETCH HAPPENS BEFORE THE LOCK, AND THE COMMENT ABOVE IS WHY.
+    # ⚰️ `full_market_snapshot()` used to run INSIDE the lock (in `_sweep_locked`). It is a
+    # ~13,000-symbol network read behind a 30 s cache, and the sweep's cadence is 60 s, so
+    # essentially every cycle paid a cold fetch WHILE HOLDING `_BUILD_LOCK`. Measured on
+    # production 2026-09-17, n=16 receipts: `held_lock_ms` **28,155-96,658 ms**, median ~56 s —
+    # against the 122 ms median the comment above promises, up to **790x**, a ~94% duty cycle
+    # rather than ~0.2%, and three-plus cycles overrunning their own interval (APScheduler logged
+    # "skipped: maximum number of running instances reached (1)").
+    # ⭐ THE LOCK'S INVARIANT IS ABOUT THE ANCHORS, NOT THE MARKET. It exists so the 03:00 rows
+    # are not read while the builder rewrites them; a quote feed has nothing to do with that. So
+    # the fetch moves out and the lock now covers only `_read_anchor_rows` + derive + write.
+    # ⚠️ NOT A C-02 FIX. The join (16 sweep windows vs 20 loop stalls >= 3 s: 1 inside, 19
+    # outside) refuted the sweep as a loop-stall cause, and a network fetch releases the GIL
+    # anyway. This is a lock-contention defect with a one-line fix, shipped on its own merits.
+    t_snap = time.time()
+    snap = scan_volume.full_market_snapshot() or {}
+    receipt["snapshot_ms"] = round((time.time() - t_snap) * 1000, 2)
+
     t_lock = time.time()
     if not snapshot_builder._BUILD_LOCK.acquire(blocking=False):
         receipt["skipped_reason"] = "build_in_flight"
@@ -834,7 +877,7 @@ def run_sweep() -> dict:
     # and `held_lock_ms` in exactly the same state, with one release site.
     t_held = time.time()
     try:
-        _sweep_locked(receipt, ymd, scan_volume)
+        _sweep_locked(receipt, ymd, scan_volume, snap)
     except sqlite3.OperationalError:
         # The one thing a once-per-process DDL flag can get wrong: the file it
         # was true of is gone (a wiped volume, a fresh mount, a test swapping
@@ -865,12 +908,19 @@ def _forget_schema() -> None:
     _SCHEMA_READY.discard(snapshot_db.get_db_path())
 
 
-def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
+def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict) -> None:
     """The derivation and the write, both UNDER the build lock — the anchors
-    must be read from a snapshot that is not being rewritten underneath us."""
-    rows = _read_anchor_rows()
+    must be read from a snapshot that is not being rewritten underneath us.
+
+    ⛔ R62 (D-17): `snap` is FETCHED BY THE CALLER, BEFORE THE LOCK, and handed in. It is a
+    ~13,000-symbol network read and has nothing to do with the anchors this lock protects.
+    Holding the lock across it is what made `held_lock_ms` ~56 s (n=16, 28,155-96,658 ms)
+    against the 122 ms this module's own comment documents."""
+    rows, receipt["sqlite_anchor_read_ms"], receipt["sqlite_anchor_read_busy_wait_ms"] = (
+        _timed_touch(_read_anchor_rows))
+    receipt["active_jobs_at_sweep"] = contention_trace_temp._active_jobs_snapshot()
+    receipt["wal_state_at_sweep"] = contention_trace_temp._wal_state()
     receipt["rows_considered"] = len(rows)
-    snap = scan_volume.full_market_snapshot() or {}
     receipt["feed_symbols"] = len(snap)
 
     # Pass 1 — ONE reason per symbol, so `considered == written + Σskipped`
@@ -911,8 +961,11 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume) -> None:
         out_rows.append(derived)
 
     receipt["as_of"] = as_of
-    receipt["rows_written"] = snapshot_db.upsert_live_rows(out_rows)
-    snapshot_db.prune_live_rows(ymd)
+    (receipt["rows_written"], receipt["sqlite_upsert_ms"],
+     receipt["sqlite_upsert_busy_wait_ms"]) = _timed_touch(
+        snapshot_db.upsert_live_rows, out_rows)
+    (_, receipt["sqlite_prune_ms"], receipt["sqlite_prune_busy_wait_ms"]) = (
+        _timed_touch(snapshot_db.prune_live_rows, ymd))
 
     # ⭐ THE DISCLOSURE IS MEASURED HERE, from the same pass that wrote the
     # rows — never declared, never a second count. A column no written row
@@ -954,13 +1007,74 @@ def _finish(receipt: dict, t0: float) -> dict:
     return receipt
 
 
-def _read_anchor_rows() -> list[dict]:
+def _read_anchor_rows(*, busy_timeout_ms: int = 5000) -> list[dict]:
     """The anchors for every row, in ONE query, read from a snapshot that is
-    not being rewritten underneath us (we hold the build lock)."""
+    not being rewritten underneath us (we hold the build lock).
+
+    ``busy_timeout_ms`` — see ``snapshot_db.connect``; R72's instrumented
+    sweep passes 0 so it can time the busy-wait itself.
+    """
     cols = ", ".join(f'"{c}"' for c in READ_COLUMNS)
-    with snapshot_db.connect() as conn:
+    with snapshot_db.connect(busy_timeout_ms=busy_timeout_ms) as conn:
         return [dict(r) for r in
                 conn.execute(f"SELECT {cols} FROM screener_rows")]
+
+
+# --------------------------------------------------------------------------- #
+# R72 (D-21): per-touch SQLite timing, busy-wait split from statement time
+# --------------------------------------------------------------------------- #
+#
+# `sqlite3.Connection.set_busy_handler` — the historically-standard way to
+# observe "how long did the busy-retry loop run, separately from the query" —
+# is CONFIRMED REMOVED on this box's Python (3.14 / sqlite3 3.50.4;
+# `hasattr(conn, "set_busy_handler")` is False). So this is our own retry
+# loop, run with `busy_timeout_ms=0` on the connection (SQLite raises
+# immediately on contention instead of blocking internally), which is the
+# only way left to attribute delay to "waiting for the lock" versus "running
+# the statement" as two separately-timed things rather than one blended
+# number.
+#
+# ⛔ It preserves the PRIOR behaviour under contention, not just the timing:
+# total wait is capped at `_TOUCH_MAX_WAIT_MS` (5000, matching the
+# `busy_timeout=5000` every other caller still gets), and a touch that never
+# clears within that budget raises the same `sqlite3.OperationalError` a
+# blocked default-`busy_timeout` call would have — callers of `_sweep_locked`
+# already handle that (see `run_sweep`'s `except sqlite3.OperationalError`).
+_TOUCH_MAX_WAIT_MS = 5000
+_TOUCH_RETRY_SLEEP_S = 0.02  # 20ms — fine enough to resolve a ~100ms contender
+
+
+def _timed_touch(fn, *args, **kwargs) -> tuple:
+    """Call ``fn(*args, busy_timeout_ms=0, **kwargs)``, retrying on
+    "database is locked" until it succeeds or ``_TOUCH_MAX_WAIT_MS`` is
+    spent waiting. Returns ``(result, statement_ms, busy_wait_ms)`` —
+    ``statement_ms`` is ONLY the final, successful attempt's own elapsed
+    time; every earlier failed attempt plus the sleep between attempts is
+    ``busy_wait_ms``. The two never share a millisecond.
+
+    Mutation-proved 2026-09-18: summing everything into one timer (the shape
+    of bug this exists to catch) reds
+    ``test_busy_wait_absorbs_a_held_write_lock_never_the_statement_timer``
+    and ``test_a_touch_that_never_clears_still_raises_database_is_locked`` in
+    ``tests/test_r72_sqlite_touch_timing.py`` — the other two cases have no
+    contention to detect, correctly.
+    """
+    busy_wait_ms = 0.0
+    while True:
+        t0 = time.perf_counter()
+        try:
+            result = fn(*args, busy_timeout_ms=0, **kwargs)
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower():
+                raise
+            busy_wait_ms += (time.perf_counter() - t0) * 1000
+            if busy_wait_ms >= _TOUCH_MAX_WAIT_MS:
+                raise
+            time.sleep(_TOUCH_RETRY_SLEEP_S)
+            busy_wait_ms += _TOUCH_RETRY_SLEEP_S * 1000
+            continue
+        statement_ms = (time.perf_counter() - t0) * 1000
+        return result, round(statement_ms, 3), round(busy_wait_ms, 3)
 
 
 #: The last receipt, for `GET /api/screener/live-status` (spec §8.3) — the

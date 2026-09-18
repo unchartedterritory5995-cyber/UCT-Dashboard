@@ -111,15 +111,54 @@ DAILY_CAP = int(os.environ.get("BREADTH_SAMPLER_CAP", "60"))
 #: mixing two configurations and the disagreement must be visible in the row rather
 #: than reasoned about afterwards.
 FLAG_DECLARED = os.environ.get("BREADTH_SAMPLER_FLAG_DECLARED", "unknown")
-#: The phase the resident-recon reader adds. Its presence in a sample's timing is the
-#: pod telling us which reader served the request.
+#: The scalar the resident reader notes. ⚰️ IT IS NEVER PUBLISHED, SO IT CANNOT BE THE
+#: DISCRIMINATOR — see below. Kept because it costs nothing and becomes the cheapest
+#: signal the day `server_timing()` learns to emit it.
 RESIDENT_PHASE = "rf_resident"
+
+#: ⛔ THE REAL DISCRIMINATOR IS THE PHASE SET, NOT A FLAG KEY.
+#:
+#: ⚰️ 2026-09-17: `flag_observed` was derived from `rf_resident` being present in a
+#: sample's timing, and `rf_resident` IS NOT PUBLISHED. `breadth_daily_ohlc.py` notes it
+#: correctly on every branch (1 on the resident path, 0 on the SQLite path), but
+#: `breadth_timing.server_timing()` writes a HARD-CODED list of scalars — rf_rows,
+#: rf_bytes, rf_busy_retries, rf_stmts, rf_stmt_min/max/sum, rf_pagecache,
+#: rf_conn_reused — and `rf_resident` is not in it. `rf_pagecache` IS, because the
+#: page-cache flag's author added it there; the resident flag's author added the note
+#: and not the publish.
+#:
+#: ⭐ SO THIS FUNCTION COULD ONLY EVER RETURN "off", FOR EVERY ROW EVER SAMPLED, WHATEVER
+#: THE FLAG WAS SET TO. It was not measuring the reader; it was measuring its own
+#: allowlist — and it said "off" with total confidence on a pod that was demonstrably
+#: running the resident reader. Every `flag_observed` value in the pool before this fix
+#: is VACUOUS and must not be read as evidence of a flag state.
+#:
+#: The two readers are distinguishable by what they DO, which is published:
+#:   SQLite path   -> rf_open, rf_pragma, rf_execute, rf_fetch, rf_conn_reused
+#:   resident path -> none of those; rf_materialise only (it parses held JSON strings)
+#: Absence of the fetch phases is therefore the positive evidence for the resident
+#: reader, and it is a property of the request rather than of the header's allowlist.
+FETCH_PHASES = ("rf_open", "rf_pragma", "rf_execute", "rf_fetch", "rf_conn_reused")
 
 
 def flag_evidence(timing: dict) -> dict:
-    """Per-row flag evidence: what we declared, and what the pod's phases show."""
+    """Per-row flag evidence: what we declared, and which reader the pod actually ran.
+
+    ⛔ Three outcomes, never two. "unknown" is a real answer and must stay distinct
+    from "off": a read that published no phases at all tells us nothing about the
+    reader, and collapsing it into "off" is how an unreadable instrument becomes a
+    confident measurement."""
     keys = sorted(k for k in (timing or {}) if isinstance(k, str))
-    observed = "on" if RESIDENT_PHASE in keys else ("off" if keys else "unknown")
+    if not keys:
+        observed = "unknown"
+    elif RESIDENT_PHASE in keys:
+        observed = "on"                      # published one day; free to honour now
+    elif any(p in keys for p in FETCH_PHASES):
+        observed = "off"                     # it opened a connection and fetched
+    elif "rf_materialise" in keys:
+        observed = "on"                      # materialised without ever fetching
+    else:
+        observed = "unknown"                 # neither signature — do not guess
     return {"flag_declared": FLAG_DECLARED,
             "flag_observed": observed,
             "flag_agrees": (FLAG_DECLARED in ("unknown", observed)),
@@ -133,6 +172,53 @@ WARM_EVERY = 10
 #: Distinct span per sample so every read is a forced cache miss. Walks downward.
 SPAN_HI = 7300
 SPAN_LO = 6400
+#: How many recent pool rows a fresh process must avoid colliding with.
+SPAN_RECENT_WINDOW = 40
+
+
+def recent_spans(path=None, window: int = SPAN_RECENT_WINDOW) -> list[int]:
+    """Spans used by the last `window` rows already in the pool."""
+    p = pathlib.Path(path) if path else LOG_PATH
+    if not p.exists():
+        return []
+    out = []
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines()[-window:]:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            v = json.loads(line).get("span")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(v, int):
+            out.append(v)
+    return out
+
+
+def seed_span(used) -> int:
+    """The span THIS PROCESS's first sample will use.
+
+    ⚰️ WITHOUT THIS, EVERY `--once` RUN USED 7299. The walk (`span - 1` each iteration)
+    keeps spans distinct WITHIN a run, and the seed was the constant `SPAN_HI` — so a
+    fresh process always started at the same place. Four consecutive one-shots on
+    2026-09-17 therefore re-read a span the previous one had just warmed, and three of
+    the four came back as CACHE HITS banked as `kind=deep_cold` with `reader` phase 0.0
+    — 69-168 ms against a ~300 ms population. Two such rows from an earlier session were
+    already in a published pool and are why its reported minimum was 70.2 ms.
+
+    ⭐ THE FILTER IN breadth_pool_report WAS THE SYMPTOM FIX. `reader_ran()` drops these
+    rows so they cannot pollute a result, and that is worth having as a backstop — but a
+    sampler that reliably produces unusable rows is still a broken sampler, and a
+    downstream filter would have quietly hidden that forever. Fix the cause too.
+
+    ⛔ Falls back to SPAN_HI only when EVERY span in the range is recently used, which
+    cannot happen while the window (40) is smaller than the range (901). The fallback is
+    a correct-by-construction dead branch, not a silent degradation."""
+    used = set(used)
+    for s in range(SPAN_HI, SPAN_LO - 1, -1):
+        if s not in used:
+            return s
+    return SPAN_HI
 
 
 # ── decisions: pure functions, so the rails can feed them fake inputs ────────
@@ -293,7 +379,8 @@ def main() -> int:
     sha_cache = {"sha": None, "uptime": None, "at": 0.0}
     want = args.dry_run or (1 if args.once else 10 ** 9)
     taken = 0
-    span = SPAN_HI
+    # None => the first sample seeds from the POOL, not from a constant. See seed_span.
+    span = None
 
     while taken < want:
         et = et_now()
@@ -327,7 +414,8 @@ def main() -> int:
         if op is None:
             op = login()
 
-        span = span - 1 if span > SPAN_LO else SPAN_HI
+        span = (seed_span(recent_spans()) if span is None
+                else (span - 1 if span > SPAN_LO else SPAN_HI))
         s = take_sample(op, span, "deep_cold")
         row = {"ts_utc": datetime.datetime.now(datetime.timezone.utc)
                           .strftime("%Y-%m-%dT%H:%M:%SZ"),

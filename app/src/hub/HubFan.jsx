@@ -160,6 +160,7 @@ export default function HubFan({ actions = [], mirrored = false, open = false, s
             key={action.id}
             data-testid={`hub-bubble-${action.id}`}
             data-action-id={action.id}
+            data-action-kind={action.kind}
             data-icon={action.icon}
             // ⛔ aria-disabled, NEVER the native `disabled` attribute (spec C2): a natively
             // disabled control can be skipped entirely by VoiceOver's touch sweep, which would

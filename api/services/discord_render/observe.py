@@ -35,10 +35,46 @@ STUCK_AFTER_S = 60
 RENDERER_MISSES_TO_ALERT = 2
 #: One blocked second is a third of the whole 3 s acknowledgement budget (§3.9, C-02).
 LOOP_STALL_ALERT_MS = 1000.0
+#: R34 tier 1 — a stall this large pages at ANY uptime.
+#: ⛔ NOT a backstop above the boot range. The largest stall measured to date, 80,249 ms,
+#: occurred on a SETTLED pod, and a 20,446 ms one on 2026-09-15 at uptime 670-893 s — both
+#: BELOW the tier-2 floor. Tier 1 is the working path for that class.
+#:
+#: ⭐⭐ R51 (owner ruling, D-15, 2026-09-17): THIS IS THE DISCORD ACK BUDGET, 3,000 ms.
+#: Discord closes an interaction at 3 s, so ANY block at or past 3 s is a CERTAIN
+#: member-visible failure — not a risk of one — and pages regardless of uptime. It was
+#: 5,000 ms, and the gap was measured: a 3,572.1 ms block at uptime 281 s on 2026-09-17
+#: scored tier=null, paged nobody, and would have killed an ack. A threshold above the
+#: budget cannot page for the failure it exists to catch.
+#:
+#: ⛔⛔ R35 STILL STANDS, AND THIS DOES NOT BEND IT. R35 forbids RAISING a threshold to
+#: quiet a symptom; this LOWERS one to hear more. The two directions are not symmetric:
+#: lowering costs noise and buys signal, raising buys silence and costs the defect. Raising
+#: this number remains permitted only in a directive that cites the fix which removed the
+#: cause (OI-44 / R52).
+LOOP_STALL_PAGE_ALWAYS_MS = 3000.0
+#: R34 tier 2 — below this uptime, a >= LOOP_STALL_ALERT_MS stall is recorded and counted but
+#: never paged. Q6's startup verdict, operationalised: the last >= 1 s startup-class event
+#: observed on a settled pod was at minute 12.9.
+LOOP_STALL_PAGE_UPTIME_FLOOR_S = 900.0
+#: Per-key page cooldown. ⛔ Held on the VOLUME, not in memory: `chart_health_alerts`' own
+#: `_discord_last` is per-process and this pod restarts ~20x/day, so an in-memory cooldown
+#: cannot suppress anything across pods.
+LOOP_STALL_PAGE_COOLDOWN_S = 1800.0
 LOOP_NOISE_MS = 50.0
 
 _SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
-_FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key")
+_FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key", "itype")
+
+#: Discord's interaction types, as the API defines them. R54 (D-15): the ack emitter records
+#: this IN-BAND so a reader can tell a COMMAND from an autocomplete round-trip.
+#: ⚰️ MEASURED 2026-09-17: a `drender` ack for `cmd:"flow"` was emitted at 13:54:16Z, six
+#: minutes before any `/flow` was sent and with no message in the channel — the ticker
+#: autocomplete, which this app answers because the choices are dynamic. Every ack in that
+#: stream looked like a command arrival, so any rate or latency figure taken over
+#: `evt:"ack", cmd:"flow"` counted autocompletes as commands and pulled latency DOWN
+#: (22.9 ms and 12.1 ms are indistinguishable once the type is gone).
+ITYPE_PING, ITYPE_COMMAND, ITYPE_COMPONENT, ITYPE_AUTOCOMPLETE, ITYPE_MODAL = 1, 2, 3, 4, 5
 ALERT_WEBHOOK_ENV = "DISCORD_RENDER_ALERT_WEBHOOK"
 
 
@@ -58,6 +94,20 @@ def event(evt: str, **fields) -> dict:
             payload[k] = round(v, 1) if isinstance(v, float) else scrub(v)
     log.info("%s %s", EVENT_TOKEN, json.dumps(payload, separators=(",", ":"), default=str))
     return payload
+
+
+def is_command_arrival(ev: dict) -> bool:
+    """⛔ THE FILTER EVERY RATE OR LATENCY READING OVER ACK EVENTS MUST APPLY (R54).
+
+    True only for a real slash-command arrival. An autocomplete round-trip is an ack too, and
+    counting one as a command inflates arrival rates and deflates latency.
+
+    ⛔ UNKNOWN IS NOT A COMMAND. An event with no `itype` predates R54 or came from a path that
+    does not record it, and answering True there would quietly restore the contamination for
+    every historical line — which is the whole population an arrival census reads. A caller that
+    genuinely wants "everything" should say so explicitly rather than rely on this returning True
+    for an absence."""
+    return ev.get("itype") == ITYPE_COMMAND
 
 
 @contextmanager
@@ -254,6 +304,30 @@ def _live_loop() -> dict:
         return {}
 
 
+def _live_token_slots() -> dict:
+    """Which render-token slot senders are presenting (R29) — the evidence OI-13 step 6 waits on.
+
+    ⛔ Slot names and counts only. Never a value, a length, or a hash of one (C-13)."""
+    try:
+        from api.services.discord_render import token_slots
+        return token_slots.snapshot()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _live_stall_record() -> dict:
+    """The DURABLE stall record (R30), beside the trailing window — never instead of it.
+
+    ⛔ The window answers "is the loop stalling right now"; the record answers "how often, how
+    big, and when" across a pod's whole life and across pods, which the window structurally
+    cannot (it forgets everything older than ~5 min, and this pod restarts ~20x/day)."""
+    try:
+        from api.services.discord_render import stall_record
+        return stall_record.snapshot()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _live_breakers() -> dict:
     """The breakers this process holds. ⭐ ONE source for both the push and the pull, so an
     operator reading /renderhealth cannot see something the alert disagrees with."""
@@ -271,6 +345,8 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
     so `alerts` here is exactly what the observer would page on."""
     snap = slo_snapshot(store, now=now)
     snap["loop"] = _live_loop()
+    snap["stall_record"] = _live_stall_record()
+    snap["token_slots"] = _live_token_slots()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
     # ⛔⛔ THE CANARY SCOPE, READ OUT OF THE RUNNING PROCESS (A3).
@@ -290,6 +366,18 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
         "queue": runtime.depth() if runtime is not None else None,
         "renderer": renderer,
         "slo": snap,
+        # ⛔⛔ MIRRORED FROM `snap`, NEVER RECOMPUTED — one reading, two views. `evaluate_alerts`
+        # consumes the copy inside `slo`; every human and every instrument reads the TOP level,
+        # because that is where the no-jobs-database branch of `render_health` puts them.
+        # ⚰️ Until 2026-09-17 the two branches disagreed about the SHAPE, and that is what made
+        # OI-47 hard to see rather than merely wrong: on a production pod (no jobs database)
+        # `d.get("loop")` answers, and `d.get("stall_record")` answers nothing; the day V2 is
+        # enabled and a jobs database exists, `d.get("loop")` would START answering None and
+        # every poller reading the top level would go quietly blind — a LATENT failure armed to
+        # fire on exactly the deploy nobody wants surprises on.
+        "loop": snap["loop"],
+        "stall_record": snap["stall_record"],
+        "token_slots": snap["token_slots"],
         "breakers": breakers if breakers is not None else _live_breakers(),
         "alerts": [k for k, _ in evaluate_alerts(
             snap, renderer_misses=renderer_misses,
@@ -405,6 +493,8 @@ class Observer:
         webhook = self.webhook_fn()
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
         snap["loop"] = _live_loop()
+        snap["stall_record"] = _live_stall_record()
+        snap["token_slots"] = _live_token_slots()
         for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
                                         breakers=_live_breakers()):
             out["breached"].append(key)

@@ -1512,3 +1512,115 @@ never auto-published, never Substack — any build must keep that. |
 `extract.run_weekly_audit` → `extract.run_audit`, the implementation `RUNBOOK.md` and
 `CONTRACTS.md` both specify. The difference between the two cases is exactly what the rail now
 enforces.
+
+---
+
+## 2026-09-17 (Thu) 18:47 ET — the first INGEST night with SOURCES lit
+
+**State at arming (13:37Z):** `WISDOM_INGEST_ENABLED=1`, `WISDOM_SOURCES_INGEST_ENABLED=1`,
+everything else False including all three member doors. Production serves `3648792d5`, so R64
+(force never spends), R65 (night rationing) and R66 (honest outcomes) are live. The golden gate
+is OPEN: `wisdom_eval_runs = 1`, `gate_status.accepted = True` for `wx-v0-fc47bc97` /
+`claude-opus-5` / `high`. **EXTRACT is DARK, so tonight cannot spend.**
+
+### What to expect
+
+| step | expected |
+|---|---|
+| `capture` | `ok` — it is not gated by `WISDOM_CAPTURE_ENABLED` (the chain step is `gate=None`); ~175 s writing dataset objects to R2 |
+| `sources` | **`ok` AND ACTUALLY TRUE FOR THE FIRST TIME** — transcripts ingest runs; `discord` sub-stream still skipped, so under R66 this should read **partial:** naming discord |
+| `extract` | `skipped — WISDOM_EXTRACT_ENABLED is off` |
+| `evals` | **`skipped`** now, naming all four sub-steps (R66; it used to read `ok`) |
+| `reconcile_stability` | `skipped — only 0 persisted run(s); need 3` |
+| everything else | unchanged from 09-16 |
+
+**Counts:** `wisdom_sources` and `wisdom_segments` go from **0** to whatever `transcripts.ingest_new`
+yields (it walks `edu_videos` newest-first, limit 500). `wisdom_records` stays **0** — records come
+from extraction, which is dark. `wisdom_extract_requests` stays **0**.
+
+### How to check (the log window is ~12 minutes; use the durable table)
+
+⛔ `railway logs` returns roughly a 500-line / 12-minute window and the pod redeploys often, so it
+**cannot** reach a run from the night before. Read the artifact instead:
+
+```
+GET /api/admin/wisdom/core/status                      # store_counts, flags, job heartbeats
+GET /api/admin/wisdom/core/runs?job_id=wisdom_daily_chain&limit=3   # the run row + every step
+```
+
+(admin session in the box's browser; both 401 unauthenticated.)
+
+### Verdict rule
+
+**HEALTHY** = the run row exists for due_key 2026-09-17 with `status: ok`, `sources` did work,
+`wisdom_segments > 0`, and nothing paged.
+**DEGRADED** = it ran but sources wrote nothing, or a step failed.
+**DID NOT RUN** = no run row (check the heartbeat: a skipped slot writes a beat and NO run row).
+
+### The one-line stop
+
+`railway variables --service web --unset WISDOM_SOURCES_INGEST_ENABLED` — ingest stops; anything
+already written persists. ⚠️ That same flag also arms **Sunday's** `run_weekly_sunday_scans`
+(`sources/__init__.py:72`), so unsetting it closes both.
+
+### Friday 2026-09-18 18:47 ET — NOT YET ARMED
+
+EXTRACT is armed only if tonight is HEALTHY. At `WISDOM_DAILY_SEGMENT_LIMIT=1200` and N=3 that is
+**400 segments / 1,200 requests**, ~**$70.41** at the measured mean and ~**$73.67** at p90, inside a
+$75 night line and an $1,800 programme total (~24 nights). ⛔ Those three variables are **not set**;
+setting them is Step G2 and it happens only after tonight's verdict.
+
+---
+
+## 2026-09-17 (Thu) 18:47 ET — EXTRACTION NIGHT 1
+
+**Armed 17:47Z.** `WISDOM_EXTRACT_ENABLED=1` (which also lights reap — same variable),
+programme 1800 / night 75 / throttle 1200, N=3 → **400 segments, 1,200 requests**. Serving
+`77dad414d`; R64/R65/R66/R67/R70 all ancestors of it. Gate `accepted: True`. Doors dark.
+
+⛔⛔ **THE CORPUS IS 26,454 SEGMENTS, NOT 9,733.** Measured after the ingest wrote 324 sources
+and 26,454 segments. The 9,733 figure came from `catalog-estimate-defaults.json`, a PC-side
+estimate nobody had re-measured against production. **Every plan built on it is out by 2.72×:**
+
+| | at 9,733 (assumed) | at 26,454 (measured) |
+|---|---|---|
+| corpus at N=3 | 29,199 req ≈ $1,713 | **79,362 req ≈ $4,656** mean / $4,872 p90 |
+| what $1,800 buys at N=3 | the whole corpus | **38.7%** (10,227 segments) |
+| nights at 400/night | ~24 | **66** |
+| corpus at N=1 | — | 26,454 req ≈ **$1,552** — fits the budget |
+
+⭐ So the programme budget is now a real constraint, not a formality: at N=3 it stops at just
+over a third of the corpus. That is a ruling for the owner (N=3 over part of it, or N=1 over
+all of it), and night 1 is deliberately unaffected either way — 400 segments is 1.5% of the
+corpus and buys the answers that decide it.
+
+### What tonight should produce
+
+| | expected |
+|---|---|
+| requests | 1,200 (3 passes × 400 segments), submitted as batches |
+| $ | ~$70.41 mean / ~$73.67 p90 **by the historical rate** — see the caveat below |
+| reap | cron :16/:46; batch results land minutes-to-hours later |
+| R70 | when ALL 3 passes are reaped, reconcile + floor fire **that night** |
+| `wisdom_records` | first production records, six types |
+| **`CALL` count** | ⭐ **> 0 is the test.** The local run produced CALL **0** of 826 — every one demoted by the sandbox's empty entity master. Production's has 32,651 entities. CALL = 0 tonight would mean the R42 diagnosis was still wrong |
+| floor | PUBLISH / BLOCK / ENQUEUE; queue rows appear |
+
+⚠️ **THE $ PROJECTION AND THE $ ACTUAL COME FROM DIFFERENT METHODS.** The ~$70 figure is the
+historical PC-side rate ($0.058671/segment-pass). Production prices each request from a REAL
+token count (`messages.count_tokens`, not billed) via `budget.estimate_cost(..., batch=True)`.
+A gap between them is a measurement-method artefact first and a rate change second.
+
+### The morning read
+
+```
+GET /api/admin/wisdom/core/status                                   # counts, flags, heartbeats
+GET /api/admin/wisdom/core/runs?job_id=wisdom_daily_chain&limit=2   # the run and its 12 steps
+GET /api/admin/wisdom/core/runs?job_id=wisdom_same_night_scoring    # R70 fired?
+```
+
+### The stop
+
+`railway variables --service web --set "WISDOM_EXTRACT_ENABLED=0"` — stops submission **and
+reaping** (same variable), so a mid-night stop strands in-flight batches you have already paid
+for. Passes already persisted survive. R74's five stop rules apply mechanically.

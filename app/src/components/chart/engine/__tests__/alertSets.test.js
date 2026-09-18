@@ -327,8 +327,33 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
   // investigating is the one thing you may not do. The investigation is above.
   // (Prior value: 65a5cb321ef40cb3021362d670dbbac195a7b255702460acd0099bcc66c08600)
+  // ⚰️ RE-PINNED 2026-09-17 — INVESTIGATED, and the diff is exactly one key.
+  //
+  // `paneSeriesOrder` joined `mergeChartSettings`' allow-list so a member's
+  // arrangement of the SERIES INSIDE a pane survives a reload (see
+  // `engine/paneSeriesOrder.js`). This is the THIRD key to need that — `paneOrder`
+  // and `paneSizes` are the other two — and it was found the same way: measured in
+  // the pane harness, where `save blob` → `reconstruct` put the canonical order
+  // straight back because a key absent from the allow-list is destroyed on read.
+  //
+  // ⛔ MEASURED BY ENUMERATION, NOT INFERRED FROM THE DIGEST MOVING. The merged
+  // blob was dumped key-by-key on this tree and on the tree with `chartDefaults.js`
+  // reverted, and the two dumps diffed:
+  //
+  //     1 ADDED LINE   `paneSeriesOrder = {}`
+  //     0 REMOVED LINES
+  //     0 CHANGED VALUES
+  //
+  // 42 merged keys before, 43 after. `{}` is "no preference": every read of it
+  // (`resolvePaneSeriesOrder`) returns the incoming order untouched, so no chart
+  // that exists renders one pixel differently — which is the §20 promise that a
+  // schema gaining a field must not churn a saved chart.
+  //
+  // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
+  // investigating is the one thing you may not do. The investigation is above.
+  // (Prior value: 7031577edd24fa97e31b76ad0db4a75dfd361f0d73739fa97df21d5b731ac8e4)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '7031577edd24fa97e31b76ad0db4a75dfd361f0d73739fa97df21d5b731ac8e4'
+    '8f9ffa0ab1e94e09751359907ded43c613dc340489dcdb1c50c64589e5c52066'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

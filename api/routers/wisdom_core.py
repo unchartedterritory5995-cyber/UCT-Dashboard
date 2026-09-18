@@ -81,6 +81,18 @@ def _floored_stability(conn) -> dict:
     return out
 
 
+def _records_pending(conn) -> dict:
+    """R79: the PENDING count, fresh — not whatever the last nightly `score_silently` saw.
+    ⚠️ Same defensive shape as `_row_counts`/`_floored_stability`: a status route must not 500
+    because this one query is unhappy."""
+    from api.services.wisdom.publish import floor
+
+    try:
+        return floor.records_pending_count(conn)
+    except sqlite3.Error:
+        return {"records_pending": None, "records_pending_by_type": {}}
+
+
 @router.get("/status")
 def wisdom_status(_admin: dict = Depends(require_admin)) -> dict:
     try:
@@ -90,6 +102,7 @@ def wisdom_status(_admin: dict = Depends(require_admin)) -> dict:
                 "SELECT name, applied_at FROM wisdom_migrations ORDER BY name")]
             counts = _row_counts(conn)
             floored = _floored_stability(conn)
+            pending = _records_pending(conn)
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail=f"wisdom.db unavailable: {exc}")
     jobs = []
@@ -112,6 +125,9 @@ def wisdom_status(_admin: dict = Depends(require_admin)) -> dict:
         # R45: what the store actually holds. Counts only — no text column is read.
         "store_counts": counts,
         "floored_stability": floored,
+        # R79: unmeasured floored records — never enqueued, only counted. See floor.status().
+        "records_pending": pending["records_pending"],
+        "records_pending_by_type": pending["records_pending_by_type"],
         "extractor_version": _extractor_version(),
     }
 

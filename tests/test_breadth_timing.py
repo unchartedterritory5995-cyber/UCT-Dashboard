@@ -34,6 +34,15 @@ def _app():
     def sibling():
         return {"ok": True}
 
+    @app.get("/api/breadth-monitor/series")
+    def series_route():
+        breadth_timing.begin(span="series")
+        t0 = time.perf_counter()
+        time.sleep(0.05)                       # stands in for get_history_deep
+        breadth_timing.note(reader_ms=(time.perf_counter() - t0) * 1000.0, rows=4703,
+                            cache="miss")
+        return {"sessions": 4703}
+
     app.add_middleware(breadth_timing.BreadthTimingMiddleware)
     return app
 
@@ -63,6 +72,16 @@ def test_a_sibling_admin_route_is_not_instrumented():
     c = TestClient(_app())
     assert "server-timing" in c.get("/api/breadth-monitor").headers
     assert "server-timing" not in c.get("/api/breadth-monitor/ohlc/status").headers
+
+
+def test_series_is_instrumented_too(monkeypatch):
+    """⛔⛔ DC-3 (2026-09-18). `/series` calls the SAME `get_history_deep`, whose
+    `_bt.phase(...)` calls were silently no-opping for it — this is the rail that
+    the fix actually reaches the route, not just the module."""
+    r = TestClient(_app()).get("/api/breadth-monitor/series")
+    assert r.status_code == 200
+    st = r.headers.get("server-timing", "")
+    assert "reader;dur=" in st and "total;dur=" in st, st
 
 
 def test_the_log_line_carries_no_member_identifier(caplog):

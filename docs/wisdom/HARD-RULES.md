@@ -553,3 +553,524 @@ working hours**. So a guarded push has three exits and a session owns none of th
 attestation (R19), a genuinely quiet period, or a change to `BURST_MIN_DEPLOYS` — a design
 decision about this repo. ⚰️ One open window was observed in session 15 and that single data
 point made a guarded landing look routine; 117 probes say otherwise.
+
+---
+
+### 2026-09-17 — R60 / R61, the three ceilings, and what actually holds EXTRACT
+
+**R60 — WISDOM NEVER WRITES THE ENTITY MASTER, AND PRODUCTION'S COPY WAS NEVER EMPTY.**
+
+The entity master belongs to S3. The Wisdom programme is a *declared read-only consumer*:
+`api/services/wisdom/core/entities.py:4` — "through S3 Entity Master
+(`api/services/entity_master/api.py` resolve, **imported read-only**)" — and PROGRAM-MANIFEST
+lists it among the S3/S8/D2/S7/S12 dependencies "Consumed unchanged". No wisdom-owned module
+writes it. **A Wisdom session never seeds it. That is the S3 owner's act, at a keyboard.**
+
+⭐ **MEASURED 2026-09-17** through production's own surface (`GET /api/admin/entity-master/status`):
+**32,651 entities**, 32,664 aliases, 6,058 delisted, 26,593 active, `ambiguous_count` 0,
+`last_seed_at` **2026-09-07T03:12:38Z**, `db_path` **`/data/entity_master.db`**.
+**It is POPULATED. There was never anything to seed.**
+
+⚰️⚰️ **EVERY READING THAT SAID "EMPTY" WAS LOCAL, AND WAS THE SANDBOX — R42's mechanism, one
+programme-level step further.** conftest mints a fresh `mkdtemp` `DATA_DIR` per process,
+`entity_master/schema.py:33` captures `<sandbox>/entity_master.db` at import, and the store
+creates it empty. So **session 9's headline — "every CALL was demoted to MENTION by an
+unresolvable entity master" — is an artifact of the test harness, not a fact about production**,
+and the 76.8%-recovery figure measures a LOCAL corpus under a LOCAL seed.
+
+> ⛔⛔ **THE RULE. Before concluding that a production store is empty, read it THROUGH A
+> PRODUCTION SURFACE.** A local process cannot answer a question about a volume it has been
+> redirected away from, and the redirect is invisible at the call site.
+
+**H6 IS STRUCK.** Its "guards" existed only in a session brief; the string appears in no file in
+this repository. A ruling conditioned on guards nobody can read is not a ruling.
+
+---
+
+**R61 — `railway variables --set` IS PERMITTED, FOR NAMED VARIABLES ONLY.**
+
+Session 14 said *"`railway variables --set` is forbidden"*. Session 15 said *"CLI is the Railway
+path"* and *"never `railway variables` **without** `--set`"* — which only parses if `--set` is the
+permitted form and the value-printing read is the forbidden one. **Session 15 supersedes.** A
+session sets ONLY a variable its own ruling block names, once each, on the named service, each
+followed by a deploy watch. Never a member-door name. Never `--unset` without a ruling.
+
+⭐ Measured twice on `web`: `--set` **auto-redeploys** (2026-09-16: `DEPLOYING` 3 s after the set,
+reaching SUCCESS), consistent with 2026-09-09 and not with the 2026-08-30 `chart-renderer`
+reading. Expect a redeploy; verify the boot either way.
+
+---
+
+**THE THREE SPEND CEILINGS — AND THE "PER-NIGHT" ONE IS NOT PER NIGHT.**
+
+`budget.py:101-105` names them in the source. Restated because a session brief was written
+against the wrong one:
+
+| ceiling | where | default | bounds production? |
+|---|---|---|---|
+| PC-side ledger `cap_usd` | `data/wisdom/extract/spend-ledger.json` | 100.0 | ⛔ **NO** |
+| programme total | `WISDOM_EXTRACT_BUDGET_USD` | **120.0** | yes |
+| per night | `WISDOM_EXTRACT_DAILY_BUDGET_USD` | 25.0 | yes |
+
+⛔ **The ledger has no reader under `api/`** — the only readers are
+`tools/wisdom/extract_golden_gate.py` and a test, proven with a control showing the same search
+form does reach `api/`. `api/` is what production runs.
+⛔ **And `cap_usd` is WRITE-ONLY even for the PC tool**: the gate reads only `entries` from that
+file and takes its ceiling from `--max-usd` (default 40.0), writing `cap_usd` back as a record.
+**Editing that number changes nothing, anywhere, in either direction.**
+
+⛔⛔ **THE DEFECT, MEASURED BY EXECUTING THE REAL MODULE.** `select_within_budget`'s predicate
+(`budget.py:271`) compares **cumulative programme spend** — `SUM(cost_usd_actual) FROM
+wisdom_batches`, *no date filter* (`budget.py:242-248`) — against `cap = min(programme, night)`
+(`batch.py:438`). So a per-night value does not ration a night; **it clamps the whole programme to
+that number.** Seeded with $75 of night-1 actuals and ten $5 estimates: combined cap 75.0 →
+**allowed 0 of 10**, reason *"budget stop (all extractor versions): actual $75.00 + … > cap
+$75.00"*. Control, same DB, `cap=None` → 120.0 → **allowed 9 of 10**. **Night 2 gets zero while
+$45 of programme headroom sits unused**, and spend asymptotes to the night cap rather than the
+programme total.
+
+⚠️ It binds on the N-pass path only (`batch.py:530`, `n <= 1` short-circuits past `night_cap_usd`),
+and `WISDOM_EXTRACT_PASSES` is unset in production → `DEFAULT_PASSES = 3` → **it binds.**
+⛔ There is no rail on this: `test_wisdom_npass_chain.py:246` pins only the *raise* direction.
+
+⭐ **Consequence for any EXTRACT plan:** the knob that has to carry a corpus-sized budget is
+`WISDOM_EXTRACT_BUDGET_USD`, not the ledger file. At the measured $0.058671/segment-pass, one pass
+over the 9,733-segment catalog is **~$571** and three passes are **~$1,713**.
+
+---
+
+**WHAT ACTUALLY HOLDS EXTRACT IN PRODUCTION — AND IT IS NOT THE EMPTY TABLE.**
+
+Measured 2026-09-17, `GET /api/admin/wisdom/core/status`:
+
+```
+production  wisdom_sources 0 · wisdom_segments 0 · wisdom_extract_requests 0 · wisdom_eval_runs 0
+            wisdom_review_queue 36      <- non-zero: the reader works (the control)
+local store wisdom_sources 63 · wisdom_segments 83 · wisdom_records 826 · wisdom_principles 91
+            (data/wisdom/local-store/wisdom.db)
+```
+
+**Production has never held the corpus**; the programme's whole working set is local.
+
+⛔ **But "0 segments ⇒ nothing_to_do" is the WRONG mechanism, and getting it wrong would mislead
+the next session in three ways:**
+1. `run_daily` does not read segments first — it **writes** them, from `wisdom_sources`
+   (`batch.py:518` → `segment_pending_sources`, `batch.py:193-216`). The gating table is
+   **`wisdom_sources`**. A store with sources and no segments segments them and submits.
+2. The **golden gate is checked first** (`batch.py:519-524`). `golden.gate_status` reads
+   `wisdom_eval_runs`, which is **0** in production, so it returns
+   `accepted: False` and the real status is **`blocked_by_gate`**. ⭐ **The gate is holding the
+   door, not the empty table** — and no readiness list named it.
+3. **Retry rows are a second input** (`retry_rows`, `batch.py:239-242`, no join to segments): one
+   `wisdom_extract_requests` row with status `retry` defeats `nothing_to_do` entirely.
+
+So $0.00 spend requires **three** empty tables plus the gate — all four confirmed in production.
+
+> ⛔⛔ **A first "paid night" that costs nothing and writes nothing is indistinguishable, in every
+> dashboard, from one that worked.** Same well-formed-degraded-answer class as R42's demoted
+> CALLs. **EXTRACT is not the next ruling.** Segments reach production only through the `sources`
+> stream, and `WISDOM_SOURCES_INGEST_ENABLED` / `WISDOM_CAPTURE_ENABLED` are both off — and a
+> golden-gate receipt has to be imported before the extractor will accept anything at all.
+
+---
+
+### 2026-09-17 (later) — the force-run spend path, and two instruments that lied
+
+**⛔⛔ LIGHTING EXTRACT AND THEN FORCE-RUNNING THE CHAIN IS A SPEND EVENT, AND IT NEEDS NO SECOND
+FLAG.** Found by adversarial verification while checking an unrelated claim.
+
+`sources/__init__.py:18-21` gates the source streams like this:
+
+```python
+def _gate(ctx, reader, env):
+    if getattr(ctx, "force", False) or reader():
+        return None
+```
+
+So **`force` bypasses `WISDOM_SOURCES_INGEST_ENABLED` outright**, and `sources.run_daily` then
+calls `transcripts.ingest_new(...)`, which walks `edu_videos` newest-first (limit 500) and writes
+both `wisdom_sources` and `wisdom_segments` directly. The daily chain runs `sources` immediately
+before `extract` **in the same run** (`publish/chain.py:62-67`).
+
+⭐ **The consequence, in one sentence:** with `WISDOM_EXTRACT_ENABLED` on, a single ordinary admin
+request — `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run?force=true&dry_run=false`, the
+obvious thing an operator does to check the switch they just flipped — takes the store from **0
+sources to hundreds of sources to thousands of segments to three passes of up to 400 requests**,
+inside one run.
+
+⛔ **R52's acceptance string does NOT protect this.** `spend_allowed` short-circuits on the flag
+(`batch.py:492-496`), so `WISDOM_EXTRACT_ACCEPT_SPEND` is only required when
+`WISDOM_EXTRACT_ENABLED` is **off**. The literal exists for the forced-while-dark case, not for
+this one. The only ceilings left are the $25/night and $120 programme defaults.
+
+> **THE RULE. "Nothing will happen until 18:47" is false for any flag whose job can be
+> force-run.** Before lighting a spend switch, decide what a forced run of every job that reads it
+> would do, and say so in the same breath as the flip.
+
+**✅ R52's THIRD ENTRY POINT — FIXED THIS SESSION.** `audit.run_audit` carried the pre-R52 form and
+called `batch.submit_pending` directly, which has no spend gate of its own, so a forced weekly run
+submitted **paid** audit batches with `WISDOM_EXTRACT_AUDIT_ENABLED` *and* `WISDOM_EXTRACT_ENABLED`
+both off. $0 only because `select_segments` needs recent done requests and there were none — luck,
+not a guard. Gate added beside the scheduling check; rail asserts **nothing reached the client**
+and carries a control; mutation-proved.
+
+---
+
+**⚠️ TWO INSTRUMENTS LIED THIS SESSION, AND BOTH ARE THE SAME SHAPE AS R42.**
+
+**1. `sources=ok` DID NO WORK.** `sources.run_daily` returns
+`{"discord": {"skipped": …}, "transcripts": {"skipped": …}}` — the skip markers are **nested**, and
+`chain._normalize` (`chain.py:196-204`) only inspects the **top level**. A fully skipped sources
+step is therefore recorded as **`ok`** in the chain result and the observation log. ⛔ Do not read
+`sources=ok` as evidence that anything was ingested; read the store counts.
+
+**2. `capture=ok` IN 175 SECONDS, AND IT IS NOT GATED BY ITS OWN FLAG.** The chain's capture step
+is declared `gate=None` (`chain.py:63`) — `WISDOM_CAPTURE_ENABLED` is read only by the standalone
+slot jobs and the admin router, **not by the chain step**. `runner.run_all` iterates all 15
+`families.DATASETS` and writes gzipped objects to R2; that is the 175 seconds. ⭐ It **cannot**
+create extraction work: the only two writers of `wisdom_segments` are `segmenter.write_segments`
+and `sources/common.insert_segments`, and no capture family reaches either. No model call occurs
+anywhere in `capture/`.
+
+---
+
+**⚠️ AND THE LINE-ENDING CHECK THIS FILE RECOMMENDS IS UNRELIABLE THROUGH THE BASH TOOL.**
+
+The documented cheap check is `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'(a carriage return)'`.
+Run through this environment's Bash tool it reported **CR on 100% of lines for every file
+examined** — 133/133, 555/555, 920/920, 81/81. That is not a measurement; it is an **empty pattern
+matching every line**, and "every file is uniformly CRLF" should have been the tell.
+
+⭐ **Every blob in this repository is stored LF** (`core.autocrlf=true` normalises on the way in),
+measured by reading raw bytes: `blob.count(b"
+")` against `blob.count(b"
+")`. Writing CRLF
+over them was harmless — git cleaned it, and every recorded diff this session was minimal
+(118/0, 2/0, 25/1, 36/0, 48/3) — but the *reading* was wrong, and the dangerous direction would
+not have been.
+
+⛔ **And it produced a VACUOUS MUTATION.** A mutation script anchored on `"    return value
+"`
+in an LF file failed its assert, wrote nothing, and the suite then reported **21 passed** — which
+reads exactly like a mutation that failed to kill the tests. Always assert the anchor exists
+**before** writing, and treat a mutation run that comes back green as unproven until the anchor is
+confirmed applied.
+
+⛔⛔ **AND ONE BARE CR DEFEATS `autocrlf` ENTIRELY — TURNING AN 84-LINE ADDITION INTO A 757/673
+WHOLE-FILE REWRITE.** Measured here the same day. Writing this very section put a single lone
+carriage return into the prose (an escape that resolved to a real CR instead of the two
+characters). With that one byte present git declined to normalise the file at all: the STAGED
+blob came out CRLF against an LF HEAD, and `git diff --cached --numstat` read **757 673**.
+Removing that one byte and re-staging gave **84 0** and an LF blob.
+
+⭐ **So `autocrlf=true` cleans a uniformly-CRLF working file, and silently does NOT clean an
+irregular one** — which is the case you cannot see, because the working file still *looks* like
+CRLF to every line-based check.
+⛔ **`tools/check_repo_hygiene.py` CANNOT catch this**, and that is by design, not a bug: it
+reports a path only when the two sides are identical once CRs are stripped, so on a file with
+real added content it stays silent about endings. **Read `git diff --cached --numstat` before
+every commit and disbelieve any count near the file's length.**
+⭐ Count bare CRs as `data.count(bytes([13])) - data.count(bytes([13,10]))` on RAW BYTES. Escape
+sequences in shell-embedded scripts are exactly what produced the stray byte, so a check written
+with `a CR escape` in it can inject the defect it is looking for.
+
+---
+
+### 2026-09-17 (session 19) — R64/R65/R66/R67/R68, and a rule I broke by omission
+
+**R64 — A FORCED RUN CAN NEVER SPEND.** R52 guarded the wrong half: it required an acceptance
+literal for a forced run *while the switch was off*. The hazard is force **with the switch on**,
+where `spend_allowed` short-circuited to True on the flag before it ever looked at `force`. And
+the chain runs `sources` immediately before `extract` in the same run, with `sources` letting
+`force` bypass its own switch outright — so `POST /api/admin/wisdom/jobs/wisdom_daily_chain/run
+?force=true` would have taken the store from 0 sources to thousands of segments to three passes.
+The literal is now **gone from the force path**: it is not a key, and no combination of variables
+opens it.
+
+⭐ **THE OLD TEST ASSERTED THE HAZARD AS A REQUIREMENT** —
+`test_the_flag_alone_is_enough_when_it_is_on` asserted `spend_allowed(force=True)` was True with
+the switch on, and called that correct. **When a guard is wrong, its rail is usually wrong in the
+same direction**, so fixing the code without re-reading the test would have left the test to
+restore the defect on the next refactor.
+
+⛔ Every entry point now faces a **tripwire client that fails on the first attribute touch**.
+Asserting on the return value is not enough: a refusal that had already built a client, or
+already sent a batch, still returns `skipped`.
+
+**R65 — THE PER-NIGHT BUDGET RATIONS A NIGHT.** It used to be handed to `select_within_budget`
+as *the* cap and compared against cumulative programme spend, so it clamped the whole programme.
+Two ceilings, two scopes, never a `min()` of the caps. Attribution is by SUBMISSION date
+(`substr(submitted_at,1,10)`, which IS the ET date because `timeutil.iso_et` writes it) — a batch
+submitted Friday and reaped Saturday belongs to the night whose budget authorised it.
+
+**R66 — A STEP THAT DID NOTHING NO LONGER REPORTS `ok`.** And work is a **whitelist of write
+counters**, not 'any positive number': `floor=0.8`, `lookback_days=10`, `candidates=5` are
+thresholds and INPUTS, and counting them would let a step that skipped everything outvote its own
+skip markers — the same defect one level down. The mixed case stays `ok` because **status is the
+resume contract** (`_prior_ok_steps` selects `status='ok'`), so marking a partial step skipped
+would re-run the half that already wrote rows.
+
+**R67 — THE GATE VERDICT CROSSES, THE EVIDENCE DOES NOT.** An aggregates-only manifest, with a
+**whitelist** classifier: 'reject anything that looks like a quote' is a judgement about text,
+'accept only these shapes' is a judgement about structure, and only the second fails safe when
+the source format changes. It is re-classified on the way IN, because the export's guarantee is
+not inherited once a file has been through git and a human.
+
+---
+
+⛔⛔ **R68's FLAG HAS A SECOND CONSUMER, AND THE BRIEF DID NOT KNOW IT.**
+`WISDOM_SOURCES_INGEST_ENABLED` is read in **two** places in `sources/__init__.py`: line 48 (the
+daily transcripts ingest) **and line 72 (`run_weekly_sunday_scans`)**. So lighting it for a
+Thursday night also arms **Sunday's** weekly step, which writes three further tables
+(`wisdom_chart_images`, `wisdom_sunday_scans_checks`, `wisdom_source_attributions`).
+
+⭐ Measured before flipping: `sunday_scans` makes **no model call** (searched with a control that
+matches `grounding.py`, which does), and its only network call is a public unauthenticated
+Substack GET. So the expansion costs nothing — but *a flag named for one stream gating two* is
+exactly the shape that makes a flip's blast radius larger than its name.
+
+> **THE RULE. Before flipping any flag, grep every reader of it — not the one the ruling names.**
+> A ruling is written against the consumer somebody had in mind.
+
+---
+
+⚰️⚰️ **AND A SUBAGENT WROTE TO `C:\data` BECAUSE I DID NOT GIVE IT THE RULE.**
+
+An investigation agent called `prompt.extractor_version()` to answer which version the gate
+compares against. That reaches `vocab.ensure_seeded()` → `vocab.seed()` → `store.write()`, and
+`store.db_path()` defaults to `/data/wisdom.db` — the live `C:\data\wisdom.db` on this box. It
+wrote `wisdom_vocab` (32 rows, from the committed `setup-vocabulary-v1.json`) and one
+`wisdom_seed_state` row. No member data; `wisdom_eval_runs`, `sources`, `segments` and `records`
+all unchanged. **The agent disclosed it unprompted, at the top of its report.**
+
+⛔ **The cause was my prompt.** The rules block I gave those agents covered scoped pytest, line
+endings, mutation discipline and CODE-NEVER-PROSE, and contained **zero** mentions of the
+shared-data-root prohibition. Measured: 0 occurrences in the workflow script. My own eight probe
+scripts were clean — five applied `conftest.shared_data_root_census()` before importing `api.*`,
+three never imported `api` at all.
+
+> **THE RULE. A subagent inherits none of this session's context. Every prompt that can import
+> `api.**` carries the shared-root sandbox instruction, or the agent is given a pinned
+> `WISDOM_DB_PATH`/`DATA_DIR` before it starts.** `prompt.extractor_version()` in particular is
+> not a read: it seeds.
+
+---
+
+### 2026-09-17 — R74: the autopilot, and the stop rules that need no judgement
+
+Once EXTRACT is lit the programme spends money on a schedule nobody watches in real time. These
+rules exist so that stopping is **mechanical**. A stop that requires somebody to weigh a night's
+numbers is a stop that happens the morning after it should have.
+
+**THE NIGHTLY VERDICT.** After every scheduled night, one line appended to the nightly table in
+`OVERNIGHT-CHECKPOINTS.md`: date · segments · passes · $ actual · $ projected · errors · records
+· floor PUBLISH/BLOCK/ENQUEUE · queue delta · verdict. Read from `wisdom_job_runs`, the ledger
+and the store counts — never from `railway logs`, which reaches about twelve minutes.
+
+**THE STOP RULES.** Any ONE of these fires `WISDOM_EXTRACT_ENABLED=0` (deploy-watched), records
+the trigger *with its numbers*, and stops:
+
+| # | trigger | why this number |
+|---|---|---|
+| 1 | night actual **> 1.5 ×** projection | a rate that moved, not a night that ran long |
+| 2 | failed requests / submitted **> 10%** | the transport or the prompt is wrong, and every retry is billed |
+| 3 | programme total **≥ budget − one night's p90** | the last night that can complete must not start |
+| 4 | any paid-path step reporting **error twice running** | one is weather; two is a fault |
+| 5 | **any member door found True** | nothing member-visible was ever ruled |
+
+⛔ **RULE 3 IS THE ONE THAT IS EASY TO GET WRONG.** Stopping when the total *reaches* the budget
+lets a night start that cannot finish inside it, and a half-submitted night is the UNRECONCILED
+case: it costs money and scores nothing. Stop one night's p90 EARLY.
+
+⛔ **RULE 5 IS NOT ABOUT SPEND.** It is in this table because the autopilot is the only thing
+looking every night. A door that turns True without a ruling is an incident whoever notices it
+first should stop, and the cheapest stop is the extractor.
+
+⭐ **RE-ARMING IS NEVER AUTOMATIC.** A stop is a ruling request, not a pause. The session records
+what fired, with numbers, and waits. ⛔ In particular a stop must never be re-armed by the same
+run of reasoning that triggered it — that is how a threshold becomes a formality.
+
+**BUDGET TRACKING**, one line beside the verdict: nights run · $ spent · $ remaining · nights
+remaining at the current rate · corpus fraction (segments with ≥ 3 passes ÷ 9,733). ⭐ The
+fraction is the only one of those that answers *are we getting anywhere*; the other four answer
+*can we keep going*, and a programme can be healthy on all four while extracting nothing.
+
+---
+
+**⛔ AND THERE IS NO SEPARATE REAP SWITCH.** `wisdom_extract_reap` is gated by
+`enabled=flags.extract_enabled` (`extract/jobs.py:25`) — the same variable as submission. So
+`WISDOM_EXTRACT_ENABLED=0` stops BOTH: no new batches, and **no reaping of batches already in
+flight**. Anything submitted before the stop stays open until it is re-armed or expires.
+⭐ That is the right default for a runaway (it stops everything) and the wrong assumption for a
+clean shutdown (it strands work you have already paid for). A stop taken mid-night should be
+followed by a decision about the open batches, not treated as finished.
+
+---
+
+### 2026-09-17 — B3: can the imported gate verdict be superseded on the pod?
+
+**NO, not by anything that runs on its own.** Nothing scheduled, chained or admin-triggerable
+writes `wisdom_eval_runs`, and nothing on the pod can evaluate a golden set: the evaluator lives
+entirely in `tools/wisdom/extract_golden_gate.py`, needs two required CLI paths, and refuses a
+`--db` under the shared root. **Friday's spend cannot shut its own gate.**
+
+⭐ The control for that absence is the part worth keeping: the same search **did** find writers —
+three of them, including one nobody was looking for (`grounding.py`, an `INSERT OR REPLACE` in a
+sibling package) and one outside `api/` (`import_eval_manifest.py`). A search that surfaces an
+unexpected writer is a search that would have surfaced a fourth.
+
+**YES through two deliberate acts, both needing PUSH_SECRET or a shell:**
+1. `POST /api/internal/wisdom/extract/eval-runs` with a receipt. A receipt matching
+   `(extractor_version, model, effort, split)` whose per-type numbers REGRESS gets
+   `decision: "blocked"`, and `gate_status` takes the NEWEST matching row — so a worse
+   evaluation silently shuts extraction.
+2. Running the gate tool **inside the container** — its own docstring advertises
+   `railway run --service web python tools/wisdom/extract_golden_gate.py …` — against a golden
+   directory with no samples.
+
+⛔⛔ **AND THE ZERO-SAMPLE PATH WAS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
+`decide_gate` treated the run as same-config against the single production row and recorded
+**`accepted, baseline: True`** — a verdict that measured nothing, superseding one that measured
+108 segments. ⭐ `import_receipt` did NOT have this hole (`golden.py:630-631` raises on an empty
+`per_type`) — but that guard sat one layer up, in the RECEIPT path only; a DIRECT `record_eval`
+call (the gate tool persisting the run it just measured) had no such check.
+
+⛔⛔ **FIXED, session 25 (R98): `record_eval` itself now refuses an empty `per_type` — the
+SHARED choke point both `import_receipt` and a direct gate run pass through.** Rails:
+`tests/test_wisdom_extract_golden.py` — a zero-sample run raises and writes NO row (not a row
+that happens to be blocked); a real run immediately after is unaffected; and the load-bearing
+control, a NULL-only measurement (a type asserted absent across N segments, tp=fp=fn=0 but
+`null_declared` nonzero) is correctly NOT refused — `golden.score()` keeps that measurement on
+purpose (`n_null` in the emptiness check), and a naive "all-zero counts means nothing was
+scored" fix would have deleted the single most useful NULL measurement the gate produces.
+Mutation-proved: reverting the guard turns exactly the two zero-sample tests red.
+
+> **THE RULE, NARROWED. The golden gate may run inside the container ONLY with: an explicit
+> `--golden-file` naming real, uploaded bytes; an asserted sample count; scratch `--db` and
+> `--data-dir` under the volume (never production's live `wisdom.db`/`wisdom_eval_runs` tables
+> during the scoring run itself — only the AGGREGATES-ONLY manifest crosses back into
+> production afterward, exactly as R67 already does for Opus's own gate-run-3); and the
+> zero-sample refusal above actually serving in that image.** Without ALL FOUR, the rule is
+> unchanged: never run the golden gate inside the container. The golden set is quote-bearing
+> and deliberately not deployed by default — this narrowing does not change that; it describes
+> the one supervised, bounded exception under which a real measurement, not a vacuous one, can
+> happen there.
+
+## 2026-09-18 — R93/R94/R95/R96 (session 23): the local attempt's real ceiling, and every
+## path priced with real usage instead of a fresh estimate
+
+**R93 — one bounded local attempt, 90-minute ceiling, honored.** Two fixes landed as
+permanent `local_backend.py` defaults, neither touching `prompt.py`: `repeat_penalty=1.15`
+(kills the repetition-loop collapse that hit 22% of session-22's segments) and
+schema-constrained decoding, reusing `params["output_config"]["format"]["schema"]` — the
+SAME contract Anthropic already enforces for the paid path — via llama-server's
+`response_format: json_schema`. Measured on an isolated segment: 4/4 rejected
+`quote_missing` at baseline → 0/4 with the constraint on. A local-only v2 prompt
+(`local_prompt_v2.py`, its own `wx-local-v2-*` version, few-shot loaded from a gitignored
+data file) added quote-first ordering + an explicit verbatim instruction on top.
+
+⛔ **NET RESULT ON A 20-SEGMENT STRATIFIED SAMPLE (paid / v1 / v2 all sliced from the SAME
+segments via `gate_records.load_phase`, the R12 canonical re-score path): FAIL on all six
+types, both v1 and v2. Zero true positives against golden's specific expected records.**
+The mechanism moved — `quote_missing` was eliminated by the schema constraint; the dominant
+remaining failure is `reject:quote_absent` (present, not verbatim) — but that mechanism
+shift did not convert into recall against golden's exact set at 7B/Q4_K_M. Full verdict:
+`docs/wisdom/LOCAL-EXTRACTOR-VERDICT.md`.
+
+⛔ **THROUGHPUT IS A SECOND, INDEPENDENT WALL.** Measured v1 rate on this contended box:
+0.79 segments/min (76s/segment). One corpus pass (26,454 segments) is **23.2 days**; N=3 is
+**69.6 days**. v2's added levers measured SLOWER per segment (longer prefill from the
+few-shot turns) — the quality-adjacent fixes here cost clock, they do not buy it back.
+
+**R94 — no GPU host reachable, measured not assumed.** This box: two NVIDIA GT 710s (2GB
+VRAM each — too small to even hold a Q4_K_M 7B's ~4.5GB weights) plus an Intel UHD 770 iGPU
+(untested — no dedicated VRAM, unlikely to beat CPU meaningfully for this workload). No
+WSL2 installed. No SSH config beyond `github.com` in `known_hosts`. No documented remote GPU
+host anywhere in this repo's docs. **Deliberately no LAN scan was run** — the ruling
+explicitly asked for documented/reachable enumeration only, never indiscriminate probing.
+
+**R95 — HOLD, honored structurally.** No paid extraction client was constructed this
+session; `prompt.extractor_version()` was reasserted unchanged (`wx-v0-fc47bc97`) both by
+the existing local-backend suite and by `local_prompt_v2`'s own tests.
+
+**R96 — every path priced, with a blocker stated rather than papered over.** No Anthropic
+API key was reachable this session — not in the shell env, not in a local `.env`, not in the
+OS keyring (`uct-wisdom`/`anthropic`) — so `count_tokens`, the one paid-API call this
+session's ruling permitted, could not be made. The pricing in
+`docs/wisdom/PATH-PRICING-2026-09-18.md` instead reuses REAL, already-paid-for Anthropic
+usage persisted from gate-run-3's own API calls (`data/wisdom/gate-runs/20260915T123550Z/
+segments.jsonl` — real `usage.input_tokens`/`cache_read_input_tokens`/`output_tokens` from
+83 real production-sourced segments). Stronger than a character estimate; still not the
+fresh 500-segment production sample R96 asked for — that gap should close before any of
+these numbers is treated as final. Density proxy (PRINCIPLE/MARKET_SIGNAL-bearing segments):
+21.7%, from the same 83, explicitly the ONLY measured proxy since night 1 never ran.
+
+⭐ **The cheapest path that buys the stated goal (judgement types at trusted quality,
+mechanical types floor-scored) is SWEEP_N1_OPUS + a 2-pass targeted repass on the density
+proxy: $1,103 p50 / $5,096 p90 — not HAIKU_ONLY's $462–$2,133, because Haiku's quality
+against golden is UNMEASURED.** The one cheap measurement that would most change this
+answer: an 83-segment Haiku golden run, priced at $0.48–$2.23 — close enough to free that
+running it before committing to any paid path is close to free optionality.
+
+## 2026-09-18 — R97/R98 (session 25): the Haiku golden run, measured, and one more
+## structural rule for running the gate inside the container
+
+**R98 — the vacuous-accept fix landed.** `record_eval` now refuses an empty `per_type` at
+the SHARED choke point both `import_receipt` and a direct gate run pass through — not just
+`import_receipt`'s own copy of the check. Verified via mutation (reverting the guard turns
+exactly two new tests red). This is what let "never run the golden gate inside the
+container" narrow from an absolute prohibition to a supervised, bounded exception.
+
+⛔⛔ **`_SHARED_ROOTS = ("/data", "C:\\data")` in `tools/wisdom/extract_common.py` refuses
+`--db` and `--out-dir` UNCONDITIONALLY under either root — including a "scratch"
+subdirectory.** `--data-dir` is NOT checked (it is read-only input). The working layout for
+any future in-container gate run: golden file + sample text under `/data/wisdom/scratch/`
+(the persistent volume), `--db`/`--out-dir`/`--gate-runs-dir` under `/tmp` (the container's
+own ephemeral filesystem). This is a permanent structural fact about the tool, not a
+one-session workaround.
+
+⛔⛔ **THE SAMPLE TEXT THE GOLDEN SET ANCHORS AGAINST DOES NOT EXIST IN PRODUCTION.**
+`/data/wisdom/samples/` returns "No such file or directory" inside the container —
+production's real ingested corpus (324 sources / 26,454 segments) lives in the database,
+never as flat files at that path. Any future in-container golden run needs the SPECIFIC
+sample files the golden set's records reference (computed via `golden.sample_key`, never
+the full local samples tree — the dev split needed 45 of 396 files, 1.04MB gzipped vs the
+full tree's 38MB), uploaded to the SAME scratch path `--data-dir` will read.
+
+⛔⛔ **THREE MORE model-awareness bugs found and fixed by driving this end to end, each one
+caught by evidence before it could cost anything:**
+1. `extract_golden_gate.py`'s own `--model` CLI flag never reached
+   `prompt.extractor_version()` — caught by a `--dry-run` printing Opus's exact pinned
+   version for a `--model claude-haiku-4-5` invocation. One-line fix:
+   `prompt.extractor_version(model=model)`.
+2. **Haiku 4.5 rejects `output_config.effort` outright** — caught by a REAL first
+   submission (not a dry-run: the estimator has no way to see a request-validation
+   rejection coming), 35/35 errored, $0.0000 actual (an errored batch item is not billed).
+   Fixed via `prompt.NO_EFFORT_MODELS`, an explicit, evidence-only allowlist — never guessed
+   forward to Sonnet or any other untested model. Opus's request shape verified
+   byte-for-byte unchanged.
+3. `land_master_first.py` crashed printing a pre-push refusal containing a Unicode
+   character this console's cp1252 codepage can't encode — AFTER a real `git push` had
+   already succeeded on an EARLIER attempt, meaning the tool could land cleanly and still
+   fail to report why a LATER attempt was refused. Fixed by reconfiguring stdout/stderr to
+   UTF-8 once, in `main()`.
+
+⛔ **A batch survives the connection that submitted it; the polling process does not.** An
+ssh session disconnecting killed the local Python process via SIGHUP mid-poll on the first
+(pre-fix) submission — the batch itself, already accepted by Anthropic, kept processing
+server-side regardless. Recovered by reconnecting to the known batch id directly
+(`client.messages.batches.retrieve`/`.results`), never by resubmitting. The real run was
+launched via `nohup` (this minimal image's shell has no `disown`, but `nohup` alone was
+sufficient, confirmed directly by watching it survive a disconnect) specifically to avoid
+repeating this.
+
+**R97 result: zero of six types clear.** Full table:
+`docs/wisdom/PATH-SELECTED-2026-09-18.md`. Real spend for the complete, correct 83-segment
+measurement: **$0.3469** — roughly 6x cheaper than the pre-flight's worst-case estimate,
+consistent with every other model measured this session. Per the session's own decision
+rule (Haiku clears zero of the four mechanical types) — **SWEEP_N1_OPUS is selected**, not
+armed: it requires R79 (pending ≠ queued), a feature this session has no prior
+specification for beyond its name and requirement, and commits PRODUCTION's live scheduled
+chain to a multi-night, multi-hundred-to-multi-thousand-dollar autonomous spend. Stopped
+for the owner's decision with the real numbers in hand. Full session record:
+`docs/recon/2026-09-18-session25-haiku-in-container.md`.

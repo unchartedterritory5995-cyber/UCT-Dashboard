@@ -3,6 +3,29 @@
 // sections) and restores `Calendar` to the inner ring alongside `Wire`") and R-C
 // (docs/plans/joystick/RESUME-inc3.md:24-26).
 //
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+// ⚰️ SUPERSEDED IN PART BY OWNER RULING R4 (2026-09-17) — AND THE DOOR IS STILL RAILED
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+// The owner used the hub and said *"simplify a ton … too much going on"*. R4 made the cut the
+// agent's call and made the STRONG CUT the default surface. Home's eight `kind: 'navigate'`
+// bubbles — `home.calendar` among them — are the single largest thing it removes, because they
+// are a second navigation menu on a device whose own `MoreSheet` is one tap away at every width
+// the hub runs at. **So §3.8(b)'s premise no longer describes the DEFAULT surface.**
+//
+// ⛔ WHAT DID NOT CHANGE, AND WHY THIS FILE IS NOT DELETED. `home.calendar` is still DECLARED,
+// and the full 62-action surface is now a switchable VARIANT rather than a dead branch — it is
+// what `setHubSurface('full')` draws and what a member gets from Settings → Joystick. A door
+// that ships in a variant needs the same proof it needed when it was the default: that the
+// bubble renders, that pushing it navigates, and that it aims from the PROJECTION rather than
+// the declaration. Blocks 1 and 3 therefore run against `'full'`, explicitly, and each carries a
+// matching assertion that the DEFAULT surface deliberately does not draw it.
+//
+// ⭐ Deleting these instead would have removed live coverage of a shipped surface to make a
+// simplification look tidier — and the R4 cut is exactly the kind of change that most needs the
+// variant to stay proved. `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` cuts both
+// ways: a rail pointed at the surface where its subject no longer exists proves nothing, and
+// deleting it rather than re-pointing it proves nothing either.
+//
 // ─────────────────────────────────────────────────────────────────────────────
 // ⛔ WHY THESE ASSERT `fanFor(home)` AND NOT `modesById.home.fan`
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,8 +157,32 @@ function vecAtAngle(dist, angleDeg) {
 // 1 — the projection places Calendar on the inner ring, beside Wire
 // ═════════════════════════════════════════════════════════════════════════════
 describe('§3.8(b) — Calendar in the fan Home actually shows', () => {
+  afterEach(async () => {
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('simplified') // R4's default; never leave the module on the variant
+  })
+
+  it('the DEFAULT surface does NOT draw Calendar on Home — R4, deliberately', async () => {
+    const { modesById, fanFor, hubSurface, setHubSurface } = await import('./registry')
+    setHubSurface('simplified')
+    expect(hubSurface(), 'the default surface is the strong cut').toBe('simplified')
+
+    const ids = fanFor(modesById.home).map((a) => a.id)
+    expect(ids, 'the strong cut removed Home\'s navigation menu').not.toContain('home.calendar')
+    expect(ids, 'and every one of its seven siblings with it').not.toContain('home.wire')
+    // ⛔ CONTROL: the projection still RETURNS something, so "does not contain" above is a real
+    // absence and not an empty list quietly satisfying every assertion in this block.
+    expect(ids.length, 'fanFor(home) returned nothing at all — the absences above are vacuous')
+      .toBeGreaterThan(0)
+    // And the door it replaces is the app's own, which no hub change can remove.
+    expect(modesById.calendar.route).toBe('/calendar')
+  })
+
   it('the RENDERED Home fan carries home.calendar on the inner ring, beside home.wire', async () => {
-    const { modesById, fanFor, isPreviewMode, HOME_MODE_ID } = await import('./registry')
+    const { modesById, fanFor, isPreviewMode, HOME_MODE_ID, setHubSurface } = await import('./registry')
+    // ⚰️ R4: this is the FULL surface's claim now — see the header. The variant is shipped, so it
+    // is railed; `mode.fan` is still the wrong thing to assert against, for the reason below.
+    setHubSurface('full')
 
     // Non-vacuity: this whole file is about a PROJECTION, so if home ever leaves the preview the
     // assertions below stop measuring what they claim to and must be re-pointed at `mode.fan`.
@@ -165,30 +212,55 @@ describe('§3.8(b) — Calendar in the fan Home actually shows', () => {
 // 2 — the ring caps, applied to the PROJECTION (validateRegistry never does)
 // ═════════════════════════════════════════════════════════════════════════════
 describe('§3.8(b) — the ring caps hold for the fan that is SHOWN, not just the one declared', () => {
-  it('every preview mode\'s projected fan is within OUTER_MAX / INNER_MAX', async () => {
-    const { modes, fanFor, isPreviewMode, OUTER_MAX, INNER_MAX } = await import('./registry')
+  afterEach(async () => {
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('simplified')
+  })
+
+  // ⭐ WIDENED BY R4, in the direction this block's own header already asked for ("that gap is
+  // what rail 2 below closes, for EVERY preview mode rather than just this one"). R4 adds a
+  // SECOND projection — the strong cut — composed on top of the preview one, and a cap that has
+  // only ever been checked against one of two projections is half a cap. So: every mode, both
+  // surfaces, no `isPreviewMode` filter at all.
+  it('every mode\'s projected fan is within OUTER_MAX / INNER_MAX, on BOTH surfaces', async () => {
+    const { modes, fanFor, setHubSurface, OUTER_MAX, INNER_MAX } = await import('./registry')
 
     let checked = 0
     const problems = []
-    for (const mode of modes) {
-      if (!isPreviewMode(mode.id)) continue
-      checked += 1
-      const shown = fanFor(mode)
-      const outer = shown.filter((a) => a.ring === 0).length
-      const inner = shown.filter((a) => a.ring === 1).length
-      if (outer > OUTER_MAX) problems.push(`${mode.id}: projected outer ${outer} > ${OUTER_MAX}`)
-      if (inner > INNER_MAX) problems.push(`${mode.id}: projected inner ${inner} > ${INNER_MAX}`)
+    for (const surface of ['simplified', 'full']) {
+      setHubSurface(surface)
+      for (const mode of modes) {
+        checked += 1
+        const shown = fanFor(mode)
+        const outer = shown.filter((a) => a.ring === 0).length
+        const inner = shown.filter((a) => a.ring === 1).length
+        if (outer > OUTER_MAX) problems.push(`${surface}/${mode.id}: outer ${outer} > ${OUTER_MAX}`)
+        if (inner > INNER_MAX) problems.push(`${surface}/${mode.id}: inner ${inner} > ${INNER_MAX}`)
+      }
     }
     expect(problems, 'a projected fan is over a ring cap — validateRegistry reads mode.fan and '
       + 'cannot see this').toEqual([])
 
-    // Non-vacuity: an empty preview set would make the loop above assert nothing at all.
-    expect(checked, 'no preview mode was walked — this rail is asserting nothing')
-      .toBeGreaterThan(0)
+    // Non-vacuity: an empty mode list would make the loop above assert nothing at all.
+    expect(checked, 'no mode was walked — this rail is asserting nothing')
+      .toBe(modes.length * 2)
+    expect(modes.length).toBeGreaterThan(0)
   })
 
-  it('Home\'s projected rings are exactly 5 outer / 4 inner — both legal, both at the line', async () => {
-    const { modesById, fanFor, OUTER_MAX, INNER_MAX } = await import('./registry')
+  it('Home\'s projected rings: 0/1 on the default surface, 5/4 on the full variant', async () => {
+    const { modesById, fanFor, setHubSurface, OUTER_MAX, INNER_MAX } = await import('./registry')
+
+    // ⚰️ WAS "exactly 5 outer / 4 inner — both legal, both at the line", full stop. R4 cut Home's
+    // eight navigate bubbles, so on the surface a member actually gets, Home's fan is Voice and
+    // nothing else. Both numbers are asserted rather than one, because "Home draws fewer bubbles"
+    // and "Home draws no bubbles because the projection broke" are different facts.
+    setHubSurface('simplified')
+    const cut = fanFor(modesById.home)
+    expect(cut.filter((a) => a.ring === 0).map((a) => a.id),
+      'the strong cut leaves Home no outer ring at all').toEqual([])
+    expect(cut.map((a) => a.id), 'Home keeps Voice, and only Voice').toEqual(['home.voice'])
+
+    setHubSurface('full')
     const shown = fanFor(modesById.home)
     const outer = shown.filter((a) => a.ring === 0).map((a) => a.id)
     const inner = shown.filter((a) => a.ring === 1).map((a) => a.id)
@@ -211,13 +283,26 @@ describe('§3.8(b) — the ring caps hold for the fan that is SHOWN, not just th
 // 3 — real execution: the bubble renders on /dashboard and pushing it navigates
 // ═════════════════════════════════════════════════════════════════════════════
 describe('§3.8(b) — the Calendar bubble is a real door on /dashboard', () => {
-  beforeEach(() => {
-    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true }) }
+  // ⚰️ R4: the door ships on the FULL surface now. It is set here rather than per test so the
+  // two rendering tests below cannot drift onto different surfaces — the whole point of the
+  // block is that the bubble a member SEES and the bubble a push RESOLVES are one list.
+  beforeEach(async () => {
+    // ⛔ SET THE PREFERENCE, NOT THE MODULE STATE. `HubRoot` calls `setHubSurface(settings.surface)`
+    // in its render body, so a bare `setHubSurface('full')` here is overwritten before the fan is
+    // ever projected — the test would silently measure the default surface while believing it had
+    // selected the variant. This is the wiring working: the stored preference is the one authority
+    // over which surface draws, and a test that pokes module state is testing a path the product
+    // no longer takes.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'full' }) }
     stubHubCapable()
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('full')
   })
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers()
     unstubHubCapable()
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('simplified')
   })
 
   it('HubRoot renders a Calendar bubble in Home\'s fan', async () => {
@@ -228,6 +313,20 @@ describe('§3.8(b) — the Calendar bubble is a real door on /dashboard', () => 
     // cannot be "the hub never rendered".
     expect(screen.getByTestId('hub-bubble-home.voice')).toBeInTheDocument()
     expect(screen.getByTestId('hub-bubble-home.calendar')).toBeInTheDocument()
+  })
+
+  it('and on the DEFAULT surface that same bubble is absent from the rendered fan', async () => {
+    // ⭐ The other half of the pair above, and the one that makes the cut a MEASURED fact about
+    // the product rather than a claim about a table. Voice still renders, so the absence of
+    // Calendar is an absence and not a hub that failed to mount.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'simplified' }) }
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('simplified')
+    await renderHub('/dashboard')
+
+    expect(screen.getByTestId('hub-bubble-home.voice')).toBeInTheDocument()
+    expect(screen.queryByTestId('hub-bubble-home.calendar')).toBeNull()
+    expect(screen.queryByTestId('hub-bubble-home.wire')).toBeNull()
   })
 
   it('pushing onto the Calendar bubble navigates to /calendar', async () => {

@@ -1,0 +1,18 @@
+
+=== WINDOW OPEN 08:03:37 · 5 staged ===
+   ▶ p2-2.8b-second-writer-while-away: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T080337-p2-2.8b-second-writer-while-away (9B raw)
+   ⇒ p2-2.8b-second-writer-while-away: exit 124 in 1800.1s
+   ▶ p2-metadata-settle-first-folder: python tools/q1_f5_matrix.py --family folder --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T083339-p2-metadata-settle-first-folder (540B raw)
+   ⇒ p2-metadata-settle-first-folder: exit 1 in 7.2s
+   ▶ p2-metadata-settle-first-ticker: python tools/q1_f5_matrix.py --family ticker --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T083347-p2-metadata-settle-first-ticker (540B raw)
+   ⇒ p2-metadata-settle-first-ticker: exit 1 in 6.8s
+   ▶ p2-metadata-settle-first-tags: python tools/q1_f5_matrix.py --family tags --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T083355-p2-metadata-settle-first-tags (540B raw)
+   ⇒ p2-metadata-settle-first-tags: exit 1 in 6.5s
+   ▶ p2-metadata-settle-first-hero: python tools/q1_f5_matrix.py --family hero --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T083403-p2-metadata-settle-first-hero (540B raw)
+   ⇒ p2-metadata-settle-first-hero: exit 1 in 6.8s
+queue empty — nothing staged

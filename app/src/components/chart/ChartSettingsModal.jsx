@@ -834,10 +834,19 @@ export default function ChartSettingsModal({
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
-        /* ⚰️ CHART DATA USED TO WIDEN THIS TO 880 and the modal resized on the
-           way in and out of the tab. The two-column pane-map + inspector needed
-           the room; the inline editor does not, so the width goes back to the
-           one every tab shares and the jump is gone. */
+        /* ⚰️⚰️⚰️ THREE TIMES, AND THE THIRD IS THE LAST. Chart Data widened
+           this modal to 880 for a two-column pane map and was reverted; the
+           Inspector took 720 for the same shape and kept it, scoped to its own
+           tab with a transition to soften the step. The owner then USED it and
+           ruled the step out: *"Chart Settings is ONE window. Its desktop shell
+           should have ONE stable width."*
+           ⭐ SO THE WIDTH IS THE PANEL'S, UNCONDITIONALLY. No modifier, no
+           per-tab class, nothing here to keep in step with the tab strip.
+           ⚰️ AND THE CONTENT CAP THAT USED TO SIT BESIDE IT IS GONE TOO. The four
+           older tabs were held at their original 560px column inside the wider
+           shell, which left them ending 160px short of their own window; they
+           use the shell's width now. `.body` carries no cap and no per-tab
+           class — one shell, one content width, every tab. */
         className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
@@ -943,7 +952,24 @@ export default function ChartSettingsModal({
           ))}
         </div>
 
-        <div className={styles.body}>
+        {/* ⭐ THE SHELL IS ONE WIDTH; THE CONTENT IS NOT OBLIGED TO FILL IT.
+            Indicators IS the shell's width — the Inspector's two columns were
+            designed to it. Price Style, Canvas, Header and Markers were laid out
+            against a 560px body and still look deliberate at that measure, so
+            they keep it and sit against the leading edge. Stretching four card
+            groups across 720px would be a redesign of four tabs nobody asked
+            for; a future project can unify them properly. */}
+        {/* ⚠️⚠️ `.bodyFlush` IS A RESERVATION BEING GIVEN BACK, not a padding
+            change. `.body` reserves a scrollbar gutter permanently — see its rule
+            — because the four card tabs genuinely scroll here and a bar appearing
+            mid-click would shift every control 10px left. INDICATORS DOES NOT
+            SCROLL HERE: it is a `height: 100%` flex column that scrolls inside its
+            own two halves, so the reserved 10.4px was measured as dead strip down
+            the right of the discovery list with nothing able to occupy it.
+            ⛔ THE 18px OF MODAL PADDING STAYS. That is the frame every tab, the
+            title and the tab strip share, and this pass is about the gutter that
+            has no frame to be. */}
+        <div className={`${styles.body} ${activeTab === 'indicators' ? styles.bodyFlush : ''}`}>
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>

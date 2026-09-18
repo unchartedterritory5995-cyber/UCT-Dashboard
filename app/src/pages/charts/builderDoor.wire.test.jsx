@@ -206,7 +206,13 @@ async function openTheBuilderFromCharts(user) {
   // 2. The Indicators tab, which is where every indicator verb lives.
   await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
 
-  // 3. 🔴 THE DOOR. Cut it and this line is what reds.
+  // 3. ⚰️ AND THEN ＋ Add, WHICH IS A STEP THIS DID NOT USED TO HAVE. New Formula
+  //    sat in the tab's permanent top row beside a permanent search box; both
+  //    moved into the Add surface, because authoring a formula IS adding
+  //    something to the chart and the default view is for what is already on it.
+  await user.click(await screen.findByTestId('add-enter'))
+
+  // 4. 🔴 THE DOOR. Cut it and this line is what reds.
   await user.click(await screen.findByTestId('settings-new-formula'))
 }
 
@@ -343,6 +349,10 @@ describe('/charts — the criteria builder has a door', () => {
     expect(screen.queryByTestId('settings-new-formula')).toBeNull()
     await user.click(gear)
     await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
+    // ⚰️ ＋ Add FIRST — see `openTheBuilderFromCharts` for why the door moved into
+    // the Add surface. This case is about the LEGACY gear being suppressed, so
+    // the extra step is incidental to its claim and deliberate for its subject.
+    await user.click(await screen.findByTestId('add-enter'))
     expect(await screen.findByTestId('settings-new-formula')).toBeInTheDocument()
   })
 })

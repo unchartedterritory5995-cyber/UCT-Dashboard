@@ -469,7 +469,11 @@ const BAR_FIELD_WORDS = Object.freeze({
   open: 'Open', high: 'High', low: 'Low', close: 'Close',
   hl2: 'HL2', hlc3: 'HLC3', ohlc4: 'OHLC4', volume: 'Volume',
 })
-function describeSourceValue(value, get, byId) {
+/** ⭐ EXPORTED FOR THE INSPECTOR'S `SOURCE` LINE. `chartDataMap.paneRowMeta` has
+ *  to print the same human words this already puts in a legend suffix — `Close`,
+ *  `QQQ`, `RSI (14)` — and a second translator would be the one place a member
+ *  reads `@inst:rsi:1::rsi`. Nothing about its behaviour changed. */
+export function describeSourceValue(value, get, byId) {
   if (typeof value !== 'string' || !value) return null
   if (BAR_FIELD_WORDS[value]) return BAR_FIELD_WORDS[value]
   if (value.startsWith('sym:')) {

@@ -72,15 +72,43 @@ def _accepted_tokens() -> list[str]:
                         os.environ.get("CHART_RENDER_TOKEN_PREVIOUS", "")) if t]
 
 
+def _accepted_slots() -> list[tuple[str, str]]:
+    """`_accepted_tokens()` with each value's SLOT NAME, in the same order.
+
+    ⛔ The order is the acceptance order and must stay current-then-previous: `_check_token`
+    stops at the first match exactly as `any()` did, so a reordering would change both the
+    recorded slot and the timing profile."""
+    from api.services.discord_render import token_slots
+    pairs = [(token_slots.SLOT_CURRENT, os.environ.get("CHART_RENDER_TOKEN", "")),
+             (token_slots.SLOT_PREVIOUS, os.environ.get("CHART_RENDER_TOKEN_PREVIOUS", ""))]
+    return [(s, t) for s, t in pairs if t]
+
+
 def _check_token(token: str, bucket: str = "default", limit: int | None = None) -> None:
     want = os.environ.get("CHART_RENDER_TOKEN", "")
     # Fail CLOSED when the CURRENT token is unset — a lone PREVIOUS must never hold the gate open.
-    # Constant-time compare against each accepted value; `any()` over compare_digest keeps every
-    # comparison constant-time, and the count of comparisons leaks only whether a rotation is in
-    # flight, which is not a secret.
+    # Constant-time compare against each accepted value; the loop below stops at the first match
+    # exactly as `any()` did, so the timing profile is unchanged, and the count of comparisons
+    # leaks only whether a rotation is in flight, which is not a secret.
     given = str(token)
-    if not want or not any(hmac.compare_digest(given, t) for t in _accepted_tokens()):
+    matched_slot = None
+    for _slot, _tok in _accepted_slots():
+        if hmac.compare_digest(given, _tok):
+            matched_slot = _slot
+            break
+    if not want or matched_slot is None:
         raise HTTPException(status_code=403, detail="forbidden")
+    # ⛔⛔ AFTER THE DECISION, NEVER INSIDE IT (R29). Which SLOT a sender used is the only thing
+    # that can tell us whether clearing CHART_RENDER_TOKEN_PREVIOUS would 403 somebody — the one
+    # risk OI-13 step 6 cannot otherwise size. The write is durable because this pod restarts
+    # ~20x/day and an in-memory count would mean "since the last deploy". It records the SLOT
+    # NAME only: never the value, its length, or a hash of it (C-13).
+    try:
+        from api.services.discord_render import token_slots
+        token_slots.note_match(matched_slot,
+                               commit=(os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12])
+    except Exception:  # noqa: BLE001 — accounting must never change who gets served
+        pass
     _rate_limit(bucket, limit)
 
 

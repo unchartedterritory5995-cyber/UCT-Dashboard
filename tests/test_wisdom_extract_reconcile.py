@@ -243,11 +243,15 @@ def test_after_reconcile_the_floor_admits_exactly_the_3of3_set(tmp_path):
     for s in result["scores"]:
         (admitted if floor.passes(s["record_type"], s["stability"], s["n"]) else blocked).append(
             (s["record_type"], round(s["stability"], 3)))
-    # the two floored types: PRINCIPLE 3/3 passes, MARKET_SIGNAL 2/3 blocks
+    # the two originally-floored types: PRINCIPLE 3/3 passes, MARKET_SIGNAL 2/3 blocks
     assert ("PRINCIPLE", 1.0) in admitted
     assert ("MARKET_SIGNAL", 0.667) in blocked
-    # the mechanical types are never floored, whatever their stability
-    assert ("MENTION", 0.333) in admitted and ("CALL", 1.0) in admitted
+    # ⚰️ R89 (2026-09-17): this read *"the mechanical types are never floored, whatever their
+    # stability — assert ("MENTION", 0.333) in admitted and ("CALL", 1.0) in admitted"*. CALL and
+    # MENTION are floored now, so the SAME reconciler output classifies them by SCORE like every
+    # other floored type: the 3/3 CALL publishes, the 1/3 MENTION does not.
+    assert ("CALL", 1.0) in admitted, "a 3/3 CALL must still publish"
+    assert ("MENTION", 0.333) in blocked, "R89: a 1/3 MENTION must not publish"
 
 
 def test_the_histogram_counts_what_clears_the_floor(tmp_path):

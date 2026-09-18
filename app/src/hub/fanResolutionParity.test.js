@@ -22,26 +22,68 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { modes, fanFor, PREVIEW_MODES } from './registry'
+import { modes, fanFor, PREVIEW_MODES, setHubSurface, hubSurface } from './registry'
 
 const HUB_ROOT = readFileSync(resolve(process.cwd(), 'src', 'hub', 'HubRoot.jsx'), 'utf8')
 const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 describe('the drawn fan and the resolved fan are the same list', () => {
-  it('there ARE preview modes whose two lists differ — the non-vacuity control', () => {
+  const differingIds = () => modes.filter((m) => {
+    const drawn = fanFor(m).map((a) => a.id)
+    const declared = m.fan.map((a) => a.id)
+    return drawn.length !== declared.length || drawn.some((id, i) => id !== declared[i])
+  }).map((m) => m.id)
+
+  it('there ARE modes whose two lists differ — the non-vacuity control', () => {
     // If every mode's projection equalled its declaration, the parity test below would be
     // tautological and would keep passing after the fix was reverted.
-    const differing = modes.filter((m) => {
-      const drawn = fanFor(m).map((a) => a.id)
-      const declared = m.fan.map((a) => a.id)
-      return drawn.length !== declared.length || drawn.some((id, i) => id !== declared[i])
-    })
     expect(
-      differing.map((m) => m.id).length,
+      differingIds().length,
       'no mode projects a different fan than it declares — the parity assertion proves nothing',
     ).toBeGreaterThan(0)
-    expect(differing.every((m) => PREVIEW_MODES.has(m.id)), 'a SHIPPED mode projects differently')
-      .toBe(true)
+  })
+
+  it('on the FULL surface, ONLY a preview mode projects differently', () => {
+    // ⚰️ THIS USED TO BE THE SECOND HALF OF THE CONTROL ABOVE, UNCONDITIONALLY — and owner ruling
+    // R4 made it false by design, not by accident. `fanFor` now composes TWO projections: the
+    // preview ("may this ship at all") and the strong cut ("does this earn a bubble"). The
+    // original claim is still exactly true of the preview one, so it is kept — pinned to the
+    // surface where it is the only projection in play, which is also the strongest form of it.
+    setHubSurface('full')
+    try {
+      const stray = differingIds().filter((id) => !PREVIEW_MODES.has(id))
+      expect(stray, `a SHIPPED mode projects differently with no cut applied: ${stray.join(', ')}`)
+        .toEqual([])
+      // Non-vacuity: the preview must still be doing something, or the filter above is trivial.
+      expect(differingIds().length, 'nothing differs at all on the full surface').toBeGreaterThan(0)
+    } finally {
+      setHubSurface('simplified')
+    }
+  })
+
+  it('⛔ the cut only ever REMOVES — it never adds an action, nor reorders one', () => {
+    // ⭐ The invariant that replaces "only preview modes differ", and it is the one that actually
+    // protects a member's thumb. This file exists because a fan drawn from one list and resolved
+    // against another fired the wrong action — so what matters about a second projection is not
+    // WHICH modes it touches but that it can only ever be a subsequence of the declaration.
+    // An inserted or reordered action changes which bubble a given angle lands on, which is the
+    // shipped defect this whole rail was written for, wearing a different hat.
+    expect(hubSurface(), 'the default surface is the strong cut').toBe('simplified')
+    const problems = []
+    for (const m of modes) {
+      const declared = m.fan.map((a) => a.id)
+      const drawn = fanFor(m).map((a) => a.id)
+      let at = -1
+      for (const id of drawn) {
+        const found = declared.indexOf(id, at + 1)
+        if (found === -1) problems.push(`${m.id}/${id} is drawn but not declared (or out of order)`)
+        else at = found
+      }
+    }
+    expect(problems, 'a projection invented or reordered an action').toEqual([])
+    // Non-vacuity: a projection returning nothing would satisfy the loop above trivially.
+    const drawnTotal = modes.reduce((n, m) => n + fanFor(m).length, 0)
+    expect(drawnTotal, 'no mode drew anything — the subsequence check is vacuous').toBeGreaterThan(0)
   })
 
   it('⛔ HubRoot hands the engine the PROJECTION, not the declared config', () => {

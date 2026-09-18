@@ -20,11 +20,18 @@ import pytest
 from api.routers import discord_interactions as r
 
 
-def _req(ts, entry_wall, entry_perf, *, cmd="flow"):
-    """A stand-in carrying exactly what the real handler stashes."""
+def _req(ts, entry_wall, entry_perf, *, cmd="flow", itype=2):
+    """A stand-in carrying exactly what the real handler stashes.
+
+    `itype` defaults to 2 (APPLICATION_COMMAND) because that is what these cases simulate — a
+    member actually running the command. Pass 4 for an autocomplete round-trip, or None to
+    simulate a pre-R54 interaction that carries no type at all."""
     st = types.SimpleNamespace()
     st.drender_ack_t = (ts, entry_wall, entry_perf)
-    st.drender_interaction = {"data": {"name": cmd}}
+    inter = {"data": {"name": cmd}}
+    if itype is not None:
+        inter["type"] = itype
+    st.drender_interaction = inter
     return types.SimpleNamespace(state=st)
 
 
@@ -125,3 +132,72 @@ def test_that_health_slice_is_really_the_no_store_branch():
     branch = src[start:end]
     assert "no jobs database yet" in branch
     assert "PUSH_SECRET" in branch, "the slice lost the route's real code"
+
+
+# ── R54 (D-15): an autocomplete is not a command, and the stream must say so ──────────────
+#
+# ⚰️ MEASURED 2026-09-17. A `drender` ack for `cmd:"flow"` was emitted at 13:54:16Z:
+#
+#     drender {"t":"drender","evt":"ack","cmd":"flow","hop":"entry_to_ack","ms":22.9}
+#
+# No message existed in the channel at that time, and the `/flow` command was not sent for
+# another six minutes (14:00:07Z). It was the TICKER AUTOCOMPLETE — this app serves those
+# choices, so every keystroke reaches us and acks. An autocomplete carries the SAME
+# `data.name` as the command it completes, so without the type in band the two are
+# indistinguishable, and any rate or latency figure over `evt:"ack", cmd:"flow"` counts
+# autocompletes as arrivals (inflating the rate) at 12-23 ms (deflating the latency).
+
+
+def _acks(monkeypatch, req):
+    """Capture what the emitter actually put on the wire, not what the caller returned."""
+    from api.services.discord_render import observe
+    seen = []
+    real = observe.event
+    monkeypatch.setattr(observe, "event", lambda evt, **f: seen.append(real(evt, **f)) or seen[-1])
+    r._emit_ack_timing(req)
+    return [e for e in seen if e.get("evt") == "ack"]
+
+
+def test_a_command_ack_is_tagged_as_a_command(monkeypatch):
+    """⛔ NON-VACUITY. Without this the exclusion below passes just as well if the tag never
+    appears at all and every event is filtered out."""
+    import time
+    from api.services.discord_render import observe
+    evs = _acks(monkeypatch, _req(ts="1000", entry_wall=1000.1,
+                                  entry_perf=time.perf_counter(), itype=2))
+    assert evs, "no ack events were emitted at all"
+    for e in evs:
+        assert e.get("itype") == observe.ITYPE_COMMAND, f"a real command ack lost its type: {e}"
+        assert observe.is_command_arrival(e), "a real command must count as an arrival"
+
+
+def test_an_autocomplete_ack_is_tagged_type_4_and_excluded(monkeypatch):
+    """⛔ THE LOAD-BEARING ONE. The synthetic autocomplete of 2026-09-17, replayed."""
+    import time
+    from api.services.discord_render import observe
+    evs = _acks(monkeypatch, _req(ts="1000", entry_wall=1000.1,
+                                  entry_perf=time.perf_counter(), itype=4))
+    assert evs, "no ack events were emitted at all"
+    for e in evs:
+        assert e.get("itype") == observe.ITYPE_AUTOCOMPLETE, (
+            f"an autocomplete ack was not tagged type 4: {e}")
+        assert not observe.is_command_arrival(e), (
+            "an autocomplete counted as a command arrival — this is the contamination R54 "
+            "exists to remove")
+    assert evs[0].get("cmd") == "flow", (
+        "the control: an autocomplete DOES carry the command's name, which is exactly why "
+        "the name alone cannot separate them")
+
+
+def test_an_untyped_ack_is_not_counted_as_a_command(monkeypatch):
+    """⛔ UNKNOWN IS NOT A COMMAND. Every ack logged before R54 has no type; answering True
+    for an absence would restore the contamination across the whole historical population,
+    which is the one an arrival census actually reads."""
+    import time
+    from api.services.discord_render import observe
+    evs = _acks(monkeypatch, _req(ts="1000", entry_wall=1000.1,
+                                  entry_perf=time.perf_counter(), itype=None))
+    assert evs, "no ack events were emitted at all"
+    for e in evs:
+        assert "itype" not in e, "an absent type must be ABSENT, never a zero or a guess"
+        assert not observe.is_command_arrival(e)

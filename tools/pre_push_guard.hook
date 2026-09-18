@@ -11,9 +11,8 @@
 # here. The CADENCE and deploy-state clauses still refuse, and still should.
 #
 # Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...                       (the QUEUE, logged)
-#          UCT_DEPLOY_WINDOW_OVERRIDE=I-ACCEPT-AN-RTH-RESTART git push (the CLOCK, logged)
-# ⛔ That second one is NOT dead. R18 retired the window, not the fail-closed branch:
-#    an UNREADABLE clock still refuses, and this is what gets you past it.
+#          (the market-hours window was removed permanently, 2026-09-17;
+#           there is no clock override because there is no clock gate)
 # Install: python tools/pre_push_guard.py --install   (or copy this file)
 
 # Only guard pushes whose DESTINATION is master.

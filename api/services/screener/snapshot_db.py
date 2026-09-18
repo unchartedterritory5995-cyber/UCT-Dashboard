@@ -333,8 +333,12 @@ CREATE TABLE IF NOT EXISTS {_ss.LIVE_CYCLES_TABLE} (
 """
 
 
-def upsert_live_rows(rows: list) -> int:
+def upsert_live_rows(rows: list, *, busy_timeout_ms: int = 5000) -> int:
     """Write the overlay. ONE writer, and this is it.
+
+    ``busy_timeout_ms`` is threaded to ``connect()`` — R72's instrumented sweep
+    passes ``0`` so it can time a busy-wait itself instead of blocking inside
+    SQLite's own C-level retry. Every other caller keeps the 5000ms default.
 
     Rows come from `live_tier.derive_row`, which returns all 22 columns for
     every symbol it answers for (a column it could not recompute carries the
@@ -371,22 +375,24 @@ def upsert_live_rows(rows: list) -> int:
     sql = (f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} "
            f"({', '.join(cols)}) VALUES ({placeholders})")
     payload = [[_coerce(c, r.get(c)) for c in cols] for r in rows]
-    with _WRITE_LOCK, connect() as conn:
+    with _WRITE_LOCK, connect(busy_timeout_ms=busy_timeout_ms) as conn:
         conn.executemany(sql, payload)
         conn.commit()
     return len(rows)
 
 
-def prune_live_rows(session_ymd: int) -> int:
+def prune_live_rows(session_ymd: int, *, busy_timeout_ms: int = 5000) -> int:
     """Drop overlay rows from an earlier session.
 
     Belt and braces only — the serve predicate (`live_session_ymd >
     CAST(bars_asof AS INTEGER)`) already makes a stale row unservable, which is
     what lets the tier and the nightly build need NO coordination at all. This
     just stops the table carrying yesterday around.
+
+    ``busy_timeout_ms`` — see ``upsert_live_rows``.
     """
     from api.services.screener import live_tier
-    with _WRITE_LOCK, connect() as conn:
+    with _WRITE_LOCK, connect(busy_timeout_ms=busy_timeout_ms) as conn:
         cur = conn.execute(
             f"DELETE FROM {live_tier.LIVE_TABLE} WHERE live_session_ymd < ?",
             (int(session_ymd),))
@@ -404,11 +410,15 @@ def get_db_path() -> str:
     return "./data/screener.db"
 
 
-def connect() -> sqlite3.Connection:
+def connect(busy_timeout_ms: int = 5000) -> sqlite3.Connection:
+    """``busy_timeout_ms=0`` disables SQLite's own C-level busy-retry loop —
+    used ONLY by R72's instrumented touches (``live_tier._timed_touch``), which
+    implement their own retry so busy-wait time can be timed separately from
+    statement time. Every other caller keeps the default 5000ms unchanged."""
     conn = sqlite3.connect(get_db_path(), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
     return conn
 
 

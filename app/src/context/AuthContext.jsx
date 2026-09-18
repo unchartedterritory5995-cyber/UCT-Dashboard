@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
-import { latchNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 
 export const AuthContext = createContext(null)
 
@@ -27,6 +27,15 @@ export function AuthProvider({ children }) {
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
+  // Breadth Data Charts V2 increments (DC-2 §2). Default FALSE, same enablement
+  // polarity and the same reason. ⭐ These REPLACE the build-time
+  // `VITE_BREADTH_CHARTS_V2_ENABLED`: baked into the bundle, a flip was a rebuild,
+  // a rollback was a deploy, and a per-owner preview was inexpressible because
+  // there is only one bundle. The server also accepts `admin`, which is why the
+  // value arrives already resolved for THIS user — the client is told yes or no
+  // and never re-derives it from a role it would have to keep in step.
+  const [breadthDcV22Enabled, setBreadthDcV22Enabled] = useState(false)
+  const [breadthDcV23Enabled, setBreadthDcV23Enabled] = useState(false)
   // ⛔ WAVE K KEEPS NO REACT STATE FOR THE NOTEBOOK'S FLAGS, deliberately.
   // They are LATCHED for the life of the tab (`notebookFlags.js`), so they can
   // never change — and a `useState` that can never change is a second copy of a
@@ -59,18 +68,24 @@ export function AuthProvider({ children }) {
     ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
     ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
+    ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
+    ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
   ]
 
   const applyServerFlags = (data) => {
     for (const [, read, set] of SERVER_FLAGS) set(read(data || {}))
     // ⛔ The Notebook LATCHES its own answer for the life of the tab (K-R9).
     // This call is what feeds the latch; the latch decides whether to take it.
-    latchNotebookFlags({
-      notebook_offline_default_on: (data || {}).notebook_offline_default_on,
-      notebook_offline_read_on: (data || {}).notebook_offline_read_on,
-      notebook_conflict_ux_on: (data || {}).notebook_conflict_ux_on,
-      notebook_attachments_on: (data || {}).notebook_attachments_on,
-    })
+    //
+    // ⛔⛔ DERIVED FROM `FLAG_FALLBACKS`, NEVER RE-TYPED HERE. This was four
+    // hand-copied keys, and a fifth (`notebook_door_guard`, Q1 fix 6's rollback
+    // lever) would have had to be added in this file as well as the module that
+    // already owns the list — the second-authority-over-one-value defect, in
+    // the file K-R10 exists to keep honest. A key added to the module now
+    // arrives here the day it lands.
+    latchNotebookFlags(Object.fromEntries(
+      Object.keys(FLAG_FALLBACKS).map((k) => [k, (data || {})[k]]),
+    ))
   }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
@@ -245,7 +260,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

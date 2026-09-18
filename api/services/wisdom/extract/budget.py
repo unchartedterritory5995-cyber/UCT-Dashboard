@@ -70,6 +70,11 @@ CACHE_WRITE_1H_MULT = 2.0
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-opus-5": (5.0, 25.0),
     "claude-sonnet-5": (2.0, 10.0),
+    # R96/R97, session 23-24: $1/$5, cited from api/services/catalyst/cost_guard.py's own
+    # PRICING table (that module's docstring: "verified against the Claude API reference"),
+    # never invented here. This module carried no Haiku row before a Haiku golden run needed
+    # one for R80's per-model extractor_version and this session's real pricing table.
+    "claude-haiku-4-5": (1.0, 5.0),
 }
 FALLBACK_PRICE_PER_MTOK = (10.0, 50.0)
 DEFAULT_BUDGET_USD = 120.0
@@ -248,13 +253,43 @@ def spent_and_pending(conn, extractor_version: Optional[str]) -> tuple[float, fl
     return float(actual or 0.0), float(pending or 0.0)
 
 
+def night_spent_and_pending(conn, et_date: str) -> tuple[float, float]:
+    """(actual, pending) in USD for ONE ET calendar night — R65.
+
+    ⛔⛔ THE DEFECT THIS EXISTS FOR. The per-night ceiling used to be handed to
+    `select_within_budget` as THE cap, where it was compared against CUMULATIVE PROGRAMME
+    spend. So a night line did not ration a night — it clamped the whole programme to that
+    number. Measured by executing this module: $75 of night-1 actuals against a combined cap
+    of 75.0 allowed 0 of 10 on night 2, while $45 of programme headroom sat unused. A night
+    budget that stops the SECOND night is not a night budget.
+
+    ⭐ `submitted_at` and `created_at` are written by `timeutil.iso_et`, so they are ET-local
+    ISO strings and their first ten characters ARE the ET date. No timezone maths here.
+    ⚠️ Attribution is by SUBMISSION, not by reap: a batch submitted Friday and reaped Saturday
+    belongs to Friday, which is the night whose budget authorised it.
+    """
+    marks = ",".join("?" for _ in BUDGET_KINDS)
+    pmarks = ",".join("?" for _ in PENDING_STATUSES)
+    actual = conn.execute(
+        f"SELECT COALESCE(SUM(cost_usd_actual), 0) FROM wisdom_batches "
+        f"WHERE kind IN ({marks}) AND substr(submitted_at, 1, 10) = ?",
+        (*BUDGET_KINDS, et_date)).fetchone()[0]
+    pending = conn.execute(
+        f"SELECT COALESCE(SUM(est_cost_usd), 0) FROM wisdom_extract_requests "
+        f"WHERE status IN ({pmarks}) AND substr(created_at, 1, 10) = ?",
+        (*PENDING_STATUSES, et_date)).fetchone()[0]
+    return float(actual or 0.0), float(pending or 0.0)
+
+
 def program_spent_and_pending(conn) -> tuple[float, float]:
     """Every extractor_version's spend together (CONTRACTS §6.4 `actual_to_date`)."""
     return spent_and_pending(conn, None)
 
 
 def select_within_budget(conn, extractor_version: str, estimates: list[float], *,
-                         cap: Optional[float] = None, exclude_pending_usd: float = 0.0) -> BudgetDecision:
+                         cap: Optional[float] = None, exclude_pending_usd: float = 0.0,
+                         night_cap: Optional[float] = None,
+                         night_date: Optional[str] = None) -> BudgetDecision:
     """How many of `estimates` (in order) fit. exclude_pending_usd removes rows that
     are themselves among `estimates` (retries already counted as pending)."""
     cap = budget_cap_usd() if cap is None else float(cap)
@@ -262,14 +297,24 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
     pending = max(0.0, pending - exclude_pending_usd)
     p_actual, p_pending = program_spent_and_pending(conn)
     p_pending = max(0.0, p_pending - exclude_pending_usd)
+    # ⛔ R65: the night is its OWN ceiling over its OWN scope. Two independent
+    # comparisons, never a min() of the two caps against one cumulative total.
+    n_on = night_cap is not None and bool(night_date)
+    n_actual, n_pending = (night_spent_and_pending(conn, night_date) if n_on else (0.0, 0.0))
+    n_pending = max(0.0, n_pending - exclude_pending_usd)
     running, allowed = 0.0, 0
     reason = None
     for est in estimates:
         # ⛔ ONE CAP, and it is the PROGRAM total across every extractor_version, model and
         # run (D-R2). A prompt or vocabulary change must not hand the run a fresh budget.
         # The per-version figures travel on the decision for reporting and bind nothing.
+        if n_on and n_actual + n_pending + running + float(est) > float(night_cap):
+            reason = (f"night budget stop ({night_date}): actual ${n_actual:.2f} + pending "
+                      f"${n_pending:.2f} + selected ${running:.2f} + next ${float(est):.4f} > "
+                      f"night ${float(night_cap):.2f}")
+            break
         if p_actual + p_pending + running + float(est) > cap:
-            reason = (f"budget stop (all extractor versions): actual ${p_actual:.2f} + pending ${p_pending:.2f} "
+            reason = (f"programme budget stop (all extractor versions): actual ${p_actual:.2f} + pending ${p_pending:.2f} "
                       f"+ selected ${running:.2f} + next ${float(est):.4f} > cap ${cap:.2f} "
                       f"[this version: actual ${actual:.2f} + pending ${pending:.2f}]")
             break
@@ -280,6 +325,36 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
                           requested_count=len(estimates), stopped=allowed < len(estimates), reason=reason,
                           program_actual_usd=round(p_actual, 6),
                           program_pending_estimate_usd=round(p_pending, 6))
+
+
+#: R100/session-26 Step A3 (owner ruling, 2026-09-18) — the arithmetic behind "will tonight fit",
+#: as CODE rather than a number typed into a report. `select_within_budget`'s per-request loop
+#: already enforces "a night can spend no more than min(its own remaining line, the programme's
+#: remaining headroom)" as an EMERGENT property of checking both ceilings on every request; these
+#: two functions make that property a first-class, independently testable quantity instead of
+#: something provable only by re-deriving it from the loop.
+def night_reservation_ceiling_usd(conn, *, night_cap: float, night_date: str,
+                                  programme_cap: Optional[float] = None) -> float:
+    """The most a night can actually spend right now: whichever of the night's own remaining
+    line or the programme's remaining headroom is tighter. Never negative — a night or a
+    programme already over its line has zero room left, not a negative one."""
+    cap = budget_cap_usd() if programme_cap is None else float(programme_cap)
+    p_actual, p_pending = program_spent_and_pending(conn)
+    programme_headroom = max(0.0, cap - p_actual - p_pending)
+    n_actual, n_pending = night_spent_and_pending(conn, night_date)
+    night_headroom = max(0.0, float(night_cap) - n_actual - n_pending)
+    return min(night_headroom, programme_headroom)
+
+
+def projected_night_cost_usd(measured_usd_per_request: float, segments_per_night: int, passes: int) -> float:
+    """A night's projected bill from a MEASURED historical per-request rate — the same arithmetic
+    Step C's own plan states in prose (`segments x N x $/request`), pinned here so it can be
+    replayed against a real measured rate in a test rather than re-typed by hand each time the
+    plan changes. This is a PRE-ARMING SANITY CHECK, never a cap: the actual, enforced ceiling is
+    `night_reservation_ceiling_usd` above, checked per-request against real running totals by
+    `select_within_budget` — this function only answers "does the plan look sane before anything
+    is armed."""
+    return float(measured_usd_per_request) * int(segments_per_night) * int(passes)
 
 
 def snapshot(conn, extractor_version: str) -> dict:

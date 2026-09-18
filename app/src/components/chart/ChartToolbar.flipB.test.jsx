@@ -132,8 +132,14 @@ const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'In
 const openRowFor = (defId) => {
   const block = document.body.querySelector(`[data-def-id="${defId}"]`)
   expect(block, `no ACTIVE row for ${defId} — the list shows what the chart draws`).toBeTruthy()
-  const expander = block.querySelector('[aria-expanded]')
-  if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+  // ⚰️⚰️ IT CLICKED THE ROW'S `aria-expanded` BUTTON, and only when the row was
+  // CLOSED — because the accordion allowed one open row and a blind second click
+  // closed the one just opened. Neither is true of the Inspector: a row is
+  // SELECTED, selecting the same row twice is idempotent, and the form is in the
+  // right column rather than nested in the row. So the gesture is an
+  // unconditional click on the row itself, and asking for two fields of one
+  // indicator can no longer toggle anything shut between them.
+  if (block.getAttribute('aria-selected') !== 'true') fireEvent.click(block)
   // ⭐ AND IT RETURNS THE FORM, NOT THE ROW. Chart Data renders the selected
   // row's controls in the inspector beside the pane map rather than nested inside
   // the row, so every caller below — all of which go looking for a field — wants
@@ -156,22 +162,55 @@ const openRowFor = (defId) => {
  *  declaration order goes red first. */
 const fieldFor = (shortName, defId, key) => {
   const idx = engineRegistry.getDefinition(defId).inputs.findIndex((i) => i.key === key)
-  const rows = openRowFor(defId).querySelectorAll('[class*="indRow"]')
-  return rows[idx]
+  // ⚠️ ADDRESSED BY `data-field`, WHICH IS THE INPUT'S OWN KEY. The index walk
+  // survived three markup changes and would have survived a fourth silently
+  // wrong: the Inspector PARTITIONS `row.fields` into Core and Appearance (from
+  // the definition's `plots[].$refs`), so the Nth rendered row is no longer the
+  // Nth declared input. Asking for the key is both shorter and immune to that.
+  // ⛔ AND STILL NOT BY LABEL, for the reason above: MACD's `signalPeriod` and
+  // `signalColor` are both labelled "Signal".
+  void idx
+  const key2 = key
+  return openRowFor(defId).querySelector(`[data-field="${key2}"]`)
 }
 const numberIn = (row) => within(row).getByRole('spinbutton')
 const swatchIn = (row) => row.querySelector('[data-color-swatch]')
-/** The row's own on/off switch — the FIRST switch in the block, which is the
- *  header's; a field of type `toggle` renders one too, further down. */
+/** This indicator's on/off switch.
+ *  ⚰️⚰️ IT WAS THE FIRST `[role="switch"]` INSIDE THE ROW — the row header's own
+ *  toggle, taken first because a field of type `toggle` renders one further down
+ *  the open form. The rows carry no controls at all now: the switch is the
+ *  Inspector's ON/OFF pill, reached by selecting the row. It is still the FIRST
+ *  switch in the panel for the same reason, and it still writes
+ *  `setInstanceHidden`. */
 const toggleFor = (defId) => {
   const block = document.body.querySelector(`[data-def-id="${defId}"]`)
   expect(block, `no ACTIVE row for ${defId}`).toBeTruthy()
-  return block.querySelector('[role="switch"]')
+  if (block.getAttribute('aria-selected') !== 'true') fireEvent.click(block)
+  const panel = document.body.querySelector('[data-inspector-for]')
+  expect(panel?.getAttribute('data-inspector-for'),
+    `the inspector is not showing ${defId}`).toBe(block.getAttribute('data-row-id'))
+  return panel.querySelector('[role="switch"]')
+}
+
+/** This indicator's Remove door — likewise the Inspector's, likewise `removeRow`. */
+const removeFor = (defId) => {
+  const block = document.body.querySelector(`[data-def-id="${defId}"]`)
+  expect(block, `no ACTIVE row for ${defId}`).toBeTruthy()
+  if (block.getAttribute('aria-selected') !== 'true') fireEvent.click(block)
+  const panel = document.body.querySelector('[data-inspector-for]')
+  return within(panel).getByRole('button', { name: /^Remove / })
 }
 /** Is this indicator in the ACTIVE list at all? The consolidated tab lists what
  *  the chart DRAWS, so "absent" is a meaningful answer where the old tab could
  *  only say "present and unticked". */
-const isListed = (defId) => !!document.body.querySelector(`[data-def-id="${defId}"]`)
+/** ⚠️⚠️ "LISTED" MEANS *THE CHART DRAWS IT*, WHICH IS THE STRUCTURE COLUMN.
+ *  Indicators now opens into the ADD LIBRARY when nothing is selected, and a
+ *  library result carries `data-def-id` exactly as a chart row does — so a
+ *  document-wide query would answer `true` for a TOMBSTONED indicator purely
+ *  because the catalogue still offers it, which is the opposite of the claim. */
+const isListed = (defId) => !!document.body
+  .querySelector('[data-testid="chart-structure"]')
+  ?.querySelector(`[data-def-id="${defId}"]`)
 
 describe('the generated dialog — a FLIPPED indicator writes the instance, field by field', () => {
   it('the period control is live, shows the INSTANCE, and says nothing about an engine', () => {
@@ -277,8 +316,11 @@ describe('the generated dialog — a FLIPPED indicator writes the instance, fiel
     const spy = vi.fn()
     mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
     openIndicators()
-    await user.click(within(document.body.querySelector('[data-def-id="rsi"]'))
-      .getByRole('button', { name: /^Remove / }))
+    // ⚰️⚰️ THE VERB HAS MOVED TWICE. It was the row's TOGGLE (one control meaning
+    // both "hide for a second" and "delete everything I set"); then the ✕ in the
+    // row header; now the Inspector's Remove, because the rows carry no controls.
+    // The WRITE is unchanged through all three, which is what this asserts.
+    await user.click(removeFor('rsi'))
     const next = spy.mock.calls.at(-1)[0]
     expect(next.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
     expect(live(next).filter((i) => i.defId === 'rsi')).toEqual([])

@@ -6,12 +6,21 @@ so the package's own kill switch, idempotency and dry-run handling stay where
 they belong. This module owns the ORDER and the record, nothing else.
 
 Every step gets its own result entry and its own wisdom_chain_steps row:
-  ok             the function returned
+  ok             the function returned, and nothing in its result says it declined to run
   failed         it raised, reported failure, or its module exists but will not import
   not_available  its module or attribute does not exist yet (named in the reason)
-  skipped        with a reason: the step said so, a flag W1 puts on the step itself
-                 is off, it is a documented in-line pass, or it already succeeded
-                 for this due_key in an earlier run
+  skipped        with a reason: the step said so — AT ANY DEPTH of its result (R66) — a
+                 flag W1 puts on the step itself is off, it is a documented in-line pass,
+                 or it already succeeded for this due_key in an earlier run
+
+⛔⛔ R66 — A STEP'S SKIP MARKERS ARE NOT ALWAYS AT THE TOP LEVEL, AND READING ONLY THE TOP
+LEVEL RECORDED A STEP THAT DID NOTHING AS `ok`. Measured in production on 2026-09-16: the
+`sources` step returned {"discord": {"skipped": …}, "transcripts": {"skipped": …}} — both
+sub-streams declined, nothing was ingested — and the chain result AND the observation log
+both said `ok`. `evals` does the same thing one level down ({"context": {"skipped": …},
+"outcomes": {"skipped": …}, …}), so the same night reported two honest-looking `ok`s for two
+steps that did no work at all. `_normalize` now WALKS the whole result; `_decide_outcome`
+carries the rule, including the one for the mixed case.
 
 ⛔ ONE FAILING STEP NEVER STOPS THE REST. Each call is isolated, and each row is
 written as its step finishes, so a crash mid-chain leaves the trail up to it.
@@ -192,16 +201,202 @@ def catalogue() -> dict:
 
 # ── running ──────────────────────────────────────────────────────────────────
 
+# ── R66: the outcome is read from the WHOLE result, not its top level ────────
+#
+# ⛔⛔ THE RULE, AND THE MIXED CASE, IN ONE PLACE. A step's result is walked; every dict in it
+# is a NODE that may declare it did nothing (a skip marker) or show that work happened (a write
+# counter above zero, or an explicit `did_work`). Then:
+#
+#   skips and NO work   -> skipped, and the reason NAMES each sub-stream and its own sentence
+#   skips AND work      -> ok, and the reason is mandatory: "partial: worked (…) but N
+#                          sub-outcome(s) skipped — …"   ⭐ see below for why ok and not skipped
+#   no skips            -> unchanged: ok (or failed, checked first)
+#
+# ⭐ WHY MIXED IS `ok` AND NOT `skipped`, and it is a real decision, not a default.
+# `ok` is the ONLY status `_prior_ok_steps` treats as done, so it is also the resume contract:
+# a catch-up re-runs everything that is not `ok`. A step that wrote rows must not have that
+# half re-done on the next catch-up, so a partial run has to record `ok`. What makes it honest
+# is that `reason` is NEVER null on a partial — and `reason` was previously null for EVERY ok
+# step, so a non-null reason on an ok row now means exactly "this ran partially, here is what
+# declined". `write_observation_log` prints the reason for ok rows too, for the same purpose.
+#
+# ⛔ SCOPE, stated so nobody reads this as more than it is. This judges DECLARED outcomes. A
+# step that declares nothing and writes nothing (level_alerts on a day with no open calls)
+# still reads `ok`: it did not decline, it had nothing to do, and inventing a skip for it would
+# make the honest zero indistinguishable from a switched-off lane. Nested FAILURE markers are
+# recorded in `_outcome` but do NOT change the status — `adapters.run_daily` is contractually
+# allowed to swallow one adapter's failure, and changing that here would page for something the
+# publish contract deliberately tolerates.
+
+#: A node DECLARES it did nothing when it carries a truthy `skipped`, or one of these in
+#: `status`. ⛔ Read off the real step payloads, never invented: `skipped`
+#: (sources.run_daily, evals.pipeline.run_daily, retrieval.refresh, reconcile.score_silently,
+#: evals.null_review), `skipped_holiday` (capture.runner), `nothing_to_do` /
+#: `blocked_by_gate` / `night_budget_stop` (extract.batch), `not_available` (this module).
+SKIP_STATUSES = frozenset({"skipped", "skipped_holiday", "nothing_to_do",
+                           "not_available", "blocked_by_gate", "night_budget_stop"})
+
+#: Evidence work actually HAPPENED: a write counter above zero, or the explicit `did_work`
+#: marker a step sets when its counter has a name nothing here knows.
+#: ⛔ A WHITELIST, NOT "any positive number". `floor: 0.8`, `lookback_days: 10`,
+#: `candidates: 5`, `open_calls: 3` and `docs: 412` are thresholds, configuration and INPUTS —
+#: counting them would let a step that skipped every sub-stream outvote its own skip markers,
+#: which is the defect this walk exists to kill, re-committed one level down.
+WORK_KEYS = frozenset({
+    "written", "inserted", "updated", "created", "rows", "emitted", "submitted", "changed",
+    "removed", "kept", "indexed_docs", "drafts", "example_drafts", "playbook_drafts",
+    "crosses", "delivered", "scored", "matched_new", "replayed", "enqueued", "blocked",
+    "retracted", "promoted", "keys", "tickers_badged", "entities_with_lines", "style_titles",
+    "corpus_documents",
+})
+#: The same idea for the `<thing>_updated` / `<thing>_written` family (reconcile.write_scores
+#: returns records_updated / principles_updated), so a new counter of that shape counts itself.
+WORK_SUFFIXES = ("_written", "_inserted", "_updated", "_created", "_emitted", "_drafts", "_rows")
+
+_WALK_MAX_DEPTH = 6
+_WALK_MAX_NODES = 500
+#: How many items a reason names before it says "+N more", and the reason's hard ceiling.
+_REASON_ITEMS = 4
+_REASON_MAX = 600
+
+
+def _skip_text(node: dict) -> str:
+    """The node's OWN sentence for why it did nothing.
+
+    ⭐ When a node carries both (`evals.null_review` returns {"reason": "RQ-v11-001",
+    "skipped": "no gate run recorded"}), both are printed: the old code took `reason` first and
+    recorded the ticket number as the explanation.
+    """
+    marker = node.get("skipped")
+    marker = marker.strip() if isinstance(marker, str) and marker.strip() else None
+    reason = node.get("reason")
+    reason = reason.strip() if isinstance(reason, str) and reason.strip() else None
+    if marker and reason and marker != reason:
+        return f"{marker} ({reason})"
+    return marker or reason or "the step reported it skipped"
+
+
+def _declares_skip(node: dict) -> bool:
+    if node.get("skipped"):
+        return True
+    status = node.get("status")
+    return isinstance(status, str) and status in SKIP_STATUSES
+
+
+def _work_evidence(node: dict) -> list:
+    """The write counters above zero in ONE node. `False`, `0`, negatives and NaN are not work."""
+    hits: list = []
+    if node.get("did_work"):
+        hits.append(("did_work", node["did_work"]))
+    for key, value in node.items():
+        if key == "did_work" or not isinstance(value, (int, float)):
+            continue
+        if not value > 0:
+            continue
+        if key in WORK_KEYS or key.endswith(WORK_SUFFIXES):
+            hits.append((key, value))
+    return hits
+
+
+def _item_label(key: str, item: dict, index: int) -> str:
+    """A list entry is named by what it IS where it can be ("datasets.tweets"), never only by
+    its position — an index tells a reader nothing about which sub-stream declined."""
+    for name_key in ("dataset", "step", "name", "id", "run_id", "pass_index"):
+        value = item.get(name_key)
+        if isinstance(value, (str, int)) and not isinstance(value, bool) and str(value).strip():
+            return f"{key}.{str(value).strip()}"
+    return f"{key}[{index}]"
+
+
+def _child_path(parent: str, label) -> str:
+    return f"{parent}.{label}" if parent else str(label)
+
+
+def walk_outcome(out, *, max_depth: int = _WALK_MAX_DEPTH, max_nodes: int = _WALK_MAX_NODES) -> dict:
+    """Every dict inside a step's result, with the path that reaches it.
+
+    {"skips": [(path, text)], "work": [(path, key, value)], "nodes": int, "truncated": bool}
+    — the root's path is "".
+
+    ⭐ ONE RULE FOR EVERY NODE: a node's skip declaration and its write counters are collected
+    independently, so a node claiming `skipped` while reporting `written: 1` shows up as BOTH
+    and is decided as mixed. Suppressing a skipping node's own counters would have made a
+    declaration outrank a measurement, which is the shape of the defect, inverted.
+    """
+    skips: list = []
+    work: list = []
+    nodes = 0
+    truncated = False
+    queue = [("", out, 0)]
+    while queue:
+        path, node, depth = queue.pop(0)
+        if not isinstance(node, dict):
+            continue
+        nodes += 1
+        if nodes > max_nodes:
+            truncated = True
+            break
+        if _declares_skip(node):
+            skips.append((path, _skip_text(node)))
+        work.extend((path, key, value) for key, value in _work_evidence(node))
+        if depth >= max_depth:
+            truncated = True
+            continue
+        for key, value in node.items():
+            if isinstance(value, dict):
+                queue.append((_child_path(path, key), value, depth + 1))
+            elif isinstance(value, (list, tuple)):
+                for index, item in enumerate(value):
+                    if isinstance(item, dict):
+                        queue.append((_child_path(path, _item_label(key, item, index)), item, depth + 1))
+    return {"skips": skips, "work": work, "nodes": nodes, "truncated": truncated}
+
+
+def _render(items: list, render_one, joiner: str) -> str:
+    parts = [render_one(item) for item in items[:_REASON_ITEMS]]
+    if len(items) > _REASON_ITEMS:
+        parts.append(f"+{len(items) - _REASON_ITEMS} more")
+    return joiner.join(parts)
+
+
+def _decide_outcome(scan: dict) -> tuple:
+    """(status, reason) from a walked result. The rule is the comment block above."""
+    skips, work = scan["skips"], scan["work"]
+    if not skips:
+        return "ok", None
+    named = _render(skips, lambda s: f"{s[0] or '<step>'} ({s[1]})", "; ")
+    if not work:
+        # ⭐ A skip declared ONLY at the top level keeps its exact old sentence, so every
+        # existing reason string in wisdom_chain_steps still reads the same.
+        if len(skips) == 1 and skips[0][0] == "":
+            return "skipped", skips[0][1][:_REASON_MAX]
+        return "skipped", f"skipped: {named}"[:_REASON_MAX]
+    did = _render(work, lambda w: f"{(w[0] + '.') if w[0] else ''}{w[1]}={w[2]}", ", ")
+    return "ok", (f"partial: worked ({did}) but {len(skips)} sub-outcome(s) "
+                  f"skipped — {named}")[:_REASON_MAX]
+
+
 def _normalize(out) -> tuple:
-    if isinstance(out, dict):
-        status = out.get("status")
-        if status == "skipped" or out.get("skipped"):
-            reason = out.get("reason") or out.get("skipped")
-            return "skipped", reason if isinstance(reason, str) else "the step reported it skipped", out
-        if status == "failed":
-            return "failed", str(out.get("error") or "the step reported failure"), out
-        return "ok", None, out
-    return "ok", None, {"result": out}
+    if not isinstance(out, dict):
+        return "ok", None, {"result": out}
+    # ⛔ FAILURE IS READ FIRST. The old order asked about skips first, so a result carrying both
+    # would have hidden a declared failure behind a nested skip once the walk went deep.
+    if out.get("status") == "failed":
+        return "failed", str(out.get("error") or "the step reported failure"), out
+    try:
+        scan = walk_outcome(out)
+    except Exception:  # noqa: BLE001 — an outcome recorder that throws turns a healthy step red
+        log.exception("[wisdom] could not walk a step result; falling back to its top level")
+        scan = {"skips": ([("", _skip_text(out))] if _declares_skip(out) else []),
+                "work": [], "nodes": 1, "truncated": True}
+    status, reason = _decide_outcome(scan)
+    if not scan["skips"]:
+        return status, reason, out
+    return status, reason, {**out, "_outcome": {
+        "decision": "partial" if scan["work"] else "skipped",
+        "skipped": [{"path": path, "reason": text} for path, text in scan["skips"]],
+        "work": [{"path": path, "key": key, "value": value} for path, key, value in scan["work"]],
+        "nodes": scan["nodes"], "truncated": scan["truncated"]}}
 
 
 def _dumps(value) -> Optional[str]:
@@ -300,7 +495,11 @@ def write_observation_log(ctx, chain: str, results: list) -> list:
         parts = []
         for r in mine:
             text = f"{r['step']}={r['status']}{_payload_numbers(r.get('result'))}"
-            if r["status"] != "ok" and r["reason"]:
+            # ⛔ R66: the reason is printed for an `ok` row too. `reason` is null for every
+            # ordinary ok step, so the only ok rows this reaches are PARTIAL ones — and a
+            # partial whose skipped half is invisible on the daily line is the same lie the
+            # walk was written to stop, moved one artifact along.
+            if r["reason"]:
                 text += f" ({r['reason'][:120]})"
             parts.append(text)
         lines.append({"stream": stream, "line": "; ".join(parts)})
