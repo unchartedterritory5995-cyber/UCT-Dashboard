@@ -1,0 +1,59 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 2,
+    "unchanged": 121,
+    "missing": 0,
+    "baseline": 123,
+    "current": 121,
+    "current_ran": 47279,
+    "new_flaky": 0,
+    "flaky_size": 4,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 123 = unchanged 121 + fixed 2 + missing 0  |  current 121 = unchanged 121 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35390303171",
+  "current_run_id": "35391973414",
+  "baseline_sha": "4fc829aec697225a27b59a311257614866777c76",
+  "current_sha": "a7c1a19264ffda5f8581fead3eaa80c4c4cf584f",
+  "commit_range": "4fc829aec697225a27b59a311257614866777c76..a7c1a19264ffda5f8581fead3eaa80c4c4cf584f",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fc829aec..a7c1a1926 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fc829aec..a7c1a1926 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
