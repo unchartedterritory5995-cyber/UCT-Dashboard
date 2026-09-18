@@ -62,6 +62,7 @@ import time
 from typing import Any, Optional
 
 from api.services import auth_db as _auth_db
+from api.services import breadth_symbols
 from api.services import rollout as _rollout
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import price_level as _pl
@@ -292,6 +293,26 @@ def _prices_for(symbols: list[str]) -> tuple[dict[str, float], list[str]]:
             prices[sym] = float(px)
         else:
             missing.append(sym)
+
+    # ⛔⛔ S7 dark-read investigation, 2026-09-18 — UCT breadth pseudo-tickers (e.g.
+    # UCTA5, "% of Stocks Above 5-Day MA") have no Massive quote at all, so the
+    # fallback below always missed them. The REAL legacy path (live_prices.py)
+    # resolves these via `breadth_symbols.latest_quotes` before it ever reaches
+    # Massive; this sweep's independent resolver did not, so any predicate on a
+    # breadth pseudo-ticker was silently NEVER-EVALUATED — invisible in the
+    # comparison report, not merely a zero-count row.
+    if missing:
+        breadth_hits = [s for s in missing if breadth_symbols.is_breadth_symbol(s)]
+        if breadth_hits:
+            try:
+                quotes = breadth_symbols.latest_quotes(breadth_hits) or {}
+                for sym in breadth_hits:
+                    px = (quotes.get(sym.strip().upper()) or {}).get("price")
+                    if px:
+                        prices[sym] = float(px)
+                        missing.remove(sym)
+            except Exception:
+                pass          # bounded, same as the Massive fallback below
 
     if missing:
         try:
