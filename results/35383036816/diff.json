@@ -1,0 +1,53 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 124,
+    "missing": 0,
+    "baseline": 125,
+    "current": 125,
+    "current_ran": 47186,
+    "new_flaky": 1,
+    "flaky_size": 3,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 125 = unchanged 124 + fixed 1 + missing 0  |  current 125 = unchanged 124 + new 0 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35381088597",
+  "current_run_id": "35383036816",
+  "baseline_sha": "bd03e8cbac950abc42aa6bbade53886943017d6b",
+  "current_sha": "bf100aadf95f863187f040fc09fda1a4ff5b9cb7",
+  "commit_range": "bd03e8cbac950abc42aa6bbade53886943017d6b..bf100aadf95f863187f040fc09fda1a4ff5b9cb7",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bd03e8cba..bf100aadf touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
