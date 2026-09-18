@@ -996,7 +996,14 @@ SECOND_WRITER_REV_BUDGET_S = 20
 
 #: ⛔ The SETUP phase must wait for the editor and for the durable write, never
 #: sample at them. Both budgets are >= the blind sleeps they replace.
-SETUP_EDITOR_MOUNT_MS = 16000
+#: ⚰️ 16000 -> 30000 on 2026-09-18. With the waiter in place the cell finally SAID
+#: what was wrong — "the editor never mounted within 16000ms of going offline, so
+#: the sentence was never typed" — instead of blaming the durable store. That is
+#: the fix working: the message named a budget, and the budget was too small.
+#: ⭐ Same asymmetry as the queued poll: `wait_for_selector` returns the instant
+#: the editor appears, so this is only ever spent by a cell that is already
+#: failing. Widening it costs nothing when the editor is there.
+SETUP_EDITOR_MOUNT_MS = 30000
 #: ⭐ A POLL THAT EXITS EARLY COSTS NOTHING TO LENGTHEN. This budget is only ever
 #: spent by a cell that is FAILING, so a generous value slows nothing down in the
 #: common case and rescues the slow one.

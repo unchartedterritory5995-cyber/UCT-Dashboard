@@ -230,40 +230,6 @@
       }
     },
     {
-      "id": "p2-2.8b-marker-live",
-      "status": "pending",
-      "why": "2.8b chunk 3 of 6 \u2014 the `marker LIVE` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
-      "expect": "GREEN",
-      "cells": 7,
-      "cmd": [
-        "python",
-        "tools/q1_f5_matrix.py",
-        "--second-writer",
-        "--second-writer-door",
-        "folder",
-        "--ordering",
-        "marker LIVE",
-        "--profile",
-        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
-        "--out",
-        "docs/notebook/wave-q1-f5-production-matrix.md"
-      ],
-      "timeout": 969,
-      "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
-      "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
-      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
-      "attempts": 1,
-      "result": {
-        "exit": 0,
-        "seconds": 666.4,
-        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
-        "inconclusive": true,
-        "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T165644-p2-2.8b-marker-live",
-        "evidence_ok": true
-      }
-    },
-    {
       "id": "p2-2.8b-marker-expired",
       "status": "pending",
       "why": "2.8b chunk 4 of 6 \u2014 the `marker EXPIRED` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
@@ -285,7 +251,17 @@
       "timeout": 969,
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
-      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass."
+      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 564.2,
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T182431-p2-2.8b-marker-expired",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-slow-put",
@@ -334,6 +310,41 @@
       "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
       "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
       "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass."
+    },
+    {
+      "id": "p2-2.8b-marker-live",
+      "status": "pending",
+      "why": "2.8b chunk 3 of 6 \u2014 the `marker LIVE` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
+      "expect": "GREEN",
+      "cells": 7,
+      "cmd": [
+        "python",
+        "tools/q1_f5_matrix.py",
+        "--second-writer",
+        "--second-writer-door",
+        "folder",
+        "--ordering",
+        "marker LIVE",
+        "--profile",
+        "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+        "--out",
+        "docs/notebook/wave-q1-f5-production-matrix.md"
+      ],
+      "timeout": 969,
+      "timeout_why": "\u26d4 DERIVED FROM A MEASURED RATE, not an assumed one: 7 cells x 87 s = 609 s (87 s is 3301 s / 38 cells from the 19:50:30Z run; the previous derivation used 80 s and was ~10% short, which is exactly what killed it), plus 360 s for ONE swap-wait (SWAP_WAIT_BUDGET_SECONDS).",
+      "no_resume_why": "\u26d4\u26d4 DO NOT ADD --resume. Second-writer verdicts are never banked (`q1_f5_matrix.py:2453`), while the state key `family|ordering` carries NO mode \u2014 so --resume would read the NORMAL-mode table and skip cells GREEN there without ever measuring them under a second writer.",
+      "inconclusive_policy": "A rig/second-context INCONCLUSIVE is not a product fact and is not banked. Re-run the chunk; at three attempts the runner latches it and a human looks. \u26d4 ZERO RED is NOT the same as GREEN \u2014 do not bank 'every cell that could be measured was GREEN' as a pass.",
+      "attempts": 0,
+      "result": {
+        "exit": 0,
+        "seconds": 630.3,
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T181359-p2-2.8b-marker-live",
+        "evidence_ok": true
+      },
+      "restaged_why": "Re-staged and moved LAST. It latched `inconclusive` at 3 attempts, and the runner was right to stop \u2014 but the cause was named by the new waiter messages rather than hidden: once 'the editor never mounted within 16000ms' (budget raised to 30000) and repeatedly the `append_document_excerpt` setup. Moved to the END so it cannot spend window that chunks which have NEVER RUN still need. attempts reset to 0 deliberately and stated: the code under it changed, so this is a different experiment, not a fourth try at the same one."
     },
     {
       "id": "w2-deferred-by-guard-banking-run",
