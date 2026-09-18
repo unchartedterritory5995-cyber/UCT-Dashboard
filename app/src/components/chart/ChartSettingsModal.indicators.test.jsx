@@ -471,7 +471,11 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={onChange} />)
     openIndicators()
-    act(/Session VWAP/, /^Toggle Session VWAP/)
+    // ⚰️ IT WAS `Toggle Session VWAP`. The switch is the panel's shared one now
+    // and its accessible name is the ACTION rather than the control — `Hide …`
+    // when it is on, `Show …` when it is off — so a member is told the outcome
+    // instead of guessing it. The writer under it did not move.
+    act(/Session VWAP/, /^Hide Session VWAP/)
     const next = lastCall(onChange)
     const inst = (next.indicatorInstances || []).find(i => i.instanceId === 'legacy:vwap')
     expect(inst.hidden, 'the toggle did not hide the line').toBe(true)

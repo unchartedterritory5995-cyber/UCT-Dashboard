@@ -959,7 +959,17 @@ export default function ChartSettingsModal({
             they keep it and sit against the leading edge. Stretching four card
             groups across 720px would be a redesign of four tabs nobody asked
             for; a future project can unify them properly. */}
-        <div className={styles.body}>
+        {/* ⚠️⚠️ `.bodyFlush` IS A RESERVATION BEING GIVEN BACK, not a padding
+            change. `.body` reserves a scrollbar gutter permanently — see its rule
+            — because the four card tabs genuinely scroll here and a bar appearing
+            mid-click would shift every control 10px left. INDICATORS DOES NOT
+            SCROLL HERE: it is a `height: 100%` flex column that scrolls inside its
+            own two halves, so the reserved 10.4px was measured as dead strip down
+            the right of the discovery list with nothing able to occupy it.
+            ⛔ THE 18px OF MODAL PADDING STAYS. That is the frame every tab, the
+            title and the tab strip share, and this pass is about the gutter that
+            has no frame to be. */}
+        <div className={`${styles.body} ${activeTab === 'indicators' ? styles.bodyFlush : ''}`}>
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>

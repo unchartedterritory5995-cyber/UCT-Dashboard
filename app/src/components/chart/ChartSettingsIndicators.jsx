@@ -1815,14 +1815,33 @@ export default function ChartSettingsIndicators({
               <span className={styles.insHeadKind}>{kind}</span>
             )}
           </span>
+          {/* ⚰️⚰️ IT WAS AN OUTLINED `• ON` PILL, and it read as a STATUS BADGE
+              rather than a control — owner, 2026-09-17: *"it feels more like a
+              status badge than an interactive visibility control."* A bordered
+              chip with a dot and a word is what this panel uses to LABEL things;
+              a thing you flip should look like the other things you flip.
+              ⭐ SO IT IS THE PANEL'S OWN SWITCH — `.toggle` / `.toggleKnob` /
+              `.toggleOn`, the same component `Overlap candles` uses four rows
+              below it, at a header-sized variant that changes nothing but the
+              geometry. ⛔ NOT A SECOND TOGGLE SYSTEM: the classes are the shared
+              ones and `.insVis` only resizes them.
+              ⛔ AND NO VISIBLE WORD. The header already says WHICH indicator this
+              is and the switch says whether it draws; `ON` beside a switch
+              restates the switch, and `Visible` restates the header's own
+              subject. The label a screen reader gets is the ACTION, not the
+              state — `Hide EMA 20` / `Show EMA 20` — which is what a member is
+              about to do rather than what they are looking at, and it carries a
+              `title` so a pointer gets the same sentence.
+              ⛔ SAME WRITER, SAME STATE. `setRowVisible(row, !on)` is untouched:
+              this is a control swap, not a visibility change. */}
           <button
             type="button" role="switch" aria-checked={on}
-            aria-label={`Toggle ${meta.name}`}
-            className={`${styles.insOnOff} ${on ? styles.insOnOffOn : ''}`}
+            aria-label={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+            title={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+            className={`${styles.toggle} ${styles.insVis} ${on ? styles.toggleOn : ''}`}
             onClick={() => setRowVisible(row, !on)}
           >
-            <span className={styles.insOnDot} aria-hidden="true" />
-            {on ? 'On' : 'Off'}
+            <span className={styles.toggleKnob} />
           </button>
         </div>
 
@@ -2303,9 +2322,16 @@ export default function ChartSettingsIndicators({
           </button>
         )}
       </div>
-      <p className={styles.insAddLede}>
-        Search and add indicators, symbols, breadth and your own formulas.
-      </p>
+      {/* ⚰️⚰️ A LINE OF EXPLANATORY COPY STOOD HERE — *"Search and add
+          indicators, symbols, breadth and your own formulas."* It was written when
+          this surface was new and the search box said less; the placeholder says
+          the same thing now, one line lower, at the moment a member is actually
+          looking at the field. Owner, 2026-09-17: *"the interface is
+          self-explanatory."*
+          ⛔ DELETED, NOT HIDDEN. The 12px of margin under it goes with it (see the
+          `.insAddLede` grave), because leaving the gap behind would be the "merely
+          hide the sentence" the brief rules out — the space belongs to the results
+          now. */}
 
       <div className={styles.insSearchRow}>
         <div className={styles.indSearchWrap}>
@@ -2641,8 +2667,23 @@ export default function ChartSettingsIndicators({
           </div>
         )}
 
+        {/* ⚠️⚠️ TWO BOXES CANNOT BOTH OWN THE SCROLLBAR, AND BOTH WERE
+            RESERVING ONE. `.insRight` scrolls when it holds the Inspector or
+            Arrange — a long form is taller than the panel — so it keeps a stable
+            gutter for those. Discovery brings its OWN scroller (`.insAddBody`,
+            because the search box and the category strip must stay put while the
+            results move), and the outer reservation then bought nothing: measured
+            at 10.8px of unreachable strip between the results scrollbar and the
+            workspace edge, on top of `.body`'s 10.4.
+            ⛔ GIVEN BACK ONLY WHERE IT IS PROVABLY UNUSED. The class is keyed on
+            `discovering`, which is the same flag that chooses the surface below
+            — so the mode that scrolls here still reserves, and there is no state
+            where the bar can appear against an unreserved box. */}
         {showRight && (
-          <div className={styles.insRight} data-testid="inspector">
+          <div
+            className={`${styles.insRight} ${discovering && mode !== 'arrange' ? styles.insRightFlush : ''}`}
+            data-testid="inspector"
+          >
             {mode === 'arrange'
               ? renderArrangeAside()
               : (discovering ? renderAddSurface() : renderInspector(selectedRow))}

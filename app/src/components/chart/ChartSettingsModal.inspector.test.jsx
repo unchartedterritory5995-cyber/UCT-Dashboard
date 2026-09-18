@@ -153,7 +153,7 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
       'the kind line repeated the name').toBeNull()
   })
 
-  it('⭐ the ON/OFF pill is the row\'s visibility, and it HIDES rather than deletes', () => {
+  it('⭐ the visibility switch HIDES rather than deletes', () => {
     const seen = { cs: null }
     const inst = addInstance(base(), 'rsi', registry)
     const id = lastCreatedInstance(base(), inst).instanceId
@@ -169,6 +169,69 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
     // …and the row is still in the list, so the member can turn it back on.
     expect(names().some((n) => /Relative Strength/.test(n)),
       'hiding a series removed its row').toBe(true)
+  })
+
+  it('⚰️⚰️ IT IS THE PANEL OWN SWITCH NOW, not an outlined dot-ON pill', () => {
+    // ⚰️⚰️ IT WAS A BORDERED CHIP WITH A DOT AND A WORD, which is the shape this
+    // panel uses to LABEL things — so the one control in the header read as a
+    // status. Owner, 2026-09-17: *"it feels more like a status badge than an
+    // interactive visibility control."*
+    // ⛔ AND THE REPLACEMENT IS NOT A NEW TOGGLE. `.toggle` / `.toggleKnob` /
+    // `.toggleOn` are the classes `Overlap candles` already wears further down the
+    // same panel; `.insVis` only resizes them. A second switch system is exactly
+    // what §10 forbids, so this asserts the SHARED classes by name.
+    const inst = addInstance(base(), 'rsi', registry)
+    show(inst); openTab(); select(/Relative Strength/)
+    const sw = inspector().querySelector('[role="switch"]')
+
+    expect(sw.className, 'the switch is not wearing the shared toggle').toMatch(/toggle/)
+    expect(sw.className, 'a second toggle system was built').not.toMatch(/insOnOff/)
+    expect(sw.querySelector('[class*="toggleKnob"]'), 'the shared knob is missing').toBeTruthy()
+    expect(sw.querySelector('[class*="insOnDot"]'), 'the retired status dot is back').toBeNull()
+
+    // ⛔ NO VISIBLE WORD — not ON, not OFF, not Visible. A switch that prints its
+    // own state beside itself restates itself.
+    expect(sw.textContent.trim(), 'the switch prints its own state').toBe('')
+
+    // ⭐ AND THE ACCESSIBLE NAME IS THE ACTION, NOT THE STATE. It says what the
+    // member is about to do; `Toggle RSI` made them guess the outcome.
+    expect(sw.getAttribute('aria-label')).toBe('Hide Relative Strength Index')
+    expect(sw.getAttribute('title')).toBe('Hide Relative Strength Index')
+    fireEvent.click(sw)
+    const off = inspector().querySelector('[role="switch"]')
+    // ⛔ COLOUR IS NOT THE ONLY SIGNAL: `aria-checked` carries the state for anyone
+    // who cannot see the accent, and the name says which way it goes next.
+    expect(off.getAttribute('aria-checked'), 'the switch did not follow the state').toBe('false')
+    expect(off.getAttribute('aria-label'), 'the name did not follow the state')
+      .toBe('Show Relative Strength Index')
+  })
+
+  it('⛔⛔ SWITCHING OFF CHANGES VISIBILITY AND NOTHING ELSE', () => {
+    // ⛔ §14 BY NAME: off must not delete, tombstone, drop the row from
+    // `paneSeriesOrder`, change Display or Source, or move the series between
+    // panes. This was a CONTROL swap, so the writer behind it must still be the
+    // one that only sets `hidden`.
+    const seen = { cs: null }
+    const before = addInstance(base(), 'rsi', registry)
+    const id = lastCreatedInstance(base(), before).instanceId
+    show(before, seen); openTab(); select(/Relative Strength/)
+    fireEvent.click(inspector().querySelector('[role="switch"]'))
+
+    const after = seen.cs
+    const a = findInstance(after, id)
+    const b = findInstance(before, id)
+    expect(a.hidden).toBe(true)
+    expect(a.deleted, 'off tombstoned the instance').toBeFalsy()
+    expect(a.target, 'off changed Display').toEqual(b.target)
+    expect(a.targetExplicit, 'off changed targetExplicit').toEqual(b.targetExplicit)
+    expect(a.source, 'off changed Source').toEqual(b.source)
+    expect(a.inputs, 'off rewrote the inputs').toEqual(b.inputs)
+    expect(after.paneSeriesOrder, 'off rewrote the series order')
+      .toEqual(before.paneSeriesOrder)
+    expect(after.paneOrder, 'off rewrote the pane order').toEqual(before.paneOrder)
+    expect(after.overlays, 'off touched the legacy overlays').toEqual(before.overlays)
+    expect(after.indicatorInstances.length, 'off changed the inventory')
+      .toBe(before.indicatorInstances.length)
   })
 })
 
@@ -1128,6 +1191,122 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(ich.querySelector('[class*="resShort"]'), 'the canonical abbreviation went').toBeTruthy()
     expect(ich.querySelector('[class*="resRepaint"]'),
       'a genuine capability warning was dropped for density').toBeTruthy()
+  })
+
+  it('⚰️⚰️ THE EXPLANATORY SENTENCE IS GONE, AND ITS SPACE WENT WITH IT', () => {
+    // ⚰️ IT SAID *"Search and add indicators, symbols, breadth and your own
+    // formulas."* under the title — which is what the search box's own placeholder
+    // says, one line lower, at the moment a member is looking at the field. Owner,
+    // 2026-09-17: *"the interface is self-explanatory."*
+    // ⛔ DELETED, NOT HIDDEN. Leaving the hole where a sentence used to be is the
+    // "merely hide the sentence" the brief rules out, so the rule went with it —
+    // asserted from the stylesheet, because jsdom applies no CSS.
+    show(base()); openTab()
+    fireEvent.click(addBtn())
+    const add = document.body.querySelector('[data-testid="add-surface"]')
+    expect(add.textContent, 'the lede is still printed')
+      .not.toMatch(/Search and add indicators, symbols/i)
+    expect(add.querySelector('[class*="insAddLede"]'), 'the element is still mounted').toBeNull()
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    expect(css, 'the rule (and so its 12px of margin) survived the sentence')
+      .not.toMatch(/^\.insAddLede\s*\{/m)
+    // …and what it promised is still promised, where it is actually useful.
+    expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
+      .toMatch(/indicators, symbols, breadth or formulas/i)
+  })
+
+  it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {
+    // ⚰️ 600 → 500. At semibold a column of twenty-one names read as twenty-one
+    // headings once the rows got short — owner: *"the weight makes a dense list
+    // feel more overwhelming than it actually is."*
+    // ⛔ SCOPED, AND THAT IS THE POINT OF THE CASE (§6). `.resName` also dresses the
+    // library dialog, and the LEFT list uses `.insRowName` — a different class on a
+    // different surface with a different job. Weakening either would be collateral.
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.insAdd .resName { color:'))
+    expect(rule.slice(0, rule.indexOf('}')), 'the discovery name did not get a weight')
+      .toMatch(/font-weight:\s*5[05]0/)
+    const left = css.slice(css.indexOf('.insRowName {'))
+    expect(left.slice(0, left.indexOf('}')), 'the left list lost its weight with it')
+      .toMatch(/font-weight:\s*6/)
+    const baseAt = css.indexOf('\n.resName {')
+    expect(css.slice(baseAt, css.indexOf('}', baseAt)),
+      'the library dialog was re-dressed by a pass scoped to discovery')
+      .toMatch(/font-weight:\s*600/)
+  })
+
+  it('⚰️⚰️ NOBODY RESERVES A SCROLLBAR THEY CANNOT SHOW', () => {
+    // ⚰️⚰️ MEASURED: the results scrollbar's right edge sat at x=1322 while every
+    // other thing in this modal — the title, the template bar, the tab strip, the
+    // body's content box — ends at 1342.8. The 20.8px between them was nobody's
+    // padding. It was TWO reserved scrollbar gutters stacked, for bars that never
+    // appear on this tab: `.body` reserves one because the four CARD tabs scroll
+    // there, and `.insRight` reserves one because the Inspector scrolls there —
+    // and discovery brings its own scroller, so on this surface neither fires.
+    // Owner, 2026-09-17: *"the scrollbar should visually terminate the
+    // workspace."*
+    // ⛔ GIVEN BACK ONLY WHERE IT IS PROVABLY UNUSED, which is what the two
+    // modifier classes are for — the modes that DO scroll keep their reservation,
+    // so no state exists where a bar appears against an unreserved box (§13).
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    for (const [cls, why] of [['.bodyFlush', 'the modal body'], ['.insRightFlush', 'the right column']]) {
+      const at = css.indexOf(`${cls} {`)
+      expect(at, `${why} has no flush variant`).toBeGreaterThan(-1)
+      const rule = css.slice(at, css.indexOf('}', at))
+      expect(rule, `${why} still reserves a gutter it cannot use`).toMatch(/scrollbar-gutter:\s*auto/)
+      expect(rule, `${why} can now spill over the modal's corner`).toMatch(/overflow:\s*hidden/)
+    }
+    // ⛔ AND THE SURVIVING RESERVATION IS THE ONE THAT MATTERS. `.insAddBody` is
+    // the scroller discovery actually uses, so it keeps `stable`: without it the
+    // search field, the five tabs and every row would jump sideways the moment a
+    // query narrowed the list past a scrollbar.
+    const add = css.slice(css.indexOf('.insAddBody {'))
+    expect(add.slice(0, add.indexOf('\n}')), 'the results scroller stopped reserving its own bar')
+      .toMatch(/scrollbar-gutter:\s*stable/)
+
+    // ⛔ CONTENT IS INSET, THE VIEWPORT IS NOT — §3 by name. The header, the search
+    // row and the strip sit OUTSIDE that scroller, so they carry the same inset by
+    // hand or they would run 10px past the rows beneath them.
+    const grid = css.slice(css.indexOf('.insAdd > .insHead'))
+    expect(grid.slice(0, grid.indexOf('}')), 'the header grid stops at three different x-coordinates')
+      .toMatch(/padding-right:\s*10px/)
+    for (const sel of ['.insAdd > .insSearchRow', '.insAdd > .insTabsWrap > .insTabs']) {
+      expect(css.slice(css.indexOf('.insAdd > .insHead'), css.indexOf('.insAdd > .insHead') + 400),
+        `${sel} is not on the shared content grid`).toContain(sel)
+    }
+  })
+
+  it('⚰️⚰️ THE LEFT SCROLLBAR REACHES THE DIVIDER — padding moved, nothing shrank', () => {
+    // ⚰️⚰️ MEASURED IN THE BROWSER: the divider sat at x=924 and the scroll
+    // container ended at 909.2, so the track was parked 14.8px away with a dead
+    // strip beside it. Owner: *"that empty strip makes the left panel look poorly
+    // aligned."*
+    // ⭐ CONTENT PADDING AND TRACK POSITION ARE TWO DIFFERENT THINGS, which is the
+    // whole fix. The 14px sat on the COLUMN, between its content and its divider —
+    // and the scrolling list IS that content, so the track inherited the inset.
+    // Moving 11px of it INSIDE the scroll container insets the rows and not the
+    // track. ⛔ NO NEGATIVE MARGIN, and no row got narrower: the same breathing
+    // room is still there, split across two boxes instead of one.
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+    const col = css.slice(css.indexOf('.insLeft {'))
+    const colRule = col.slice(0, col.indexOf('\n}'))
+    const pad = /padding-right:\s*(\d+(?:\.\d+)?)px/.exec(colRule)
+    expect(pad, '.insLeft stopped declaring its right padding').toBeTruthy()
+    expect(Number(pad[1]), 'the column is still holding the track off the divider')
+      .toBeLessThanOrEqual(5)
+    expect(Number(pad[1]), 'a track flush against the hairline reads as part of it')
+      .toBeGreaterThan(0)
+    expect(colRule, 'the fix reached for a negative margin').not.toMatch(/margin-right:\s*-/)
+
+    const st = css.slice(css.indexOf('.insStructure {'))
+    const stRule = st.slice(0, st.indexOf('\n}'))
+    expect(stRule, 'the row breathing room was removed rather than moved')
+      .toMatch(/padding-right:\s*(?:[89]|1\d)px/)
+    expect(stRule, 'the scroll container lost its gutter').toMatch(/scrollbar-gutter/)
   })
 
   it('⛔⛔ THE SEARCH FIELD NO LONGER GLOWS GOLD, and still shows focus', () => {

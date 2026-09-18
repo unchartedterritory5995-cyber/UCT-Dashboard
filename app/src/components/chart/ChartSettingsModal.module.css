@@ -315,6 +315,25 @@
   scrollbar-width: thin;
   scrollbar-color: var(--menu-border, #3a3a3f) transparent;
 }
+
+/* ⚰️⚰️ THE RESERVATION ABOVE IS RIGHT FOR FOUR TABS AND WRONG FOR THE FIFTH.
+   Price Style, Canvas, Header and Markers are card stacks taller than the shell,
+   so they scroll HERE and the reserved gutter is what stops every control jumping
+   10px left when the bar appears. Indicators does not scroll here at all: it is a
+   `height: 100%` flex column that scrolls inside each of its two halves, so the
+   reserved 10.4px could never be occupied — it was measured as dead strip between
+   the discovery scrollbar and the workspace edge, stacked on top of `.insRight`'s
+   own reservation for the same reason.
+   ⛔ THE 18px OF MODAL PADDING IS NOT TOUCHED. That is the frame the title, the
+   template bar and the tab strip all share; this gives back only the gutter that
+   has no bar to hold.
+   ⚠️ `overflow: hidden` AND NOT `visible`: the tab is sized to fit by
+   construction, and if a future row ever overflows it must be caught by the half
+   that owns it rather than spilling over the modal's rounded corner. */
+.bodyFlush {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
 .body::-webkit-scrollbar { width: 10px; }
 .body::-webkit-scrollbar-track { background: transparent; }
 .body::-webkit-scrollbar-thumb {
@@ -986,7 +1005,17 @@
      surface would make the two regions read as two components sitting next to
      each other rather than as one panel with two jobs. */
   border-right: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
-  padding-right: 14px;
+  /* ⚰️⚰️ 14 → 3, AND THE 11px WENT TO THE SCROLL CONTAINER RATHER THAN AWAY.
+     This padding sat between the column's CONTENT and its divider, and the
+     scrolling list is the content — so the scrollbar was parked 14.8px from the
+     divider with a dead strip beside it. Owner, 2026-09-17: *"that empty strip
+     makes the left panel look poorly aligned."*
+     ⭐ CONTENT PADDING AND TRACK POSITION ARE TWO DIFFERENT THINGS, which is the
+     whole fix: the SCROLLER now reaches almost to the divider, and the ROWS keep
+     their breathing room from `.insStructure`'s own padding instead. Nothing got
+     narrower and no negative margin was needed.
+     ⚠️ 3px, NOT 0 — a track flush against a hairline reads as part of it. */
+  padding-right: 3px;
   margin-right: 14px;
 }
 
@@ -1103,6 +1132,11 @@
 .insStructure {
   flex: 1;
   min-height: 0;
+  /* ⚠️ THE ROW BREATHING ROOM THAT USED TO LIVE ON `.insLeft`. It sits INSIDE the
+     scroll container, so it insets the CONTENT and not the track — which is what
+     lets the scrollbar reach the divider while the reorder arrows keep their
+     distance from it. */
+  padding-right: 11px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -1369,6 +1403,23 @@
   scrollbar-width: thin;
   scrollbar-color: var(--menu-border, #3a3a3f) transparent;
 }
+/* ⚰️⚰️ THE RESERVATION, GIVEN BACK WHERE DISCOVERY OWNS THE SCROLL. Measured
+   before: the results scrollbar's right edge sat at x=1322 while every other
+   thing in this modal — the title, the template bar, the tab strip, the body's
+   own content box — ends at 1342.8. The 20.8px between them was not padding
+   anyone had chosen; it was TWO reserved scrollbar gutters (`.body` and this one)
+   for bars that never appear on this tab, stacked. Owner, 2026-09-17: *"there is
+   a noticeable dead gutter… the scrollbar should visually terminate the
+   workspace."*
+   ⛔ AND THE CONTENT DID NOT MOVE TO THE EDGE WITH IT. `.insAddBody` keeps its
+   own `stable` gutter, so the rows still stop 10.4px short of the boundary and
+   the header, search and tabs are padded to match — a full-width VIEWPORT with
+   internally padded content, which is the same split the left column's scrollbar
+   fix used. */
+.insRightFlush {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
 .insRight::-webkit-scrollbar { width: 8px; }
 .insRight::-webkit-scrollbar-track { background: transparent; }
 .insRight::-webkit-scrollbar-thumb {
@@ -1439,36 +1490,36 @@
   text-overflow: ellipsis;
 }
 
-.insOnOff {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: transparent;
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
-  border-radius: 999px;
-  padding: 3px 9px 3px 7px;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--menu-text-faint, #93939a);
-  cursor: pointer;
-  transition: color 110ms, border-color 110ms;
+/* ⚰️⚰️ `.insOnOff` / `.insOnOffOn` / `.insOnDot` STOOD HERE — an outlined pill
+   reading `• ON`. It was legible and it was the wrong SHAPE: a bordered chip
+   with a dot and a word is how this panel LABELS a thing, so a control that
+   looked like one read as a status. Owner, 2026-09-17: *"it feels more like a
+   status badge than an interactive visibility control."*
+   ⭐ WHAT REPLACES IT IS ALREADY IN THIS FILE. `.toggle` is the panel's switch —
+   `Overlap candles` is one, four rows below — and the header uses it directly with
+   `.insVis` for the smaller geometry. Reusing it is what keeps ONE switch in the
+   product rather than a second one that drifts. */
+
+/* The header-sized variant of `.toggle`. ⛔ GEOMETRY ONLY: the track colours, the
+   knob, the accent-on state and the motion all come from the shared rules, so a
+   change to the product's switch reaches this one. */
+.insVis {
+  width: 32px;
+  height: 18px;
 }
-.insOnOff:hover { color: var(--menu-text, #ededed); }
-.insOnDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.55;
+.insVis .toggleKnob {
+  width: 12px;
+  height: 12px;
+  top: 2px;
+  left: 2px;
 }
-/* ⭐ GOLD ONLY WHEN ON. The two states have to be tellable apart at a glance and
-   from across a screen; a pill that is gold either way is a label, not a state. */
-.insOnOffOn { color: var(--menu-accent, #dcbb5e); border-color: rgba(220, 187, 94, 0.35); }
-.insOnOffOn .insOnDot { opacity: 1; }
+.toggleOn.insVis .toggleKnob { transform: translateX(14px); }
+/* ⚠️ A FOCUS RING THE SHARED SWITCH DOES NOT CARRY, because in a form row the
+   field's own focus is the signal and here the switch stands alone in a header. */
+.insVis:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
 
 /* ⚰️ IT WAS A BORDERED BOX, which made the quietest control in the header — a
    way BACK — the only one drawn as a container. It is a glyph that lights up. */
@@ -1978,17 +2029,26 @@
   color: var(--menu-text-faint, #93939a);
 }
 
-/* ── ADD MODE'S OWN HEADER FURNITURE ──────────────────────────────
-   One line under the title saying what this surface can find. ⛔ IT NAMES ONLY
-   WHAT IS SEARCHABLE — `fundamentals` is deliberately absent, because promising a
-   search that can return nothing is the fake availability the brief rules out. */
-.insAddLede {
-  flex: none;
-  margin: -4px 0 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--menu-text-dim, #b3b3b9);
-}
+/* ── ADD MODE'S OWN HEADER FURNITURE ─────────────────────────── */
+
+/* ⭐⭐ THE HEADER STOPS WHERE THE RESULTS STOP, NOT WHERE THE VIEWPORT DOES.
+   `.insAddBody` reserves 10.4px for its scrollbar; everything above it — the
+   `Add Indicator` title and `＋ New Formula`, the search field, the category strip
+   — sits OUTSIDE that scroller and would otherwise run 10px further right than
+   the rows beneath it. Owner §8: *"avoid the current feeling where some elements
+   stop at different arbitrary x-coordinates."* One inset, declared once, for the
+   three things that share the grid.
+   ⚠️ ON `.insTabs`, NOT `.insTabsWrap` — the strip aligns with the content and
+   the hairline UNDER it runs the full width of the region it closes, which is
+   what makes it read as the boundary of the header rather than as a fourth edge. */
+.insAdd > .insHead,
+.insAdd > .insSearchRow,
+.insAdd > .insTabsWrap > .insTabs { padding-right: 10px; }
+/* ⚰️ `.insAddLede` STOOD HERE — one line of copy under the Add Indicator title
+   and 12px of margin under that. The placeholder in the search box says the same
+   thing one line lower, where a member is already looking, so the sentence and
+   its space are both gone rather than the sentence alone: the height belongs to
+   the results. */
 
 /* ⚰️ `+ New Formula` WORE `.insHeadAct` — the same faint grey as `Arrange`, which
    is a MODE SWITCH, at the far end of a header a member reads for a title. Owner:
@@ -2264,7 +2324,18 @@
    scanning for. Description SECONDARY with a real line-height, because it is the
    sentence that decides whether this is the right indicator. Abbreviation stays
    TERTIARY: useful, never competing with the name it abbreviates. */
-.insAdd .resName { color: var(--menu-text, #ededed); font-size: 12.5px; }
+/* ⚰️ 600 → 500, AND ONLY HERE. At semibold a column of twenty-one names read as
+   twenty-one headings — owner, 2026-09-17: *"the weight makes a dense list feel
+   more overwhelming than it actually is."* The row got shorter last pass; the ink
+   had not caught up.
+   ⛔ STILL THE PRIMARY THING IN THE ROW. It keeps full `--menu-text` against the
+   abbreviation's dim tier and the glyph's grey, so the hierarchy is carried by
+   COLOUR rather than by weight — which is the quieter of the two and the one that
+   survives being repeated twenty-one times.
+   ⛔ SCOPED TO `.insAdd`. `.resName` is the library dialog's class too, and the
+   LEFT column uses `.insRowName` — a different class on a different surface with a
+   different job, explicitly out of scope. */
+.insAdd .resName { color: var(--menu-text, #ededed); font-size: 12.5px; font-weight: 500; }
 .insAdd .resBlurb {
   color: var(--menu-text-dim, #b3b3b9);
   font-size: 11.5px;

@@ -155,10 +155,11 @@ describe('⚰️ switched off is not broken', () => {
     show(cs); openTab()
     expect(groups().some((g) => g.id === r.id), 'precondition: it has a pane').toBe(true)
 
-    // ⚰️ THE SWITCH USED TO BE ON THE ROW. It is the Inspector's ON/OFF pill now
+    // ⚰️ THE SWITCH USED TO BE ON THE ROW. It is the Inspector's own switch now
     // — the rows carry a rail and a name and nothing else — so hiding a series is
     // select-then-toggle. The WRITE is the same `setInstanceHidden`.
-    act(/Relative Strength/, /^Toggle /)
+    // ⚰️ AND IT USED TO BE NAMED `Toggle …`. `Hide EMA 20` / `Show EMA 20`. A control named after itself makes the member guess the outcome; the accessible name is the ACTION now. Same writer, same key.
+    act(/Relative Strength/, /^Hide /)
     expect(groups().some((g) => g.id === r.id), 'a hidden, empty pane is still drawn').toBe(false)
 
     const g = groups().find((x) => x.kind === 'hidden')
@@ -392,7 +393,7 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     expect(panel.querySelectorAll('[class*="insField"]').length, 'no field rows').toBeGreaterThan(0)
     // …and the verbs, which used to be an icon on the row.
     expect(insBtn(/^Remove /), 'no Remove').toBeTruthy()
-    expect(insBtn(/^Toggle /), 'no visibility switch').toBeTruthy()
+    expect(insBtn(/^Hide /), 'no visibility switch').toBeTruthy()
   })
 
   it('⭐⭐ CORE AND APPEARANCE ARE DERIVED FROM THE DEFINITION, not listed here', () => {
@@ -722,10 +723,33 @@ describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => 
     const atPrice = body().className
     expect(/bodyNarrow/.test(atPrice), 'the 560px content cap is back on Price Style').toBe(false)
 
+    // ⚠️⚠️ THIS USED TO DEMAND AN IDENTICAL CLASS STRING, and that was one notch
+    // too blunt. What may never differ per tab is the CONTENT WIDTH — that is the
+    // dead region the owner was looking at. `.bodyFlush` differs per tab and
+    // changes no width at all: it hands back the SCROLLBAR GUTTER `.body` reserves
+    // for the four card tabs that genuinely scroll here, on the one tab that
+    // cannot (Indicators is a `height: 100%` flex column that scrolls inside its
+    // own halves). Reserving a bar that can never appear is what put a second dead
+    // strip down the right of the discovery list.
+    // ⛔ SO THE RAIL NAMES WHAT IT GUARDS. A width cap is still refused by name,
+    // and the gutter class is asserted to appear on exactly the tab that earned it
+    // — which is a stronger claim than "they are all the same string", because it
+    // would also catch the class being left on when the member tabs away.
+    const flush = (atPrice.match(/\S*bodyFlush\S*/) || [])[0]
     for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Price Style']) {
       fireEvent.click(screen.getByRole('tab', { name }))
-      expect(body().className, `${name} carries a content class the other tabs do not`)
-        .toBe(atPrice)
+      const cls = body().className
+      expect(/bodyNarrow|bodyWide/.test(cls), `${name} caps or widens its own content`).toBe(false)
+      const want = name === 'Indicators'
+      expect(/bodyFlush/.test(cls), want
+        ? 'Indicators is still reserving a scrollbar gutter it cannot use'
+        : `${name} stopped reserving the gutter it genuinely scrolls with`).toBe(want)
+      // …and nothing ELSE varies: strip the one intended difference and the rest
+      // of the class string must be the same on every tab.
+      expect(cls.replace(/\s*\S*bodyFlush\S*/, '').trim(),
+        `${name} carries a content class the other tabs do not`)
+        .toBe(atPrice.replace(/\s*\S*bodyFlush\S*/, '').trim())
     }
+    expect(flush, 'the gutter class leaked onto Price Style').toBeUndefined()
   })
 })
