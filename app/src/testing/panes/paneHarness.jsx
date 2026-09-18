@@ -292,6 +292,30 @@ function Harness() {
     addCatalogue(res, symbol)
   }, [addCatalogue])
 
+  /**
+   * A NAMESPACED Breadth Library row — universe × metric, signed, histogram.
+   *
+   * ⭐ THE ROW SHAPE `breadth_symbols.py` EMITS FOR THE LIBRARY, verbatim, so the
+   * naming and presentation chains are exercised exactly as production would.
+   * The local dev backend serves only the legacy UCT symbols, and `US:NETHL` is
+   * the one identity that proves BOTH of this pass's rules at once: a universe is
+   * not a name, and a signed histogram has two colours.
+   *
+   * ⚠️ ITS BARS ARE NOT SERVED HERE (the Library artifact is dark), so the series
+   * has no line — which is fine and is the point: naming, the editor's capability
+   * gate and the micro-rail are all settings-driven and fully observable without
+   * one.
+   */
+  const addLibraryBreadth = useCallback(() => {
+    const [res] = breadthResults([{
+      universe: 'us', universe_label: 'US', metric: 'net_new_high_low', code: 'NETHL',
+      symbol: 'US:NETHL', name: 'Net New 52-Week Highs-Lows', short_name: 'Net H-L',
+      group: 'highs_lows', group_label: 'Highs / Lows', unit: 'count',
+      domain: 'signed', presentation: 'histogram', legacy: false,
+    }], { tf: TF, bars: 400 })
+    addCatalogue(res, 'US:NETHL')
+  }, [addCatalogue])
+
   const maFollowing = useCallback((hostId) => {
     // A follower does NOT get an explicit target: reading another instance's
     // output is what makes its home derive to that instance's pane. Writing a
@@ -408,6 +432,7 @@ function Harness() {
         <button style={btn} onClick={() => addSecurity('SPY', 'SPDR S&P 500 ETF Trust', 'etf')}>SPY</button>
         <button style={btn} onClick={() => addBreadth('UCTA50', '% of Stocks Above 50-Day MA')}>UCTA50</button>
         <button style={btn} onClick={() => addSecurity('NVDA', 'NVIDIA Corp', 'stock')}>NVDA</button>
+        <button style={btn} onClick={addLibraryBreadth}>US:NETHL (signed)</button>
         {rsis.map((r) => (
           <button key={r.instanceId} style={btn} onClick={() => maFollowing(r.instanceId)}>
             + MA following {r.instanceId}

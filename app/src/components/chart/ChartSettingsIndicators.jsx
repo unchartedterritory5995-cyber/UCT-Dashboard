@@ -48,7 +48,7 @@
 //    off used to make its settings vanish.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  readEnabled, indTarget, styleInputKeys,
+  readEnabled, indTarget, signTarget, styleInputKeys,
 } from './indicatorRegistry'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
@@ -86,7 +86,7 @@ import {
 import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
-import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/presentation'
+import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
 import { ohlcCapabilityOf } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
 import { symbolFamily } from '../../hooks/useBreadthSymbols'
@@ -1218,10 +1218,26 @@ export default function ChartSettingsIndicators({
    * column starts at one x.
    */
   const rowColor = useCallback((row) => {
+    // ⭐⭐ A SIGNED HISTOGRAM'S IDENTITY IS ITS **UP** COLOUR. A rail can only be
+    // one colour and the series is two, so it wears the one the pane reads as
+    // "this series" — the same choice the volume row makes for the same reason
+    // (`StockChart`'s volume readout takes `cs.volume.upColor`).
+    // ⛔ NEVER A THIRD COLOUR. The rail, the legend mark and the positive bars are
+    // one identity; giving the label its own tint would make the member hunt for
+    // which of three colours meant the series.
+    if (row && row.instanceId) {
+      const def = registry && typeof registry.getDefinition === 'function'
+        ? registry.getDefinition(row.defId) : null
+      const inst = findInstance(settings, row.instanceId)
+      for (const plot of ((def && def.plots) || [])) {
+        const sign = resolveSignColors(inst, plot, (settings && settings.candles) || null)
+        if (sign && sign.up) return sign.up
+      }
+    }
     const f = mainColorFields(row)[0]
     const v = f ? row?.values?.[f.key] : null
     return (typeof v === 'string' && v) ? v : null
-  }, [])
+  }, [settings, registry])
 
   /**
    * Select a row — the list's ONE interaction.
@@ -1273,6 +1289,12 @@ export default function ChartSettingsIndicators({
     // — and it is not removed either, because a row that loses its grip when a
     // sibling is deleted would shift its name 14px left under the pointer.
     const movable = orderable(group) && group.rows.length > 1
+    // ⭐ THE GRIP IS SHOWN FOR EVERY ROW IN A REAL PANE, movable or not (owner
+    // ruling). `orderable` is the same predicate that decides whether a pane can
+    // hold an order at all, so `hidden` and `orphans` — lists of things that are
+    // not drawing anywhere — still get no handle, which is right: there is no
+    // rectangle for them to be ordered within.
+    const isSeriesRow = orderable(group)
     const isHeld = seriesDrag === row.id
     const markBefore = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === row.id
     const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
@@ -1351,25 +1373,40 @@ export default function ChartSettingsIndicators({
             — and this is an affordance; so the grip is neutral grey, never tinted,
             and it is dots where the rail is a solid bar.
             ⛔ AND THE SLOT IS ALWAYS THERE. A pane that drops from two members to
-            one would otherwise pull every remaining name 14px left. */}
-        <span
-          className={styles.insRowGripSlot}
-          aria-hidden={movable ? undefined : 'true'}
-        >
-          {movable && (
+            one would otherwise pull every remaining name 14px left.
+
+            ⚰️ AND SO IS THE GRIP NOW — owner ruling, superseding §11's "a pane of
+            one offers no grip". Drawing it only where a reorder is possible made
+            the LIST's geometry a function of pane arity: four Price rows wore a
+            mark and `Volume` and `US` wore a blank gutter, so the column read as
+            broken rather than as informative. ⭐ THE GRIP IS THE ROW'S OWN MARK —
+            *this is a plotted series* — and its INTERACTIVITY is the thing that
+            varies, which is the honest split: `movable` still gates every write,
+            `draggable`, the keyboard path and the tooltip.
+
+            ⛔ A LONE SERIES WRITES NOTHING. `moveSeriesWithinPane` would return
+            the same object anyway, but an inert control must not pretend: no
+            `draggable`, no arrow handling, and `aria-disabled` so a screen reader
+            is told the same thing the pointer is. */}
+        <span className={styles.insRowGripSlot}>
+          {isSeriesRow && (
             <button
               type="button"
               className={styles.insRowGrip}
               data-row-grip={row.id}
-              tabIndex={isSel ? 0 : -1}
-              aria-label={`Reorder ${meta.name} within ${group.name}`}
-              aria-keyshortcuts="ArrowUp ArrowDown"
-              title="Drag to reorder"
+              data-grip-inert={movable ? undefined : 'true'}
+              tabIndex={movable && isSel ? 0 : -1}
+              aria-disabled={movable ? undefined : 'true'}
+              aria-label={movable
+                ? `Reorder ${meta.name} within ${group.name}`
+                : `${meta.name} — nothing to reorder in ${group.name}`}
+              aria-keyshortcuts={movable ? 'ArrowUp ArrowDown' : undefined}
+              title={movable ? 'Drag to reorder' : undefined}
               /* ⛔ THE GRIP DOES NOT SELECT, AND IT DOES NOT LET THE ROW SELECT
                  EITHER. `stopPropagation` on the click is what keeps grabbing a
                  row distinct from opening it — a member repositioning `SMA 200`
                  must not watch the Inspector swing to it. */
-              onMouseDown={(e) => { e.stopPropagation(); setSeriesArmed(row.id) }}
+              onMouseDown={(e) => { e.stopPropagation(); if (movable) setSeriesArmed(row.id) }}
               onMouseUp={() => setSeriesArmed(null)}
               onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
               /* ⭐⭐ THE KEYBOARD PATH, AND IT IS NOT A CONSOLATION PRIZE. Removing
@@ -1387,6 +1424,7 @@ export default function ChartSettingsIndicators({
                  three times moves the series once and then loses the handle,
                  because React re-renders the list in the new order. */
               onKeyDown={(e) => {
+                if (!movable) return
                 const delta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
                 if (!delta) return
                 e.preventDefault(); e.stopPropagation()
@@ -1601,12 +1639,38 @@ export default function ChartSettingsIndicators({
    * colour input is not `$ref`-ed into any plot. There is no case where a colour
    * control belongs above Period.
    */
+  /** Does this row draw as a sign-coloured histogram? The ONE predicate behind
+   *  both the Up/Down pair and the hiding of the single colour it replaces. */
+  const signHidesColor = useCallback((row) => {
+    if (!row || !row.instanceId) return false
+    const def = registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(row.defId) : null
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return false
+    return ((def.plots) || []).some((plot) => {
+      const style = resolvePlotStyle(inst, plot, {})
+      const isHist = style === 'histogram' || (!style && plot.style === 'histogram')
+      return isHist && !!resolveSignColors(inst, plot, (settings && settings.candles) || null)
+    })
+  }, [settings, registry])
+
   const partitionFields = useCallback((row, def) => {
     const styleKeys = def ? styleInputKeys(def) : null
     const isLook = (f) => f.appearance === true
       || f.type === 'color'
       || !!(styleKeys && styleKeys.has(f.key))
+    // ⭐⭐ A SIGN-COLOURED HISTOGRAM HAS NO SINGLE COLOUR, so its declared `color`
+    // control is a box nothing reads: `presentedPlot` stamps `colorMode: 'sign'`
+    // and the renderer paints per point from the Up/Down pair. Offering it beside
+    // them would be offering a member a choice with no effect — and would leave
+    // three colours on one row where the product means two.
+    //
+    // ⛔ THE GATE IS THE CAPABILITY, NOT THE FIELD'S NAME. `signColorControl`
+    // renders exactly when `resolveSignColors` answers, and this hides exactly
+    // then — one predicate, so the pair and the singleton can never both appear.
+    const signedNow = signHidesColor(row)
     const shown = (row.fields || []).filter((f) => !(f.showIf && !f.showIf(row.values)))
+      .filter((f) => !(signedNow && f.type === 'color'))
 
     // ⚰️⚰️ AN INERT FIELD IS NEVER A CORE FIELD, and that is what finally made
     // the two moving averages read as one product. CORE answers *what does this
@@ -1638,7 +1702,7 @@ export default function ChartSettingsIndicators({
       core.sort((a, b) => (rank[a.key] ?? 9) - (rank[b.key] ?? 9))
     }
     return { core, look }
-  }, [])
+  }, [signHidesColor])
 
   /**
    * The two CORE facts a LEGACY moving average has but cannot be asked.
@@ -1952,6 +2016,7 @@ export default function ChartSettingsIndicators({
     const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
     const plotStyle = styleControl(row)
+    const signColors = signColorControl(row)
     const duplicate = duplicateWriter(row)
     const tint = rowColor(row)
 
@@ -2019,9 +2084,16 @@ export default function ChartSettingsIndicators({
         )}
 
         {/* ─── APPEARANCE ───────────────────────────────────────────────── */}
-        {(look.length > 0 || (plotStyle && plotStyle.length > 0)) && (
+        {(look.length > 0 || (plotStyle && plotStyle.length > 0)
+          || (signColors && signColors.length > 0)) && (
           <section className={styles.insSection} data-section="appearance">
             <div className={styles.insSectionLabel}>Appearance</div>
+            {/* ⭐ THE PAIR SITS WHERE THE SINGLE COLOUR WOULD. A signed histogram
+                has no one colour, so `Up color` / `Down color` ARE its colour
+                control — they replace nothing and duplicate nothing, because a
+                signed output's own `color` field is what `look` would have shown
+                and the definition does not declare one for `dataSeries`. */}
+            {signColors}
             {look.map((f) => renderField(row, f))}
             {plotStyle}
           </section>
@@ -2274,6 +2346,60 @@ export default function ChartSettingsIndicators({
       )
     })
   }, [settings, registry, onChange])
+
+  /**
+   * UP / DOWN COLOUR — offered only for an output that actually HAS two signs.
+   *
+   * ⭐⭐ CAPABILITY, NEVER A TICKER. `resolveSignColors` answers non-null exactly
+   * when this instance's output is a sign-coloured histogram — which the
+   * catalogue decided from `breadth_metrics`' `DOMAIN_SIGNED` + `PRES_HISTOGRAM`,
+   * not from a symbol string. An ordinary line, an unsigned histogram and a
+   * candle output all get `null` here and keep their single colour control, so
+   * `US:NETHL` is not special-cased; it merely happens to be signed.
+   *
+   * ⛔ ONE PICKER, ONE COMMIT. The swatches are the modal's own `colorSwatch`;
+   * the target prefix routes the write to `setInstanceCandleColor` instead of the
+   * inputs lane, because a sign colour is presentation. See `signTarget`.
+   *
+   * ⚠️ AND THE DEFAULT IS THE CHART'S. Storing nothing means "follow the theme" —
+   * `resolveSignColors` falls through to `cs.candles`, so switching UCT Chart
+   * Theme repaints these bars with no migration and no stale hex.
+   */
+  const signColorControl = useCallback((row) => {
+    if (!row || !row.instanceId || typeof colorSwatch !== 'function') return null
+    const def = registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(row.defId) : null
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+    const plots = Array.isArray(def.plots) ? def.plots : []
+    const out = []
+    const single = plots.length === 1
+    for (const plot of plots) {
+      const style = resolvePlotStyle(inst, plot, {})
+      const isHist = style === 'histogram' || (!style && plot.style === 'histogram')
+      if (!isHist) continue
+      const sign = resolveSignColors(inst, plot, (settings && settings.candles) || null)
+      if (!sign) continue
+      const suffix = single ? '' : ` · ${plot.label || plot.key}`
+      out.push(
+        <div className={styles.insField} data-field={`__sign__:${plot.key}`} data-measure="bare"
+          key={`sign-${plot.key}`}>
+          <span className={styles.insFieldLabel}>{`Up color${suffix}`}</span>
+          <span className={styles.insFieldCtl}>
+            {colorSwatch(signTarget(row.instanceId, 'upColor'), `${row.label} up color`, sign.up)}
+          </span>
+        </div>,
+        <div className={styles.insField} data-field={`__signdn__:${plot.key}`} data-measure="bare"
+          key={`signdn-${plot.key}`}>
+          <span className={styles.insFieldLabel}>{`Down color${suffix}`}</span>
+          <span className={styles.insFieldCtl}>
+            {colorSwatch(signTarget(row.instanceId, 'downColor'), `${row.label} down color`, sign.down)}
+          </span>
+        </div>,
+      )
+    }
+    return out.length ? out : null
+  }, [settings, registry, colorSwatch])
 
   // ─── ONE CATALOGUE RESULT ─────────────────────────────────────────────────
   const renderResult = (row) => {

@@ -805,6 +805,40 @@ export function indTarget(rowId, field) {
   return `ind:${rowId}:${field}`
 }
 
+/**
+ * The colour-picker target for ONE HALF of a signed histogram's pair.
+ *
+ * ⭐⭐ A SEPARATE PREFIX BECAUSE IT IS A SEPARATE LANE. `ind:` targets are
+ * definition INPUTS — `setColorTarget` writes them through `applyRowPatch` into
+ * the row's values. A sign colour is PRESENTATION: it lives on
+ * `instance.presentation` and is written by `setInstanceCandleColor`, which
+ * DELETES the key when the member picks the chart's own colour. Routing both
+ * through one prefix would put a presentation value in the inputs lane and lose
+ * that provenance rule — which is the whole of how "follows the theme" works.
+ *
+ * ⛔ AND IT IS THE SAME PICKER. One colour panel, one set of swatches; only the
+ * commit differs, which is the part that genuinely differs.
+ *
+ * @param {string} rowId    the instance id
+ * @param {'upColor'|'downColor'} which
+ */
+export function signTarget(rowId, which) {
+  return `indsg:${rowId}:${which}`
+}
+
+/** Is this a swatch target for a signed histogram's up/down pair? */
+export function isSignTarget(target) {
+  return typeof target === 'string' && target.startsWith('indsg:')
+}
+
+/** `'indsg:inst:dataSeries:1:upColor'` → `{rowId: 'inst:dataSeries:1', which: 'upColor'}`. */
+export function splitSignTarget(target) {
+  const rest = String(target).slice('indsg:'.length)
+  const last = rest.lastIndexOf(':')
+  return last < 0 ? { rowId: rest, which: '' }
+    : { rowId: rest.slice(0, last), which: rest.slice(last + 1) }
+}
+
 /** `'ind:legacy:rsi:color'` → `{rowId: 'legacy:rsi', field: 'color'}`. */
 export function splitIndTarget(target) {
   const rest = String(target).slice(String(target).indexOf(':') + 1)

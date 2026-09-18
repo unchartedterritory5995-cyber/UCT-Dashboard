@@ -9904,6 +9904,13 @@ export default function StockChart({
                 paneHeight: pane?.getHeight?.() ?? null,
                 paneCount: panes.length || null,
                 paneHeights: panes.map((p) => { try { return p.getHeight() } catch { return null } }),
+                // ⭐ WHAT EACH PANE ACTUALLY HOLDS. "Nothing draws here" is the
+                // only test the empty-pane reclaim makes, so a ghost strip is
+                // diagnosed by asking each rectangle what is in it — not by
+                // counting canvases, which LWC allocates per pane regardless.
+                paneSeries: panes.map((p) => {
+                  try { return (p.getSeries() || []).map((x) => x.seriesType?.() || '?') } catch { return null }
+                }),
                 scaleMargins: sm ? { top: sm.top, bottom: sm.bottom } : null,
                 vertMargins: vertMarginsRef.current ? { ...vertMarginsRef.current } : null,
                 manualPin: priceManualRef.current && priceManualRangeRef.current
@@ -15234,7 +15241,13 @@ export default function StockChart({
       rows.push({
         key: 'volume',
         rowId: 'volume',
-        label: 'Vol',
+        // ⚰️ IT READ `'Vol'`, AND THE ROW BELOW ALREADY KNEW BETTER. `controlLabel`
+        // has said "Volume" all along — for the screen reader and the tooltip —
+        // so the pane strip was the ONE surface abbreviating a word the rest of
+        // the product spells out. Owner: *"VOLUME MEANS VOLUME."* Three
+        // characters is not a layout constraint on a desktop pane legend, and
+        // the Indicators list has always said `Volume` beside it.
+        label: 'Volume',
         // ⛔ NAMED "Volume", NOT "Vol". This is what a screen reader and the
         // tooltip get; an unnamed trigger announces a button called " options".
         controlLabel: 'Volume',

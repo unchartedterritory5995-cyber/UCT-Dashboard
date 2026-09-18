@@ -767,7 +767,13 @@ export function createBinder({ chart, LWC }) {
       return ohlcCapabilityOf(idef, parsed, entry, ctx.ohlcFamilyOf).ok
     }
     const { bind, release } = planBindings(instances, registry, held, {
-      hasData, ohlcCapable: ohlcCapableFor,
+      hasData,
+      ohlcCapable: ohlcCapableFor,
+      // ⭐ THE MEMBER'S OWN UP/DOWN, straight off the settings blob this sync was
+      // already handed. `applyThemeToSettings` writes `cs.candles` when a UCT
+      // Chart Theme is chosen, so a signed histogram that stores no colour of its
+      // own follows the theme for free — one palette, not a second one.
+      candles: (ctx.cs && ctx.cs.candles) || null,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
