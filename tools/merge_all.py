@@ -1496,6 +1496,25 @@ def wait_for_deploy(sha, dry) -> bool:
             if status in ("FAILED", "CRASHED", "REMOVED"):
                 print("    ⛔ the deploy for %s ended %s" % (sha[:9], status))
                 return False
+            if status == "SKIPPED":
+                # ⚰️ MEASURED 2026-09-18: three consecutive master-tip commits from
+                # OTHER sessions (bf100aadf, d517e7cd7, 888791525 — each a docs/tools
+                # -only push, none touching web's watchPatterns) landed SKIPPED and
+                # then sat there, because this function only recognized SUCCESS as a
+                # pass and FAILED/CRASHED/REMOVED as a stop. SKIPPED fell through
+                # neither branch, so every one of them burned the full 900s
+                # DEPLOY_TIMEOUT and refused a unit that had nothing to do with them.
+                # ⭐ SKIPPED is a real, immediate terminal state, not a transient one:
+                # Railway has already decided this commit's diff matches none of
+                # web's watchPatterns, so no build was ever started — there is
+                # nothing in flight for a push to collide with, which is the only
+                # thing this wait exists to prevent. Same semantics this repo already
+                # relies on for flow-worker's SKIPPED (a push that misses its watch
+                # list, `railway deployment list --service flow-worker`).
+                print("    %s is SKIPPED — no web build for this commit (its diff "
+                      "matches none of web's watchPatterns); nothing is in flight to "
+                      "collide with, proceeding without a settle wait." % sha[:9])
+                return True
         first_poll = False
         time.sleep(POLL_SECONDS)
     print("    ⛔ %ds passed and the deploy for %s never reached a terminal status. "
