@@ -47,3 +47,4 @@
 | 2026-09-18 12:03 | `p2-metadata-settle-first-folder` | ok | ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:06:23.982146+00:00` · 5 request(s) carried the sentence (la |
 | 2026-09-18 12:03 | `p2-metadata-settle-first-hero` | ok | ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:10:12.703472+00:00` · 5 request(s) carried the sentence (la |
 | 2026-09-18 12:03 | `p2-2.8b-second-writer-while-away` | INCONCLUSIVE (attempt 4, giving up — needs a human) | ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:39:26.440400+00:00` · 5 request(s) carried the sentence (la |
+| 2026-09-18 14:03 | `p2-2.8b-second-writer-while-away` | INCONCLUSIVE (attempt 5, giving up — needs a human) | ⇒ INCONCLUSIVE  could not create the probe note ({'err': 'HTTP 500'}) — nothing was measured |
