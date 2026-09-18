@@ -920,59 +920,10 @@ NULL_METHODS = {
     "PRINCIPLE": ("lexicon_screen+read", False),
     "MARKET_SIGNAL": ("lexicon_screen+read", False),
 }
-_NULL_CASHTAG = re.compile(r"\$[A-Za-z]{1,6}\b")
-_NULL_UPPER = re.compile(r"\b[A-Z]{2,6}\b")
-_NULL_PRICE = re.compile(r"\$\s?\d|(?<![\w.])\d{1,5}(?:,\d{3})*\.\d{1,2}(?![\w.])")
-#: Uppercase tokens that are never an instrument in this corpus. Anything NOT here is treated as
-#: a possible ticker, which is the safe direction for a claim of absence.
-_NULL_UPPER_OK = frozenset("""
-A I AM PM ET EST EDT CT PT AI IT ON NO OK OR SO TO IN IS IF AT BY OF AN AS BE DO GO UP MY WE HE
-ALL AND ARE BUT NOT YES NEW ONE TWO BIG LOW HIGH OUT FOR YOU CAN NOW THE WAS HAS HAD HOW WHY WHO
-US USA UK EU NYSE SEC IRS FOMC FED CPI PPI PCE GDP NFP PMI JOLTS UMICH ISM ADP ECB BOJ
-EPS ER IPO ETF ETFS CEO CFO COO CTO AH PT DD IMO TBH LOL HAGW FWIW BTW ASAP FYI TL DR
-EMA SMA MA RS HVC EP PEG ORB VWAP ADR ATR RSI MACD ATH HOD LOD YTD EOD MTD QTD NH NL
-UCT TSDR SUBSTACK ZOOM DISCORD YOUTUBE TC PDF API URL HTML CSS JSON ID OS PC TV APP
-Q1 Q2 Q3 Q4 H1 H2 FY MON TUE WED THU FRI SAT SUN JAN FEB MAR APR JUN JUL AUG SEP OCT NOV DEC
-LIVE TRADING SCANS SUNDAY MARKET WEEK DAY MONTH YEAR HOUR MIN SEC
-""".split())
-_NULL_COMPANY = re.compile(
-    r"\b(nvidia|tesla|apple|amazon|google|alphabet|meta|facebook|microsoft|netflix|micron|"
-    r"broadcom|intel|palantir|coinbase|robinhood|nike|walmart|costco|boeing|disney|oracle|"
-    r"salesforce|adobe|qualcomm|sandisk|seagate|western digital|super ?micro|arm holdings|"
-    r"bitcoin|ethereum|solana|dogecoin|berkshire|goldman|morgan stanley|jpmorgan|"
-    r"united parcel|fedex|starbucks|mcdonald|pepsi|coca[- ]cola|exxon|chevron|pfizer|moderna|"
-    r"lilly|novo|astrazeneca|paypal|block|square|uber|lyft|airbnb|doordash|snowflake|"
-    r"datadog|crowdstrike|cloudflare|shopify|spotify|roblox|unity|rivian|lucid|ford|"
-    r"general motors|caterpillar|deere|lockheed|raytheon|northrop|palo alto)\b", re.I)
-_NULL_SECTOR = re.compile(
-    r"\b(semis?|semiconductors?|banks?|financials?|megacaps?|mega[- ]cap|small[- ]caps?|"
-    r"russell|nasdaq|s&p|spx|dow jones|indices|the index|memory names?|leaders?|"
-    r"biotech|energy names?|miners?|crypto names?|quantum names?|nuclear names?|"
-    r"growth names?|momentum names?|utilities|healthcare|industrials|staples|discretionary)\b", re.I)
-_NULL_PRINCIPLE_LEX = re.compile(
-    r"\b(always|never|every time|the rule|rule is|you should|you have to|you must|the key is|"
-    r"discipline|risk manage|stop loss|position siz|cut (?:your )?loss|let (?:your )?winners|"
-    r"the mistake|principle|expectancy|probabilit|be careful|have a system|"
-    r"sit on (?:your|my) hands|less is more)\w*", re.I)
-_NULL_SIGNAL_LEX = re.compile(
-    r"\b(distribution day|follow[- ]through|risk[- ]on|risk[- ]off|washout|capitulat|rotation|"
-    r"uptrend|downtrend|correction|bull market|bear market|oversold|overbought|"
-    r"under the hood|t2108|t2100|advance/decline)\w*", re.I)
-
-
-def null_screens(text: str) -> dict:
-    """Every screen a NULL row's claim rests on, as MEASUREMENTS. Each value is the list of hits;
-    the claim holds only where the list is empty, and the lists are stored so a later run can
-    re-derive them and fail on drift instead of trusting the row's own word."""
-    return {
-        "cashtags": sorted(set(_NULL_CASHTAG.findall(text))),
-        "upper_tokens": sorted({t for t in _NULL_UPPER.findall(text) if t not in _NULL_UPPER_OK}),
-        "companies": sorted({m.group(0).lower() for m in _NULL_COMPANY.finditer(text)}),
-        "sectors": sorted({m.group(0).lower() for m in _NULL_SECTOR.finditer(text)}),
-        "prices": sorted({m.group(0) for m in _NULL_PRICE.finditer(text)}),
-        "principle_lexicon": sorted({m.group(0).lower() for m in _NULL_PRINCIPLE_LEX.finditer(text)}),
-        "signal_lexicon": sorted({m.group(0).lower() for m in _NULL_SIGNAL_LEX.finditer(text)}),
-    }
+# ⭐ R15-style extraction (session 27): the screens themselves moved to `tools/wisdom/
+# null_screens.py`, shared with the R102 production pre-screen — re-exported here so this file's
+# own references and any external caller of `null_screens` keep working unchanged.
+from null_screens import null_screens  # noqa: E402
 
 
 _NULL_SCREEN_FOR = {"no_instrument_token": ("cashtags", "upper_tokens", "companies", "sectors"),

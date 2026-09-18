@@ -155,6 +155,21 @@ describe('W2-6 · end labels', () => {
     const opt = buildOption(DATES, { [a]: [1, 2, 3, 4] }, [a], { endLabels: false })
     expect(opt.series[0].endLabel.show).toBe(false)
   })
+
+  it('⛔⛔ two series converging on the same panel ask ECharts to shift their end labels apart — a real defect found live at Max scale (e.g. "Up 4%+" and "Up 20%/5d" stacking on each other)', () => {
+    // Same unit family (COUNT), so both land in one panel — the exact shape
+    // that collided: two lines ending at the SAME value on the SAME axis.
+    const [countKey] = ALL_METRICS.filter(m => unitOf(m.key) === UNIT.COUNT).map(m => m.key)
+    const other = ALL_METRICS.map(m => m.key).find(k => unitOf(k) === UNIT.COUNT && k !== countKey)
+    const opt = buildOption(DATES, { [countKey]: [1, 2, 3, 4], [other]: [4, 3, 2, 4] }, [countKey, other])
+    for (const s of opt.series) {
+      // ⭐ Delegated to ECharts' own label-layout pass (D-053's principle,
+      // applied here) rather than hand-rolled collision math — this is a
+      // DIFFERENT axis from panels.js's legend-clipping fix (that one is
+      // horizontal margin; this one is vertical stacking).
+      expect(s.labelLayout).toEqual({ moveOverlap: 'shiftY' })
+    }
+  })
 })
 
 describe('D-053 · LTTB is delegated to ECharts\' own `sampling` option', () => {
