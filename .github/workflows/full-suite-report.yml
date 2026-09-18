@@ -1,3 +1,12 @@
+# promotion-gate: no — REPORT-ONLY, by this file's own header below: the suite jobs
+#   (vitest/pytest/collect_profile) run with `continue-on-error: true` and publish a
+#   RECORD to `ci-results`, deliberately never blocking ("no branch protection and no
+#   required check, deliberately... a required check would block the 31 pushes the
+#   signing session is built on"). Added 2026-09-18 — this file shipped without a
+#   `promotion-gate:` marker, which `tools/promotion_gate.py` treats as UNCLASSIFIED
+#   and REFUSES every promotion for, fail-closed, repo-wide, until classified. Every
+#   commit on master since this file landed (including this one's own predecessors)
+#   sat un-promoted to `production` for that reason.
 # ─── THE FULL SUITES, REPORTED — NOT ENFORCED ───────────────────────────────
 #
 # ⚰️ WHY THIS EXISTS. Measured 2026-09-15: this repository holds **1,353 vitest files

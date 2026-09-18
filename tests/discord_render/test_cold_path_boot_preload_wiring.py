@@ -48,6 +48,76 @@ def test_the_two_registered_resources_are_the_real_lru_cached_functions():
     g._reset_for_tests()
 
 
+def test_every_manifest_module_above_threshold_is_registered(monkeypatch):
+    """⛔⛔ THE SELF-CHECK THE ADDENDUM ASKS FOR. Registration must be DERIVED from the manifest,
+    never hand-picked — this drives the real `_start_cold_path_boot_preload()` against an
+    injected synthetic manifest and asserts EVERY above-threshold entry ends up registered by
+    name, with nothing silently dropped.
+
+    ⛔ The manifest is INJECTED via monkeypatch, not read from the real file on disk — this test
+    must be deterministic regardless of whether the real R63(a) manifest exists yet, is mid-
+    regeneration, or lives on a branch this worktree does not have. The real file is a separate,
+    end-to-end concern; this is the CONTRACT between the manifest shape and what gets registered."""
+    g._reset_for_tests()
+    from api.services.discord_render import cold_path_manifest
+
+    fake_manifest = {
+        "measured": [
+            {"module": "xml.dom.minidom", "cold_ms": 999.0, "error": None},   # real, importable
+            {"module": "json", "cold_ms": 60.0, "error": None},               # real, importable
+            {"module": "cheap_thing", "cold_ms": 3.0, "error": None},         # below threshold
+            {"module": "broken_thing", "cold_ms": None, "error": "boom"},     # unmeasurable
+        ],
+    }
+    monkeypatch.setattr(cold_path_manifest, "load_manifest", lambda *a, **k: fake_manifest)
+
+    from api.main import _start_cold_path_boot_preload
+    _start_cold_path_boot_preload()
+
+    names = g.registered_names()
+    assert "import:xml.dom.minidom" in names
+    assert "import:json" in names
+    assert "import:cheap_thing" not in names, "a below-threshold module was registered anyway"
+    assert "import:broken_thing" not in names, "an UNMEASURABLE module was registered anyway"
+    # the two hand-registered resources are unaffected by the manifest at all
+    assert "cap_universe.symbols" in names and "cap_universe.etf_symbols" in names
+    g._reset_for_tests()
+
+
+def test_a_derived_module_actually_imports_when_awaited(monkeypatch):
+    """⛔ Registration alone proves nothing if the loader is wired wrong. This drives one
+    derived entry all the way to `get_sync` and confirms it returns the real imported module."""
+    g._reset_for_tests()
+    from api.services.discord_render import cold_path_manifest
+
+    monkeypatch.setattr(cold_path_manifest, "load_manifest", lambda *a, **k: {
+        "measured": [{"module": "xml.dom.minidom", "cold_ms": 999.0, "error": None}]})
+
+    from api.main import _start_cold_path_boot_preload
+    _start_cold_path_boot_preload()
+
+    import xml.dom.minidom as real_module
+    assert g.get_sync("import:xml.dom.minidom") is real_module
+    g._reset_for_tests()
+
+
+def test_a_missing_manifest_degrades_to_the_two_hand_registered_entries_never_to_zero(monkeypatch):
+    """⛔ NEVER SILENTLY ZERO, NEVER A CRASH. A pod that predates the manifest landing on master
+    (or a worktree that simply lacks the file) must still preload the two known-cold
+    cap_universe resources — the manifest is additive, not load-bearing for the mechanism."""
+    g._reset_for_tests()
+    from api.services.discord_render import cold_path_manifest
+
+    monkeypatch.setattr(cold_path_manifest, "load_manifest", lambda *a, **k: None)
+
+    from api.main import _start_cold_path_boot_preload
+    _start_cold_path_boot_preload()          # must not raise
+
+    names = g.registered_names()
+    assert names == ("cap_universe.symbols", "cap_universe.etf_symbols")
+    g._reset_for_tests()
+
+
 def test_a_preload_failure_never_raises_out_of_startup(monkeypatch):
     """⛔ NON-VACUITY for the try/except wrapping the call site in api.main's startup block.
     A cold_start_guard import error, a bad registration, anything — must not take the whole
