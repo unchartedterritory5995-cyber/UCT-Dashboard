@@ -131,26 +131,20 @@ def test_r89_a_blocked_CALL_is_enqueued_and_a_passing_one_is_not(wisdom_review_d
     assert "CALL" in summary and f"{FLOOR:.3f}" in summary and "5 run(s)" in summary
 
 
-def test_r89_a_CALL_below_MIN_RUNS_is_pending_and_is_queued_exactly_like_a_PRINCIPLE(wisdom_review_db):
-    """⭐⭐ THE ONE PLACE R89's BRIEF AND THE SHIPPED CONTRACT DISAGREED, PINNED SO NOBODY
-    "FIXES" IT FROM MEMORY.
+def test_r89_a_CALL_below_MIN_RUNS_is_pending_and_is_NOT_queued_like_a_PRINCIPLE(wisdom_review_db):
+    """⚰️⚰️ THIS TEST USED TO ASSERT THE OPPOSITE, AND SAID SO IN ITS OWN NAME AND BODY —
+    "…is_pending_and_is_queued_exactly_like_a_PRINCIPLE". That was R89's own documented, deliberate
+    choice at the time: the brief asked for PENDING to stay out of the queue, the implementer
+    overrode it on the reasoning that Q17's motivating case (1.0 over one run) is the most
+    confident-looking number the pipeline can produce for the least evidence, and the test's own
+    closing warning read *"If the owner does want PENDING to stay out of the queue, that is a
+    change to `enqueue_blocked` for EVERY floored type … not a branch on `record_type`."*
 
-    The brief asked for *"a CALL with fewer than MIN_RUNS runs -> PENDING, and NO queue item"*.
-    **That is not what this module does for ANY floored type, and making CALL the exception is the
-    larger defect.** A PRINCIPLE at 1.0 over one run IS enqueued today — `test_4_...` asserts it,
-    `test_q17_a_blocked_single_run_record_is_enqueued_once` asserts it, and Q17 exists BECAUSE
-    1.0-over-one-run is the most confident-looking number the pipeline can produce for the least
-    evidence. Suppressing its queue row is the opposite of what Q17 bought.
-
-    So R89 was implemented as *"identical semantics to PRINCIPLE/MS"*, the clause it leads with,
-    and the PENDING/BLOCK distinction lives where it always has — in the REASON, which tells an
-    admin which condition failed. This test pins both halves:
-      * PENDING and BLOCK both withhold publication and both raise a queue item, and
-      * their reasons are DIFFERENT, so "re-measure this" is never read as "the score is bad".
-
-    ⚠️ If the owner does want PENDING to stay out of the queue, that is a change to
-    `enqueue_blocked` for EVERY floored type, with `test_4` and the Q17 test restated — not a
-    branch on `record_type`.
+    **R79 (owner ruling, 2026-09-18) is exactly that change, made for exactly that reason stated in
+    advance.** CALL and PRINCIPLE are still treated identically — that half of R89 stands — but the
+    identical treatment is now PENDING-never-enqueues, for every floored type, with no branch on
+    `record_type`. `floor.status()` is where PENDING and BLOCK are told apart now; before this
+    ruling they differed only in wording inside one shared queue reason.
     """
     conn = wisdom_review_db
     conn.executemany(
@@ -160,16 +154,31 @@ def test_r89_a_CALL_below_MIN_RUNS_is_pending_and_is_queued_exactly_like_a_PRINC
          ("p_pending", "PRINCIPLE", 1.0, floor.MIN_RUNS - 1, "seg-1", "tsdr"),
          ("c_pass", "CALL", 1.0, floor.MIN_RUNS, "seg-1", "tsdr")])
     assert floor.passes("CALL", 1.0, floor.MIN_RUNS - 1) is False, "PENDING must not publish"
-    floor.enqueue_blocked(conn)
+    assert floor.status("CALL", 1.0, floor.MIN_RUNS - 1) == floor.STATUS_PENDING
+    assert floor.status("PRINCIPLE", 1.0, floor.MIN_RUNS - 1) == floor.STATUS_PENDING
+    out = floor.enqueue_blocked(conn)
     rows = {r["subject_ref"]: r["summary"] for r in conn.execute(
         "SELECT subject_ref, summary FROM wisdom_review_queue")}
-    assert set(rows) == {"record:c_pending", "record:p_pending"}, (
-        "CALL and PRINCIPLE must be treated identically, and the passing CALL is the control")
-    for ref in ("record:c_pending", "record:p_pending"):
-        assert f"minimum {floor.MIN_RUNS}" in rows[ref]
-        assert "below the floor" not in rows[ref], (
-            "a PENDING record must not be reported as a bad score — that sends an admin hunting "
-            "a scoring bug that does not exist")
+    assert rows == {}, ("CALL and PRINCIPLE must be treated identically — neither PENDING record "
+                        f"belongs in the queue, whatever it wrote: {rows}")
+    assert out["blocked"] == 0 and out["enqueued"] == 0
+    assert out["records_pending"] == 2, "both PENDING rows must still be COUNTED, just not queued"
+
+
+def test_r79_a_genuine_BLOCK_still_enqueues_beside_the_uncounted_PENDING(wisdom_review_db):
+    """Non-vacuity for the test above, and the transition R79 names explicitly: a CALL measured
+    over MIN_RUNS and below the floor is a verdict, not a pending measurement, and still surfaces."""
+    conn = wisdom_review_db
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs, segment_id, author_id) "
+        "VALUES (?,?,?,?,?,?)",
+        [("c_pending", "CALL", 1.0, floor.MIN_RUNS - 1, "seg-1", "tsdr"),
+         ("c_block", "CALL", 2 / 5, 5, "seg-1", "tsdr")])
+    assert floor.status("CALL", 2 / 5, 5) == floor.STATUS_BLOCK
+    out = floor.enqueue_blocked(conn)
+    refs = {r[0] for r in conn.execute("SELECT subject_ref FROM wisdom_review_queue")}
+    assert refs == {"record:c_block"}, "the PENDING row must not ride in beside the real BLOCK"
+    assert out == {"blocked": 1, "enqueued": 1, "records_pending": 1, "floor": floor.floor_value()}
 
 
 def test_the_floor_value_is_read_from_its_single_definition():
@@ -250,6 +259,90 @@ def test_the_sql_clause_refuses_a_non_identifier_alias():
         floor.sql_clause("r; DROP TABLE wisdom_records --")
 
 
+# ── R79: status() and its two SQL halves ─────────────────────────────────────
+
+_R79_CASES = [
+    # (record_type,     stability, runs,  expected status)
+    ("LEVEL",           None,      None,  floor.STATUS_PUBLISH),   # unfloored: always publishes
+    ("LEVEL",           0.1,       1,     floor.STATUS_PUBLISH),
+    ("PRINCIPLE",       None,      None,  floor.STATUS_PENDING),   # never measured
+    ("PRINCIPLE",       None,      3,     floor.STATUS_PENDING),   # stability unrecorded
+    ("PRINCIPLE",       1.0,       None,  floor.STATUS_PENDING),   # runs unrecorded
+    ("PRINCIPLE",       1.0,       1,     floor.STATUS_PENDING),   # Q17's motivating case
+    ("PRINCIPLE",       1.0,       2,     floor.STATUS_PENDING),   # one short of MIN_RUNS
+    ("PRINCIPLE",       "junk",    3,     floor.STATUS_PENDING),   # unparseable stability
+    ("PRINCIPLE",       1.0,       "junk", floor.STATUS_PENDING),  # unparseable runs
+    ("MARKET_SIGNAL",   0.6,       5,     floor.STATUS_BLOCK),     # measured, below floor
+    ("CALL",            0.667,     3,     floor.STATUS_BLOCK),     # measured, below floor
+    ("NEGATIVE_CALL",   0.0,       3,     floor.STATUS_BLOCK),
+    ("MENTION",         1.0,       3,     floor.STATUS_PUBLISH),   # measured, AT the floor
+    ("PRINCIPLE",       0.8,       5,     floor.STATUS_PUBLISH),   # measured, above the floor
+]
+
+
+@pytest.mark.parametrize("rtype,stability,runs,want", _R79_CASES)
+def test_status_classifies_publish_pending_and_block(rtype, stability, runs, want):
+    assert floor.status(rtype, stability, runs) == want
+
+
+def test_status_and_passes_agree_on_every_case():
+    """⛔ `status() == STATUS_PUBLISH` must be exactly `passes()`. If these ever disagreed, a
+    record `passes()` would let through could still read as PENDING or BLOCK somewhere else, or
+    vice versa — two authorities over one publish/don't-publish fact."""
+    for rtype, stability, runs, _ in _R79_CASES:
+        assert (floor.status(rtype, stability, runs) == floor.STATUS_PUBLISH) == floor.passes(
+            rtype, stability, runs), (rtype, stability, runs)
+
+
+def test_block_and_pending_sql_clauses_partition_NOT_sql_clause_with_no_overlap():
+    """⛔ `block_sql_clause() OR pending_sql_clause()` must equal `NOT sql_clause()`, and the two
+    must never both match the same row — the SQL mirror of `status()` returning exactly one of
+    three values. Cross-checked over the whole R79 case grid, not trusted from having been written
+    together."""
+    conn = _db()
+    # ⛔ SQLite has no separate "unparseable" state the way Python's int()/float() casts do — a
+    # TEXT value in a REAL/INTEGER-affinity column is stored as given and compared lexically,
+    # which is not what status() does for "junk". Those two rows are Python-only data-defect
+    # guards (see test_status_classifies_publish_pending_and_block) and are excluded here.
+    rows = [(f"r{i}", rtype, stability, runs) for i, (rtype, stability, runs, _) in enumerate(_R79_CASES)
+            if stability != "junk" and runs != "junk"]
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs) VALUES (?,?,?,?)", rows)
+
+    block_clause, block_params = floor.block_sql_clause("r")
+    pending_clause, pending_params = floor.pending_sql_clause("r")
+    publish_clause, publish_params = floor.sql_clause("r")
+
+    block_ids = {r[0] for r in conn.execute(f"SELECT record_id FROM wisdom_records r WHERE {block_clause}",
+                                             block_params)}
+    pending_ids = {r[0] for r in conn.execute(f"SELECT record_id FROM wisdom_records r WHERE {pending_clause}",
+                                              pending_params)}
+    publish_ids = {r[0] for r in conn.execute(f"SELECT record_id FROM wisdom_records r WHERE {publish_clause}",
+                                              publish_params)}
+    all_ids = {r[0] for r in rows}
+
+    assert not (block_ids & pending_ids), "a row can never be both BLOCK and PENDING"
+    assert block_ids | pending_ids == all_ids - publish_ids
+    expected_block = {rid for rid, rtype, stab, runs in rows
+                      if floor.status(rtype, stab, runs) == floor.STATUS_BLOCK}
+    expected_pending = {rid for rid, rtype, stab, runs in rows
+                        if floor.status(rtype, stab, runs) == floor.STATUS_PENDING}
+    assert block_ids == expected_block
+    assert pending_ids == expected_pending
+    # non-vacuity: this grid must produce at least one of each of the three states
+    assert block_ids and pending_ids and publish_ids
+
+
+def test_records_pending_count_is_per_type_and_never_includes_block_or_publish():
+    conn = _db()
+    conn.executemany(
+        "INSERT INTO wisdom_records (record_id, record_type, stability, stability_runs) VALUES (?,?,?,?)",
+        [("p1", "PRINCIPLE", None, None), ("p2", "PRINCIPLE", 1.0, 1),
+         ("c1", "CALL", 1.0, 2), ("m1", "MARKET_SIGNAL", 0.6, 5), ("ok", "PRINCIPLE", 1.0, 3)])
+    out = floor.records_pending_count(conn)
+    assert out == {"records_pending": 3, "records_pending_by_type": {"PRINCIPLE": 2, "CALL": 1}}
+
+
 def test_the_principles_clause_blocks_null_and_below_and_passes_at_floor():
     conn = _db()
     conn.executemany(
@@ -295,20 +388,19 @@ def _seed_blocked(conn):
 
 
 def test_4_a_blocked_record_is_enqueued_with_a_reason_code(wisdom_review_db):
+    """⚰️ R79 (2026-09-18) narrowed this from 3 enqueued to 1: `r_null` (never measured) and
+    `r_one_run` (1.0 over one run) are PENDING under R79, not verdicts, and no longer queue —
+    see `records_pending` and `test_4c` below for where they went instead."""
     conn = wisdom_review_db
     _seed_blocked(conn)
     out = floor.enqueue_blocked(conn)
-    assert out["blocked"] == 3, "the two below the floor, plus the single-run 1.0 Q17 catches"
-    assert out["enqueued"] == 3
+    assert out["blocked"] == 1, "only r_low is measured AND below the floor — a real verdict"
+    assert out["enqueued"] == 1
     rows = list(conn.execute("SELECT subject_ref, summary, new_json FROM wisdom_review_queue ORDER BY subject_ref"))
-    assert [r["subject_ref"] for r in rows] == ["record:r_low", "record:r_null", "record:r_one_run"]
-    assert floor.REASON in rows[0]["summary"] and floor.REASON in rows[1]["summary"]
+    assert [r["subject_ref"] for r in rows] == ["record:r_low"]
+    assert floor.REASON in rows[0]["summary"]
     # the reason names the floor, the value, and the run count
-    assert "NULL (never measured)" in rows[1]["summary"]
     assert "0.667" in rows[0]["summary"] and "over 3 run(s)" in rows[0]["summary"]
-    # Q17: the single-run record must name WHICH condition failed, not "below the floor"
-    assert "only 1 run(s)" in rows[2]["summary"]
-    assert f"minimum {floor.MIN_RUNS}" in rows[2]["summary"]
     assert f"{FLOOR:.3f}" in rows[0]["summary"]
 
 
@@ -321,14 +413,31 @@ def test_4b_a_passing_record_is_never_enqueued(wisdom_review_db):
     assert "record:r_ok" not in refs and "record:r_level" not in refs
 
 
+def test_4c_pending_records_are_counted_but_never_queued(wisdom_review_db):
+    """R79: `r_null` (never measured) and `r_one_run` (1.0 over one run — Q17's own motivating
+    case) are both PENDING, not BLOCK. Neither belongs to the owner's inbox; both must still be
+    visible somewhere, which is `records_pending`."""
+    conn = wisdom_review_db
+    _seed_blocked(conn)
+    assert floor.status("PRINCIPLE", None, None) == floor.STATUS_PENDING
+    assert floor.status("PRINCIPLE", 1.0, 1) == floor.STATUS_PENDING
+    out = floor.enqueue_blocked(conn)
+    refs = {r[0] for r in conn.execute("SELECT subject_ref FROM wisdom_review_queue")}
+    assert "record:r_null" not in refs and "record:r_one_run" not in refs, (
+        "a PENDING record must never reach the queue — that is the whole ruling")
+    assert out["records_pending"] == 2, "r_null and r_one_run, and nothing else, are PENDING here"
+
+
 def test_5_rerunning_does_not_duplicate_the_queue_row(wisdom_review_db):
     """⛔ review.item_id_for keys on (tab, subject_ref, new), so a daily re-run is one row."""
     conn = wisdom_review_db
     _seed_blocked(conn)
     first = floor.enqueue_blocked(conn)
     second = floor.enqueue_blocked(conn)
-    assert first["enqueued"] == 3 and second["enqueued"] == 0
-    assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue").fetchone()[0] == 3
+    assert first["enqueued"] == 1 and second["enqueued"] == 0
+    assert conn.execute("SELECT COUNT(*) FROM wisdom_review_queue").fetchone()[0] == 1
+    # ⭐ PENDING is recounted fresh every call, not remembered — it is a live gauge, not a ledger
+    assert first["records_pending"] == second["records_pending"] == 2
 
 
 def test_the_reason_code_is_actionable():
@@ -653,6 +762,17 @@ def _expected_block_ids():
     return {f"q17_{label}" for label, _, _, ok in Q17_CASES if not ok}
 
 
+def _expected_true_block_ids():
+    """R79: of the non-publishing Q17 cases, only the ones MEASURED and below the floor — never
+    the ones still waiting on more passes."""
+    return {f"q17_{label}" for label, stab, runs, ok in Q17_CASES
+            if not ok and runs is not None and int(runs) >= floor.MIN_RUNS}
+
+
+def _expected_pending_ids():
+    return _expected_block_ids() - _expected_true_block_ids()
+
+
 def test_q17_site1_select_records(adapters_db, seeded):
     from api.services.wisdom.core import store
     from api.services.wisdom.publish.adapters import common
@@ -728,7 +848,13 @@ def test_q17_site3_retrieval_search(adapters_db, seeded, monkeypatch):
 
 
 def test_q17_a_blocked_single_run_record_is_enqueued_once(adapters_db, seeded):
-    """(i) blocks AND enqueues — and re-running does not duplicate it."""
+    """⚰️⚰️ R79 (2026-09-18) REVERSES THIS TEST'S OWN HEADLINE CLAIM. It used to assert that
+    `vi_runs1_perfect` — Q17's motivating case, 1.0 stability over ONE run — both blocks AND
+    enqueues. It still blocks (that half of Q17 is untouched: `passes()` is unchanged). **It no
+    longer enqueues.** Under R79 a record measured over fewer than MIN_RUNS passes is PENDING —
+    an unfinished measurement, not a verdict — and only `iv_runs5_below` (0.6 over 5 runs: measured
+    AND below the floor) is a genuine BLOCK that belongs in the owner's queue.
+    """
     from api.services.wisdom.core import store
 
     with store.write() as conn:
@@ -737,14 +863,19 @@ def test_q17_a_blocked_single_run_record_is_enqueued_once(adapters_db, seeded):
         second = floor.enqueue_blocked(conn)
         refs = {r[0] for r in conn.execute(
             "SELECT subject_ref FROM wisdom_review_queue WHERE subject_ref LIKE 'record:q17_%'")}
-    assert refs == {f"record:{rid}" for rid in _expected_block_ids()}
-    # ⚠️ NOT compared to len(_expected_block_ids()): the seeded corpus carries its own
+    assert refs == {f"record:{rid}" for rid in _expected_true_block_ids()}
+    assert refs == {"record:q17_iv_runs5_below"}, "the ONLY Q17 case that is a real verdict"
+    assert not (refs & {f"record:{rid}" for rid in _expected_pending_ids()}), (
+        "a PENDING Q17 case reached the queue — that is exactly what R79 forbids")
+    # ⚠️ NOT compared to len(_expected_true_block_ids()): the seeded corpus carries its own
     # NULL-stability PRINCIPLE, so the run legitimately enqueues more than the Q17 fixtures.
-    # What must hold is that every Q17 blocker is there, none of the passers is, and a second
-    # run adds nothing.
-    assert first["enqueued"] >= len(_expected_block_ids())
+    # What must hold is that the real Q17 blocker is there, none of the passers or pendings is,
+    # and a second run adds nothing.
+    assert first["enqueued"] >= len(_expected_true_block_ids())
     assert second["enqueued"] == 0
     assert not (refs & {f"record:{rid}" for rid in _expected_pass_ids()})
+    assert first["records_pending"] >= len(_expected_pending_ids()), (
+        "i, v and vi must still be COUNTED even though none of them queues")
 
 
 def test_q17_min_runs_has_one_definition_and_no_env_override():

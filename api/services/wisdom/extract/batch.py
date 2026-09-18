@@ -230,16 +230,57 @@ def segment_pending_sources(*, limit: int = DAILY_SOURCE_LIMIT, dry_run: bool = 
 # ── building requests ────────────────────────────────────────────────────────
 
 def pending_segments(conn, extractor_version: str, limit: int) -> list[dict]:
-    rows = conn.execute(
-        "SELECT g.* FROM wisdom_segments g JOIN wisdom_sources s ON s.source_id = g.source_id "
+    """Fresh segments (zero extract requests at this version) — R100 (owner ruling, 2026-09-18):
+    ordered by `config.category_priority_order()` first, unknown categories last, then by source
+    date descending within a category, then by (source_id, ordinal) for a total order.
+
+    ⛔⛔ TWO-PHASE FETCH, deliberately. The pending pool can be the whole back catalog (26,454
+    segments at session 25); loading full segment TEXT — the field the ORDER BY never needs —
+    for every one of them just to sort would be a real memory cost paid every night. Phase 1
+    fetches only the columns the sort needs (no `text`, no cue_map, no join beyond `show` and the
+    date coalesce); phase 2 re-fetches full rows, in the derived order, for the `limit`-sized
+    slice phase 1 actually selected.
+
+    ⭐ **Backward-compatible by construction, not by branch.** A segment whose source has no `show`
+    (every fixture written before R100, and every test that doesn't care about category) ranks as
+    "unknown" alongside every other uncategorised segment — which means they all tie on rank and
+    fall through to the SAME date-desc/source_id/ordinal order the query used before this ruling.
+    Category priority only changes anything once `show` values start matching the order.
+    """
+    from tools.wisdom.category_norm import normalize_category
+
+    if int(limit) <= 0:
+        return []
+    order = config.category_priority_order()
+    rank_map = {name: i for i, name in enumerate(order)}
+    unknown_rank = len(order)
+    candidates = [dict(r) for r in conn.execute(
+        "SELECT g.segment_id, g.source_id, g.ordinal, s.show AS show, "
+        "COALESCE(s.recording_started_at_et, s.published_at_et, s.ingested_at) AS sort_date "
+        "FROM wisdom_segments g JOIN wisdom_sources s ON s.source_id = g.source_id "
         "AND s.version = g.source_version WHERE s.incomplete = 0 AND NOT EXISTS ("
         "SELECT 1 FROM wisdom_extract_requests r WHERE r.segment_id = g.segment_id "
-        "AND r.extractor_version = ? AND r.purpose = 'extract') "
-        "ORDER BY COALESCE(s.recording_started_at_et, s.published_at_et, s.ingested_at) DESC, g.source_id, g.ordinal "
-        "LIMIT ?", (extractor_version, int(limit))).fetchall()
+        "AND r.extractor_version = ? AND r.purpose = 'extract')",
+        (extractor_version,)).fetchall()]
+    # ⛔ least-significant key first — Timsort's stability is what lets three single-key sorts
+    # express "rank asc, then date desc, then source_id/ordinal asc" without inverting a date
+    # STRING (ISO-8601 sorts lexicographically; there is no clean negation of a string short of
+    # a second representation).
+    candidates.sort(key=lambda c: (c["source_id"], c["ordinal"]))
+    candidates.sort(key=lambda c: c["sort_date"] or "", reverse=True)
+    candidates.sort(key=lambda c: rank_map.get(
+        normalize_category(c["show"]) if c["show"] else None, unknown_rank))
+    chosen_ids = [c["segment_id"] for c in candidates[:int(limit)]]
+    if not chosen_ids:
+        return []
+    marks = ",".join("?" * len(chosen_ids))
+    full = {r["segment_id"]: dict(r) for r in conn.execute(
+        f"SELECT g.* FROM wisdom_segments g WHERE g.segment_id IN ({marks})", chosen_ids)}
     out = []
-    for row in rows:
-        seg = dict(row)
+    for sid in chosen_ids:
+        seg = full.get(sid)
+        if seg is None:
+            continue
         seg["cue_map"] = segmenter.cue_map_for(conn, seg["segment_id"])
         out.append(seg)
     return out
