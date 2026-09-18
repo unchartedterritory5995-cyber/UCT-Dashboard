@@ -312,6 +312,32 @@
   z-index: var(--z-backdrop); /* the scrim itself owns this rung */
 }
 
+/* ⛔⛔ A SCRIM THAT STOPS SHORT MUST NOT STOP WITH A RULER-STRAIGHT EDGE. R8 pass 2, finding F9.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   `excludeBottom` is deliberate and stays: spec §2c keeps the scrim off the volume-pane region on
+   the portrait phone chart, so a member can still read volume while the fan is open. The cost was
+   never the exclusion — it was that the exclusion ended in a hard horizontal line across the
+   display.
+
+   ⚰️ MEASURED with the fan open: the scrim is 390x626 on an 844-high viewport. Dark theme hides
+   the seam (dark over dark), so it had never been seen. In LIGHT theme the scrim is
+   `rgba(255,255,255,.7)` and that boundary is a glaring light/dark split with a straight border —
+   it reads as a rendering error rather than as dimming.
+
+   ⭐ AND IT WAS INVISIBLE FOR THE LIFE OF THE FEATURE because nobody had rendered the hub in light
+   theme: `prefers-color-scheme` appears nowhere in this app's stylesheets, so a capture that set
+   the OS scheme changed nothing and every "light" frame was the dark one filed twice.
+
+   The dim still ENDS where §2c says it must; it stops being a line. Masked rather than resized, so
+   the element's geometry — and the tap target that dismisses a sticky fan — are unchanged.
+   ⚠️ Applied ONLY when the caller excludes a bottom region: with a full-bleed scrim there is no
+   seam to soften, and fading there would let the bottom of the page show through un-dimmed, which
+   is a different behaviour nobody asked for. */
+.scrimFade {
+  -webkit-mask-image: linear-gradient(to bottom, currentColor calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - 56px), transparent 100%);
+}
+
 /* ── Actions button (§2c, §5) ─────────────────────────────────────────── */
 .actionsButton {
   position: fixed;
