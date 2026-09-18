@@ -38,7 +38,7 @@ node tools/nav_manifest.mjs --self-check
 ```
 
 Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
-on **2026-09-14**. Regenerate after any change to that array.
+on **2026-09-18**. Regenerate after any change to that array.
 
 | label | route |
 |---|---|
@@ -53,20 +53,29 @@ on **2026-09-14**. Regenerate after any change to that array.
 | Options Flow | `/options-flow` |
 | Flow Record | `/flow-scoreboard` |
 | Live Flow | `/live-massive` |
+| Catalysts History | `/catalysts/history` |
 | Model Book | `/model-book` |
+| Formula Reference | `/formulas/reference` |
 | The Desk | `/desk` |
 | Journal | `/journal` |
 | Community | `/community` |
 | Support | `/support` |
 
-**16 entries.** Every one resolves to a registered route
-(`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**18 entries** (was 16 — `/catalysts/history` and `/formulas/reference` added
+2026-09-18, F-NAV-1's own default: a reachable route with real inbound links AND
+non-zero 16-day production traffic gets a sidebar entry). Every one resolves to a
+registered route (`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
 **phantom-entry defect this section used to commit is currently absent**, and the
 generator is what keeps saying so.
 
 ⚠️ **`/post-market` is NOT in this list and used to be.** It is still a real route;
-it is simply not a sidebar entry. **7** reachable member-facing routes have no
-nav entry — **F-NAV-1**, recorded in
+it is simply not a sidebar entry. **5** reachable member-facing routes still have no
+nav entry (down from 7 — the same default that added the two above leaves these
+six unlisted since each had zero 16-day traffic: `/traders`, `/dark-pool`,
+`/post-market`, `/setup-library`, `/journal-2-0/report`; a sixth candidate,
+`/live-flow`, turned out on re-derivation to be a `LegacyRedirect` into
+`/live-massive`, not a real page, confirming the fork's suspicion rather than
+counting as a gap) — **F-NAV-1**, recorded in
 `docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md`, deliberately NOT
 in this section: *what the sidebar shows* and *what the router serves* are two facts, and
 the whole reason this section kept going stale is that it tried to hold both.
