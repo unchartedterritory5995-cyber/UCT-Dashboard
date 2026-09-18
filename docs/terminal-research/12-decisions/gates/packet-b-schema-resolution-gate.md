@@ -11,10 +11,10 @@ date: 2026-09-14
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  a03e0cbf5
+SCOPE APPROVED:   CP1, CP2, CP3 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint may be merged until a line

@@ -11,10 +11,10 @@ date: 2026-09-14
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  21d6ad3e8
+SCOPE APPROVED:   CP2 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > ⛔⛔ **NOT AUTHORIZED.** The gate line is
