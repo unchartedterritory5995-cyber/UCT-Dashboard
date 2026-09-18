@@ -182,6 +182,57 @@
   background: color-mix(in srgb, var(--hub-bubble-color) 40%, transparent);
 }
 
+/* ⛔⛔ THE FAN IS INVISIBLE WHILE IT IS CLOSED. R8 critique pass 1, finding 1 — 2026-09-18.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   ⚰️ WHAT WAS SHIPPING. `open` toggled exactly one rule — `.fanOpen .fanWedge { opacity: 1 }` —
+   and NOTHING in this stylesheet touched the bubbles. Measured in Chromium at rest, on /charts,
+   with the coach mark dismissed and no gesture performed:
+
+       chart.planTrade  opacity 0.4   chart.draw   opacity 1
+       chart.alert      opacity 0.4   chart.voice  opacity 1
+       chart.flag       opacity 0.4   chart.home   opacity 1     (transform: none on all six)
+
+   The three at 0.4 are merely `.bubbleDisabled` — their `requires` was unmet in that fixture. On a
+   page with a symbol, **all six sit at full opacity, permanently, over the data.**
+
+   ⭐ SO THE HUB AT REST DREW NINE THINGS, NOT THREE: six bubbles, the chip, the pad and the
+   Actions button — overlapping each other and the chip, with labels truncated to "Plan t…".
+   `design-bar.md` §1 said "a pad, a chip and an Actions button at rest — three elements". That
+   count was taken by READING THE COMPONENTS and it was wrong by six. It is exactly why R8 requires
+   rendered frames: the source says what is mounted, only the frame says what is SEEN.
+
+   ⛔ And it is the design bar's own first principle, failed: *"Its job is to disappear. A control
+   that is constantly announcing itself over a chart is failing regardless of how good it looks."*
+   This is the single largest contributor to the owner's "too much going on" and "clunky from the
+   90s" — before a single question of material or motion is reached.
+
+   ⛔ SPEC §5 IS HONOURED, NOT OVERRIDDEN. `HubFan.jsx` keeps every bubble in the DOM because §5
+   requires that under reduced motion "the fan still appears, instantly, every bubble at its final
+   position". That is a statement about MOTION and about the DOM — not a licence to paint them
+   while the fan is shut. They stay mounted; they are simply not drawn until the fan opens, and the
+   reduced-motion block below (`transition: none`) makes that appearance instant, at final
+   position, exactly as §5 asks.
+
+   ⚠️ `transform` and `opacity` ONLY — design bar M6. No layout property is animated, so this
+   cannot cost a frame, and the scale collapses toward the knob rather than from nowhere. */
+.fan .bubble {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.fanOpen .bubble {
+  opacity: 1;
+  transform: none;
+}
+
+/* Disabled stays legible-but-subdued once the fan is actually open. Specificity note: this is
+   (0,2,0) like the rule above it and comes later, so it wins for a disabled bubble — without it,
+   `.fanOpen .bubble` would repaint every disabled action at full strength and lose the one signal
+   that says "this needs a symbol first". */
+.fanOpen .bubbleDisabled {
+  opacity: 0.4;
+}
+
 .bubbleDisabled {
   opacity: 0.4;
 }

@@ -79,10 +79,19 @@ PTR_JS = """
 
 FAN_JS = """
 () => {
-  const bubbles = [...document.querySelectorAll('[data-testid^="hub-bubble-"]')]
-    .map(e => e.getAttribute('data-testid').replace('hub-bubble-', ''));
+  // ⚰️ THIS COUNTED BUBBLES IN THE DOM, AND THAT COULD NOT DISTINGUISH OPEN FROM CLOSED.
+  // `HubFan` keeps every bubble mounted at all times (spec §5), so `length > 0` is true at rest,
+  // during a drag and after a release alike — pass 1 recorded four "fan-open CAPTURED" rows on a
+  // predicate that was never able to say no. `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`,
+  // in an instrument written the same hour. VISIBILITY is the question, so measure opacity.
+  const els = [...document.querySelectorAll('[data-testid^="hub-bubble-"]')];
+  const vis = els.filter(e => parseFloat(getComputedStyle(e).opacity) > 0.05);
   const chip = document.querySelector('[data-testid="hub-chip"]');
-  return { bubbles, chipText: chip ? chip.textContent.trim().slice(0, 60) : null };
+  return {
+    mounted: els.map(e => e.getAttribute('data-testid').replace('hub-bubble-', '')),
+    visible: vis.map(e => e.getAttribute('data-testid').replace('hub-bubble-', '')),
+    chipText: chip ? chip.textContent.trim().slice(0, 60) : null,
+  };
 }
 """
 
@@ -148,7 +157,10 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
                     fan = page.evaluate(FAN_JS)
                     rows.append(dict(profile=pname, theme=theme, mode=mode, state="idle",
                                      verdict="CAPTURED", file=shot("idle"), synthetic=True,
-                                     bubbles=fan["bubbles"], chip=fan["chipText"], box=show.get("box")))
+                                     mounted=len(fan["mounted"]), visible=fan["visible"],
+                                     chip=fan["chipText"], box=show.get("box")))
+
+                    idle_visible = fan["visible"]
 
                     # --- pressed ----------------------------------------------------------
                     page.evaluate(PTR_JS, ["pointerdown", 0, 0])
@@ -160,16 +172,21 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
                     page.evaluate(PTR_JS, ["pointermove", 0, -46])
                     page.wait_for_timeout(260)
                     fan = page.evaluate(FAN_JS)
-                    if fan["bubbles"]:
+                    # ⛔ OPEN means VISIBLE, and it must be MORE visible than it was at rest —
+                    # otherwise the frame proves nothing about the gesture.
+                    if len(fan["visible"]) > len(idle_visible):
                         rows.append(dict(profile=pname, theme=theme, mode=mode, state="fan-open",
                                          verdict="CAPTURED", file=shot("fan-open"), synthetic=True,
-                                         bubbles=fan["bubbles"], chip=fan["chipText"]))
+                                         visible=fan["visible"], visible_at_rest=idle_visible,
+                                         chip=fan["chipText"]))
                     else:
-                        # ⛔ The product's own answer says no fan. Do NOT name a frame "fan open".
                         rows.append(dict(profile=pname, theme=theme, mode=mode, state="fan-open",
                                          verdict="INCONCLUSIVE", synthetic=True,
-                                         why="no hub-bubble-* in the DOM after the drag — the "
-                                             "synthetic pointer did not open the fan",
+                                         visible=fan["visible"], visible_at_rest=idle_visible,
+                                         why=("the drag did not make more bubbles visible than "
+                                              "were already visible at rest — either the synthetic "
+                                              "pointer did not open the fan, or the fan is drawn "
+                                              "while closed"),
                                          file=shot("drag-nofan")))
 
                     # --- release ----------------------------------------------------------
