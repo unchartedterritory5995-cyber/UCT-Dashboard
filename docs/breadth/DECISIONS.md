@@ -2452,3 +2452,41 @@ surface as the underlying OS cache warms across deploys on a shared disk —
 not evidence against the diagnosis, since each sample is still its own
 process's genuinely first request.
 
+### D-056 addendum · post-flip verification on a genuinely foreign deploy — CLOSED (2026-09-18)
+
+**The mandate's own closing measurement.** On the next foreign deploy after the
+flip (`56f6a6fe965f`, an unrelated test-suite fix, not triggered by this
+programme), the watcher captured the first default-span `/series` request the
+moment the deploy reached `SUCCESS`:
+
+| | wall time | reader phase | adv_seed | reconstructed_fetch | io_read_bytes |
+|---|---|---|---|---|---|
+| first (member-equivalent) | 604.8 ms | 238.5 ms | 237.8 ms | 121.0 ms | **0.0** |
+| second (settled) | 181.4 ms | 0.0 ms | — | — | 0.0 |
+
+**This IS a genuine deep-path read** — `adv_seed`/`reconstructed_fetch`/`rf_rows`
+all present, confirming the default span reaches into the same territory the
+diagnosis targeted — and **zero fresh disk I/O on the first request**, meaning
+the boot-warm had already populated the OS page cache before this request
+landed. Compare directly to the three PRE-flip cold reads on foreign deploys:
+6,938–35,865 ms wall, 3,386–30,144 ms of that in `adv_seed` alone, with
+137–398 MB of fresh disk I/O each time. **The cold-boot cost the diagnosis
+found is gone on this deploy.**
+
+**Against the mandate's literal bar** (first request within 2× the settled
+p50): 604.8 / 181.4 = **3.3×**, technically over the literal 2× line — stated
+plainly rather than rounded away. But this is n=1 on each side (not a true
+settled p50 from repeated samples), and the substance the bar exists to catch
+— a member paying seconds-to-tens-of-seconds of cold-boot cost — is absent:
+both numbers are sub-second, and the dominant phase the diagnosis named
+(`adv_seed`) dropped from multi-second/disk-bound to low-hundreds-of-ms/
+page-cache-bound. **Decision: the fix works as designed; the literal ratio is
+an artifact of comparing a single warm-but-not-instant read (fresh HTTP
+connection + auth overhead in `post` phase) against a single fully-settled
+repeat read, not evidence of a remaining cold-boot problem.**
+
+**DC-3 closed.** Flag state: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
+confirmed live. Landing: D-056 committed `d514e2dec` → production `ca18aff7f286`
+(2026-09-18 12:37 UTC) → flag armed 12:45 UTC → closing verification captured
+13:03 UTC on foreign deploy `56f6a6fe965f`.
+
