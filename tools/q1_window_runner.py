@@ -169,8 +169,39 @@ def run_entry(entry: dict, log=print) -> dict:
                            encoding="utf-8", errors="replace", timeout=entry.get("timeout", 1800))
         out = (p.stdout or "") + (p.stderr or "")
         code = p.returncode
-    except subprocess.TimeoutExpired:
-        out, code = "TIMED OUT", 124
+    except subprocess.TimeoutExpired as e:
+        # ⛔⛔ KEEP WHAT THE RUN ALREADY SAID. `TimeoutExpired` CARRIES the output
+        # captured before the kill, and this handler used to discard it and write
+        # the literal string "TIMED OUT" instead.
+        #
+        # ⚰️ Measured 2026-09-18: a 2.8b run hit 1800s and its raw.txt held exactly
+        # those two words — no cells, no swap-waits, not even the startup banner. I
+        # read that emptiness as "it hung at startup"; the rig Chrome's own creation
+        # timestamp proved it had started normally 3 seconds in.
+        #
+        # ⛔ R-RAW makes a run with no raw artifact INCONCLUSIVE, so this handler
+        # turned every timeout into an unreadable one — and a timeout is PRECISELY
+        # the run whose trail you most need.
+        def _txt(v):
+            if v is None:
+                return ""
+            return v if isinstance(v, str) else v.decode("utf-8", "replace")
+
+        partial = _txt(getattr(e, "stdout", None)) + _txt(getattr(e, "stderr", None))
+        budget = entry.get("timeout", 1800)
+        if partial.strip():
+            out = (partial
+                   + "\n\n⛔ TIMED OUT after " + str(budget) + "s — the run was KILLED"
+                   + " here. Everything above is what it had already said; what it"
+                   + " would have said next is genuinely unknown.")
+        else:
+            # ⛔ An EMPTY capture is its own finding, and it is not "it hung".
+            out = ("TIMED OUT after " + str(budget) + "s with NO captured output. "
+                   "⛔ Check the child is LINE-BUFFERED before concluding anything: a"
+                   " block-buffered child writes nothing into the pipe until it exits,"
+                   " so a kill discards the lot and an entirely healthy run reads as a"
+                   " hang at startup.")
+        code = 124
     except Exception as e:  # noqa: BLE001
         out, code = f"{type(e).__name__}: {e}", 125
     secs = (datetime.datetime.now() - started).total_seconds()
