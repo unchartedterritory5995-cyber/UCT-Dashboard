@@ -1760,8 +1760,27 @@ export default function BuilderSheet({
       }
     }
     if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
+    // ⭐⭐ THE HAND-BACK `save()` HAS ALWAYS MADE, FROM THE DOOR THAT WAS SKIPPING
+    // IT (j.5, 2026-09-18). Attaching a script draws it on the chart underneath
+    // this modal, so a door that does not tell its host the act is finished
+    // leaves the sheet sitting on top of the twenty clouds it just added — which
+    // is exactly what a capture run recorded as "Save does not close the sheet".
+    //
+    // ⛔ IT HANDS BACK; IT DOES NOT CLOSE. Calling `onClose?.()` here would make
+    // this path the one place in the sheet that decides its own host's state,
+    // and the screener door's `onSaved` does strictly more than close (it
+    // refreshes the list and opens the new row). One hand-back, each host's own
+    // answer to it — the same contract `save()` already uses.
+    //
+    // ⚠️ THE PANE'S "Saved, and added to this chart." NOTE THEN RENDERS FOR ZERO
+    // FRAMES on a host that closes, which is the toast-owned-by-its-own-trigger
+    // failure this repo has paid for twice. Deliberate, and not a silence: the
+    // confirmation is the indicator drawn on the chart with its legend row —
+    // identical to ticking the same script in the indicator library. The note
+    // still renders for a host that stays open (a preview mount passes none).
+    onSaved?.(row)
     return { ok: true }
-  }, [settings, onChange])
+  }, [settings, onChange, onSaved])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 

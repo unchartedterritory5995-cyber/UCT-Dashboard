@@ -1662,6 +1662,15 @@ function ChartToolbar({
                cannot write an instance. */
             settings={cs}
             onChange={onUpdateSettings}
+            /* ⭐⭐ j.5 (2026-09-18) — THE HALF OF THE CONTRACT THIS DOOR NEVER
+               IMPLEMENTED. `save()` has ended in `onSaved?.(res.row)` since Phase
+               D and the screener door has always closed on it; this mount passed
+               no handler at all, so on the chart — the door a member actually
+               uses — a finished save had nowhere to land and the sheet stayed
+               over the indicator it had just added. Closing IS the confirmation
+               here: the formula is already on the chart with its legend row,
+               exactly as if it had been ticked in the indicator library. */
+            onSaved={() => setBuilderOpen(false)}
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
