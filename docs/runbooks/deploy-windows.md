@@ -39,10 +39,36 @@ to need a window.
 Docs, markdown, `tests/**`, `tools/**`, `scripts/**`, and frontend (`app/**`).
 
 These restart **web only** (and only if web's watch paths match — see below). Cost:
-`/api/*` blips for roughly a minute, and APScheduler's job store is in memory, so a
-scheduled slot whose minute passes during the swap is lost outright rather than run
-late. Acceptable. ⭐ If you can see a scheduled job due in the next couple of
-minutes, wait for it — otherwise push.
+`/api/*` blips, and APScheduler's job store is in memory, so a scheduled slot whose
+minute passes during the swap is lost outright rather than run late. Acceptable. ⭐ If
+you can see a scheduled job due in the next couple of minutes, wait for it — otherwise
+push.
+
+⚰️ **THIS SAID "roughly a minute" WITH NO MEASUREMENT BEHIND IT.** Measured against a
+NAMED deploy (`4c78692c0`, 2026-09-17, a web-only restart), polled at 20 s: a
+**contiguous run of four 502 samples across 82–119 s** — 1.4×–2× the number this line
+used to carry. n=1; re-measure at every named deploy until n≥5 rather than trust one
+sample as a constant. Raw log:
+`docs/discord-render/evidence/incidents/2026-09-17-web-swap-blip-measured.md`.
+
+⛔⛔ **AND IT IS A PLATFORM FLOOR, NOT A TUNABLE COST — DO NOT PROPOSE A READINESS
+GATE FOR IT.** `web` has a Railway volume mounted at `/data`. Railway's own docs
+(`docs.railway.com/deployments/healthchecks`, fetched 2026-09-17): *"To prevent data
+corruption, we prevent multiple deployments from being active and mounted to the same
+service. This means that there will be a small amount of downtime when re-deploying a
+service that has a volume attached, **even if there is a healthcheck endpoint
+configured**."* No healthcheck tuning, no readiness gate, no `RAILWAY_DEPLOYMENT_OVERLAP_SECONDS`
+setting closes this gap for a volume-mounted service — Railway refuses the overlap
+structurally, to protect the data. ⭐ This is the SAME conclusion
+`api/services/readiness.py`'s docstring already reached from the other direction (its
+2026-07-26 outage): *"the cold-cutover window is still REAL and still unsolved... not
+a probe that withholds the only pod there is."* Two independent investigations, six
+weeks apart, arrived at one answer — the fix would have to remove the volume from
+`web` or split it into a stateless front + a data-owning service, which is an
+architecture change, not a config change. **The only lever actually available is
+deploy FREQUENCY** — fewer merges per day pays this floor fewer times, which is the
+whole argument for batching Tier-1 pushes rather than the "push whenever" reading of
+this rule.
 
 ### Tier 2 — after-hours or weekend only
 Any file on **flow-worker's watch list**.

@@ -2706,9 +2706,16 @@ In short: which services restart depends on which files a push touches, and only
 restart is expensive.
 
 - **Docs, tests, tools, scripts, `app/**` → push any time.** These restart web only.
-  Cost is a ~1 min `/api/*` blip and a possible lost scheduler slot (APScheduler's job
-  store is in memory, so a slot whose minute passes during the swap is lost outright,
-  not run late). If a scheduled job is due in the next minute or two, wait for it.
+  Cost is an `/api/*` blip and a possible lost scheduler slot (APScheduler's job store
+  is in memory, so a slot whose minute passes during the swap is lost outright, not
+  run late). If a scheduled job is due in the next minute or two, wait for it.
+  ⚰️ This line used to restate the blip as *"~1 min"*, and the runbook is the single
+  authority on that number — restating it here was the second-authority-over-one-value
+  defect this file keeps paying for. **Read `docs/runbooks/deploy-windows.md`'s Tier 1
+  section for the measured figure (82–119 s, n=1) and the platform reason it cannot be
+  fixed with a readiness gate** — `web` has a Railway volume mounted, and Railway
+  documents that a volume-attached service can never overlap deploys regardless of
+  healthcheck config. The only lever is deploy frequency, not deploy mechanics.
 - **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
