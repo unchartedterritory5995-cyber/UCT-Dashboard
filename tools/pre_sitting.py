@@ -132,7 +132,12 @@ def main(argv=None) -> int:
            # ⛔ NOT `$`-anchored: the CLEAN line now carries the base sha and any resolutions
            # applied, and an anchored pattern reported "(no line matched)" for a perfectly
            # good run — a validator block whose RESULT column goes blank is half a check.
-           _first(out, r"^\[merge-all\] (replay CLEAN \d+ of \d+.*|⛔ STRAND.*)"), rc == 0)
+           # ⚰️ K CP13 changed the CLEAN line's shape ("replay CLEAN N of N" ->
+           # "replay CLEAN N picked, M already merged, of T") and this pattern was not
+           # updated with it — caught here, the same "(no line matched) over a green
+           # run" shape as sign_all's own DRY RUN line, not by reading the diff that
+           # changed the format.
+           _first(out, r"^\[merge-all\] (replay CLEAN .*of \d+.*|⛔ STRAND.*)"), rc == 0)
 
     print()
     print("%-34s %5s  %s" % ("VALIDATOR", "EXIT", "RESULT"))

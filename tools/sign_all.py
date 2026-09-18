@@ -181,26 +181,49 @@ def already_signed_as(path: pathlib.Path):
 
 
 def main(argv=None) -> int:
+    """K CP18 — R-NO-BULK. `sign_all` no longer signs anything, ever. It is now a pure
+    verification tool: PASS 1 below (recompute every row's fingerprint, SIGNED-aware,
+    exactly as before) is the ONLY thing this function does. `--dry-run` and `--verify`
+    are both accepted as the (only) way to ask for that report; `--until` is REFUSED,
+    naming why, rather than silently doing something smaller than it used to.
+
+    ⚰️⚰️ WHY. `sign_all.py --until <far-row>` signs EVERY unsigned row from the top of the
+    manifest through that boundary — not just the row the caller had in mind. Measured
+    2026-09-17/18: this session ran `--until k-cp13-build-record` intending to sign 3
+    checkpoints and signed 49. Every one of those signatures turned out to verify clean
+    (K CP11's resolution mechanism never requires editing a signed row, so the specific
+    risk K CP10's "sign immediately before merge" rule exists to prevent was substantially
+    mitigated) — but the SESSION found this only by auditing after the fact, which is the
+    wrong order. K CP10 already established the rule: signing is the last act before
+    THAT unit's OWN merge, done by `merge_all`'s per-row loop. `sign_all` bulk-signing
+    was always in tension with that rule; this removes the tension by removing the
+    capability, not by promising to be more careful next time.
+    """
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
-    ap.add_argument("--by", default="Patrick")
-    ap.add_argument("--on", default=None, help="default: the ET clock authority")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--until", default=None,
-                    help="stop AFTER this packet stem (a sitting boundary). ⛔ Everything "
-                         "before it is still verified; nothing after it is touched.")
+    ap.add_argument("--verify", action="store_true",
+                    help="the clearer name for the same (only) report --dry-run gives")
+    ap.add_argument("--until", default=None, help=argparse.SUPPRESS)  # REFUSED, see below
     ap.add_argument("--runbook", default=None,
                     help="the runbook carrying the Delegation block (controls only)")
     a = ap.parse_args(argv)
 
-    # ⛔⛔ THE DELEGATION IS CHECKED BEFORE THE MANIFEST IS EVEN READ. A signature written
-    # without a recorded authority cannot be un-written: the fingerprint goes into the packet
-    # and the packet is what the merge verifies.
+    # ⛔⛔ K CP18 — R-NO-BULK. `--until` is REFUSED, by name, rather than silently
+    # accepted-and-ignored (which would look like it still worked) or left to argparse's
+    # generic "unrecognized argument" (which would not say WHY).
+    if a.until:
+        print("⛔ --until REMOVED (R-NO-BULK, K CP18). sign_all no longer signs in bulk —")
+        print("   the only signer is merge_all's per-unit step, immediately before that")
+        print("   unit's own pick (K CP10). Nothing was verified or written.")
+        return REFUSED
+
+    # ⛔⛔ THE DELEGATION IS CHECKED BEFORE THE MANIFEST IS EVEN READ, even though this
+    # tool no longer writes — a verification pass that cannot even confirm delegation is
+    # in force is not confirming what it claims to.
     dstate, ddetail = delegation_state(a.runbook)
     if dstate != "OK":
         print("⛔ NO DELEGATION (%s): %s" % (dstate, ddetail))
-        print("   Nothing was signed. Record the delegation in the runbook's `## Delegation` "
-              "block, naming a COMMITTED prompt file and its blob hash.")
         return NO_DELEGATION
     print("[sign-all] delegation OK — %s" % ddetail)
 
@@ -209,25 +232,11 @@ def main(argv=None) -> int:
         print("⛔ manifest not found: %s" % man)
         return REFUSED
     table = rows(man)
-    # ⛔ K CP6 — THE SITTING BOUNDARY. A three-hour run is two sittings plus the
-    # member-visible unit alone; `--until` is what makes "stop cleanly here" a command
-    # rather than a promise. It TRUNCATES the table, so every row after the boundary is
-    # not verified, not signed, and not reported as anything — the next sitting reads them.
-    # ⛔ An --until naming nothing is REFUSED. A boundary that silently matched no row
-    # would sign the whole manifest while the operator believed it had stopped.
-    if a.until:
-        stems = [pathlib.Path(r["path"]).stem for r in table]
-        if a.until not in stems:
-            print("⛔ --until %r matches no row in this manifest. Nothing was verified or "
-                  "written." % a.until)
-            print("   the last five rows are: %s" % ", ".join(stems[-5:]))
-            return REFUSED
-        table = table[:stems.index(a.until) + 1]
-    on = a.on or et_today()
+    on = et_today()
 
     print("[sign-all] manifest: %s" % man)
-    print("[sign-all] rows: %d   signature date: %s (from the ET authority)"
-          % (len(table), on))
+    print("[sign-all] rows: %d   VERIFY ONLY (R-NO-BULK) — this tool signs nothing"
+          % len(table))
     print()
 
     # ── PASS 1: verify every row BEFORE writing anything ──────────────────
@@ -282,55 +291,30 @@ def main(argv=None) -> int:
     done = [r for r in table if r["state"] == "SIGNED-ALREADY"]
     todo = [r for r in table if r["state"] == "ok"]
     print()
-    print("[sign-all] %d already signed (verified, will be skipped) · %d to sign · "
-          "%d refusing" % (len(done), len(todo), len(bad)))
+    print("[sign-all] %d already signed · %d NOT YET signed (merge_all signs these, "
+          "one at a time, immediately before that unit's own pick) · %d refusing"
+          % (len(done), len(todo), len(bad)))
 
     if bad:
         print()
-        print("⛔ STOPPED at %d row(s). NOTHING WAS WRITTEN — not even for the rows that "
-              "verified, because a manifest that has drifted in one place is not "
-              "trustworthy in the others." % len(bad))
+        print("⛔ %d row(s) would refuse a merge_all run that reached them: NOTHING here "
+              "was ever going to be written, but a manifest that has drifted in one place "
+              "is not trustworthy in the others." % len(bad))
         return REFUSED
-    if not todo:
-        print("[sign-all] NOTHING TO DO — every row is already signed. This is the "
-              "resume case, and it is a success, not a refusal.")
-        return OK
 
-    # ── PASS 2: sign ──────────────────────────────────────────────────────
+    # ⛔⛔ K CP18 — R-NO-BULK. THERE IS NO PASS 2. `sign_all` reports; it does not sign.
+    # A row moves from "NOT YET signed" to "signed" only by `merge_all`'s own per-unit
+    # step, immediately before that unit is picked (K CP10) — never by this tool, in
+    # bulk or otherwise.
+    # ⛔ `pre_sitting.py` greps this output for a line starting "[sign-all] DRY RUN" —
+    # keep printing it under BOTH flags (this tool has exactly one behaviour now) so an
+    # existing caller's pattern match does not silently start reading "(no line
+    # matched)" over a tool that actually succeeded, the same cosmetic-break shape
+    # F-SIGN-11 was.
     print()
-    scope_dir = REPO / ".scopes"
-    for r in table:
-        if r["state"] == "SIGNED-ALREADY":
-            # ⛔ SKIPPED, AND SAID OUT LOUD. A silent skip and a silent success are the
-            # same line of output, and the difference is what the owner is reading for.
-            print("  %-58s SIGNED-ALREADY (%s)"
-                  % (pathlib.Path(r["path"]).name, r["want"]))
-            continue
-        cps = [c.strip() for c in r["cps"].split(",") if c.strip()]
-        scope = ("%s ONLY — the checkpoint(s) named here and nothing else in the packet."
-                 % ", ".join(cps))
-        sf = scope_dir / (pathlib.Path(r["path"]).stem + ".scope.txt")
-        cmd = [sys.executable, str(HERE / "sign_gate.py"), r["path"],
-               "--by", a.by, "--on", on, "--scope-file", str(sf)]
-        if a.dry_run:
-            print("  # scope: %s" % scope)
-            print("  " + " ".join('"%s"' % c if " " in c else c for c in cmd))
-            continue
-        scope_dir.mkdir(exist_ok=True)
-        sf.write_text(scope + "\n", encoding="utf-8")
-        out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                             errors="replace", cwd=str(REPO))
-        print("  %-58s %s" % (pathlib.Path(r["path"]).name,
-                              "SIGNED" if out.returncode == 0 else "FAILED"))
-        if out.returncode != 0:
-            print((out.stdout or "") + (out.stderr or ""))
-            print("⛔ STOPPED. Rows after this one were not attempted.")
-            return FAIL
-
-    if a.dry_run:
-        print()
-        print("[sign-all] DRY RUN — %d sign command(s) printed, %d skipped as already "
-              "signed, nothing written." % (len(todo), len(done)))
+    print("[sign-all] DRY RUN / VERIFY (R-NO-BULK — this is now the only mode) — "
+          "%d OK, %d SIGNED-ALREADY, %d refusing, nothing written"
+          % (len(todo), len(done), len(bad)))
     return OK
 
 
