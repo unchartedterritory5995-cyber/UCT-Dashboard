@@ -181,6 +181,24 @@ async def test_get_async_does_not_block_the_event_loop():
         "get_async blocked the event loop instead of yielding on it")
 
 
+def test_every_registered_load_is_durably_instrumented_for_free(monkeypatch, tmp_path):
+    """R63(b) composes with R63(c): a resource wired through this guard gets
+    `cold_path_instrument`'s durable telemetry with no separate opt-in per resource."""
+    from api.services.discord_render import cold_path_instrument as ci
+    p = tmp_path / "cold-path-calls.jsonl"
+    monkeypatch.setenv(ci.RECORD_PATH_ENV, str(p))
+    ci._reset_for_tests()
+
+    g.register("x", lambda: "v")
+    g.start_boot_preload()
+    g.get_sync("x")
+
+    assert p.exists(), "cold_start_guard's own preload produced no cold_path_instrument record"
+    import json
+    rec = json.loads(p.read_text(encoding="utf-8").splitlines()[0])
+    assert rec["name"] == "x" and rec["ok"] is True
+
+
 @pytest.mark.asyncio
 async def test_a_resource_already_warm_returns_immediately_with_no_extra_wait():
     """⛔ NON-VACUITY for the fast path: the whole point of preloading is that MOST requests

@@ -101,8 +101,14 @@ def _ensure_submitted(name: str) -> "concurrent.futures.Future | None":
 
 
 def _run_one(name: str, loader: Callable[[], object]) -> object:
+    # R63(b): every registered resource's actual load is durably instrumented for free —
+    # anything wired through this guard automatically feeds the correlation R63(d) needs,
+    # with no separate opt-in per resource. `cold_path_instrument` never raises on its own
+    # account; a telemetry failure here cannot turn a working preload into a broken one.
+    from api.services.discord_render import cold_path_instrument
     try:
-        return loader()
+        with cold_path_instrument.observe_cold_call(name):
+            return loader()
     except Exception:
         # ⛔ Logged, not swallowed — swallowed here would be `lesson_a_swallowed_error_becomes_
         # a_confident_finding` one module over: the future re-raises this to every awaiter, so
