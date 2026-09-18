@@ -300,6 +300,102 @@ def test_the_memo_still_memoises_within_one_guard_run(monkeypatch):
     assert calls["n"] == 1, "the memo stopped working — guard 2 and guard 3 can now disagree"
 
 
+# ────────────────────────────────── SKIPPED rows never jam the guard (R71 fallout)
+
+#: ⚰️ MEASURED LIVE, 2026-09-18. `bf100aadf` (`tools/hub_prod_smoke.py`, correctly
+#: excluded from web's watchPatterns) sat as the newest deployment row for 30+
+#: minutes reporting "a swap is in flight" and refusing EVERY push, repo-wide,
+#: while the actually-running pod was untouched and healthy on the prior SUCCESS.
+#: R71's whole point is config-as-code watchPatterns producing exactly this SKIPPED
+#: shape on a docs/tools-only push — so the day R71 shipped is the day this started
+#: firing on every such push, not a rare edge case.
+
+def test_a_SKIPPED_newest_row_is_not_treated_as_the_newest(monkeypatch):
+    m = _load()
+
+    def _rows():
+        return {"state": "READ", "rows": [
+            {"id": "skip1", "status": "SKIPPED", "createdAt": _SETTLED_LATER,
+             "meta": {"commitHash": "bf100aadf", "commitMessage": "docs-only push"}},
+            {"id": "real1", "status": "SUCCESS", "createdAt": _SETTLED,
+             "meta": {"commitHash": "bd03e8cba", "commitMessage": "an api/ push"}},
+        ]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    dep = m.latest_deployment()
+    assert dep["status"] == "SUCCESS"
+    assert dep["commit"] == "bd03e8cba", "must skip past the SKIPPED row to the real build beneath it"
+
+
+def test_multiple_leading_SKIPPED_rows_are_all_skipped(monkeypatch):
+    """More than one docs-only push in a row must not stop the search early —
+    ALL leading SKIPPED rows are excluded, not just the first."""
+    m = _load()
+
+    def _rows():
+        return {"state": "READ", "rows": [
+            {"id": "skip2", "status": "SKIPPED", "createdAt": _SETTLED_LATER,
+             "meta": {"commitHash": "cccccccc1", "commitMessage": "second docs push"}},
+            {"id": "skip1", "status": "SKIPPED", "createdAt": _SETTLED,
+             "meta": {"commitHash": "bf100aadf", "commitMessage": "docs-only push"}},
+            {"id": "real1", "status": "SUCCESS", "createdAt": _SETTLED,
+             "meta": {"commitHash": "bd03e8cba", "commitMessage": "an api/ push"}},
+        ]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    dep = m.latest_deployment()
+    assert dep["commit"] == "bd03e8cba"
+
+
+def test_a_SKIPPED_row_still_correctly_REFUSES_through_decide_if_it_were_ever_handed_one(monkeypatch):
+    """⛔ NON-REGRESSION for the OTHER direction: `decide()` itself is untouched —
+    if a SKIPPED row ever DID reach `decide()` (defense in depth, should the filter
+    above ever be bypassed), it must still REFUSE, never silently pass. `latest_
+    deployment()` is what must never HAND it one; `decide()` staying strict is the
+    backstop."""
+    v, why = G.decide({"state": "READ", "status": "SKIPPED", "createdAt": _SETTLED,
+                        "commit": "bf100aadf", "message": "docs-only push"})
+    assert v == G.REFUSE
+    assert "SKIPPED" in why
+
+
+def test_ALL_rows_SKIPPED_is_UNREADABLE_never_a_silent_OK(monkeypatch):
+    """⛔ An empty-after-filtering result must REFUSE, not fall through to reading
+    an empty list as `rows[0]` (a crash) or as quiet (a silent pass) — the same
+    'an empty result is a failed invocation until proven otherwise' rule this
+    repo's other guards are held to."""
+    m = _load()
+
+    def _rows():
+        return {"state": "READ", "rows": [
+            {"id": "skip1", "status": "SKIPPED", "createdAt": _SETTLED,
+             "meta": {"commitHash": "bf100aadf", "commitMessage": "docs-only push"}},
+        ]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    dep = m.latest_deployment()
+    assert dep["state"] == m.UNREADABLE
+    v, why = m.decide(dep)
+    assert v == m.REFUSE
+
+
+def test_a_non_SKIPPED_status_is_completely_unaffected(monkeypatch):
+    """⛔ CONTROL — the fix must change nothing for the ordinary case. A newest
+    row that is SUCCESS/BUILDING/etc. is untouched by the filter."""
+    m = _load()
+
+    def _rows():
+        return {"state": "READ", "rows": [
+            {"id": "b1", "status": "BUILDING", "createdAt": _SETTLED_LATER,
+             "meta": {"commitHash": "deadbeef1", "commitMessage": "a real build"}},
+        ]}
+
+    monkeypatch.setattr(m, "_read_rows_uncached", _rows)
+    dep = m.latest_deployment()
+    assert dep["status"] == "BUILDING"
+    assert dep["commit"] == "deadbeef1"
+
+
 def test_R67_MAIN_forgets_the_memo_before_its_second_read(tmp_path, monkeypatch, capsys):
     """⚰⚰ THE RAIL THAT DID NOT HOLD, AND WHY. Its first version called `_forget_rows()`
     itself and asserted the next read reached the CLI — so it proved the FUNCTION works and said
