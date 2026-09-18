@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+APPROVED ON:      2026-09-18
+APPROVED AT SHA:  85bd06d20
+SCOPE APPROVED:   CP36 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP36 — a missing dependency was aborting two whole shards (F-CI-46).**
