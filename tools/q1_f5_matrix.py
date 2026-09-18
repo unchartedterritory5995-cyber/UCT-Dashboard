@@ -997,7 +997,27 @@ SECOND_WRITER_REV_BUDGET_S = 20
 #: ⛔ The SETUP phase must wait for the editor and for the durable write, never
 #: sample at them. Both budgets are >= the blind sleeps they replace.
 SETUP_EDITOR_MOUNT_MS = 16000
-SETUP_QUEUED_BUDGET_S = 20
+#: ⭐ A POLL THAT EXITS EARLY COSTS NOTHING TO LENGTHEN. This budget is only ever
+#: spent by a cell that is FAILING, so a generous value slows nothing down in the
+#: common case and rescues the slow one.
+#: ⚰️ Raised 20 -> 45 on 2026-09-18 after `append_document_excerpt` failed twice
+#: at 20s with `sentenceOnScreen` True, `dirty` True, ONE queued entry, and
+#: `sentenceInDurableCopy` still False — dirty and on-screen together saying the
+#: write was COMING while only the budget said otherwise.
+#: ⛔ THE STATED REASON WAS WRONG, AND IS CORRECTED HERE RATHER THAN QUIETLY LEFT.
+#: The raise was argued as "that family attaches a PDF, so its note is larger and
+#: its write systematically slower". On the very next attempt the same cell went
+#: GREEN **at the old 20s budget**. So the cause is VARIANCE, not a slow write,
+#: and a second run disproved the mechanism within ten minutes of it being
+#: written down — the same shape as the withdrawn "hot pod" claim earlier the
+#: same day.
+#: ⭐ The change still stands, on the argument that survives: a poll that exits
+#: early is free, so a wider budget absorbs variance at no cost. That is a
+#: different and weaker claim than the one it replaces, and it is the true one.
+#: ⛔ This is NOT a licence to keep raising it. If a cell still fails at 45s with
+#: dirty=True, the write is not slow — something is blocking it, and that is a
+#: finding to chase rather than a number to grow.
+SETUP_QUEUED_BUDGET_S = 45
 SWAP_POLL_SECONDS = 10
 #: How many consecutive healthy readings before a pod is called settled.
 SWAP_SETTLE_READINGS = 3

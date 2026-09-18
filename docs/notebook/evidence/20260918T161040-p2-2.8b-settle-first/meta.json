@@ -1,0 +1,20 @@
+{
+  "id": "p2-2.8b-settle-first",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--ordering",
+    "settle-first",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T16:10:40",
+  "seconds": 392.2,
+  "why": "2.8b chunk 1 of 6 \u2014 the `settle-first` ordering across all seven families, second writer on the `folder` door, 4 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved."
+}

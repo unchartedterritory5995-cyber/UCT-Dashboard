@@ -1,0 +1,83 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 4 cell(s) to run · stamp 2026-09-18T21-03-22Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was None -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 7, 'deadNotes': 7, 'removed': 7}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ folder  ·  settle-first
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:03:42.813971+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:03:42.813971+00:00', 'marker': None, 'ring': ['2026-09-18T21:03:42.813971+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': False, 'why': 'no folder <select> on the page'}
+      door: {'ok': False, 'why': 'the second context could not open the folder door: no folder <select> on the page'}
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ INCONCLUSIVE  the `folder` door was not opened: the second context could not open the folder door: no folder <select> on the page
+   (controlled experiment — NOT written to the table)
+
+═══ ticker  ·  settle-first
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 2, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:04:31.240325+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:04:31.240325+00:00', 'marker': None, 'ring': ['2026-09-18T21:04:31.240325+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': False, 'why': "the second writer fired the folder door but the server's revision did not move (None -> None) - this cell has no variable"}
+      cleanup: {'err': 502}
+   ⇒ INCONCLUSIVE  the `ticker` door was not opened: the second writer fired the folder door but the server's revision did not move (None -> None) - this cell has no var
+   (controlled experiment — NOT written to the table)
+
+═══ tags  ·  settle-first
+      /api/auth/me → 502: a deploy swap. Waiting for a pod to settle (bounded 360s)…
+      swap-wait: status=502 uptime=None bundle=None (0s)
+      swap-wait: status=502 uptime=None bundle=None (10s)
+      swap-wait: status=502 uptime=None bundle=None (50s)
+      swap-wait: status=502 uptime=None bundle=BwYfGBVl (75s)
+      swap-wait: status=200 uptime=65 bundle=BwYfGBVl (86s)
+      swap-wait: status=200 uptime=75 bundle=BwYfGBVl (97s)
+      swap-wait: status=200 uptime=86 bundle=BwYfGBVl (107s)
+      settled after 107.2s — uptime 65→86s strictly monotonic over 3 readings, bundle BwYfGBVl; re-asking auth ONCE
+      auth is back — resuming the cell
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 2, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:07:27.924316+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:07:27.924316+00:00', 'marker': None, 'ring': ['2026-09-18T21:07:27.924316+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:07:27.924316+00:00', 'server_after': '2026-09-18T21:08:22.254788+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · PUT /bbede5aebfa747b5a551cb3253a0c3d1[25+00:00]→200 · POST /6d96a10ededa40e29db96a1808dec35f/opened→200 · PUT /6d96a10ededa40e29db96a1808dec35f[10+00:00]→200 · POST /6d96a10ededa40e29db96a1808dec35f/opened→200 · PUT /6d96a10ededa40e29db96a1808dec35f+SENT[16+00:00]→None · PUT /6d96a10ededa40e29db96a1808dec35f+SENT[16+00:00]→None · PUT /6d96a10ededa40e29db96a1808dec35f+SENT[16+00:00]→None · POST /6d96a10ededa40e29db96a1808dec35f/opened→200 · PUT /6d96a10ededa40e29db96a1808dec35f+SENT[16+00:00]→409 · PUT /6d96a10ededa40e29db96a1808dec35f+SENT[88+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:07:27.924316+00:00` · 5 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ hero  ·  settle-first
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/2068a55a95ff4a38acf6397b1bf83058/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 2, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:08:59.518790+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:08:59.518790+00:00', 'marker': None, 'ring': ['2026-09-18T21:08:56.057288+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:08:59.518790+00:00', 'server_after': '2026-09-18T21:09:51.312578+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /2068a55a95ff4a38acf6397b1bf83058/opened→200 · PUT /2068a55a95ff4a38acf6397b1bf83058[59+00:00]→200 · POST /2068a55a95ff4a38acf6397b1bf83058/hero→200 · POST /2068a55a95ff4a38acf6397b1bf83058/opened→200 · POST /2068a55a95ff4a38acf6397b1bf83058/opened→200 · PUT /2068a55a95ff4a38acf6397b1bf83058+SENT[90+00:00]→None · PUT /2068a55a95ff4a38acf6397b1bf83058+SENT[90+00:00]→None · PUT /2068a55a95ff4a38acf6397b1bf83058+SENT[90+00:00]→None · POST /2068a55a95ff4a38acf6397b1bf83058/opened→200 · PUT /2068a55a95ff4a38acf6397b1bf83058+SENT[90+00:00]→409 · PUT /2068a55a95ff4a38acf6397b1bf83058+SENT[78+00:00]→200
+      the door fired after call #9; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:08:59.518790+00:00` · 5 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): '0' the rig IS opted out
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:44864) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
