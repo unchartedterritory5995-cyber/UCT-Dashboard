@@ -564,3 +564,62 @@ def test_provider_dot_form_is_mapped_to_the_frame_dash_form(monkeypatch):
     _provider(monkeypatch, {"BRK.B": 200.0}, {"BRK.B": 100.0})
     out = wr.session_basis(_basis_conn([("BRK-B", 100.0)]), 111, tickers=["BRK-B"])
     assert out["BRK-B"] == pytest.approx(0.5)
+
+
+# ── the LEVELS must be on that basis too (a third, pre-existing defect) ──────
+
+def test_a_name_whose_levels_disagree_with_the_provider_is_DROPPED(monkeypatch):
+    """⛔⛔ Measured on 2011-01-03: bars.db held CBSH at 0.0001 while it traded ~40, and
+    0 of 64 flagged names had bars.db within 2% of the provider. Against a level of
+    0.0001 every price is a new 52-week high and above every average, so these names
+    voted bullish in every historical session. The factor cannot fix that — the two
+    sides are simply on different footings — so the name is refused."""
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"CBSH": 40.53, "GOOD": 50.0})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2011-01-03")
+    basis = {"CBSH": 1.0, "GOOD": 1.0}
+    levels_close = {"CBSH": 0.0001, "GOOD": 50.0}       # bars.db
+    out = wr.drop_incoherent_levels(basis, levels_close, 111)
+    assert "CBSH" not in out, "a level 400,000x from the provider must be refused"
+    assert out["GOOD"] == 1.0
+
+
+def test_a_missed_split_sized_level_disagreement_is_caught(monkeypatch):
+    """The tolerance is loose on purpose, but a bars.db that missed a 2:1 split is
+    exactly the kind of incoherence that must not reach a chart."""
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"A": 50.0, "B": 50.0})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2011-01-03")
+    out = wr.drop_incoherent_levels({"A": 1.0, "B": 1.0},
+                                    {"A": 100.0, "B": 50.4}, 111)   # A missed a 2:1
+    assert "A" not in out
+    assert "B" in out, "a sub-1% difference is agreement, not corruption"
+
+
+def test_the_coherence_gate_cannot_prune_when_it_cannot_check(monkeypatch):
+    """⚠️ Silence from the provider is not evidence of incoherence. If the check itself
+    is unavailable the basis passes through untouched, because refusing every name on a
+    failed lookup would empty the session for an operational reason."""
+    from api.services import massive
+
+    def boom(*a, **k):
+        raise RuntimeError("provider down")
+    monkeypatch.setattr(massive, "get_grouped_daily_closes", boom)
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2011-01-03")
+    basis = {"A": 1.0, "B": 0.25}
+    assert wr.drop_incoherent_levels(basis, {"A": 1.0, "B": 2.0}, 111) == basis
+    # ...and a name with no level has nothing to disagree with
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"A": 1.0})
+    assert "B" in wr.drop_incoherent_levels(basis, {"A": 1.0}, 111)
+
+
+def test_the_gate_is_a_no_op_when_the_sources_agree(monkeypatch):
+    """AAPL 2020-03-16: bars.db 60.5525, provider adjusted 60.5525 — untouched."""
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_grouped_daily_closes",
+                        lambda d, adjusted=True: {"AAPL": 60.5525})
+    monkeypatch.setattr(bl, "_iso", lambda ts: "2020-03-16")
+    assert wr.drop_incoherent_levels({"AAPL": 0.25}, {"AAPL": 60.5525}, 111) == {"AAPL": 0.25}

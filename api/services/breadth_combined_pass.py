@@ -270,6 +270,12 @@ def run(artifact: str, from_date: str, to_date: str,
                 stats["missing_source"] += 1
                 continue
             eod_px = wr.session_eod_closes(conn_bars, day_ts, union)
+            # ⛔ AND THEN REFUSE THE NAMES WHOSE LEVELS ARE NOT ON THAT BASIS EITHER.
+            # The factor is provider-internal by construction; this drops the tail where
+            # `bars.db` itself disagrees with the provider for the session, which is a
+            # pre-existing data defect the old formula was masking rather than a
+            # corporate action. No basis, no row.
+            basis = wr.drop_incoherent_levels(basis, eod_px, day_ts)
             for u in universes:
                 names = unis.get(u) or []
                 sizes[u] = len(names)

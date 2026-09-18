@@ -346,6 +346,66 @@ def session_basis(conn, day_ts: int, tickers=None) -> dict:
     return out
 
 
+#: How far `bars.db`'s adjusted close may sit from the provider's for the SAME session
+#: before that name's levels are treated as untrustworthy. Deliberately loose: genuine
+#: agreement is exact (AAPL 60.5525 vs 60.5525), and the corruption this catches is
+#: orders of magnitude, not percent. A missed 2:1 split — 2.0x — is still caught.
+LEVEL_COHERENCE_TOL = 0.10
+
+
+def drop_incoherent_levels(basis: dict, levels_close: dict, day_ts: int,
+                           tol: float = LEVEL_COHERENCE_TOL) -> dict:
+    """Remove factors for names whose LEVELS disagree with the provider for session D.
+
+    ⛔⛔ A THIRD DEFECT, PRE-EXISTING, AND THE OLD CODE WAS HIDING IT. The basis factor
+    puts a price on the provider's adjusted footing; the levels come from `bars.db`. That
+    is only one basis while the two sources AGREE, and for a small tail they do not —
+    `bars.db` holds badly over-adjusted history for a set of mostly ADR / foreign-listed
+    names. Measured on 2011-01-03: CBSH at **0.0001** (traded ~40), BBD 0.0001, DB 1.5171
+    (traded ~52); on 2020-03-16: DHR 18.58 (traded ~127), BHP 5.69 (traded ~31.55). Of
+    the flagged names, **0 of 64** and **0 of 18** had `bars.db` within 2% of the provider.
+    Against a level of 0.0001 every price is a new 52-week high and above every average,
+    so these names contributed a spurious bullish vote in EVERY historical session.
+
+    ⚰️ WHY IT WAS INVISIBLE. The first formula divided by the provider's raw close and
+    MULTIPLIED BY `bars.db`, so it scaled each price down to meet the corrupt level
+    (CBSH would have taken a 2.5e-6 factor). The residual then looked perfect because the
+    measurement was fitting the price to the bad level rather than testing it. Making the
+    ratio provider-internal removed that camouflage and the tail became visible.
+
+    ⭐ FAIL CLOSED, NOT REPAIRED. This does not fix `bars.db` — that is a separate defect
+    with a separate owner. It refuses to publish a comparison whose two sides are provably
+    on different footings, which is the same rule `session_ohlc` already applies to a name
+    with no factor at all: no basis, no row.
+    """
+    if not basis or not levels_close:
+        return basis
+    from api.services import breadth_live as bl
+    from api.services import massive
+    try:
+        adj = massive.get_grouped_daily_closes(bl._iso(day_ts), adjusted=True) or {}
+    except Exception:                                  # noqa: BLE001
+        return basis                                   # cannot check -> do not prune
+    if not adj:
+        return basis
+    lo, hi = 1.0 - tol, 1.0 + tol
+    out = {}
+    for t, f in basis.items():
+        lv = levels_close.get(t)
+        if lv is None:                 # no level for this name -> nothing to disagree
+            out[t] = f
+            continue
+        pa = adj.get(t) or adj.get(t.replace("-", "."))
+        try:
+            pa = float(pa)
+        except (TypeError, ValueError):
+            out[t] = f                 # provider silent -> not evidence of incoherence
+            continue
+        if pa > 0.0 and lo <= (lv / pa) <= hi:
+            out[t] = f
+    return out
+
+
 def session_ohlc(D: str, per_ticker: dict, levels: dict,
                  bucket_min: int = 1, members: Optional[set] = None,
                  basis: Optional[dict] = None,
@@ -495,8 +555,10 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 1) -> Optio
     basis = session_basis(conn, day_ts, universe)
     if not basis:
         return None                      # no basis, no comparison worth storing
+    eod_px = session_eod_closes(conn, day_ts, universe)
+    basis = drop_incoherent_levels(basis, eod_px, day_ts)
     return session_ohlc(D, res[bucket_min], levels, bucket_min, basis=basis,
-                        eod_prices=session_eod_closes(conn, day_ts, universe))
+                        eod_prices=eod_px)
 
 
 # ── Prototype validation: recon wicks vs the REAL live-accumulator wicks ─────
