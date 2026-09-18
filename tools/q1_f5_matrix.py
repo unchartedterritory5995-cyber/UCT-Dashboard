@@ -637,7 +637,24 @@ def prepare_family(page, family, note_id, stamp, log, rig=None, base=""):
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "rig_limitation": True,
                 "why": "the editor's own attachment input would not take the file: " + str(e)}
-    page.wait_for_timeout(9000)
+    # ⛔ POLL THE THING THAT ANSWERS THE QUESTION. A flat 9s here was a guess at
+    # how long the server takes to process an attachment; the endpoint below can
+    # simply be asked. Same 9s ceiling, so a slow server behaves as before.
+    for _ in range(18):
+        page.wait_for_timeout(500)
+        try:
+            ready = page.evaluate("""async (id) => {
+              try {
+                const r = await fetch('/api/j2/notes/' + id + '/documents', {credentials:'include'});
+                if (!r.ok) return false;
+                const j = await r.json();
+                return Array.isArray(j.documents) && j.documents.length > 0;
+              } catch { return false; }
+            }""", note_id)
+        except Exception:                                # noqa: BLE001
+            ready = False
+        if ready:
+            break
     docs = page.evaluate("""async (id) => {
       const r = await fetch('/api/j2/notes/' + id + '/documents', {credentials:'include'});
       if (!r.ok) return {err: r.status};
@@ -729,8 +746,20 @@ def warm_route(page, family, base, log):
     if not path:
         return {"ok": True, "warmed": None}
     page.goto(base + path, wait_until="domcontentloaded")
-    page.wait_for_timeout(9000)
-    return {"ok": True, "warmed": path}
+    # ⛔ WAIT FOR THE CONDITION, NOT THE CLOCK. This was a flat 9s, fired once per
+    # cell - measured 2026-09-18 at ~27% of a 39-cell run's 1318s, spent whether
+    # or not the route was ready. The CEILING is unchanged, so nothing that used
+    # to pass can now fail; what changes is that a route already warm costs what
+    # it actually costs.
+    warmed_in = 9000
+    try:
+        page.wait_for_load_state("networkidle", timeout=9000)
+        warmed_in = None
+    except Exception:                                    # noqa: BLE001
+        # networkidle never arrived inside the old budget - this route streams or
+        # polls. Fall back to exactly the previous behaviour rather than guessing.
+        pass
+    return {"ok": True, "warmed": path, "warm_wait": warmed_in}
 
 
 
@@ -924,6 +953,126 @@ JUST_RAN_COOLDOWN_SECONDS = 180
 # ("nothing was measured, here is why"); the second is the absence of one. Setup is
 # online and is not the door, so it gets a deadline and must say WHICH step ran out.
 PRECONDITION_BUDGET_SECONDS = 120
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SWAP RESILIENCE — a 502 mid-cell is ANOTHER SESSION'S DEPLOY, not product state
+#
+# ⚰️ MEASURED 2026-09-18. A P2 run spent 1318s and came back 16 GREEN / 23
+# INCONCLUSIVE, and **22 of the 23 were `/api/auth/me` 502**. Master was landing a
+# deploy every ~13 minutes while a 2.8b cell takes 12-22, so the rig could not
+# hold a stable production long enough to finish. The instrument was RIGHT to
+# refuse - it just refused permanently where it could have waited.
+#
+# ⛔ THE BUDGET IS THE WHOLE SAFETY PROPERTY. Waiting without a bound turns a
+# 57-minute window into one hung cell; this programme has already lost a window
+# to an unbounded run (exit 124 at 1802s). Six minutes covers a Railway build
+# (3-5 min) with a little slack, and NOTHING here waits longer.
+SWAP_WAIT_BUDGET_SECONDS = 360
+SWAP_POLL_SECONDS = 10
+#: How many consecutive healthy readings before a pod is called settled.
+SWAP_SETTLE_READINGS = 3
+#: ⛔ A pod younger than this is still booting - its first requests can 502 or
+#: serve a half-warm cache, which is exactly the state that produced the
+#: readings this whole mechanism exists to discard.
+SWAP_MIN_UPTIME_SECONDS = 60
+
+#: Read the pod's own health from the PAGE, so it travels the same origin,
+#: cookies and CDN path the cell's real requests do. ⛔ A curl from the harness
+#: would prove something about the harness's network, not the rig's.
+SWAP_PROBE_JS = r"""async () => {
+  const out = {t: Date.now()};
+  try {
+    const r = await fetch('/api/health', {credentials: 'include', cache: 'no-store'});
+    out.status = r.status;
+    try { const j = await r.json(); out.uptime = j.uptime_seconds; out.wire = j.wire_date; }
+    catch { out.uptime = null; }
+  } catch (e) { out.status = 0; out.err = String((e && e.name) || e); }
+  // ⭐ The BUNDLE HASH is the browser-visible identity of a deploy. It is NOT the
+  // git SHA and is never reported as one - the page cannot see a SHA. It changes
+  // when a new build is served, which is exactly the question being asked.
+  try {
+    const html = await (await fetch('/', {cache: 'no-store'})).text();
+    const m = html.match(/index-([A-Za-z0-9_-]+)\.js/);
+    out.bundle = m ? m[1] : null;
+  } catch { out.bundle = null; }
+  return out;
+}"""
+
+
+#: ⛔ ONE authority for the auth read. The retry after a swap must use the SAME
+#: probe as the first attempt — a second copy would let the two disagree and the
+#: cell would resume on a different question than the one it refused on (R-05).
+AUTH_PROBE_JS = """async () => {
+  try {
+    const r = await fetch('/api/auth/me', {credentials:'include'});
+    return {status: r.status,
+            json: (r.headers.get('content-type') || '').includes('json')};
+  } catch (e) { return {status: 0, err: String(e)}; }
+}"""
+
+
+def swap_settled(readings, min_uptime: int = SWAP_MIN_UPTIME_SECONDS,
+                 need: int = SWAP_SETTLE_READINGS):
+    """Is a single, stable pod serving? → (settled, why)
+
+    ⛔ PURE, so `--self-check` can drive every branch with planted readings and
+    no browser. `readings` is oldest-first.
+
+    ⛔ THE FIRST 200 AFTER A 502 IS NOT SETTLED, and that is the entire point.
+    A swap serves: old pod 200 (uptime 3000) → 502 → new pod 200 (uptime 3).
+    Accepting the first 200 back would measure a pod that is still booting.
+    """
+    if not readings:
+        return False, "no readings at all"
+    tail = readings[-need:]
+    if len(tail) < need:
+        return False, f"only {len(readings)} reading(s); need {need} consecutive"
+    if any(r.get("status") != 200 for r in tail):
+        bad = [r.get("status") for r in tail]
+        return False, f"a non-200 inside the settle window: {bad}"
+    ups = [r.get("uptime") for r in tail]
+    if any(not isinstance(u, (int, float)) for u in ups):
+        return False, f"health answered 200 without a usable uptime: {ups}"
+    if ups[-1] < min_uptime:
+        return False, f"uptime {ups[-1]}s < {min_uptime}s — the pod is still booting"
+    # ⛔ STRICTLY increasing. Equal readings mean the clock did not move between
+    # polls, which is indistinguishable from a cached response.
+    if any(b <= a for a, b in zip(ups, ups[1:])):
+        return False, f"uptime not strictly increasing ({ups}) — another swap in flight"
+    bundles = {r.get("bundle") for r in tail if r.get("bundle")}
+    if len(bundles) > 1:
+        return False, f"the served bundle changed inside the window: {sorted(bundles)}"
+    return True, (f"uptime {ups[0]}→{ups[-1]}s strictly monotonic over {need} readings, "
+                  f"bundle {sorted(bundles)[0] if bundles else 'unreadable'}")
+
+
+def wait_for_swap(page, log, budget: int = SWAP_WAIT_BUDGET_SECONDS) -> dict:
+    """Poll until ONE pod is stably serving, or the budget runs out.
+
+    → {"settled": bool, "why": str, "events": [...], "waited": float}
+
+    ⛔ Every reading goes into `events` and every event reaches the raw artifact.
+    A wait nobody can audit is a wait nobody can distinguish from a hang.
+    """
+    started = time.time()
+    events, settled, why = [], False, "budget exhausted before a pod settled"
+    while time.time() - started < budget:
+        try:
+            r = page.evaluate(SWAP_PROBE_JS)
+        except Exception as e:                                  # noqa: BLE001
+            r = {"status": 0, "err": f"{type(e).__name__}"}
+        r["at"] = time.strftime("%H:%M:%SZ", time.gmtime())
+        events.append(r)
+        log(f"      swap-wait: status={r.get('status')} uptime={r.get('uptime')} "
+            f"bundle={str(r.get('bundle'))[:10]} ({int(time.time() - started)}s)")
+        settled, why = swap_settled(events)
+        if settled:
+            break
+        page.wait_for_timeout(SWAP_POLL_SECONDS * 1000)
+    return {"settled": settled, "why": why, "events": events,
+            "waited": round(time.time() - started, 1)}
+
+
 
 
 def rig_window_refusal(now=None, query=None):
@@ -1378,13 +1527,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
     try:
         # ── 0. AUTH. A signed-out rig makes every reading below meaningless, and a
         #    401 here is a different fact from a 502. Ask before spending anything. ──
-        who = page.evaluate("""async () => {
-          try {
-            const r = await fetch('/api/auth/me', {credentials:'include'});
-            return {status: r.status,
-                    json: (r.headers.get('content-type') || '').includes('json')};
-          } catch (e) { return {status: 0, err: String(e)}; }
-        }""")
+        swap_events = []
+        who = page.evaluate(AUTH_PROBE_JS)
         if not (isinstance(who, dict) and who.get("status") == 200 and who.get("json")):
             # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG. The first version of this refusal said
             # "the rig is not signed in" for EVERY non-200 — including the 502 it
@@ -1397,16 +1541,42 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                          "session event — do NOT create a new profile; a fresh profile "
                          "is a signed-out profile.")
             elif st in (500, 502, 503, 504):
-                cause = ("PRODUCTION was unavailable (5xx), almost always a deploy swap. "
-                         "Nothing is wrong with the rig. Requeue and retry in a later "
-                         "window.")
+                # ⛔⛔ A DEPLOY SWAP IS WAITED OUT, NOT REPORTED. Another session
+                # landing on master 502s this cell for a minute or two; refusing
+                # permanently threw away 22 of 23 cells on 2026-09-18. Wait for
+                # ONE pod to settle, then ask again ONCE.
+                log(f"      /api/auth/me → {st}: a deploy swap. Waiting for a pod to settle "
+                    f"(bounded {SWAP_WAIT_BUDGET_SECONDS}s)…")
+                sw = wait_for_swap(page, log)
+                swap_events.append(sw)
+                if sw["settled"]:
+                    log(f"      settled after {sw['waited']}s — {sw['why']}; re-asking auth ONCE")
+                    who = page.evaluate(AUTH_PROBE_JS)
+                    if isinstance(who, dict) and who.get("status") == 200 and who.get("json"):
+                        log("      auth is back — resuming the cell")
+                        st = 200
+                    else:
+                        return {"verdict": "INCONCLUSIVE",
+                                "why": (f"a deploy swap settled after {sw['waited']}s but "
+                                        f"/api/auth/me still answered {who} — swap not "
+                                        f"settled for THIS cell. INSTRUMENT fact, not a "
+                                        f"product finding. swap events: {len(sw['events'])}")}
+                else:
+                    return {"verdict": "INCONCLUSIVE",
+                            "why": (f"swap not settled: waited {sw['waited']}s of "
+                                    f"{SWAP_WAIT_BUDGET_SECONDS}s and {sw['why']}. Another "
+                                    f"session is deploying faster than a cell can run. "
+                                    f"INSTRUMENT fact, NOT a product finding. "
+                                    f"swap events: {len(sw['events'])}")}
+                cause = ""  # handled above; flow continues with st == 200
             elif not st:
                 cause = "the request never completed — no network, or the page was gone."
             else:
                 cause = "an unexpected status; classify it before spending a window."
-            return {"verdict": "INCONCLUSIVE",
-                    "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
-                            f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
+            if st != 200:
+                return {"verdict": "INCONCLUSIVE",
+                        "why": (f"/api/auth/me answered {st}, not 200+JSON ({who}) — "
+                                f"{cause} This is an INSTRUMENT fact, NOT a product finding.")}
         x = _expired("auth check")
         if x:
             return x
@@ -1796,7 +1966,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
                f" · left the note: **{navigated_away}**"
-               f"{nav_note} · {int(time.time() - from_cell)}s")
+               f"{nav_note} · {int(time.time() - from_cell)}s"
+               # ⛔ A CELL THAT SURVIVED A DEPLOY SWAP SAYS SO IN ITS OWN ROW.
+               # Otherwise a GREEN taken across somebody else's deploy is
+               # indistinguishable from one taken on a quiet box, and the next
+               # reader cannot weigh it.
+               + (f" · ⚠️ survived {len(swap_events)} deploy swap(s): "
+                  + "; ".join(f"waited {e['waited']}s, {e['why']}" for e in swap_events)
+                  if swap_events else ""))
         # ⛔ And it is only a spoiled cell if the words LANDED first. A door that
         # fired after a failed attempt still met queued work, which is the case
         # the matrix is about.
@@ -1924,6 +2101,48 @@ def _self_check() -> int:
                                    queued_for_note=queued)
         if got != want:
             fails.append(f"{why}: expected {want!r}, got {got!r}")
+
+    # ── SWAP RESILIENCE, driven with planted readings and no browser ────────
+    U = lambda st, up, b='abc': {'status': st, 'uptime': up, 'bundle': b}
+    swap_cases = [
+        # (readings, expect_settled, why-this-case-exists)
+        ([U(200, 120), U(200, 130), U(200, 140)], True,
+         'three healthy readings on one stable pod is settled'),
+        ([U(200, 3000), U(0, None), U(200, 3)], False,
+         '⛔ THE FIRST 200 AFTER A 502 IS NOT SETTLED - the new pod is 3s old'),
+        ([U(200, 10), U(200, 20), U(200, 30)], False,
+         'a pod under the uptime floor is still booting, however monotonic'),
+        ([U(200, 120), U(200, 130), U(200, 5)], False,
+         'a RESET inside the window means another swap landed mid-wait'),
+        ([U(200, 120), U(200, 130), U(200, 130)], False,
+         'equal uptimes are indistinguishable from a cached response'),
+        ([U(200, 120), U(502, None), U(200, 140)], False,
+         'a non-200 inside the settle window voids it'),
+        ([U(200, 120, 'aaa'), U(200, 130, 'aaa'), U(200, 140, 'bbb')], False,
+         '⛔ the served BUNDLE changing mid-window is a deploy landing under us'),
+        ([U(200, 120), U(200, 130)], False,
+         'two readings are not three - the window must be full'),
+        ([], False, 'no readings at all cannot be settled'),
+        ([{'status': 200, 'uptime': None}, {'status': 200, 'uptime': None},
+          {'status': 200, 'uptime': None}], False,
+         '200 without a usable uptime is not evidence of a settled pod'),
+    ]
+    for readings, want, why in swap_cases:
+        got, _ = swap_settled(readings)
+        if got is not want:
+            fails.append(f'SWAP {why}: expected settled={want}, got {got}')
+
+    # ⛔ NON-VACUITY: the settle rule must actually be capable of BOTH answers.
+    if not swap_settled([U(200, 120), U(200, 130), U(200, 140)])[0]:
+        fails.append('SWAP: the happy path cannot settle — the rule can only say no')
+    if swap_settled([U(200, 1), U(200, 2), U(200, 3)])[0]:
+        fails.append('SWAP: a freshly-booted pod settled — the uptime floor is inert')
+
+    # ⛔ THE BUDGET IS THE SAFETY PROPERTY. A permanent 502 must end BOUNDED.
+    if SWAP_WAIT_BUDGET_SECONDS > 420:
+        fails.append(f'SWAP: the wait budget {SWAP_WAIT_BUDGET_SECONDS}s is long enough '
+                     'to eat a rig window; this programme has already lost one to an '
+                     'unbounded run')
 
     # ⛔⛔ THE MUTATION CONTROL, run in-process: with toast detection removed the
     # DEFERRED case MUST NOT pass. A cell that answers DEFERRED without reading
