@@ -643,7 +643,14 @@ def main() -> int:
     store.init_db()
     model = args.model or config.configured_model()
     effort = args.effort or config.configured_effort()
-    version = prompt.extractor_version()
+    # R80/session 25: extractor_version() defaults its OWN model resolution from
+    # config.configured_model() (the WISDOM_EXTRACT_MODEL env var) -- which is NOT the same
+    # thing as this tool's own `--model` CLI flag. Without this explicit pass-through, a
+    # `--model claude-haiku-4-5` run recorded its version as wx-v0-fc47bc97, IDENTICAL to
+    # Opus's -- byte-for-byte the same string pinned in production's accepted gate row.
+    # Caught by a --dry-run before any spend: the printed extractor_version line named Opus's
+    # version while every other line correctly named Haiku.
+    version = prompt.extractor_version(model=model)
     tag = f"{model}-{effort}-{version}"
     data = load_gate_segments(pathlib.Path(args.data_dir), args.split, args.golden_file)
     items = data["segments"][: args.limit] if args.limit else data["segments"]
