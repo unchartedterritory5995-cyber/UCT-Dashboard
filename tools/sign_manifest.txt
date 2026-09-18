@@ -104,6 +104,7 @@
 #!after: s7-price-level-f6-build-record <- d4-cp4-build-record
 #!after: d5-cp3-build-record <- s7-price-level-f6-build-record
 #!after: d5-cp4-build-record <- d5-cp3-build-record
+#!after: d5-cp5-build-record <- d5-cp4-build-record
 #!last: d-cp4-build-record
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
@@ -177,3 +178,4 @@ docs/terminal-research/12-decisions/gates/d4-cp4-build-record.md | CP4' | 23a8da
 docs/terminal-research/12-decisions/gates/s7-price-level-f6-build-record.md | CP3 | 809a6447f
 docs/terminal-research/12-decisions/gates/d5-cp3-build-record.md | CP3 | c6f071bf6
 docs/terminal-research/12-decisions/gates/d5-cp4-build-record.md | CP4 | 51e4434d0
+docs/terminal-research/12-decisions/gates/d5-cp5-build-record.md | CP5 | b448dd7b3
