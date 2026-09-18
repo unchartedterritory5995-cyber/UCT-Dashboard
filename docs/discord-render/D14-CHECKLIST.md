@@ -315,7 +315,16 @@ un-maximises).
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.
-- [ ] **R49 — deterministic rollback watchdog** — `TODO, precondition for W5 and W6`
+- [ ] **R49 — deterministic rollback watchdog** — `BUILT + RAIL-PROVED 2026-09-18, live rehearsal staged not run`
+  🟡 `d14_monitor.py` extended (`--rollback-phase {canary,member}`, default unset = unchanged
+  behavior). 11-case `--self-check` covers both trigger classes + the phase→variable mapping;
+  3/3 required mutations RED (threshold→infinity, variable swapped, blindness increment
+  removed), all restored sha-verified. Caught a real bug pre-live: an invented `--yes` flag on
+  `railway variable delete` that does not exist, verified against `--help` directly. Live
+  rehearsal deliberately DEFERRED — today already had two unplanned web deploys collide with
+  the R62 acceptance window, and the rehearsal's own design triggers a real pod restart; running
+  it now would be a third deploy on an already-turbulent day. Staged procedure + rationale:
+  `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
   Extend `d14_monitor.py` (a SCRIPT, not an agent — which is why the classifier has no reason to touch it)
   so it can itself unset `DISCORD_RENDER_V2_ENABLED` (R39) or narrow `DISCORD_RENDER_V2_CHANNELS` back to
   `'1549129739048853544'` (R41) on its own measured triggers. 60 s polls during canary/member phases.
