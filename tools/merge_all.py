@@ -148,6 +148,7 @@ UNITS = [
     ("k-cp13-build-record", [], False),                      # docs worktree only
     ("k-cp16-build-record", [], False),                      # docs worktree only
     ("k-cp17-build-record", [], False),                      # docs worktree only
+    ("k-cp19-build-record", [], False),                      # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -592,6 +593,23 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
             if already is None:
                 return False, ("[merge-all] ⛔ replay UNREADABLE — git cherry could not "
                                "check %s against %s" % (sha[:9], resolved[:9]))
+            # ⛔⛔ K CP17/F-RESOLVED-1 — THE SAME FALLBACK, HERE TOO. A resolution-landed
+            # commit can never patch-match its original again (by construction), so
+            # `_cherry_says_merged` alone reports it NOT merged forever after — and
+            # without this, `replay()` tries to re-pick it, hits the pre-image mismatch
+            # (`resolved` now carries the RESOLVED content, not what the resolution
+            # record expects), and STRANDS on a row that is genuinely already merged.
+            # Measured 2026-09-18: THIS EXACT GAP, in THIS EXACT FUNCTION, minutes after
+            # fixing the identical gap in `merged_into_master` and `sitting_verify` — a
+            # fourth instance of the dry-run/real-run divergence class this session,
+            # caught by running `--dry-run` again rather than trusting the earlier fix
+            # was complete.
+            if not already:
+                landed = _resolution_landed(stem, sha, clone, resolutions, resolved)
+                if landed is None:
+                    return False, ("[merge-all] ⛔ replay UNREADABLE — could not read %s's "
+                                   "file set to check for a landed resolution" % sha[:9])
+                already = landed
             if already:
                 skipped.append((stem, sha))
                 continue
@@ -1121,8 +1139,10 @@ def _self_check() -> int:
         u_pre = _g4("rev-parse", "%s:shared.txt" % unit_sha).stdout.strip()
         resolved_blob = box4 / "resolved.txt"
         resolved_blob.write_text("line1" + _NL4 + "BOTH" + _NL4, encoding="utf-8")
+        resolved_blob_hash = run(["git", "hash-object", str(resolved_blob)], box4, False)[1].strip()
         fake_resolution = [{"row": "fx-strand-row", "path": "shared.txt",
                             "master pre-image": m_pre, "unit pre-image": u_pre,
+                            "resolved blob": resolved_blob_hash,
                             "_blob_path": resolved_blob,
                             "_file": pathlib.Path("fx-strand-row--shared-txt.md")}]
         ok_res, applied_res, label_res, _detail_res = _pick_with_resolution(
@@ -1131,6 +1151,19 @@ def _self_check() -> int:
              (ok_res, len(applied_res)), (True, 1))
         show("...and it is the SAME function replay() now shares (no second copy)",
              "_pick_with_resolution" in dir(sys.modules[__name__]), True)
+
+        # ── F-RESOLVED-1's SECOND bug: `base_rev` must be a PARAMETER, never the
+        # hardcoded string "origin/master" -- that broke inside replay()'s own clone,
+        # where "origin/master" means something else entirely (F-SIGN-16). `box4`'s
+        # "master" branch just received the resolution (via _pick_with_resolution
+        # above); "unit-base" never did. ─────────────────────────────────────────────
+        show("F-RESOLVED-1: base_rev is CONSULTED, not hardcoded -- landed on 'master'",
+             _resolution_landed("fx-strand-row", unit_sha, box4, fake_resolution, "master"),
+             True)
+        show("...and correctly NOT landed against a DIFFERENT ref ('unit-base') "
+             "-- proves base_rev is a real parameter, not decoration",
+             _resolution_landed("fx-strand-row", unit_sha, box4, fake_resolution, "unit-base"),
+             False)
     finally:
         _shutil4.rmtree(box4, ignore_errors=True)
 
@@ -1196,10 +1229,21 @@ def run(cmd, cwd, dry):
     return out.returncode, (out.stdout or "") + (out.stderr or "")
 
 
-def _resolution_landed(stem: str, sha: str, repo, resolutions) -> "bool | None":
-    """True if `sha`'s intended change is ALREADY on origin/master via a recorded
+def _resolution_landed(stem: str, sha: str, repo, resolutions,
+                       base_rev: str = "origin/master") -> "bool | None":
+    """True if `sha`'s intended change is ALREADY on `base_rev` via a recorded
     resolution that was applied to a PRIOR pick of it — a case `git cherry` can never
     see, and must not be confused with "not merged."
+
+    ⛔⛔ `base_rev` IS A PARAMETER, NEVER A HARDCODED STRING — THE SAME F-SIGN-16 TRAP
+    THIS WHOLE FILE WAS BUILT AROUND. The first version of this function hardcoded
+    `"origin/master"`, which is correct for `merged_into_master` (called against the
+    real `CODE_REPO`) and WRONG inside `replay()`'s throwaway clone, where `origin/
+    master` resolves to the CLONE's own origin — the source repo's LOCAL branch, not
+    the pinned `resolved` sha `replay()` explicitly checked out to avoid exactly this.
+    Measured 2026-09-18: with the hardcoded string, `replay()`'s own use of this
+    function still stranded on `e-cp28-build-record`, minutes after "fixing" it,
+    because the pre-image check was reading the wrong ref's blob.
 
     ⛔⛔ F-RESOLVED-1 — A RESOLUTION-APPLIED COMMIT CAN NEVER PATCH-MATCH ITS ORIGINAL
     AGAIN, BY CONSTRUCTION. Resolving a conflict means writing DIFFERENT bytes than the
@@ -1233,7 +1277,7 @@ def _resolution_landed(stem: str, sha: str, repo, resolutions) -> "bool | None":
         cands = [r for r in resolutions if r["row"] == stem and r["path"] == path]
         if not cands:
             return False
-        cur = _blob_hash(repo, "origin/master", path)
+        cur = _blob_hash(repo, base_rev, path)
         if cur is None or not any(r["resolved blob"] == cur for r in cands):
             return False
     return True
@@ -1615,6 +1659,14 @@ def _flush_batch(pending: list, dry: bool) -> bool:
 
 
 def main(argv=None) -> int:
+    """K CP18 — parse args, dispatch self-check, then acquire the merge lock (R-LOCK)
+    before touching anything, and release it in `finally` on EVERY path out of `_run`,
+    including a refusal. `_run` is the FULL original `main()` body, unchanged except for
+    taking the already-parsed `a` directly.
+
+    ⛔⛔ TWO SESSIONS SHARING ONE MERGE CHECKOUT IS THE COLLISION THIS EXISTS TO CATCH.
+    See `merge_lock.py`'s module docstring for the incident that found this gap.
+    """
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
     ap.add_argument("--dry-run", action="store_true")
@@ -1645,6 +1697,28 @@ def main(argv=None) -> int:
     if a.self_check:
         return _self_check()
 
+    # ⛔⛔ K CP18 — R-LOCK. Acquired BEFORE `_run` touches the checkout, the manifest, or
+    # any packet. A live holder REFUSES here (exit 6, naming the holder) rather than
+    # racing it; a dead holder is reclaimed, loudly. Released in `finally` on every path
+    # `_run` returns by, including every refusal — never left standing.
+    merge_lock = _load_sibling("merge_lock")
+    session = os.environ.get("UCT_SESSION_ID") or DELEGATED_BY
+    checkout = a.code_repo or str(DEFAULT_CODE_REPO)
+    et = _et_now_line()
+    lock_state, lock_detail = merge_lock.acquire(session, checkout, et)
+    print("[merge-all] merge lock: %s — %s" % (lock_state, lock_detail))
+    if lock_state == merge_lock.HELD:
+        print("⛔ REFUSED — another session holds the merge lock. Nothing was touched.")
+        print("   %s" % lock_detail)
+        return 6
+    try:
+        return _run(a)
+    finally:
+        ok_rel, rel_detail = merge_lock.release()
+        print("[merge-all] merge lock release: %s — %s" % (ok_rel, rel_detail))
+
+
+def _run(a) -> int:
     # ⛔ K CP7 — BIND THE TARGET BEFORE ANYTHING READS IT, AND SAY WHAT IT IS.
     # Every helper resolves `CODE_REPO` at call time, so rebinding it here is what makes the
     # flag reach `git cherry`, the deploy wait and the cherry-pick alike — one value, one
