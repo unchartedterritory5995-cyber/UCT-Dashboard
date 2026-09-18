@@ -1817,6 +1817,79 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⛔⛔ SAMPLING WHERE A WAITER WAS AVAILABLE — the cheapest false negative there is
+
+> **A point-in-time check inside a sleep loop misses everything that happens
+> between the samples. If the library has a waiter, use the waiter.**
+
+⚰️ Measured 2026-09-18, with a clean before/after on the SAME cell. The rig
+checked for the editor with `query_selector('.ProseMirror')` every 5 seconds:
+
+```
+for _try in range(4):
+    pm = page.query_selector(".ProseMirror")   # ← a SAMPLE, not a wait
+    if pm: break
+    page.wait_for_timeout(5000)
+```
+
+An editor that mounted at t=8s went unseen until t=12s; one that mounted at
+t=34s was never seen at all, and the cell died on *"the editor never mounted"* —
+while the product had been ready for seconds.
+
+| the SAME cell (ticker) | GREEN | INCONCLUSIVE | seconds |
+|---|---|---|---|
+| sampling (`query_selector` + sleep) | 3 | 3 | 748 |
+| **waiting (`wait_for_selector`)** | **6** | **0** | **211** |
+
+⭐ **Six of six, and 3.5× faster, from changing how it waited — not what it
+measured.** The ceiling was left identical, so nothing that used to pass could
+start failing; the only difference is that a mount at *any* instant inside the
+budget is now caught.
+
+⛔ **AND IT WAS ABOUT TO BE BLAMED ON SOMETHING ELSE.** Those INCONCLUSIVEs sat
+next to a known deploy-churn problem, and the obvious reading was "another
+session swapped production again". The swap detector recorded **zero** swap-waits
+for that window — production was stable the whole time. *The instrument was
+losing cells the product had already served*, and only an independent signal
+(swap-waits = 0) separated the two causes.
+
+⭐ The same class, three times in one session: two blind `wait_for_timeout`s in
+the rig (a 9s route warm, a 9s attachment wait), and this. Grep for
+`wait_for_timeout(` beside a `query_selector` and you will find the rest.
+
+### ⛔⛔ A TIMEOUT HANDLER THAT DISCARDS ITS OUTPUT DESTROYS THE ONE RUN YOU NEEDED
+
+> **`subprocess.TimeoutExpired` CARRIES the output captured before the kill.
+> Keep it. And line-buffer the child, or there is nothing to keep.**
+
+⚰️ Measured 2026-09-18. The window runner did this:
+
+```python
+except subprocess.TimeoutExpired:
+    out, code = "TIMED OUT", 124      # ← throws e.stdout away
+```
+
+A 2.8b run hit its 1800s ceiling and its `raw.txt` contained exactly those two
+words: no cells, no swap-waits, not even the startup banner.
+
+⛔ **I read that emptiness as "it hung at startup".** It had not — the rig
+Chrome's own creation timestamp (08:03:39, against a run that began 08:03:36)
+proved it came up normally three seconds in. **The absence of evidence was an
+artefact of the handler, not a fact about the run**, and what caught the
+misreading was asking the OS when those processes were created instead of
+trusting the file.
+
+⭐ **TWO defects, and fixing one was not enough.** The child was ALSO
+block-buffering into the pipe, so a kill discarded everything before the handler
+ever saw it. Both are required: `reconfigure(line_buffering=True)` in the child,
+and keeping `e.stdout` in the parent.
+
+⛔ **R-RAW makes a run with no raw artifact INCONCLUSIVE — so this handler turned
+every timeout into an unreadable one, and a timeout is precisely the run whose
+trail you most need.** The empty-capture branch now says so in its own text,
+telling the next reader to check buffering before concluding a hang rather than
+leaving them to make the inference I made.
+
 ### ⚰️⚰️ A GLOBAL PROCESS COUNT IS NOT A MEASUREMENT OF *YOUR* RUN
 
 > **Counting processes by a command-line substring counts the whole box. On a

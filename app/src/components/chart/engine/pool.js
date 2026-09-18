@@ -769,6 +769,10 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // ⚠️ `(instance) => boolean`. ABSENT MEANS NOTHING IS CANDLE-CAPABLE, which is
   // what every caller written before this phase means — and the safe direction.
   const ohlcCapable = opts && typeof opts.ohlcCapable === 'function' ? opts.ohlcCapable : null
+  // ⭐ THE CHART'S CANDLE PALETTE, for the one resolver that needs it: a signed
+  // histogram's default up/down. Absent is safe — `resolveSignColors` falls back
+  // to its constants, which is every caller written before themes reached it.
+  const candles = (opts && opts.candles && typeof opts.candles === 'object') ? opts.candles : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -798,7 +802,7 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
-        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)) })
+        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)), candles })
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

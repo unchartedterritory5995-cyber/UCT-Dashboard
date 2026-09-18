@@ -38,6 +38,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import time
@@ -76,6 +77,34 @@ def load_queue() -> dict:
 
 def save_queue(q: dict) -> None:
     QUEUE.write_text(json.dumps(q, indent=2) + "\n", encoding="utf-8")
+
+
+def save_entry(entry_id: str, fields: dict) -> None:
+    """Write back ONLY this runner's own fields on ONE entry, onto the CURRENT file.
+
+    ⛔⛔ NEVER save the whole `q` the loop is holding. It was read BEFORE a cell that
+    can run for 55 minutes, so writing it back reverts every edit made in the
+    meantime — silently, and with the run still reporting its own result correctly,
+    so the window looks fine and the cost lands on the NEXT one as a window that
+    opens with nothing staged.
+
+    ⚰️ Measured 2026-09-18: the W2/P3 cells were split into two while 2.8b was
+    running, and the pre-run snapshot would have reverted both.
+    """
+    cur = load_queue()
+    for e in cur.get("queue", []):
+        if e.get("id") == entry_id:
+            e.update(fields)
+            break
+    else:
+        # ⛔ The entry is GONE from the file. Do not re-create it — somebody
+        # removed it deliberately, and resurrecting it with a stale body is
+        # how a queue grows a cell nobody staged. Say so and write nothing.
+        print(f"  [runner] ⚠️ {entry_id} is no longer in the queue — result NOT "
+              f"written back. It is in the log and in the evidence directory.",
+              flush=True)
+        return
+    QUEUE.write_text(json.dumps(cur, indent=2) + "\n", encoding="utf-8")
 
 
 def pending(q: dict) -> list:
@@ -202,6 +231,36 @@ def run_entry(entry: dict, log=print) -> dict:
                    " so a kill discards the lot and an entirely healthy run reads as a"
                    " hang at startup.")
         code = 124
+        # ⛔⛔ A KILLED CELL LEAVES ITS BROWSER HOLDING THE PROFILE, AND THE
+        # NEXT CELL THEN REFUSES TO START.
+        #
+        # ⚰️ Measured twice on 2026-09-18. A 2.8b run hit its ceiling; the
+        # kill reached the PYTHON process and not the Chrome it had spawned,
+        # so the four metadata cells behind it each died in ~7s with "the rig
+        # profile is locked by a running Chrome". Four cells lost to one
+        # timeout - and they refused CORRECTLY, which is why nothing looked
+        # broken until the whole window had been spent.
+        #
+        # ⛔ BY MARKER, NEVER BY NAME. `chrome.exe` alone would take the
+        # owner's 25 browser processes with it. The marker is the rig
+        # profile path, which only the rig's own browser carries.
+        # ⛔ THE PROFILE ITSELF IS NEVER TOUCHED: a fresh profile is a
+        # SIGNED-OUT profile, and a sign-in is a 30-day event.
+        try:
+            _ps = shutil.which("powershell") or "powershell"
+            subprocess.run(
+                [_ps, "-NoProfile", "-Command",
+                 "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
+                 "Where-Object { $_.CommandLine -like '*canary-chrome-profile-persistent*' } | "
+                 "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"],
+                capture_output=True, timeout=60)
+            print("  [runner] timed-out cell: tore down the rig browser BY MARKER "
+                  "(profile kept) so the next cell can start", flush=True)
+        except Exception as _e:                      # noqa: BLE001
+            # ⛔ Teardown is best-effort and must never mask the timeout that
+            # caused it. The next cell refuses loudly if this did not work.
+            print(f"  [runner] ⚠️ teardown after timeout failed: {type(_e).__name__}",
+                  flush=True)
     except Exception as e:  # noqa: BLE001
         out, code = f"{type(e).__name__}: {e}", 125
     secs = (datetime.datetime.now() - started).total_seconds()
@@ -306,7 +365,13 @@ def spend_window(once: bool, log=print) -> int:
                 entry["status"] = "failed"
                 outcome = "exit " + str(res["exit"])
             entry["result"] = res
-            save_queue(q)
+            # ⛔ Merge onto the CURRENT file — `q` is a pre-run snapshot and writing
+            # it back would revert anything staged while the cell ran.
+            save_entry(entry.get("id"), {
+                "status": entry["status"],
+                "attempts": entry["attempts"],
+                "result": res,
+            })
             executed_here += 1
             append_log(f"| {opened_at:%Y-%m-%d %H:%M} | `{entry.get('id')}` | {outcome} | "
                        f"{res['tail'][:200].replace('|', '/')} |")

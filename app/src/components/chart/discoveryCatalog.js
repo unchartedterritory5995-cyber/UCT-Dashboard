@@ -177,7 +177,7 @@ const str = (v, fallback = '') => (typeof v === 'string' && v ? v : fallback)
  * follows when it says something new — and only the breadth adapter overrides it.
  * `SourceField` renders `lead` / `sub` and learns nothing about breadth.
  */
-function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create }) {
+function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create, metricShort, universeLabel }) {
   const _lead = str(lead, str(shortName, id))
   return {
     key: `${kind}:${id}`,
@@ -193,6 +193,13 @@ function result({ id, kind, name, shortName, lead, sub, category, description, t
     capability: capability || CAPABILITY.CHARTABLE,
     capabilityReason: capabilityReason || null,
     create,
+    // ⭐ THE TWO FIELDS `semanticNamesFor` NEEDS, and they are declared HERE
+    // because this factory has a FIXED field list — an extra key handed to it
+    // from `breadthResults` was silently dropped, which is exactly how a
+    // half-applied naming fix looks: the full name arrived without its universe.
+    // Absent on every non-breadth result, which is what makes them optional.
+    ...(metricShort ? { metricShort } : {}),
+    ...(universeLabel ? { universeLabel } : {}),
   }
 }
 
@@ -357,6 +364,13 @@ export function breadthResults(rows, { tf, bars } = {}) {
       // the METRIC and the universe only qualifies it.
       lead: name,
       sub: universeLabel || sym,
+      // ⭐⭐ THE METRIC'S OWN ABBREVIATION, CARRIED. `breadth_metrics` ships one
+      // per metric (`Net H-L`, `A50`, `Up 4%`) and nothing was reading it, so the
+      // only compact identity available downstream was the UNIVERSE — which is
+      // how a Net-New-Highs/Lows series came to be called `US` in three places.
+      // ⛔ A UNIVERSE IS NOT AN INDICATOR NAME; see `semanticNamesFor`.
+      metricShort: str(row.short_name || row.shortName, ''),
+      universeLabel,
       category: str(row.group_label || row.groupLabel || row.group, 'Breadth'),
       description: name,
       tags: ['breadth'],
@@ -457,6 +471,51 @@ export function securityResults(rows, { tf, bars } = {}) {
   return out
 }
 
+/**
+ * THE TWO NAMES A DISCOVERY RESULT CARRIES ONTO ITS INSTANCE.
+ *
+ * ⚰️⚰️ BECAUSE COLLAPSING A BREADTH SERIES TO ITS UNIVERSE WAS THE BUG. The
+ * instance stored ONE name — `res.shortName` — and for a namespaced breadth row
+ * that field IS the universe (`US`), on purpose: four A50 series in one pane read
+ * `UCT 63.2  US 54.9  NASDAQ 51.8  NYSE 57.4` under a heading that states the
+ * metric once. Correct for a shared pane; wrong everywhere else, and `US:NETHL`
+ * alone in its own pane was named `US` in the Indicators list, the pane legend
+ * AND the editor. A member cannot tell what `US` measures.
+ *
+ * ⭐ SO AN INSTANCE CARRIES BOTH, AND EACH SURFACE PICKS. `full` is what a row
+ * with space says (`Net New 52-Week Highs-Lows`); `compact` is what a pane legend
+ * says (`US: Net H-L`) — universe AND metric, because the universe alone is an
+ * address and the metric alone loses which market it is about.
+ *
+ * ⛔ NO TICKER BRANCH. The catalogue's own metadata answers this for every
+ * universe — US, NASDAQ, NYSE, UCT — and for a security both names are the
+ * ticker, which is exactly what makes the `worthStoring` provenance rule below
+ * keep storing nothing for QQQ.
+ *
+ * @returns {{full: string, compact: string}}
+ */
+export function semanticNamesFor(res) {
+  if (!res) return { full: '', compact: '' }
+  const id = str(res.id, '')
+  if (res.kind !== 'breadth') {
+    // A security names itself: `QQQ` is the thing, and `res.name` is the gloss.
+    const t = str(res.shortName, '') || id
+    return { full: t, compact: t }
+  }
+  const metricFull = str(res.name, '') || id
+  const metricShort = str(res.metricShort, '') || metricFull
+  const universe = str(res.universeLabel, '')
+  return {
+    full: universe ? `${metricFull} · ${universe}` : metricFull,
+    // ⚠️ A LEGACY UCT ROW KEEPS ITS SYMBOL AS THE COMPACT NAME, and that is the
+    // earlier ruling this change deliberately preserves: `UCTA50` is what a
+    // member types, what the axis shows and what they have been reading for a
+    // year, so a pane strip must not rename it to `A50`. It gains the METRIC in
+    // the list and the editor — where there is room — and loses nothing.
+    compact: universe ? `${universe}: ${metricShort}` : (id || metricShort),
+  }
+}
+
 // ─── creation ───────────────────────────────────────────────────────────────
 
 /**
@@ -495,8 +554,10 @@ export function createFromResult(cs, res, registry) {
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
+    const names = semanticNamesFor(res)
     return createDirectSeries(cs, res.create.source, registry, {
-      name: res.shortName || res.id,
+      name: names.full,
+      compact: names.compact,
       presentation: res.create.presentation || null,
     })
   }
@@ -547,7 +608,12 @@ export function createDirectSeries(cs, source, registry, display) {
   const defOf = (registry && typeof registry.getDefinition === 'function')
     ? registry.getDefinition(minted.defId) : null
   const derived = derivedSourceName(defOf, findInstance(next, minted.instanceId))
+  // ⚠️ THE PROVENANCE RULE NOW ASKS ABOUT BOTH NAMES. A security's full AND
+  // compact names are its ticker, which equals the derived stem, so QQQ still
+  // stores nothing and still follows a re-pointed source. A breadth metric's
+  // names are neither its symbol nor each other, so both are recorded.
   const worthStoring = !!(display && display.name && display.name !== derived)
+    || !!(display && display.compact && display.compact !== derived)
   // ⚠️ PRESENTATION IS STAMPED EVEN WHEN THE NAME IS NOT. The name rule is about
   // PROVENANCE — a name identical to the derived one is not a choice, so it is not
   // recorded — and that reasoning says nothing about how the series draws. Gating
@@ -558,6 +624,7 @@ export function createDirectSeries(cs, source, registry, display) {
   if (!worthStoring && !wantsPresentation) return next
   return withDisplay(next, minted.instanceId, {
     name: worthStoring ? display.name : null,
+    compact: worthStoring ? (display.compact || null) : null,
     presentation: display.presentation || null,
   })
 }
@@ -589,7 +656,14 @@ function withDisplay(cs, instanceId, display) {
     indicatorInstances: list.map((i) => {
       if (!i || i.instanceId !== instanceId) return i
       const next = { ...i }
-      if (display.name) next.display = { name: display.name }
+      // ⭐ TWO NAMES, ONE FIELD. `compact` is additive and optional: an instance
+      // written before this — or by any other door — has only `name`, and every
+      // reader falls back to it. No migration, no top-level key.
+      if (display.name) {
+        next.display = display.compact && display.compact !== display.name
+          ? { name: display.name, compact: display.compact }
+          : { name: display.name }
+      }
       // ⚠️ A SEPARATE FIELD FROM `display`, because it is read by a different layer:
       // `display.name` is a LABEL (`readout.chipLabel`), `presentation` is how the
       // series DRAWS (`presentation.presentedPlot`). Folding the two together would

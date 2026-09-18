@@ -109,6 +109,34 @@ const LEFT_AXIS_OPTIONS = Object.freeze({
   scaleMargins: Object.freeze({ top: 0.12, bottom: 0.04 }),
 })
 
+/**
+ * …and the RIGHT-axis options for a guest that is the volume pane's ONLY resident.
+ *
+ * ⚰️⚰️ THE PANE WITH NOTHING ON ITS RIGHT AXIS WEDGES LIGHTWEIGHT-CHARTS.
+ * MEASURED 2026-09-18 in the live harness: a chart whose volume pane holds only a
+ * LEFT-axis guest throws `Value is null` out of `ChartWidget._adjustSizeImpl` —
+ * `ensureNotNull(paneWidget._internal_leftPriceAxisWidget())` — on EVERY draw and
+ * every resize, so the canvas freezes on its last good frame and no later change
+ * paints. Volume bars removed, an MA of Volume still in the pane, and the chart
+ * simply stops.
+ *
+ * ⭐ AND THE RULE THAT AVOIDS IT IS THE HONEST ONE. A guest takes the LEFT axis
+ * *so Volume keeps the right one* — that is the whole reason, stated in the
+ * branch below. With no bars there is no right axis to keep, and the guest is
+ * the pane's HOST: it takes the pane's own visible right scale, exactly like
+ * every other pane resident in `paneMode() === 'panes'`.
+ *
+ * ⛔ MARGINS SPELLED OUT, for the reason the own-pane branch spells its own out:
+ * `applyOptions` MERGES, so omitting the key leaves a previous band standing on a
+ * re-purposed scale. These are the volume pane's own numbers
+ * (`StockChart`'s `{ top: 0.12, bottom: 0 }`), so the guest occupies the
+ * rectangle the bars did rather than a different one.
+ */
+const VOLUME_HOST_AXIS_OPTIONS = Object.freeze({
+  borderVisible: false, visible: true, autoScale: true,
+  scaleMargins: Object.freeze({ top: 0.12, bottom: 0 }),
+})
+
 /** `applyIndScale`'s `|| { top: 0.82, bottom: 0 }`. Reached when the layout
  *  reserved no band for this key — i.e. the legacy toggle is off while an engine
  *  instance exists, which is exactly the B3 crossover state. */
@@ -531,16 +559,26 @@ export function resolvePlacement(instance, def, ctx) {
   // put them in the same rectangle.
   if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))
       && !volumeNumericPaneEnabled()) {
+    // ⭐⭐ WHICH LADDER? THE BARS DECIDE, BECAUSE THE RULE IS ABOUT THEM. `'left'`
+    // exists so Volume keeps the right axis; `nativeVolumeInPane === false` says
+    // the bars are not in this pane at all, and then the guest is the host. See
+    // `VOLUME_HOST_AXIS_OPTIONS` for the render freeze that makes this a
+    // correctness question rather than a cosmetic one.
+    //
+    // ⚠️ ABSENT ⇒ TRUE, so every caller and test written before the flag existed
+    // keeps the shipped answer. Only `StockChart` can know it, and it passes it.
+    const barsHoldRight = c.nativeVolumeInPane !== false
+    const axis = barsHoldRight ? LEFT_AXIS_OPTIONS : VOLUME_HOST_AXIS_OPTIONS
     return {
       paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
-      scaleId: 'left',
+      scaleId: barsHoldRight ? 'left' : 'right',
       // Rebuilt, not shared: a caller that mutated the returned object would
       // otherwise poison every later resolve. No fixed range here even for RSI —
-      // the left axis is shared with everything else overlaid onto it, which is
-      // exactly why the shipped branch autoscales it.
-      scaleOptions: { ...LEFT_AXIS_OPTIONS, scaleMargins: { ...LEFT_AXIS_OPTIONS.scaleMargins } },
-      // The left axis is autoscaled BY the things overlaid onto it — that branch
-      // sets `autoScale: true` precisely so they drive it — and the shipped code
+      // the axis is shared with everything else in the pane, which is exactly why
+      // the shipped branch autoscales it.
+      scaleOptions: { ...axis, scaleMargins: { ...axis.scaleMargins } },
+      // The axis is autoscaled BY the things drawn on it — that branch sets
+      // `autoScale: true` precisely so they drive it — and the shipped code
       // passes no provider at all. Excluding here would leave the shared axis
       // with nothing to size itself from.
       autoscale: 'default',

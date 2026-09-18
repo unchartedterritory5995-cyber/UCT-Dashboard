@@ -25,8 +25,15 @@ const LABEL_INK = '#b8b2a4'
 //: V2-3's two coverage inks. ⛔ DIFFERENT ON PURPOSE: "never recorded" and
 //: "reconstructed from bars" are different claims, and one ink for both would
 //: merge them back into the single undifferentiated state A-10 is about.
-const NOT_RECORDED_INK = 'rgba(139, 133, 120, 0.10)'
-const RECONSTRUCTED_INK = 'rgba(96, 165, 250, 0.07)'
+//: ⭐ Fill + a solid edge, not fill alone: at 0.10/0.07 opacity (the original
+//: values) the band all but disappeared against the panel's own dark ground —
+//: exactly the "nearly invisible" audit finding — and a reader cannot act on
+//: a caveat they cannot see. The border gives the region a legible boundary
+//: even at a fill opacity light enough not to obscure the series drawn over it.
+const NOT_RECORDED_FILL = 'rgba(139, 133, 120, 0.22)'
+const NOT_RECORDED_BORDER = 'rgba(139, 133, 120, 0.55)'
+const RECONSTRUCTED_FILL = 'rgba(96, 165, 250, 0.18)'
+const RECONSTRUCTED_BORDER = 'rgba(96, 165, 250, 0.55)'
 
 /**
  * Can this panel take a log axis?
@@ -163,6 +170,17 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
         ? { show: true, formatter: shortOf(key), color: LABEL_INK, fontSize: 11,
             distance: 6, valueAnimation: false }
         : { show: false },
+      // ⛔⛔ TWO SERIES CONVERGING NEAR THE SAME VALUE STACK THEIR END LABELS ON TOP
+      // OF EACH OTHER — a real defect found live at Max scale (e.g. "Up 4%+" and
+      // "Up 20%/5d" landing within a few pixels at the chart's right edge). This is
+      // a DIFFERENT axis from the legend-clipping fix in `panels.js` (that one is
+      // HORIZONTAL — the margin was too narrow for a long label; this one is
+      // VERTICAL — two labels landing at the same y). Delegated to ECharts' own
+      // label-layout pass rather than hand-rolled collision math, the same D-053
+      // principle LTTB sampling already follows: `moveOverlap: 'shiftY'` nudges
+      // colliding end labels apart along y, across EVERY series sharing this
+      // panel's coordinate space, not just within one series' own labels.
+      labelLayout: { moveOverlap: 'shiftY' },
       emphasis: { focus: 'series' },
       ...coverageMarks(coverage, key, dates),
     })
@@ -223,7 +241,8 @@ function coverageMarks(coverage, key, dates) {
   const region = coverage.regions?.[key]
   if (region) {
     areas.push([
-      { xAxis: dates[region.fromIndex], itemStyle: { color: NOT_RECORDED_INK } },
+      { xAxis: dates[region.fromIndex],
+        itemStyle: { color: NOT_RECORDED_FILL, borderColor: NOT_RECORDED_BORDER, borderWidth: 1 } },
       { xAxis: dates[region.toIndex] },
     ])
   }
@@ -231,7 +250,8 @@ function coverageMarks(coverage, key, dates) {
   // are tinted differently from "not recorded at all" — two different facts, two inks.
   for (const run of coverage.runs ?? []) {
     areas.push([
-      { xAxis: dates[run.fromIndex], itemStyle: { color: RECONSTRUCTED_INK } },
+      { xAxis: dates[run.fromIndex],
+        itemStyle: { color: RECONSTRUCTED_FILL, borderColor: RECONSTRUCTED_BORDER, borderWidth: 1 } },
       { xAxis: dates[run.toIndex] },
     ])
   }

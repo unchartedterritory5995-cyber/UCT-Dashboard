@@ -269,7 +269,18 @@ describe('§26, §27 · QQQ and UCTA50 create through ONE path', () => {
     const a = created(sec).inst
     const b = created(brd).inst
     expect(a.defId).toBe(b.defId)
-    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort())
+    // ⚠️⚰️ THIS COMPARED **ALL** KEYS AND HAD TO BE SHARPENED, NOT LOOSENED.
+    // A breadth measure now carries a `display` — `Net New 52-Week Highs-Lows`,
+    // the metric's own name — because the catalogue HAS a name for it worth
+    // recording. A ticker does not: `QQQ` is already its own name, so
+    // `createDirectSeries`' provenance rule stores nothing. That asymmetry is
+    // about the NAME, not the KIND, and the case below proves it: a LEGACY UCT
+    // breadth row, whose name IS its symbol, stores none either — exactly like a
+    // security. A per-family branch in creation would not behave that way.
+    const structural = (i) => Object.keys(i).filter((k) => k !== 'display').sort()
+    expect(structural(a)).toEqual(structural(b))
+    expect(Object.keys(a).filter((k) => !structural(a).includes(k))).toEqual([])
+    expect(Object.keys(b).filter((k) => !structural(b).includes(k))).toEqual(['display'])
     expect(Object.keys(a.inputs).sort()).toEqual(Object.keys(b.inputs).sort())
     const diff = Object.keys(a.inputs).filter((k) => a.inputs[k] !== b.inputs[k])
     expect(diff, 'a breadth instance and a security instance differ by more than their source')
@@ -277,6 +288,23 @@ describe('§26, §27 · QQQ and UCTA50 create through ONE path', () => {
     // …and the ONE difference really is the symbol, not the field or the grammar.
     expect(parseSource(a.inputs.source).field).toBe(parseSource(b.inputs.source).field)
     expect(parseSource(a.inputs.source).symbol).not.toBe(parseSource(b.inputs.source).symbol)
+  })
+
+  it('⭐ …and the asymmetry is the NAME, not the KIND', () => {
+    // ⛔ THE DISCRIMINATOR FOR THE CASE ABOVE. `legacy: true` is what
+    // `breadthResults` reads to mean "this row's SYMBOL is its recognisable
+    // name" — `UCTA50` is what a member types and what the axis has shown for a
+    // year — so its full name derives from the source and nothing is stored.
+    // Same shape as a security, from the breadth branch. If creation ever grew a
+    // per-family branch, this and the security would diverge.
+    const [sec] = securityResults([QQQ_ROW], { tf: TF, bars: BARS })
+    const [legacyBrd] = breadthResults([{ ...BREADTH_ROW, name: 'UCTA50', legacy: true }],
+      { tf: TF, bars: BARS })
+    const a = created(sec).inst
+    const b = created(legacyBrd).inst
+    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort())
+    expect(a.display ?? null).toBeNull()
+    expect(b.display ?? null).toBeNull()
   })
 
   it('⭐ a TECHNICAL result still creates through the proven definition path', () => {

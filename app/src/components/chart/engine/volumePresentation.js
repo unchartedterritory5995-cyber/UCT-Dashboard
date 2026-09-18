@@ -35,7 +35,7 @@
 // BY both of them; importing either way round would be the circular dependency
 // the brief warns about.
 
-import { resolveDisplayTarget } from './displayTarget'
+import { resolveDisplayTarget, volumeOverlayPaneKeys } from './displayTarget'
 import { isInstanceTombstone } from './instances'
 
 /** Volume occupies a lightweight-charts pane of its own. */
@@ -109,9 +109,60 @@ export function resolveVolumePresentation(o) {
 }
 
 /**
- * The `volumePane` option `resolvePaneOrder` takes — the single question the two
- * old predicates were both trying to answer.
+ * Are the NATIVE VOLUME BARS drawn in a pane of their own?
+ *
+ * ⚰️ IT WAS CALLED `volumeOwnsPane`, AND THE NAME WAS THE BUG. Volume bars do
+ * not OWN the volume pane; they are one possible RESIDENT of it. Seventeen of
+ * the twenty-three consumers of the old name were asking whether the RECTANGLE
+ * EXISTS — pane order, pane count, stretch shares, `firstPaneIndex`, the
+ * realiser's `volumeKey`, the chip router, Chart Data's map — and got an answer
+ * about the BARS. See `volumePaneRequired` below.
+ *
+ * ⛔ ASK THIS ONE ONLY WHERE THE BARS THEMSELVES ARE THE SUBJECT: which pane
+ * index to `addSeries` them into, which price scale they take, whether they are
+ * a band inside the candles instead, and where their moving average rides.
  */
-export function volumeOwnsPane(o) {
+export function nativeVolumeOwnsPane(o) {
   return resolveVolumePresentation(o) === VOLUME_AS_PANE
+}
+
+/**
+ * The instance ids RESIDENT in the volume pane — `displayTarget`'s own answer.
+ *
+ * ⛔ NOT A SECOND SCAN. `volumeOverlayPaneKeys` is the set `computePaneLayout`
+ * already subtracts through `excludeKeys` (a guest carves no pane of its own),
+ * and it applies the hidden/tombstoned filters that list has to apply. Deriving
+ * residency a second way here is how "the layout says the pane is empty" and
+ * "the renderer says it has a tenant" learn to disagree.
+ */
+export function volumeResidentKeys(cs, instances) {
+  try { return volumeOverlayPaneKeys(instances, cs || {}) } catch { return new Set() }
+}
+
+/**
+ * ⭐⭐ DOES THE VOLUME PANE EXIST? The locked rule, as a predicate:
+ *
+ *     A DISPLAY PANE EXISTS IF IT HAS A RESIDENT PLOTTED SERIES.
+ *     VOLUME BARS DO NOT OWN THE VOLUME PANE. DISPLAY RESIDENTS OWN IT.
+ *
+ * So the pane is there when the native bars are presented as a pane — OR when
+ * anything else RESIDES in it, whatever the bars are doing.
+ *
+ * ⚰️⚰️ THE DEFECT THIS EXISTS TO CLOSE. `resolveVolumePresentation` opens with
+ * `if (!shown) return VOLUME_ABSENT`, which short-circuits before it ever asks
+ * `volumeHasOverlay`. Removing native Volume therefore told every pane-existence
+ * consumer the rectangle was gone while a guest was still drawing in it —
+ * measured as `{cs, instances: [MA sent to Volume], shown: false}` → `'absent'`.
+ * `placement.js`'s guest branch is gated on that same answer, so the guest did
+ * not merely lose its pane: it bound nothing and VANISHED FROM THE CHART.
+ *
+ * ⛔ SOURCE IS NOT DISPLAY. An `MA(Volume)` whose Display is *Price* reads volume
+ * and resides in the candles; it holds no pane here, and must not. `displayTarget`
+ * is the only thing asked, and it answers about DESTINATION.
+ *
+ * @param {object} o the same options `resolveVolumePresentation` takes.
+ */
+export function volumePaneRequired(o) {
+  if (resolveVolumePresentation(o) === VOLUME_AS_PANE) return true
+  return volumeResidentKeys(o && o.cs, o && o.instances).size > 0
 }

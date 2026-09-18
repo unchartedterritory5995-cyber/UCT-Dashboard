@@ -1,0 +1,18 @@
+{
+  "id": "p2-2.8b-second-writer-while-away",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 124,
+  "started": "2026-09-18T12:10:54",
+  "seconds": 1800.1,
+  "why": "P2 stage-1 proof, guard still FULL. 2.8b is fix 4's production proof and it runs THE EDITOR PATH - the path `persist` now guards after Q1 fix 6. A second signed-in context moves the server revision while the first is away and offline; the member returns and their words must survive. GREEN here is the evidence that fix 6 did not break the designed rebase path on production. \u26d4 It has timed out before (exit 124); an INCONCLUSIVE is requeued, never banked."
+}

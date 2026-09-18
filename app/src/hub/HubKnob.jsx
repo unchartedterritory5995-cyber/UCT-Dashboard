@@ -45,6 +45,18 @@ const HubKnob = forwardRef(function HubKnob({
   const sideStyle = mirrored ? { left: `${EDGE_OFFSET_PX}px` } : { right: `${EDGE_OFFSET_PX}px` }
   const dotColor = targetColor || modeColor
 
+  /**
+   * The light direction, in CSS `linear-gradient` terms: 0deg points up, 90deg right.
+   * `offset` is screen coords with y DOWN, so the y term is negated to put 0deg at the top.
+   *
+   * ⛔ THE RESTING ANGLE IS STATED, NOT DERIVED. At rest `offset` is (0,0) and `atan2(0, 0)`
+   * returns 0 — a degenerate vector. 0deg happens to be the value we want at rest (light from
+   * above, per D2's single light direction), but it is written explicitly so that the resting
+   * look is a decision on the record rather than a coincidence of how atan2 handles (0,0).
+   */
+  const atRest = offset.x === 0 && offset.y === 0
+  const dragAngle = atRest ? 0 : (Math.atan2(offset.x, -offset.y) * 180) / Math.PI
+
   return (
     <div
       className={styles.knobLayer}
@@ -86,6 +98,23 @@ const HubKnob = forwardRef(function HubKnob({
           width: KNOB_PX,
           height: KNOB_PX,
           transform: `translate(${offset.x}px, ${offset.y}px)`,
+          /**
+           * D3 — the specular rim catches light from the direction the thumb is travelling.
+           *
+           * ⭐ THIS IS THE ONE PLACE THE HUB CAN BEAT ITS REFERENCE SET CHEAPLY: the Camera
+           * zoom dial's specular is faked from a model; ours is driven by the actual input,
+           * because the drag vector is already in hand every frame.
+           *
+           * ⛔ IT COSTS NO NEW RENDER, AND THAT IS WHY IT IS SAFE. `w4-material-plan.md` D3
+           * warns that a custom property set per frame from JS is a render-loop hazard (H14,
+           * the 4.5-hour navigation freeze) and prescribes `element.style.setProperty` on a
+           * ref. That prescription guards against ADDING a per-frame state update. This adds
+           * none: `offset` is `state.knob`, so HubRoot ALREADY re-renders on every
+           * pointermove to move the knob at all. Riding an existing render adds a property,
+           * not a render. ⚠️ If the knob is ever moved off React state onto a transform ref,
+           * this must move with it — it is not independently safe.
+           */
+          '--hub-drag-angle': `${dragAngle}deg`,
         }}
       >
         <span

@@ -368,7 +368,76 @@
   --hub-rim: color-mix(in srgb, var(--text-heading) 18%, transparent);
   --hub-rim-width: 1px;
   --hub-rim-highlight: color-mix(in srgb, var(--text-heading) 35%, transparent);
-  --hub-shadow: 0 10px 28px -8px color-mix(in srgb, var(--bg) 65%, transparent);
+  /* ⛔⛔ F13 — A SHADOW IS NOT A GROUND, AND DERIVING IT FROM --bg INVERTS IT IN LIGHT THEME.
+     ⚰️ Found by LOOKING at a light-theme capture after every number had already passed: the
+     bubbles wore a white HALO, not a drop shadow. Cause:
+
+         [data-theme="light"] --bg: #ffffff   ->  color-mix(--bg 65%, transparent) = white
+
+     The derivation is deliberate and CORRECT for the dark family — the OLED block relies on it
+     to deepen automatically. It simply has no meaning on the one theme with no --hub-* overrides.
+
+     ⭐ THE FIX IS TO SEPARATE TWO IDEAS THAT LOOKED ALIKE. A SCRIM takes the page's own ground,
+     so --hub-scrim SHOULD follow --bg and is deliberately left alone (pass 2's F10 measured it
+     correct in both themes). A SHADOW is ink: it is dark everywhere, in every theme, because
+     that is what a shadow is. Same construction, opposite correctness — fixing both because
+     they resembled each other would have broken the one that works.
+
+     ⚠️ Costs the dark family nothing: #101012 -> #000000 at identical alpha is imperceptible,
+     and OLED was already #000000, so it is a no-op there. Light gains an actual shadow.
+
+     ⛔ AND IT CORRECTS PASS 2's F10, which concluded "the light-theme tokens are NOT broken"
+     after measuring three that derive from --text-heading (which flips correctly) and stating
+     the result about the whole family. The shadow family derives from the OTHER end of the
+     palette. A conclusion drawn from three tokens was published about all of them. */
+  --hub-shadow-ink: rgb(0 0 0);
+  /* ⭐ THE OTHER HALF OF THE SAME IDEA, AND IT INVERTS THE OPPOSITE WAY. A SPECULAR is a
+     reflection of a light source, so it is LIGHT in every theme — for the same reason a shadow
+     is dark in every theme. ⛔ Do NOT paint one with --hub-rim-highlight: that is
+     --text-heading at 35%, which is white on dark and NEAR-BLACK on light, so a "highlight"
+     built from it becomes a dark cap on the light theme. Caught by looking at a light-theme
+     capture of D3's first attempt, after the contrast numbers had all passed.
+     ⚠️ --hub-rim-highlight stays exactly as it is for RIMS, where a dark edge on a light UI is
+     a correct edge treatment. Rim and specular are two jobs that had been sharing one token. */
+  --hub-specular-ink: rgb(255 255 255);
+  --hub-specular: color-mix(in srgb, var(--hub-specular-ink) 30%, transparent);
+  --hub-shadow: 0 10px 28px -8px color-mix(in srgb, var(--hub-shadow-ink) 65%, transparent);
+
+  /* ─── W4 pass 1 — THE BUBBLE'S MATERIAL. 2026-09-18 ────────────────────────────────────────
+     ⚰️ WHY THIS EXISTS. Measured on the shipped bundle: five hub surfaces carry the glass recipe
+     (`.pad`, `.chip`, `.actionsButton`, `.coachMark`, `.edgeTabGrip`) and `.bubble` — the ONLY
+     element a member looks at for the whole gesture — carried none. R8 pass 3's F11 fix had moved
+     it the other way, to `color-mix(--hub-bubble-color 60%, --bg-elevated)`: a solid pill. It
+     fixed the legibility it was aimed at and spent the material to do it.
+
+     ⭐ THE SPLIT THIS ENCODES: the RIM is glass, the CENTRE is a backplate. Legibility comes from
+     a contrast token INSIDE the material (--hub-label-plate, painted as a radial ground under the
+     text), never from making the pill opaque. So the bubble still reads as one lens at its edge
+     while the label sits on ground it can be read against — on the scrimmed region and on the
+     un-scrimmed one, in both themes. The WCAG ratios are SAMPLED FROM RENDERED PIXELS, not
+     asserted here; a number in a comment is a forecast until it is derived.
+
+     ⛔ NO THEME VARIANT AND NONE NEEDED. Every value composes --bg / --bg-elevated /
+     --text-heading, which already flip per theme, so these adapt for free and carry no
+     `[data-theme=…]` block — which is what keeps them out of `themeIslands.test.js`'s required
+     set. Same decision as the rest of this family, linked rather than re-argued.
+
+     ⚠️ --hub-blur-bubble IS ENGAGED ONLY WHILE THE FAN IS SETTLED (see hub.module.css). A
+     backdrop-filter on a TRANSFORMING element re-samples its backdrop every frame, which is the
+     one thing `w4-material-plan.md` §0 says not to do on a phone. */
+  --hub-blur-bubble: 14px;
+  --hub-saturate: 160%;
+  /* ⭐ --bg-ELEVATED, NOT --bg: the plate is a SURFACE and SHOULD follow the theme. That is
+     exactly what makes the light-theme labels readable at 6.40:1 — the plate lightens under
+     dark text while the region behind the bubble stays dark. Do not "fix" this alongside the
+     shadows below; it is the half that works. */
+  --hub-label-plate: color-mix(in srgb, var(--bg-elevated) 76%, transparent);
+  /* F13, fourth token: a LOWLIGHT is the shadowed underside of the rim. Derived from --bg it
+     became WHITE at 30% in light theme — a second highlight on the bottom edge, so the glass
+     lost its edge exactly where an eye looks for thickness. Ink, like the shadows. */
+  --hub-rim-lowlight: color-mix(in srgb, var(--hub-shadow-ink) 30%, transparent);
+  --hub-shadow-ambient: 0 12px 28px -10px color-mix(in srgb, var(--hub-shadow-ink) 70%, transparent);
+  --hub-shadow-key: 0 2px 5px -1px color-mix(in srgb, var(--hub-shadow-ink) 55%, transparent);
 
   /* ─── The hub's MOTION vocabulary. W4 step 2, 2026-09-17 ───────────────────────────────────
      ⛔ NO THEME VARIANT, DELIBERATELY. A timing function does not change between light and dark,
@@ -485,9 +554,16 @@
 
   /* Hub glass needs richer alpha on pure black — #000000 gives the tint no
      ambient bounce to read against (§2a). Tint raised ~5pts, rim ~6pts; only
-     these tokens change — --hub-shadow/--hub-scrim already derive a deeper
-     black automatically because they're built from --bg, which OLED already
-     redefines above. */
+     these tokens change.
+     ⚰️ This sentence used to continue: "--hub-shadow/--hub-scrim already derive a
+     deeper black automatically because they're built from --bg, which OLED already
+     redefines above." Half of that is no longer true. F13 moved the SHADOW family
+     (--hub-shadow, --hub-shadow-ambient, --hub-shadow-key, --hub-rim-lowlight) onto
+     --hub-shadow-ink, because deriving a shadow from the page ground inverted it into
+     a white glow on the LIGHT theme. They are now ink everywhere, which on OLED is the
+     same value this comment used to describe getting for free.
+     ⭐ --hub-scrim DOES still derive from --bg, and correctly: a scrim takes the page's
+     own ground. That is the half this note keeps. */
   --hub-glass-tint: color-mix(in srgb, var(--text-heading) 13%, transparent);
   --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 25%, transparent);
   --hub-rim: color-mix(in srgb, var(--text-heading) 24%, transparent);

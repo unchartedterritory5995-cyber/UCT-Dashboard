@@ -247,6 +247,7 @@ def pending_segments(conn, extractor_version: str, limit: int) -> list[dict]:
     fall through to the SAME date-desc/source_id/ordinal order the query used before this ruling.
     Category priority only changes anything once `show` values start matching the order.
     """
+    from api.services.wisdom.extract import prescreen
     from tools.wisdom.category_norm import normalize_category
 
     if int(limit) <= 0:
@@ -270,6 +271,8 @@ def pending_segments(conn, extractor_version: str, limit: int) -> list[dict]:
     candidates.sort(key=lambda c: c["sort_date"] or "", reverse=True)
     candidates.sort(key=lambda c: rank_map.get(
         normalize_category(c["show"]) if c["show"] else None, unknown_rank))
+    if prescreen.prescreen_enabled():
+        candidates = _apply_prescreen(conn, candidates)
     chosen_ids = [c["segment_id"] for c in candidates[:int(limit)]]
     if not chosen_ids:
         return []
@@ -284,6 +287,27 @@ def pending_segments(conn, extractor_version: str, limit: int) -> list[dict]:
         seg["cue_map"] = segmenter.cue_map_for(conn, seg["segment_id"])
         out.append(seg)
     return out
+
+
+def _apply_prescreen(conn, candidates: list[dict]) -> list[dict]:
+    """R102 (session 27): drop segments the lexical screens rule out, in PRIORITY ORDER, before
+    truncating to the night's limit — so an enabled night still gets `limit` worth of segments
+    that SURVIVED the screen, not `limit` minus however many it would have skipped.
+
+    ⛔ Only called when `prescreen.prescreen_enabled()` — off by default, see prescreen.py's own
+    docstring for why. Fetches `text` for the WHOLE remaining candidate pool at once: a real
+    memory cost, paid only when an operator has opted in, in exchange for the API spend the
+    screen exists to avoid.
+    """
+    from api.services.wisdom.extract import prescreen
+
+    ids = [c["segment_id"] for c in candidates]
+    if not ids:
+        return candidates
+    marks = ",".join("?" * len(ids))
+    texts = {r["segment_id"]: r["text"] for r in conn.execute(
+        f"SELECT segment_id, text FROM wisdom_segments WHERE segment_id IN ({marks})", ids)}
+    return [c for c in candidates if prescreen.is_candidate(texts.get(c["segment_id"], ""))]
 
 
 def retry_rows(conn, extractor_version: str, purpose: str, limit: int) -> list[dict]:

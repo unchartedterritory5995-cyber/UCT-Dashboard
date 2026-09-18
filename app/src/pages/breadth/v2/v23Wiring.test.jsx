@@ -14,7 +14,7 @@
  * covers the real hook's own span-refusal boundary.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, within } from '@testing-library/react'
 import { AuthContext } from '../../../context/AuthContext'
 import BreadthChartsV2 from './BreadthChartsV2'
 import { THRESHOLD_POINTS } from './lttb'
@@ -205,5 +205,205 @@ describe('⛔⛔ A-11 era note wiring: universe_count rides the REQUEST only (Q3
     )
     const opt = JSON.parse(screen.getByTestId('echart').getAttribute('data-option'))
     expect(opt.series.map(s => s.id)).not.toContain('universe_count')
+  })
+})
+
+describe('⛔⛔ the metric picker — the live V2 mount shipped with NO way to change the default 3', () => {
+  function lastRequestedKeys() {
+    const [keys] = mockUseBreadthSeries.mock.calls[mockUseBreadthSeries.mock.calls.length - 1]
+    return keys
+  }
+
+  it('is present when uncontrolled (no `keys` prop) and absent when a caller controls the selection', async () => {
+    await mountWith({ breadthDcV22Enabled: true, breadthDcV23Enabled: true }, longFixture(10))
+    expect(screen.getByTestId('v2-metric-picker')).toBeInTheDocument()
+
+    cleanup()
+    await mountWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true },
+      longFixture(10),
+      { keys: ['breadth_score'] },
+    )
+    expect(screen.queryByTestId('v2-metric-picker')).toBeNull()
+  })
+
+  it('checking a metric in an expanded group actually adds it to the request', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await mountWith({ breadthDcV22Enabled: true, breadthDcV23Enabled: true }, longFixture(10))
+
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-Score'))
+    const uctBox = within(screen.getByTestId('v2-metric-group-Score')).getByLabelText('UCT Exposure')
+    expect(uctBox.checked).toBe(false)
+
+    fireEvent.click(uctBox)
+    await waitFor(() => expect(lastRequestedKeys()).toContain('uct_exposure'))
+  })
+
+  it('unchecking a selected metric removes it from the request', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await mountWith({ breadthDcV22Enabled: true, breadthDcV23Enabled: true }, longFixture(10))
+
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-Score'))
+    const healthBox = within(screen.getByTestId('v2-metric-group-Score')).getByLabelText('Health Score')
+    expect(healthBox.checked).toBe(true)
+
+    fireEvent.click(healthBox)
+    await waitFor(() => expect(lastRequestedKeys()).not.toContain('breadth_score'))
+  })
+
+  it('⛔ never drops to an empty selection — the last remaining metric cannot be unchecked away', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await mountWith({ breadthDcV22Enabled: true, breadthDcV23Enabled: true }, longFixture(10))
+
+    // The default carries 3 keys (Score, MA Breadth, Highs/Lows) — expand all
+    // three groups and remove two, leaving exactly one.
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-Score'))
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-MA Breadth'))
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-Highs / Lows'))
+    fireEvent.click(within(screen.getByTestId('v2-metric-group-Score')).getByLabelText('Health Score'))
+    fireEvent.click(within(screen.getByTestId('v2-metric-group-MA Breadth')).getByLabelText('% Above 50SMA'))
+    // ⭐ `new_52w_highs` is a count-family metric, so once it is the ONLY thing
+    // left, A-11's own room check injects `universe_count` alongside it — a
+    // real, expected side effect of THIS fixture's choice of last-standing
+    // metric, not what this test is about. Assert on the picked metric itself.
+    await waitFor(() => expect(lastRequestedKeys()).toContain('new_52w_highs'))
+    expect(lastRequestedKeys()).not.toContain('breadth_score')
+    expect(lastRequestedKeys()).not.toContain('pct_above_50sma')
+
+    const lastBox = within(screen.getByTestId('v2-metric-group-Highs / Lows'))
+      .getByLabelText('52W Highs (Close)')
+    fireEvent.click(lastBox)
+    expect(lastBox.checked).toBe(true)
+    expect(lastRequestedKeys()).toContain('new_52w_highs')
+  })
+
+  it('⛔ refuses a 9th metric and says so, rather than silently bumping an existing pick', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    await mountWith({ breadthDcV22Enabled: true, breadthDcV23Enabled: true }, longFixture(10))
+
+    fireEvent.click(screen.getByTestId('v2-metric-group-toggle-Primary Breadth'))
+    const primary = screen.getByTestId('v2-metric-group-Primary Breadth')
+    // 3 defaults already selected + these 5 = 8, the MAX_KEYS cap.
+    for (const label of ['Up 4%+', 'Dn 4%+', '5D Ratio', '10D Ratio', 'Up 20%/5d']) {
+      fireEvent.click(within(primary).getByLabelText(label))
+    }
+    await waitFor(() => expect(lastRequestedKeys()).toHaveLength(8))
+    expect(screen.getByTestId('v2-picker-full')).toBeInTheDocument()
+
+    const ninthBox = within(primary).getByLabelText('Dn 20%/5d')
+    expect(ninthBox.disabled).toBe(true)
+    fireEvent.click(ninthBox)
+    expect(ninthBox.checked).toBe(false)
+    expect(lastRequestedKeys()).not.toContain('down_20pct_5d')
+    expect(lastRequestedKeys()).toHaveLength(8)
+  })
+})
+
+describe('⛔⛔ the canvas chart gets an accessible alternative (was silent to assistive tech)', () => {
+  it('the chart carries a non-empty accessible name naming its own series', async () => {
+    await mountWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true },
+      longFixture(5),
+      { keys: ['breadth_score', 'new_52w_highs'] },
+    )
+    const img = screen.getByRole('img')
+    expect(img.getAttribute('aria-label')).toContain('Health')
+    expect(img.getAttribute('aria-label')).toContain('52W Highs')
+  })
+
+  it('the data table is hidden by default and opens on the toggle, naming every selected series', async () => {
+    await mountWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true },
+      longFixture(3),
+      { keys: ['breadth_score', 'new_52w_highs'] },
+    )
+    expect(screen.queryByTestId('v2-data-table')).toBeNull()
+    const toggle = screen.getByTestId('v2-table-toggle')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+
+    const { fireEvent } = await import('@testing-library/react')
+    fireEvent.click(toggle)
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    const table = screen.getByTestId('v2-data-table')
+    const headers = [...table.querySelectorAll('thead th')].map(th => th.textContent)
+    // `new_52w_highs` has no `short` override in the registry, so `shortOf`
+    // falls back to its full `label` — the same rule that made the legend
+    // clipping bug fire on this exact metric.
+    expect(headers).toEqual(['Date', 'Health', '52W Highs (Close)'])
+    // 3 header cells is the fixture's whole series length — a real row for
+    // every session, not a truncated preview.
+    expect(table.querySelectorAll('tbody tr').length).toBe(3)
+
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByTestId('v2-data-table')).toBeNull()
+  })
+
+  it('⛔ an absent reading reads as an em dash in the table, never a zero', async () => {
+    const fixture = longFixture(3)
+    fixture.series.breadth_score = [null, 60, null]
+    await mountWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true },
+      fixture,
+      { keys: ['breadth_score'] },
+    )
+    const { fireEvent } = await import('@testing-library/react')
+    fireEvent.click(screen.getByTestId('v2-table-toggle'))
+    const cells = [...screen.getByTestId('v2-data-table').querySelectorAll('tbody td')]
+      .map(td => td.textContent)
+    expect(cells).toEqual(['—', '60', '—'])
+  })
+})
+
+describe('⛔⛔ A-11 era note "Use %" swap actually fires (was rendered with no onClick)', () => {
+  // ⭐ A dynamic mock, not a fixed fixture: the real backend only returns
+  // universe_count when it was actually requested, and the whole point of this
+  // case is that swapping to hi_ratio drops universe_count from the NEXT
+  // request — so the mock must react to what it was called with, or the test
+  // cannot see the note retire itself the way BreadthChartsV2.jsx's own
+  // comment on the fix says it does.
+  function eraFixture(n, { withUniverse }) {
+    const dates = Array.from({ length: n }, (_, i) => `d${String(i).padStart(6, '0')}`)
+    const series = {
+      new_52w_highs: dates.map((_, i) => (i * 3) % 50),
+      hi_ratio: dates.map((_, i) => ((i * 3) % 50) / 30),
+    }
+    // A 145% end-to-end change — well past ERA_GROWTH_THRESHOLD_PCT (20).
+    if (withUniverse) series.universe_count = dates.map((_, i) => 1000 + i * 50)
+    return {
+      dates,
+      series,
+      keys: withUniverse ? ['new_52w_highs', 'universe_count'] : ['hi_ratio'],
+      missing: [], dropped: [], reconstructed: [], tooWide: false, maxSessions: 4700,
+      isLoading: false, error: null,
+    }
+  }
+
+  it('clicking "Use %" swaps the request to hi_ratio, and the note retires itself once universe_count stops riding along', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    mockUseBreadthSeries.mockImplementation(keys =>
+      eraFixture(30, { withUniverse: keys.includes('universe_count') }))
+
+    render(
+      <AuthContext.Provider value={ctx({ breadthDcV22Enabled: true, breadthDcV23Enabled: true })}>
+        <BreadthChartsV2 keys={['new_52w_highs']} />
+      </AuthContext.Provider>,
+    )
+    await waitFor(() => screen.getByTestId('echart'))
+
+    const swapBtn = await screen.findByTestId('v2-era-swap')
+    fireEvent.click(swapBtn)
+
+    await waitFor(() => {
+      const lastCall = mockUseBreadthSeries.mock.calls[mockUseBreadthSeries.mock.calls.length - 1]
+      expect(lastCall[0]).toContain('hi_ratio')
+      expect(lastCall[0]).not.toContain('new_52w_highs')
+    })
+
+    // ⛔ hi_ratio's own unit (PCT) moves it out of the count family, so the next
+    // request no longer carries universe_count and the note's own precondition
+    // stops holding — it disappears on its own, no second control needed.
+    await waitFor(() => expect(screen.queryByTestId('v2-era-note')).toBeNull())
   })
 })

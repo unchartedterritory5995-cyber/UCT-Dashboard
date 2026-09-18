@@ -984,6 +984,20 @@ PRECONDITION_BUDGET_SECONDS = 120
 # to an unbounded run (exit 124 at 1802s). Six minutes covers a Railway build
 # (3-5 min) with a little slack, and NOTHING here waits longer.
 SWAP_WAIT_BUDGET_SECONDS = 360
+
+#: ⛔ The second context must WAIT for the control it is about to drive, never
+#: sleep at it. Both budgets are >= the blind sleeps they replaced (6000 ms), so
+#: the ceiling is unchanged and only the resolution improves.
+SECOND_WRITER_MOUNT_MS = 20000
+#: How long to let the server revision move after the door fires. Reading too
+#: early yields `None -> None`, which the cell reports as "no variable" — a
+#: measurement failure dressed as an experimental one.
+SECOND_WRITER_REV_BUDGET_S = 20
+
+#: ⛔ The SETUP phase must wait for the editor and for the durable write, never
+#: sample at them. Both budgets are >= the blind sleeps they replace.
+SETUP_EDITOR_MOUNT_MS = 16000
+SETUP_QUEUED_BUDGET_S = 20
 SWAP_POLL_SECONDS = 10
 #: How many consecutive healthy readings before a pod is called settled.
 SWAP_SETTLE_READINGS = 3
@@ -1446,7 +1460,22 @@ def second_writer_door(page, base, note_id, log, door="folder"):
                     "why": ("the second context is NOT signed in (/api/auth/me " + str(me) + ") - "
                             "it would have changed nothing and the cell would have read GREEN "
                             "for the wrong reason")}
-        p2.wait_for_timeout(6000)
+        # ⛔⛔ WAIT FOR THE CONTROL, DO NOT SLEEP AT IT. `domcontentloaded` fires
+        # before React renders, and REAL_DOOR_JS does `document.querySelector("select")`
+        # — a SAMPLE. A 6 s sleep therefore reported "no folder <select> on the page"
+        # for an editor that mounted at 6.5 s, which reads as a product fact and is
+        # not one. Measured cost: 2 of 4 cells in the settle-first chunk.
+        if door == "folder":
+            try:
+                p2.wait_for_selector("select", timeout=SECOND_WRITER_MOUNT_MS,
+                                     state="attached")
+            except Exception:  # noqa: BLE001
+                # ⛔ Fall through deliberately. The DOOR owns the diagnostic and
+                # names exactly what was missing; a waiter that invented its own
+                # message would hide a real absence behind a timeout.
+                pass
+        else:
+            p2.wait_for_timeout(6000)
         before = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
         if door == "folder":
             res = p2.evaluate(rig_ref["rig"].REAL_DOOR_JS, {"door": "folder", "value": None})
@@ -1458,14 +1487,29 @@ def second_writer_door(page, base, note_id, log, door="folder"):
             # it the chooser offers no such option and the cell would fail for a
             # reason that has nothing to do with the product.
             p2.goto(base + "/charts", wait_until="domcontentloaded")
-            p2.wait_for_timeout(7000)
+            # ⛔ Same class: wait for the shell to be interactive rather than
+            # sleeping past it. Budget >= the 7000 ms it replaces.
+            try:
+                p2.wait_for_load_state("networkidle", timeout=SECOND_WRITER_MOUNT_MS)
+            except Exception:  # noqa: BLE001
+                p2.wait_for_timeout(7000)
             res = drive_append(p2, door, base, log)
         log("      second writer door (" + door + "): " + str(res))
         if not (isinstance(res, dict) and res.get("ok")):
             return {"ok": False,
                     "why": "the second context could not open the folder door: " + str((res or {}).get("why", res))}
-        p2.wait_for_timeout(6000)
-        after = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+        # ⛔⛔ POLL UNTIL IT MOVES, NEVER A FIXED SLEEP. A single read at 6 s
+        # returns `None -> None` whenever the write has not landed yet, and the
+        # cell then reports "the revision did not move ... this cell has no
+        # variable" — a MEASUREMENT failure wearing an EXPERIMENTAL one's clothes.
+        # Bounded, so a genuinely unmoved revision still refuses the cell.
+        after = None
+        _deadline = time.time() + SECOND_WRITER_REV_BUDGET_S
+        while time.time() < _deadline:
+            after = p2.evaluate(SECOND_WRITER_REV_JS, note_id)
+            if after and after != before:
+                break
+            p2.wait_for_timeout(500)
         if not after or after == before:
             return {"ok": False,
                     "why": ("the second writer fired the folder door but the server's revision did "
@@ -1673,15 +1717,47 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         if not str(probe).startswith("FAILED"):
             return {"verdict": "INCONCLUSIVE",
                     "why": f"CDP did not cut the transport (`{probe}`) — the offline half never happened"}
-        pm = page.query_selector(".ProseMirror")
-        if pm:
-            pm.click()
-            page.keyboard.press("End")
-            page.keyboard.type(" " + sentence)
-        page.wait_for_timeout(6000)
+        # ⛔⛔ WAIT for the editor, never SAMPLE for it. With query_selector a
+        # transiently-unmounted editor makes `pm` None, the typing is SKIPPED, and
+        # the cell then reports "the rig never got the sentence into a queued outbox
+        # entry" — true, and naming the wrong cause: it reads as a STORE problem when
+        # the store was never asked to hold anything. Measured 2026-09-18 on `tags`
+        # (on screen: None, entries: 0).
+        try:
+            pm = page.wait_for_selector(".ProseMirror", timeout=SETUP_EDITOR_MOUNT_MS,
+                                        state="attached")
+        except Exception:  # noqa: BLE001
+            pm = None
+        if pm is None:
+            # ⛔ Say THIS, not "the sentence never reached the store". An editor that
+            # never mounted is a different fact with a different fix.
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"the editor never mounted within "
+                            f"{SETUP_EDITOR_MOUNT_MS}ms of going offline, so the sentence "
+                            f"was never typed — an INSTRUMENT answer, not a finding")}
+        pm.click()
+        page.keyboard.press("End")
+        page.keyboard.type(" " + sentence)
 
         # ── 3b. THE CONTROL: are the member's words actually queued? ──
-        q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+        # ⛔⛔ POLL UNTIL IT LANDS, never a single read after a fixed sleep. The
+        # durable write is asynchronous, so one read 6s after typing reports a
+        # not-yet-flushed write as ABSENT. Measured on `append_document_excerpt`:
+        # on screen True, 1 queued entry, and the durable copy simply had not
+        # caught up at the instant of the read.
+        # ⛔ This does NOT weaken the control — a sentence that never lands still
+        # refuses the cell at the end of the budget. It stops refusing cells where
+        # the sentence landed a second after the rig happened to look.
+        q = None
+        _qdeadline = time.time() + SETUP_QUEUED_BUDGET_S
+        while time.time() < _qdeadline:
+            q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                          "sentence": sentence})
+            if isinstance(q, dict) and q.get("sentenceInQueuedEntry"):
+                break
+            if isinstance(q, dict) and q.get("err"):
+                break  # a store that cannot be READ is not a store that is EMPTY
+            page.wait_for_timeout(500)
         log(f"      queued: {q}")
         if not isinstance(q, dict) or q.get("err"):
             return {"verdict": "INCONCLUSIVE",

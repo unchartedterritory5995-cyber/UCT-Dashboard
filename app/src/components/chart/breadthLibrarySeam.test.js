@@ -108,7 +108,16 @@ describe('presentation comes from the catalogue, never from the ticker', () => {
     const inst = lastCreatedInstance(emptyChart(), cs)
     expect(inst.inputs.source).toBe('sym:US:NETHL:close')
     expect(inst.presentation).toEqual({ plotStyle: 'histogram', signColors: true })
-    expect(inst.display).toEqual({ name: 'US' })
+    // ⚰️⚰️ THIS READ `{ name: 'US' }`, AND IT WAS PINNING THE DEFECT. `shortName`
+    // for a namespaced breadth row IS the universe — correct as the CHIP in a
+    // shared pane, and a name no member can read as an indicator. The instance now
+    // carries both halves: the FULL metric (list, editor) and a COMPACT identity
+    // that keeps the universe (pane strip). Owner: *"UNIVERSE ALONE IS NOT AN
+    // INDICATOR NAME."*
+    expect(inst.display).toEqual({
+      name: 'Net New 52-Week Highs-Lows · US',
+      compact: 'US: Net H-L',
+    })
   })
 
   it('⛔ reaches the renderer with NO ticker branch anywhere', () => {

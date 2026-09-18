@@ -1144,7 +1144,23 @@ def sweep_job() -> dict:
         f"aborted={receipt['aborted']} "
         f"lock_wait_ms={receipt['lock_wait_ms']} "
         f"held_lock_ms={receipt['held_lock_ms']} "
-        f"duration_ms={receipt['duration_ms']}"
+        f"duration_ms={receipt['duration_ms']} "
+        # R72 (D-21): the three SQLite touches, busy-wait split from statement time.
+        # ⛔⛔ ADDED 2026-09-18, SAME DAY AS THE SUB-TIMERS THEMSELVES — they were
+        # computed into `receipt` from the first commit but never reached this line,
+        # so nothing ever printed them anywhere a human or the log-tail daemon could
+        # read. Built, tested, mutation-proved, and connected to nothing until this
+        # fix: the exact "8 features built, tested, green, and connected to nothing"
+        # shape this repo's own CLAUDE.md names. Read the next boot-window episode's
+        # receipt against THESE six fields, not the ones above.
+        f"sqlite_anchor_read_ms={receipt['sqlite_anchor_read_ms']} "
+        f"sqlite_anchor_read_busy_wait_ms={receipt['sqlite_anchor_read_busy_wait_ms']} "
+        f"sqlite_upsert_ms={receipt['sqlite_upsert_ms']} "
+        f"sqlite_upsert_busy_wait_ms={receipt['sqlite_upsert_busy_wait_ms']} "
+        f"sqlite_prune_ms={receipt['sqlite_prune_ms']} "
+        f"sqlite_prune_busy_wait_ms={receipt['sqlite_prune_busy_wait_ms']} "
+        f"active_jobs_at_sweep=[{receipt['active_jobs_at_sweep']}] "
+        f"wal_state_at_sweep=[{receipt['wal_state_at_sweep']}]"
     )
     if receipt["feed_blackout"]:
         log.warning("[screener-live] FEED BLACKOUT — the snapshot answered for "

@@ -41,6 +41,24 @@ import pathlib
 import subprocess
 import sys
 
+# ⛔⛔ THE OPERATOR CONSOLE ON THIS BOX IS cp1252, AND THIS TOOL DIED PRINTING ITS
+# OWN VERDICT. Measured 2026-09-18: it printed "RE-GATE ... failed: C3", then
+# raised UnicodeEncodeError on the ⛔ in the very next line — the line that tells
+# the caller what C4 still owes. So the verdict was half-delivered and the
+# actionable half was lost, with a traceback where the instruction should be.
+#
+# ⭐ Same class CLAUDE.md already records for `flag_ledger_audit.py`, which
+# reported "could not enumerate the project's services" — an encoding bug wearing
+# an auth bug's clothes. A tool that cannot finish printing its answer is a tool
+# nobody can act on, and the failure looks like the CHECK failing rather than the
+# PRINTER failing. `q1_f5_matrix.py` and `q1_window_runner.py` both carry this
+# guard; this one did not.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError, TypeError):
+    pass
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 #: C3's roster. A change to any of these can alter what the suite DOES without touching a
