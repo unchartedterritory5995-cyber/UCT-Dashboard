@@ -1011,3 +1011,66 @@ proxy: $1,103 p50 / $5,096 p90 — not HAIKU_ONLY's $462–$2,133, because Haiku
 against golden is UNMEASURED.** The one cheap measurement that would most change this
 answer: an 83-segment Haiku golden run, priced at $0.48–$2.23 — close enough to free that
 running it before committing to any paid path is close to free optionality.
+
+## 2026-09-18 — R97/R98 (session 25): the Haiku golden run, measured, and one more
+## structural rule for running the gate inside the container
+
+**R98 — the vacuous-accept fix landed.** `record_eval` now refuses an empty `per_type` at
+the SHARED choke point both `import_receipt` and a direct gate run pass through — not just
+`import_receipt`'s own copy of the check. Verified via mutation (reverting the guard turns
+exactly two new tests red). This is what let "never run the golden gate inside the
+container" narrow from an absolute prohibition to a supervised, bounded exception.
+
+⛔⛔ **`_SHARED_ROOTS = ("/data", "C:\\data")` in `tools/wisdom/extract_common.py` refuses
+`--db` and `--out-dir` UNCONDITIONALLY under either root — including a "scratch"
+subdirectory.** `--data-dir` is NOT checked (it is read-only input). The working layout for
+any future in-container gate run: golden file + sample text under `/data/wisdom/scratch/`
+(the persistent volume), `--db`/`--out-dir`/`--gate-runs-dir` under `/tmp` (the container's
+own ephemeral filesystem). This is a permanent structural fact about the tool, not a
+one-session workaround.
+
+⛔⛔ **THE SAMPLE TEXT THE GOLDEN SET ANCHORS AGAINST DOES NOT EXIST IN PRODUCTION.**
+`/data/wisdom/samples/` returns "No such file or directory" inside the container —
+production's real ingested corpus (324 sources / 26,454 segments) lives in the database,
+never as flat files at that path. Any future in-container golden run needs the SPECIFIC
+sample files the golden set's records reference (computed via `golden.sample_key`, never
+the full local samples tree — the dev split needed 45 of 396 files, 1.04MB gzipped vs the
+full tree's 38MB), uploaded to the SAME scratch path `--data-dir` will read.
+
+⛔⛔ **THREE MORE model-awareness bugs found and fixed by driving this end to end, each one
+caught by evidence before it could cost anything:**
+1. `extract_golden_gate.py`'s own `--model` CLI flag never reached
+   `prompt.extractor_version()` — caught by a `--dry-run` printing Opus's exact pinned
+   version for a `--model claude-haiku-4-5` invocation. One-line fix:
+   `prompt.extractor_version(model=model)`.
+2. **Haiku 4.5 rejects `output_config.effort` outright** — caught by a REAL first
+   submission (not a dry-run: the estimator has no way to see a request-validation
+   rejection coming), 35/35 errored, $0.0000 actual (an errored batch item is not billed).
+   Fixed via `prompt.NO_EFFORT_MODELS`, an explicit, evidence-only allowlist — never guessed
+   forward to Sonnet or any other untested model. Opus's request shape verified
+   byte-for-byte unchanged.
+3. `land_master_first.py` crashed printing a pre-push refusal containing a Unicode
+   character this console's cp1252 codepage can't encode — AFTER a real `git push` had
+   already succeeded on an EARLIER attempt, meaning the tool could land cleanly and still
+   fail to report why a LATER attempt was refused. Fixed by reconfiguring stdout/stderr to
+   UTF-8 once, in `main()`.
+
+⛔ **A batch survives the connection that submitted it; the polling process does not.** An
+ssh session disconnecting killed the local Python process via SIGHUP mid-poll on the first
+(pre-fix) submission — the batch itself, already accepted by Anthropic, kept processing
+server-side regardless. Recovered by reconnecting to the known batch id directly
+(`client.messages.batches.retrieve`/`.results`), never by resubmitting. The real run was
+launched via `nohup` (this minimal image's shell has no `disown`, but `nohup` alone was
+sufficient, confirmed directly by watching it survive a disconnect) specifically to avoid
+repeating this.
+
+**R97 result: zero of six types clear.** Full table:
+`docs/wisdom/PATH-SELECTED-2026-09-18.md`. Real spend for the complete, correct 83-segment
+measurement: **$0.3469** — roughly 6x cheaper than the pre-flight's worst-case estimate,
+consistent with every other model measured this session. Per the session's own decision
+rule (Haiku clears zero of the four mechanical types) — **SWEEP_N1_OPUS is selected**, not
+armed: it requires R79 (pending ≠ queued), a feature this session has no prior
+specification for beyond its name and requirement, and commits PRODUCTION's live scheduled
+chain to a multi-night, multi-hundred-to-multi-thousand-dollar autonomous spend. Stopped
+for the owner's decision with the real numbers in hand. Full session record:
+`docs/recon/2026-09-18-session25-haiku-in-container.md`.
