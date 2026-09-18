@@ -168,6 +168,7 @@ UNITS = [
     ("e-cp38-build-record", ["17219a837"], False),          # R-ROLLING-BASELINE
     ("d-cp4-build-record", ["8719972c6"], True),            # F-NAV-1 default, MEMBER-VISIBLE
     ("d4-cp4-build-record", ["bc9f14428"], False),          # F-D4-1 corrected cache key
+    ("s7-price-level-f6-build-record", ["19ab13537"], False),  # F-S7-6, dark-sweep only
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
