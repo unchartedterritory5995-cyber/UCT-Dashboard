@@ -239,3 +239,72 @@ the background command instead, which is what keeps it alive across turns.
 and the `until` loop that had just printed `LISTENING` was correct when it printed it. Neither was
 lying; both were answering a question about a moment. **`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`**, in a new costume.
 
+---
+
+## 9 · ⛔⛔ THE BROWSER WALL — and it is NOT memory
+
+Memory was solved. The threshold held 3/3 (5.4 / 5.4 / 5.9 GB free, ~88% commit), the bundle
+built, the sandbox booted twice and served both times. **The blocker is a live collision with
+another session, and it is absolute for as long as that session runs.**
+
+### The mechanism, read from the launcher's own source
+
+`hub_sandbox_boot.py:288` starts a thread that re-hashes the whole shared root at **+15 s** and
+again at **+120 s**, and on any difference calls:
+
+```python
+print("  ABORTING THE RUN. The sandbox reached live data.")
+os._exit(2)
+```
+
+**Any change to `C:\data` kills the sandbox 15 seconds after it starts serving.** On this box
+another session is writing `C:\data\wisdom.db` continuously — three distinct hashes across my two
+boots:
+
+```
+5c3aa90bae7a  ->  24649b0417a6  ->  8471adb92cf1
+```
+
+So the sandbox survives ~15 s per attempt. That is enough to answer *"does it serve"* and nowhere
+near enough for a critique pass.
+
+### ⛔ THE ABORT MESSAGE IS WRONG IN THIS CASE, AND THAT IS THE DANGEROUS PART
+
+*"The sandbox reached live data"* is a **conclusion the rail cannot support** (§7). Four
+independent measurements say this sandbox reached nothing:
+
+| evidence | attributable? | result |
+|---|---|---|
+| the in-process **tripwire**, `Guard mode: enforce`, `Shared roots: c:\data (writes RAISE)` | **YES — it raises on THIS process's writes** | **0 violation banners** |
+| the sandbox's own tree | yes | **43 `.db` files created**, including its own `wisdom.db` at **610,304 bytes** |
+| live `C:\data\auth.db` | — | mtime **Sep 12**, untouched |
+| live `C:\data\wisdom.db` | **no** | **425,984 bytes** — a different database, changing on its own schedule |
+
+⭐ **The tripwire is the guard that can attribute; the snapshot is the guard that cannot.** The
+tripwire said clean. The snapshot aborted anyway, and told the console the opposite of the truth.
+
+⛔ **And a reader would not see the abort line at all**: `os._exit(2)` skips stdio flushing, so the
+message never leaves the buffer. The durable evidence is the run-record `.md`, appended *before*
+the exit — which is precisely why that file exists.
+
+### What was NOT done, and why
+
+- ⛔ **The guard was not weakened, disabled, or narrowed to exclude `wisdom.db`.** It is the thing
+  standing between a sandbox boot and the owner's live data, and the 2026-09-08 incident — a daemon
+  thread writing `auth.db` while the operator believed the sandbox isolated — is why it exists. An
+  exclusion "just for this run" is how that protection ends.
+- ⛔ **The other session was not interfered with.** Its work is live and not this session's to stop.
+- The launcher offers exactly four flags (`--data-dir`, `--test-email`, `--port`, `--host`). There
+  is no sanctioned escape hatch, deliberately.
+
+### ⭐ The fix worth making — for whoever owns this tool, not smuggled in here
+
+**The snapshot rail should consult the tripwire before concluding.** The tripwire already knows,
+per process, whether *this* boot attempted a shared-root write. A dirty snapshot plus a silent
+tripwire is *"someone else is writing this box"* — an `INCONCLUSIVE-CONTENDED`, exactly the verdict
+`gate_box_sampler` already draws and the vocabulary this programme already has. A dirty snapshot
+plus a firing tripwire is the real leak, and should keep aborting exactly as it does now.
+
+⛔ That is a change to another workstream's guard, made while its failure mode is fresh and
+therefore the worst possible moment to be casual about it. **Recorded, not applied.**
+
