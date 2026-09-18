@@ -110,6 +110,31 @@ def _worktree_root(path: pathlib.Path):
     return pathlib.Path(top) if top else None
 
 
+def _profile_holders(profile: pathlib.Path) -> list[str]:
+    """Which processes hold this user-data-dir, named rather than guessed.
+
+    ⛔ IT REPORTS; IT NEVER KILLS. One of those windows may be the sign-in the
+    owner is standing in front of, and the standing rule on this machine is that
+    a session stops only what it started.
+    """
+    import subprocess
+    q = (
+        "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
+        f"Where-Object {{ $_.CommandLine -like '*{profile.name}*' }} | "
+        "ForEach-Object { $t = if ($_.CommandLine -match '--type=([a-zA-Z-]+)') "
+        "{ $matches[1] } else { 'BROWSER' }; \"$($_.ProcessId) $t\" }"
+    )
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command", q],
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return ["could not enumerate processes — reporting that, not a guess"]
+    rows = [r.strip() for r in (out.stdout or "").splitlines() if r.strip()]
+    if not rows:
+        return ["no chrome process holds this profile — the cause is something else"]
+    return [f"held by pid {r}" for r in rows]
+
+
 def resolve_profile(raw: str | None) -> pathlib.Path:
     p = pathlib.Path(raw).expanduser() if raw else DEFAULT_PROFILE
     p = pathlib.Path(os.path.abspath(str(p)))
@@ -425,22 +450,60 @@ def main() -> int:
         if args.channel:
             launch["channel"] = args.channel
             print(f"[vendor] launching the installed '{args.channel}' build")
-        ctx = p.chromium.launch_persistent_context(str(profile), **launch)
+        try:
+            ctx = p.chromium.launch_persistent_context(str(profile), **launch)
+        except Exception as exc:  # noqa: BLE001 — diagnosed, not re-raised raw
+            # ⚰️ A HELD PROFILE FAILS AS `TargetClosedError` AND A 50-LINE
+            # TRACEBACK, WHICH READS AS "THE TOOL IS BROKEN". Measured
+            # 2026-09-18: a previous launch left a live browser on this
+            # user-data-dir, the next launch died at once, and the only clue in
+            # the traceback was the `--user-data-dir` buried in a 40-flag command
+            # line. Chromium permits one process per profile; that is the whole
+            # error, and it deserves to be said in one sentence.
+            print(f"[vendor] LAUNCH FAILED: {type(exc).__name__}")
+            for line in _profile_holders(profile):
+                print(f"[vendor]   {line}")
+            print("[vendor] INCONCLUSIVE: a profile is held by one process at a "
+                  "time. ⛔ NOT KILLED HERE — that window may be the one you are "
+                  "meant to sign into. Use it, or close it, then re-run.")
+            return 2
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto(LAYOUT, wait_until="domcontentloaded")
         page.wait_for_timeout(9000)
 
-        code = acquire(page, args.wait)
-        if code != 0:
-            ctx.close()
-            return code
+        # ⛔⛔ A WINDOW THAT DISAPPEARS MID-WAIT IS INCONCLUSIVE (2), NOT A
+        # MEASURED FAILURE (1). Playwright raises `TargetClosedError` when the
+        # browser goes away under it, and uncaught that leaves Python exiting 1 —
+        # the code this tool's own docstring reserves for "a reading contradicted
+        # the procedure". Nothing was measured; a window closed.
+        # ⚰️ IT HAPPENS FOR A REASON WORTH NAMING: 2026-09-18, a second session
+        # launched on this same profile while a 30-minute sign-in wait was open,
+        # and Chromium's one-process-per-user-data-dir rule killed the first
+        # browser. The owner's sign-in window vanished and the exit code said the
+        # product was at fault.
+        try:
+            code = acquire(page, args.wait)
+            if code != 0:
+                ctx.close()
+                return code
 
-        page.wait_for_timeout(4000)
-        code = recon(page)
+            page.wait_for_timeout(4000)
+            code = recon(page)
+        except Exception as exc:  # noqa: BLE001
+            if "TargetClosed" in type(exc).__name__ or "closed" in str(exc).lower():
+                print(f"[vendor] INCONCLUSIVE: the browser went away before this "
+                      f"finished ({type(exc).__name__}). Nothing was measured. The "
+                      f"usual cause is a SECOND launch on this same profile — only "
+                      f"one process may hold a user-data-dir. The profile is kept.")
+                return 2
+            raise
         if code != 0 or args.phase == "recon":
             print("[vendor] recon complete. The write phase (--phase capture) is driven "
                   "from these readings, never written blind.")
-            ctx.close()
+            try:
+                ctx.close()
+            except Exception:  # the context may already be gone; that is not a result
+                pass
             return code
 
         print("[vendor] capture phase is not implemented against measured DOM yet — "
