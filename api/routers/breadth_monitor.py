@@ -736,6 +736,56 @@ def series_max_calendar_days(max_sessions: int | None = None) -> int:
     return int((max_sessions or series_max_sessions()) * 1.6)
 _SERIES_TTL = 300
 
+#: DC-3 (D-056): dark, default OFF — an ENABLEMENT gate (unset = not running),
+#: same polarity as BREADTH_DC_V2_2/3_ENABLED, not the hub's kill-switch polarity.
+_SERIES_BOOT_WARM_FLAG = "BREADTH_SERIES_BOOT_WARM_ENABLED"
+
+
+def series_boot_warm_enabled() -> bool:
+    return os.getenv(_SERIES_BOOT_WARM_FLAG, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def warm_series_deep() -> dict:
+    """DC-3(b)/D-056 — touch the deep/reconstructed read path ONCE at boot so the
+    OS page cache is warm before any member's first real `/series` request pays
+    the cold cost.
+
+    ⛔⛔ MEASURED, NOT INFERRED (DC-3a). The phase breakdown on a fresh boot's
+    first `/series` request (Server-Timing, `docs/breadth/DECISIONS.md` D-056)
+    showed the cost concentrated almost entirely in ONE phase — `adv_seed`, i.e.
+    `_adv_decline_seed_before()` — which scans `breadth_daily_ohlc`/
+    `breadth_snapshots` for every row before the window's oldest date to seed a
+    cumulative A/D total. `io_read_bytes` climbing (real disk, not page-cache
+    hits — see `breadth_timing.io_counters`'s own H1/page-cache discriminator)
+    on the first request, and the SAME query pattern answering fast on every
+    later request (including a much LARGER span asked immediately after),
+    together are what make this a warmable OS-page-cache cost rather than the
+    reader's own unfixable cold path.
+
+    ⛔ WARMS THE WORST CASE ON PURPOSE. `_adv_decline_seed_before(oldest)`'s
+    scan cost grows with how far back `oldest` reaches, so warming a shallow
+    window (as the existing `_breadth()` dashboard-warm already does, `days=90`
+    — well inside the collector floor, never touching this path at all) would
+    warm nothing this function exists to fix. This reaches back to
+    `MAX_HISTORY_FROM` (2008-01-02, `BreadthChartsV2.jsx`) — the same span
+    V2-3's own "Max" preset asks for — so whichever member opens Data Charts
+    first pays no more than the warm request already paid.
+
+    ⛔ NEVER ON THE REQUEST PATH, NEVER BLOCKS `/api/health`. Called from
+    `api/main.py`'s existing delayed background warm thread, wrapped in the
+    same try/except every warm function there already uses — a failure here
+    is logged and changes nothing else. Returns a summary dict rather than
+    raising, so the caller's own `_warm(label, fn)` wrapper needs no special
+    case for this one.
+    """
+    if not series_boot_warm_enabled():
+        return {"ok": False, "reason": "flag off"}
+    days = series_max_calendar_days(_SERIES_MAX_SESSIONS_DEFAULT)
+    t0 = time.monotonic()
+    rows = svc.get_history_deep(days, end=None, anchor="le")
+    return {"ok": True, "days": days, "rows": len(rows),
+            "elapsed_ms": round((time.monotonic() - t0) * 1000, 1)}
+
 
 def require_series_flag() -> None:
     """404 unless the flag is on — for EVERY caller class.

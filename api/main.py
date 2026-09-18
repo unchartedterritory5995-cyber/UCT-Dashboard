@@ -968,6 +968,13 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.breadth_monitor import get_breadth_history
             get_breadth_history(days=90)
 
+        def _breadth_series_deep():
+            # DC-3(b)/D-056 — dark behind BREADTH_SERIES_BOOT_WARM_ENABLED
+            # (default OFF); see warm_series_deep's own docstring for what this
+            # warms and why `_breadth()` above does not already cover it.
+            from api.routers.breadth_monitor import warm_series_deep
+            log.info("[dashboard-warm] breadth-series-deep %s", warm_series_deep())
+
         def _breadth_live():
             # Intraday breadth compares one market snapshot against reference
             # levels derived from ~1M daily bars. That derivation is seconds of
@@ -1052,6 +1059,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
+            _warm("breadth-series-deep", _breadth_series_deep)
             _warm("breadth-live", _breadth_live)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),

@@ -2290,3 +2290,79 @@ BREADTH_DC_V2_3_ENABLED --service web` (or `_V2_2_ENABLED`) then
 `railway redeploy --service web --yes`, confirmed from the pod — same asymmetry as
 every other kill switch in this repo: deleting a variable does not itself redeploy.
 
+### D-056 · DC-3 — the /series cold-boot cost is `adv_seed`'s disk-cold scan, warmable, boot warm built dark (2026-09-18)
+
+**MEASURED, per the ratified DC-3 mandate — not inferred.** `/series` was wired into
+the existing `breadth_timing` Server-Timing instrument (already computing these exact
+phases inside `get_history_deep` for the sibling `/api/breadth-monitor` route; only the
+middleware's path scope was missing `/series`, so `_bt.phase(...)` calls were silently
+no-opping for it — same-day commit). Captured first-vs-second `/series` requests on
+two independent fresh-boot deploys (a third foreign deploy's capture was still running
+when this cap-raise-scale investigation closed; the harness (`dc3_capture.py`,
+scratchpad) keeps sampling and the table below is extended, never silently replaced,
+when it lands):
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| own (DC-3 instrumentation landing) | `327413600` | 35,726 ms | 64 ms | 30,143.8 ms (84%) | 418,078,720 (~398 MB) |
+| foreign #1 | `5a019ca4129d` | 12,160 ms | 439 ms | 10,401.2 ms (85%) | 273,412,096 (~261 MB) |
+
+**Diagnosis, from the phase breakdown, not a guess:** the cost concentrates almost
+entirely in ONE phase, `adv_seed` (84-85% of reader time in both samples) —
+`_adv_decline_seed_before(oldest)` (`api/services/breadth_monitor.py`), called once
+per deep read to seed a cumulative advance/decline total from every row before the
+window's start date. It runs two queries: `SELECT ... FROM breadth_snapshots WHERE
+date < ?` and `breadth_daily_ohlc.metric_before("adv_decline", oldest)` — the latter
+backed by a correctly-shaped covering index (`idx_bdo_metric ON
+breadth_daily_ohlc(universe, metric, date)`, confirmed by reading the index
+definition; this is NOT a missing-index problem) but still costing seconds of REAL
+DISK I/O on a cold page cache, confirmed by `io_read_bytes` climbing into the hundreds
+of MB on the first request of each deploy (`breadth_timing.io_counters`'s own H1
+discriminator: `read_bytes` climbing means the page cache missed, not CPU or lock
+wait). Every OTHER phase (`numeric_fetch`, `reconstructed_fetch`, `merge_rows`,
+`derive`, `cache_set`, `route_tail`, `serialise`) stays in single-to-low-triple-digit
+milliseconds even on the cold request.
+
+**Warmable, not the reader's unfixable cold path** — the second half of DC-3's
+branch: the SAME query pattern answers in tens of milliseconds on the very next
+request, including when that next request asks for a LARGER span than the first (the
+own-deploy pilot's first request was a 365-session window; the immediately-following
+Max-preset request, touching far more of the same table, took 2.9 s — fast, because
+the file pages the first request paid to fault in were now resident). This is an
+OS-page-cache-cold cost, the same CLASS D-049 (H1/mmap) already fixed for a DIFFERENT
+query shape on this same file — not a reader-programme R8 proposal-only item.
+
+**Why the existing dashboard-warm doesn't already cover this.** `api/main.py`'s
+`_breadth()` warm (part of the pre-existing delayed background-warm sequence) calls
+`get_breadth_history(days=90)` — a window entirely inside the live collector's range
+(`get_history_deep`'s own docstring: a window lying entirely within the collector
+range delegates to `get_history` unchanged), so it never touches `_adv_decline_seed_
+before` at all. Confirmed by the measurement itself: both boots, each having already
+run the existing dashboard-warm sequence, still paid the full cold cost on the first
+`/series` request reaching into deep/reconstructed territory.
+
+**Built: `warm_series_deep()`** (`api/routers/breadth_monitor.py`), wired into the
+SAME existing delayed background-warm thread as `_breadth()` and its seven siblings
+(`api/main.py`, `_breadth_series_deep`), one call, dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED` (default OFF — an enablement gate, same polarity
+as the DC v2 flags). Reads back to `MAX_HISTORY_FROM` (2008-01-02,
+`BreadthChartsV2.jsx`) — the SAME worst-case span V2-3's own "Max" preset asks for —
+via `series_max_calendar_days(_SERIES_MAX_SESSIONS_DEFAULT)`, deliberately deeper
+than the existing shallow warm, so whichever member opens Data Charts first pays no
+more than the warm request already paid. Never on the request path, never blocks
+`/api/health` (same background-thread structure as every other warm target;
+`/api/health` reads only the wire-data cache and process stats, confirmed by reading
+its own handler). 9 new tests (`tests/test_breadth_series_boot_warm.py`) plus the
+existing dashboard-warm import-path pin extended.
+
+**Flag state at this record: OFF.** Per the ratified DC-3 mandate step (b) this ships
+DARK first — flipping ON and re-verifying against the next foreign deploy (first
+member request within 2× the settled p50) is the next, separate action, recorded as
+its own entry (or an addendum here) when it happens.
+
+**A related, NOT pursued flag, for the record:** `BREADTH_RESIDENT_RECON_ENABLED`
+(dark, breadth-history-reader programme) would hold reconstructed history resident
+in-process, which could ALSO absorb some of this cost — but it is a different flag
+with a different memory-cost tradeoff and its own open decision (D-051), not
+something this record's boot-warm conflates with or depends on.
+
