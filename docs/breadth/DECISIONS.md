@@ -2490,3 +2490,43 @@ confirmed live. Landing: D-056 committed `d514e2dec` → production `ca18aff7f28
 (2026-09-18 12:37 UTC) → flag armed 12:45 UTC → closing verification captured
 13:03 UTC on foreign deploy `56f6a6fe965f`.
 
+### D-056 addendum · DC-3(c) — close the early-boot exposure window (2026-09-18)
+
+**Authorised follow-up to the honest caveat above.** The boot-warm works, but
+sat 6th in `_start_dashboard_warm_background`'s sequential chain, behind
+flow-tape/movers/themes/news/breadth — a measured 1-3 minute early-boot
+window per deploy where a member's first `/series` request could still hit
+the cold path. At ~31 deploys/day that is real, repeated member exposure. A
+reorder, not a rebuild.
+
+**What changed.** `_start_breadth_series_warm_background()` (`api/main.py`) is
+a NEW standalone daemon thread — the same pattern already used by
+`_start_chart_renderer_warm_background`, `_start_hot_tier_warm_background`
+and five others in this file, not a second mechanism — with its own short
+delay (`5s` default, vs. the dashboard chain's own `20s`), started alongside
+`_start_dashboard_warm_background()` at boot. `warm_series_deep()`'s call
+site moved out of the chain entirely; flow-tape keeps its own documented
+priority position inside the chain untouched. Still dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED`, still never gated on `readiness`, so
+`/api/health` is structurally unaffected either way.
+
+**Rail, mutation-proved three ways** (`tests/test_breadth_series_boot_warm.py`):
+1. a source-text check that `warm_series_deep` is absent from the dashboard
+   chain's own source — re-embedding it (the old D-056 shape) reds this;
+2. a parameter-introspection check that the standalone starter's default
+   delay is strictly less than the chain's own default delay — raising it
+   to match or exceed the chain's reds this;
+3. a real-threaded integration test (short overridden delays, both starters
+   invoked the way boot code does) proving the series warm's own call is
+   recorded before the chain's first target's call — not just a parameter
+   comparison.
+Plus a boot-wiring check that the new starter is actually called from
+startup. All four confirmed to fail under their stated mutation before this
+record was written; 14/14 pass restored, 60/60 across the full DC-2/DC-3
+scoped suite.
+
+**Landed:** commit `0dd30b3c6` on `breadth/dc-v2` → `master`. Flag stays ON
+through this landing — the redeploy this commit triggers already carries
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1`, so no separate variable flip (and no
+extra burst-guard slot) is needed.
+
