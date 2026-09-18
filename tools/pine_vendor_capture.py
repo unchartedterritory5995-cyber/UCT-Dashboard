@@ -245,6 +245,15 @@ def acquire(page, wait_s: int) -> int:
     print("  >>  SIGN IN TO TRADINGVIEW IN THIS WINDOW.")
     print("     It is the browser this tool just opened — not your own Chrome.")
     print("     Nothing you type is read, stored or logged by this session.")
+    print("")
+    print("     >> USE THE 'Email' OPTION, NOT 'Continue with Google'.")
+    print("        Measured 2026-09-18: Google answers 'Couldn't sign you in —")
+    print("        this browser or app may not be secure' and refuses. That is")
+    print("        Google objecting to the bundled Chrome-for-Testing build, not")
+    print("        a fault in this tool. TradingView's own email sign-in is not")
+    print("        subject to it. If the account has no password because it was")
+    print("        created through Google, set one on tradingview.com first, or")
+    print("        re-run this tool with --channel chrome (see its docstring).")
     span = f"{wait_s // 60} minutes" if wait_s >= 60 else f"{wait_s} seconds"
     print(f"     Waiting up to {span}; the profile is kept either way.")
     print("=" * 70)
@@ -308,6 +317,22 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", choices=["recon", "capture"], default="recon")
     ap.add_argument("--profile", default=None)
+    # ⭐ LAUNCH THE REAL INSTALLED CHROME INSTEAD OF THE BUNDLED BUILD.
+    # ⚰️ Measured 2026-09-18: "Continue with Google" in the bundled Chrome for
+    # Testing is answered with *"Couldn't sign you in — this browser or app may
+    # not be secure"*. Google is objecting to that build.
+    # ⛔⛔ AND THE LINE THIS STOPS AT IS DELIBERATE. `--channel chrome` runs the
+    # ordinary Chrome already installed on the machine — a configuration choice,
+    # and a better one anyway (real build, real fonts). It does NOT drop
+    # `--enable-automation`, forge a user agent, or patch `navigator.webdriver`.
+    # Suppressing the automation signal was written, then removed: that half is
+    # specifically about not being DETECTED, and what it would get past is a
+    # check guarding credential entry. ⭐ IF GOOGLE STILL REFUSES, THAT IS ITS
+    # ANSWER AND IT STANDS — the supported route is TradingView's own Email
+    # sign-in, which no anti-automation check applies to.
+    ap.add_argument("--channel", default=None,
+                    help="chrome | msedge — use the installed browser instead of "
+                         "the bundled Chromium (Google refuses the bundled build)")
     ap.add_argument("--wait", type=int, default=1800, help="seconds to wait for sign-in")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args()
@@ -341,10 +366,15 @@ def main() -> int:
     print(f"[vendor] fixture {FIXTURE.name}: {len(raw)} bytes, sha256 {sha16(raw)}...")
 
     with sync_playwright() as p:
-        ctx = p.chromium.launch_persistent_context(
-            str(profile), headless=False,
+        launch = dict(
+            headless=False,
             viewport={"width": TIERS[-1][1], "height": TIERS[-1][2]},
-            args=["--window-position=40,40"])
+            args=["--window-position=40,40"],
+        )
+        if args.channel:
+            launch["channel"] = args.channel
+            print(f"[vendor] launching the installed '{args.channel}' build")
+        ctx = p.chromium.launch_persistent_context(str(profile), **launch)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto(LAYOUT, wait_until="domcontentloaded")
         page.wait_for_timeout(9000)
