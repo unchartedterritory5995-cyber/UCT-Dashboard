@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  7cd34db76
+SCOPE APPROVED:   CP15 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP15 — the publisher's own trace leaves through the channel a stranger can read.**

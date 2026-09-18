@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  e81d61259
+SCOPE APPROVED:   CP19 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP19 — the record must CONTAIN the evidence it names.** Scope is

@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  5695c7919
+SCOPE APPROVED:   CP8 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP8 — the commit universe is git's, and the coverage check can now be proved to

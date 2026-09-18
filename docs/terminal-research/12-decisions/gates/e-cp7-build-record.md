@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  98b4c8786
+SCOPE APPROVED:   CP7 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP7 — a GitHub artifact name cannot contain a slash.** The collection-profile matrix

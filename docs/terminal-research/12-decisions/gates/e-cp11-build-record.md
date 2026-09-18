@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  0207d7f25
+SCOPE APPROVED:   CP11 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP11 — the safety net moves to the front, and the shard directories get their real

@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  35237823c
+SCOPE APPROVED:   CP4 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP4 — a reader of a signature answers three states and never derives SIGNED from an

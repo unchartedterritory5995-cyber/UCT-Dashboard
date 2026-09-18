@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  83651c95e
+SCOPE APPROVED:   CP13 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP13 — the merge engine cannot crash on `railway`, always consults merged state, and

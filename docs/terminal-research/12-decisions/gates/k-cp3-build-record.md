@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  ba5e34e79
+SCOPE APPROVED:   CP3 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 ⛔ **Why a separate document.** `packet-k-two-command-signing-gate.md` already carries one

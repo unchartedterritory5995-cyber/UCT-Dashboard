@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  439dfc4a7
+SCOPE APPROVED:   CP9 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP9 — a dry run is a replay.** Scope is `tools/merge_all.py` **as enumerated by

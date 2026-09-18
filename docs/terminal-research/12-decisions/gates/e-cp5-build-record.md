@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  789e35efd
+SCOPE APPROVED:   CP5 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP5 — a job's outcome is read from the RUNNER, never from its log.** `oom_or_timeout`

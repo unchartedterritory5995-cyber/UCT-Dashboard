@@ -11,10 +11,10 @@ status: UNSIGNED
 ## APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  604b0dc69
+SCOPE APPROVED:   CP32 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP32 — full history on every job (F-CI-32).** Scope is the commit(s) named below, **as enumerated by

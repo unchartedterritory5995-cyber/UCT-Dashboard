@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  9f0ba6cdc
+SCOPE APPROVED:   CP12 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP12 — the publisher died on a missing display field, four runs running.** Scope is

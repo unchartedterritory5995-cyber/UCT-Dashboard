@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  1d216521b
+SCOPE APPROVED:   CP29 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP29 — a test that leaves coverage is a verdict, and a repaired suite is not one.**

@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  ebd609425
+SCOPE APPROVED:   CP15 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP15 — member-visible is DERIVED, comment-stripped, and reads the same authority as

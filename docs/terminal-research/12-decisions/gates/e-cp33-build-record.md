@@ -11,10 +11,10 @@ status: UNSIGNED
 ## APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  0651de213
+SCOPE APPROVED:   CP33 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP33 — the leaked dependency override, the file that was measured (F-CI-36).** Scope is the commit(s) named below, **as enumerated by

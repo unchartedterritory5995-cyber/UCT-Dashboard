@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  768f6e2fc
+SCOPE APPROVED:   CP25 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP25 — F-CI-30: the flaky set is DERIVED from the record, and NEW excludes it.**

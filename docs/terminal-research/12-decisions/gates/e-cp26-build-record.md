@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  cff0f04a6
+SCOPE APPROVED:   CP26 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP26 — the gate is promoted, and the checkout stops lying about the repository.**

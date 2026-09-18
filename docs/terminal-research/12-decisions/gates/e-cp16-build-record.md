@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  f62b29968
+SCOPE APPROVED:   CP16 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP16 — rc 128 is a FATAL git error, not a conflict, and git's own words now reach the

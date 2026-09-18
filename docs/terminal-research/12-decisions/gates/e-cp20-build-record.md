@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  8b1afab93
+SCOPE APPROVED:   CP20 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP20 — an UNREADABLE runner verdict is not a failure, and the fetch that lost it is now

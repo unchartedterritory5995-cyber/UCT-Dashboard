@@ -11,10 +11,10 @@ status: UNSIGNED
 ## APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  451bc7295
+SCOPE APPROVED:   CP30 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP30 — the parity lane ran NOTHING in CI (F-CI-29).** Scope is the commit(s) named below, **as enumerated by

@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  0efd9caea
+SCOPE APPROVED:   CP14 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP14 — the publish step names its own failure, in the one channel a stranger can

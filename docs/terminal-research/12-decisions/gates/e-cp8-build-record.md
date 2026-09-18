@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  437a51a06
+SCOPE APPROVED:   CP8 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP8 — the publish job read `jobs.json` before the step that writes it.** Scope is the

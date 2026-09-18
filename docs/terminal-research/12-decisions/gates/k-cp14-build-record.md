@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  66b3a2be3
+SCOPE APPROVED:   CP14 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP14 — `verify_manifest` learns to read a SIGNED row, instead of crashing on one.**

@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  78ed615fd
+SCOPE APPROVED:   CP6 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP6 — a signature says what it approved, the sitting has a boundary, and the resume

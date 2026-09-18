@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  00eecb391
+SCOPE APPROVED:   CP2 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 ⛔ **Why this is a separate document from `packet-e-ci-gap-gate.md`.** `tools/sign_gate.py`

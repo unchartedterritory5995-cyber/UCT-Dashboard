@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  a46b03961
+SCOPE APPROVED:   CP27 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP27 — the shard split, second attempt, with the blocker removed and the projection

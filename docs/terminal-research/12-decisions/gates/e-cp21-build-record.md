@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  d75a0716a
+SCOPE APPROVED:   CP21 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **E CP21 — 109 of 226 pytest failure entries were one missing install.** Scope is

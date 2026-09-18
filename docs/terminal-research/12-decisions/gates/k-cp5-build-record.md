@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-17
+APPROVED AT SHA:  137378730
+SCOPE APPROVED:   CP5 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP5 — the signing session survives an interruption, and the deploy wait can
