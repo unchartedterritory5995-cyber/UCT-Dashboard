@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from api.services.cache import cache
 from api.services.earnings_table import (
     get_earnings_table, _label_from_period_end, _next_q_label,
-    expected_latest_reported_label, reported_staleness,
+    expected_latest_reported_label, reported_staleness, _KEY_TERM,
 )
 from api.services.edgar import newest_reported_quarter as sec_newest_reported_quarter
 
@@ -484,7 +484,14 @@ def _sample_tickers(n: int) -> list[str]:
     try:
         warm = []
         for k in cache.keys_with_prefix("earnings_table::"):
-            t = k.split("::", 1)[1].upper() if "::" in k else ""
+            # ⛔⛔ D4 CP4' (F-D4-1) — REFUSE a key that doesn't carry the expected
+            # terminator, rather than upcasing whatever `split` happens to return.
+            # A malformed key here used to manufacture a garbled "ticker" and feed
+            # it into `check_ticker`, which reported the key format's own defect
+            # as a data defect.
+            if not k.endswith(_KEY_TERM):
+                continue
+            t = k[len("earnings_table::"):-len(_KEY_TERM)].upper()
             if t and t not in have:
                 warm.append(t)
         random.shuffle(warm)

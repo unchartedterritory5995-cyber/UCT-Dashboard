@@ -33,6 +33,20 @@ _EMPTY_TTL = 120      # 2 min — a fully-empty payload (transient outage) self-
 _STALE_SERVE_MAX = 3 * 86400   # serve an expired snapshot up to 3 days old while refreshing
 _SNAP_KIND = "earnings_table"
 
+# ⛔⛔ D4 CP4' (F-D4-1) — a per-ticker `delete_prefix` on this family used to be unsafe by
+# CONVENTION only: `delete_prefix("earnings_table::A")` also matches `"earnings_table::AAPL"`,
+# because the key has no boundary after the ticker. Nothing calls delete_prefix per-ticker
+# today (invalidation below uses the EXACT key), but a key format that is only safe because
+# nobody has made that mistake yet is not safe by construction. `\x1f` (ASCII unit separator)
+# can never appear in a real ticker symbol, so it is a boundary any future per-ticker
+# delete_prefix call is safe against, without relying on a comment to be read first.
+_KEY_TERM = "\x1f"
+
+
+def _cache_key(ticker: str) -> str:
+    return "earnings_table::%s%s" % (ticker, _KEY_TERM)
+
+
 # ⛔ BUMP THIS whenever the payload SHAPE changes or the quarterly strip's
 # composition changes (a provider added to / removed from `get_year_earnings`,
 # a new top-level field). A persisted snapshot stamped with an older version is
@@ -583,7 +597,7 @@ def _build_and_cache(ticker, now=None):
     """Build + populate memory cache; persist non-empty results to disk."""
     now = time.time() if now is None else now
     result, fresh = _build(ticker, now)
-    ckey = f"earnings_table::{ticker}"
+    ckey = _cache_key(ticker)
     ttl = _FAST_TTL if fresh else _SLOW_TTL
     # ⛔ NEVER CACHE A PARTIAL RESULT AS IF IT WERE COMPLETE.
     #
@@ -652,7 +666,7 @@ def invalidate(ticker):
     s = (ticker or "").upper().strip()
     if not s:
         return
-    cache.invalidate(f"earnings_table::{s}")
+    cache.invalidate(_cache_key(s))
     snap_store.delete(_SNAP_KIND, s)
 
 
@@ -668,7 +682,7 @@ def refresh_now(ticker, max_age=600, now=None):
     snap = snap_store.get(_SNAP_KIND, s, now=now)
     if snap is not None and snap[1] <= max_age:
         return False
-    cache.invalidate(f"earnings_table::{s}")
+    cache.invalidate(_cache_key(s))
     # Separator-anchored prefix (must span the per-year suffix) — same idiom as
     # the fundamentals monitor heal.
     cache.delete_prefix(f"mb_year_earnings_{s}_")
@@ -690,7 +704,7 @@ def get_earnings_table(ticker, now=None, debug=False):
         }
         return result
 
-    ckey = f"earnings_table::{ticker}"
+    ckey = _cache_key(ticker)
     hit = cache.get(ckey)
     # ⛔ The MEMORY layer needs the same version gate as the disk layer below,
     # and the first cut of this fix wired only the disk branch. This read runs
