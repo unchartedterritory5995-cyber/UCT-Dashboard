@@ -590,6 +590,9 @@ def main() -> int:
     ap.add_argument("--model")
     ap.add_argument("--effort")
     ap.add_argument("--transport", default="batch", choices=("batch", "stream"))
+    ap.add_argument("--backend", default="paid", choices=("paid", "local"),
+                    help="local = a model on this machine, $0. Refuses to proceed if the "
+                         "client that gets built is not the local one.")
     ap.add_argument("--trial-model", default="claude-sonnet-5")
     ap.add_argument("--trial-segments", type=int, default=20)
     ap.add_argument("--drift-segments", type=int, default=10)
@@ -669,7 +672,20 @@ def main() -> int:
 
     spend = SpendCap(common.out_path(args.ledger) if args.ledger else out_dir / "spend-ledger.json", args.max_usd)
     print(f"spend so far ${spend.spent:.4f} of ${args.max_usd:.2f}")
+    # THE $0 PATH, MADE EXPLICIT AT THE CALL SITE. Setting the variable is what actually
+    # selects the backend; the assertion below is what stops a silent fallback to the paid
+    # client if that ever stops working. A gate run that believed it was local and was not
+    # would bill a corpus-sized job and look identical in the report.
+    import os as _os
+    from api.services.wisdom.extract import config as _config, local_backend as _local
+
+    if args.backend == "local":
+        _os.environ[_config.BACKEND_ENV] = _config.BACKEND_LOCAL
     client = batch.make_client()
+    if args.backend == "local" and not getattr(client, "is_local_backend", False):
+        raise SystemExit("--backend local did not produce a local client; refusing to run")
+    if args.backend == "local":
+        print(f"backend: LOCAL ({_local.local_model()}) via {_local.local_url()} - $0.00")
     receipts = []
     # R48: what every ledger entry this run writes carries besides its own phase/transport facts.
     # ⛔ `golden_file` is the NAME only — §0.4f keeps golden CONTENT out of anything tracked, and

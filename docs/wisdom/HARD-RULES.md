@@ -928,13 +928,86 @@ unexpected writer is a search that would have surfaced a fourth.
    `railway run --service web python tools/wisdom/extract_golden_gate.py …` — against a golden
    directory with no samples.
 
-⛔⛔ **AND THE ZERO-SAMPLE PATH IS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
-`decide_gate` treats the run as same-config against the single production row and records
+⛔⛔ **AND THE ZERO-SAMPLE PATH WAS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
+`decide_gate` treated the run as same-config against the single production row and recorded
 **`accepted, baseline: True`** — a verdict that measured nothing, superseding one that measured
-108 segments. ⭐ `import_receipt` does NOT have this hole (`golden.py:630-631` raises on an empty
-`per_type`), which is the shape of the fix if it is ever wanted: **an evaluation that scored
-nothing must refuse, never accept.** A gate whose failure mode is *open* is not a gate.
+108 segments. ⭐ `import_receipt` did NOT have this hole (`golden.py:630-631` raises on an empty
+`per_type`) — but that guard sat one layer up, in the RECEIPT path only; a DIRECT `record_eval`
+call (the gate tool persisting the run it just measured) had no such check.
 
-> **THE RULE. Never run the golden gate inside the container.** The golden set is quote-bearing
-> and deliberately not deployed, so the only thing it can produce there is a verdict about no
-> data — and today that verdict is `accepted`.
+⛔⛔ **FIXED, session 25 (R98): `record_eval` itself now refuses an empty `per_type` — the
+SHARED choke point both `import_receipt` and a direct gate run pass through.** Rails:
+`tests/test_wisdom_extract_golden.py` — a zero-sample run raises and writes NO row (not a row
+that happens to be blocked); a real run immediately after is unaffected; and the load-bearing
+control, a NULL-only measurement (a type asserted absent across N segments, tp=fp=fn=0 but
+`null_declared` nonzero) is correctly NOT refused — `golden.score()` keeps that measurement on
+purpose (`n_null` in the emptiness check), and a naive "all-zero counts means nothing was
+scored" fix would have deleted the single most useful NULL measurement the gate produces.
+Mutation-proved: reverting the guard turns exactly the two zero-sample tests red.
+
+> **THE RULE, NARROWED. The golden gate may run inside the container ONLY with: an explicit
+> `--golden-file` naming real, uploaded bytes; an asserted sample count; scratch `--db` and
+> `--data-dir` under the volume (never production's live `wisdom.db`/`wisdom_eval_runs` tables
+> during the scoring run itself — only the AGGREGATES-ONLY manifest crosses back into
+> production afterward, exactly as R67 already does for Opus's own gate-run-3); and the
+> zero-sample refusal above actually serving in that image.** Without ALL FOUR, the rule is
+> unchanged: never run the golden gate inside the container. The golden set is quote-bearing
+> and deliberately not deployed by default — this narrowing does not change that; it describes
+> the one supervised, bounded exception under which a real measurement, not a vacuous one, can
+> happen there.
+
+## 2026-09-18 — R93/R94/R95/R96 (session 23): the local attempt's real ceiling, and every
+## path priced with real usage instead of a fresh estimate
+
+**R93 — one bounded local attempt, 90-minute ceiling, honored.** Two fixes landed as
+permanent `local_backend.py` defaults, neither touching `prompt.py`: `repeat_penalty=1.15`
+(kills the repetition-loop collapse that hit 22% of session-22's segments) and
+schema-constrained decoding, reusing `params["output_config"]["format"]["schema"]` — the
+SAME contract Anthropic already enforces for the paid path — via llama-server's
+`response_format: json_schema`. Measured on an isolated segment: 4/4 rejected
+`quote_missing` at baseline → 0/4 with the constraint on. A local-only v2 prompt
+(`local_prompt_v2.py`, its own `wx-local-v2-*` version, few-shot loaded from a gitignored
+data file) added quote-first ordering + an explicit verbatim instruction on top.
+
+⛔ **NET RESULT ON A 20-SEGMENT STRATIFIED SAMPLE (paid / v1 / v2 all sliced from the SAME
+segments via `gate_records.load_phase`, the R12 canonical re-score path): FAIL on all six
+types, both v1 and v2. Zero true positives against golden's specific expected records.**
+The mechanism moved — `quote_missing` was eliminated by the schema constraint; the dominant
+remaining failure is `reject:quote_absent` (present, not verbatim) — but that mechanism
+shift did not convert into recall against golden's exact set at 7B/Q4_K_M. Full verdict:
+`docs/wisdom/LOCAL-EXTRACTOR-VERDICT.md`.
+
+⛔ **THROUGHPUT IS A SECOND, INDEPENDENT WALL.** Measured v1 rate on this contended box:
+0.79 segments/min (76s/segment). One corpus pass (26,454 segments) is **23.2 days**; N=3 is
+**69.6 days**. v2's added levers measured SLOWER per segment (longer prefill from the
+few-shot turns) — the quality-adjacent fixes here cost clock, they do not buy it back.
+
+**R94 — no GPU host reachable, measured not assumed.** This box: two NVIDIA GT 710s (2GB
+VRAM each — too small to even hold a Q4_K_M 7B's ~4.5GB weights) plus an Intel UHD 770 iGPU
+(untested — no dedicated VRAM, unlikely to beat CPU meaningfully for this workload). No
+WSL2 installed. No SSH config beyond `github.com` in `known_hosts`. No documented remote GPU
+host anywhere in this repo's docs. **Deliberately no LAN scan was run** — the ruling
+explicitly asked for documented/reachable enumeration only, never indiscriminate probing.
+
+**R95 — HOLD, honored structurally.** No paid extraction client was constructed this
+session; `prompt.extractor_version()` was reasserted unchanged (`wx-v0-fc47bc97`) both by
+the existing local-backend suite and by `local_prompt_v2`'s own tests.
+
+**R96 — every path priced, with a blocker stated rather than papered over.** No Anthropic
+API key was reachable this session — not in the shell env, not in a local `.env`, not in the
+OS keyring (`uct-wisdom`/`anthropic`) — so `count_tokens`, the one paid-API call this
+session's ruling permitted, could not be made. The pricing in
+`docs/wisdom/PATH-PRICING-2026-09-18.md` instead reuses REAL, already-paid-for Anthropic
+usage persisted from gate-run-3's own API calls (`data/wisdom/gate-runs/20260915T123550Z/
+segments.jsonl` — real `usage.input_tokens`/`cache_read_input_tokens`/`output_tokens` from
+83 real production-sourced segments). Stronger than a character estimate; still not the
+fresh 500-segment production sample R96 asked for — that gap should close before any of
+these numbers is treated as final. Density proxy (PRINCIPLE/MARKET_SIGNAL-bearing segments):
+21.7%, from the same 83, explicitly the ONLY measured proxy since night 1 never ran.
+
+⭐ **The cheapest path that buys the stated goal (judgement types at trusted quality,
+mechanical types floor-scored) is SWEEP_N1_OPUS + a 2-pass targeted repass on the density
+proxy: $1,103 p50 / $5,096 p90 — not HAIKU_ONLY's $462–$2,133, because Haiku's quality
+against golden is UNMEASURED.** The one cheap measurement that would most change this
+answer: an 83-segment Haiku golden run, priced at $0.48–$2.23 — close enough to free that
+running it before committing to any paid path is close to free optionality.

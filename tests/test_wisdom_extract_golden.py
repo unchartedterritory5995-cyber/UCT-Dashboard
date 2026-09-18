@@ -176,6 +176,52 @@ def test_baseline_then_regression_blocks_and_a_tie_is_accepted(db):
     assert missing["accepted"] is False and "no golden-gate evaluation" in missing["reason"]
 
 
+# ── R98, session 25: a run that scored nothing must refuse, never accept ─────
+
+def test_a_zero_sample_run_REFUSES_and_writes_no_row(db):
+    """⛔⛔ THE HOLE `docs/wisdom/HARD-RULES.md`'s "never run the golden gate inside the
+    container" rule exists to name. Inside a container where the golden set was never
+    deployed, a zero-sample run finds no prior history to compare against, and
+    decide_gate's baseline branch — correct when a REAL sample has no history — returned
+    `accepted, baseline: True` for a verdict that measured NOTHING."""
+    with store.write() as conn:
+        with pytest.raises(ValueError, match="scored nothing"):
+            golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version="wx-v0-aaaaaaaa", n=0,
+                               metrics={"model": "claude-opus-5", "effort": "high", "golden_version": "gv1",
+                                        "split": "dev", "per_type": {}, "golden_sha256": GSHA})
+    with store.read() as conn:
+        rows = conn.execute("SELECT COUNT(*) FROM wisdom_eval_runs").fetchone()[0]
+    assert rows == 0, "the refused run must write NOTHING, not a row that happens to be blocked"
+
+
+def test_a_REAL_sample_after_a_refused_zero_sample_is_unaffected(db):
+    """⭐ The fix must not touch the real path — a genuine 108-record run right after a
+    refused zero-sample attempt still records baseline-accepted, normally."""
+    with store.write() as conn:
+        with pytest.raises(ValueError):
+            golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version="wx-v0-aaaaaaaa", n=0,
+                               metrics={"model": "claude-opus-5", "effort": "high", "golden_version": "gv1",
+                                        "split": "dev", "per_type": {}, "golden_sha256": GSHA})
+        out = record(conn, "wx-v0-aaaaaaaa", "claude-opus-5", per_type(8, 2, 2), "2026-09-13T10:00:00-04:00")
+    assert out["gate"] == {"decision": "accepted", "baseline": True, "compared_to": None, "regressions": []}
+
+
+def test_a_type_present_with_all_zero_counts_but_a_null_measurement_is_NOT_treated_as_empty(db):
+    """⭐ CONTROL, the other direction: a NULL-only measurement (a type asserted absent across
+    N segments, zero false positives) is real signal — golden.score() keeps it via
+    null_declared even though tp=fp=fn=0 — and must NOT be refused as if nothing were
+    scored. Without this, the fix above would over-refuse the single most useful NULL
+    measurement the gate produces."""
+    with store.write() as conn:
+        out = golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version="wx-v0-aaaaaaaa", n=44,
+                                 metrics={"model": "claude-opus-5", "effort": "high", "golden_version": "gv1",
+                                          "split": "dev", "golden_sha256": GSHA,
+                                          "per_type": {"CALL": {"tp": 0, "fp": 0, "fn": 0, "null_segments": 44,
+                                                                "null_segments_with_fp": 0, "null_fp_rate": 0.0,
+                                                                "precision": None, "recall": None}}})
+    assert out["gate"]["decision"] == "accepted"
+
+
 def test_metrics_rows_carry_counts_and_null_rates(db):
     with store.write() as conn:
         out = record(conn, "wx-v0-aaaaaaaa", "claude-opus-5", per_type(0, 0, 3), "2026-09-13T10:00:00-04:00")

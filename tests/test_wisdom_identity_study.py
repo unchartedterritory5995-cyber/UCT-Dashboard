@@ -234,14 +234,29 @@ def test_the_lens_refuses_a_polarity_flip():
 def test_the_key_identity_reproduces_the_session_9_numbers():
     """⛔ The control against the paid measurement. Skips LOUDLY when the runs are absent —
     they are gitignored, so a fresh clone cannot have them, and a silent pass here would make
-    every bound above unanchored."""
+    every bound above unanchored.
+
+    ⛔⛔ SCOPED TO THE PAID VERSION, NOT "everything discover() finds". `discover()` is a
+    generic "list every persisted run" primitive — the daily chain's own `score_silently`
+    calls it the same way and relies on `reconcile()`'s version-mismatch refusal downstream,
+    which is correct THERE. This test is specifically about the session-9 PAID (Opus)
+    measurement, and `data/wisdom/gate-runs/` is a SHARED directory: session 23 legitimately
+    added a local-backend run there (R12's offline re-score artifact, a different
+    extractor_version by design — the local/paid split exists precisely so the two are never
+    compared as repeat passes of one). Without this filter, the test choked on
+    `ReconcileRefused` the moment a second, correctly-different-versioned run appeared next to
+    the three it was written against — the REFUSAL was reconcile.py doing its job; the test's
+    OWN unfiltered discovery was what broke."""
     from api.services.wisdom.extract import reconcile
 
+    PAID_VERSION = "wx-v0-fc47bc97"
     root = REPO / "data" / "wisdom" / "gate-runs"
-    ids = reconcile.discover(root) if root.exists() else []
-    if len(ids) < 3:
-        pytest.skip(f"needs the 3 persisted gate runs (gitignored); found {len(ids)} under {root}")
-    runs = [reconcile.load_run(root, r) for r in ids]
+    all_ids = reconcile.discover(root) if root.exists() else []
+    runs = [reconcile.load_run(root, r) for r in all_ids]
+    runs = [r for r in runs if r.get("extractor_version") == PAID_VERSION]
+    if len(runs) < 3:
+        pytest.skip(f"needs the 3 persisted PAID gate runs (gitignored); found {len(runs)} "
+                    f"of {len(all_ids)} total under {root}")
     per_type = study.score(study.identity_key(runs)[0])["per_type"]
     assert per_type["MARKET_SIGNAL"]["total"] == 236
     assert per_type["MARKET_SIGNAL"]["publish"] == 21

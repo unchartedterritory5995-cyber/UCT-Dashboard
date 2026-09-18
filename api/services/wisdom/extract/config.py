@@ -11,6 +11,27 @@ import os
 
 from api.services.wisdom.extract import prompt
 
+#: THE BACKEND SWITCH (R85/R86/R87). "paid" is the DEFAULT and stays the default: a variable
+#: nobody set must never silently move extraction onto a different model. "local" routes to a
+#: model on this machine and costs nothing.
+BACKEND_ENV = "WISDOM_EXTRACT_BACKEND"
+BACKEND_PAID = "paid"
+BACKEND_LOCAL = "local"
+
+
+def backend() -> str:
+    """Which extractor runs. Anything but the exact literal "local" means PAID - an unknown
+    value is not a third mode, and it must not become a cheaper one by accident."""
+    raw = (os.environ.get(BACKEND_ENV) or "").strip().lower()
+    if raw == BACKEND_LOCAL:
+        return BACKEND_LOCAL
+    return BACKEND_PAID
+
+
+def is_local() -> bool:
+    return backend() == BACKEND_LOCAL
+
+
 DEFAULT_MODEL = "claude-opus-5"
 DEFAULT_EFFORT = "high"
 MAX_ATTEMPTS = 3
