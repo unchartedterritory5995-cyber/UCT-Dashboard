@@ -50,6 +50,25 @@ VALID = ("full", "unknown-only")
 DEPLOY_BUDGET_S = 900
 POLL_S = 20
 
+#: Every state a deploy record can SETTLE in. ⛔ Anything not named here is
+#: read as "still building" and polled until the budget runs out, so a missing
+#: terminal state costs a whole window AND reports the wrong cause.
+#: ⚰️ SKIPPED was missing until 2026-09-18, when it turned up in 3 of the last
+#: 40 `web` records — it is not rare, and it is the most dangerous one to miss
+#: (see SKIPPED_MEANS below).
+TERMINAL_STATUSES = ("SUCCESS", "FAILED", "CRASHED", "REMOVED", "SKIPPED")
+
+#: ⛔⛔ SKIPPED IS NOT A MILD FAILURE. Railway creates the record and declines to
+#: deploy, so THE RUNNING PROCESS NEVER RESTARTED and is still serving the old
+#: value — while `railway variables --kv` reads back the NEW one. That is the
+#: service/process split this whole tool exists to refuse to guess at, arriving
+#: through a status rather than through a delete.
+SKIPPED_MEANS = (
+    "SKIPPED means Railway did NOT deploy: the variable is set on the SERVICE and "
+    "the RUNNING process still has the old value. --kv will disagree with the pod. "
+    "Force one with `railway redeploy --service web --yes`, then verify in-process."
+)
+
 
 def _run(cmd, timeout=180):
     exe = shutil.which(cmd[0]) or cmd[0]
@@ -99,7 +118,20 @@ def newest_records(n: int = 6) -> list[dict]:
         return []
 
 
-def wait_for_own_deploy(before_ids: set[str]) -> tuple[str | None, str]:
+def deployed_commit() -> str:
+    """The commit the newest non-SKIPPED record carries, or "".
+
+    ⛔ SKIPPED rows are excluded: they are pushes Railway declined to build, so
+    they say nothing about what the pod is RUNNING.
+    """
+    for r in newest_records(12):
+        if str(r.get("status") or "").upper() == "SKIPPED":
+            continue
+        return str(((r.get("meta") or {}).get("commitHash") or ""))[:9]
+    return ""
+
+
+def wait_for_own_deploy(before_ids: set[str], base_commit: str = "") -> tuple[str | None, str]:
     """Wait for a deploy record that did NOT exist before the flip.
 
     ⛔ IDENTIFIED BY ID, NOT BY POSITION. "The newest row" is how a session ends
@@ -110,15 +142,32 @@ def wait_for_own_deploy(before_ids: set[str]) -> tuple[str | None, str]:
     while time.time() - started < DEPLOY_BUDGET_S:
         for r in newest_records():
             rid = str(r.get("id") or "")
-            if rid and rid not in before_ids:
-                status = str(r.get("status") or "")
-                print(f"  our new record {rid[:8]} → {status} ({int(time.time()-started)}s)")
-                if status in ("SUCCESS",):
-                    return rid, status
-                if status in ("FAILED", "CRASHED", "REMOVED"):
-                    return rid, status
+            if not rid or rid in before_ids:
+                continue
+            status = str(r.get("status") or "").upper()
+            commit = str(((r.get("meta") or {}).get("commitHash") or ""))[:9]
+            # ⛔ A SKIPPED row is a push Railway declined to build. A variable-set
+            # redeploy is never skipped, so this row is NOT ours — it belongs to
+            # whoever pushed docs while we were waiting.
+            if status == "SKIPPED":
+                print(f"  ignoring {rid[:8]} SKIPPED (commit {commit or "?"}) — "
+                      f"a push someone else made; not our redeploy")
+                continue
+            # ⛔⛔ IDENTITY IS THE COMMIT, NOT THE FACT THAT THE ROW IS NEW.
+            # `--set` redeploys the commit already running, so ours carries
+            # `base_commit`. A different commit is a different session's build.
+            if base_commit and commit and commit != base_commit:
+                print(f"  ignoring {rid[:8]} {status} commit {commit} — not ours "
+                      f"(we redeployed {base_commit})")
+                continue
+            print(f"  our new record {rid[:8]} → {status} ({int(time.time()-started)}s)")
+            if status in TERMINAL_STATUSES:
+                return rid, status
         time.sleep(POLL_S)
-    return None, "no new deploy record inside the budget"
+    # ⛔ FAIL LOUD. Never fall back to "the newest new row" — accepting a foreign
+    # record is how an unverified flip reports SUCCESS and opens a live path.
+    return None, ("no deploy record carrying our commit (%s) inside the budget"
+                  % (base_commit or "unknown"))
 
 
 def flip(to: str) -> int:
@@ -136,6 +185,10 @@ def flip(to: str) -> int:
               "return to.")
         return 2
     before_ids = {str(r.get("id") or "") for r in newest_records(12)}
+    # ⛔ Captured BEFORE the set, so the record we wait for can be told apart from
+    # another session's push by the commit it carries, not merely by being new.
+    base_commit = deployed_commit()
+    print(f"  currently deployed commit: {base_commit or '(unreadable)'}")
 
     print(f"  setting {VAR}={to} on {SERVICE} (⚠️ --set REDEPLOYS)…")
     p = _run(["railway", "variable", "--set", f"{VAR}={to}", "--service", SERVICE], timeout=300)
@@ -143,10 +196,14 @@ def flip(to: str) -> int:
         print(f"⛔ the set itself failed: {(p.stdout or '') + (p.stderr or '')}"[:400])
         return 1
 
-    rid, status = wait_for_own_deploy(before_ids)
+    rid, status = wait_for_own_deploy(before_ids, base_commit)
     if status != "SUCCESS":
         print(f"⛔ our own deploy record did not reach SUCCESS ({status}). The variable "
               f"may be set on the SERVICE while the PROCESS still has the old value.")
+        if status == "SKIPPED":
+            # ⛔ Say WHICH failure this is. "did not reach SUCCESS" is true of a
+            # crash and of a no-op alike, and the operator response is different.
+            print("   " + SKIPPED_MEANS)
         return 1
 
     after_val, how2 = in_process_value()
@@ -173,6 +230,32 @@ def self_check() -> int:
         fails.append(f"vocabulary drifted from the server's table: {VALID}")
     if DEPLOY_BUDGET_S > 1800:
         fails.append("the deploy budget is long enough to eat a rig window")
+    # ⛔ The regression that prompted this: a terminal state the poller does not
+    # name is polled until the budget expires and then blamed on Railway.
+    for must in ("SUCCESS", "FAILED", "CRASHED", "REMOVED", "SKIPPED"):
+        if must not in TERMINAL_STATUSES:
+            fails.append(f"{must} is not enumerated as terminal — a deploy in that "
+                         f"state would be polled until the budget ran out")
+    if "SKIPPED" not in SKIPPED_MEANS or "process" not in SKIPPED_MEANS.lower():
+        fails.append("SKIPPED_MEANS must say what SKIPPED does to the RUNNING process")
+    # ⛔ The identity regression: "a record that did not exist before" is a
+    # timestamp, not an identity, and another session pushing mid-wait supplies
+    # one. Our record is the redeploy of the commit already running.
+    import inspect as _inspect
+    _src = _inspect.getsource(wait_for_own_deploy)
+    # ⛔ Assert the COMPARISON, not the token. The first version of this rail
+    # checked only that the string "base_commit" appeared, and `base_commit` is
+    # also in the signature and the timeout message — so replacing the guard with
+    # `if False:` left the rail GREEN. A rail that cannot catch the mutation it
+    # was written for is not a rail (lesson_a_fixture_that_cannot_distinguish...).
+    if "commit != base_commit" not in _src:
+        fails.append("wait_for_own_deploy no longer COMPARES the commit — it would "
+                     "accept another session's deploy as ours")
+    if '== "SKIPPED"' not in _src:
+        fails.append("wait_for_own_deploy no longer skips SKIPPED rows — a foreign "
+                     "docs push would be read as our redeploy")
+    if "no deploy record carrying our commit" not in _src:
+        fails.append("the timeout no longer fails loud about WHOSE record was missing")
     for f in fails:
         print("  ⛔", f)
     print("self-check:", "PASS — the vocabulary is closed, a typo is refused, and the "

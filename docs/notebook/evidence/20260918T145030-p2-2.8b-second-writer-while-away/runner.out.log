@@ -1,0 +1,7 @@
+
+=== WINDOW OPEN 14:50:30 · 1 staged ===
+   ▶ p2-2.8b-second-writer-while-away: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+  [runner] timed-out cell: tore down the rig browser BY MARKER (profile kept) so the next cell can start
+   💾 evidence: docs/notebook/evidence/20260918T145030-p2-2.8b-second-writer-while-away (75281B raw, +2 artifact(s))
+   ⇒ p2-2.8b-second-writer-while-away: INCONCLUSIVE (attempt 6, giving up — needs a human) in 3301.0s
+=== WINDOW CLOSED · 1 executed ===
