@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import styles from './Breadth.module.css'
@@ -555,11 +556,34 @@ export default function Breadth() {
   const url = useBreadthUrlState({ dayChoices: VIEWS_DAY_CHOICES })
   const urlInitial = url.initial
 
+  // ⛔ `?tab=` IS A SEPARATE, ADDITIVE READ — NOT PART OF THE VIEWS URL CONTRACT
+  // (spec §5) `useBreadthUrlState` owns above. That contract's `initial` is
+  // parsed once by ONE hook and its shape (`view`/`date`/`days`/`compare`) is
+  // spec'd and tested; folding a general tab selector into it would make it a
+  // second, unrelated authority riding the same object. This reads the
+  // router's own query (never `window.location` — under `MemoryRouter` in
+  // tests, and in principle anywhere the router hasn't pushed a real browser
+  // navigation yet, those two can disagree) and, like `urlInitial` above, only
+  // its value on the FIRST render is ever used — the `useState` initializer
+  // below runs once, so a later `?tab=` write from elsewhere cannot loop back
+  // in as a forced tab change.
+  const [tabSearchParams] = useSearchParams()
+
   // Phones land on the readable Overview; desktop/tablet keep the Monitor.
   // ⭐ A LINK CARRYING VIEWS STATE OPENS THE VIEWS TAB — otherwise the Discord
   // bot's `?view=clock` lands a phone on Daily and the read it linked to is two
   // taps away, which is the same as not linking to it.
+  //
+  // An explicit `?tab=` wins over that inference — a direct tab request is
+  // more specific than "this link happens to carry Views state" — and an
+  // unresolvable key, or an admin-only one opened by a non-admin, falls
+  // through to the existing rules rather than landing on a tab the reader
+  // cannot actually reach.
   const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = tabSearchParams.get('tab')
+    if (requestedTab && resolveBreadthTabs(isAdmin).some(t => t.key === requestedTab)) {
+      return requestedTab
+    }
     if (urlInitial.view || urlInitial.compare) return 'heatmap'
     try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
     catch { return 'breadth' }
@@ -1078,8 +1102,22 @@ export default function Breadth() {
       </PageHeader>
 
       {error && (
-        <div className={styles.errorBanner}>
-          Could not load breadth data — {error.message ?? 'network error'}. Retrying in 5m.
+        <div className={styles.errorBanner} role="alert">
+          <span>
+            Could not load breadth data — {error.message ?? 'network error'}. Retrying in 5m.
+          </span>
+          {/* ⛔ A 5-minute auto-retry with no manual lever leaves a reader who
+              already knows the network recovered staring at a stale error for
+              up to five more minutes. `onManualRefresh` is the same
+              revalidation the header's refresh icon fires. */}
+          <button
+            type="button"
+            className={styles.errorRetryBtn}
+            onClick={onManualRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? 'Retrying…' : 'Retry now'}
+          </button>
         </div>
       )}
 

@@ -24,7 +24,7 @@
  * This module is PURE: no React, no ECharts. The chart consumes it, and the rails can
  * exercise every branch without rendering anything.
  */
-import { UNIT, UNIT_LABEL, unitOf, scaleForUnit } from '../chartMetrics'
+import { UNIT, UNIT_LABEL, unitOf, scaleForUnit, shortOf } from '../chartMetrics'
 
 /**
  * The order families stack in, top to bottom.
@@ -90,13 +90,35 @@ export function gridFor(panels, { top = 6, bottom = 14, gap = 4 } = {}) {
   let y = top
   return panels.map(p => {
     const h = (usable * p.weight) / totalWeight
-    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right: 72 }
+    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right: rightMarginFor(p) }
     y += h + gap
     return rect
   })
 }
 
 const round = v => Math.round(v * 100) / 100
+
+/**
+ * ⛔⛔ THE END LABELS ARE THE LEGEND (`chartOption.js` turns the real ECharts
+ * legend off — "identity is carried by the end labels"), so the right margin
+ * has to fit whatever `shortOf` actually returns for THIS panel's keys, not a
+ * number that happened to fit the metrics on screen when it was chosen. A
+ * fixed 72px clipped labels like "52W Highs (Close)" and "% at 52W Highs
+ * (Close)" (no `short` override in the registry) the moment a member picked
+ * one of the longer Highs/Lows metrics.
+ *
+ * ⭐ PER-PANEL, NOT ONE GLOBAL MARGIN. A short-label panel (e.g. "Health")
+ * keeps its margin tight instead of borrowing space sized for a Highs/Lows
+ * panel elsewhere in the same stack.
+ */
+const MIN_RIGHT_MARGIN_PX = 72
+const CHAR_WIDTH_PX = 6.2   // ~11px sans-serif label text, measured generously
+const LABEL_PADDING_PX = 44 // endLabel's own `distance` + breathing room
+
+function rightMarginFor(panel) {
+  const longest = Math.max(0, ...(panel.keys ?? []).map(k => shortOf(k).length))
+  return Math.max(MIN_RIGHT_MARGIN_PX, Math.round(LABEL_PADDING_PX + longest * CHAR_WIDTH_PX))
+}
 
 /**
  * Which panel index a metric draws in, for a given split.
