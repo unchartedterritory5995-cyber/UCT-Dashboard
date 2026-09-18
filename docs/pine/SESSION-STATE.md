@@ -2,6 +2,33 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 (Part 0 gate) — ⛔ THE WINDOW IS STILL HIDDEN. ✅ THE SAVE REFUSAL MOVED.
+>
+> **Part 0's reading, taken on the driving tab before anything else:**
+> `visibilityState: "hidden"` · `hasFocus: false` · `outerWidth/outerHeight: 0×0`
+> · `innerWidth: 1920` (still maximized) · `screen.avail: 1920×1032`.
+> ⛔ Hidden ⇒ by the prompt's own branch, **Part 1 only; Parts 2–6 did not run.**
+> No TradingView tab was opened, no write and no screenshot was attempted on the
+> owner's account, and the rig was not restarted.
+>
+> ✅ **Part 1 landed** (`8f884ff42`): the store's refusal on the SAVE path now
+> renders inside the **sticky footer**, beside the button that produced it. It was
+> in the scrolling body, below the whole pasted source — 9,811 characters of
+> listing between the press and the reason. The assertion is CONTAINMENT, not
+> visibility (jsdom performs no layout), and the container is found **from the
+> button** rather than by a CSS-module hash. Two controls pass before the move
+> (the attach door's refusal is already beside its own button; `list-error` stays
+> in the body). Mutation-proved, byte-exact restore verified by sha.
+> ⚠️ Builder chunk 5 red / 1,820 green over 83 files — the SAME five pre-existing.
+> A sixth (`EvidenceTab.doors` ANTI-ROT) appeared in ONE run and is
+> **LOAD-SENSITIVE, not banked**: 10/10 alone, absent from the next chunk run.
+>
+> ▶️ **STILL THE WHOLE REMAINING CHAIN, AND IT IS ONE ACT:** bring the Chrome
+> window forward **and un-maximize it** (restored, not maximized — a maximized
+> window cannot be resized from here, and the two mobile tiers need that). Then:
+> vendor capture on `01f1AcIj` → tiers → H.8's triple in RTH → R29 → R38's gates.
+> ⭐ Everything upstream of the glass is done and pushed.
+
 > ### ⏱️ 2026-09-18 (late) — ✅ THE MEMBER DOOR WORKS END TO END. ⛔ R29 STILL DRAFT; R38 STOPPED AT GATE 1.
 >
 > **Three things landed, and one thing is blocked on a window nobody can raise.**
