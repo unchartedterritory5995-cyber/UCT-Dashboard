@@ -51,10 +51,26 @@ import time
 # one resource this programme cannot get more of today. Same bug that made
 # tools/flag_ledger_audit.py read as an auth failure for a month (CLAUDE.md).
 try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, ValueError):
-    pass
+    # ⛔⛔ LINE-BUFFERED, AND THAT CLAUSE IS NOT COSMETIC.
+    #
+    # ⚰️ Measured 2026-09-18. A detached run hit its 1800s ceiling and was killed
+    # (exit 124). Python had BLOCK-buffered stdout into the redirect file, so the
+    # kill discarded everything: raw.txt contained the single word "TIMED OUT".
+    # Zero cells, zero swap-waits, zero banner - and I read that emptiness as "it
+    # hung at startup" when Chrome's own creation timestamp proved it had started
+    # normally 3 seconds in.
+    #
+    # ⛔ R-RAW says a run with no raw artifact is INCONCLUSIVE. Buffering turns
+    # EVERY killed run into exactly that, and a timeout is precisely the run whose
+    # trail you most need. The evidence must reach disk as it happens.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except (AttributeError, ValueError, TypeError):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SENTINEL = "F5-MATRIX"
