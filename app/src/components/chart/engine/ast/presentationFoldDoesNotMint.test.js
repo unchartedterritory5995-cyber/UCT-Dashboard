@@ -14,9 +14,18 @@
 //
 // ⚰️ MEASURED, AND IT IS WHY THIS FILE EXISTS. R35c took `uncharted-volume-v2`
 // from 3 declared parameters to 4 and moved `HVE lookback (bars)` from
-// `__uct_param_3` to `__uct_param_4`. A saved definition pinning `_3` would have
-// addressed a different knob. It was found only because another test addressed a
-// knob by hard-coded id and silently began testing a different one.
+// `__uct_param_3` to `__uct_param_4`. It was found only because another test
+// addressed a knob by hard-coded id and silently began testing a different one.
+//
+// ⚰️ THE SEVERITY WAS OVERSTATED FIRST — this said a saved definition pinning
+// `_3` "would have addressed a different knob", i.e. silent corruption. The
+// CONSUMER says otherwise: a saved definition carries its own
+// `compute.paramManifest` and reads values by walking its own tree at
+// `locators[].astPath`, and `save()` canonicalises against the member's PRIOR
+// save under "an edit may never mint a new identity". A shift therefore makes the
+// next EDIT disagree with its own prior roster and the save is REFUSED — real and
+// member-visible, but LOUD. H.11 is deferred beyond Wave 2 on exactly that
+// grounds, which is why this rail matters more than the migration does.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'

@@ -55,13 +55,20 @@
 > ```
 >
 > Making the opacity input foldable MINTS a parameter and RENUMBERS what follows.
-> **Parameter ids address saved member definitions** — *"the manifest and the saved
-> computation must come from ONE translation result, or the parameter ids address a
-> tree nobody built."* A saved definition pinning `__uct_param_3` would now address
-> a different knob. ⛔ **R35c/R35d are complete and green but MUST NOT SHIP until
-> parameter-id stability is ruled (and migrated if needed).** Nothing merged,
-> nothing on master. Found because a test addressed the knob by hard-coded id and
-> silently began testing a different one; that test now resolves by LABEL.
+> ⚰️⚰️ **THIS ENTRY SAID "a saved definition pinning `__uct_param_3` would now
+> address a different knob" — SILENT CORRUPTION — AND THAT WAS WRONG.** Corrected
+> 2026-09-17 by reading the consumer: a saved definition carries its OWN
+> `compute.paramManifest` and reads values by walking its OWN tree at
+> `locators[].astPath`, and `user_definitions.save()` canonicalises against the
+> member's PRIOR save under *"an edit may never mint a new identity"*. So a shift
+> re-points nothing silently; it makes the next EDIT of a parameterised definition
+> disagree with its own prior roster, and **the save is REFUSED**. Real and
+> member-visible — and exactly what R36 prevents — but it fails **LOUDLY**.
+> ⭐ The error was mine and its shape is worth keeping: I reasoned about a hazard
+> from the SHAPE OF AN IDENTIFIER instead of from the code that consumes it.
+> ✅ **R35c/R35d SHIP** (R36 landed; see below). Found because a test addressed the
+> knob by hard-coded id and silently began testing a different one; it now resolves
+> by LABEL, and `paramIds` pins the whole map.
 >
 > ✅ **CLOUDS' 20 FILLS CARRY**, with per-layer alpha: layers 0 / 10 / 19 =
 > transparency **95 / 70 / 47.5**, DERIVED in the test from the script's own three

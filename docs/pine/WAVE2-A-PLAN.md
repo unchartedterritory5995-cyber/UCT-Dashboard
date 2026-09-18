@@ -588,7 +588,33 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
-# 🛑 H.11 — CENSUS AND DESIGN. NOT BUILT. AND A CORRECTION I OWE.
+# ✅ H.11 — DEFERRED BEYOND WAVE 2 (owner, 2026-09-17). Grounds recorded.
+
+> **Stable parameter ids are not Wave 2's to build.** The design below is kept as
+> the proposal for a later wave; nothing about it is started.
+
+**The grounds, each measured rather than argued:**
+
+| | |
+|---|---|
+| a shift cannot corrupt silently | a saved definition reads its values through its OWN `compute.paramManifest` and `locators[].astPath`; `save()` canonicalises against the member's PRIOR save under *"an edit may never mint a new identity"*, so the failure is a **refused save** |
+| a shift cannot be caused by a fold | **R36** — a presentation fold resolves and does not mint |
+| a shift cannot happen unnoticed | **`paramIds.test.js`** pins 328 scripts / 744 parameters and names the script, the id and both titles |
+
+⭐ **THREE INDEPENDENT REASONS, AND THE THIRD IS WHY THE DEFERRAL IS SAFE RATHER
+THAN MERELY CHEAP.** The first two say today's code will not do it; the rail says
+that if some future change does, it is a named red rather than a discovery. A
+deferral resting only on "we fixed the one we found" would be the half-guarantee
+this file keeps recording.
+
+⚠️ **WHAT IS STILL TRUE AND STILL OWED TO A LATER WAVE:** positional ids remain
+positional, so a legitimate future change that adds or removes a minted parameter
+still breaks the next edit of an existing parameterised definition — loudly, and
+now visibly, but it breaks. The proposal below is what retires that.
+
+---
+
+# 🛑 H.11 — THE CENSUS AND DESIGN BEHIND THE DEFERRAL. NOT BUILT.
 
 ## ⚰️ FIRST, THE CORRECTION — I OVERSTATED THE R35c HAZARD
 

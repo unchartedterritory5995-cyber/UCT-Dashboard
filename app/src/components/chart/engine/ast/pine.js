@@ -12578,8 +12578,19 @@ function alphaNumberOf(node, env, ctx) {
   // ⚰️ MEASURED on `uncharted-volume-v2`: `avg_transp = input.int(90, 'Avg Vol
   // Line Opacity')` feeding `color.new(color.white, avg_transp)` took the script
   // from 3 declared parameters to 4 and moved `HVE lookback (bars)` from
-  // `__uct_param_3` to `__uct_param_4`. A saved definition pinning `_3` would
-  // have addressed a different knob.
+  // `__uct_param_3` to `__uct_param_4`.
+  //
+  // ⚰️ AND THE SEVERITY WAS OVERSTATED FIRST, WHICH IS WORTH KEEPING. This said
+  // *"a saved definition pinning `_3` would have addressed a different knob"* —
+  // silent corruption. Reading the CONSUMER says otherwise: a saved definition
+  // carries its own `compute.paramManifest` and reads values by walking its own
+  // tree at `locators[].astPath`, and `user_definitions.save()` canonicalises
+  // against the member's PRIOR save under *"an edit may never mint a new
+  // identity"*. So a shift does not re-point anything silently — it makes the
+  // next EDIT of a parameterised definition disagree with its own prior roster
+  // and the save is REFUSED. Still member-visible, still exactly what this
+  // withholding prevents, but it fails LOUDLY. The hazard was reasoned from the
+  // SHAPE OF AN IDENTIFIER rather than from the code that consumes it.
   //
   // ⭐ THE SAME RESTRAINT R13 ALREADY RULED FOR THE CLOSING PASS — *"THIS PASS
   // RESOLVES; IT DOES NOT MINT"* — and R13 states the general form: a Track F
