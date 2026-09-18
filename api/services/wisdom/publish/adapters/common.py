@@ -157,10 +157,17 @@ def select_records(conn: sqlite3.Connection, *, types: Sequence[str], ticker: Op
     ids are `guest:<slug>`) and attendees (NULL). Never selects a private column.
 
     ⛔ **`include_unstable=False` is the Wave 1.5 item-3 publication floor, and the default is
-    fail-closed.** A PRINCIPLE or MARKET_SIGNAL whose stability is below `floor.floor_value()` —
-    or NULL, which every record is until item 2 populates it — does not come back. It is a no-op
-    for every caller that does not request those two types (badges, desk_markers, pv_examples,
-    level_alerts, lookalike all request others), so this changes nothing for them.
+    fail-closed.** A record of a `floor.FLOORED_TYPES` type whose stability is below
+    `floor.floor_value()` — or NULL, which every record is until item 2 populates it — does not
+    come back.
+
+    ⚰️ **This used to end "…it is a no-op for every caller that does not request those two types
+    (badges, desk_markers, pv_examples, level_alerts, lookalike all request others), so this
+    changes nothing for them."** R89 (2026-09-17) added CALL, NEGATIVE_CALL and MENTION to
+    `FLOORED_TYPES`, and **every one of the five callers that sentence named requests one of
+    them** — so the sentence inverted from true to false in a one-tuple change, in the docstring
+    a reader consults to decide whether the floor is their problem. ⛔ Do not restate the floored
+    set here: name `floor.FLOORED_TYPES` and let the one authority answer.
 
     ⭐ **One caller opts IN, deliberately:** `brainkb._ALL_TYPES` needs a date and a locator to
     cite a principle it is not publishing — blocking that drops a *citation*, not a publication.

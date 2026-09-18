@@ -22,7 +22,7 @@ from api.services.wisdom.core import store, timeutil
 from api.services.wisdom.publish import adapters, level_alerts, lookalike, retrieval
 from api.services.wisdom.publish.adapters import (askai, badges, brainkb, clips, common, desk_markers, dossier,
                                                   drafts, modelbook, pv_examples, voice, voicefmt)
-from tests.test_wisdom_publish_adapters_store import add_record, adapters_db, seeded  # noqa: F401
+from tests.test_wisdom_publish_adapters_store import PASSES_FLOOR, add_record, adapters_db, seeded  # noqa: F401
 
 SENTINELS = ("98765.4321", "87654.321", "76543.21", "65432.1987")
 FLAGS = ("WISDOM_RETRIEVAL_INDEX_ENABLED", "ASKAI_WISDOM_RETRIEVAL_ENABLED", "WISDOM_DESK_MARKERS_ENABLED",
@@ -57,7 +57,13 @@ def _seed_private(conn, rng: random.Random, n=48):
                    thesis=rng.choice(("tight base", "gap held", "strong group", None)),
                    status=rng.choice(("provisional", "confirmed")),
                    stated_at_et=f"2026-09-{rng.randint(1, 10):02d}T1{rng.randint(0, 5)}:00:00-04:00",
-                   record_hash=f"priv{i}")
+                   record_hash=f"priv{i}",
+                   # ⛔ R89 floored all three of these types. Without a passing score every adapter
+                   # output would be EMPTY, and "no private value reached any output" would be true
+                   # for the most useless reason available — nothing reached any output at all.
+                   # The test's own control (`outputs["desk_markers"] and ...`) catches that, and
+                   # this is what keeps the control satisfiable.
+                   **PASSES_FLOOR)
 
 
 def _walk_keys(value, found: set):

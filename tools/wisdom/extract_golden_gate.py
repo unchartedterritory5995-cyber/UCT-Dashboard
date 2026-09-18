@@ -590,6 +590,9 @@ def main() -> int:
     ap.add_argument("--model")
     ap.add_argument("--effort")
     ap.add_argument("--transport", default="batch", choices=("batch", "stream"))
+    ap.add_argument("--backend", default="paid", choices=("paid", "local"),
+                    help="local = a model on this machine, $0. Refuses to proceed if the "
+                         "client that gets built is not the local one.")
     ap.add_argument("--trial-model", default="claude-sonnet-5")
     ap.add_argument("--trial-segments", type=int, default=20)
     ap.add_argument("--drift-segments", type=int, default=10)
@@ -640,7 +643,14 @@ def main() -> int:
     store.init_db()
     model = args.model or config.configured_model()
     effort = args.effort or config.configured_effort()
-    version = prompt.extractor_version()
+    # R80/session 25: extractor_version() defaults its OWN model resolution from
+    # config.configured_model() (the WISDOM_EXTRACT_MODEL env var) -- which is NOT the same
+    # thing as this tool's own `--model` CLI flag. Without this explicit pass-through, a
+    # `--model claude-haiku-4-5` run recorded its version as wx-v0-fc47bc97, IDENTICAL to
+    # Opus's -- byte-for-byte the same string pinned in production's accepted gate row.
+    # Caught by a --dry-run before any spend: the printed extractor_version line named Opus's
+    # version while every other line correctly named Haiku.
+    version = prompt.extractor_version(model=model)
     tag = f"{model}-{effort}-{version}"
     data = load_gate_segments(pathlib.Path(args.data_dir), args.split, args.golden_file)
     items = data["segments"][: args.limit] if args.limit else data["segments"]
@@ -669,7 +679,20 @@ def main() -> int:
 
     spend = SpendCap(common.out_path(args.ledger) if args.ledger else out_dir / "spend-ledger.json", args.max_usd)
     print(f"spend so far ${spend.spent:.4f} of ${args.max_usd:.2f}")
+    # THE $0 PATH, MADE EXPLICIT AT THE CALL SITE. Setting the variable is what actually
+    # selects the backend; the assertion below is what stops a silent fallback to the paid
+    # client if that ever stops working. A gate run that believed it was local and was not
+    # would bill a corpus-sized job and look identical in the report.
+    import os as _os
+    from api.services.wisdom.extract import config as _config, local_backend as _local
+
+    if args.backend == "local":
+        _os.environ[_config.BACKEND_ENV] = _config.BACKEND_LOCAL
     client = batch.make_client()
+    if args.backend == "local" and not getattr(client, "is_local_backend", False):
+        raise SystemExit("--backend local did not produce a local client; refusing to run")
+    if args.backend == "local":
+        print(f"backend: LOCAL ({_local.local_model()}) via {_local.local_url()} - $0.00")
     receipts = []
     # R48: what every ledger entry this run writes carries besides its own phase/transport facts.
     # ⛔ `golden_file` is the NAME only — §0.4f keeps golden CONTENT out of anything tracked, and

@@ -708,6 +708,21 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'Series" while the legend beside them correctly read QQQ. ⛔ IT WRITES '
        + 'NOTHING: `onSettingsPersist` takes every settings write into page state, and '
        + 'its own `fetch` wrapper severs /api/auth/preferences in both directions.'],
+      ['app/src/testing/vscale/vscaleHarness.jsx',
+       '⭐ THE VERTICAL-SCALE LIVE HARNESS — the second dev-only probe, ledgered for '
+       + 'exactly the reason its sibling above is. It uses the per-instance door for '
+       + 'ONE purpose: to stand a pane ABOVE Price (`setInstanceDisplayTarget` → own '
+       + 'pane, `setInstancePanePosition` → above), because the regime where Price is '
+       + 'not physical pane 0 is the regime the price-scale geometry keeps breaking '
+       + 'in, and a topology button that could not name WHICH copy to move would be '
+       + 'a per-definition door pretending to be one. ⚰️ IT EARNED ITS KEEP ON ITS '
+       + 'first pass: a price-axis drag followed by ONE pan took the price scale from '
+       + 'a 134-wide range to 1507 and then to the 0.95 margin clamp at 1963, on a '
+       + 'stock trading near 200 — measured here, in a real browser, because the '
+       + 'number that compounds is `priceToCoordinate`, which every jsdom double in '
+       + 'this repo stubs to a constant. ⛔ IT WRITES NOTHING: same three locks — '
+       + 'settingsOverride, an intercepting `onSettingsPersist`, and a `fetch` '
+       + 'wrapper that severs /api/auth/preferences in both directions.'],
       ['app/src/components/chart/discoveryCatalog.js',
        '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
        + 'rather than a ninth door. A catalogue result becomes a chart series by '

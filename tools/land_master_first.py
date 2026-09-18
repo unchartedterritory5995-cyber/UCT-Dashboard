@@ -149,7 +149,26 @@ def self_check() -> int:
     return 0 if ok else 1
 
 
+def _make_stdio_utf8_safe() -> None:
+    """⚰️ Measured 2026-09-18: a landing crashed AFTER a real `git push` had already run,
+    inside `print(out)`, because the pre-push guard's own refusal text carries characters
+    (this repo's own ⛔/⭐ house style) this Windows console's legacy cp1252 codepage
+    cannot encode. The subprocess READ side was already safe (`git()` decodes with
+    errors="replace"); the crash was on the WRITE side. Reconfigured once, here, rather than
+    wrapping each print call, so a FUTURE print (e.g. inside `git()`'s own error branch,
+    which is the FAILURE-diagnosis path and therefore the one most important to see) is
+    covered too, not just the one that happened to crash first."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def main(argv=None) -> int:
+    _make_stdio_utf8_safe()
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("branch", nargs="?")
     ap.add_argument("--main", default=MAIN_REPO_DEFAULT)

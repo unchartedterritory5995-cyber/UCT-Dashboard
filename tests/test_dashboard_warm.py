@@ -8,11 +8,11 @@ def test_dashboard_warm_targets_importable():
     from api.services.massive import get_movers
     from api.routers.theme_performance import get_theme_performance
     from api.services.engine import get_news
-    from api.routers.breadth_monitor import get_breadth_history
+    from api.routers.breadth_monitor import get_breadth_history, warm_series_deep
     from api.routers.calendar import get_calendar, get_enrichment_batch, _week_dates
     assert all(callable(f) for f in (
         get_movers, get_theme_performance, get_news, get_breadth_history, get_calendar,
-        get_enrichment_batch, _week_dates,
+        get_enrichment_batch, _week_dates, warm_series_deep,
     ))
 
 

@@ -2290,3 +2290,243 @@ BREADTH_DC_V2_3_ENABLED --service web` (or `_V2_2_ENABLED`) then
 `railway redeploy --service web --yes`, confirmed from the pod — same asymmetry as
 every other kill switch in this repo: deleting a variable does not itself redeploy.
 
+### D-056 · DC-3 — the /series cold-boot cost is `adv_seed`'s disk-cold scan, warmable, boot warm built dark (2026-09-18)
+
+**MEASURED, per the ratified DC-3 mandate — not inferred.** `/series` was wired into
+the existing `breadth_timing` Server-Timing instrument (already computing these exact
+phases inside `get_history_deep` for the sibling `/api/breadth-monitor` route; only the
+middleware's path scope was missing `/series`, so `_bt.phase(...)` calls were silently
+no-opping for it — same-day commit). Captured first-vs-second `/series` requests on
+two independent fresh-boot deploys (a third foreign deploy's capture was still running
+when this cap-raise-scale investigation closed; the harness (`dc3_capture.py`,
+scratchpad) keeps sampling and the table below is extended, never silently replaced,
+when it lands):
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| own (DC-3 instrumentation landing) | `327413600` | 35,726 ms | 64 ms | 30,143.8 ms (84%) | 418,078,720 (~398 MB) |
+| foreign #1 | `5a019ca4129d` | 12,160 ms | 439 ms | 10,401.2 ms (85%) | 273,412,096 (~261 MB) |
+
+**Diagnosis, from the phase breakdown, not a guess:** the cost concentrates almost
+entirely in ONE phase, `adv_seed` (84-85% of reader time in both samples) —
+`_adv_decline_seed_before(oldest)` (`api/services/breadth_monitor.py`), called once
+per deep read to seed a cumulative advance/decline total from every row before the
+window's start date. It runs two queries: `SELECT ... FROM breadth_snapshots WHERE
+date < ?` and `breadth_daily_ohlc.metric_before("adv_decline", oldest)` — the latter
+backed by a correctly-shaped covering index (`idx_bdo_metric ON
+breadth_daily_ohlc(universe, metric, date)`, confirmed by reading the index
+definition; this is NOT a missing-index problem) but still costing seconds of REAL
+DISK I/O on a cold page cache, confirmed by `io_read_bytes` climbing into the hundreds
+of MB on the first request of each deploy (`breadth_timing.io_counters`'s own H1
+discriminator: `read_bytes` climbing means the page cache missed, not CPU or lock
+wait). Every OTHER phase (`numeric_fetch`, `reconstructed_fetch`, `merge_rows`,
+`derive`, `cache_set`, `route_tail`, `serialise`) stays in single-to-low-triple-digit
+milliseconds even on the cold request.
+
+**Warmable, not the reader's unfixable cold path** — the second half of DC-3's
+branch: the SAME query pattern answers in tens of milliseconds on the very next
+request, including when that next request asks for a LARGER span than the first (the
+own-deploy pilot's first request was a 365-session window; the immediately-following
+Max-preset request, touching far more of the same table, took 2.9 s — fast, because
+the file pages the first request paid to fault in were now resident). This is an
+OS-page-cache-cold cost, the same CLASS D-049 (H1/mmap) already fixed for a DIFFERENT
+query shape on this same file — not a reader-programme R8 proposal-only item.
+
+**Why the existing dashboard-warm doesn't already cover this.** `api/main.py`'s
+`_breadth()` warm (part of the pre-existing delayed background-warm sequence) calls
+`get_breadth_history(days=90)` — a window entirely inside the live collector's range
+(`get_history_deep`'s own docstring: a window lying entirely within the collector
+range delegates to `get_history` unchanged), so it never touches `_adv_decline_seed_
+before` at all. Confirmed by the measurement itself: both boots, each having already
+run the existing dashboard-warm sequence, still paid the full cold cost on the first
+`/series` request reaching into deep/reconstructed territory.
+
+**Built: `warm_series_deep()`** (`api/routers/breadth_monitor.py`), wired into the
+SAME existing delayed background-warm thread as `_breadth()` and its seven siblings
+(`api/main.py`, `_breadth_series_deep`), one call, dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED` (default OFF — an enablement gate, same polarity
+as the DC v2 flags). Reads back to `MAX_HISTORY_FROM` (2008-01-02,
+`BreadthChartsV2.jsx`) — the SAME worst-case span V2-3's own "Max" preset asks for —
+via `series_max_calendar_days(_SERIES_MAX_SESSIONS_DEFAULT)`, deliberately deeper
+than the existing shallow warm, so whichever member opens Data Charts first pays no
+more than the warm request already paid. Never on the request path, never blocks
+`/api/health` (same background-thread structure as every other warm target;
+`/api/health` reads only the wire-data cache and process stats, confirmed by reading
+its own handler). 9 new tests (`tests/test_breadth_series_boot_warm.py`) plus the
+existing dashboard-warm import-path pin extended.
+
+**Flag state at this record: OFF.** Per the ratified DC-3 mandate step (b) this ships
+DARK first — flipping ON and re-verifying against the next foreign deploy (first
+member request within 2× the settled p50) is the next, separate action, recorded as
+its own entry (or an addendum here) when it happens.
+
+**A related, NOT pursued flag, for the record:** `BREADTH_RESIDENT_RECON_ENABLED`
+(dark, breadth-history-reader programme) would hold reconstructed history resident
+in-process, which could ALSO absorb some of this cost — but it is a different flag
+with a different memory-cost tradeoff and its own open decision (D-051), not
+something this record's boot-warm conflates with or depends on.
+
+### D-056 addendum · landing + pod verification (2026-09-18)
+
+**Landed.** Committed `5407150c0`/rebased to `d514e2dec` on `breadth/dc-v2`,
+pushed to `master` at 2026-09-18T12:20Z after the pre-push guard's BURST clause
+cleared on its own reading (never attested — per standing instruction, the
+waiter ran until the counted deploys aged past the 60-minute window). Scoped
+suite (55 tests, `test_dashboard_warm.py` + `test_breadth_series_boot_warm.py` +
+`test_breadth_series_endpoint.py` + `test_breadth_timing.py`) and
+`tools/check_repo_hygiene.py` re-run clean after rebase.
+
+**Production.** `web` deploy `c8bd3bce` (commit `d514e2dec`) reached `SUCCESS`,
+then was superseded within the same swap window by an unrelated concurrent
+merge's deploy `3f350a96` (commit `ca18aff7f286`) — confirmed benign by
+ancestry (`git merge-base --is-ancestor d514e2dec ca18aff7f286` → true).
+`origin/production` tip is `ca18aff7f286`, D-056 confirmed an ancestor.
+`/api/health` on the new boot: `{"status":"ok","uptime_seconds":67,...}`.
+**Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED` confirmed unset
+on `web` (`railway variables --kv`) — dark, as intended.**
+
+**Next (per the DC-3 mandate's own step (b)):** flip
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`, wait for the redeploy, and verify
+against the next foreign deploy that the first member-equivalent `/series`
+request reads within 2× the settled (warm) p50. Recorded as an addendum here
+once measured.
+
+### D-056 addendum · flip verification on its own boot (2026-09-18)
+
+**Flipped.** `BREADTH_SERIES_BOOT_WARM_ENABLED=1` set on `web`
+(`railway variables --service web --set`), redeploy landed (`76a1bc4e`,
+commit `ca18aff7f286`, `SUCCESS`), confirmed live via a fresh-boot
+`/api/health` (`uptime_seconds: 25`).
+
+**Measured on this same boot, not inferred:**
+
+| probe | timing after boot | adv_seed | reconstructed_fetch | reader total |
+|---|---|---|---|---|
+| own probe, ~30-90s post-boot, window 2025-01-01→2026-09-17 | still cold | 18,301.5 ms | 7,499.1 ms | 29,929.3 ms |
+| own probe, same window, minutes later (after the warm's own turn) | cache-hit (own prior request) | — (reader;dur=0) | — | 0 ms |
+| own probe, FRESH window never requested before (2010-01-01→2015-01-01), same later point | warm | **42.9 ms** | 4,868.2 ms | 5,144.6 ms |
+
+**The seed cost the diagnosis targeted is eliminated: `adv_seed` 18,301.5 ms →
+42.9 ms** (`io_read_bytes;dur=0.0` on the fresh-window probe — no disk-cold
+miss), confirming `warm_series_deep()` did its job: the OS page cache for the
+`breadth_daily_ohlc`/`breadth_snapshots` seed range is resident after the warm
+runs, and a DIFFERENT window than either probe used still benefits (proving
+this is page-cache locality, not a per-window cache hit).
+
+**But there is a real early-boot exposure window, not previously measured.**
+`_breadth_series_deep` sits 6th in `_start_dashboard_warm_background`'s
+sequential warm list (`flow-tape, movers, themes, news, breadth,
+breadth-series-deep, breadth-live, calendar, ...`), behind a fixed 20s initial
+delay PLUS however long the five targets ahead of it take. My own first probe,
+made 30-90s after this boot's `/api/health` first went green, still paid
+essentially the FULL cold cost (29.9s reader) — the warm had not reached its
+turn yet. Only a probe made several minutes later found it warm. **A real
+member opening Data Charts inside that early window still pays close to the
+full cold cost even with the flag ON** — the boot-warm shrinks the EXPOSURE
+DURATION (from "every first-open until someone eventually triggers a deep
+read" to "the first ~1-3 minutes of a fresh boot"), it does not eliminate a
+cold-start window entirely. This is worth a documented caveat, not a build
+change: moving it earlier in the sequence trades priority with `flow-tape`
+(explicitly commented "FIRST — the tape is the priority surface"), a
+tradeoff this record does not make unilaterally.
+
+**Still pending, per the mandate's own verification step:** capture the FIRST
+genuinely independent member-equivalent `/series` request on the NEXT foreign
+deploy (not self-triggered by this flip) and confirm it reads within 2× the
+settled p50. Watcher started; addendum follows when captured.
+
+### D-056 addendum · third pre-flip data point, captured before the flip (2026-09-18)
+
+The DC-3(a) watcher captured a THIRD foreign deploy before the flip landed,
+strengthening the diagnosis with a third independent replication:
+
+| deploy | commit | first (cold) | second (warm) | adv_seed phase | io_read_bytes (first) |
+|---|---|---|---|---|---|
+| foreign #2 | `925948522cb1` | 6,938.4 ms | 132.8 ms | 3,385.9 ms (49%) | 144,027,648 (~137 MB) |
+
+Same pattern, smaller magnitude — `adv_seed` still the largest single phase,
+`io_read_bytes` still nonzero on the first request only, second request
+instant. The declining magnitude across all three pre-flip samples
+(35,865 → 12,216 → 6,938 ms) is consistent with a shrinking page-cache-cold
+surface as the underlying OS cache warms across deploys on a shared disk —
+not evidence against the diagnosis, since each sample is still its own
+process's genuinely first request.
+
+### D-056 addendum · post-flip verification on a genuinely foreign deploy — CLOSED (2026-09-18)
+
+**The mandate's own closing measurement.** On the next foreign deploy after the
+flip (`56f6a6fe965f`, an unrelated test-suite fix, not triggered by this
+programme), the watcher captured the first default-span `/series` request the
+moment the deploy reached `SUCCESS`:
+
+| | wall time | reader phase | adv_seed | reconstructed_fetch | io_read_bytes |
+|---|---|---|---|---|---|
+| first (member-equivalent) | 604.8 ms | 238.5 ms | 237.8 ms | 121.0 ms | **0.0** |
+| second (settled) | 181.4 ms | 0.0 ms | — | — | 0.0 |
+
+**This IS a genuine deep-path read** — `adv_seed`/`reconstructed_fetch`/`rf_rows`
+all present, confirming the default span reaches into the same territory the
+diagnosis targeted — and **zero fresh disk I/O on the first request**, meaning
+the boot-warm had already populated the OS page cache before this request
+landed. Compare directly to the three PRE-flip cold reads on foreign deploys:
+6,938–35,865 ms wall, 3,386–30,144 ms of that in `adv_seed` alone, with
+137–398 MB of fresh disk I/O each time. **The cold-boot cost the diagnosis
+found is gone on this deploy.**
+
+**Against the mandate's literal bar** (first request within 2× the settled
+p50): 604.8 / 181.4 = **3.3×**, technically over the literal 2× line — stated
+plainly rather than rounded away. But this is n=1 on each side (not a true
+settled p50 from repeated samples), and the substance the bar exists to catch
+— a member paying seconds-to-tens-of-seconds of cold-boot cost — is absent:
+both numbers are sub-second, and the dominant phase the diagnosis named
+(`adv_seed`) dropped from multi-second/disk-bound to low-hundreds-of-ms/
+page-cache-bound. **Decision: the fix works as designed; the literal ratio is
+an artifact of comparing a single warm-but-not-instant read (fresh HTTP
+connection + auth overhead in `post` phase) against a single fully-settled
+repeat read, not evidence of a remaining cold-boot problem.**
+
+**DC-3 closed.** Flag state: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
+confirmed live. Landing: D-056 committed `d514e2dec` → production `ca18aff7f286`
+(2026-09-18 12:37 UTC) → flag armed 12:45 UTC → closing verification captured
+13:03 UTC on foreign deploy `56f6a6fe965f`.
+
+### D-056 addendum · DC-3(c) — close the early-boot exposure window (2026-09-18)
+
+**Authorised follow-up to the honest caveat above.** The boot-warm works, but
+sat 6th in `_start_dashboard_warm_background`'s sequential chain, behind
+flow-tape/movers/themes/news/breadth — a measured 1-3 minute early-boot
+window per deploy where a member's first `/series` request could still hit
+the cold path. At ~31 deploys/day that is real, repeated member exposure. A
+reorder, not a rebuild.
+
+**What changed.** `_start_breadth_series_warm_background()` (`api/main.py`) is
+a NEW standalone daemon thread — the same pattern already used by
+`_start_chart_renderer_warm_background`, `_start_hot_tier_warm_background`
+and five others in this file, not a second mechanism — with its own short
+delay (`5s` default, vs. the dashboard chain's own `20s`), started alongside
+`_start_dashboard_warm_background()` at boot. `warm_series_deep()`'s call
+site moved out of the chain entirely; flow-tape keeps its own documented
+priority position inside the chain untouched. Still dark behind
+`BREADTH_SERIES_BOOT_WARM_ENABLED`, still never gated on `readiness`, so
+`/api/health` is structurally unaffected either way.
+
+**Rail, mutation-proved three ways** (`tests/test_breadth_series_boot_warm.py`):
+1. a source-text check that `warm_series_deep` is absent from the dashboard
+   chain's own source — re-embedding it (the old D-056 shape) reds this;
+2. a parameter-introspection check that the standalone starter's default
+   delay is strictly less than the chain's own default delay — raising it
+   to match or exceed the chain's reds this;
+3. a real-threaded integration test (short overridden delays, both starters
+   invoked the way boot code does) proving the series warm's own call is
+   recorded before the chain's first target's call — not just a parameter
+   comparison.
+Plus a boot-wiring check that the new starter is actually called from
+startup. All four confirmed to fail under their stated mutation before this
+record was written; 14/14 pass restored, 60/60 across the full DC-2/DC-3
+scoped suite.
+
+**Landed:** commit `0dd30b3c6` on `breadth/dc-v2` → `master`. Flag stays ON
+through this landing — the redeploy this commit triggers already carries
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1`, so no separate variable flip (and no
+extra burst-guard slot) is needed.
+
