@@ -1,0 +1,89 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 3,
+    "unchanged": 123,
+    "missing": 0,
+    "baseline": 126,
+    "current": 123,
+    "current_ran": 47207,
+    "new_flaky": 0,
+    "flaky_size": 3,
+    "flaky_new": 0,
+    "flaky_fixed": 2,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 126 = unchanged 123 + fixed 3 + missing 0  |  current 123 = unchanged 123 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35387465574",
+  "current_run_id": "35390303171",
+  "baseline_sha": "8887915259b76dd0600f7aed14dd2e752b356055",
+  "current_sha": "4fc829aec697225a27b59a311257614866777c76",
+  "commit_range": "8887915259b76dd0600f7aed14dd2e752b356055..4fc829aec697225a27b59a311257614866777c76",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state",
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason",
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state": {
+      "class": "test-file-change",
+      "commits": [
+        "4fc829aec"
+      ],
+      "workstreams": [
+        {
+          "commit": "4fc829aec",
+          "workstream": "D5 CP3",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    },
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason": {
+      "class": "test-file-change",
+      "commits": [
+        "4fc829aec"
+      ],
+      "workstreams": [
+        {
+          "commit": "4fc829aec",
+          "workstream": "D5 CP3",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    },
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict": {
+      "class": "test-file-change",
+      "commits": [
+        "4fc829aec"
+      ],
+      "workstreams": [
+        {
+          "commit": "4fc829aec",
+          "workstream": "D5 CP3",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    }
+  }
+}
