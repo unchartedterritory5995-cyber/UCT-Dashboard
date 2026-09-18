@@ -5,7 +5,7 @@
   "queue": [
     {
       "id": "p2-metadata-settle-first-folder",
-      "status": "pending",
+      "status": "done",
       "why": "P2 stage-1 proof, guard still FULL. The `folder` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
       "expect": "GREEN",
       "cmd": [
@@ -18,14 +18,14 @@
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
-      "attempts": 3,
+      "attempts": 4,
       "result": {
         "exit": 0,
-        "seconds": 686.3,
-        "tail": "⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer,",
-        "inconclusive": true,
+        "seconds": 228.9,
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:06:23.982146+00:00` · 5 request(s) carried the sentence (la",
+        "inconclusive": false,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T102847-p2-metadata-settle-first-folder",
+        "evidence": "docs/notebook/evidence/20260918T120334-p2-metadata-settle-first-folder",
         "evidence_ok": true
       },
       "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
@@ -86,7 +86,7 @@
     },
     {
       "id": "p2-metadata-settle-first-hero",
-      "status": "pending",
+      "status": "done",
       "why": "P2 stage-1 proof, guard still FULL. The `hero` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof.",
       "expect": "GREEN",
       "cmd": [
@@ -99,14 +99,14 @@
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
-      "attempts": 1,
+      "attempts": 2,
       "result": {
-        "exit": 1,
-        "seconds": 6.8,
-        "tail": "rig profile: C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent` / STOP: the rig profile is locked by a running Chrome (lockfile). Close it, or kill by marker, before starting a run.",
+        "exit": 0,
+        "seconds": 208.1,
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:10:12.703472+00:00` · 5 request(s) carried the sentence (la",
         "inconclusive": false,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T083403-p2-metadata-settle-first-hero",
+        "evidence": "docs/notebook/evidence/20260918T120725-p2-metadata-settle-first-hero",
         "evidence_ok": true
       },
       "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to."
@@ -127,18 +127,20 @@
         "--out",
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
-      "attempts": 3,
+      "attempts": 4,
       "result": {
         "exit": 124,
         "seconds": 1800.1,
-        "tail": "TIMED OUT",
-        "inconclusive": false,
+        "tail": "⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:39:26.440400+00:00` · 5 request(s) carried the sentence (la",
+        "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T080337-p2-2.8b-second-writer-while-away",
+        "evidence": "docs/notebook/evidence/20260918T121054-p2-2.8b-second-writer-while-away",
         "evidence_ok": true
       },
       "requeued_why": "exit 124 at 1800s with an EMPTY raw artifact - which was a stdout BUFFERING artifact, not a hang: the rig Chrome's own creation timestamp shows it started 3s in. stdout is line-buffered now, so a re-run leaves its trail wherever it gets to.",
-      "ordering_why": "⛔ RUN LAST. It costs 22-30 min of a ~57 min window and has twice eaten the whole thing, leaving the four quick metadata cells unrun. Ordering it last banks 4 of 5 P2 cells even when 2.8b times out again."
+      "ordering_why": "⛔ RUN LAST. It costs 22-30 min of a ~57 min window and has twice eaten the whole thing, leaving the four quick metadata cells unrun. Ordering it last banks 4 of 5 P2 cells even when 2.8b times out again.",
+      "timeout": 3300,
+      "timeout_why": "⛔ MEASURED, not guessed. The 1800s default killed it at cell 21 of 39 with 16 GREEN / 0 RED already banked: 21 cells at ~80s plus one 108s swap-wait = ~1790s, i.e. exactly the ceiling. 39 cells need ~3120s, and 3300s still fits inside a ~57min (3420s) window PROVIDED it starts at the top of one. It is the only P2 cell left, so it gets the whole window."
     },
     {
       "id": "w2-deferred-by-guard-banking-run",

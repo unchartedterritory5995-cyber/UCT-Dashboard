@@ -1,0 +1,12 @@
+
+=== WINDOW OPEN 12:03:34 · 3 staged ===
+   ▶ p2-metadata-settle-first-folder: python tools/q1_f5_matrix.py --family folder --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T120334-p2-metadata-settle-first-folder (12589B raw)
+   ⇒ p2-metadata-settle-first-folder: ok in 228.9s
+   ▶ p2-metadata-settle-first-hero: python tools/q1_f5_matrix.py --family hero --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T120725-p2-metadata-settle-first-hero (14688B raw)
+   ⇒ p2-metadata-settle-first-hero: ok in 208.1s
+   ▶ p2-2.8b-second-writer-while-away: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T121054-p2-2.8b-second-writer-while-away (44746B raw)
+   ⇒ p2-2.8b-second-writer-while-away: INCONCLUSIVE (attempt 4, giving up — needs a human) in 1800.1s
+queue empty — nothing staged
