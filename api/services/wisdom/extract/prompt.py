@@ -240,7 +240,7 @@ def system_prompt(vocab: Optional[list[dict]] = None) -> str:
     return _RULES + "\nSETUP VOCABULARY (the only values allowed in setup_vocab)\n" + "\n".join(lines) + "\n"
 
 
-def extractor_version(system_text: Optional[str] = None) -> str:
+def extractor_version(system_text: Optional[str] = None, model: Optional[str] = None) -> str:
     system_text = system_prompt() if system_text is None else system_text
     digest = hashlib.sha256(
         "\n\x1e\n".join([system_text, schema_text(), TRANSPORT_REVISION]).encode("utf-8")).hexdigest()
@@ -259,7 +259,22 @@ def extractor_version(system_text: Optional[str] = None) -> str:
         raw = local_backend.local_model().lower()
         slug = re.sub("[^a-z0-9]+", "-", raw).strip("-")[:24]
         return f"wx-local-{slug}-{digest[:8]}"
-    return f"{PROMPT_FAMILY}-{digest[:8]}"
+
+    # R80, session 24: every PAID model gets its own extractor_version too - not just local
+    # vs paid. Without this, a Haiku run and an Opus run over the same prompt/schema would
+    # carry the IDENTICAL version, and reconcile.score_silently would compare two different
+    # models' extractions as if they were repeat passes of one model. ⛔ THE DIGEST ITSELF IS
+    # UNCHANGED (still system+schema+transport, no model folded in) so wx-v0-fc47bc97 -
+    # pinned in production's accepted gate row - is preserved BYTE-FOR-BYTE for the default
+    # model. Only a model OTHER than the default gets a distinguishing slug; every existing
+    # call site (batch.py, golden.py, audit.py, the gate tool, the routers - none of which
+    # pass `model` today) keeps working unchanged, because the default resolves from
+    # `config.configured_model()`, the SAME place the extraction call itself reads its model.
+    resolved = (model or config.configured_model() or config.DEFAULT_MODEL).strip()
+    if resolved == config.DEFAULT_MODEL:
+        return f"{PROMPT_FAMILY}-{digest[:8]}"
+    slug = re.sub("[^a-z0-9]+", "-", resolved.lower()).strip("-")[:24]
+    return f"{PROMPT_FAMILY}-{slug}-{digest[:8]}"
 
 
 # ── the user message ─────────────────────────────────────────────────────────

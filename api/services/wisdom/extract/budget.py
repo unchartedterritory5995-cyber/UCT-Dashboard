@@ -70,6 +70,11 @@ CACHE_WRITE_1H_MULT = 2.0
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-opus-5": (5.0, 25.0),
     "claude-sonnet-5": (2.0, 10.0),
+    # R96/R97, session 23-24: $1/$5, cited from api/services/catalyst/cost_guard.py's own
+    # PRICING table (that module's docstring: "verified against the Claude API reference"),
+    # never invented here. This module carried no Haiku row before a Haiku golden run needed
+    # one for R80's per-model extractor_version and this session's real pricing table.
+    "claude-haiku-4-5": (1.0, 5.0),
 }
 FALLBACK_PRICE_PER_MTOK = (10.0, 50.0)
 DEFAULT_BUDGET_USD = 120.0

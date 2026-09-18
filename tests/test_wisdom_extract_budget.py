@@ -54,6 +54,20 @@ def test_an_unknown_model_is_never_priced_below_the_most_expensive_known_rate():
     assert budget.price_for("claude-mystery-9") >= known_max
 
 
+def test_haiku_price_row_matches_cost_guards_own_table():
+    """R96/R97, session 23-24: cited from api/services/catalyst/cost_guard.py's own _PRICING
+    table, never invented for this session's pricing work. If cost_guard.py's rate ever
+    moves, this is the rail that notices the two have drifted apart.
+
+    ⚠️ Sonnet is NOT cross-checked the same way: cost_guard._PRICING prices claude-sonnet-5
+    at $3/$15, budget.PRICES_PER_MTOK prices it at $2/$10 -- an existing disagreement between
+    two independent tables, found while adding this row, out of scope to reconcile here."""
+    from api.services.catalyst import cost_guard
+
+    guard_row = cost_guard._PRICING["claude-haiku-4-5"]
+    assert budget.price_for("claude-haiku-4-5") == (guard_row["input"], guard_row["output"])
+
+
 def test_estimates_can_price_a_cached_share_but_default_to_none():
     full = budget.estimate_cost("claude-opus-5", 10_000, 2_000)
     cached = budget.estimate_cost("claude-opus-5", 10_000, 2_000, cached_input_tokens=8_000)

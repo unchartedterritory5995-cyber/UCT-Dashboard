@@ -101,6 +101,55 @@ def test_the_version_is_stable_and_moves_with_prompt_vocabulary_and_schema(monke
     assert prompt.extractor_version() != v
 
 
+# ── R80, session 24: every PAID model gets its own extractor_version ─────────
+
+def test_the_DEFAULT_MODEL_version_is_the_PINNED_literal(monkeypatch):
+    """⛔⛔ wx-v0-fc47bc97 is pinned in production's accepted golden-gate row. A change here
+    ships extraction with `blocked_by_gate`. This is the load-bearing regression test for
+    R80's whole design: the digest must stay untouched by the model-awareness added below."""
+    monkeypatch.delenv("WISDOM_EXTRACT_MODEL", raising=False)
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    assert prompt.extractor_version() == "wx-v0-fc47bc97"
+
+
+def test_a_NON_DEFAULT_model_gets_a_DIFFERENT_version_via_env(monkeypatch):
+    """⭐ No call site needs to change: every existing caller invokes extractor_version()
+    bare, and the model resolves from config.configured_model() — the SAME place the
+    extraction call itself reads its model — by default."""
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    monkeypatch.setenv("WISDOM_EXTRACT_MODEL", "claude-haiku-4-5")
+    v = prompt.extractor_version()
+    assert v != "wx-v0-fc47bc97"
+    assert "haiku" in v
+
+
+def test_two_different_paid_models_never_share_a_version(monkeypatch):
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    monkeypatch.setenv("WISDOM_EXTRACT_MODEL", "claude-haiku-4-5")
+    a = prompt.extractor_version()
+    monkeypatch.setenv("WISDOM_EXTRACT_MODEL", "claude-sonnet-5")
+    b = prompt.extractor_version()
+    assert a != b, "two models sharing a version would reconcile as repeat passes of one"
+
+
+def test_explicit_model_argument_overrides_the_env(monkeypatch):
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    monkeypatch.delenv("WISDOM_EXTRACT_MODEL", raising=False)
+    assert prompt.extractor_version(model="claude-haiku-4-5") == prompt.extractor_version(
+        model="claude-haiku-4-5")
+    assert prompt.extractor_version(model="claude-haiku-4-5") != prompt.extractor_version()
+
+
+def test_the_DIGEST_ITSELF_is_unaffected_by_model_choice(monkeypatch):
+    """⛔ The model changes the STRING, never the underlying prompt/schema digest — a Haiku
+    version and the Opus version must carry the SAME trailing hash, proving the model is a
+    label on identical prompt content, not a second thing being hashed."""
+    monkeypatch.delenv("WISDOM_EXTRACT_BACKEND", raising=False)
+    opus_suffix = prompt.extractor_version().rsplit("-", 1)[-1]
+    haiku_suffix = prompt.extractor_version(model="claude-haiku-4-5").rsplit("-", 1)[-1]
+    assert opus_suffix == haiku_suffix == "fc47bc97"
+
+
 def test_the_prompt_states_every_rule_and_the_whole_vocabulary():
     text = prompt.system_prompt()
     for n in range(1, 11):
