@@ -326,6 +326,23 @@ un-maximises).
   **R49's rollback call must use the same pinned cwd, and its rehearsal must prove it from the scheduled
   context — not from an interactive shell, where it would pass for the wrong reason.**
 
+- [ ] **R62 — the screener sweep-lock fix, acceptance owed** — `TODO, 2026-09-18 09:30-16:00 ET`
+  ⛔ **This label was never carried on this branch — a docs gap, not a mystery.** The fix itself
+  shipped `e7369556d` (D-17, 2026-09-17): `full_market_snapshot()` (the ~13,000-symbol network
+  read) hoisted OUT of `snapshot_builder._BUILD_LOCK` in `api/services/screener/live_tier.py`.
+  Measured pre-fix, n=16 on production: `held_lock_ms` 28,155–96,658 ms, median ~56 s against the
+  module's own documented 122 ms — up to 790×, ~94% duty cycle instead of ~0.2%. **NOT a C-02
+  fix** (the commit says so): the lock's invariant is about the anchors, not the market; this
+  closes a *different*, real defect the same census surfaced. Confirmed `e7369556d` is an
+  ancestor of `origin/master` (live).
+  **Acceptance, owed during TODAY's 09:30-16:00 ET session** (the sweep needs the market open to
+  run for real): 10 consecutive sweep receipts (`[screener-live]` log lines,
+  `api/services/screener/live_tier.py:1061`) with `held_lock_ms < 1,000 ms`, AND
+  `"maximum number of running instances reached"` absent from the tailed web log for the same
+  span. Record all ten receipts. `UCT-D14-LogTail` (item 1, Friday addendum) is running and
+  capturing `web`'s log continuously so this sweep doesn't need a live capture race.
+  **R62 CLOSED** if all ten clear the bar and no instance-collision line appears; otherwise name
+  the gap.
 - [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4, needs-R49`
 - [ ] **W6 — member flip** per R40, monitor per R41 for >= 5 trading days — `BLOCKED-needs-W5`
 - [ ] **W7 — close-out** — `BLOCKED-needs-W6`
@@ -357,6 +374,7 @@ block D1-D3). No item may read "pending owner".
 | D-13 start | Wed 16 Sep, >= 09:00 ET, weekday |
 | ~~R17 + smoke rows 5/6/7~~ ✅ **RUN 2026-09-17 14:00:07Z** | ~~first weekday 10:00 ET the session spans~~ — SPY failed in RTH too, on a 30 s timeout (`[flow] fetch failed SPY (30): timed out`), NOT the ETF partition. Row 7 settled NOT RUNNABLE on evidence; rows 5/6 unchanged. `evidence/r17-flow-rth/2026-09-17-spy-rth.md` |
 | OI-13 step 6 (R42) | Thu 17 Sep at the earliest — counter must span a 07:35 ET run + a market session |
+| R62 acceptance (10 sweep receipts, `held_lock_ms < 1,000`) | Fri 18 Sep, 09:30-16:00 ET session |
 | S2 after an operator command (R33) | +15 min |
 | member flip (R40) | >= 30 min clear of 07:35 ET; outside 09:25-10:30 ET |
 
