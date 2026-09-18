@@ -1106,3 +1106,53 @@ DOM node and every `__uct*` global.
 ⚠️ The browser is shared. Another session's unsaved Pine editor buffer is not yours to touch,
 and a chart left on the wrong symbol is a bug report from someone who did not know you were
 there.
+
+---
+
+## ⭐⭐ THE OTHER HALF OF A CAPTURE IS NOT IN THIS FILE — `tools/pine_member_pane_capture.py`
+
+**Adopted as the standing member-pane instrument by owner ruling, 2026-09-18.**
+Everything above is the VENDOR half: the owner's TradingView account, the owner's
+layouts, a shared browser. The MEMBER half — our own pane, on our own rig — has its own
+tool, and the two are deliberately not the same procedure.
+
+```
+UCT_RIG_PORT=8131 python docs/pine/wip/rig/boot_rig.py          # the rig, sandboxed
+python tools/pine_member_pane_capture.py --base http://127.0.0.1:8131 \
+       --out docs/pine/capture --tag YYYY-MM-DD
+python tools/pine_member_pane_capture.py --self-check           # prove the gate fires
+```
+
+**Tiers, read off `app/src/styles/breakpoints.js` rather than typed as new literals:**
+**phone 390 × 844 · tablet 820 × 1180 · desktop 1440 × 900.** One instance is attached
+once at desktop and the SAME instance is rendered at all three — a tier capture is a
+question about rendering, and re-authoring at each width answers a different one.
+
+⭐ **IT PASSES GATE v2.1 HONESTLY, WHICH IS THE WHOLE REASON IT EXISTS.** A Playwright
+page owns its own viewport and its own visibility: nothing occludes it, it reports
+`visible`, and the widths are exact. The gate is asserted immediately before every shot,
+and `--self-check` drives a page into `hidden` and proves the refusal fires — a gate
+nobody has seen fire is not a gate.
+
+⛔ **WHY IT HAD TO EXIST AT ALL, recorded so the next session does not spend an hour on
+it:** the operator's Chrome window can be *occluded* (`visibilityState: "hidden"` with
+perfectly healthy dimensions — see that section above) **and maximized**, and a maximized
+window IGNORES a bounds change, so `resize_window` returns success while `innerWidth`
+stays put. Neither is fixable from a session: Windows' foreground lock refuses
+`SetForegroundWindow` to a background process, `WScript.Shell.AppActivate` returns
+`False`, and the P/Invoke route is refused by the harness. ⛔ **A reported resize with an
+unchanged `innerWidth` is a FAILURE**, and the tool asserts the page reports the width it
+was asked for.
+
+⛔ **ITS LIMIT IS PART OF ITS DEFINITION.** It never reaches the vendor: that is the
+owner's authenticated account, and getting there from a tool would mean handling the
+owner's credentials or borrowing their Chrome profile. Sign-in here is an API call
+against a SANDBOX account on a LOCAL rig — no password is typed into a page — and the
+fixture is fetched BY THE PAGE from the file, with the textarea's sha256 compared to the
+file's before anything is attached. Two sha256s cannot agree by accident the way a length
+and a checksum can.
+
+⚠️ **It also answers a question this file cannot:** the phone shell has **no builder
+door** (H.12) — `app/src/pages/charts/mobile/` mounts no `BuilderSheet`. The tool found
+it by trying, and the finding is recorded in `WAVE2-A-PLAN.md` rather than tidied away by
+the rewrite that made the capture pass.

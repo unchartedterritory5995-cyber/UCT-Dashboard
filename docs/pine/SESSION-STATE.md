@@ -2,6 +2,29 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 (H.12) — ✅ RULING RECORDED. ⛔ THE WINDOW READ `hidden` A THIRD TIME.
+>
+> ✅ **H.12 (owner, chat): the phone builder-door gap is WAVE 3, not a Wave 2
+> blocker.** Desktop and tablet author through the member door; phone viewing is
+> intact and the three tier captures are the evidence. Recorded in
+> `WAVE2-A-PLAN.md` with how it was found — the capture tool's phone leg answered
+> `{"gear": false}`, and reading the shell rather than hunting a different button
+> turned a script bug into a product finding.
+> ✅ **`tools/pine_member_pane_capture.py` adopted** as the standing member-pane
+> instrument, and named in `capture-procedure.md` beside the vendor procedure with
+> its tiers, its self-check, and its limit.
+>
+> ⛔ **Part 1's reading, on the `01f1AcIj` tab itself:** `visibilityState:
+> "hidden"` · `hasFocus: false` · `outerWidth/Height: 0 × 0` · `innerWidth: 1920`
+> · `screen.avail: 1920 × 1032`. The layout loaded (tab title read
+> `NVDA … UCT CAPTURE RIG — no studies`), so the lane is there — the window is
+> not. **Read once, not retried; no write and no screenshot was attempted; the tab
+> was closed.** Parts 2–6 did not run, so **#145 is still DRAFT and nothing has
+> reached master.**
+>
+> ▶️ It is still one physical act: Chrome in front, **Restore** (not maximized),
+> the `01f1AcIj` tab active, nothing covering it, inside RTH for H.8.
+
 > ### ⏱️ 2026-09-18 (tiers) — ✅ ALL THREE TIERS CAPTURED WITH THE GATE PASSING, WITHOUT THE OPERATOR'S BROWSER.
 >
 > `tools/pine_member_pane_capture.py`. The operator's Chrome cannot be raised or

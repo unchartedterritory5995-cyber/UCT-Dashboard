@@ -3599,6 +3599,56 @@ Wave 1's fixture is all sealed bars (last bar `2026-09-11`) and cannot cover it.
 | the screener's second snapshot endpoint | **screener** | — |
 | consolidated-vs-primary | **the owner's provenance decision** | already routed out |
 | **(j)** j.1–j.5 | **the owner** | ~315 min, stop 630 |
+| **H.12** — no builder door on a phone | **Wave 3** | 0 mounts, 0 `onCreateFormula` |
+| the VENDOR capture on `01f1AcIj` | **the owner's own browser** | gate-blocked, 3 reads |
+
+---
+
+## ✅ H.12 — THE PHONE BUILDER-DOOR GAP IS WAVE 3, NOT A WAVE 2 BLOCKER
+
+**Owner ruling, chat, 2026-09-18.**
+
+> A member on a phone can SEE a pane and cannot AUTHOR one. That is a Wave 3
+> item. Desktop and tablet author through the member door; phone viewing is
+> intact, and the three tier captures are the evidence.
+
+**What was measured, and it is a source fact, not an inference.** At ≤ 640px
+`/charts` renders `MobileWorkspace`; the phone chart shell
+(`app/src/pages/charts/mobile/`) **mounts no `BuilderSheet` and declares no
+`onCreateFormula` anywhere** — a grep over that directory returns **zero** of
+each. `MobileIndicatorSheet` writes overlays and presets; it neither lists custom
+definitions nor creates one.
+
+⭐ **HOW IT WAS FOUND IS THE PART WORTH KEEPING.** The first version of
+`tools/pine_member_pane_capture.py` opened the builder at every width, and the
+phone leg answered `{"gear": false}`. The tempting read was "the selector is
+wrong on mobile" — a script fault, fixable by hunting a different button. Reading
+the shell instead turned a capture bug into a product finding. ⛔ **The rewrite
+then had to be careful not to bury it**: attaching once at desktop and rendering
+the SAME instance at three widths is the right shape for a tier capture, and it
+would also have made the phone question quietly disappear. The two questions are
+therefore asked separately and answered separately — *can a member create one at
+this width* (source: no) and *does it render at this width* (capture: yes).
+
+## ✅ `tools/pine_member_pane_capture.py` IS THE STANDING MEMBER-PANE INSTRUMENT
+
+**Owner ruling, same message.** Adopted, and named in `capture-procedure.md`
+beside the vendor procedure.
+
+⛔ **IT EXISTS BECAUSE A GATE THAT CANNOT PASS IS NOT A GATE THAT MAY BE WAIVED.**
+The operator's Chrome is occluded (`visibilityState: "hidden"`) and maximized (a
+bounds change is ignored, so `resize_window` reports success while `innerWidth`
+stays 1920). Nothing in a session can move it: Windows' foreground lock refuses
+`SetForegroundWindow` to a background process, `AppActivate` returns `False`, and
+the P/Invoke route is refused by the harness. A Playwright page owns its own
+viewport and its own visibility, so the gate **passes honestly** there — asserted
+immediately before every shot, with `--self-check` driving a page into `hidden`
+to prove the refusal fires.
+
+⛔ **AND ITS LIMIT IS PART OF ITS DEFINITION: the rig half only.** The vendor
+capture is on the owner's authenticated TradingView account; reaching it from a
+tool means handling the owner's credentials or borrowing their Chrome profile,
+and neither is this instrument's business. That half stays owner-driven.
 
 ⚠️ **Two hazards that are not defects yet, recorded so they are not rediscovered:** the
 propagating `and` is **v6-incorrect by specification** with **73 of 269** corpus scripts
