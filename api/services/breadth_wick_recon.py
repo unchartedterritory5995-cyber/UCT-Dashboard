@@ -28,11 +28,27 @@ from typing import Optional
 # is modest. This is THE anti-garbage guard — the failed shortcut produced 40-50+
 # point "swings"; genuine whole-market breadth rarely moves >~20 points intraday
 # even on a washout, so 30 rejects the nonsense without clipping real volatile days.
-_PCT_METRICS = frozenset({
-    "pct_above_5sma", "pct_above_10sma", "pct_above_20ema", "pct_above_40sma",
-    "pct_above_50sma", "pct_above_100sma", "pct_above_200sma",
-    "hi_ratio", "lo_ratio", "near_52w_high",
-})
+#
+# ⛔⛔ DERIVED FROM THE REGISTRY, NEVER HAND-MAINTAINED AGAIN. This was a literal set
+# and it had drifted: `near_52w_high` is `UNIT_COUNT` / `DOMAIN_NONNEG` in
+# `breadth_metrics` — a COUNT of securities — but sat in here, so `sane_wick` applied
+# the two percentage-only rules to it. The `h > 100` rule then rejected every session
+# where more than 100 names were within 5% of their 52-week high, which is most of
+# them: 137 of 17,298 rows survived (0.79%), US kept ZERO, the stored maximum was
+# exactly 100.0, and the survivors were a biased sample of market BOTTOMS. Its own
+# sibling `new_52w_highs` — same family, same unit, not in this set — reaches 874.
+#
+# ⭐ `DOMAIN_PCT` is the precise question, NOT `UNIT_PERCENT`. The rules below assert a
+# 0-100 share, which is exactly what `pct_0_100` means. `aaii_spread` is a percent that
+# is DOMAIN_SIGNED (it crosses zero), so a [0,100] clamp would be wrong for it — and
+# selecting on unit rather than domain would have silently swept it back in.
+def _pct_metrics() -> frozenset:
+    from api.services import breadth_metrics as _bm
+    return frozenset(k for k, m in _bm.METRICS.items()
+                     if m["domain"] == _bm.DOMAIN_PCT)
+
+
+_PCT_METRICS = _pct_metrics()
 MAX_PCT_INTRADAY_DELTA = 30.0   # env-tunable at the sweep layer
 
 
@@ -199,8 +215,84 @@ def _levels_for_day(conn, tickers, day_ts):
     return bl.build_levels(tickers, closes, vols, prior)
 
 
+def session_eod_closes(conn, day_ts: int, tickers=None) -> dict:
+    """{ticker: official adjusted close} for session `day_ts`, from `bars.db`.
+
+    ⭐ THE AUTHORITATIVE EOD CROSS-SECTION, and deliberately the SAME series
+    `build_levels` consumes — so the Close it produces is measured on exactly the basis
+    its own levels are on, with no second adjustment vintage to reconcile. It carries
+    the closing auction, which the 15:59 minute bar does not: `breadth_session`'s own
+    note is that "the closing auction reaches the candle through the AUTHORITATIVE EOD
+    close — which is where C comes from — not the intraday path".
+
+    ⚠️ Never raises. A caller with no usable connection gets `{}` and decides.
+    """
+    want = set(tickers) if tickers is not None else None
+    out: dict = {}
+    try:
+        for t, c in conn.execute(
+                "SELECT ticker, c FROM ohlcv WHERE tf='D' AND ts=?", (day_ts,)):
+            if c is None or (want is not None and t not in want):
+                continue
+            try:
+                v = float(c)
+            except (TypeError, ValueError):
+                continue
+            if v > 0.0:
+                out[t] = v
+    except Exception:                                  # noqa: BLE001 - never raises
+        return {}
+    return out
+
+
+def session_basis(conn, day_ts: int, tickers=None) -> dict:
+    """{ticker: factor} lifting AS-TRADED session prices onto the LEVELS basis.
+
+    ⭐⭐ ONE CANONICAL BASIS, AND THE LEVELS OWN IT. `get_grouped_daily_ohlcv` states the
+    rule this follows: *adjusted=True is the ONLY correct basis for a moving average or
+    a 52-week extreme measured ACROSS a window; a raw frame puts a pre-split and a
+    post-split price in the same average.* So the window is right and the intraday path
+    is what must move — the alternative (un-adjusting the levels) would rebuild the very
+    frame the validation already proved correct, to reach the same inequality.
+
+    factor = adjusted_close(D) / raw_close(D), both official closes of THE SAME SESSION.
+    The numerator is read from `bars.db` deliberately rather than from the provider's
+    adjusted endpoint: it is the exact series `build_levels` consumed, so the lift lands
+    on that basis and not merely near it.
+
+    ⚠️ NOT LOOK-AHEAD. The ratio carries the cumulative corporate-action factor between
+    D and today and nothing else — no future price, no future market state. It is
+    applied per ticker to every price of that ticker, so no within-name comparison moves
+    relative to that name's own levels; only the two sides are put on one scale.
+    ⛔ Names whose factor cannot be established are simply absent, and `session_ohlc`
+    fails closed on them.
+    """
+    from api.services import breadth_live as bl
+    from api.services import massive
+    adj = session_eod_closes(conn, day_ts, tickers)
+    if not adj:
+        return {}
+    try:
+        raw = massive.get_grouped_daily_closes(bl._iso(day_ts), adjusted=False) or {}
+    except Exception:                                  # noqa: BLE001
+        return {}
+    out = {}
+    for t, a in adj.items():
+        # provider form carries a dot (BRK.B); the frame and the flat file use a dash.
+        r = raw.get(t) or raw.get(t.replace("-", "."))
+        try:
+            r = float(r)
+        except (TypeError, ValueError):
+            continue
+        if r > 0.0 and a > 0.0:
+            out[t] = a / r
+    return out
+
+
 def session_ohlc(D: str, per_ticker: dict, levels: dict,
-                 bucket_min: int = 1, members: Optional[set] = None) -> Optional[dict]:
+                 bucket_min: int = 1, members: Optional[set] = None,
+                 basis: Optional[dict] = None,
+                 eod_prices: Optional[dict] = None) -> Optional[dict]:
     """ONE universe's OHLC from an ALREADY-DOWNLOADED session. The whole math path.
 
     ⭐⭐ EXTRACTED SO THE EXPENSIVE FILE IS READ ONCE. `recon_day` below is now a thin
@@ -242,6 +334,7 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     # printed first — a biased fake-low open that becomes a garbage lower wick.
     last_px: dict = {}
     _lv_tk = levels.get("tickers") or []
+    _lv_set = set(_lv_tk)
     _pc = levels.get("prev_close")
     if _pc is not None:
         for _i, _tk in enumerate(_lv_tk):
@@ -253,15 +346,57 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
                 last_px[_tk] = _v
     prices_by_bucket = []
     feed = [tk for tk in per_ticker if members is None or tk in members]
+    # ⛔⛔ THE BASIS LIFT. `by_tb` is AS-TRADED (the minute flat file is a raw SIP
+    # aggregate); `levels` is SPLIT-ADJUSTED TO THE CURRENT BASIS (`bars.db` is filled
+    # from `get_agg_bars`, which requests `adjusted=true`). Comparing one against the
+    # other asked "is this as-traded price above an adjusted 50-day average", which is
+    # a question about a corporate action, not about breadth. Measured on 2015-08-24:
+    # `new_52w_highs` read 184 against a consistent-basis 2, and `pct_above_50sma`
+    # 18.7 against 7.5. The error decayed to exactly 0.000 by 2026 because no split
+    # has happened yet — which is what identified it.
+    #
+    # ⭐ MULTIPLYING IS NOT LOOK-AHEAD. `basis` is `adjusted_close(D) / raw_close(D)`,
+    # both official closes of THE SAME SESSION, so it carries the cumulative corporate
+    # -action factor and no future market information. It is applied per ticker to
+    # every one of that ticker's prices, so it cannot move a within-name comparison
+    # relative to that name's own levels — it only puts the two on one scale.
+    # ⚠️ `basis is None` means the caller asked for NO lift and gets the historical
+    # behaviour unchanged. It must never mean "lift by an empty map", which would drop
+    # every name in the frame and hand back an empty universe.
+    lift = basis is not None
+    scale = basis or {}
     for T in buckets:
         for tk in feed:
             px = by_tb[tk].get(T)
-            if px is not None:
-                last_px[tk] = px
+            if px is None:
+                continue
+            if lift:
+                f = scale.get(tk)
+                if f is None:
+                    # ⚠️ FAIL CLOSED, but only where it can matter: a name the levels
+                    # frame carries MUST have a basis or its comparisons are
+                    # meaningless, so it is dropped. A name absent from the frame has
+                    # no level to be inconsistent with and only ever counted toward
+                    # `universe_count`, so it passes through at its traded price.
+                    if tk in _lv_set:
+                        last_px.pop(tk, None)
+                        continue
+                    f = 1.0
+                px = px * f
+            last_px[tk] = px
         prices_by_bucket.append(dict(last_px))
     if not prices_by_bucket:
         return None
-    close_m = compute_metrics(levels, prices_by_bucket[-1]) or {}
+    # ⭐⭐ THE AUTHORITATIVE CLOSE, not the last minute of the session. `aggregate_day`
+    # has always documented `close_val_by_metric` as "the AUTHORITATIVE EOD close per
+    # metric"; handing it `prices_by_bucket[-1]` quietly made the body the 15:59
+    # cross-section instead, which excludes the closing auction and puts the stored
+    # Close on a different footing from every live/close_recon row it will sit beside.
+    # `eod_prices` is the official adjusted close for D — the same basis as `levels`.
+    close_px = eod_prices if eod_prices else prices_by_bucket[-1]
+    if eod_prices and members is not None:
+        close_px = {t: v for t, v in close_px.items() if t in members}
+    close_m = compute_metrics(levels, close_px) or {}
     _add_composites(close_m)
     close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
     out = aggregate_day(levels, prices_by_bucket, close_val)
@@ -297,7 +432,14 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 1) -> Optio
     res = bic.download_and_resample(client, key, [bucket_min], set(universe))
     if not res or not res.get(bucket_min):
         return None
-    return session_ohlc(D, res[bucket_min], levels, bucket_min)
+    # ⛔ THE SAME BASIS LIFT THE COMBINED PASS USES. This is the OTHER caller of the one
+    # math path, so leaving it un-lifted would keep writing the F1 defect into the live
+    # store every wick sweep while the isolated artifact was correct.
+    basis = session_basis(conn, day_ts, universe)
+    if not basis:
+        return None                      # no basis, no comparison worth storing
+    return session_ohlc(D, res[bucket_min], levels, bucket_min, basis=basis,
+                        eod_prices=session_eod_closes(conn, day_ts, universe))
 
 
 # ── Prototype validation: recon wicks vs the REAL live-accumulator wicks ─────

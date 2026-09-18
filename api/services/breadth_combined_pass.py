@@ -251,12 +251,25 @@ def run(artifact: str, from_date: str, to_date: str,
                 _checkpoint(c, D, "failed", detail="no universe resolved any name")
                 stats["failed"] += 1
                 continue
-            levels = wr._levels_for_day(conn_bars, union,
-                                        bl._ts_int(_d.fromisoformat(D)))
+            day_ts = bl._ts_int(_d.fromisoformat(D))
+            levels = wr._levels_for_day(conn_bars, union, day_ts)
             if levels is None:
                 _checkpoint(c, D, "missing_source", detail="no levels (bars history)")
                 stats["missing_source"] += 1
                 continue
+            # ⭐⭐ ONE BASIS AND ONE AUTHORITATIVE CLOSE PER SESSION, BUILT ONCE AND
+            # SHARED BY ALL FOUR UNIVERSES — the same economy as the levels build. Both
+            # are per-TICKER facts about D, so they do not depend on which cohort is
+            # being counted. `session_basis` lifts the as-traded minute path onto the
+            # adjusted basis the levels are already on (F1); `eod_px` is the official
+            # adjusted close that becomes the stored Close (F5).
+            basis = wr.session_basis(conn_bars, day_ts, union)
+            if not basis:
+                _checkpoint(c, D, "missing_source",
+                            detail="no corporate-action basis (raw closes unavailable)")
+                stats["missing_source"] += 1
+                continue
+            eod_px = wr.session_eod_closes(conn_bars, day_ts, union)
             for u in universes:
                 names = unis.get(u) or []
                 sizes[u] = len(names)
@@ -264,7 +277,8 @@ def run(artifact: str, from_date: str, to_date: str,
                     continue
                 member_set = set(names)
                 sub = {t: per_all[t] for t in names if t in per_all}
-                out = wr.session_ohlc(D, sub, levels, bucket_min, members=member_set)
+                out = wr.session_ohlc(D, sub, levels, bucket_min, members=member_set,
+                                      basis=basis, eod_prices=eod_px)
                 if not out:
                     continue
                 sess_meta = sess_meta or out.get("_session")

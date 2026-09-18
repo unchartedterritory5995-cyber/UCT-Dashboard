@@ -84,6 +84,14 @@ def test_recon_day_seeds_open_bucket_with_prior_close(monkeypatch):
                         "c": 101.0, "v": 1}] for i in range(55)}
     monkeypatch.setattr(bic, "download_and_resample",
                         lambda client, key, mins, uni: {30: _bars, 1: _bars})
+    # ⚠⚠ FIXTURE WIDENED AGAIN 2026-09-18, for the same reason as the note above.
+    # `recon_day` now also lifts the as-traded minute path onto the corporate-action
+    # basis its levels are on (F1), so it needs a basis exactly as it already needed
+    # levels and an S3 client. This synthetic day has no corporate actions, so every
+    # factor is 1.0 and the property under test — untraded names sitting at prior close
+    # in the opening bucket — is unchanged.
+    monkeypatch.setattr(wr, "session_basis",
+                        lambda conn, ts, u=None: {t: 1.0 for t in tickers})
 
     captured = {}
     real_agg = wr.aggregate_day
