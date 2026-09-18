@@ -132,6 +132,36 @@ def main():
     sb = rig_sandbox()
     sb.mkdir(parents=True, exist_ok=True)
 
+    # ⛔⛔ `DATA_DIR` IS NOT AN AUTHORITY, AND THIS SCRIPT WAS RELYING ON IT.
+    # Until 2026-09-18 the only pins here were `DATA_DIR` and `AUTH_DB_PATH`,
+    # while the census over `api/**` names **77** environment variables that
+    # resolve paths inside the shared root — each of them INDEPENDENTLY. On this
+    # box `/data` is a real directory, so every unpinned one resolved to the
+    # owner's LIVE files. `USER_DEFINITIONS_DB_PATH` is the one that mattered for
+    # this rig: the member door's "Add this script to my chart" POSTs to
+    # `/api/user-definitions`, whose store defaulted to `/data/user_definitions.db`
+    # — i.e. `C:\\data\\user_definitions.db`. A successful attach on the rig would
+    # have written a definition into production.
+    #
+    # ⭐ IT DID NOT, AND THAT WAS LUCK, NOT DESIGN. The 2026-09-17 capture never
+    # completed a save (the pane flag was off, so only the Formula tab's Save was
+    # on screen), and that file's mtime is still 09-13. The next run is the one
+    # that would have done it, which is why this is fixed before Part 2 rather
+    # than recorded.
+    #
+    # ⭐ SO THE PINS ARE DERIVED AND THE TRIPWIRE IS ARMED — the same door
+    # `scripts/hub_sandbox_boot.py` already opens, imported rather than copied.
+    # `apply_sandbox_env` re-points every census pin at this sandbox AND imports
+    # `conftest`, which makes `sqlite3.connect`/`open`/`makedirs`/`remove`/… raise
+    # AND RECORD on any path inside the shared root. A hand-picked list here would
+    # be a second authority over which vars exist, and it already went stale once.
+    sys.path.insert(0, str(REPO))
+    os.chdir(REPO)
+    import importlib
+    hub = importlib.import_module("scripts.hub_sandbox_boot")
+    pins = hub.apply_sandbox_env(str(sb), test_email="panetest@local.dev")
+    print(f"[rig] {len(pins)} shared-root pins applied; tripwire armed", flush=True)
+
     os.environ["DATA_DIR"] = str(sb)
     os.environ["AUTH_DB_PATH"] = str(sb / "auth.db")
     os.environ["ADMIN_EMAILS"] = "panetest@local.dev"
@@ -146,8 +176,6 @@ def main():
     os.environ["TICKER_NAMES_PREWARM_DISABLED"] = "1"
     os.environ["THEME_ENGINE_ENABLED"] = "0"
 
-    sys.path.insert(0, str(REPO))
-    os.chdir(REPO)
     _refuse_if_port_busy(PORT)
     print(f"[rig] sandbox {sb}", flush=True)
     print(f"[rig] http://127.0.0.1:{PORT}", flush=True)
