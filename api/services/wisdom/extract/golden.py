@@ -544,6 +544,20 @@ def record_eval(conn, *, kind: str, extractor_version: Optional[str], metrics: d
         for key in ("model", "effort", "golden_version", "split", "per_type", "golden_sha256"):
             if key not in payload:
                 raise ValueError(f"an extractor_golden evaluation needs {key!r}")
+        # R98, session 25: A RUN THAT SCORED NOTHING MUST REFUSE, NEVER ACCEPT. `import_receipt`
+        # already guards its own path ("receipt has no per_type counts") before ever calling
+        # this function — but that guard sat ONE LAYER UP, so a DIRECT caller (the gate tool
+        # itself, persisting the run it just measured) had no such check. Inside a container
+        # where the golden set was never deployed, a zero-sample run finds no prior history to
+        # compare against and decide_gate's baseline branch — correct when there IS a scored
+        # sample and no history — returns `accepted, baseline: True` for a verdict that measured
+        # NOTHING, superseding whatever real verdict came before it. This is the hole
+        # `docs/wisdom/HARD-RULES.md`'s "never run the golden gate inside the container" rule
+        # exists to name; fixing it here (the shared choke point BOTH import_receipt and a
+        # direct gate run pass through) is what lets that rule be narrowed rather than repealed.
+        if not payload.get("per_type"):
+            raise ValueError("an extractor_golden evaluation with no per_type counts scored "
+                             "nothing; refusing rather than recording a baseline accept")
         # §8a.1: a run that cannot say WHICH BYTES it scored is not a gate run.
         if not _SHA256_RE.match(str(payload["golden_sha256"] or "")):
             raise ValueError("golden_sha256 must be the sha256 of the golden file's bytes")

@@ -928,16 +928,33 @@ unexpected writer is a search that would have surfaced a fourth.
    `railway run --service web python tools/wisdom/extract_golden_gate.py …` — against a golden
    directory with no samples.
 
-⛔⛔ **AND THE ZERO-SAMPLE PATH IS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
-`decide_gate` treats the run as same-config against the single production row and records
+⛔⛔ **AND THE ZERO-SAMPLE PATH WAS A VACUOUS ACCEPT, NOT A REFUSAL.** With an empty `per_type`,
+`decide_gate` treated the run as same-config against the single production row and recorded
 **`accepted, baseline: True`** — a verdict that measured nothing, superseding one that measured
-108 segments. ⭐ `import_receipt` does NOT have this hole (`golden.py:630-631` raises on an empty
-`per_type`), which is the shape of the fix if it is ever wanted: **an evaluation that scored
-nothing must refuse, never accept.** A gate whose failure mode is *open* is not a gate.
+108 segments. ⭐ `import_receipt` did NOT have this hole (`golden.py:630-631` raises on an empty
+`per_type`) — but that guard sat one layer up, in the RECEIPT path only; a DIRECT `record_eval`
+call (the gate tool persisting the run it just measured) had no such check.
 
-> **THE RULE. Never run the golden gate inside the container.** The golden set is quote-bearing
-> and deliberately not deployed, so the only thing it can produce there is a verdict about no
-> data — and today that verdict is `accepted`.
+⛔⛔ **FIXED, session 25 (R98): `record_eval` itself now refuses an empty `per_type` — the
+SHARED choke point both `import_receipt` and a direct gate run pass through.** Rails:
+`tests/test_wisdom_extract_golden.py` — a zero-sample run raises and writes NO row (not a row
+that happens to be blocked); a real run immediately after is unaffected; and the load-bearing
+control, a NULL-only measurement (a type asserted absent across N segments, tp=fp=fn=0 but
+`null_declared` nonzero) is correctly NOT refused — `golden.score()` keeps that measurement on
+purpose (`n_null` in the emptiness check), and a naive "all-zero counts means nothing was
+scored" fix would have deleted the single most useful NULL measurement the gate produces.
+Mutation-proved: reverting the guard turns exactly the two zero-sample tests red.
+
+> **THE RULE, NARROWED. The golden gate may run inside the container ONLY with: an explicit
+> `--golden-file` naming real, uploaded bytes; an asserted sample count; scratch `--db` and
+> `--data-dir` under the volume (never production's live `wisdom.db`/`wisdom_eval_runs` tables
+> during the scoring run itself — only the AGGREGATES-ONLY manifest crosses back into
+> production afterward, exactly as R67 already does for Opus's own gate-run-3); and the
+> zero-sample refusal above actually serving in that image.** Without ALL FOUR, the rule is
+> unchanged: never run the golden gate inside the container. The golden set is quote-bearing
+> and deliberately not deployed by default — this narrowing does not change that; it describes
+> the one supervised, bounded exception under which a real measurement, not a vacuous one, can
+> happen there.
 
 ## 2026-09-18 — R93/R94/R95/R96 (session 23): the local attempt's real ceiling, and every
 ## path priced with real usage instead of a fresh estimate
