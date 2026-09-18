@@ -623,3 +623,33 @@ def test_the_gate_is_a_no_op_when_the_sources_agree(monkeypatch):
                         lambda d, adjusted=True: {"AAPL": 60.5525})
     monkeypatch.setattr(bl, "_iso", lambda ts: "2020-03-16")
     assert wr.drop_incoherent_levels({"AAPL": 0.25}, {"AAPL": 60.5525}, 111) == {"AAPL": 0.25}
+
+
+def test_the_close_is_measured_over_the_SAME_population_as_the_path():
+    """⛔⛔ ONE CANDLE IS ONE MEASUREMENT. Computing C over a wider cohort than O/H/L
+    makes the close a different statistic wearing the same name. The fail-closed basis
+    rule excludes names from the path, so it must exclude them from the close too.
+
+    Caught by the golden matrix: `new_52w_lows`, `stage4_count` and `declining`
+    disagreed with an independent oracle while the rest matched — the signature of the
+    excluded names, which a corrupt level parks at a 52-week low."""
+    lv = _levels(["KEEP", "DROP"], [[10.0] * 260, [10.0] * 260])
+    per = _minutes({"KEEP": 10.0, "DROP": 10.0})
+    out = wr.session_ohlc("2015-08-24", per, lv, 1, members={"KEEP", "DROP"},
+                          basis={"KEEP": 1.0},                 # DROP has no factor
+                          eod_prices={"KEEP": 10.0, "DROP": 10.0})
+    # the path counts only KEEP, so the CLOSE must count only KEEP as well
+    assert out["universe_count"]["c"] == 1.0
+    assert out["universe_count"]["o"] == 1.0
+    assert out["new_52w_highs"]["c"] == 1.0, "DROP must not reach the close either"
+
+
+def test_a_name_with_no_level_still_reaches_the_close():
+    """The complement: a name with nothing to be inconsistent with passes through the
+    path, so it must not be stripped from the close and shrink the denominator."""
+    lv = _levels(["REAL", "EMPTY"], [[10.0] * 260, [float("nan")] * 260])
+    per = _minutes({"REAL": 10.0, "EMPTY": 7.0})
+    out = wr.session_ohlc("2015-08-24", per, lv, 1, members={"REAL", "EMPTY"},
+                          basis={"REAL": 1.0},
+                          eod_prices={"REAL": 10.0, "EMPTY": 7.0})
+    assert out["universe_count"]["c"] == 2.0

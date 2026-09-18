@@ -510,9 +510,19 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     # cross-section instead, which excludes the closing auction and puts the stored
     # Close on a different footing from every live/close_recon row it will sit beside.
     # `eod_prices` is the official adjusted close for D — the same basis as `levels`.
+    #
+    # ⛔⛔ AND IT MUST BE THE SAME POPULATION AS THE PATH. The body and the wick of one
+    # candle are one measurement; computing C over a wider cohort than O/H/L makes the
+    # close a different statistic wearing the same name. This bites the moment anything
+    # excludes a name from the path — the fail-closed basis rule does exactly that — and
+    # it showed up as a clean signature: `new_52w_lows`, `stage4_count` and `declining`
+    # disagreeing with an independent oracle while the rest matched, because the excluded
+    # names are precisely the ones a corrupt level parks at a 52-week low.
     close_px = eod_prices if eod_prices else prices_by_bucket[-1]
-    if eod_prices and members is not None:
-        close_px = {t: v for t, v in close_px.items() if t in members}
+    if eod_prices:
+        close_px = {t: v for t, v in close_px.items()
+                    if (members is None or t in members)
+                    and (not lift or t in scale or t not in _lv_set)}
     close_m = compute_metrics(levels, close_px) or {}
     _add_composites(close_m)
     close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
