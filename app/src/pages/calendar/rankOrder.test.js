@@ -98,13 +98,39 @@ describe('rankEntries — once importance has landed', () => {
   })
 
   it('applies the personal source boost on top of imp', () => {
+    // S6 CP3: rankEntries threads weightBuckets through to impEff (derived
+    // from the resolver, not hardcoded) -- passed explicitly here so this
+    // test still exercises the real boost math rather than silently falling
+    // back to a zero boost, which would leave HELD/WATCHED alphabetical
+    // (H < W) and pass this assertion for the WRONG reason.
+    const WEIGHT_BUCKETS = [
+      { sources: ['positions'], weight: 3 },
+      { sources: ['watchlist', 'flagged'], weight: 2 },
+      { sources: ['uct20'], weight: 1 },
+    ]
     const rows = [
       E('WATCHED', { mc_b: 5, mine: true, _sources: ['watchlist'] }),
       E('HELD',    { mc_b: 5, mine: true, _sources: ['positions'] }),
     ]
     const imp = new Map([['WATCHED', 1.0], ['HELD', 0.5]])
     // positions (+3.0) beats watchlist (+2.0) despite the lower base imp.
-    expect(syms(rankEntries(rows, imp))).toEqual(['HELD', 'WATCHED'])
+    expect(syms(rankEntries(rows, imp, WEIGHT_BUCKETS))).toEqual(['HELD', 'WATCHED'])
+  })
+
+  it('MUTATION CONTROL: without weightBuckets the boost is zero and order falls back to the tiebreak', () => {
+    // Proves the test above is not passing by alphabetical coincidence --
+    // same fixture, no weightBuckets, and the order flips to mc_b-tied ->
+    // alphabetical (HELD still sorts first alphabetically here, so this
+    // uses a pair where the fallback order visibly DIFFERS from the
+    // boosted order to make the distinction real).
+    const rows = [
+      E('AWATCHED', { mc_b: 5, mine: true, _sources: ['watchlist'] }),
+      E('ZHELD',    { mc_b: 5, mine: true, _sources: ['positions'] }),
+    ]
+    const imp = new Map([['AWATCHED', 1.0], ['ZHELD', 0.5]])
+    // No third argument: boost is 0 for both, so mc_b ties, ew ties, and it
+    // falls to alphabetical -- AWATCHED first, NOT the positions-boosted order.
+    expect(syms(rankEntries(rows, imp))).toEqual(['AWATCHED', 'ZHELD'])
   })
 
   it('does not mutate the array it was handed', () => {
