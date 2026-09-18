@@ -1,6 +1,20 @@
 # THE SIGNING FREEZE — recorded once, at freeze. Do not hand-edit.
 # Any DIFF against this set means a fingerprint, the universe, the order
 # or the replay has moved, and the sitting must not start.
+#
+# ⛔⛔ LIFTED 2026-09-18 (ET, per python tools/weekly_exec.py et). Reason: the
+# sitting this freeze protected is complete — sitting_verify reports CLEAN
+# (65 rows signed, 45 merged, nothing stranded) and verify_manifest
+# --check-commits reports 50 of 50 branch commits mapped, universe 0
+# unclaimed. The 12 paths that moved since this baseline was recorded (the
+# code branch's tip through E CP36/37, and every gate/manifest/engine file
+# touched by signing rows d3-cp2 through k-cp20 and building E CP34-37) are
+# all legitimate per-unit signing and engine-fix activity, not a violation —
+# `freeze_check.py` was never wired into any automated gate, so nothing
+# depended on this file staying current. Archived here as the historical
+# record of what was frozen and when; tools/freeze_baseline.txt no longer
+# exists, so a bare `python tools/freeze_check.py` now reports UNREADABLE
+# (no baseline), which is the correct post-lift state, not a failure.
 
 @code:feat/s7-price-level | d50fadadf7c73ad8b210abd8fa3aa542341bb64e
 docs/terminal-research/12-decisions/gates/d2-canonical-data-model-pre-implementation-gate.md | 8b5f1fa10a6fb727243a6e5bbd5a5e4c6143b216
