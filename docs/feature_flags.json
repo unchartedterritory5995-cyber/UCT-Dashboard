@@ -245,6 +245,16 @@
       ],
       "note": "ARMED on the worker while the Breadth Data Correctness re-grind runs. Resumes the combined historical pass (RTH-only, 1-minute, composites-before-OHLC) on every worker boot, because the first launch was killed by an unrelated redeploy 43 minutes in and nothing noticed for eleven hours - a ~40-hour job on a pod other people deploy to cannot live in a detached process. Safe to run on every boot: completed sessions are skipped via pass_checkpoint and a committed session re-runs idempotently, so a restart costs at most the session in flight. It writes ONLY to BREADTH_COMBINED_PASS_ARTIFACT, and open_artifact refuses both an absent path and the production breadth store, so arming this cannot touch live breadth even if the path is wrong. UNSET IT once the artifact is validated and promoted. Record: docs/breadth-library/DECISIONS.md BL-036 and docs/breadth-library/PASS-HANDOFF.md."
     },
+    "BREADTH_DC_V2_2_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Data Charts V2-2 (stacked panels), DC-2 §2. Dark: unset means NOT RELEASED, and an unrecognised value takes that default rather than its opposite. Read PER REQUEST in api/routers/auth.py::_access_payload and carried on every auth payload, so a flip needs no rebuild -- which is the whole point: this REPLACES the build-time VITE_BREADTH_CHARTS_V2_ENABLED, where a flip was a rebuild, a rollback was a deploy, and a per-owner preview could not be expressed at all because there is only one bundle. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = on for everyone; 'admin' = ON FOR ADMINS ONLY (the owner preview, the same 0/1/admin idiom COMPASS_MENTOR_MODE already uses). 'admin' reading true for a member is the one failure here that costs anything and is railed by name in tests/test_breadth_dc_flags.py::test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF, mutation-proved. TURN OFF: unset (or 0) on web -> the surface returns to ABSENCE on each member's next authenticated request, no redeploy. Not yet flipped anywhere."
+    },
+    "BREADTH_DC_V2_3_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Data Charts V2-3 (honest coverage + long history), DC-2 §2. Dark: unset means NOT RELEASED, and an unrecognised value takes that default rather than its opposite. Read PER REQUEST in api/routers/auth.py::_access_payload and carried on every auth payload, so a flip needs no rebuild -- which is the whole point: this REPLACES the build-time VITE_BREADTH_CHARTS_V2_ENABLED, where a flip was a rebuild, a rollback was a deploy, and a per-owner preview could not be expressed at all because there is only one bundle. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = on for everyone; 'admin' = ON FOR ADMINS ONLY (the owner preview, the same 0/1/admin idiom COMPASS_MENTOR_MODE already uses). 'admin' reading true for a member is the one failure here that costs anything and is railed by name in tests/test_breadth_dc_flags.py::test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF (parametrised over both flags), mutation-proved. TURN OFF: unset (or 0) on web -> the surface returns to ABSENCE on each member's next authenticated request, no redeploy. Not yet flipped anywhere. INDEPENDENT OF V2-2 BY CONSTRUCTION: the two are separate increments the owner reverts separately, and test_the_flags_are_independent pins that V2-3 cannot ride in on V2-2's flip."
+    },
     "BREADTH_HISTORY_BACKFILL_ENABLED": {
       "status": "armed",
       "where": [
@@ -1224,38 +1234,6 @@
         "worker"
       ],
       "note": ""
-    },
-    "BREADTH_SERIES_ENDPOINT_ENABLED": {
-      "status": "dark",
-      "where": [
-        "web"
-      ],
-      "owner": "breadth-charts programme",
-      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
-    },
-    "BREADTH_OHLC_PAGECACHE_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "owner": "breadth-history-reader programme",
-      "note": "H1 page-cache fix for the breadth deep reader (D-049). ON sets PRAGMA mmap_size=67108864 (64 MB, against a 39.9 MB file) and PRAGMA cache_size=-16000 (16 MB, against the shipped 2 MB) on every connection this module opens; OFF leaves the connection byte-identical to how it has always been opened, proved by reading both pragmas back off a real connection rather than asserting the call was skipped. ARMED ON web since 2026-09-15 on a measured A/B, not on plausibility: two production windows, identical work in both arms (rf_rows 4,529 / rf_bytes 4,523,328 on every sample), deep-cold max 11,382.4 -> 1,257.7 ms (x9.05), p90 3,052.0 -> 842.0 ms (x3.62), and the load-bearing discriminator min read-syscalls 1,669 -> 182 (x9.17) — mmap serves pages by page fault rather than read(), which is the mechanism claimed. Record: docs/breadth-history-reader/session9-report.md D.4/D.5 and docs/breadth/DECISIONS.md D-049. Rollback is the variable alone: unset it and the next boot opens connections exactly as before, no code change. WARNING - the flag was called BREADTH_OHLC_PAGECACHE until 2026-09-15 and was invisible to this ledger: is_gate() matches only names carrying a gate marker or ending _ON, so a row for the old name would have been classed as rot and would have reddened the master deploy gate. The rename is what makes this row possible AND required. Known not settled: which of mmap_size/cache_size carries the win (they ship as one flag), and the memory cost (no OFF-arm RSS baseline was captured)."
-    },
-    "BREADTH_RESIDENT_RECON_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "owner": "breadth-history-reader programme",
-      "note": "DARK, set on no service. Holds breadth_reconstructed_daily resident in the web process as {date: metrics JSON STRING}, so a deep cold read skips the 12 chunked SELECTs entirely. OFF leaves reconstructed_for_dates byte-identical to the shipped path and builds no resident object at all (asserted by the ABSENCE of the object, not by a timing). MEASURED, all 4,700 rows: resident 5,214,625 B = 1.15x the 4,523,328 wire bytes, inside the standing 2x bound; build 46 ms; invalidation is two-stage — PRAGMA data_version at 0.0034 ms on every request, falling back to a COUNT+3xMAX signature at 4.17 ms only when the file changed, against a reconstructed_fetch of 61.5 ms p50 and 975.6 ms p90. ⛔ IT HOLDS JSON STRINGS, NOT PARSED ROWS, AND THAT IS A MEASURED TRADE: parsed rows would also remove rf_materialise but cost 22,909,972 B = 5.06x wire, breaking the bound. At p90 the split is rf_fetch 607.1 ms against rf_materialise 54.4 ms, so the strings capture ~90% of the tail win for 23% of the memory; the parse stays on the request path. ⚠️ RESIDUAL: built_at has SECOND resolution, so two rebuilds inside one second with the same row count and watermarks are indistinguishable — which is why data_version is the first stage and the signature is the second. FLIP IS AN OPEN QUESTION decided on sampler data (D-051): flipping it starts a NEW pool, because rf_resident is a pooled flag and the reader changes."
-    },
-    "BREADTH_DC_V2_2_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Data Charts V2-2 (stacked panels), DC-2 §2. Dark: unset means NOT RELEASED, and an unrecognised value takes that default rather than its opposite. Read PER REQUEST in api/routers/auth.py::_access_payload and carried on every auth payload, so a flip needs no rebuild -- which is the whole point: this REPLACES the build-time VITE_BREADTH_CHARTS_V2_ENABLED, where a flip was a rebuild, a rollback was a deploy, and a per-owner preview could not be expressed at all because there is only one bundle. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = on for everyone; 'admin' = ON FOR ADMINS ONLY (the owner preview, the same 0/1/admin idiom COMPASS_MENTOR_MODE already uses). 'admin' reading true for a member is the one failure here that costs anything and is railed by name in tests/test_breadth_dc_flags.py::test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF, mutation-proved. TURN OFF: unset (or 0) on web -> the surface returns to ABSENCE on each member's next authenticated request, no redeploy. Not yet flipped anywhere."
-    },
-    "BREADTH_DC_V2_3_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Data Charts V2-3 (honest coverage + long history), DC-2 §2. Dark: unset means NOT RELEASED, and an unrecognised value takes that default rather than its opposite. Read PER REQUEST in api/routers/auth.py::_access_payload and carried on every auth payload, so a flip needs no rebuild -- which is the whole point: this REPLACES the build-time VITE_BREADTH_CHARTS_V2_ENABLED, where a flip was a rebuild, a rollback was a deploy, and a per-owner preview could not be expressed at all because there is only one bundle. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = on for everyone; 'admin' = ON FOR ADMINS ONLY (the owner preview, the same 0/1/admin idiom COMPASS_MENTOR_MODE already uses). 'admin' reading true for a member is the one failure here that costs anything and is railed by name in tests/test_breadth_dc_flags.py::test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF (parametrised over both flags), mutation-proved. TURN OFF: unset (or 0) on web -> the surface returns to ABSENCE on each member's next authenticated request, no redeploy. Not yet flipped anywhere. INDEPENDENT OF V2-2 BY CONSTRUCTION: the two are separate increments the owner reverts separately, and test_the_flags_are_independent pins that V2-3 cannot ride in on V2-2's flip."
     }
   },
   "build_flags": {
