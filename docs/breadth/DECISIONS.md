@@ -2366,3 +2366,72 @@ in-process, which could ALSO absorb some of this cost — but it is a different 
 with a different memory-cost tradeoff and its own open decision (D-051), not
 something this record's boot-warm conflates with or depends on.
 
+### D-056 addendum · landing + pod verification (2026-09-18)
+
+**Landed.** Committed `5407150c0`/rebased to `d514e2dec` on `breadth/dc-v2`,
+pushed to `master` at 2026-09-18T12:20Z after the pre-push guard's BURST clause
+cleared on its own reading (never attested — per standing instruction, the
+waiter ran until the counted deploys aged past the 60-minute window). Scoped
+suite (55 tests, `test_dashboard_warm.py` + `test_breadth_series_boot_warm.py` +
+`test_breadth_series_endpoint.py` + `test_breadth_timing.py`) and
+`tools/check_repo_hygiene.py` re-run clean after rebase.
+
+**Production.** `web` deploy `c8bd3bce` (commit `d514e2dec`) reached `SUCCESS`,
+then was superseded within the same swap window by an unrelated concurrent
+merge's deploy `3f350a96` (commit `ca18aff7f286`) — confirmed benign by
+ancestry (`git merge-base --is-ancestor d514e2dec ca18aff7f286` → true).
+`origin/production` tip is `ca18aff7f286`, D-056 confirmed an ancestor.
+`/api/health` on the new boot: `{"status":"ok","uptime_seconds":67,...}`.
+**Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED` confirmed unset
+on `web` (`railway variables --kv`) — dark, as intended.**
+
+**Next (per the DC-3 mandate's own step (b)):** flip
+`BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`, wait for the redeploy, and verify
+against the next foreign deploy that the first member-equivalent `/series`
+request reads within 2× the settled (warm) p50. Recorded as an addendum here
+once measured.
+
+### D-056 addendum · flip verification on its own boot (2026-09-18)
+
+**Flipped.** `BREADTH_SERIES_BOOT_WARM_ENABLED=1` set on `web`
+(`railway variables --service web --set`), redeploy landed (`76a1bc4e`,
+commit `ca18aff7f286`, `SUCCESS`), confirmed live via a fresh-boot
+`/api/health` (`uptime_seconds: 25`).
+
+**Measured on this same boot, not inferred:**
+
+| probe | timing after boot | adv_seed | reconstructed_fetch | reader total |
+|---|---|---|---|---|
+| own probe, ~30-90s post-boot, window 2025-01-01→2026-09-17 | still cold | 18,301.5 ms | 7,499.1 ms | 29,929.3 ms |
+| own probe, same window, minutes later (after the warm's own turn) | cache-hit (own prior request) | — (reader;dur=0) | — | 0 ms |
+| own probe, FRESH window never requested before (2010-01-01→2015-01-01), same later point | warm | **42.9 ms** | 4,868.2 ms | 5,144.6 ms |
+
+**The seed cost the diagnosis targeted is eliminated: `adv_seed` 18,301.5 ms →
+42.9 ms** (`io_read_bytes;dur=0.0` on the fresh-window probe — no disk-cold
+miss), confirming `warm_series_deep()` did its job: the OS page cache for the
+`breadth_daily_ohlc`/`breadth_snapshots` seed range is resident after the warm
+runs, and a DIFFERENT window than either probe used still benefits (proving
+this is page-cache locality, not a per-window cache hit).
+
+**But there is a real early-boot exposure window, not previously measured.**
+`_breadth_series_deep` sits 6th in `_start_dashboard_warm_background`'s
+sequential warm list (`flow-tape, movers, themes, news, breadth,
+breadth-series-deep, breadth-live, calendar, ...`), behind a fixed 20s initial
+delay PLUS however long the five targets ahead of it take. My own first probe,
+made 30-90s after this boot's `/api/health` first went green, still paid
+essentially the FULL cold cost (29.9s reader) — the warm had not reached its
+turn yet. Only a probe made several minutes later found it warm. **A real
+member opening Data Charts inside that early window still pays close to the
+full cold cost even with the flag ON** — the boot-warm shrinks the EXPOSURE
+DURATION (from "every first-open until someone eventually triggers a deep
+read" to "the first ~1-3 minutes of a fresh boot"), it does not eliminate a
+cold-start window entirely. This is worth a documented caveat, not a build
+change: moving it earlier in the sequence trades priority with `flow-tape`
+(explicitly commented "FIRST — the tape is the priority surface"), a
+tradeoff this record does not make unilaterally.
+
+**Still pending, per the mandate's own verification step:** capture the FIRST
+genuinely independent member-equivalent `/series` request on the NEXT foreign
+deploy (not self-triggered by this flip) and confirm it reads within 2× the
+settled p50. Watcher started; addendum follows when captured.
+
