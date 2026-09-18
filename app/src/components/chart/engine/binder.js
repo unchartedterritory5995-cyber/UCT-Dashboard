@@ -761,13 +761,13 @@ export function createBinder({ chart, LWC }) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.
       if (held.length) releaseAll()
-      return { ok: false, reason: 'engine disabled', bound: 0, released: 0 }
+      return { ok: false, reason: 'engine disabled', bound: 0, released: 0, notes: [] }
     }
 
     const registry = ctx.registry
     const resolvePlacement = ctx.resolvePlacement
     if (!registry || typeof resolvePlacement !== 'function') {
-      return { ok: false, reason: 'no placement resolver', bound: 0, released: 0 }
+      return { ok: false, reason: 'no placement resolver', bound: 0, released: 0, notes: [] }
     }
 
     const bars = Array.isArray(ctx.bars) ? ctx.bars : []
@@ -1488,7 +1488,50 @@ export function createBinder({ chart, LWC }) {
     // `chart.panes()` describes the stack the layout is talking about.
     if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
 
-    return { ok: true, bound: next.length, released: release.length }
+    // ── ⭐⭐ THE NOTES CHANNEL: A FILL WITH NO VISIBLE HOST IS SAID, NOT DROPPED ──
+    //
+    // ⛔ SILENCE IS A DEFECT, and this is the one place the binder was silent. A
+    // fill is drawn by attaching a primitive to a SERIES, and a series exists only
+    // for a VISIBLE plot — `isFillHost` above is the FIRST VISIBLE binding of an
+    // instance. So a definition whose plots are ALL hidden produces no binding at
+    // all, the hosted-fill pass never runs for it, and every band it declares is
+    // dropped without a word. The caller sees `{ok: true, bound: 0, released: 0}`,
+    // which is exactly what a definition that asked for nothing returns.
+    //
+    // ⭐ REACHABLE FROM THE BUILDER, NOT FROM THE PANE. `memberPaneDefinition`
+    // refuses an all-hidden document, so the member path cannot make one; the
+    // builder hands the binder whatever definition it holds, so it can.
+    //
+    // ⛔ READ FROM `fillHostSeen`, WHICH IS THE SAME FACT THE DRAW USED. Asking
+    // "did any binding host this instance's fills?" of the set the hosted-fill
+    // pass itself populated is one authority; re-deriving "is any plot visible?"
+    // here would be a second opinion that could drift from the draw it describes.
+    //
+    // ⚠️ THE NOTE NAMES THE BAND THE WAY THIS DOCUMENT NAMES IT — `key` and
+    // `fill.with`. A definition's `plots[]` entry carries no source line (the
+    // binder is handed a DEFINITION, never source text), so a `line` field could
+    // only be null or invented.
+    const notes = []
+    for (const inst of (ctx.instances || [])) {
+      const id = inst && inst.instanceId
+      if (!id || fillHostSeen.has(id)) continue
+      const def = inst.def || (ctx.registry && ctx.registry.getDefinition
+        ? ctx.registry.getDefinition(inst.defId) : null)
+      for (const p of ((def && def.plots) || [])) {
+        if (!p || p.hidden !== true) continue
+        const w = p.fill && typeof p.fill.with === 'string' ? p.fill.with : null
+        if (!w || w === p.key) continue
+        notes.push({
+          instanceId: id,
+          key: p.key,
+          with: w,
+          code: 'binder:no-visible-host',
+          message: 'no visible host in this pane',
+        })
+      }
+    }
+
+    return { ok: true, bound: next.length, released: release.length, notes }
   }
 
   /**

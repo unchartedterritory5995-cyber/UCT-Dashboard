@@ -110,4 +110,25 @@ describe('a fill attaches once and follows its tenant', () => {
     run([inst('u_ghost')])
     expect(count('attachPrimitive')).toBe(0)
   })
+
+  it('⛔⛔ CONTROL — every fixture in this file reports NO notes', () => {
+    // ⭐ THE ADDITIVE CHANNEL'S CONTROL, ON THIS FILE'S OWN SHAPES. `sync` gained
+    // a `notes` array for a fill with no visible host
+    // (`hostlessFillNotes.test.js`). Every definition here HAS a visible plot, so
+    // every one of them must report nothing — and asserting the ARRAY rather than
+    // its length is what stops a wrong note passing because the count happened to
+    // be right.
+    //
+    // ⚠️ `u_ghost` is the interesting member: its `fill.with` names a column that
+    // does not exist, so it draws no band — and it must STILL report no note,
+    // because "unresolvable anchor" is a different fact from "no visible host"
+    // and conflating them would make the channel useless for either.
+    for (const [id, def] of [['u_band', banded('u_band')], ['u_plain', plain('u_plain')],
+      ['u_ghost', { ...banded('u_ghost'),
+        plots: [{ ...banded('u_ghost').plots[0], fill: { with: 'nowhere' } },
+          banded('u_ghost').plots[1]] }]]) {
+      const { run } = harness(new Map([[id, def]]))
+      expect(run([inst(id)]).notes, `${id} reported a note it should not have`).toEqual([])
+    }
+  })
 })
