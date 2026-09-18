@@ -8,17 +8,26 @@
    ./constants.js and ./fanGeometry.js and passed as inline styles; this file
    owns appearance only, never position or size, so there is exactly one
    authority for "where things are" (the components) and one for "what they
-   look like" (here). `blur(18px) saturate(160%)` is the literal recipe §2a
-   gives in prose — no --hub-blur token exists to reference; every colour
-   feeding backdrop-filter's own tint still comes from --hub-glass-tint. */
+   look like" (here). Every colour feeding backdrop-filter's own tint still
+   comes from --hub-glass-tint.
+
+   ⚰️ This paragraph used to end: "`blur(18px) saturate(160%)` is the literal
+   recipe §2a gives in prose — no --hub-blur token exists to reference." That was
+   true when written and became the excuse that kept it true: five surfaces at
+   five different depths wore one hard-coded number because no token existed, and
+   no token existed because nobody needed one. W4 pass 3 (D1) breaks the loop —
+   the blurs are now a named DEPTH SCALE in tokens.css (--hub-blur-coach / -chip
+   / -bubble / -surface / -sliver) and no literal blur recipe survives in a
+   declaration in this file. */
 
 /* ── Pad (§2a, §5) ─────────────────────────────────────────────────────── */
 .pad {
   position: fixed;
   border-radius: var(--radius-pill);
   background: var(--hub-glass-tint);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  /* D1 — the instrument's own surface: the MEDIUM depth the rest is judged against. */
+  -webkit-backdrop-filter: blur(var(--hub-blur-surface)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-surface)) saturate(var(--hub-saturate));
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow), inset 0 1px 0 var(--hub-rim-highlight);
   touch-action: none;
@@ -436,8 +445,11 @@
   padding: 0 12px;
   border-radius: var(--radius-pill);
   background: var(--hub-glass-tint);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  /* D1 — LIGHT. The chip is a readout, read WHILE the thumb is moving, so it is the one
+     surface that must stay crisp; a heavy blur here costs legibility for depth nobody
+     is looking for. */
+  -webkit-backdrop-filter: blur(var(--hub-blur-chip)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-chip)) saturate(var(--hub-saturate));
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow);
   white-space: nowrap;
@@ -511,8 +523,11 @@
   position: fixed;
   border-radius: var(--radius-pill);
   background: var(--hub-glass-tint-strong);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  /* D1 — MEDIUM, the same depth as the pad, and deliberately the same TOKEN. These two sit
+     at one distance; giving them separate names would invite them to drift apart for no
+     reason a member could see. */
+  -webkit-backdrop-filter: blur(var(--hub-blur-surface)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-surface)) saturate(var(--hub-saturate));
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow);
   color: var(--text);
@@ -614,8 +629,10 @@
   padding: 8px 10px;
   border-radius: var(--radius-md);
   background: var(--hub-glass-tint);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  /* D1 — LIGHTEST. The coach mark sits on its own dimmed ground, in front of everything, so
+     it has nothing behind it that needs suppressing; a heavy blur there is cost with no read. */
+  -webkit-backdrop-filter: blur(var(--hub-blur-coach)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-coach)) saturate(var(--hub-saturate));
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow);
   z-index: var(--z-hub-rest);
@@ -675,8 +692,11 @@
   height: 36px;
   border-radius: 6px 0 0 6px;
   background: var(--hub-glass-tint);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  /* D1 — HEAVIEST PER PIXEL. A 12x36px sliver has almost no area to establish itself with, so
+     it needs the MOST separation from whatever is behind it to read as a thing rather than a
+     smudge on the edge of the screen. */
+  -webkit-backdrop-filter: blur(var(--hub-blur-sliver)) saturate(var(--hub-saturate));
+  backdrop-filter: blur(var(--hub-blur-sliver)) saturate(var(--hub-saturate));
   border: var(--hub-rim-width) solid var(--hub-rim);
   border-right: 0;
   box-shadow: var(--hub-shadow);

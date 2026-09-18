@@ -170,6 +170,17 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
         ? { show: true, formatter: shortOf(key), color: LABEL_INK, fontSize: 11,
             distance: 6, valueAnimation: false }
         : { show: false },
+      // ⛔⛔ TWO SERIES CONVERGING NEAR THE SAME VALUE STACK THEIR END LABELS ON TOP
+      // OF EACH OTHER — a real defect found live at Max scale (e.g. "Up 4%+" and
+      // "Up 20%/5d" landing within a few pixels at the chart's right edge). This is
+      // a DIFFERENT axis from the legend-clipping fix in `panels.js` (that one is
+      // HORIZONTAL — the margin was too narrow for a long label; this one is
+      // VERTICAL — two labels landing at the same y). Delegated to ECharts' own
+      // label-layout pass rather than hand-rolled collision math, the same D-053
+      // principle LTTB sampling already follows: `moveOverlap: 'shiftY'` nudges
+      // colliding end labels apart along y, across EVERY series sharing this
+      // panel's coordinate space, not just within one series' own labels.
+      labelLayout: { moveOverlap: 'shiftY' },
       emphasis: { focus: 'series' },
       ...coverageMarks(coverage, key, dates),
     })

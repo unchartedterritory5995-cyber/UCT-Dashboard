@@ -1624,3 +1624,137 @@ GET /api/admin/wisdom/core/runs?job_id=wisdom_same_night_scoring    # R70 fired?
 `railway variables --service web --set "WISDOM_EXTRACT_ENABLED=0"` — stops submission **and
 reaping** (same variable), so a mid-night stop strands in-flight batches you have already paid
 for. Passes already persisted survive. R74's five stop rules apply mechanically.
+
+---
+
+### ⚰️ CORRECTION, session 26 (2026-09-18) — "EXTRACTION NIGHT 1" ABOVE DID NOT ACTUALLY FIRE
+
+**Measured, not inferred.** `wisdom_extract_requests` and `wisdom_batches` both hold **0 rows**
+on the pod (checked 2026-09-18 before this session's own arming). The 2026-09-17 18:47 ET
+`wisdom_daily_chain` run (`run_id aa0e0f50ba3f9114aa51e508`, `due_key 2026-09-17`, `status: ok`)
+recorded its own `extract` step as:
+
+    {"step": "extract", "status": "skipped", "reason": "WISDOM_EXTRACT_ENABLED is off"}
+
+So whatever "Armed 17:47Z" above described, `WISDOM_EXTRACT_ENABLED` read **off** at 18:49:52 ET
+when the chain reached that step — one hour and two minutes after the claimed arming time. The
+section above is kept verbatim (⚰️ tombstone, not deleted) because its arithmetic and its shape
+are still the template this session's own entry follows; only its **factual claim to have
+happened** is wrong, and this note is the correction a reader needs before trusting it.
+
+⭐ **This is also why the env values this session found on arrival were stale rather than absent**:
+`WISDOM_DAILY_SEGMENT_LIMIT=1200` and `WISDOM_EXTRACT_DAILY_BUDGET_USD=75` — exactly the numbers
+"Night 1" describes — were still SET, unused, because `WISDOM_EXTRACT_ENABLED` never (or no
+longer) matched them. `WISDOM_EXTRACT_BUDGET_USD=1800` was already correct by coincidence: R99's
+programme ceiling is unchanged from whatever this attempt used.
+
+---
+
+## Friday 2026-09-18 18:47 ET — SESSION 26, R99/R100: ARMED FOR REAL, VERIFIED IN-PROCESS
+
+**Armed ~16:09-16:15 UTC (12:09-12:15 ET), well before tonight's 18:47 ET slot.** Every value below
+was read back through its own real loader function on the RUNNING serving process via `railway
+ssh` — never assumed from `railway variables --kv`, which the "Night 1" gap above is the standing
+reason not to trust alone.
+
+**R99_PATH: N3_PRIORITY_TO_CEILING.** Haiku cleared 0 of 6 types (session 25); a single N=1 sweep
+would extract everything but leave CALL and the two judgement types PENDING until a repass costing
+about as much again, so N=3 in priority order to the $1,800 ceiling is what session 26 actually
+buys. Full arithmetic: `docs/wisdom/PATH-SELECTED-2026-09-18.md` (session 25) and the owner's
+session-26 message.
+
+| variable | value | verified via |
+|---|---|---|
+| `WISDOM_EXTRACT_MODEL` | `claude-opus-5` | `config.configured_model()` in-process |
+| `WISDOM_EXTRACT_BUDGET_USD` | `1800` | `budget.budget_cap_usd()` → `1800.0` |
+| `WISDOM_EXTRACT_DAILY_BUDGET_USD` | `400` (was stale `75`) | `budget.daily_budget_usd()` → `400.0` |
+| `WISDOM_DAILY_SEGMENT_LIMIT` | `6000` (was stale `1200`) | `batch.daily_segment_limit()` → `6000` |
+| `WISDOM_EXTRACT_PASSES` | `3` | `batch.npass_count()` → `3` |
+| `WISDOM_EXTRACT_PRIORITY` | the 15-category order below | `config.category_priority_order()` — returned the exact 15-tuple, in order |
+| `WISDOM_EXTRACT_ENABLED` | `1` (set LAST, its own deploy) | `flags.extract_enabled()` → `True` |
+
+**R99_CATEGORY_ORDER (R100, this session's own build — `config.category_priority_order()`):** The
+Mental Game → Setups & Strategies → Workshops & Fireside Chats → Interviews → Risk & Trade
+Management → Mindset & Psychology → Scanning & Stock Selection → Market Analysis & Breadth →
+Options & Flow → Sunday Scans → Thoughts on the Market → Post-Market Recaps → Evening Update →
+Sharpen Your Trading Skills → Live Trading Sessions (last — 36% of the corpus, mostly narration).
+
+### Pre-arming proofs (Step B), all measured on the serving image before the flip
+
+- Serving image contains A1 (R79 PENDING≠queued), A2 (R100 priority selection), A3 (the budget
+  arithmetic) — grepped present in `floor.py`/`batch.py`/`budget.py`/`config.py` — plus R64, R65,
+  R66, R70, R80, R89, R98, all confirmed present by grep on the running container's own source.
+- Golden gate: `accepted: true`, `run_id: 93a248c91ddef458f1168277`, for `wx-v0-fc47bc97` /
+  `claude-opus-5`.
+- Store counts (measured, drifted slightly from the session-25 figures via ongoing sources
+  ingest, which is expected and healthy): `wisdom_sources 325` (was 324) · `wisdom_segments
+  26,675` (was 26,454) · `wisdom_records 0`.
+- `entity_master.db`: **32,651 entities** — read directly, not from a cached figure.
+- Every member-visible gate in `flags.GATES` reads `False` — checked programmatically
+  (`any member-visible gate ON: False`), not eyeballed off a list.
+- `WISDOM_EXTRACT_ENABLED` read `False` immediately before arming.
+- `batch.spend_allowed(ctx)` with `force=True` and the flag simulated **on** in-process still
+  returned `False`, with R64's exact refusal text — the control (`force=False`, flag on) returned
+  `True`, proving the simulation actually took effect rather than the check being dead.
+- `scripts/wisdom_dark_check.py --host https://uctintelligence.com`: **27 checked, 27 DARK
+  (401), 0 LIT, 0 unreachable** — run twice, before and after the flip, both PASS.
+
+### What tonight should produce
+
+At `WISDOM_DAILY_SEGMENT_LIMIT=6000`, N=3 → **2,000 fresh segments/night, 6,000 requests/night**,
+selected by `pending_segments` in the R100 priority order above (unknown-category segments, if
+any pending ones remain, sort after all fifteen named categories).
+
+| | expected |
+|---|---|
+| requests | 6,000 (3 passes × 2,000 segments), submitted as batches |
+| $ | **≈ $352.20** at gate-run-3's measured rate ($0.0587/request) — `budget.projected_night_cost_usd(0.0587, 2000, 3)`, pinned by `tests/test_wisdom_night_reservation_arithmetic.py`; comfortably inside the $400 night line |
+| reap | cron :16/:46; batch results land minutes-to-hours later |
+| R70 | when ALL 3 passes are reaped, reconcile + floor fire **that night** |
+| `wisdom_records` | first PRODUCTION records with a real, populated entity master behind them |
+| **`CALL` count** | **> 0 is the test**, same as "Night 1" intended — production's 32,651-entity master should stop demoting every CALL to MENTION (R42) |
+| floor | PUBLISH / BLOCK / ENQUEUE, split by R79 for the first time: a fresh segment's records start **PENDING** (not enqueued) until R70 reconciles them same-night |
+
+**Rough per-type PUBLISH/BLOCK split, scaled ~24x from the local 83-segment/826-record run**
+(`docs/wisdom/OVERNIGHT-CHECKPOINTS.md` "THE PUBLICATION FLOOR'S FIRST REAL VERDICT" section
+above) — **illustrative only**: that run predates R89 (MENTION/NEGATIVE_CALL/CALL were not
+floored types then) and predates the R42 CALL-demotion fix, so it is reused for its
+REPRODUCIBILITY RATES per type, not its absolute counts:
+
+| type | local 3/3 rate | ~2,000-segment-night estimate (PUBLISH / BLOCK) |
+|---|---|---|
+| MARKET_SIGNAL | 8.9% (21/236) | ~500 PUBLISH / ~5,200 BLOCK |
+| PRINCIPLE | 17.0% (31/182) | ~740 PUBLISH / ~3,630 BLOCK |
+| MENTION | 52.3% (407/778) — **newly floored under R89** | ~9,800 PUBLISH / ~8,900 BLOCK |
+| NEGATIVE_CALL | 55.6% (5/9) — **newly floored under R89** | ~120 PUBLISH / ~95 BLOCK |
+| LEVEL | 100% (18/18) — stays UNFLOORED | all PUBLISH |
+| CALL | not measurable locally (0 of 116 raw survived demotion) | **> 0 expected; no local baseline to scale from** |
+
+⚠️ These are order-of-magnitude, not a forecast the morning read should be judged against line by
+line — the local run's identity mix at 83 segments need not hold at 2,000, and CALL specifically
+has no honest local baseline at all.
+
+### The morning read
+
+```
+GET /api/admin/wisdom/core/status                                   # counts, flags, heartbeats,
+                                                                     # records_pending (R79, new)
+GET /api/admin/wisdom/core/runs?job_id=wisdom_daily_chain&limit=2   # the run and its 12 steps
+GET /api/admin/wisdom/core/runs?job_id=wisdom_same_night_scoring    # R70 fired?
+```
+
+### R74 stop rules — checked every poll, mechanically, no judgement
+
+1. night actual > 1.5× projection (> ~$528 against the ~$352 projection above)
+2. failed requests / submitted > 10%
+3. programme total ≥ 1800 − one night's p90
+4. any paid-path step reporting error twice running
+5. any member door found True
+
+Any ONE firing sets `WISDOM_EXTRACT_ENABLED=0` (deploy-watched), records the trigger with its
+numbers, and stops. Re-arming is never automatic — a stop is a ruling request, not a pause.
+
+### The stop
+
+`railway variables --service web --set "WISDOM_EXTRACT_ENABLED=0"` — stops submission **and
+reaping** (same variable). Passes already persisted survive; open batches strand until re-armed.

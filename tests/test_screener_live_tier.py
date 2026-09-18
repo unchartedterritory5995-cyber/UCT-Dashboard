@@ -726,6 +726,29 @@ def test_a_live_cycle_is_not_a_dead_cycle(live_env, monkeypatch, caplog):
     assert f"as_of={receipt['as_of']}" in caplog.text
 
 
+def test_the_r72_sub_timers_reach_the_log_line_not_just_the_receipt(
+        live_env, monkeypatch, caplog):
+    """R72's six SQLite sub-timers plus the two contention-trace fields were
+    computed into `receipt` from the day they were built, and never reached
+    the printed `[screener-live]` line -- the "built, tested, green, and
+    connected to nothing" shape this repo's own CLAUDE.md names. This is the
+    WIRE, not the arithmetic -- `test_r72_sqlite_touch_timing.py` already
+    proves `_timed_touch` splits busy-wait from statement time correctly."""
+    snapshot_db.upsert_rows([_nightly_row()])
+    _feed(monkeypatch, {"AAA": _quote(last=110.0)})
+    with caplog.at_level("INFO"):
+        receipt = live_tier.sweep_job()
+    for field in (
+        "sqlite_anchor_read_ms", "sqlite_anchor_read_busy_wait_ms",
+        "sqlite_upsert_ms", "sqlite_upsert_busy_wait_ms",
+        "sqlite_prune_ms", "sqlite_prune_busy_wait_ms",
+    ):
+        assert f"{field}={receipt[field]}" in caplog.text, (
+            f"{field} is in the receipt but never reached the log line")
+    assert f"active_jobs_at_sweep=[{receipt['active_jobs_at_sweep']}]" in caplog.text
+    assert f"wal_state_at_sweep=[{receipt['wal_state_at_sweep']}]" in caplog.text
+
+
 def test_every_cycle_returns_the_same_key_set(live_env, monkeypatch):
     """A receipt whose shape depends on which branch it took cannot be diffed
     across cycles, which is the only way anybody notices a drift."""

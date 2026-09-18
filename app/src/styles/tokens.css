@@ -425,7 +425,35 @@
      ⚠️ --hub-blur-bubble IS ENGAGED ONLY WHILE THE FAN IS SETTLED (see hub.module.css). A
      backdrop-filter on a TRANSFORMING element re-samples its backdrop every frame, which is the
      one thing `w4-material-plan.md` §0 says not to do on a phone. */
+  /* ─── W4 pass 3 — D1: A DEPTH SCALE, NOT ONE BLUR FOR FIVE DEPTHS. 2026-09-18 ────────────
+     ⚰️ MEASURED: `.pad`, `.chip`, `.actionsButton`, `.coachMark` and `.edgeTabGrip` all carried
+     the byte-identical `blur(18px) saturate(160%)`. Five elements at five different distances
+     from the member, wearing one number — so nothing in the material said which sat in front
+     of which, and the glass read as a filter applied uniformly rather than as depth.
+
+     ⭐ ASSIGNED BY HOW FAR BACK A SURFACE SITS AND HOW MUCH MOVING DATA IT MUST SUPPRESS, which
+     is the table `w4-material-plan.md` D1 specifies:
+       coach mark  lightest — it sits on its own dimmed ground; heavy blur there is wasted cost
+       chip        light    — a readout, read WHILE the thumb moves, so it must stay crisp
+       bubble      14px     — set in pass 1, and it is the one surface that also animates
+       pad         medium   — the instrument's own surface, the reference the rest is judged by
+       actions     medium   — the no-drag door, at rest over live data
+       edge tab    heaviest — a 12x36px sliver needs the MOST separation per pixel to read as a
+                              thing rather than a smudge
+
+     ⛔ NAMED BY ROLE, NEVER BY ELEMENT. A token called `--hub-blur-pad` would be a second
+     authority on "what is the pad" — the moment two elements shared a depth, the name would
+     lie about one of them. `--hub-blur-surface` is worn by both `.pad` and `.actionsButton`
+     precisely because they ARE the same depth.
+
+     ⚠️ Saturation is deliberately NOT scaled. It is a colour-rendering choice for the whole
+     control; varying it per surface would make the hub's pieces disagree about how saturated
+     the world behind them is, which reads as an inconsistency rather than as depth. */
+  --hub-blur-coach: 10px;
+  --hub-blur-chip: 12px;
   --hub-blur-bubble: 14px;
+  --hub-blur-surface: 18px;
+  --hub-blur-sliver: 24px;
   --hub-saturate: 160%;
   /* ⭐ --bg-ELEVATED, NOT --bg: the plate is a SURFACE and SHOULD follow the theme. That is
      exactly what makes the light-theme labels readable at 6.40:1 — the plate lightens under
