@@ -2,6 +2,45 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 — ✅ j.4's PER-LAYER TABLE IS MEASURED. ⛔ R29 STAYS DRAFT.
+>
+> `docs/pine/j4-per-layer-table.md`. Measured end to end through the same calls the
+> door makes — `translatePine` → `memberPaneDefinition` → `binder.sync()`:
+>
+> | stage | reading |
+> |---|---|
+> | translator | **23 outputs · 0 refusals · 20 fills · 20 carrying a PAIR** |
+> | document | **24 rows · 22 hidden · 2 visible · ONE condition row (`out24`)** |
+> | binder | `ok` · **bound 2** · released 0 · **`notes: []`** |
+> | renderer | **20 `attachPrimitive` — every fill draws** |
+>
+> **Transparency 95.0 → 47.5 over the twenty layers, in 20 DISTINCT values**, with
+> layers 0/10/19 landing exactly on the figures derived from the script's own
+> constants. Both branches carry `#00897B` / `#880E4F` through `input.color`'s
+> defaults (R33a). **No layer is "outside" and none is "not drawn"**, so that
+> column is empty by measurement.
+> ⭐ `bound: 2` is **R27-as-amended working**, not a shortfall — 20 primitives
+> attach against 2 bound series because a hidden anchor binds none. ⚠️ 22 hidden,
+> not the predicted 21: the 22nd is R34's condition row.
+>
+> ⛔ **R29 — #145 STAYS DRAFT, and the failing condition is named: the VENDOR
+> capture never ran, so "both tables at both tiers" is UNMEASURED.** Unmeasured is
+> not outside-tolerance, and collapsing the two is the `CoverageLine` defect this
+> repo refuses. The lane is unblocked (R37, layout `01f1AcIj`); the run is owed.
+>
+> ⚠️ **WHERE THE MEMBER-DOOR CAPTURE STOPPED.** Clouds was pasted into the Pine
+> import box on a clean rig (8130, identity confirmed) and verified byte-exact at
+> the textarea — **9,811 chars, checksum 268937636**, carried by clipboard. Then
+> the builder sheet's **`Save` and `Cancel` both left the sheet open**, and rather
+> than keep clicking a surface whose path is undocumented, the rig was stopped.
+> Screenshot kept: `docs/pine/capture/member-door-clouds-pasted-2026-09-18.jpg`.
+> ⭐ The engine-side table above does NOT depend on that — it is the same code the
+> door calls. What is owed is the *rendered* proof and the vendor half.
+>
+> ▶️ **NEXT, and it is now a short list:** (1) why the builder sheet's Save does not
+> close — that is a real product question, not a rig one; (2) the vendor capture on
+> `01f1AcIj`; (3) then R29 re-decides on evidence.
+
 > ### ⏱️ 2026-09-17 — ✅ R37: THE CAPTURE LAYOUT EXISTS. ⛔ A STALE RIG BLOCKED 8129.
 >
 > ✅ **R37 — `UCT CAPTURE RIG — no studies`, id `01f1AcIj`**
