@@ -61,3 +61,57 @@ def next_effort(effort: str) -> str:
     if effort not in order:
         return DEFAULT_EFFORT
     return order[min(len(order) - 1, order.index(effort) + 1)]
+
+
+#: R100 (owner ruling, 2026-09-18) — the order fresh segments are selected in, for the N=3
+#: priority-to-ceiling sweep (R99: N3_PRIORITY_TO_CEILING). ⛔ A VALUE, NOT A SWITCH, same
+#: reasoning as `batch.daily_segment_limit`: unset must not mean "no priority" (an accidental
+#: reversion to date-only ordering nobody would notice for nights) — it defaults to the exact
+#: order the owner approved 2026-09-18. A value that is PRESENT but parses to nothing REFUSES
+#: rather than silently keeping the default, so a typo'd env var cannot quietly reorder a night.
+CATEGORY_PRIORITY_ENV = "WISDOM_EXTRACT_PRIORITY"
+DEFAULT_CATEGORY_PRIORITY: tuple = (
+    "The Mental Game", "Setups & Strategies", "Workshops & Fireside Chats", "Interviews",
+    "Risk & Trade Management", "Mindset & Psychology", "Scanning & Stock Selection",
+    "Market Analysis & Breadth", "Options & Flow", "Sunday Scans", "Thoughts on the Market",
+    "Post-Market Recaps", "Evening Update", "Sharpen Your Trading Skills", "Live Trading Sessions",
+)
+
+
+class CategoryPriorityUnusable(ValueError):
+    """A priority order that is set but parses to no category name. Refused, never silently
+    defaulted — see `CATEGORY_PRIORITY_ENV`."""
+
+
+def category_priority_order() -> tuple:
+    """R100: the category order `pending_segments` selects fresh segments in.
+
+    ⛔ Read at call time, never captured as a default argument — same reason as
+    `batch.daily_segment_limit`: a value bound at import is frozen at whatever the environment
+    held when this module first loaded.
+
+    ⭐ Categories are folded through `tools.wisdom.category_norm.normalize_category` (R15) on
+    BOTH sides of the eventual comparison — here, and again wherever a segment's source `show`
+    is read — so a comma-separated env value in a slightly different casing still matches, and
+    the two typo folds R15 already knows about (`LIVE TRAIDNG`, casing of "Sharpen Your Trading
+    Skills") apply to a hand-typed order exactly as they apply to the data.
+
+    A name repeated in the list keeps its FIRST position — a duplicate is redundant, not
+    contradictory, so it is not refused.
+    """
+    from tools.wisdom.category_norm import normalize_category
+
+    raw = os.environ.get(CATEGORY_PRIORITY_ENV)
+    if raw is None or not raw.strip():
+        return DEFAULT_CATEGORY_PRIORITY
+    seen: dict = {}
+    for part in raw.split(","):
+        name = normalize_category(part.strip())
+        if name and name not in seen:
+            seen[name] = True
+    if not seen:
+        raise CategoryPriorityUnusable(
+            f"{CATEGORY_PRIORITY_ENV}={raw[:80]!r} parsed to no category names. Refusing rather "
+            "than falling back to the default order — a typo must not quietly reorder a night's "
+            "extraction.")
+    return tuple(seen)

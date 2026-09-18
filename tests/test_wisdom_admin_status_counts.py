@@ -107,7 +107,8 @@ def test_the_route_reads_no_text_bearing_column():
     tree = ast.parse(_source())
     offenders = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef) or node.name not in ("_row_counts", "_floored_stability"):
+        if not isinstance(node, ast.FunctionDef) or node.name not in (
+                "_row_counts", "_floored_stability", "_records_pending"):
             continue
         for sub in ast.walk(node):
             if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
@@ -142,6 +143,33 @@ def test_the_floored_stability_reader_groups_by_counts_only():
     for bucket in out.values():
         for value in bucket.values():
             assert isinstance(value, int)
+
+
+def test_the_records_pending_reader_groups_by_counts_only():
+    """R79: the status route's PENDING gauge, read fresh from the real floor module."""
+    import sqlite3
+
+    from api.routers import wisdom_core
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE wisdom_records (record_id TEXT, record_type TEXT, stability REAL, "
+                 "stability_runs INT)")
+    conn.executemany("INSERT INTO wisdom_records VALUES (?,?,?,?)",
+                     [("p1", "PRINCIPLE", None, None), ("p2", "PRINCIPLE", 1.0, 1),
+                      ("ok", "PRINCIPLE", 1.0, 3), ("blocked", "CALL", 0.4, 5)])
+    out = wisdom_core._records_pending(conn)
+    assert out == {"records_pending": 2, "records_pending_by_type": {"PRINCIPLE": 2}}
+
+
+def test_a_records_pending_failure_reports_null_rather_than_killing_the_route():
+    """⚠️ Same defensive shape as `_row_counts` — a status route must not 500 over one query."""
+    import sqlite3
+
+    from api.routers import wisdom_core
+
+    conn = sqlite3.connect(":memory:")   # no wisdom_records table at all
+    out = wisdom_core._records_pending(conn)
+    assert out == {"records_pending": None, "records_pending_by_type": {}}
 
 
 def test_no_new_route_was_added_so_the_pinned_list_is_untouched():

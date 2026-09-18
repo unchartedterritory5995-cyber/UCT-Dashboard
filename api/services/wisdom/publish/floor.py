@@ -171,6 +171,86 @@ def sql_clause(alias: str = "r", *, type_column: str = "record_type",
     return clause, [*FLOORED_TYPES, MIN_RUNS, floor_value()]
 
 
+#: R79 (owner ruling, 2026-09-18) — PENDING is not a verdict, and it is not queued like one.
+STATUS_PUBLISH = "PUBLISH"
+STATUS_PENDING = "PENDING"
+STATUS_BLOCK = "BLOCK"
+
+
+def status(record_type: Optional[str], stability: Any, runs: Any = None) -> str:
+    """PUBLISH / PENDING / BLOCK — the three-way read `passes()` deliberately collapses to two.
+
+    ⛔⛔ **`passes()` and `sql_clause()` are UNCHANGED and remain the only question the four
+    publish-path sites ask.** R79 governs one thing only: whether `enqueue_blocked` treats an
+    unmeasured record the same as a measured-and-failing one. It does not, and this function is
+    where that distinction is made — nowhere else needs it, and nowhere else should ask it.
+
+    * **PENDING** — `stability` or `runs` is NULL, unparseable, or `runs < MIN_RUNS`. Not yet a
+      verdict: item 2's N=3 voting has not finished, so there is nothing to review.
+    * **BLOCK** — measured (`runs >= MIN_RUNS`) and `stability` is below the floor. A verdict.
+    * **PUBLISH** — not a floored type, or measured and at/above the floor.
+
+    ⭐ Both PENDING and BLOCK fail `passes()` identically — `status(...) == STATUS_PUBLISH` is
+    exactly `passes(...)`, cross-checked by `test_status_and_passes_agree_on_every_case`.
+    """
+    if record_type not in FLOORED_TYPES:
+        return STATUS_PUBLISH
+    if stability is None or runs is None:
+        return STATUS_PENDING
+    try:
+        runs_i = int(runs)
+    except (TypeError, ValueError):
+        return STATUS_PENDING
+    if runs_i < MIN_RUNS:
+        return STATUS_PENDING
+    try:
+        stability_f = float(stability)
+    except (TypeError, ValueError):
+        return STATUS_PENDING
+    return STATUS_PUBLISH if stability_f >= floor_value() else STATUS_BLOCK
+
+
+def block_sql_clause(alias: str = "r", *, type_column: str = "record_type",
+                     stability_column: str = "stability", runs_column: str = "stability_runs") -> tuple:
+    """The BLOCK half of `NOT sql_clause()` — measured, and below the floor. What `enqueue_blocked`
+    now enqueues. ⛔ Must stay in lockstep with `status()`; cross-checked the same way `sql_clause`
+    is checked against `passes()`."""
+    for name in (alias, type_column, stability_column, runs_column):
+        if not name.replace("_", "").isalnum():
+            raise ValueError(f"not an identifier: {name!r}")
+    placeholders = ",".join("?" * len(FLOORED_TYPES))
+    clause = (f"{alias}.{type_column} IN ({placeholders})"
+              f" AND {alias}.{stability_column} IS NOT NULL AND {alias}.{runs_column} IS NOT NULL"
+              f" AND {alias}.{runs_column} >= ? AND {alias}.{stability_column} < ?")
+    return clause, [*FLOORED_TYPES, MIN_RUNS, floor_value()]
+
+
+def pending_sql_clause(alias: str = "r", *, type_column: str = "record_type",
+                       stability_column: str = "stability", runs_column: str = "stability_runs") -> tuple:
+    """The PENDING half of `NOT sql_clause()` — unmeasured, or measured over too few runs. What
+    `enqueue_blocked` now counts but does NOT enqueue. ⛔ Same lockstep requirement as
+    `block_sql_clause`."""
+    for name in (alias, type_column, stability_column, runs_column):
+        if not name.replace("_", "").isalnum():
+            raise ValueError(f"not an identifier: {name!r}")
+    placeholders = ",".join("?" * len(FLOORED_TYPES))
+    clause = (f"{alias}.{type_column} IN ({placeholders})"
+              f" AND ({alias}.{stability_column} IS NULL OR {alias}.{runs_column} IS NULL"
+              f" OR {alias}.{runs_column} < ?)")
+    return clause, [*FLOORED_TYPES, MIN_RUNS]
+
+
+def records_pending_count(conn: sqlite3.Connection) -> dict:
+    """R79: how many floored records are UNMEASURED right now, per type. Never enqueued — this
+    is the only place that number is visible, which is why the admin status route reads it."""
+    clause, params = pending_sql_clause("r")
+    rows = conn.execute(
+        f"SELECT r.record_type, COUNT(*) FROM wisdom_records r WHERE {clause} GROUP BY r.record_type",
+        params).fetchall()
+    per_type = {row[0]: row[1] for row in rows}
+    return {"records_pending": sum(per_type.values()), "records_pending_by_type": per_type}
+
+
 def principles_clause(alias: str = "p") -> tuple:
     """`wisdom_principles` has no `record_type` column — every row in it IS a PRINCIPLE.
 
@@ -212,7 +292,8 @@ def reason(record_type: Optional[str], stability: Any, *, runs: Any = None,
 
 
 def enqueue_blocked(conn: sqlite3.Connection, *, limit: int = 500, now=None) -> dict:
-    """Surface every blocked record in the admin review queue. Idempotent.
+    """Surface every BLOCKED record in the admin review queue. Idempotent. PENDING records are
+    counted but never enqueued (R79).
 
     ⛔⛔ **WHY THIS IS A SEPARATE STEP AND NOT A LINE INSIDE `select_records`.** The owner's rule
     says a 2/3 record *"may surface only in the admin review queue"*, and session 3 proved the
@@ -228,16 +309,28 @@ def enqueue_blocked(conn: sqlite3.Connection, *, limit: int = 500, now=None) -> 
     ⭐ `review.enqueue` is idempotent through `item_id_for(tab, subject_ref, new)`, so the same
     blocked record re-enqueued every day produces ONE row, not a flood — proved by a test that
     runs it twice and counts.
+
+    ⚰️⚰️ **R79 (owner ruling, 2026-09-18) NARROWS THIS FROM "everything that fails `sql_clause()`"
+    TO "everything `block_sql_clause()` matches."** Before R79, a record with zero passes over it
+    yet — `stability` and `runs` both NULL, or `runs < MIN_RUNS` — was enqueued on exactly the
+    same reason code as a record measured and genuinely below the floor, on the reasoning
+    (`test_r89_a_CALL_below_MIN_RUNS_is_pending_and_is_queued_exactly_like_a_PRINCIPLE`, now
+    rewritten) that Q17's own motivating case — 1.0 over one run — is the most confident-looking
+    number the pipeline can produce for the least evidence, and suppressing its queue row would
+    undo what Q17 bought. **R79 is the owner overturning that call, not a bug in it**: an item in
+    the queue that means "this hasn't finished voting yet" is not the same fact as "this voted and
+    lost," and mixing them meant every fresh extraction — the ordinary, expected state of a record
+    before its second and third pass land — showed up in the owner's inbox as if it needed a
+    decision. `records_pending_count` is where that number now lives instead: a counter, not a
+    queue entry, because nothing is wrong yet.
     """
     from api.services.wisdom.publish import review
 
-    clause, params = sql_clause("r")
+    clause, params = block_sql_clause("r")
     rows = conn.execute(
-        "SELECT r.record_id, r.record_type, r.stability, r.stability_runs, r.segment_id, r.author_id "
-        "FROM wisdom_records r "
-        f"WHERE r.record_type IN ({','.join('?' * len(FLOORED_TYPES))}) AND NOT {clause} "
-        "ORDER BY r.record_id LIMIT ?",
-        [*FLOORED_TYPES, *params, int(limit)],
+        f"SELECT r.record_id, r.record_type, r.stability, r.stability_runs, r.segment_id, r.author_id "
+        f"FROM wisdom_records r WHERE {clause} ORDER BY r.record_id LIMIT ?",
+        [*params, int(limit)],
     ).fetchall()
     created = 0
     for row in rows:
@@ -253,7 +346,11 @@ def enqueue_blocked(conn: sqlite3.Connection, *, limit: int = 500, now=None) -> 
             now=now,
         )
         created += int(bool(out.get("created")))
-    return {"blocked": len(rows), "enqueued": created, "floor": floor_value()}
+    pending_clause, pending_params = pending_sql_clause("r")
+    pending_count = conn.execute(
+        f"SELECT COUNT(*) FROM wisdom_records r WHERE {pending_clause}", pending_params).fetchone()[0]
+    return {"blocked": len(rows), "enqueued": created, "records_pending": pending_count,
+            "floor": floor_value()}
 
 
 #: R47 (2026-09-15) — who the floor signs a retraction as. ⛔ Never a person: an automatic

@@ -327,6 +327,36 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
                           program_pending_estimate_usd=round(p_pending, 6))
 
 
+#: R100/session-26 Step A3 (owner ruling, 2026-09-18) — the arithmetic behind "will tonight fit",
+#: as CODE rather than a number typed into a report. `select_within_budget`'s per-request loop
+#: already enforces "a night can spend no more than min(its own remaining line, the programme's
+#: remaining headroom)" as an EMERGENT property of checking both ceilings on every request; these
+#: two functions make that property a first-class, independently testable quantity instead of
+#: something provable only by re-deriving it from the loop.
+def night_reservation_ceiling_usd(conn, *, night_cap: float, night_date: str,
+                                  programme_cap: Optional[float] = None) -> float:
+    """The most a night can actually spend right now: whichever of the night's own remaining
+    line or the programme's remaining headroom is tighter. Never negative — a night or a
+    programme already over its line has zero room left, not a negative one."""
+    cap = budget_cap_usd() if programme_cap is None else float(programme_cap)
+    p_actual, p_pending = program_spent_and_pending(conn)
+    programme_headroom = max(0.0, cap - p_actual - p_pending)
+    n_actual, n_pending = night_spent_and_pending(conn, night_date)
+    night_headroom = max(0.0, float(night_cap) - n_actual - n_pending)
+    return min(night_headroom, programme_headroom)
+
+
+def projected_night_cost_usd(measured_usd_per_request: float, segments_per_night: int, passes: int) -> float:
+    """A night's projected bill from a MEASURED historical per-request rate — the same arithmetic
+    Step C's own plan states in prose (`segments x N x $/request`), pinned here so it can be
+    replayed against a real measured rate in a test rather than re-typed by hand each time the
+    plan changes. This is a PRE-ARMING SANITY CHECK, never a cap: the actual, enforced ceiling is
+    `night_reservation_ceiling_usd` above, checked per-request against real running totals by
+    `select_within_budget` — this function only answers "does the plan look sane before anything
+    is armed."""
+    return float(measured_usd_per_request) * int(segments_per_night) * int(passes)
+
+
 def snapshot(conn, extractor_version: str) -> dict:
     actual, pending = spent_and_pending(conn, extractor_version)
     p_actual, p_pending = program_spent_and_pending(conn)
