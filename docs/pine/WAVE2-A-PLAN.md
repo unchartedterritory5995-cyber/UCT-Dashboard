@@ -3459,11 +3459,31 @@ Four contract layers, named in the scoping section above, and ⭐ **for Clouds t
 field would be EMPTY even once it exists** (`staticColourOf` folds neither branch), so
 adding the field first produces a correct, empty contract that **looks like progress**.
 
-## ⏸️ j.4 — OWED, and blocked on a capture. Estimate 45.
+## 🟡 j.4 — ENGINE HALF DONE TWICE OVER; the VENDOR half is the only thing owed. Estimate 45.
 
 Wave 1's procedure, both tables, two mobile tiers. ⛔ **H.8's line is REPORTED, never
 asserted within tolerance**: Wave 1's fixture ends at the sealed bar `2026-09-11`, so it
 cannot cover the live divergence (j)'s acceptance would otherwise claim to have tested.
+
+**2026-09-18.** `docs/pine/j4-per-layer-table.md` carries the table twice, by two
+independent routes: built through `translatePine` → `memberPaneDefinition` →
+`binder.sync()`, and read back out of the document the **member door** stored after a
+real browser POST. They agree everywhere — 20 fills, 20 distinct opacities,
+95.0 → 47.5, `#00897B`/`#880E4F`, one `colorMode: column:out24`.
+⛔ The vendor column is **UNMEASURED, and was refused rather than skipped**: Gate v2.1
+(`visibilityState === 'visible'`) cannot pass from that session — the Chrome window is
+occluded and no route to raising it is available — and a click behind a failing
+visibility gate on the owner's TradingView account is the exact case the gate exists
+for. ⚠️ H.8 additionally needs an RTH window; the run reached that point at 02:24 ET.
+
+## ✅ j.5 — THE MEMBER DOOR'S SAVE. Unplanned; found by the capture, fixed the same day.
+
+`93c10724c`. Attaching a pasted script posted the 24-row document and handed back
+nothing, and `ChartToolbar.jsx` — the only chart-door mount — supplied no `onSaved`, so
+the sheet sat on top of the chart it had just drawn on. Both halves fixed, both
+mutation-proved, the call-site half railed by AST against `ChartToolbar.jsx` rather than
+the test's own mount. ⭐ **A pane a member cannot save is not shipped**, which is why
+this was (j)'s and not filed as a product question.
 
 ---
 

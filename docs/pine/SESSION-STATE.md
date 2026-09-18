@@ -2,6 +2,69 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 (late) — ✅ THE MEMBER DOOR WORKS END TO END. ⛔ R29 STILL DRAFT; R38 STOPPED AT GATE 1.
+>
+> **Three things landed, and one thing is blocked on a window nobody can raise.**
+>
+> ✅ **j.5 — the member door hands back** (`93c10724c`). The 09-17 sentence "Save
+> and Cancel both leave the sheet open" came apart into three facts under the real
+> handlers: **Cancel was never broken** (it opens the inline discard-confirm and
+> waits); **Save is the wrong control for a pasted pane script** and it worked (it
+> stores the SCAN definition — one tree, one plot); and **Attach** — `MemberPane`'s
+> *"Add this script to my chart"* — posts the 24-row pane document and then handed
+> back **nothing**. Second half at the CALL SITE: `ChartToolbar.jsx`, the only
+> chart-door mount, passed **no `onSaved` at all**, so even `save()`'s hand-back
+> had nowhere to land. Two lines, mutation-proved both ways, rail reads
+> `ChartToolbar.jsx` by AST rather than the test's own mount.
+>
+> ✅ **THE RIG WAS AIMED AT `C:\data` AND IS NOT ANY MORE** (`65a357693`).
+> `boot_rig.py` pinned 2 of the **77** census variables; `USER_DEFINITIONS_DB_PATH`
+> defaulted to `/data/user_definitions.db`, so a successful attach would have
+> written a member definition into the owner's live store. It never did — the pane
+> flag was off on 09-17, which is luck, not design. Now it imports
+> `hub_sandbox_boot.apply_sandbox_env`: 77 pins + the tripwire armed. Proof in the
+> mtimes — sandbox written 01:17:51, `C:\data\user_definitions.db` still 09-13.
+>
+> ✅ **THE CAPTURE RAN, AND THE CLOUDS ARE DRAWN.** Rig 8131 (PID 32196, identity
+> confirmed at 73 s; the 4-day-old 8129 incumbent untouched and later confirmed
+> still running). At the textarea: **9,811 chars, sha256 `92ec396864828ad2…`,
+> identical to the file** — carried by an HTTP fetch of the file itself after the
+> clipboard route died with the window focus, so nothing was retyped. Attach →
+> **the sheet CLOSED** → store holds **1 definition, 24 plots, 20 fills, 22
+> hidden**, and reading the per-layer table back OUT of that stored document gives
+> **20 distinct opacities, 95.0 → 47.5, `#00897B`/`#880E4F`, `colorMode
+> column:out24`** — every figure equal to the engine-side table measured through a
+> completely different path. Captures:
+> `docs/pine/capture/member-door-clouds-{drawn,detail}-2026-09-18.*`.
+>
+> ⛔⛔ **WHAT IS BLOCKED, AND IT IS ONE THING: GATE v2.1 CANNOT PASS.**
+> `document.visibilityState` reads **`hidden`** for every tab — the Chrome window
+> is occluded and this session cannot raise it (Windows' foreground lock refuses
+> `SetForegroundWindow`; the harness refuses the P/Invoke route;
+> `WScript.Shell.AppActivate` returns `False`). On the rig that was tolerable
+> because every reading there is DOM or SQLite, and the two images are labelled as
+> illustration. **On the owner's TradingView account it is not tolerable**, so the
+> **vendor capture on `01f1AcIj` DID NOT RUN** — refused for a stated reason, not
+> skipped. ⚠️ **H.8 is additionally out of session**: its triple needs a developing
+> bar and the run reached that point at **02:24 ET**.
+>
+> ⛔ **R29 — #145 STAYS DRAFT.** "Both tables at both tiers" is still UNMEASURED,
+> and unmeasured is not outside-tolerance. ⛔ **R38 (merge) STOPPED AT GATE 5.1**
+> — "#145 is READY" — and nothing below it was run or assumed. **Nothing was
+> merged; master was not touched.**
+>
+> ▶️ **NEXT — the whole remaining list is downstream of one window:** (1) bring the
+> Chrome window forward (or grant the window-raise permission), then the vendor
+> capture on `01f1AcIj` plus the two mobile tiers of the drawn band — restart with
+> `UCT_RIG_PORT=8131 python docs/pine/wip/rig/boot_rig.py`; the `app/dist` build
+> already carries `VITE_PINE_MEMBER_PANE_ENABLED=1`; (2) H.8's triple in an RTH
+> window; (3) R29 re-decides; (4) R38's remaining gates in order.
+>
+> ⚠️ Recorded, not fixed: a store refusal on the **Save** path renders at
+> `BuilderSheet.jsx:2889`, outside the sticky footer and below the whole source
+> listing — on a 9,811-character script a member may never reach it. The attach
+> door does not have that shape.
+
 > ### ⏱️ 2026-09-18 — ✅ j.4's PER-LAYER TABLE IS MEASURED. ⛔ R29 STAYS DRAFT.
 >
 > `docs/pine/j4-per-layer-table.md`. Measured end to end through the same calls the
