@@ -100,59 +100,86 @@ worth a one-line check, not assumed.
 FLIP (turn on delivery of the new price-level evaluator's alerts, turn off the
 legacy `watchlist_alerts` rule)?
 
-**Status: OWNER-ONLY**, and the VERDICT GATE (five full trading sessions of forward
-data, per predicate) is now formally **READY** — but the data underneath that READY
-status should give real pause, read live from production this session
-(`railway ssh --service web -- python tools/s7_price_level_report.py`, 2026-09-18):
+**Status: OWNER-ONLY. REWRITTEN 2026-09-18** after a dedicated, worktree-isolated
+investigation (read-only, production-verified via `railway ssh --service web` +
+independent yfinance quotes pulled outside the app entirely) replaced the earlier
+reading of this data with real ground truth. **The earlier version of this card said
+"total disagreement" on the one predicate with volume — that was wrong, and the
+correction matters:** it was one real crossing event before the observation window
+opened, counted as ~2178 one-minute ticks, not 2178 distinct events. See below.
 
-```
-predicates seen ....... 10        comparison spans ...... 10        recorded outcomes: 2079
+### The 10 armed predicates, and what actually happened to each
 
-  predicate                   agreed  new-only legacy-only  not-comparable sessions verdict
-  legacy:08d68edb-d4b              0         0        2079               0        5 ready
-  legacy:2cc1f7db-61b              0         0           0               0        5 ready
-  legacy:4896a625-3d9              0         0           0               0        5 ready
-  legacy:7b69ac30-1ae              0         0           0               0        5 ready
-  legacy:b4996557-2b7              0         0           0               0        5 ready
-  legacy:b99aae00-577              0         0           0               0        5 ready
-  legacy:c591ef0b-081              0         0           0               0        5 ready
-  legacy:e07ea57a-999              0         0           0               0        5 ready
-  legacy:f0d66360-4ad              0         0           0               0        5 ready
-  legacy:fb781c79-e44              0         0           0               0        5 ready
-```
+**9 of 10 are genuine, verified true negatives — not silence, not a bug.** Each
+predicate's own stored "last live price the sweep used" was independently
+cross-checked against a real-time yfinance quote pulled from outside the app; all 9
+matched real market prices to within ordinary quote-timing noise, proving the dark
+sweep is pricing every one of them against real data and that zero outcomes means
+the armed condition simply hasn't become true yet — SNDK is ~1% from its target and
+close; DFTX/SPY/DIA/GME/BLZE/DDOG carry suspiciously precise multi-decimal targets
+far (30%–5x) from the real market and read as synthetic/dogfooding fixtures rather
+than organic member behavior. **This caps how representative n=10 is for a
+platform-wide flip decision.**
 
-**Two findings worth reading before deciding, neither of them "the flip is safe":**
+**The 10th (`legacy:08d68edb-d4b`, RMIX, target 14.2067 below) is the real story,
+and it is NOT disagreement — it is the two rules' designed semantics doing exactly
+what they were specified to do:**
+- RMIX crossed below its target **exactly once**, on 2026-09-10 — **before** the
+  comparison window opened (2026-09-14 09:00 ET). It has stayed below every session
+  since, never crossing back up and re-crossing down.
+- The legacy rule is a **stateless level test**, re-run every minute with no memory
+  — true on effectively every tick since the span opened (~2178 of ~2209 possible
+  ticks), which is what the "2178 legacy_only" figure actually is: **a tick count of
+  a level staying crossed, not 2178 distinct events.**
+- The new evaluator implements a **cross** (a transition), per the PRD's own
+  written definition, quoted exactly: *"A scoped entity's price crosses a
+  registered threshold in a registered direction."* Under the already-ruled
+  "no replay, ever, forward-only" decision (GATE-S7-PRICE-LEVEL §3a, owner ruling
+  2026-09-12), the new evaluator is **correct** to have never counted a crossing
+  that happened before the window opened. **This is designed behavior working
+  exactly as specified — not a defect, and not "the new system disagreeing."**
+- **On the PRD's own stated definition, the new evaluator is the more faithful
+  implementation.** The open product question — quoted verbatim from
+  `price_level_projection.py`'s own docstring — is real and distinct: *"[whether
+  a flipped alert should re-fire persistently, the way legacy incidentally did] …
+  is a product call,"* not resolved here.
 
-1. **9 of 10 predicates show ZERO outcomes of any kind** (agreed/new-only/legacy-only/
-   not-comparable all 0) across all five sessions. That is either a genuinely quiet
-   market for those specific price levels, or the new evaluator silently not firing
-   against them — the report cannot tell the two apart, and "five sessions of
-   silence" is a weaker READY than "five sessions of agreement."
-2. **One predicate (`08d68edb-d4b`) shows 2079 legacy-only fires and 0 agreement.**
-   The legacy rule triggered 2079 times; the new evaluator matched it ZERO of those
-   times, over five full sessions. This is the one predicate with real volume to
-   judge by, and on it the two paths disagree completely.
-3. **The tool's own documented blind spot points the flattering way**: the legacy
-   path is one-shot (fires once, then the row goes inactive and leaves the
-   comparison), so a `new-only` of 0 does not mean the new evaluator never fires
-   early — it means this report cannot see a second crossing once legacy has fired
-   once. The 2079 legacy-only figure is real; the 0-agreement figure next to it is
-   not proof of total disagreement, only proof that agreement was never OBSERVED.
-4. **Live-ticking check right now (2026-09-18, Friday ~12:22 ET, inside the trading
-   window) shows NO heartbeat at all for any of the 7 S7 dark crons** — price-level
-   included. Worth checking `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED`'s live value
-   and the web log for a "DARK sweep failed" line before trusting this READY status
-   as still current; the five-session data above may be looking backward at a sweep
-   that has since gone quiet.
+### One real bug found and already fixed this session (F-S7-6)
 
-**Recommendation: do not flip on this data alone.** The gate says READY by session
-count, but the underlying signal is either near-silent or a stark, unexplained
-disagreement on the one predicate with real volume. Recommend: (a) confirm the
-crons are still ticking today before trusting the READY verdict at all, (b)
-investigate why 9/10 predicates recorded zero outcomes (silent evaluator vs quiet
-market), (c) specifically investigate the 08d68edb-d4b predicate's 2079-to-0 gap
-before flipping that predicate's delivery on.
+The investigation also found a genuine plumbing gap, unrelated to the above: **2 of
+the 12 armed admin-cohort predicates (both on `UCTA5`, a UCT-breadth pseudo-ticker)
+were structurally invisible to the comparison report** — the dark sweep's price
+resolver had no path to a breadth pseudo-ticker's quote (Massive has none), so they
+never even got a comparison span. **Fixed and merged this session**
+(`s7-price-level-f6-build-record.md`, CP3-scoped, no new authorization needed) by
+resolving breadth symbols the same way the real legacy checker already does. Live
+production now correctly prices all 12 armed predicates.
 
-**Choose:** A) flip now, accepting the risk on 08d68edb-d4b  B) hold, investigate
-the two findings above first  C) flip everything except 08d68edb-d4b
-D) something else: ______________
+### What this data cannot tell you
+
+**None of the 10 armed predicates uses the trendline/anchor-rewrite machinery**
+(anchor_version=0 for all 10) — the more complex code path F-S7-2/F-S7-3 exist to
+handle has **zero dark-period exercise** in this run. A flip decision made on this
+evidence is a decision about fixed-price alerts only.
+
+**A traceability gap, worth its own line:** the governing gate packet
+(`s7-price-level-pre-implementation-gate.md`) does not exist on the code branches
+that carry the shipped CP1–CP3 code — only on the `terminal-research` docs branch.
+The shipped, running code has no in-branch link back to its own approval record.
+
+### Recommendation
+
+**The data no longer supports "hold, something looks wrong" — it supports "the new
+evaluator is behaving correctly by its own written spec, on a thin and partly
+synthetic sample."** The real open items are: (1) the persistence-semantics product
+call quoted above (one-shot vs. re-firing) is still genuinely unmade, and a flip
+ships SOME answer to it whether or not anyone decides it on purpose; (2) zero
+trendline coverage means a flip should stay scoped to fixed-price alerts until that
+path gets its own dark exercise; (3) the sample is thin (10, several apparently
+synthetic) for a platform-wide rollout decision.
+
+**Choose:** A) flip fixed-price alerts now, ship the "one-shot" legacy-matching
+behavior as the v1 answer to the persistence question  B) flip fixed-price alerts
+now, ship "re-fires on each new cross" as the v1 answer instead  C) hold for a
+larger/more organic sample before flipping anything  D) something else:
+______________
