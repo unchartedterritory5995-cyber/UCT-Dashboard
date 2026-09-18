@@ -959,19 +959,25 @@
    rail, its gutters and the `Off` tag without wrapping, at the 12px the rows are
    set in. Narrower and the one name that needs the room truncates; wider and the
    Inspector, which is doing the harder job, starts giving up field width. */
-/* ⚰️ A SHARE, NOT 264px. The column was a fixed width chosen against a 720px
-   shell; at 680 that same number would have SHRUNK the list while the shell
-   shrank around it. Owner, 2026-09-17: *"give the left indicator column a little
-   more relative width... target approximately 40–43% of the Indicators content
-   area."*
-   ⭐ 43% IS WORTH MORE ON THE LEFT THAN ON THE RIGHT, and that is the argument
-   rather than the number: the left column holds `EMA 20 · QQQ`, `Relative
-   Strength Index`, a breadth measure's real name and two reorder arrows; the
-   right column's widest control holds `Close`. A floor keeps it usable if the
-   shell is ever narrowed further. */
+/* ⚰️⚰️ 43% → 35%, AND THE ARGUMENT THAT SET 43 IS THE ONE THAT MOVED IT. It
+   read: *"43% is worth more on the left than on the right — the left column
+   holds `EMA 20 · QQQ` and two reorder arrows; the right column's widest control
+   holds `Close`."* That was true when the right side was the INSPECTOR. The right
+   side's default is the LIBRARY now — a search field, eight category tabs, and a
+   row carrying a glyph, a name, an abbreviation, a badge, a sentence and an
+   action — and the left column still holds `EMA 20` and two arrows.
+   ⭐ SO THE DENSER SURFACE GETS THE WIDTH. Owner, 2026-09-17: *"the right side is
+   the more information-dense surface... it deserves substantially more room."*
+   Measured: search went 246 → 393px and a result's text column 214 → 360px, which
+   is the difference between a placeholder that truncates and one that does not.
+   ⛔ AND THE LEFT MAY TRUNCATE. `EMA 9`, `SMA 200`, `RSI 14` fit; `Relative
+   Strength Index #1` ellipsizes, which is explicitly acceptable — the full name is
+   on the row's `title` and in the editor. What it may NOT do is push the reorder
+   arrows off the end, which is why the name flexes and the arrows do not.
+   ⚠️ THE FLOOR IS WHAT STOPS 35% BECOMING UNUSABLE on a narrower shell. */
 .insLeft {
-  flex: 0 0 43%;
-  min-width: 232px;
+  flex: 0 0 35%;
+  min-width: 208px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1047,7 +1053,15 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--menu-text-faint, #93939a);
+  /* ⚰️ FAINT → DIM. `INDICATORS` is the column's own name — the strongest
+     structural label on this side — and it was sharing the faintest tier in the
+     panel with pane headings and metadata. Owner, 2026-09-17: *"too muted... they
+     should be clearly readable structural/navigation text."*
+     ⛔ ONE TIER, NOT WHITE. The hierarchy it belongs to is unchanged: this label,
+     then the pane headings BELOW it (which keep `--menu-text-faint`, so the two
+     stop being the same colour), then the row names, with `＋ Add Indicator` the
+     only gold thing on the column. */
+  color: var(--menu-text-dim, #b3b3b9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1068,9 +1082,14 @@
   font-size: 11px;
   line-height: 1;
   /* ⚰️ `Arrange` WAS THE FAINTEST THING IN ITS OWN HEADING and the owner said so:
-     it is a labelled verb, not metadata. SECONDARY — quiet next to the gold Add,
-     legible on its own. */
-  color: var(--menu-text-dim, #b3b3b9);
+     it is a labelled verb, not metadata. It went to SECONDARY then, and was still
+     too quiet in use — owner, 2026-09-17: *"Arrange → clearly visible secondary
+     action."*
+     ⭐ PRIMARY INK AT 11px, WHICH IS NOT THE SAME AS LOUD. An ACTION reads
+     brighter than a LABEL, so this sits above `INDICATORS` beside it and below
+     `＋ Add Indicator`, which is the only gold thing on the column. The hover
+     signal moves to the surface, since the colour is already at the top. */
+  color: var(--menu-text, #ededed);
   cursor: pointer;
   transition: color 110ms, background 110ms;
 }
@@ -1151,15 +1170,22 @@
 .insRow {
   display: flex;
   align-items: center;
-  /* ⭐⭐ 10px, NOT 7 — AND THE GAP IS DOING A JOB. The gold selection edge and the
-     series micro-rail are two vertical marks two pixels apart, and they mean
-     COMPLETELY different things: the rail is *which plotted line this is*, the
-     gold is *what I am editing*. At 7px they read as one two-tone bracket. The
-     extra 3px is what keeps the two meanings legible as two. */
-  gap: 10px;
+  /* ⭐⭐ THE GAP IS DOING A JOB, and that is why it is 8 rather than the 7 it
+     started at. The gold selection edge and the series micro-rail are two
+     vertical marks two pixels apart, and they mean COMPLETELY different things:
+     the rail is *which plotted line this is*, the gold is *what I am editing*. At
+     7px they read as one two-tone bracket. */
+  /* ⚰️ 10 → 8. The gap exists to keep the gold selection edge and the series
+     micro-rail legible as TWO marks (see below), and 8px still does that —
+     measured against the 2px rail at 11.5px text. The 2px comes back to the name,
+     which is the thing that truncates. */
+  gap: 8px;
   width: 100%;
   box-sizing: border-box;
-  padding: 4px 7px 4px 8px;
+  /* ⚰️ HORIZONTAL ONLY. 7/8 → 4/6 gives the name 5px it did not have; the
+     VERTICAL padding is untouched, because a narrower column must not become a
+     denser one — owner: *"do not make the rows vertically cramped."* */
+  padding: 4px 4px 4px 6px;
   /* ⚰️ IT HAD A 5px RADIUS AND A 6.2% FILL, which made the selected row a
      rounded CHIP floating in the column — the "giant glowing selected card" the
      brief rules out, at small scale. A row is a BAND across the full width of the
@@ -1269,6 +1295,11 @@
    flexible space (`flex: 1 1 auto` with `text-overflow: ellipsis`), so a long
    label truncates INTO the arrows instead of pushing them anywhere — the pair
    never wraps to a second line and the left column never widens for them. */
+/* ⛔ `flex: none` IS A REQUIREMENT, NOT A DEFAULT. The column is 35% now and a
+   formula called `Relative Strength Index #1` is longer than it; the NAME is what
+   gives way (`flex: 1 1 auto` + ellipsis) and the order controls hold their 33px
+   whatever the name does. An arrow pushed off the end is a control the member
+   cannot reach. */
 .insRowOrder {
   flex: none;
   display: flex;
@@ -2018,7 +2049,7 @@
 }
 .insTabs {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
   /* ⚰️ EIGHT CATEGORIES DO NOT FIT A 325px COLUMN AT A READABLE SIZE — measured:
@@ -2036,7 +2067,13 @@
 .insTab {
   flex: 0 0 auto;
   height: 24px;
-  padding: 0 8px;
+  /* ⚠️ 7px, AND IT BUYS ONE MORE TAB RATHER THAN SOLVING ANYTHING. Measured on
+     the wider panel: the eight categories need 532px and the strip has 386, so
+     roughly five and a half fit and the rest scroll. Closing 146px would mean
+     shrinking the text past readable, which the brief rules out by name — so the
+     strip stays a SCROLL, with a fade to say so, arrow keys to walk it and the
+     chosen tab scrolling itself into view. */
+  padding: 0 7px;
   box-sizing: border-box;
   border: 1px solid var(--menu-border, #2b2b2d);
   border-radius: 5px;

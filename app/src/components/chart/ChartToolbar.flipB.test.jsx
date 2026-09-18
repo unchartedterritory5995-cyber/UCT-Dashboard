@@ -203,7 +203,14 @@ const removeFor = (defId) => {
 /** Is this indicator in the ACTIVE list at all? The consolidated tab lists what
  *  the chart DRAWS, so "absent" is a meaningful answer where the old tab could
  *  only say "present and unticked". */
-const isListed = (defId) => !!document.body.querySelector(`[data-def-id="${defId}"]`)
+/** ⚠️⚠️ "LISTED" MEANS *THE CHART DRAWS IT*, WHICH IS THE STRUCTURE COLUMN.
+ *  Indicators now opens into the ADD LIBRARY when nothing is selected, and a
+ *  library result carries `data-def-id` exactly as a chart row does — so a
+ *  document-wide query would answer `true` for a TOMBSTONED indicator purely
+ *  because the catalogue still offers it, which is the opposite of the claim. */
+const isListed = (defId) => !!document.body
+  .querySelector('[data-testid="chart-structure"]')
+  ?.querySelector(`[data-def-id="${defId}"]`)
 
 describe('the generated dialog — a FLIPPED indicator writes the instance, field by field', () => {
   it('the period control is live, shows the INSTANCE, and says nothing about an engine', () => {

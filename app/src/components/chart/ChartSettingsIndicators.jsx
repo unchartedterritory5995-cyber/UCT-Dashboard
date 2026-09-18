@@ -744,7 +744,21 @@ export default function ChartSettingsIndicators({
   // ⚠️ IT RUNS ONLY WHILE BROWSING. `enabled` is the hook's own gate: a closed
   // catalogue makes no request and holds no state, which is the same discipline
   // `UserFormulaFeed` follows one file up.
-  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, mode === 'browse')
+  // ⚰️⚰️ THERE WERE THREE RIGHT-HAND STATES AND THERE ARE TWO. `mode === 'active'`
+  // with nothing selected used to render an orientation screen — a mark, a
+  // sentence and a `Browse indicators` button — and the owner tested it: *"we
+  // tested it. It is unnecessary. It creates an extra conceptual state and wastes
+  // a click."* Opening Indicators to look for something now IS looking for
+  // something.
+  //
+  // ⭐ SO DISCOVERY IS THE DEFAULT, NOT A DESTINATION. `browse` is still the
+  // explicit mode a member enters from `＋ Add Indicator`; what changed is that
+  // ACTIVE-with-no-selection resolves to the same surface, so there is ONE
+  // discovery component reached two ways rather than an empty state in front of
+  // it. The right side now answers exactly two questions: what can I add, and how
+  // is this one configured.
+  const discovering = mode === 'browse' || (mode === 'active' && !selected)
+  const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, discovering)
   // ⚠️ THE SAME WINDOW `useSymbolDiscovery` NORMALISES AGAINST, so a browsed row
   // and a searched row report the same capability for the same instrument. The
   // hook defaults to these two; naming them here keeps the browse path honest
@@ -866,11 +880,23 @@ export default function ChartSettingsIndicators({
     return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
   }, [tabResults, symbolRows, query])
 
-  const enterBrowse = useCallback(() => setMode('browse'), [])
+  // ⛔ ONE DISCOVERY SURFACE, TWO DOORS. `＋ Add Indicator` sets the EXPLICIT
+  // mode even when discovery is already on screen — which is what makes the focus
+  // effect below fire and put the caret in the box. It never creates a second Add
+  // state; `browse` and `active`-with-no-selection render the same component.
+  const enterBrowse = useCallback(() => {
+    setMode('browse')
+    // ⚠️ FOCUS EVEN IF THE MODE DID NOT CHANGE. Pressing the button while already
+    // discovering is a statement of intent to search, and the effect below only
+    // fires on a mode TRANSITION.
+    try { searchRef.current?.focus() } catch { /* noop */ }
+  }, [])
   const leaveBrowse = useCallback(() => {
     // ⛔ THE SELECTION IS NOT DESTROYED (owner §20). `mode` goes back to `active`
     // and `selected` is untouched, so a member who was editing `EMA 20`, went
     // looking for something and changed their mind lands back on `EMA 20`.
+    // ⚠️ AND WITH NO SELECTION THIS IS UNREACHABLE — the arrow that calls it is
+    // not rendered, because `active` with nothing selected IS discovery.
     setMode('active'); setQuery(''); setTab('popular'); setTabPinned(false)
     try { searchRef.current?.blur() } catch { /* noop */ }
   }, [])
@@ -880,6 +906,11 @@ export default function ChartSettingsIndicators({
   // to ask twice. It is keyed on the MODE rather than done inside `enterBrowse`
   // so that `pickCategory` — the other way in — gets it too, and so a re-render
   // while already browsing never steals the caret back from where they put it.
+  // ⛔⛔ ON `browse`, NOT ON `discovering`. Discovery is the DEFAULT now, so
+  // keying this on the surface would take the caret the instant the Indicators tab
+  // is opened — stealing focus from the modal's own landing element, and from a
+  // member who arrived by keyboard and is still on the tab strip. The audit rule
+  // holds: focus follows an EXPRESSED intent (`＋ Add Indicator`), never a render.
   useEffect(() => {
     if (mode !== 'browse') return
     try { searchRef.current?.focus() } catch { /* noop */ }
@@ -1177,7 +1208,13 @@ export default function ChartSettingsIndicators({
           style={tint ? { background: tint } : undefined}
           aria-hidden="true"
         />
-        <span className={styles.insRowName}>{meta.name}</span>
+        {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
+            35% `Relative Strength Index (period 14)` ellipsizes — which is
+            explicitly acceptable — but the member must still be able to find out
+            what it says without selecting it. `title` is this panel's existing
+            convention for exactly that, and the canonical name is untouched:
+            nothing is abbreviated, persisted or renamed. */}
+        <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
         {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
             the toolbar the brief rules out; the row is dimmed AND says why, so a
             member scanning the column sees which lines are off without hovering
@@ -1841,65 +1878,16 @@ export default function ChartSettingsIndicators({
     )
   }
 
-  /**
-   * NOTHING SELECTED — WHAT CAN I DO HERE?
-   *
-   * ⚰️⚰️ IT LISTED THE CHART'S SERIES, PANE BY PANE, WITH THEIR MICRO-RAILS. That
-   * was the right fix for the state before it (three lines and 400px of nothing)
-   * and it created a worse problem: the LEFT column answers *"what is on my
-   * chart"* about four inches away, so the panel opened by saying the same thing
-   * twice. Owner, 2026-09-17: *"the right side should not answer the same question
-   * again... remove that duplicated chart inventory."*
-   *
-   * ⭐ SO THE FOUR STATES EACH ANSWER A DIFFERENT QUESTION:
-   *     LEFT            what is already on my chart
-   *     RIGHT default   what can I do here          ← this
-   *     RIGHT add       what can I add
-   *     RIGHT selected  how is this series configured
-   *
-   * ⛔ AND IT IS NOT A DASHBOARD. One mark, one sentence, two doors and a line of
-   * examples. Every door here is an EXISTING one reached a second way — `Browse`
-   * is the same `enterBrowse` the left column's `＋ Add Indicator` calls, and
-   * `New Formula` is the same `onCreateFormula` the Add header offers. No second
-   * workflow, no competing primary CTA.
-   */
-  const renderInspectorEmpty = () => (
-    <div className={styles.insEmpty} data-testid="inspector-empty">
-      {/* ⛔ ONE GLYPH, AT REST. The neutral `ind-series` mark rather than a family
-          one — nothing is selected, so there is no family to name. */}
-      <span className={styles.insStartMark} aria-hidden="true">
-        <UIcon name="ind-series" size={30} gold={false} strokeWidth={1.35} />
-      </span>
-      <div className={styles.insStartTitle}>Edit or add indicators</div>
-      <p className={styles.insStartNote}>
-        Select a series on the left to edit its settings, or add something new to
-        the chart.
-      </p>
-      <div className={styles.insStartActions}>
-        <button
-          type="button"
-          className={styles.insAddBtn}
-          data-testid="start-browse"
-          onClick={enterBrowse}
-        >Browse indicators</button>
-        {onCreateFormula && (
-          <button
-            type="button"
-            className={styles.insStartGhost}
-            data-testid="start-new-formula"
-            onClick={() => onCreateFormula()}
-          >New formula</button>
-        )}
-      </div>
-      {/* ⚠️ EXAMPLES, NOT SHORTCUTS. They are prose — they say what the library
-          holds so "add something new" is not an abstraction. Making each one a
-          button would be four more doors onto one workflow, which is the competing
-          CTA the brief rules out. */}
-      <div className={styles.insStartExamples}>
-        Moving Average · RSI · MACD · Bollinger Bands · Volume · breadth · symbols
-      </div>
-    </div>
-  )
+  // ⚰️⚰️ `renderInspectorEmpty` STOOD HERE AND IS DELETED. It has been three
+  // things in three passes: a lede and a count, then a full inventory of the
+  // chart's series, then a mark with two doors. Each replaced a real defect in the
+  // one before it, and the third was tested and judged unnecessary — owner,
+  // 2026-09-17: *"it creates an extra conceptual state and wastes a click."*
+  //
+  // ⭐ THE ANSWER WAS THAT THE STATE SHOULD NOT EXIST. A member opening Indicators
+  // with nothing selected is looking for something; the surface for that already
+  // exists and is three lines below. `discovering` renders it directly, and the
+  // right side now has exactly two states — DISCOVER and EDIT.
 
   /**
    * ARRANGE's right-hand side — deliberately almost nothing.
@@ -2231,12 +2219,31 @@ export default function ChartSettingsIndicators({
     return (
     <div className={styles.insAdd} data-testid="add-surface">
       <div className={styles.insHead}>
-        <button
-          type="button"
-          className={styles.insBack}
-          onClick={leaveBrowse}
-          aria-label="Back to active indicators"
-        >←</button>
+        {/* ⚰️⚰️ IT WAS UNCONDITIONAL, AND IT USED TO MEAN SOMETHING: discovery was a
+            place you went FROM the orientation screen, so there was always
+            somewhere to come back to. That screen is gone and discovery is the
+            default, so an arrow rendered with nothing selected would return the
+            member to… discovery. Owner: *"no dead back arrow."*
+            ⭐ IT APPEARS EXACTLY WHEN THERE IS A SELECTION TO RETURN TO — a member
+            who was editing `EMA 20`, pressed `＋ Add Indicator` and changed their
+            mind gets `EMA 20` back. No history stack: the selection IS the
+            history, and it was never cleared. */}
+        {/* ⚠️⚠️ AND ALWAYS AT NARROW, WHICH IS NOT A SECOND RULE — it is the same
+            one. The arrow exists when leaving discovery LEADS SOMEWHERE, and on a
+            phone it always does: the two regions are one at a time, so the left
+            list is off screen while Add is up and this is the only way back to
+            it. Measured: without this a member with nothing selected had no exit
+            from Add on a narrow layout at all. */}
+        {(selectedRow || narrow) && (
+          <button
+            type="button"
+            className={styles.insBack}
+            onClick={leaveBrowse}
+            aria-label={selectedRow
+              ? `Back to ${paneRowMeta(selectedRow, groupOfRow(selectedRow.id), settings, defOf).name}`
+              : 'Back to the chart structure'}
+          >←</button>
+        )}
         <span className={styles.insHeadText}>
           <span className={styles.insHeadName}>Add Indicator</span>
         </span>
@@ -2601,11 +2608,9 @@ export default function ChartSettingsIndicators({
 
         {showRight && (
           <div className={styles.insRight} data-testid="inspector">
-            {mode === 'browse'
-              ? renderAddSurface()
-              : mode === 'arrange'
-                ? renderArrangeAside()
-                : (selectedRow ? renderInspector(selectedRow) : renderInspectorEmpty())}
+            {mode === 'arrange'
+              ? renderArrangeAside()
+              : (discovering ? renderAddSurface() : renderInspector(selectedRow))}
           </div>
         )}
       </div>

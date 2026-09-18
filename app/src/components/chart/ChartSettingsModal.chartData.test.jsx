@@ -247,7 +247,7 @@ describe('the inspector holds exactly one selection', () => {
     // selected" means to everything that reads this panel.
     expect(inspectorFor()).toBeFalsy()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
   it('⛔ THE LIST POINTS `aria-controls` AT THE REGION ITS SELECTION DRIVES', () => {
@@ -377,7 +377,7 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
   })
 
   it('⭐⭐ every control the inline editor carried is still in the Inspector', () => {

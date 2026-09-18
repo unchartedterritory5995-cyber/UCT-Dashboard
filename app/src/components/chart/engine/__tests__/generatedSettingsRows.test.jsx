@@ -589,7 +589,16 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
    *  publishes `data-def-id` on every active row, so the address is now the
    *  definition ID itself — which is the same defect closed at the source rather
    *  than dodged by a stricter string match. */
-  const rsiBlocks = () => [...document.body.querySelectorAll('[data-def-id="rsi"]')]
+  /** ⚠️⚠️ SCOPED TO THE STRUCTURE LIST, AND THAT IS NOT A CONVENIENCE. Opening
+   *  Indicators with nothing selected now renders the ADD LIBRARY on the right
+   *  (there is no orientation state any more), and a library result carries
+   *  `data-def-id` exactly as a chart row does — so a document-wide query counts
+   *  the CATALOGUE's RSI alongside the chart's. Measured: two RSI instances
+   *  returned three matches. This case is about what the chart DRAWS, so it asks
+   *  the column that answers that. */
+  const rsiBlocks = () => [...(document.body
+    .querySelector('[data-testid="chart-structure"]')
+    ?.querySelectorAll('[data-def-id="rsi"]') || [])]
 
   /** One row's MICRO-RAIL colour — what the row wears before anything is opened.
    *

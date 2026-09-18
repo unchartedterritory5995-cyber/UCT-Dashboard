@@ -287,81 +287,97 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
   })
 
   // ═════════════════════════════════════════════════════════════════════
-  const start = () => document.body.querySelector('[data-testid="inspector-empty"]')
+  const discovery = () => document.body.querySelector('[data-testid="add-surface"]')
 
-  it('⚰️⚰️ THE DEFAULT RIGHT SIDE DOES NOT REPEAT THE LEFT ONE', () => {
-    // ⚰️⚰️ AN OVERVIEW OF THE CHART'S SERIES STOOD HERE, pane by pane, with their
-    // micro-rails — and six cases asserted it followed `paneOrder`,
-    // `paneSeriesOrder` and every Display change. It was the right fix for the
-    // state before it (three lines and ≈400px of nothing) and it created a worse
-    // problem: the LEFT column answers *"what is on my chart"* four inches away,
-    // so the panel opened by saying the same thing twice. Owner, 2026-09-17:
-    // *"that is redundant... remove that duplicated chart inventory."*
+  it('⚰️⚰️⚰️ THE THIRD RIGHT-HAND STATE IS GONE — no selection IS discovery', () => {
+    // ⚰️⚰️⚰️ THIS CASE HAS NOW ARGUED THREE WAYS, WHICH IS WHY IT IS KEPT.
+    //   1. The no-selection state was a lede, a count and an Add button, and this
+    //      asserted it was not a blank rectangle.
+    //   2. It became an INVENTORY of the chart's series, pane by pane, and six
+    //      cases asserted it followed `paneOrder` and `paneSeriesOrder` — until
+    //      the owner pointed out the LEFT column already answers that question.
+    //   3. It became a mark, a sentence and two doors. The owner tested that:
+    //      *"we tested it. It is unnecessary. It creates an extra conceptual state
+    //      and wastes a click."*
     //
-    // ⭐ SO THE FOUR STATES EACH ANSWER A DIFFERENT QUESTION, and this rail is the
-    // one that keeps them apart: LEFT = what is on my chart, RIGHT default = what
-    // can I do here, RIGHT add = what can I add, RIGHT selected = how is this
-    // configured.
+    // ⭐ SO THE ANSWER WAS THAT THE STATE SHOULD NOT EXIST. A member opening
+    // Indicators with nothing selected is looking for something, and the surface
+    // for that already existed one click away. Two states remain: DISCOVER and
+    // EDIT.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    expect(start(), 'nothing selected renders no start state at all').toBeTruthy()
-
-    // ⛔ MEASURED AS "IT DOES NOT NAME THE MEMBER'S SERIES", which is the actual
-    // duplication. A generic word like `Volume` could appear in prose; the row
-    // names on THIS chart — `EMA 9`, `SMA 200`, `SMA 5` — could not.
-    const text = start().textContent
-    for (const n of ['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200']) {
-      expect(text, `the start state repeats the left column's ${n}`).not.toContain(n)
-    }
-    // …and it carries no pane structure either: no headings, no counts, no rails.
-    expect(start().querySelectorAll('[data-ov-pane], [data-ov-row]')).toHaveLength(0)
-    expect(start().querySelectorAll('[class*="insRail"]'),
-      'the start state grew series micro-rails — those mean a PLOTTED series')
-      .toHaveLength(0)
+    expect(discovery(), 'Indicators did not open into discovery').toBeTruthy()
+    expect(screen.getByRole('searchbox'), 'the search box is not on screen').toBeTruthy()
+    expect(document.body.querySelector('[data-testid="inspector-empty"]'),
+      'the deleted orientation screen is back').toBeNull()
   })
 
-  it('⭐ IT SAYS WHAT CAN BE DONE, AND EVERY DOOR IS AN EXISTING ONE', () => {
-    // ⛔ NO SECOND WORKFLOW (owner §23). `Browse indicators` is the same
-    // `enterBrowse` the left column's `＋ Add Indicator` calls, so there is one Add
-    // mode reached two ways rather than two modes that can drift.
-    show(base()); openTab()
-    expect(start().textContent).toMatch(/Edit or add indicators/i)
-    fireEvent.click(screen.getByTestId('start-browse'))
-    expect(document.body.querySelector('[data-testid="add-surface"]'),
-      'Browse opened something other than the canonical Add mode').toBeTruthy()
-
-    // …and Back returns to the same start state.
-    fireEvent.click(screen.getByLabelText('Back to active indicators'))
-    expect(start()).toBeTruthy()
+  it('⛔⛔ AND IT STILL DOES NOT REPEAT THE LEFT COLUMN', () => {
+    // The rule that killed state 2 outlives it: the right side must not answer
+    // *"what is on my chart"*. Discovery answers *"what can I add"*, so the
+    // member's own series must not be listed there — and a row that IS on the
+    // chart says `Active` rather than being hidden or duplicated.
+    const { cs } = withMA(base(), 'close')
+    show(cs); openTab()
+    expect(discovery().querySelectorAll('[data-ov-pane], [data-ov-row]')).toHaveLength(0)
+    expect(discovery().querySelectorAll('[class*="insRail"]'),
+      'discovery grew series micro-rails — those mean a PLOTTED series').toHaveLength(0)
+    // ⚠️ `EMA 9` IS THE MEMBER'S ROW NAME; the catalogue has no such entry, so
+    // finding it on the right would mean the inventory had come back.
+    expect(discovery().textContent, 'discovery is listing the chart\'s own series')
+      .not.toContain('EMA 9')
   })
 
-  it('⛔ IT IS TWO DOORS AND A SENTENCE — not a dashboard', () => {
-    // ⛔ THE BUDGET IS THE RAIL. The replacement for a too-empty state is not a
-    // too-busy one; four shortcut cards would be the dashboard the brief rules
-    // out. Prose examples are prose — making each name a control would be four
-    // more doors onto one workflow.
+  it('⭐ NO SELECTION → DISCOVER; A SELECTION → EDIT; AND BACK AGAIN', () => {
     show(base()); openTab()
-    const buttons = [...start().querySelectorAll('button')]
-    expect(buttons.length, 'the start state grew more doors than Browse and New formula')
-      .toBeLessThanOrEqual(2)
-    for (const b of buttons) {
-      expect(b.getAttribute('data-testid')).toMatch(/^start-(browse|new-formula)$/)
-    }
+    expect(discovery()).toBeTruthy()
+
+    select(/^SMA 50$/)
+    expect(discovery(), 'selecting a series left discovery open').toBeNull()
+    expect(inspectorName()).toBe('SMA 50')
+
+    // ⛔ `＋ Add Indicator` IS THE ONE DOOR BACK, and it keeps the selection so the
+    // arrow has somewhere to return to.
+    fireEvent.click(screen.getByTestId('add-enter'))
+    expect(discovery()).toBeTruthy()
+    const back = document.body.querySelector('[class*="insBack"]')
+    expect(back.getAttribute('aria-label'), 'the arrow does not say where it goes')
+      .toBe('Back to SMA 50')
+    fireEvent.click(back)
+    expect(inspectorName()).toBe('SMA 50')
+  })
+
+  it('⛔⛔ NO DEAD BACK ARROW — it exists exactly when leaving leads somewhere', () => {
+    // ⚰️ IT USED TO RENDER UNCONDITIONALLY, and that was right while discovery was
+    // a place you went FROM the orientation screen. With discovery as the DEFAULT,
+    // an arrow shown on a WIDE layout with nothing selected would return the
+    // member to discovery.
+    show(base()); openTab()
+    expect(discovery()).toBeTruthy()
+    expect(document.body.querySelector('[class*="insBack"]'),
+      'a back arrow is offered with nothing to go back to').toBeNull()
+    // ⚠️⚠️ AT NARROW IT ALWAYS LEADS SOMEWHERE, and the case for that lives in
+    // the NARROW block below, where the matchMedia stub is.
+  })
+
+  it('⛔ PRESSING ADD WHILE ALREADY DISCOVERING KEEPS ONE SURFACE', () => {
+    // ⛔ NOT A SECOND ADD STATE (owner §8). The button sets the explicit mode —
+    // which is what puts the caret in the box — and renders the same component.
+    show(base()); openTab()
+    const before = discovery()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    expect(discovery(), 'discovery was torn down and rebuilt').toBeTruthy()
+    expect(document.body.querySelectorAll('[data-testid="add-surface"]'),
+      'a second discovery surface was mounted').toHaveLength(1)
+    expect(before).toBeTruthy()
   })
 
   it('⛔⛔ OPENING THE TAB WITH NOTHING SELECTED WRITES NOTHING', () => {
     const seen = { cs: null }
     const { cs } = withSeries(base(), 'QQQ')
     show(cs, seen); openTab()
-    expect(start()).toBeTruthy()
-    expect(seen.cs, 'rendering the start state wrote to the blob').toBeNull()
-  })
-
-  it('⛔ SELECTING A SERIES STILL OPENS THE INSPECTOR, unchanged', () => {
-    show(base()); openTab()
-    select(/^SMA 50$/)
-    expect(start(), 'the start state survived a selection').toBeNull()
-    expect(inspectorName()).toBe('SMA 50')
+    expect(discovery()).toBeTruthy()
+    expect(seen.cs, 'opening into discovery wrote to the blob').toBeNull()
   })
 })
 
@@ -1011,7 +1027,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, eight categories, and no ficti
     select(/^SMA 50$/)
     fireEvent.click(addBtn())
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeTruthy()
-    fireEvent.click(screen.getByLabelText('Back to active indicators'))
+    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeNull()
     expect(inspectorName(), 'going to look for something destroyed the selection').toBe('SMA 50')
   })
@@ -1347,7 +1363,7 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'zzzz no such thing' } })
     // Nothing to click; leaving takes us back to the same selection.
-    fireEvent.click(screen.getByRole('button', { name: /Back to active indicators/i }))
+    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
     expect(inspectorName()).toBe(before)
   })
 })
@@ -1499,13 +1515,35 @@ describe('NARROW — one state, rendered two ways', () => {
     expect(screen.getByTestId('chart-structure')).toBeTruthy()
   })
 
+  it('⚠️⚠️ AND AT NARROW THERE IS ALWAYS A WAY OUT OF ADD, selection or not', () => {
+    // ⛔ THE SAME RULE AS THE WIDE CASE, NOT AN EXCEPTION: the arrow exists when
+    // leaving discovery LEADS SOMEWHERE. On a phone the two regions are one at a
+    // time, so the left list is off screen while Add is up and this is the only
+    // way back to it. Measured — gating the arrow on `selectedRow` alone left a
+    // member with nothing selected NO exit from Add on a narrow layout.
+    // ⚠️ AT NARROW THE LIST OWNS THE SCREEN FIRST — that is the accepted narrow
+    // flow (list → surface → Back) and the wide "no selection is discovery"
+    // default does not override it. So Add is reached the way a member reaches it:
+    // the button at the foot of the list.
+    narrow(true)
+    show(base()); openTab()
+    expect(screen.getByTestId('chart-structure'), 'narrow did not open on the list').toBeTruthy()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    expect(screen.getByTestId('add-surface')).toBeTruthy()
+    const back = document.body.querySelector('[class*="insBack"]')
+    expect(back, 'a narrow layout offers no way out of discovery').toBeTruthy()
+    expect(back.getAttribute('aria-label')).toBe('Back to the chart structure')
+    fireEvent.click(back)
+    expect(screen.getByTestId('chart-structure')).toBeTruthy()
+  })
+
   it('⭐ ADD TAKES THE WHOLE NARROW SURFACE, and Back gives it back', () => {
     narrow(true)
     show(base()); openTab()
     fireEvent.click(screen.getByTestId('add-enter'))
     expect(screen.getByTestId('add-surface')).toBeTruthy()
     expect(screen.queryByTestId('chart-structure'), 'the structure shared a phone with Add').toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Back to active indicators/i }))
+    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
     expect(screen.getByTestId('chart-structure')).toBeTruthy()
   })
 })
