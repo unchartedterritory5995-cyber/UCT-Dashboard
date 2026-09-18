@@ -1,0 +1,3 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+2   | ModuleNotFoundError: No module named 'yaml' | tests/test_promotion_control.py
