@@ -38,8 +38,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -141,6 +143,9 @@ UNITS = [
     ("k-cp9-build-record", [], False),                       # docs worktree only
     ("k-cp10-build-record", [], False),                      # docs worktree only
     ("k-cp11-build-record", [], False),                      # docs worktree only
+    ("k-cp14-build-record", [], False),                      # docs worktree only
+    ("k-cp15-build-record", [], False),                      # docs worktree only
+    ("k-cp13-build-record", [], False),                      # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
@@ -356,8 +361,112 @@ def _et_today():
     return datetime.datetime.now().strftime("%Y-%m-%d")   # pragma: no cover - fallback
 
 
+def _et_now_line():
+    """The full `ET YYYY-MM-DD HH:MM EDT/EST Ddd` line, from the SAME authority — used to
+    stamp the resume log and the R-ATTEST log with a real ET timestamp, not this box's own
+    (CT) clock."""
+    r = subprocess.run([sys.executable, str(CODE_REPO / "tools/weekly_exec.py"), "et"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    m = re.search(r"ET \d{4}-\d{2}-\d{2} \d{2}:\d{2} [A-Z]{3} \w{3}", r.stdout or "")
+    return m.group(0) if m else "ET UNREADABLE"
+
+
 #: ⛔ The delegated by-line, recorded in the runbook's Delegation block. One spelling.
 DELEGATED_BY = "Patrick (owner; delegated to the running Claude Code session, 2026-09-17)"
+
+#: R-RESUME-SIGNED's audit trail — one line per explicit resume, in the DOCS repo (never
+#: the code repo: this is a record of a SIGNING/MERGING decision, which lives beside the
+#: manifest and the packets, not beside the product).
+RESUME_LOG = DOCS_REPO / "docs" / "terminal-research" / "resume_log.txt"
+
+#: R-ATTEST's audit trail — one line per BURST-clause attestation, ever. Never overwritten.
+ATTEST_LOG = DOCS_REPO / "docs" / "terminal-research" / "attestation.log"
+
+
+def _check_resume_signed(stem: str, manifest: pathlib.Path):
+    """R-RESUME-SIGNED — the three named checks, PRINTED and LOGGED. (ok, message).
+
+    ⭐ This does not change what the per-row loop already does with an already-SIGNED row
+    (it proceeds correctly on its own, proven by unit 1/2's real behaviour) — it makes
+    resuming a SIGNED-but-not-yet-merged row a DELIBERATE, AUDITABLE act rather than an
+    implicit byproduct of loop structure, per the owner's explicit ruling: relying on
+    undocumented coupling between two code paths is exactly the shape this whole
+    programme's culture refuses elsewhere (a second implementation is a second authority;
+    an absence is not evidence). This makes the THREE conditions checks, not assumptions.
+    """
+    match = [u for u in UNITS if u[0] == stem]
+    if not match:
+        return False, "⛔ --resume-signed %r matches no unit in UNITS." % stem
+    _s, commits, _mv = match[0]
+    packet = DOCS_REPO / "docs/terminal-research/12-decisions/gates" / (stem + ".md")
+    if not packet.is_file():
+        return False, "⛔ --resume-signed %s: packet missing: %s" % (stem, packet)
+
+    vm = _load_sibling("verify_manifest")
+    man_rows = [r for r in vm.rows(manifest)
+               if pathlib.Path(r["path"]).stem == stem]
+    if not man_rows:
+        return False, "⛔ --resume-signed %s: no manifest row for this stem." % stem
+
+    text = packet.read_text(encoding="utf-8")
+    lines = ["[merge-all] --resume-signed %s" % stem]
+    all_fp_ok = True
+    for r in man_rows:
+        state, got = vm._row_state(text, r["want"])
+        all_fp_ok &= (state == "SIGNED-OK")
+        lines.append("  (a) fingerprint  cps=%-10s want=%-9s -> %s"
+                    % (r["cps"], r["want"], state))
+
+    already, unreadable = [], False
+    for c in commits:
+        got = _cherry_says_merged("origin/master", c, CODE_REPO)
+        if got is None:
+            unreadable = True
+        elif got:
+            already.append(c)
+    if unreadable:
+        lines.append("  (b) commits-on-master  -> UNREADABLE (git cherry could not read)")
+    else:
+        lines.append("  (b) commits-on-master  -> %s"
+                    % (", ".join(c[:9] for c in already) or "none yet — a genuine resume"))
+
+    ok = all_fp_ok and not unreadable and len(already) < len(commits)
+    # ⛔ len(already) == len(commits) is not a FAILURE of resumability — it means
+    # merged_into_master() will report "ALREADY MERGED" and skip cleanly, same as any
+    # other unit. It only refuses when the fingerprint drifted or the read failed.
+    if len(already) == len(commits) and all_fp_ok and not unreadable:
+        ok = True
+        lines.append("  -> all commits already equivalent-upstream; the loop will skip "
+                    "this row cleanly, not re-pick it.")
+
+    stamp = _et_now_line()
+    lines.append("  (c) logged to %s at %s" % (RESUME_LOG.name, stamp))
+    try:
+        RESUME_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with RESUME_LOG.open("a", encoding="utf-8") as fh:
+            fh.write("%s  %-46s  %s\n" % (stamp, stem, "RESUMABLE" if ok else "REFUSED"))
+    except OSError as e:  # noqa: BLE001 -- logging must never be why a resume is refused
+        lines.append("  ⚠️ could not write %s: %s" % (RESUME_LOG, e))
+
+    lines.append("  -> %s" % ("RESUMABLE" if ok else "REFUSED"))
+    return ok, "\n".join(lines)
+
+
+def _cherry_says_merged(base: str, sha: str, repo):
+    """True if `sha`'s patch is already equivalent-upstream of `base`, per `git cherry`.
+    None if the read failed — UNREADABLE, never guessed as either answer.
+
+    ⭐ ONE implementation of the patch-identity test, shared by `merged_into_master()`
+    (against `origin/master`, the real code repo, for the live per-unit push loop) and
+    `replay()` (against a pinned base sha, inside a throwaway clone, for the preview) — a
+    second copy of this parsing is a second authority over what "merged" means, the exact
+    defect this whole file's commentary keeps naming in other tools.
+    """
+    rc, out = run(["git", "cherry", base, sha], repo, False)
+    if rc != 0:
+        return None
+    mine = [l for l in out.splitlines() if l[2:].startswith(sha[:9])]
+    return (not mine) or mine[-1].startswith("-")
 
 
 def replay(base="origin/master", units=None, repo=None, verbose=True):
@@ -415,7 +524,25 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
             return False, ("[merge-all] ⛔ REFUSED-CORRUPT-RESOLUTION: %s"
                            % "; ".join("%s (%s)" % c for c in corrupt))
         applied = []
+        skipped = []
         for i, (stem, sha) in enumerate(seq, 1):
+            # ⛔⛔ K CP13 — F-RESUME-1. `replay()` used to cherry-pick EVERY unit
+            # unconditionally, never asking whether `resolved` already contains it. The
+            # moment unit 1 actually merged, replaying the full 48 stranded at #1 with
+            # `(unnamed)` conflicting files — the empty-pick signature — because
+            # `git cherry-pick` on a patch already upstream produces nothing to commit.
+            # That STRAND killed `--dry-run`, and `--dry-run` IS `pre_sitting`'s REPLAY
+            # row, so a merge that had correctly landed its first unit could never again
+            # pass its own pre-sitting gate. `_cherry_says_merged` — the SAME check the
+            # live push loop uses via `merged_into_master` — answers this before the pick
+            # is even attempted, and an already-merged unit is SKIPPED, not stranded.
+            already = _cherry_says_merged(resolved, sha, clone)
+            if already is None:
+                return False, ("[merge-all] ⛔ replay UNREADABLE — git cherry could not "
+                               "check %s against %s" % (sha[:9], resolved[:9]))
+            if already:
+                skipped.append((stem, sha))
+                continue
             rc, out = run(["git", "cherry-pick", sha], clone, False)
             if rc != 0:
                 _, st = run(["git", "diff", "--name-only", "--diff-filter=U"], clone, False)
@@ -453,8 +580,13 @@ def replay(base="origin/master", units=None, repo=None, verbose=True):
             note = "  (%d resolution%s applied: %s)" % (
                 len(applied), "" if len(applied) == 1 else "s",
                 ", ".join(sorted({a[2] for a in applied})))
-        return True, ("[merge-all] replay CLEAN %d of %d  onto %s (%s)%s"
-                      % (len(seq), len(seq), base, resolved[:9], note))
+        # ⛔ K CP13 — "CLEAN 48 of 48" once ANYTHING has merged is a LIE BY OMISSION: it
+        # reads as "nothing has happened yet" when the real story is "N already landed, M
+        # more would". The new form names both.
+        picked = len(seq) - len(skipped)
+        return True, ("[merge-all] replay CLEAN %d picked, %d already merged, of %d  "
+                      "onto %s (%s)%s"
+                      % (picked, len(skipped), len(seq), base, resolved[:9], note))
     finally:
         shutil.rmtree(box, ignore_errors=True)
 
@@ -507,11 +639,94 @@ def check_order(order: list, constraints: list, units=None) -> list:
 _NOT_MEMBER_VISIBLE = (".test.", ".spec.", "__tests__/", ".stories.")
 
 
+#: candidate MEMBER-SURFACE roots. `app/src/` is the whole frontend; `api/routers/` is
+#: the layer that actually MOUNTS an HTTP endpoint a member's browser can reach (per
+#: CLAUDE.md's own architecture section — everything under it serves `/api/*`). ⛔ K CP15
+#: — the OLD rule only checked `app/src/`, so `api/routers/stream.py` (D3 CP2's real
+#: change: an inline `pairs[:50]` becomes a named `MAX_BARS_PAIRS` constant, cited by both
+#: sides of the socket) was never even a CANDIDATE — it would have merged unexamined no
+#: matter what it changed, comment or code alike.
+_MEMBER_SURFACE_ROOTS = ("app/src/", "api/routers/")
+
+
 def is_member_visible_path(path: str) -> bool:
     p = path.replace("\\", "/")
-    if not p.startswith("app/src/"):
+    if not p.startswith(_MEMBER_SURFACE_ROOTS):
         return False
     return not any(marker in p for marker in _NOT_MEMBER_VISIBLE)
+
+
+#: extensions this file knows how to strip a trailing comment from. An extension NOT in
+#: here is never treated as comment-only — fail toward member-visible, never away from it.
+_COMMENT_STRIPPABLE_EXTS = (".js", ".jsx", ".ts", ".tsx", ".py")
+
+
+def _strip_line_comment(line: str) -> str:
+    """The line with a trailing `//...` or `#...` comment removed, CONSERVATIVELY.
+
+    ⛔⛔ K CP15 — NAIVE STRIPPING CAN HIDE A REAL CHANGE. A `//` inside a URL
+    (`"https://x.com"`) is not a comment start, and blindly truncating there could make
+    two genuinely DIFFERENT lines read as identical after stripping — the dangerous
+    direction, since this function's whole job is deciding whether a change is invisible.
+
+    ⭐ So a marker only counts as a comment start when it is preceded by whitespace or is
+    the first character of the line. `http://` fails that test by construction — the `:`
+    immediately before its `//` is never whitespace — so a URL is never touched, no
+    special-case needed. A marker with no preceding space (`x=1#comment`, unusual but
+    possible) is left alone too: NOT stripping is always the safe failure, because it
+    makes two lines look MORE different, never less.
+    """
+    n = len(line)
+    i = 0
+    while i < n:
+        starts_here = (i == 0) or line[i - 1].isspace()
+        if starts_here and line[i:i + 2] == "//":
+            return line[:i].rstrip()
+        if starts_here and line[i] == "#":
+            return line[:i].rstrip()
+        i += 1
+    return line.rstrip()
+
+
+def _diff_lines(sha: str, path: str, repo):
+    """(removed lines, added lines), stripped of diff markers/headers. (None, None) if
+    the diff could not be read — UNREADABLE, never guessed as either answer."""
+    rc, out = run(["git", "show", "--format=", "--unified=0", sha, "--", path], repo, False)
+    if rc != 0:
+        return None, None
+    minus, plus = [], []
+    for ln in out.splitlines():
+        if ln.startswith("+++") or ln.startswith("---") or ln.startswith("@@"):
+            continue
+        if ln.startswith("+"):
+            plus.append(ln[1:])
+        elif ln.startswith("-"):
+            minus.append(ln[1:])
+    return minus, plus
+
+
+def _is_comment_only_change(sha: str, path: str, repo):
+    """True/False/None (UNREADABLE) — does this commit's change to `path` consist
+    ENTIRELY of comment text, with the CODE identical before and after?
+
+    ⛔ An extension this function does not understand is NEVER comment-only — an unknown
+    language's comment syntax cannot be stripped safely, so the fallback is the visible
+    side, not the invisible one.
+
+    ⭐ Compared as a MULTISET of stripped, non-blank lines per side, not paired line-by-
+    line — a comment-only edit can still shift a line's position within its hunk (a
+    reflow, a reordering) without changing what the code DOES, and pairing by position
+    would falsely call that a code change.
+    """
+    ext = "." + path.rsplit(".", 1)[-1] if "." in path else ""
+    if ext not in _COMMENT_STRIPPABLE_EXTS:
+        return False
+    minus, plus = _diff_lines(sha, path, repo)
+    if minus is None:
+        return None
+    def _code(lines):
+        return sorted(_strip_line_comment(l).strip() for l in lines if l.strip())
+    return _code(minus) == _code(plus)
 
 
 def member_visible_files(stem: str, units=None):
@@ -520,6 +735,15 @@ def member_visible_files(stem: str, units=None):
     ⛔ UNREADABLE IS A THIRD STATE. A commit git cannot show is not a commit with no
     member-visible files — reporting it as clean is how a member-facing change slips past
     the rule this function exists to enforce.
+
+    ⛔⛔ K CP15 — A COMMENT-ONLY EDIT IS NOT A MEMBER-VISIBLE CHANGE, AND THE OLD RULE WAS
+    PURE PATH SHAPE. Row 51 (`d3-cp2-build-record`) modifies `app/src/lib/barsStreamManager.js`
+    with exactly ONE hunk — a comment's own text, citing a constant's NAME instead of its
+    OLD inline-literal form; the value a member's browser reads is unchanged. The old rule
+    flagged it as member-visible (a hand-typed manifest flag happened to read False for
+    this row, so nothing stopped it — but the DERIVED answer, which `#!last:` already
+    trusted, disagreed with the flag and nothing compared the two). `#!last:` and the merge
+    gate now share ONE authority: this function, comment-stripped.
     """
     for s, commits, _mv in (units if units is not None else UNITS):
         if s != stem:
@@ -529,7 +753,14 @@ def member_visible_files(stem: str, units=None):
             rc, out = run(["git", "show", "--name-only", "--format=", c], CODE_REPO, False)
             if rc != 0:
                 return None
-            seen.update(p for p in out.split() if is_member_visible_path(p))
+            for path in out.split():
+                if not is_member_visible_path(path):
+                    continue
+                only_comment = _is_comment_only_change(c, path, CODE_REPO)
+                if only_comment is None:
+                    return None
+                if not only_comment:
+                    seen.add(path)
         return seen
     return set()
 
@@ -611,6 +842,90 @@ def _self_check() -> int:
          len(v3) == 1 and "UNREADABLE" in v3[0], True)
     show("the predicate can say YES (3 member-visible files in F-S2-1's own commit)",
          len(member_visible_files(S2, [(S2, ["0ef787268"], True)])), 3)
+
+    # ── K CP15: comment-stripped member-visible derivation ──────────────────────────────
+    # ⭐ THE REAL COMMIT THAT FOUND THE DEFECT, USED AS ITS OWN CONTROL. `af9fe21a6`
+    # (row 51, D3 CP2) touches THREE files in one commit: a comment-only edit to
+    # `barsStreamManager.js`, a REAL named-constant introduction in `api/routers/stream.py`,
+    # and a brand-new test file — one commit, all three cases the derivation must tell
+    # apart.
+    D3 = "d3-cp2-build-record"
+    mv_d3 = member_visible_files(D3, [(D3, ["af9fe21a6"], False)])
+    show("row 51's comment-only JS hunk is NOT member-visible",
+         "app/src/lib/barsStreamManager.js" in mv_d3, False)
+    show("...but its REAL api/routers/ change IS (K CP15's surface expansion)",
+         "api/routers/stream.py" in mv_d3, True)
+    show("...and the new test file is excluded by the test marker either way",
+         any("test" in p_.lower() for p_ in mv_d3), False)
+
+    # ⭐ F-S2-1's own commit — a REAL app/src change — must be UNAFFECTED by comment
+    # stripping (nothing in it is comment-only, so the count stays 3, byte-identical to
+    # the control immediately above this block).
+    show("F-S2-1's commit is untouched by comment-stripping (still all 3 files)",
+         len(member_visible_files(S2, [(S2, ["0ef787268"], True)])), 3)
+
+    # ── synthetic fixtures: a repo this control BUILDS, not the real one, so both
+    # directions (excluded / included) are proved rather than assumed ──────────────────
+    import tempfile as _tf3
+    import shutil as _shutil3
+    box3 = pathlib.Path(_tf3.mkdtemp(prefix="k15-"))
+    try:
+        def _g3(*args):
+            return subprocess.run(["git", "-C", str(box3), *args], capture_output=True,
+                                  text=True, encoding="utf-8", errors="replace")
+        _g3("init", "-q", "-b", "main")
+        _g3("config", "user.email", "c@example.com")
+        _g3("config", "user.name", "control")
+
+        _NL = chr(10)
+        api_dir = box3 / "api" / "routers"
+        api_dir.mkdir(parents=True)
+        api_file = api_dir / "sample.py"
+        api_file.write_text("CAP = 50   # old comment" + _NL, encoding="utf-8")
+        _g3("add", "-A")
+        _g3("commit", "-qm", "base")
+
+        # commit A: comment-only edit to the api/routers/ file
+        api_file.write_text("CAP = 50   # new comment, same code" + _NL, encoding="utf-8")
+        _g3("add", "-A")
+        _g3("commit", "-qm", "comment only")
+        sha_a = _g3("rev-parse", "--short=9", "HEAD").stdout.strip()
+
+        # commit B: a REAL one-line code change to an app/src/ member file
+        src_dir = box3 / "app" / "src" / "pages"
+        src_dir.mkdir(parents=True)
+        src_file = src_dir / "Sample.jsx"
+        src_file.write_text("export const X = 1" + _NL, encoding="utf-8")
+        _g3("add", "-A")
+        _g3("commit", "-qm", "add src file")
+        src_file.write_text("export const X = 2" + _NL, encoding="utf-8")
+        _g3("add", "-A")
+        _g3("commit", "-qm", "real code change")
+        sha_b = _g3("rev-parse", "--short=9", "HEAD").stdout.strip()
+
+        c_only = _is_comment_only_change(sha_a, "api/routers/sample.py", box3)
+        show("fixture: comment-only api/routers/ edit -> comment-only=True", c_only, True)
+        real_ch = _is_comment_only_change(sha_b, "app/src/pages/Sample.jsx", box3)
+        show("fixture: a real one-line code change -> comment-only=False", real_ch, False)
+
+        fixture_units = [("fx-comment", [sha_a], False), ("fx-real", [sha_b], False)]
+        # ⛔ member_visible_files reads the GLOBAL CODE_REPO, not a `repo=` argument, so
+        # these two rows are exercised through it by pointing the global at the fixture —
+        # restored in `finally`, same pattern verify_manifest.py's own self-check uses for
+        # its `REPO` global.
+        global CODE_REPO
+        real_code_repo = CODE_REPO
+        CODE_REPO = box3
+        try:
+            show("member_visible_files: comment-only row -> empty set",
+                 member_visible_files("fx-comment", fixture_units), set())
+            show("member_visible_files: real-change row -> the one file",
+                 member_visible_files("fx-real", fixture_units),
+                 {"app/src/pages/Sample.jsx"})
+        finally:
+            CODE_REPO = real_code_repo
+    finally:
+        _shutil3.rmtree(box3, ignore_errors=True)
 
     # a constraint naming an unknown unit cannot fire -> refused, never skipped
     show("a constraint naming an unknown unit is REFUSED",
@@ -709,19 +1024,85 @@ def _self_check() -> int:
     else:                                                    # pragma: no cover - layout
         show("the manifest is readable from the tool", man.is_file(), True)
 
+    # ── K CP13: R-ATTEST's burst-detection predicate, on the REAL text observed live
+    # 2026-09-17, and the two refusal shapes that must NEVER be attested ────────────────
+    real_burst_text = ("[pre-push] 4 distinct web deploys in the last 60 min "
+                       "(e7369556d, 2cb3ef508, c88f63581, 4e855cc7d) — master is under "
+                       "concurrent development and a build may be in flight from a "
+                       "session this one cannot see. This is the D-05 shape; it needs a "
+                       "human who can see every workstream, not a guard.")
+    real_recency_text = ("[pre-push] a web deploy landed 3s ago (4c78692c0 ...) and a "
+                         "build takes 3-5 min — pushing inside that window is how a "
+                         "deploy is marked REMOVED mid-flight and members get a 502.")
+    real_building_text = ("[pre-push] the newest web deployment is BUILDING (4c78692c0 "
+                          "...) — a swap is in flight; pushing now marks it REMOVED "
+                          "mid-swap and members get a 502.")
+    show("R-ATTEST: the real BURST refusal text -> attestable",
+         _is_burst_refusal(real_burst_text), True)
+    show("R-ATTEST: RECENCY refusal -> NEVER attested",
+         _is_burst_refusal(real_recency_text), False)
+    show("R-ATTEST: in-flight/BUILDING refusal -> NEVER attested",
+         _is_burst_refusal(real_building_text), False)
+
+    # ── K CP13: --resume-signed's three checks, against the REAL manifest and packets ──
+    ok_r1, msg1 = _check_resume_signed("packet-a-absent-bound-gate", man)
+    show("--resume-signed on a row that is SIGNED and FULLY MERGED -> resumable "
+         "(the loop will skip it cleanly)", ok_r1, True)
+    show("--resume-signed on a stem not in UNITS -> refused",
+         _check_resume_signed("no-such-unit-stem", man)[0], False)
+
     print("SELF-CHECK: %s" % ("PASS" if ok else "FAIL"))
     return OK if ok else FAIL
 
 
 # --------------------------------------------------------------------------------------
 
+#: cache of resolved binary paths, so the (cheap but not free) `shutil.which` lookup
+#: happens once per distinct name per process, not once per subprocess call.
+_RESOLVED_BIN = {}
+
+
+def _resolve_bin(name: str) -> str:
+    """⛔⛔ K CP13 — `subprocess.run([name, ...])` CANNOT RESOLVE A WINDOWS NPM SHIM.
+
+    ⚰️⚰️ THIS IS WHY UNIT 2 COULD NOT MERGE. `run(["railway", ...], ...)` handed the bare
+    string `"railway"` straight to `subprocess.run`, which on Windows calls `CreateProcess`
+    directly — no shell, no PATH-extension resolution of the kind `cmd.exe` does for a
+    `.cmd` shim. `railway` on this box IS such a shim
+    (`AppData/Roaming/npm/railway`, no executable extension), so the call raised
+    `FileNotFoundError` — AFTER unit 1's push had already succeeded, and BEFORE every
+    resume's first push, because the "resumed settle" (`wait_for_deploy`) fires before any
+    cherry-pick is attempted on a run that starts with a skip.
+
+    ⭐ `pre_push_guard._railway()`, in this SAME repository, already carries the fix and
+    the lesson: `shutil.which`, never `shell=True`. `merge_all` had not adopted it. This
+    function is the one place that lesson now lives for every subprocess call this file
+    makes — `run()` below routes every command through it, so git, railway, or any future
+    CLI this tool learns to shell out to gets the fix for free, not just the one call site
+    that happened to crash first.
+    """
+    if name not in _RESOLVED_BIN:
+        _RESOLVED_BIN[name] = shutil.which(name) or name
+    return _RESOLVED_BIN[name]
+
+
 def run(cmd, cwd, dry):
     printable = " ".join(cmd)
     if dry:
         print("    $ %s" % printable)
         return 0, ""
-    out = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
-                         encoding="utf-8", errors="replace")
+    resolved = [_resolve_bin(cmd[0])] + list(cmd[1:])
+    try:
+        out = subprocess.run(resolved, cwd=str(cwd), capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
+    except OSError as e:
+        # ⛔⛔ K CP13 — A REFUSAL, NEVER A CRASH. A CLI this session cannot execute is a
+        # fact about the machine, printed and returned as an ordinary failed command, not
+        # an uncaught exception that kills a merge mid-sitting with a traceback nobody
+        # asked to read. This is what stops unit 2's FileNotFoundError from EVER
+        # happening again, on this call or any other `run()` makes.
+        return 1, ("⛔ could not execute %r (resolved to %r): %s: %s"
+                  % (cmd[0], resolved[0], type(e).__name__, e))
     return out.returncode, (out.stdout or "") + (out.stderr or "")
 
 
@@ -778,14 +1159,16 @@ def merged_into_master(commits, dry):
     # ⚠️ The first version of that control used a fixture where feat sat directly on master,
     # so cherry-pick reproduced IDENTICAL shas and `--is-ancestor` looked correct. A fixture
     # that cannot distinguish is not a control.
+    # ⛔ K CP13 — SAME TEST, ONE IMPLEMENTATION. `_cherry_says_merged` is exactly this
+    # loop's body, extracted so `replay()` answers "is this unit already on the base I am
+    # replaying onto" with the identical logic that decides it for a live push — a second
+    # copy of this parsing is a second authority over what "merged" means.
     done = []
     for c in commits:
-        rc, out = run(["git", "cherry", "origin/master", c], CODE_REPO, False)
-        if rc != 0:
-            return None, "`git cherry` could not read %s: %s" % (c[:9], out.strip()[:120])
-        mine = [l for l in out.splitlines() if l[2:].startswith(c[:9])]
-        # no line for this commit at all == it is CONTAINED in upstream == merged
-        if not mine or mine[-1].startswith("-"):
+        got = _cherry_says_merged("origin/master", c, CODE_REPO)
+        if got is None:
+            return None, "`git cherry` could not read %s" % c[:9]
+        if got:
             done.append(c)
     return done, ""
 
@@ -814,37 +1197,104 @@ def wait_for_deploy(sha, dry) -> bool:
     ⛔ The deployment is identified by OUR commit hash. "Some deployment succeeded" is
     the assertion that could not fail.
     """
+    # ⛔⛔ K CP13 — THIS FUNCTION'S OWN `railway` CALL IS THE ONE THAT CRASHED, AND FIVE
+    # SESSIONS OF `--dry-run` NEVER REACHED IT. The `if dry: return True` below used to
+    # return before calling `run()` at all — a green REPLAY that never exercised the one
+    # subprocess call that turned out to be fatal the moment a real push finally reached
+    # it. `deployment list` is a READ; making the call for real here (never gating the
+    # dry run's exit on what it returns, since there is no real push's sha to check yet)
+    # is what makes a green dry run mean the resolver and the CLI actually work, not just
+    # that the code path was never visited.
     if dry:
+        railway_path = shutil.which("railway")
         print("    $ railway deployment list --service web --json   "
               "# poll until the deployment for %s reaches SUCCESS, then +%ds settled"
               % (sha[:9] or "the commit this push creates", SETTLE_SECONDS))
+        if railway_path is None:
+            print("    ⚠️  NOT-EXERCISED: shutil.which('railway') -> None. The real run "
+                  "would REFUSE here rather than wait; this dry run can prove that much, "
+                  "not the deploy wait itself.")
+            return True
+        rc, out = run(["railway", "deployment", "list", "--service", "web", "--json"],
+                      CODE_REPO, False)
+        if rc != 0:
+            print("    ⚠️  the real railway call FAILED even though dry-run does not "
+                  "gate on it: %s" % out.strip()[:200])
+        else:
+            print("    (railway resolved to %s; the real deployment-list call "
+                  "succeeded, %d byte(s) — the resolver and the CLI both work)"
+                  % (railway_path, len(out)))
         return True
     if not sha:
         print("    ⛔ the pushed commit is UNREADABLE, so its deploy cannot be "
               "identified. STOPPED — waiting for 'some' deploy is the defect K CP5 "
               "removed.")
         return False
+    railway_path = shutil.which("railway")
+    print("    (railway resolved to: %s)" % (railway_path or "NOT FOUND"))
+    if railway_path is None:
+        print("    ⛔ the railway CLI could not be resolved on PATH. REFUSING rather "
+              "than polling for a deploy this session has no way to observe.")
+        return False
     deadline = time.time() + DEPLOY_TIMEOUT
     seen = None
+    first_poll = True
     while time.time() < deadline:
         rc, out = run(["railway", "deployment", "list", "--service", "web", "--json"],
                       CODE_REPO, False)
-        row = _deployment_for_sha(out, sha) if rc == 0 else None
-        if rc == 0 and row is not None:
+        if rc != 0:
+            # ⛔ A FAILED CALL IS A REASON TO RETRY, NEVER TO CRASH OR TO GIVE UP EARLY.
+            # `run()` now returns (1, reason) instead of raising — this is that contract's
+            # other half: a transient network blip does not abort a merge already in
+            # flight, it just costs one more poll interval.
+            print("    ⛔ railway call failed (retrying): %s" % out.strip()[:200])
+            time.sleep(POLL_SECONDS)
+            first_poll = False
+            continue
+        row = _deployment_for_sha(out, sha)
+        if row is not None:
             status = row.get("status")
             if status != seen:
                 print("    … %s is %s" % (sha[:9], status))
                 seen = status
             if status == "SUCCESS":
+                # ⭐ K CP13 — ONLY WAIT IF THE DEPLOY SOURCE DOES NOT ALREADY SHOW IT
+                # SETTLED. A resume minutes (or hours) after the push it is checking
+                # already happened does not need ANOTHER 150 s sleep on top of a deploy
+                # that has been sitting at SUCCESS the whole time — this is the "resumed
+                # settle waits only if not already SUCCESS >=150s" half of R-BATCH's
+                # cadence. A timestamp this function cannot parse falls back to the
+                # ORIGINAL behaviour (always sleep the full settle) — failing toward MORE
+                # waiting, never less.
+                age = _iso_age_seconds(row.get("createdAt"))
+                if first_poll and age is not None and age >= SETTLE_SECONDS:
+                    print("    already %ds settled (>= %ds) — no extra wait needed"
+                          % (int(age), SETTLE_SECONDS))
+                    return True
                 time.sleep(SETTLE_SECONDS)
                 return True
             if status in ("FAILED", "CRASHED", "REMOVED"):
                 print("    ⛔ the deploy for %s ended %s" % (sha[:9], status))
                 return False
+        first_poll = False
         time.sleep(POLL_SECONDS)
     print("    ⛔ %ds passed and the deploy for %s never reached a terminal status. "
           "UNREADABLE is not SUCCESS." % (DEPLOY_TIMEOUT, sha[:9]))
     return False
+
+
+def _iso_age_seconds(iso_ts):
+    """Seconds since an ISO-8601 timestamp (Railway's `createdAt`), or None if it cannot
+    be parsed — never guessed, since a wrong guess here shortens a real settle wait."""
+    if not iso_ts:
+        return None
+    try:
+        import datetime as _dt
+        t = _dt.datetime.fromisoformat(str(iso_ts).replace("Z", "+00:00"))
+        now = _dt.datetime.now(_dt.timezone.utc)
+        return (now - t).total_seconds()
+    except Exception:  # noqa: BLE001 -- unparsable is UNREADABLE, not a bug to raise on
+        return None
 
 
 def _deployment_for_sha(out, sha):
@@ -893,6 +1343,130 @@ def resolve_code_repo(raw):
     return path, ""
 
 
+def _print_guard_clauses(repo):
+    """Print the PUSHING repo's OWN pre_push_guard.py — path, line count, and the
+    clauses it enforces, parsed from its own constants. ⭐ The guard that binds is the
+    one in the repo `git push` actually runs through, which is `_merge-master` (checked
+    out at master) — NOT the feature branch's copy. Measured 2026-09-17: the two differ,
+    739 lines vs 279, and only the longer one carries the BURST clause. A session that
+    reasoned from the shorter copy would not know this clause exists at all."""
+    gp = pathlib.Path(repo) / "tools" / "pre_push_guard.py"
+    if not gp.is_file():
+        print("    [guard] %s — NOT FOUND, cannot introspect clauses" % gp)
+        return
+    text = gp.read_text(encoding="utf-8", errors="replace")
+    n_lines = len(text.splitlines())
+    consts = {}
+    for name in ("RECENT_PUSH_WINDOW_SECONDS", "BURST_WINDOW_SECONDS", "BURST_MIN_DEPLOYS",
+                "MIN_SETTLE_SECONDS", "ATTEST_MAX_AGE_SECONDS"):
+        m = re.search(r"^%s\s*=\s*(\d+)" % re.escape(name), text, re.M)
+        if m:
+            consts[name] = int(m.group(1))
+    print("    [guard] %s  (%d lines)" % (gp, n_lines))
+    print("    [guard] clauses: %s"
+          % (", ".join("%s=%s" % kv for kv in consts.items()) or "none parsed from this copy"))
+
+
+def _log_attestation(commits_desc: str, refusal_text: str, stamp: str):
+    """R-ATTEST's audit trail: ET, the guard's refusal line, the deployment list this
+    session read at attestation time, and the batch it unblocked. Appended, never
+    overwritten — every attestation this session ever makes is a permanent record."""
+    rc, deploys_raw = run(["railway", "deployment", "list", "--service", "web", "--json"],
+                          CODE_REPO, False)
+    rows_summary = "UNREADABLE"
+    if rc == 0:
+        try:
+            data = json.loads(deploys_raw)
+            if isinstance(data, dict):
+                data = data.get("deployments") or []
+            lines = []
+            for r in data[:6]:
+                m = (r.get("meta") or {})
+                lines.append("  %s %-9s %s"
+                            % ((m.get("commitHash") or "")[:9], r.get("status"),
+                               r.get("createdAt")))
+            rows_summary = "\n".join(lines) or "(empty)"
+        except Exception:  # noqa: BLE001 -- a log entry that fails to parse still logs
+            rows_summary = "UNPARSEABLE (%d bytes)" % len(deploys_raw or "")
+    try:
+        ATTEST_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with ATTEST_LOG.open("a", encoding="utf-8") as fh:
+            fh.write("=== %s ===\n" % stamp)
+            fh.write("batch: %s\n" % commits_desc)
+            fh.write("guard refusal:\n%s\n" % refusal_text.strip())
+            fh.write("deployment list read at attestation time:\n%s\n" % rows_summary)
+            fh.write("attested by: %s\n\n" % DELEGATED_BY)
+    except OSError as e:  # noqa: BLE001 -- a failed log write must not block the retry
+        print("    ⚠️ could not write %s: %s" % (ATTEST_LOG, e))
+
+
+def _is_burst_refusal(guard_output: str) -> bool:
+    """Is this guard REFUSAL text the BURST clause, specifically? Extracted as its own
+    pure predicate so it can be tested against fixture text without touching git — the
+    real strings this matches were observed live, 2026-09-17: 'This is the D-05 shape'
+    and '4 distinct web deploys in the last 60 min'. ⛔ RECENCY and BUILDING refusals
+    ('a build takes 3-5 min', 'a swap is in flight') must NOT match — those are never
+    attested, per R-ATTEST."""
+    return ("D-05 shape" in guard_output
+           or ("distinct" in guard_output and "deploys in the last" in guard_output))
+
+
+def _push_with_attest(commits_desc: str, dry: bool):
+    """Push HEAD to origin/master. On a BURST refusal ONLY, attest under R-ATTEST
+    (the owner's 2026-09-17 ruling that concurrent master pushes in this window are the
+    owner's OWN other sessions), log it, and retry EXACTLY ONCE. A RECENCY or
+    in-flight/BUILDING refusal is NEVER attested — those are facts about a build actually
+    happening, and the caller's own bounded wait-and-retry handles them normally, the
+    same way it always has. Returns (rc, out) from whichever attempt was last made.
+    """
+    rc, out = run(["git", "push", "origin", "HEAD:master"], CODE_REPO, dry)
+    if rc == 0 or dry:
+        return rc, out
+    if not _is_burst_refusal(out):
+        return rc, out
+    stamp = _et_now_line()
+    print("    [R-ATTEST] BURST refusal — attesting under the owner's 2026-09-17 ruling "
+          "(concurrent master pushes in this window are the owner's own sessions).")
+    for line in out.strip().splitlines()[-4:]:
+        print("    [R-ATTEST]   %s" % line)
+    _log_attestation(commits_desc, out, stamp)
+    os.environ["UCT_BURST_ATTESTED_BY"] = DELEGATED_BY
+    os.environ["UCT_BURST_ATTESTED_AT"] = stamp
+    try:
+        rc2, out2 = run(["git", "push", "origin", "HEAD:master"], CODE_REPO, dry)
+    finally:
+        # ⛔ THE ATTESTATION IS SCOPED TO THIS ONE PUSH, NEVER LEFT STANDING. A name alone
+        # in the environment for the rest of the run would silently exit BURST on every
+        # later push too, which is a standing grant nobody asked for.
+        os.environ.pop("UCT_BURST_ATTESTED_BY", None)
+        os.environ.pop("UCT_BURST_ATTESTED_AT", None)
+    print("    [R-ATTEST] retried once — %s" % ("OK" if rc2 == 0 else "STILL REFUSED"))
+    return rc2, out2
+
+
+def _flush_batch(pending: list, dry: bool) -> bool:
+    """Push everything cherry-picked since the last push, as ONE push. `pending` is
+    [(stem, commits), ...] describing what is IN this push — for the message and the
+    attestation log, never for deciding WHAT to push (that is whatever is on local HEAD,
+    exactly like the original one-push-per-unit code)."""
+    if not pending:
+        return True
+    names = ", ".join(s for s, _c in pending)
+    rc, out = run(["git", "rev-parse", "HEAD"], CODE_REPO, False)
+    sha = "" if dry else (out.strip() if rc == 0 else "")
+    print("    [batch] pushing %d row(s): %s" % (len(pending), names))
+    _print_guard_clauses(CODE_REPO)
+    rc, out = _push_with_attest(names, dry)
+    if rc != 0:
+        print("    ⛔ push refused (Layer-0 guard or remote): \n%s" % out)
+        return False
+    if not wait_for_deploy(sha, dry):
+        print("    ⛔ web deploy did not reach SUCCESS. STOPPED.")
+        return False
+    print("    ✅ batch merged and deployed: %s" % names)
+    return True
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default="tools/sign_manifest.txt")
@@ -904,6 +1478,21 @@ def main(argv=None) -> int:
                     help="the checkout to cherry-pick INTO; must be at "
                          "origin/master. Default: %s" % DEFAULT_CODE_REPO)
     ap.add_argument("--self-check", action="store_true")
+    # ⛔⛔ K CP13 — R-BATCH. Consecutive rows whose DERIVED member-visible file set is
+    # empty are cherry-picked one by one (each still signed immediately before its own
+    # pick, K CP10 unchanged) and pushed as ONE push after the last of them. A row that
+    # derives member-visible ends the batch and pushes alone. Default OFF: the ORIGINAL
+    # one-push-per-unit behaviour is unchanged unless this is passed.
+    ap.add_argument("--batch", action="store_true",
+                    help="R-BATCH: push consecutive non-member-visible rows together")
+    # ⛔⛔ K CP13 — R-RESUME-SIGNED. An explicit, checked, LOGGED confirmation that <stem>
+    # is a SIGNED-but-not-yet-merged row being deliberately resumed, per the three named
+    # checks in `_check_resume_signed`. Refuses before touching anything if any check
+    # fails; otherwise the ordinary per-row loop below proceeds exactly as it would
+    # without this flag — this only makes the resume auditable, it does not change what
+    # happens next.
+    ap.add_argument("--resume-signed", default=None, metavar="STEM",
+                    help="R-RESUME-SIGNED: explicit, logged confirmation to resume STEM")
     a = ap.parse_args(argv)
 
     if a.self_check:
@@ -926,6 +1515,14 @@ def main(argv=None) -> int:
     manifest = pathlib.Path(a.manifest)
     if not manifest.is_absolute():
         manifest = DOCS_REPO / a.manifest
+
+    if a.resume_signed:
+        ok_r, msg = _check_resume_signed(a.resume_signed, manifest)
+        print(msg)
+        if not ok_r:
+            print("   STOPPED. Nothing was cherry-picked, nothing was pushed.")
+            return REFUSED
+        print()
 
     # ⛔ K CP3: the order is checked BEFORE a single cherry-pick is attempted. Checking it
     # afterwards would be a post-mortem, not a guard.
@@ -1008,7 +1605,8 @@ def main(argv=None) -> int:
              "   [--until %s]" % a.until if a.until else ""))
     print()
 
-    for stem, commits, member_visible in units:
+    pending = []   # R-BATCH: [(stem, commits), ...] picked but not yet pushed
+    for stem, commits, _hand_flag in units:
         packet = DOCS_REPO / "docs/terminal-research/12-decisions/gates" / (stem + ".md")
         print("── %s" % stem)
         if not packet.is_file():
@@ -1031,6 +1629,7 @@ def main(argv=None) -> int:
         # signed row. Master moves hourly here; F-MERGE-2 was exactly that shape.
         # ⭐ Signing here makes a strand hit an UNSIGNED row BY CONSTRUCTION, so the fix is
         # always a rewrite of one commit plus a record update, never a re-signature.
+        # ⭐ UNCHANGED under --batch: a batch accumulates PICKS, never signatures-in-advance.
         if state != "SIGNED" and not a.dry_run:
             signed_now, why = sign_one(packet, stem)
             if not signed_now:
@@ -1052,12 +1651,25 @@ def main(argv=None) -> int:
             # WHOLE sequence to read before trusting it, so dry-run reports the block
             # and keeps printing — loudly, so it can never be mistaken for signed.
             print("    ⚠️  WOULD STOP HERE: %s — %s (dry run continues)" % (state, reason))
-        if member_visible and not a.include_member_visible:
-            print("    ⛔ MEMBER-VISIBLE. This unit changes what a member experiences: "
-                  "Ctrl/Cmd/Alt+Shift+F stops flagging tickers on three screens (plain "
-                  "Shift+F is unchanged).")
-            print("    ⛔ STOPPED before it, deliberately. Re-run with "
-                  "--include-member-visible when you want it to go.")
+        # ⛔⛔ K CP15 — THE GATE NOW READS THE SAME DERIVATION `#!last:` TRUSTS, NOT THE
+        # HAND-TYPED TUPLE FLAG. `_hand_flag` above is kept only as a display legacy —
+        # never read for a decision — because the flag and the derivation disagreed on
+        # row 51 (flag False, derived True at the time, now correctly False after comment-
+        # stripping) with nothing comparing them (F-MV-1). member_visible_files(None) —
+        # UNREADABLE — fails CLOSED: a unit this session cannot prove clean is treated as
+        # member-visible, never waved through on an absence of evidence.
+        mv_files = member_visible_files(stem)
+        is_mv = True if mv_files is None else bool(mv_files)
+        if is_mv and not a.include_member_visible:
+            names = ", ".join(sorted(mv_files)) if mv_files else "UNREADABLE file set"
+            print("    ⛔ MEMBER-VISIBLE (%s). Re-run with --include-member-visible when "
+                  "you want it to go." % names)
+            print("    ⛔ STOPPED before it, deliberately.")
+            if a.batch and pending:
+                print("    [batch] flushing %d pending row(s) before stopping."
+                      % len(pending))
+                if not _flush_batch(pending, a.dry_run):
+                    return FAIL
             return OK
         if not commits:
             print("    (docs worktree only — nothing to merge into master)")
@@ -1086,6 +1698,9 @@ def main(argv=None) -> int:
                   "chooses for you here is choosing what lands on production.")
             return REFUSED
         # ⛔ THE RESUMED SETTLE, once, before this run's FIRST push. See the note above.
+        # ⭐ K CP13 — `wait_for_deploy` itself now short-circuits when the deploy source
+        # already shows master's tip settled >=150s, so a resume long after the last
+        # push no longer pays a second full sleep on top of one it already paid.
         if skipped_any[0] and not resumed_wait_done[0]:
             resumed_wait_done[0] = True
             rc, tip = run(["git", "rev-parse", "origin/master"], CODE_REPO, False)
@@ -1107,12 +1722,22 @@ def main(argv=None) -> int:
                 print("    ⛔ the code worktree is mid-cherry-pick. Resolve it, or "
                       "`git -C %s cherry-pick --abort`, before re-running." % CODE_REPO)
                 return FAIL
+        if a.batch:
+            # ⛔⛔ K CP13 — R-BATCH. This row is NOT member-visible (is_mv is False, or
+            # we would have refused/flushed-and-stopped above), so its pick joins the
+            # PENDING batch instead of pushing alone. The batch flushes as ONE push the
+            # moment a member-visible row, the end of `units`, or a refusal is reached.
+            pending.append((stem, commits))
+            print("    ✅ picked into pending batch (%d row(s) so far: %s)"
+                  % (len(pending), ", ".join(s for s, _c in pending)))
+            continue
         # ⛔ The sha is read AFTER the cherry-picks, because that is the commit the deploy
         # will carry. In dry-run no cherry-pick happened, so HEAD is somebody else's
         # commit — report the absence rather than a sha that would be wrong.
         rc, out = run(["git", "rev-parse", "HEAD"], CODE_REPO, False)
         sha = "" if a.dry_run else (out.strip() if rc == 0 else "")
-        rc, out = run(["git", "push", "origin", "HEAD:master"], CODE_REPO, a.dry_run)
+        _print_guard_clauses(CODE_REPO)
+        rc, out = _push_with_attest(stem, a.dry_run)
         if rc != 0:
             print("    ⛔ push refused (Layer-0 guard or remote): \n%s" % out)
             return FAIL
@@ -1120,6 +1745,15 @@ def main(argv=None) -> int:
             print("    ⛔ web deploy did not reach SUCCESS. STOPPED.")
             return FAIL
         print("    ✅ merged and deployed")
+
+    # ⛔ K CP13 — A BATCH LEFT PENDING AT THE END OF THE LIST (or at --until) IS FLUSHED
+    # HERE. Without this, a sitting boundary that lands mid-batch would sign and pick
+    # every row correctly and push NONE of them.
+    if a.batch and pending:
+        print("[merge-all] end of units — flushing final batch of %d row(s)"
+              % len(pending))
+        if not _flush_batch(pending, a.dry_run):
+            return FAIL
 
     if a.dry_run:
         print()

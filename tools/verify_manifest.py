@@ -29,6 +29,24 @@ fails on any commit no unit claims.
 
 Exit 0 = every row OK · 1 = at least one STALE, or an unreferenced commit · 2 = UNREADABLE
 (no manifest, no rows)
+
+⛔⛔ **K CP14 — A SIGNED ROW USED TO CRASH THE WHOLE CHECK, TAKING `--check-commits` WITH IT.**
+`check()` called `sign_gate.fingerprint(text)` with no span on EVERY row unconditionally.
+`fingerprint()` with no span asks `target_span()` for the ONE unsigned block, and
+`target_span()` RAISES `SystemExit` when every block already carries a fingerprint -- by
+design, so signing can never overwrite a historical value. That `SystemExit` propagated
+uncaught out of `check()`, out of `main()`, and killed the process before a single row of
+the table printed and before `check_commits()` -- K CP8's commit-coverage proof -- ever ran.
+
+Measured 2026-09-17: unit 1's packet signed at 23:22Z; the very next `pre_sitting` run went
+NOT-READY on BOTH `verify_manifest (fingerprints)` and `verify_manifest --check-commits`,
+from this one cause, the moment ANYTHING in the manifest was signed.
+
+`sign_all.py` already solved this (`already_signed_as`, `sign_gate.rederive_signed`) -- a
+SIGNED block's fingerprint is recomputed by blanking that SPECIFIC filled span and
+re-hashing, which is the only way to check a signature after the fact. `check()` now asks
+`sign_gate.read_approval()` FIRST and takes the SIGNED-aware path when every block is
+filled, so it never calls the span-raising form on a packet with nothing left to sign.
 """
 from __future__ import annotations
 
@@ -104,6 +122,54 @@ def trail(path: str, want: str) -> tuple:
     return since, hashed, None
 
 
+def _at_sha_matches(text: str) -> list:
+    """Every FILLED `APPROVED AT SHA:` line's (stored value, span), across the WHOLE doc.
+
+    ⭐ Reuses `sign_gate`'s own `_AT_ANY` regex rather than a second copy of it -- a second
+    regex hunting the same line is a second authority over what an approval line looks like.
+    """
+    return [(m.group(2), m.span()) for m in SG._AT_ANY.finditer(text) if m.group(2)]
+
+
+def _row_state(text: str, want: str) -> tuple:
+    """(state, got) for ONE row, SIGNED-aware. K CP14.
+
+    ⛔⛔ **NEVER calls `SG.fingerprint(text)` with no span.** That form asks
+    `target_span()` for the UNSIGNED block and RAISES when every block is already filled --
+    correct for `sign_all` (which must never overwrite a historical value by guessing), fatal
+    here, where a fully-signed packet is an ordinary thing this reader must be able to look
+    at. `read_approval()` is asked FIRST, and the SIGNED branch below is `sign_all`'s own
+    `already_signed_as` logic, unchanged: rederive each filled block from the CURRENT file
+    and compare against what the manifest expects.
+
+    Returns one of: OK, STALE (both the pre-existing UNSIGNED-row behaviour, byte-identical),
+    SIGNED-OK, SIGNED-STALE, SIGNED-ELSEWHERE (want matches no stored value, so this row's
+    signature covers a different scope than the manifest expects), MALFORMED.
+    """
+    state, reason = SG.read_approval(text)
+    if state == SG.MALFORMED:
+        return "MALFORMED", reason
+    if state == SG.SIGNED:
+        pairs = _at_sha_matches(text)
+        stored = [v for v, _sp in pairs]
+        if want not in stored:
+            return "SIGNED-ELSEWHERE", ", ".join(stored) or "-"
+        span = pairs[stored.index(want)][1]
+        rederived = SG.rederive_signed(text, span)
+        if rederived != want:
+            return "SIGNED-STALE", rederived
+        return "SIGNED-OK", want
+    # UNSIGNED -- exactly the prior behaviour: target_span() finds the one blank block
+    # (read_approval already proved there is exactly one, or none at all) and fingerprint()
+    # is safe to call with no span.
+    got = fingerprint_text(text)
+    return ("OK" if got == want else "STALE"), got
+
+
+#: states that do NOT count against the run -- everything else is "bad".
+_GOOD_STATES = ("OK", "SIGNED-OK")
+
+
 def check(manifest: pathlib.Path, verbose=True) -> tuple:
     table = rows(manifest)
     results = []
@@ -112,16 +178,21 @@ def check(manifest: pathlib.Path, verbose=True) -> tuple:
         if not p.is_file():
             r.update(state="MISSING-FILE", got="-")
         else:
-            got = fingerprint_text(p.read_text(encoding="utf-8"))
-            r.update(got=got, state="OK" if got == r["want"] else "STALE")
+            state, got = _row_state(p.read_text(encoding="utf-8"), r["want"])
+            r.update(state=state, got=got)
         results.append(r)
 
     if verbose:
         print("[verify-manifest] rows: %d" % len(results))
         for r in results:
-            print("  %-2d %-50s %-12s %-9s %s"
+            print("  %-2d %-50s %-12s %-13s %s"
                   % (r["line"], pathlib.Path(r["path"]).name, r["cps"], r["state"],
                      r.get("got", "")))
+            # ⛔ The historical-commit TRAIL only makes sense for the plain UNSIGNED
+            # fingerprint (it walks history re-hashing with the UNSIGNED span, which is
+            # not the span a SIGNED block was hashed against) -- SIGNED-STALE prints
+            # want/got and stops there rather than walking a trail that would be answering
+            # a different question than the one it looks like it is answering.
             if r["state"] == "STALE":
                 since, hashed, at = trail(r["path"], r["want"])
                 print("       expected %s   found %s" % (r["want"], r["got"]))
@@ -136,9 +207,19 @@ def check(manifest: pathlib.Path, verbose=True) -> tuple:
                     for line in history(r["path"]):
                         if line.split("|")[0] in since:
                             print("         %s" % line)
+            elif r["state"] == "SIGNED-STALE":
+                print("       ⛔ this block is SIGNED, and its live content no longer "
+                      "rederives its own recorded fingerprint — the packet was edited "
+                      "after signing.")
+                print("       recorded %s   rederives %s" % (r["want"], r["got"]))
+            elif r["state"] == "SIGNED-ELSEWHERE":
+                print("       ⛔ the manifest expects %s; this packet's filled block(s) "
+                      "carry: %s" % (r["want"], r["got"]))
+            elif r["state"] == "MALFORMED":
+                print("       ⛔ %s" % r["got"])
         if not results:
             print("[verify-manifest] ZERO rows — the manifest is empty or unparseable.")
-    return results, sum(1 for r in results if r["state"] != "OK")
+    return results, sum(1 for r in results if r["state"] not in _GOOD_STATES)
 
 
 CODE_REPO = REPO.parent / "s7-price-level"
@@ -261,13 +342,19 @@ def check_commits(branch="feat/s7-price-level", base="origin/master", verbose=Tr
 def _self_check() -> int:
     """⛔ clean / dirty / empty, in a throwaway git repo, before the real manifest."""
     import tempfile
+    import tempfile as _tf2
+    import shutil
     ok = True
 
     def show(label, got, want):
         nonlocal ok
         good = got == want
         ok &= good
-        print("  %-54s -> %-9s %s" % (label, got, "ok" if good else "WRONG (want %s)" % want))
+        # ⛔ K CP14 — `"WRONG (want %s)" % want` raised when `want` was a 2+ element
+        # TUPLE (one `%s` slot, multiple values): the format string ATE its own failure
+        # report. `% (want,)` wraps it as ONE substitution regardless of what want is.
+        print("  %-54s -> %-9s %s" % (label, got,
+                                      "ok" if good else "WRONG (want %s)" % (want,)))
 
     with tempfile.TemporaryDirectory() as td:
         d = pathlib.Path(td)
@@ -314,6 +401,88 @@ def _self_check() -> int:
             since, hashed, at = trail("p.md", "0000deadb")
             show("a value that was NEVER this doc's -> no matching commit",
                  at is None and hashed >= 2, True)
+
+            # ── K CP14: a SIGNED row must not crash the check, and check_commits() must
+            # still run after it (`check_commits` is called directly here rather than via
+            # a real UNITS/branch, because THAT composition — a signed row not blocking the
+            # ones after it — is exactly what F-VERIFY-1 broke). ──────────────────────────
+            NL = chr(10)
+            signed = d / "signed.md"
+            good_by, good_on = "Patrick", "2026-09-17"
+            # ⛔ `SCOPE APPROVED:` starts BLANK too, like every real packet's approval
+            # block. `sign_gate.rederive_signed` blanks FOUR fields (AT SHA, BY, ON, AND
+            # SCOPE, per K CP6 there) because `sign()` fills all four at signing time and
+            # the fingerprint pins the bytes the owner read BEFORE any of them were
+            # written. A fixture that pre-fills SCOPE in the "unsigned" state hashes
+            # different bytes than rederive_signed blanks back to, and reads SIGNED-STALE
+            # on a packet that was never edited — caught by running this control, not by
+            # reading it.
+            unsigned_block = NL.join(["# packet", "", "```", "APPROVED BY:",
+                                      "APPROVED ON:", "APPROVED AT SHA:",
+                                      "SCOPE APPROVED:", "```", ""])
+            fp_signed = fingerprint_text(unsigned_block)
+            signed_block = unsigned_block.replace(
+                NL.join(["APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
+                         "SCOPE APPROVED:"]),
+                NL.join(["APPROVED BY: %s" % good_by, "APPROVED ON: %s" % good_on,
+                         "APPROVED AT SHA: %s" % fp_signed, "SCOPE APPROVED: CP1"]))
+            signed.write_text(signed_block, encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=str(d), capture_output=True)
+            subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                            "commit", "-q", "-m", "signed v1"], cwd=str(d),
+                           capture_output=True)
+            man_signed = d / "m_signed.txt"
+            man_signed.write_text("signed.md | CP1 | %s%s" % (fp_signed, NL), encoding="utf-8")
+
+            res, bad = check(man_signed, verbose=False)
+            show("K CP14 — a SIGNED row matching -> SIGNED-OK, exit 0, no crash",
+                 (res[0]["state"], bad), ("SIGNED-OK", 0))
+
+            # ⭐ THE EXACT COMPOSITION main() RELIES ON: check() succeeding on a signed
+            # row must not prevent check_commits() from running right after it. Before
+            # K CP14 this never printed anything — the process was already dead.
+            box2 = pathlib.Path(_tf2.mkdtemp(prefix="k14-compose-"))
+            try:
+                def _g2(*args):
+                    return subprocess.run(["git", "-C", str(box2), *args],
+                                          capture_output=True, text=True,
+                                          encoding="utf-8", errors="replace")
+                _g2("init", "-q", "-b", "master")
+                _g2("config", "user.email", "c@example.com")
+                _g2("config", "user.name", "control")
+                (box2 / "u1.txt").write_text("u1", encoding="utf-8")
+                _g2("add", "u1.txt")
+                _g2("commit", "-qm", "u1")
+                _g2("branch", "-f", "fake-master")
+                _g2("checkout", "-q", "-b", "feat")
+                (box2 / "u2.txt").write_text("u2", encoding="utf-8")
+                _g2("add", "u2.txt")
+                _g2("commit", "-qm", "u2")
+                a1 = _g2("rev-parse", "--short=9", "HEAD").stdout.strip()
+                composed_units = [("unit-one", [a1], False)]
+                res_sg, _bad_sg = check(man_signed, verbose=False)  # the SIGNED row, again
+                crc = check_commits(branch="feat", base="fake-master", verbose=False,
+                                    repo=box2, units=composed_units)
+                show("...and check_commits() STILL RUNS right after a SIGNED row",
+                     (res_sg[0]["state"], crc), ("SIGNED-OK", OK))
+            finally:
+                shutil.rmtree(box2, ignore_errors=True)
+
+            # Now edit the packet's OWNER-FACING text (never the approval block) after
+            # signing — the packet drifts from what was approved.
+            drifted = signed.read_text(encoding="utf-8").replace(
+                "# packet", "# packet, edited after signing")
+            signed.write_text(drifted, encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=str(d), capture_output=True)
+            subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                            "commit", "-q", "-m", "signed v2, edited after signing"],
+                           cwd=str(d), capture_output=True)
+            res, bad = check(man_signed, verbose=False)
+            show("K CP14 — SIGNED then edited -> SIGNED-STALE, exit 1",
+                 (res[0]["state"], bad), ("SIGNED-STALE", 1))
+
+            # ⭐ ALL-UNSIGNED behaviour is UNCHANGED — the original CLEAN/DIRTY fixture
+            # above already proves OK/STALE byte-for-byte; nothing here alters that path.
         finally:
             REPO = real
 
@@ -390,18 +559,42 @@ def main(argv=None) -> int:
     if not man.is_file():
         print("⛔ manifest not found: %s" % man)
         return UNREADABLE_EXIT
-    results, bad = check(man)
-    if not results:
-        return UNREADABLE_EXIT
-    print()
-    print("[verify-manifest] %d OK, %d STALE"
-          % (sum(1 for r in results if r["state"] == "OK"), bad))
-    rc = STALE_EXIT if bad else OK
-    rrc = check_resolutions()
-    if rrc != OK and rc == OK:
-        rc = rrc
+
+    # ⛔⛔ K CP14 — EVERY CHECK RUNS, REGARDLESS OF ANY OTHER CHECK'S RESULT. Before this,
+    # an uncaught SystemExit inside check() (any SIGNED row) killed the process before
+    # check_resolutions() or check_commits() were ever reached — the moment ANYTHING was
+    # signed, K CP8's commit-coverage proof went dark as collateral damage from a fingerprint
+    # bug, and pre_sitting could never read READY again. Each check is now isolated: a
+    # crash inside ONE is caught, named, and counted as a failure, and the OTHERS still run.
+    # The final exit code is the OR of all three — never short-circuited.
+    rc = UNREADABLE_EXIT
+    try:
+        results, bad = check(man)
+        if results:
+            print()
+            print("[verify-manifest] %d OK, %d STALE"
+                  % (sum(1 for r in results if r["state"] in _GOOD_STATES), bad))
+            rc = STALE_EXIT if bad else OK
+        else:
+            rc = UNREADABLE_EXIT
+    except Exception as e:  # noqa: BLE001 -- isolate this check from the others, always
+        print("⛔ verify_manifest.check() FAILED TO RUN: %s: %s" % (type(e).__name__, e))
+        rc = UNREADABLE_EXIT
+
+    try:
+        rrc = check_resolutions()
+    except Exception as e:  # noqa: BLE001
+        print("⛔ check_resolutions() FAILED TO RUN: %s: %s" % (type(e).__name__, e))
+        rrc = UNREADABLE_EXIT
+    if rrc != OK:
+        rc = rrc if rc == OK else rc
+
     if a.check_commits:
-        crc = check_commits(branch=a.branch, base=a.base)
+        try:
+            crc = check_commits(branch=a.branch, base=a.base)
+        except Exception as e:  # noqa: BLE001
+            print("⛔ check_commits() FAILED TO RUN: %s: %s" % (type(e).__name__, e))
+            crc = UNREADABLE_EXIT
         if crc != OK:
             rc = crc if rc == OK else rc
     return rc
