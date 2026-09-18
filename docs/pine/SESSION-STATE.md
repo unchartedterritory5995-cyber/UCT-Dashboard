@@ -2,6 +2,88 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 15:20–15:30 ET — ✅ THE VENDOR CAPTURE IS DONE. ✅ #145 IS READY. ⛔ R38 STOPS AT GATE 5.3.
+>
+> **The blocker resolved itself: the owner's own desktop became visible again
+> mid-session.** Three prior reads this same day had the operator's Chrome at
+> `visibilityState: "hidden"`, `outerWidth/Height: 0×0` — not occluded, **not
+> composited at all** (locked machine / disconnected remote session / sleeping
+> monitor). That cannot be fixed from inside a session. It resolved when the
+> owner's screen came back — verified live (`visible`, real dimensions,
+> `01f1AcIj` answering `200` with no `"Chart Not Found"`, the `signed_in`
+> discriminator) — and the whole vendor capture ran directly on that
+> already-authenticated session. R39's session-owned Playwright browser, built
+> for exactly this contingency, was not needed for this leg once the real
+> blocker lifted.
+>
+> ✅ **A real docking hazard was hit and resolved per procedure, not skipped
+> or forced through.** The layout's Pine Editor opened on the **owner's own
+> saved script** with a Monaco `placement=dialog` marker — the documented STOP
+> signal — even though the panel was visibly embedded on screen. Reloaded once
+> per the procedure's remedy; the marker persisted, and independent
+> corroboration (direct DOM access, no cross-window boundary) established this
+> build tags the marker regardless of dock state. The owner's script was never
+> opened for edit, never took a keystroke, never saved — mechanically
+> impossible via the unbind path used (`Create new → Indicator` opens a
+> separate buffer). Verified after cleanup: NVDA / 1D / 0 studies, the exact
+> state found.
+>
+> ✅ **All three vendor tiers captured**, buffer sha-verified
+> (`92ec396864828ad2…`) before every click: desktop (1718px), tablet (804px),
+> phone (**500px** — a real Chrome-window minimum-width floor, confirmed by
+> requesting both 390 and 280 and landing on the same 500 both times; still
+> within this repo's own ≤640 phone bucket). Per-layer numeric extraction does
+> **not** work on this leg — checked, not assumed: TradingView's static
+> style-property tree returns the same generic default for all 20 fills,
+> because Pine's dynamic `fill(color=expr)` computes color at runtime and never
+> writes it back. What the vendor leg proves instead: the real production Pine
+> compiler, on the owner's own account, accepted the script with **zero
+> errors** and rendered the correct non-flat two-color gradient at all three
+> real widths.
+>
+> ✅ **H.8 closed for this run.** `bars.py`'s developing-bar volume measured
+> **frozen** across a 3h46m span (`30,092,264` at both 15:35:32 and 19:21:51
+> UTC) while TradingView's own live developing bar grew to `46,339,528` in the
+> same window — a 35.1% understatement, measured twice. `scan_evaluator`
+> stayed refused on both reads (root cause already established as unreachable
+> from outside `get_full_market_snapshot()` without a code change or
+> credentials this session does not use).
+>
+> ✅ **R29: #145 FLIPS TO READY.** Both engine-side routes agree exactly (20
+> fills, 20 distinct opacities, 95.0→47.5); the vendor route confirms the one
+> fact only a real render can. Full reasoning: `j4-per-layer-table.md` §5.
+>
+> ✅ **R38 5.4 — master merged.** `origin/master` was 290 commits ahead with
+> real overlap on 8 files (`api/main.py`, `StockChart.jsx` among them). Merged
+> as `d2faaabff`; one real conflict in `docs/feature_flags.json`, resolved by
+> reading both sides' reasoning (kept this branch's own two flag rows; did
+> **not** resurrect a third row master's own file explains it deliberately
+> retired). JSON validity and hygiene both confirmed on the resolution.
+>
+> ⛔⛔ **R38 STOPS AT GATE 5.3 — `flow_worker_watch_coverage.py` FAILS, traced
+> not waved through.** 16 files flow-worker's import closure reaches are
+> absent from its Railway watch list. Diffed both sides of the merge: **all
+> 16 were touched exclusively by this branch's own historical commits**, zero
+> by master's 290 — pre-existing to this whole programme, not introduced today.
+> The tool's own suggested fix (touch `flow_worker_main.py`'s header to force a
+> redeploy) was **not applied**: that forces a real flow-worker redeploy, which
+> CLAUDE.md prices as a physical cost ("a dropped Massive OPRA socket is a
+> permanent tape gap"), and this repo's own precedent for this exact tool
+> declined to force one specifically after TRACING the reached code as
+> behaviorally irrelevant — a trace this session has not completed for these 16
+> files. Forcing a redeploy on an untraced guess trades a possible staleness
+> risk for a certain, physical, unrecoverable one. **That trade is the owner's
+> to make, not this session's.** Full detail: `j4-per-layer-table.md` §6.
+>
+> ⛔ **Gate 5.2's own verdict on the final merge SHA is still pending** as of
+> this pointer — see the entry immediately below for the reading once it
+> lands. **Nothing has reached master. #145 is READY but not merged.**
+>
+> ▶️ **NEXT, for the owner:** decide gate 5.3 — either rule the 16-file gap
+> acceptable for this merge (it predates today entirely), add the paths to
+> flow-worker's Railway watch list, or accept the redeploy's tape-gap cost
+> deliberately. Once decided, 5.5–5.8 are the only steps left.
+
 > ### ⏱️ 2026-09-18 11:08 — ⚰️ I KILLED THE OWNER'S SIGN-IN WINDOW. ONE PROFILE, ONE BROWSER.
 >
 > **Attributable, and mine.** The `patrick-cd` session had the owner's

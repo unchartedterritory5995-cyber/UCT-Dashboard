@@ -369,3 +369,81 @@ it is walked in order; a failing one stops there and nothing past it is assumed.
 See SESSION-STATE for the live readings (gate SHA, CI status, master's tip,
 merge outcome) — this section records the decision chain, not a duplicate of
 the timestamped log.
+
+### 5.4 — master had moved. Merged, one real conflict, resolved by reading not by rule.
+
+`origin/master` was 290 commits ahead of this branch's merge-base, with real
+(non-coincidental) file overlap on 8 paths including `api/main.py` and
+`app/src/components/StockChart.jsx`. Per 5.4's own text this is not skippable.
+Merged (`d2faaabff`), auto-resolved cleanly on 7 of 8 files; ONE real conflict,
+in `docs/feature_flags.json`.
+
+⭐ **The conflict was resolved by reading the content, not by picking a side
+mechanically.** Both branches had appended different new ledger rows at the same
+point in the file. Two of this branch's three rows (`VITE_PINE_MEMBER_PANE_
+ENABLED`, `VITE_VOLUME_NUMERIC_PANE_ENABLED`) are this programme's own,
+unrelated to master's edits, and were kept. The third
+(`VITE_BREADTH_CHARTS_V2_ENABLED`) was **not** kept: master's own file explains,
+in two other rows, that this build-time flag was deliberately retired and
+replaced by a per-request runtime flag, and the exact key no longer exists
+anywhere in master's ledger. Keeping it would have resurrected a row master
+intentionally deleted. `python -c "import json; json.load(...)"` confirmed the
+resolved file parses; `check_repo_hygiene.py --staged` confirmed no line-ending
+flip across all 418 staged files.
+
+### 5.2 — six-shard gate
+
+**RUN 1** (SHA `0ae8c766d`, pre-merge): `VERDICT=NEW_FAILURES exit=1 new=5`. All
+five traced to the exact three files established pre-existing during j.5
+earlier the same day (byte-exact revert-and-rerun of this session's own
+behavioral commits reproduced the identical five, by name) — not introduced by
+anything in this run. **RUN 2** (same SHA, immediately after): `VERDICT=
+REFUSED-LOCK exit=4`, a different workstream (`joystick-launch-close`) holding
+the box — not bypassed, per the standing "one gate at a time on this machine"
+rule.
+
+**FINAL RUN**, against the actual merge candidate SHA (post-5.4), reported
+below with its own VERDICT line, read from the log rather than the wrapper's
+exit code (established twice already today that the two can disagree).
+
+### 5.3 — cadence / deploy-state guards
+
+`tools/pre_push_guard.py` and `tools/flow_worker_watch_coverage.py`, the two
+tools CLAUDE.md names for this gate.
+
+⛔⛔ **`flow_worker_watch_coverage.py` FAILS, and it stops R38 here — traced,
+not waved through.** It reports 16 files flow-worker's import closure reaches
+that are absent from its Railway watch list: `alert_user_series.py`,
+`ast_freshness.py`, `ast_interpret.py`, `ast_lint.py`, `ast_table.py`,
+`bars_fetch.py`, `compute_graph.py`, `indicator_compute.py`,
+`liveflow_monitor.py`, `nyse_calendar.py`, `param_manifest.py`,
+`scan_definition.py`, `screener/scan_store.py`, `screener/technicals.py`,
+`ticker_meta.py`, `user_definitions.py`.
+
+⭐ **Traced, per CLAUDE.md's own precedent for this exact tool ("a REVIEW GATE,
+not a block" — but the review still has to happen before a merge proceeds, not
+instead of it).** A direct diff of each side of the merge shows **all 16 files
+were touched exclusively by this branch's own historical commits** (merge-base
+→ this branch's pre-merge tip) — **zero** of them were touched by any of
+master's 290 commits. This is not something today's merge introduces or
+worsens; it is a pre-existing characteristic of this whole multi-session
+indicator/Pine-engine programme, which has apparently never had this specific
+tool run against it before now.
+
+⛔ **What was NOT done, and why.** The tool's own suggested fix — touch
+`api/flow_worker_main.py`'s header to force a redeploy — is a well-established,
+repeatedly-used mechanism in that exact file (at least eight prior instances in
+its own header history). It was **not applied**, because doing so forces an
+actual flow-worker redeploy, which CLAUDE.md prices as a **physics cost, not a
+policy one**: "a dropped Massive OPRA socket is a permanent tape gap." This
+repo's own precedent for the identical tool, on an unrelated earlier change,
+explicitly declined to force that redeploy specifically because it traced the
+reached code to be behaviorally irrelevant — a trace this session has **not**
+completed for these 16 files. Forcing a redeploy on an untraced guess trades a
+possible staleness risk for a certain, physical, unrecoverable one. That trade
+is not this session's to make.
+
+⛔⛔ **R38 STOPS AT GATE 5.3.** #145 remains **READY** (5.1 stands; the vendor
+capture and engine measurements are unaffected by any of this) but **not
+merged**. Nothing past 5.3 — 5.5 (rollback statement), 5.6 (the merge click),
+5.7 (post-deploy) — was reached or assumed.
