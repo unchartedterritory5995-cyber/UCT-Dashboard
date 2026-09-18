@@ -202,6 +202,20 @@
 }
 
 .bubbleInner {
+  /* ⚰️ AN F6 FIX WAS ATTEMPTED HERE AND REVERTED. R8 pass 3, 2026-09-18: raising these to 46/46
+     with --text-xs contradicts a spec decision:
+       - registry.js:784 records the master spec's contrast analysis: "Wire (outer ring) beside
+         Journal (inner ring) in Home's fan, luminance separation only 1.74 — weak for a
+         hue-blind viewer", mitigated by "ring radius, by bubble size (46px vs 36px) and by icon".
+       - HubFan.jsx:9 quotes spec §5 verbatim: "Outer bubbles 46px, inner bubbles 36px."
+     So the size difference IS the accessibility mitigation the 1.74 separation depends on.
+     Erasing it would spend the very mitigation the spec's own analysis names.
+
+     ⭐ 9px is still small on a phone, and that is a real read; the answer is not this rule.
+     Either the ring gains more visual separation from another cue (an outline, a slight offset,
+     a badge for the ring name), or the labels themselves become icon-forward with a smaller/
+     hidden text, so 9px is not what a member READS. Either way, this is a NEXT-pass structural
+     question, not a same-pass tweak. Recorded for the sandbox judgement. */
   width: 36px;
   height: 36px;
   font-size: 9px;
