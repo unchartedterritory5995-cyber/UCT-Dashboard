@@ -359,6 +359,18 @@ un-maximises).
   capturing `web`'s log continuously so this sweep doesn't need a live capture race.
   **R62 CLOSED** if all ten clear the bar and no instance-collision line appears; otherwise name
   the gap.
+  🟡 **ATTEMPTED 2026-09-18, NOT CLOSED — gap named, not a fix flaw.** Best consecutive clean
+  streak so far: 6 (13:30:46-13:35:46 UTC). The instance-collision alarm is a CLEARED false
+  positive: one pre-market (09:04:45 ET) line, duplicated 12x by the log-tail daemon's
+  poll-and-dump capture, outside the 09:30-16:00 ET window. The `held_lock_ms` bar failed
+  because of TWO other workstreams' `web` deploys landing during market open (09:46 ET, 10:21
+  ET) — each triggered a boot-window episode peaking at 80s then 110s `held_lock_ms`, taking
+  ~20 min to re-settle, longer/worse than R31's own characterization. **Verified against
+  `origin/master` (not this branch, which lacks R62 by R59 design) that R62's fix itself is
+  intact in production** — the spike is `held_lock_ms ≈ duration_ms`, meaning the ALREADY-FIXED
+  network fetch was not the cause; the LOCKED derive/write body itself is the new, unfiled
+  candidate for boot-window sensitivity. Full account:
+  `evidence/d18/R62-F3-attempt-2026-09-18.md`. Retry once market-open deploy churn settles.
 - [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4, needs-R49`
 - [ ] **W6 — member flip** per R40, monitor per R41 for >= 5 trading days — `BLOCKED-needs-W5`
 - [ ] **W7 — close-out** — `BLOCKED-needs-W6`

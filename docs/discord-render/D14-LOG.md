@@ -673,3 +673,41 @@ calendar / catalyst-engine prominence in two mid-sized stalls. Full
 account: evidence/oi44-attribution/2026-09-18-first-real-alignment.md.
 ================================================================================
 ```
+2026-09-18 11:15 ET | R62 F3 ATTEMPTED, NOT CLOSED | boot-window gap named, fix verified intact
+================================================================================
+Item 2/F3 (R62 acceptance). Collected sweep receipts through the 09:30 ET open and
+beyond. Best consecutive clean streak: 6 (09:30:46-09:35:46 ET). Not 10.
+
+Instance-collision alarm investigated and CLEARED as a false positive: the market-
+open monitor kept re-firing on the exact same line, traced to ONE real occurrence
+at 09:04:45 ET (25 min before open, outside the acceptance window), duplicated 12x
+across the captured .log file by the log-tail daemon's own poll-and-dump mechanism
+(already documented in the D-18 continuity analysis; this is the first time it was
+shown to also fool a naive collision grep). No in-window collision line found.
+
+The held_lock_ms bar failed for a real, well-evidenced reason: two OTHER concurrent
+workstreams pushed to web during market open -- 09:46:06 ET (docs-only D-056) and
+10:21:27 ET (feat/wisdom-loop merge) -- read directly off `railway deployment list`.
+Each triggered a boot-window episode in the screener-live sweep: episode 1 peaked
+at 80,068ms held_lock_ms and took ~20 min to re-settle under 1,000ms; episode 2
+peaked at 110,402ms and was still ~1,000-1,200ms (just over the bar) after ~21 min.
+Both durations exceed R31's own previously-documented ~15-min boot window -- n=2,
+not claimed as a new universal number.
+
+Caught and corrected a near-miss before publishing: read this worktree's OWN
+checkout of live_tier.py first, which does NOT carry R62's fix (546a5d3ef is not
+an ancestor of this branch's HEAD -- R59 deliberately keeps this branch's runtime
+invariant, so R62 was correctly never merged here). That is NOT what Railway runs.
+Verified against origin/master directly (git show) -- R62's fix (fetch moved before
+the lock, snap handed into a 4-arg _sweep_locked) is intact and deployed. The 80-
+110s spikes are NOT the network fetch: held_lock_ms and duration_ms were within
+0.27ms of each other at the peak, meaning the pre-lock fetch (snapshot_ms) cost
+near-zero that cycle -- the entire spike is inside _sweep_locked's own anchor-read
++ ~3,745-row derive + write body, a genuinely new, previously-unmeasured boot-
+window candidate that R62 never targeted and does not fix.
+
+R62 NOT CLOSED today. Gap named, not smoothed over, per the owner's own instruction.
+Full account: evidence/d18/R62-F3-attempt-2026-09-18.md. Recommend retry once
+market-open deploy churn settles, or first thing next session.
+================================================================================
+```
