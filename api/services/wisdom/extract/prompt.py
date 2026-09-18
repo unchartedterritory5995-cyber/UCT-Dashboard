@@ -365,16 +365,37 @@ def asr_hints(segment: dict) -> list[str]:
     return hints[:20]
 
 
+#: R97, session 25. Measured against the real API: a Haiku golden run's 35-request batch
+#: came back 35/35 `errored`, every one carrying "This model does not support the effort
+#: parameter." -- Haiku 4.5 rejects `output_config.effort` outright. No money was spent (a
+#: batch item that errors at request-validation is not billed), but the run measured
+#: nothing.
+#: ⛔ NEVER GUESS THIS FORWARD TO OTHER MODELS. Opus 5 is the one model this has ever run
+#: against in production and its accepted gate row depends on this EXACT request shape
+#: (dropping `effort` would change nothing about the version hash -- that only covers
+#: system+schema+transport -- but it WOULD change the real request Anthropic receives,
+#: which is the thing the golden gate measured). So this is an explicit, evidence-only
+#: allowlist of models CONFIRMED not to support the field, added one measured failure at a
+#: time -- never a guess at which OTHER models might also reject it. A model not in this
+#: set keeps getting `effort`; if that model also rejects it, the failure mode is the SAME
+#: as today's Haiku one -- an immediate, free, loud `errored` batch item, never a silent
+#: wrong measurement.
+NO_EFFORT_MODELS = frozenset({"claude-haiku-4-5"})
+
+
 def build_params(segment: dict, source: dict, *, model: str, effort: str, max_tokens: int = MAX_TOKENS,
                  system_text: Optional[str] = None, hints: Optional[list[str]] = None) -> dict:
     """One Messages request. No temperature/top_p/top_k, no prefill, no fallbacks."""
     if effort not in EFFORTS:
         raise ValueError(f"effort must be one of {EFFORTS}")
+    output_format = {"type": "json_schema", "schema": api_schema()}
+    output_config = {"format": output_format} if model in NO_EFFORT_MODELS \
+        else {"format": output_format, "effort": effort}
     return {
         "model": model,
         "max_tokens": int(max_tokens),
         "system": [{"type": "text", "text": system_prompt() if system_text is None else system_text,
                     "cache_control": {"type": "ephemeral"}}],
         "messages": [{"role": "user", "content": user_message(segment, source, hints)}],
-        "output_config": {"format": {"type": "json_schema", "schema": api_schema()}, "effort": effort},
+        "output_config": output_config,
     }
