@@ -12,7 +12,7 @@
  */
 import { useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import useBreadthSeries from './useBreadthSeries'
+import useBreadthSeries, { MAX_KEYS } from './useBreadthSeries'
 import { useDcFlags } from './flag'
 import { buildOption } from './chartOption'
 import { panelsFor } from './panels'
@@ -36,14 +36,15 @@ const DEFAULT_WINDOW_DAYS = 90
  * the whole tree, precisely because this control is meant to differ from V2-2 always.
  *
  * ⭐ `Max` is 2008-01-02 — the documented start of stored history (`01-audit.md`'s A-11:
- * "History reaches 2008-01-02"). Choosing a preset that the backend cannot yet serve
- * (before L-A raises `BREADTH_SERIES_MAX_SESSIONS`) is not a dead end: it lands on the
+ * "History reaches 2008-01-02"). Raised and reachable as of L-A/L-B (2026-09-17, D-054):
+ * `BREADTH_SERIES_MAX_SESSIONS` and `useBreadthSeries.MAX_SESSIONS` both cover it now. A
+ * preset the backend genuinely cannot serve is still not a dead end — it lands on the
  * EXISTING `s.tooWide` honest refusal below, which already says so in plain words.
  */
 const MAX_HISTORY_FROM = '2008-01-02'
 const EXTENDED_DAYS_PRESETS = [
   { label: '90d', days: DEFAULT_WINDOW_DAYS },   // V1's own default window
-  { label: '1y', days: 365 },                    // today's /series cap
+  { label: '1y', days: 365 },
   { label: '5y', days: 1825 },
   { label: 'Max', days: null },                  // MAX_HISTORY_FROM
 ]
@@ -64,11 +65,37 @@ export default function BreadthChartsV2({ keys, from, to }) {
   const [daysChoice, setDaysChoice] = useState(DEFAULT_WINDOW_DAYS)
   const effectiveFrom = from ?? (daysChoice === null ? MAX_HISTORY_FROM
                                                       : shiftISO(today, -daysChoice))
-  const s = useBreadthSeries(selection, effectiveFrom, to ?? today)
+
+  // ⛔ PANELS ARE DERIVED FROM `selection` — WHAT THE MEMBER PICKED — NEVER FROM THE
+  // REQUEST. `universe_count` is injected into the WIRE REQUEST below (Q3/DC5: the era
+  // note needs it in the ≤8 requested keys), and it must never leak into what gets
+  // rendered: computing panels from the post-request key list would draw an uninvited
+  // "Universe Count" panel the member never asked for the moment it rode along.
+  const panels = useMemo(() => panelsFor(selection), [selection])
+
+  // ⛔⛔ A-11 ERA NOTE WIRING (Q3/DC5, L-A "wire fields") — `universe_count` is a HELPER
+  // FIELD for `coverageModel`'s era-note computation, not a chart series. It rides along
+  // in the REQUEST only when v23 is on and the member's own selection already contains a
+  // count-family panel (`unitOf(key) === UNIT.COUNT`, read here via `panels`, the same
+  // test `coverageModel`'s own `countKeys` uses) — never added to `selection` itself,
+  // and never counted against the member's own panel choices.
+  //
+  // ⛔ ONLY WHEN THERE IS ROOM. `/series` caps at `MAX_KEYS` (8); `seriesRequest` dedupes,
+  // SORTS, then slices at 8 — so appending a 9th key does not necessarily drop ITSELF, it
+  // can just as easily bump a member-selected metric that happens to sort after
+  // "universe_count" alphabetically. That would silently swap a chosen panel for an
+  // invisible helper field and mislabel the honest "not requested" state as the member's
+  // own overreach. A full 8-panel selection simply does not get the era note — an honest
+  // degradation, never a displaced panel.
+  const hasCountPanel = panels.some(p => p.unit === 'count')
+  const requestedKeys = (v23 && hasCountPanel && selection.length < MAX_KEYS
+                          && !selection.includes('universe_count'))
+    ? [...selection, 'universe_count']
+    : selection
+  const s = useBreadthSeries(requestedKeys, effectiveFrom, to ?? today)
 
   // Which unit families the reader has asked to see on a log scale.
   const [logPanels, setLogPanels] = useState(() => new Set())
-  const panels = useMemo(() => panelsFor(s.keys ?? []), [s.keys])
 
   // ⚰️ LTTB USED TO PRE-PROCESS `s.dates`/`s.series` HERE, BEFORE COVERAGE AND THE OPTION
   // BOTH CONSUMED ITS OUTPUT. That is gone (D-053, see `lttb.js`'s module doc): ECharts'
@@ -77,8 +104,9 @@ export default function BreadthChartsV2({ keys, from, to }) {
   // whether to ask for it — `coverage` and `option` below go straight back to reading
   // `s.dates`/`s.series` unchanged, exactly as they did before LTTB existed.
   // ⛔ Whether ANY series in this view is long enough to be sampled, purely for the
-  // honest note below — gated on v23 (a V2-3 capability) and structurally inert under
-  // today's client-side MAX_SESSIONS cap, same as every other long-history V2-3 feature.
+  // honest note below — gated on v23 (a V2-3 capability). ⭐ As of the 2026-09-17 cap
+  // raise (L-A/L-B) this is REACHABLE, not structurally inert: MAX_SESSIONS is well past
+  // `THRESHOLD_POINTS` (1,500), so the "5y" and "Max" presets actually cross it now.
   const isSampled = v23 && shouldSample(s.dates?.length)
 
   // ⛔⛔ V2-3's MODEL IS NULL WHENEVER IT HAS NOTHING HONEST TO SAY, and the option then
@@ -92,16 +120,19 @@ export default function BreadthChartsV2({ keys, from, to }) {
     return coverageModel({
       dates: s.dates,
       valuesByKey: s.series,
-      keys: s.keys,
+      // ⛔ `selection`, NOT `s.keys` — coverage bands are drawn per RENDERED panel; a
+      // band for the injected `universe_count` helper key would shade a panel nobody
+      // selected. `eraNote` still sees `universe_count` fine, via `valuesByKey` above.
+      keys: selection,
       reconstructed: s.reconstructed,
       panels,
     })
-  }, [v23, s.series, s.dates, s.keys, s.reconstructed, panels])
+  }, [v23, s.series, s.dates, selection, s.reconstructed, panels])
 
   const option = useMemo(() => {
     if (!v22 || !s.series || !s.dates?.length) return null
-    return buildOption(s.dates, s.series, s.keys, { logPanels, coverage, allowSampling: v23 })
-  }, [v22, v23, s.series, s.dates, s.keys, logPanels, coverage])
+    return buildOption(s.dates, s.series, selection, { logPanels, coverage, allowSampling: v23 })
+  }, [v22, v23, s.series, s.dates, selection, logPanels, coverage])
 
   function toggleLog(unit) {
     setLogPanels(prev => {
