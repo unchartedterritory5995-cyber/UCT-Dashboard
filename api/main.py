@@ -1068,6 +1068,44 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
 
 
+def _start_cold_path_boot_preload() -> None:
+    """R63(c) AMENDED — register the render programme's known `@lru_cache`-forever cold loads
+    and fire them on `cold_start_guard`'s boot thread, immediately (no delay: unlike the
+    dashboard warmers above, these are cheap file reads, not provider calls, and nothing here
+    is discovered by watching a live pod for seconds first).
+
+    ⛔ WHY THESE TWO AND NOT MORE, TONIGHT. R63(a)'s cold-path scanner (`oi44_cold_paths.py`)
+    found 502 lazily-imported modules and 1,013 in-function data loaders across `api/**`.
+    `cap_universe.symbols()`/`etf_symbols()` are the two the scanner and the 2026-09-13 W1
+    incident both independently named (`flow_source` lazily imports both `api.massive_processor`
+    and `api.services.cap_universe`) — a real, measured cold-start cost (13.5 ms / 3.8 ms import,
+    ~110 ms first-call data load) on a documented incident path. They also fit this mechanism
+    exactly: `@lru_cache(maxsize=1)`, pure file reads, no TTL, no per-request argument — "load
+    once for the life of the process" is precisely what `cold_start_guard` is for.
+
+    ⛔⛔ NOT REGISTERED, ON PURPOSE: `api.ticker_types.classify`'s underlying `_load_class_sets()`
+    is TTL-refreshed, not load-once — preloading it here would warm the FIRST load and say
+    nothing about a refresh 24h later still running inline on whatever thread calls `classify()`
+    next. That is a different hazard shape (recurring, not just at boot) and this mechanism does
+    not claim to solve it. Wiring it in without saying so would be exactly the kind of claim this
+    programme has had to walk back before. Recorded, not silently expanded to cover it.
+
+    ⭐ Populating the remaining 500 modules / ~1,013 loader sites is NOT a boot-time preload
+    problem to solve in one pass — most of those call sites need individual verification (safe
+    to call with no request context? idempotent? side-effect-free?) before they belong in a
+    registry that runs unconditionally at every boot. That is R63(b)'s job: instrument the real
+    cold-path calls, join them to the durable stall record over real pod boots, and let the
+    evidence — not a guess — decide which of the 1,013 are worth adding here next."""
+    from api.services import cap_universe
+    from api.services.discord_render import cold_start_guard
+
+    cold_start_guard.register("cap_universe.symbols", cap_universe.symbols)
+    cold_start_guard.register("cap_universe.etf_symbols", cap_universe.etf_symbols)
+    started = cold_start_guard.start_boot_preload()
+    logging.getLogger(__name__).info(
+        "[cold-start-guard] boot preload started for %d resource(s)", started)
+
+
 def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
     """Keep the CURRENT WEEK's earnings enrichment permanently hot.
 
@@ -3468,6 +3506,12 @@ async def lifespan(app: FastAPI):
                    daemon=True).start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
+
+    try:
+        _start_cold_path_boot_preload()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] cold-start-guard boot preload failed to start")
 
     try:
         readiness.register("dashboard")
