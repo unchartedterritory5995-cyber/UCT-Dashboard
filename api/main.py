@@ -8490,61 +8490,64 @@ async def _massive_diagnose():
 
     Use this after a deploy to verify enrichment is flowing end-to-end.
     """
-    import sqlite3
-    out = {}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            # 1. OI snapshot counts per day (last 5 days)
-            cur = conn.execute(
-                "SELECT snap_date, COUNT(*) FROM contract_oi_snapshots "
-                "GROUP BY snap_date ORDER BY snap_date DESC LIMIT 5"
-            )
-            out["oi_snapshots_by_date"] = [
-                {"snap_date": r[0], "count": r[1]} for r in cur.fetchall()
-            ]
-            # 2. Sample contract keys from most recent snapshot date
-            if out["oi_snapshots_by_date"]:
-                latest = out["oi_snapshots_by_date"][0]["snap_date"]
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        out = {}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=10) as conn:
+                # 1. OI snapshot counts per day (last 5 days)
                 cur = conn.execute(
-                    "SELECT contract_key, oi FROM contract_oi_snapshots "
-                    "WHERE snap_date = ? ORDER BY oi DESC LIMIT 5",
-                    (latest,)
+                    "SELECT snap_date, COUNT(*) FROM contract_oi_snapshots "
+                    "GROUP BY snap_date ORDER BY snap_date DESC LIMIT 5"
                 )
-                out["oi_sample_keys"] = [
-                    {"key": r[0], "oi": r[1]} for r in cur.fetchall()
+                out["oi_snapshots_by_date"] = [
+                    {"snap_date": r[0], "count": r[1]} for r in cur.fetchall()
                 ]
-            else:
-                out["oi_sample_keys"] = []
-            # 3. Last 5 flow rows (most recent writes)
-            cur = conn.execute(
-                "SELECT source, CreatedDate, CreatedTime, Symbol, CallPut, "
-                "Strike, ExpirationDate, Volume, Premium, Color, MktCap, "
-                "Sector, OI FROM flow ORDER BY id DESC LIMIT 5"
-            )
-            out["recent_flow_rows"] = []
-            for r in cur.fetchall():
-                out["recent_flow_rows"].append({
-                    "source": r[0], "CreatedDate": r[1], "CreatedTime": r[2],
-                    "Symbol": r[3], "CallPut": r[4], "Strike": r[5],
-                    "ExpirationDate": r[6], "Volume": r[7], "Premium": r[8],
-                    "Color": r[9], "MktCap": r[10], "Sector": r[11], "OI": r[12],
-                })
-            # 4. Color distribution today
-            cur = conn.execute(
-                "SELECT Color, COUNT(*) FROM flow WHERE CreatedDate = ? "
-                "GROUP BY Color",
-                (f"{__import__('datetime').date.today().month}/"
-                 f"{__import__('datetime').date.today().day}/"
-                 f"{__import__('datetime').date.today().year}",)
-            )
-            out["color_distribution_today"] = {
-                r[0] or "(blank)": r[1] for r in cur.fetchall()
-            }
-    except Exception as e:
-        out["error"] = str(e)
-    return out
+                # 2. Sample contract keys from most recent snapshot date
+                if out["oi_snapshots_by_date"]:
+                    latest = out["oi_snapshots_by_date"][0]["snap_date"]
+                    cur = conn.execute(
+                        "SELECT contract_key, oi FROM contract_oi_snapshots "
+                        "WHERE snap_date = ? ORDER BY oi DESC LIMIT 5",
+                        (latest,)
+                    )
+                    out["oi_sample_keys"] = [
+                        {"key": r[0], "oi": r[1]} for r in cur.fetchall()
+                    ]
+                else:
+                    out["oi_sample_keys"] = []
+                # 3. Last 5 flow rows (most recent writes)
+                cur = conn.execute(
+                    "SELECT source, CreatedDate, CreatedTime, Symbol, CallPut, "
+                    "Strike, ExpirationDate, Volume, Premium, Color, MktCap, "
+                    "Sector, OI FROM flow ORDER BY id DESC LIMIT 5"
+                )
+                out["recent_flow_rows"] = []
+                for r in cur.fetchall():
+                    out["recent_flow_rows"].append({
+                        "source": r[0], "CreatedDate": r[1], "CreatedTime": r[2],
+                        "Symbol": r[3], "CallPut": r[4], "Strike": r[5],
+                        "ExpirationDate": r[6], "Volume": r[7], "Premium": r[8],
+                        "Color": r[9], "MktCap": r[10], "Sector": r[11], "OI": r[12],
+                    })
+                # 4. Color distribution today
+                cur = conn.execute(
+                    "SELECT Color, COUNT(*) FROM flow WHERE CreatedDate = ? "
+                    "GROUP BY Color",
+                    (f"{__import__('datetime').date.today().month}/"
+                     f"{__import__('datetime').date.today().day}/"
+                     f"{__import__('datetime').date.today().year}",)
+                )
+                out["color_distribution_today"] = {
+                    r[0] or "(blank)": r[1] for r in cur.fetchall()
+                }
+        except Exception as e:
+            out["error"] = str(e)
+        return out
+    return await run_in_threadpool(_sync)
 
 
 # -- Flow DB perf diagnostics + one-shot optimizer -----------------------
@@ -8566,40 +8569,43 @@ async def _massive_diagnose():
 @app.get("/api/admin/flow/plan")
 async def _flow_plan():
     """Read-only. Inspect DB size, query plan, and indexes on the flow table."""
-    import sqlite3, time
-    out = {}
-    try:
-        t0 = time.time()
-        with sqlite3.connect("/data/flow.db", timeout=30) as conn:
-            cur = conn.execute("SELECT COUNT(*) FROM flow")
-            out["total_rows"] = cur.fetchone()[0]
-            cur = conn.execute(
-                "EXPLAIN QUERY PLAN SELECT * FROM flow "
-                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
-                "AND Color IN ('MAGENTA','YELLOW')"
-            )
-            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
-            cur = conn.execute(
-                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
-                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
-            )
-            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
-            cur = conn.execute(
-                "SELECT name, sql FROM sqlite_master "
-                "WHERE type='index' AND tbl_name='flow'"
-            )
-            out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
-            cur = conn.execute("PRAGMA journal_mode")
-            out["journal_mode"] = cur.fetchone()[0]
-            cur = conn.execute("PRAGMA page_size")
-            out["page_size"] = cur.fetchone()[0]
-            cur = conn.execute("PRAGMA page_count")
-            out["page_count"] = cur.fetchone()[0]
-            out["db_size_mb"] = round(out["page_size"] * out["page_count"] / (1024*1024), 1)
-        out["elapsed_sec"] = round(time.time() - t0, 2)
-    except Exception as e:
-        out["error"] = str(e)
-    return out
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3, time
+        out = {}
+        try:
+            t0 = time.time()
+            with sqlite3.connect("/data/flow.db", timeout=30) as conn:
+                cur = conn.execute("SELECT COUNT(*) FROM flow")
+                out["total_rows"] = cur.fetchone()[0]
+                cur = conn.execute(
+                    "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                    "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                    "AND Color IN ('MAGENTA','YELLOW')"
+                )
+                out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+                cur = conn.execute(
+                    "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                    "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+                )
+                out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+                cur = conn.execute(
+                    "SELECT name, sql FROM sqlite_master "
+                    "WHERE type='index' AND tbl_name='flow'"
+                )
+                out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
+                cur = conn.execute("PRAGMA journal_mode")
+                out["journal_mode"] = cur.fetchone()[0]
+                cur = conn.execute("PRAGMA page_size")
+                out["page_size"] = cur.fetchone()[0]
+                cur = conn.execute("PRAGMA page_count")
+                out["page_count"] = cur.fetchone()[0]
+                out["db_size_mb"] = round(out["page_size"] * out["page_count"] / (1024*1024), 1)
+            out["elapsed_sec"] = round(time.time() - t0, 2)
+        except Exception as e:
+            out["error"] = str(e)
+        return out
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/flow/optimize")
@@ -8610,40 +8616,43 @@ async def _flow_optimize():
     Report includes timings and the post-optimize query plan so you can
     verify at a glance whether the planner now uses idx_flow_source_date.
     """
-    import sqlite3, time
-    out = {}
-    try:
-        with sqlite3.connect("/data/flow.db", timeout=120) as conn:
-            t0 = time.time()
-            cur = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            out["checkpoint_result"] = list(cur.fetchone() or [])
-            out["checkpoint_sec"] = round(time.time() - t0, 2)
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3, time
+        out = {}
+        try:
+            with sqlite3.connect("/data/flow.db", timeout=120) as conn:
+                t0 = time.time()
+                cur = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                out["checkpoint_result"] = list(cur.fetchone() or [])
+                out["checkpoint_sec"] = round(time.time() - t0, 2)
 
-            t1 = time.time()
-            conn.execute("ANALYZE")
-            out["analyze_sec"] = round(time.time() - t1, 2)
+                t1 = time.time()
+                conn.execute("ANALYZE")
+                out["analyze_sec"] = round(time.time() - t1, 2)
 
-            cur = conn.execute("SELECT COUNT(*) FROM flow")
-            out["total_rows"] = cur.fetchone()[0]
+                cur = conn.execute("SELECT COUNT(*) FROM flow")
+                out["total_rows"] = cur.fetchone()[0]
 
-            cur = conn.execute(
-                "EXPLAIN QUERY PLAN SELECT * FROM flow "
-                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
-                "AND Color IN ('MAGENTA','YELLOW')"
-            )
-            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+                cur = conn.execute(
+                    "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                    "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                    "AND Color IN ('MAGENTA','YELLOW')"
+                )
+                out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
 
-            cur = conn.execute(
-                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
-                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
-            )
-            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+                cur = conn.execute(
+                    "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                    "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+                )
+                out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
 
-            cur = conn.execute("PRAGMA page_count")
-            out["page_count_post"] = cur.fetchone()[0]
-    except Exception as e:
-        out["error"] = str(e)
-    return out
+                cur = conn.execute("PRAGMA page_count")
+                out["page_count_post"] = cur.fetchone()[0]
+        except Exception as e:
+            out["error"] = str(e)
+        return out
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/massive/backfill-ticktest")
@@ -8778,45 +8787,48 @@ async def _massive_reclassify_source(target_date: str = "7/8/2026"):
 
     Idempotent -- only rewrites rows whose source/StockEtf is already wrong.
     """
-    try:
-        import sqlite3
-        from api.massive_processor import is_index_source
-        from api.flow_db import FlowDB
-    except Exception as e:
-        return {"ok": False, "error": f"import failed: {e}"}
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        try:
+            import sqlite3
+            from api.massive_processor import is_index_source
+            from api.flow_db import FlowDB
+        except Exception as e:
+            return {"ok": False, "error": f"import failed: {e}"}
 
-    today = target_date
-    stats = {"target_date": today, "symbols_seen": 0,
-             "rows_moved_to_indexes": 0, "rows_moved_to_stocks": 0,
-             "rows_updated": 0}
-    try:
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=30) as conn:
-            syms = [r[0] for r in conn.execute(
-                "SELECT DISTINCT Symbol FROM flow WHERE CreatedDate = ?",
-                (today,)).fetchall() if r[0]]
-            stats["symbols_seen"] = len(syms)
-            for sym in syms:
-                want_source = "indexes" if is_index_source(sym) else "stocks"
-                want_etf = "ETF" if want_source == "indexes" else "STOCK"
-                upd = conn.execute(
-                    "UPDATE flow SET source = ?, StockEtf = ? "
-                    "WHERE CreatedDate = ? AND Symbol = ? "
-                    "AND (source != ? OR StockEtf != ?)",
-                    (want_source, want_etf, today, sym, want_source, want_etf),
-                )
-                if upd.rowcount:
-                    stats["rows_updated"] += upd.rowcount
-                    if want_source == "indexes":
-                        stats["rows_moved_to_indexes"] += upd.rowcount
-                    else:
-                        stats["rows_moved_to_stocks"] += upd.rowcount
-            conn.commit()
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e),
-                "traceback": traceback.format_exc().splitlines()[-4:]}
-    return {"ok": True, "stats": stats}
+        today = target_date
+        stats = {"target_date": today, "symbols_seen": 0,
+                 "rows_moved_to_indexes": 0, "rows_moved_to_stocks": 0,
+                 "rows_updated": 0}
+        try:
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=30) as conn:
+                syms = [r[0] for r in conn.execute(
+                    "SELECT DISTINCT Symbol FROM flow WHERE CreatedDate = ?",
+                    (today,)).fetchall() if r[0]]
+                stats["symbols_seen"] = len(syms)
+                for sym in syms:
+                    want_source = "indexes" if is_index_source(sym) else "stocks"
+                    want_etf = "ETF" if want_source == "indexes" else "STOCK"
+                    upd = conn.execute(
+                        "UPDATE flow SET source = ?, StockEtf = ? "
+                        "WHERE CreatedDate = ? AND Symbol = ? "
+                        "AND (source != ? OR StockEtf != ?)",
+                        (want_source, want_etf, today, sym, want_source, want_etf),
+                    )
+                    if upd.rowcount:
+                        stats["rows_updated"] += upd.rowcount
+                        if want_source == "indexes":
+                            stats["rows_moved_to_indexes"] += upd.rowcount
+                        else:
+                            stats["rows_moved_to_stocks"] += upd.rowcount
+                conn.commit()
+        except Exception as e:
+            import traceback
+            return {"ok": False, "error": str(e),
+                    "traceback": traceback.format_exc().splitlines()[-4:]}
+        return {"ok": True, "stats": stats}
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/massive/backfill-mktcap")
@@ -8839,73 +8851,76 @@ async def _massive_backfill_mktcap(target_date: str = "7/10/2026"):
 
     Idempotent -- only writes rows whose MktCap is currently missing/0.
     """
-    try:
-        import sqlite3
-        from api.flow_db import FlowDB
-    except Exception as e:
-        return {"ok": False, "error": f"import failed: {e}"}
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        try:
+            import sqlite3
+            from api.flow_db import FlowDB
+        except Exception as e:
+            return {"ok": False, "error": f"import failed: {e}"}
 
-    today = target_date
-    stats = {"target_date": today, "symbols_missing": 0, "symbols_resolved": 0,
-             "symbols_unresolved": 0, "rows_updated": 0, "unresolved_sample": []}
-    try:
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=30) as conn:
-            missing = [r[0] for r in conn.execute(
-                "SELECT DISTINCT Symbol FROM flow "
-                "WHERE CreatedDate = ? AND Symbol IS NOT NULL AND Symbol != '' "
-                "AND (MktCap IS NULL OR MktCap = '' OR MktCap = '0')",
-                (today,)).fetchall() if r[0]]
-            stats["symbols_missing"] = len(missing)
-            if not missing:
-                return {"ok": True, "stats": stats}
-
-            # Most-recent NON-ZERO cap per symbol from FlowDB history (worker's
-            # _load_ticker_metadata mc_sql pattern, verbatim).
-            placeholders = ",".join("?" for _ in missing)
-            mc_sql = f"""
-                SELECT f.Symbol, f.MktCap
-                FROM flow f
-                INNER JOIN (
-                    SELECT Symbol, MAX(id) AS max_id
-                    FROM flow
-                    WHERE Symbol IN ({placeholders})
-                      AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
-                    GROUP BY Symbol
-                ) latest ON f.id = latest.max_id
-            """
-            resolved = {}
-            for sym, mc_raw in conn.execute(mc_sql, missing):
-                if not sym:
-                    continue
-                try:
-                    mc = int(float((mc_raw or "0").strip()))
-                except (ValueError, TypeError):
-                    mc = 0
-                if mc > 0:
-                    resolved[sym.strip().upper()] = mc
-
-            for sym in missing:
-                cap = resolved.get((sym or "").strip().upper())
-                if not cap:
-                    stats["symbols_unresolved"] += 1
-                    if len(stats["unresolved_sample"]) < 15:
-                        stats["unresolved_sample"].append(sym)
-                    continue
-                upd = conn.execute(
-                    "UPDATE flow SET MktCap = ? "
-                    "WHERE CreatedDate = ? AND Symbol = ? "
+        today = target_date
+        stats = {"target_date": today, "symbols_missing": 0, "symbols_resolved": 0,
+                 "symbols_unresolved": 0, "rows_updated": 0, "unresolved_sample": []}
+        try:
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=30) as conn:
+                missing = [r[0] for r in conn.execute(
+                    "SELECT DISTINCT Symbol FROM flow "
+                    "WHERE CreatedDate = ? AND Symbol IS NOT NULL AND Symbol != '' "
                     "AND (MktCap IS NULL OR MktCap = '' OR MktCap = '0')",
-                    (str(cap), today, sym))
-                if upd.rowcount:
-                    stats["symbols_resolved"] += 1
-                    stats["rows_updated"] += upd.rowcount
-            conn.commit()
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e),
-                "traceback": traceback.format_exc().splitlines()[-4:]}
-    return {"ok": True, "stats": stats}
+                    (today,)).fetchall() if r[0]]
+                stats["symbols_missing"] = len(missing)
+                if not missing:
+                    return {"ok": True, "stats": stats}
+
+                # Most-recent NON-ZERO cap per symbol from FlowDB history (worker's
+                # _load_ticker_metadata mc_sql pattern, verbatim).
+                placeholders = ",".join("?" for _ in missing)
+                mc_sql = f"""
+                    SELECT f.Symbol, f.MktCap
+                    FROM flow f
+                    INNER JOIN (
+                        SELECT Symbol, MAX(id) AS max_id
+                        FROM flow
+                        WHERE Symbol IN ({placeholders})
+                          AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
+                        GROUP BY Symbol
+                    ) latest ON f.id = latest.max_id
+                """
+                resolved = {}
+                for sym, mc_raw in conn.execute(mc_sql, missing):
+                    if not sym:
+                        continue
+                    try:
+                        mc = int(float((mc_raw or "0").strip()))
+                    except (ValueError, TypeError):
+                        mc = 0
+                    if mc > 0:
+                        resolved[sym.strip().upper()] = mc
+
+                for sym in missing:
+                    cap = resolved.get((sym or "").strip().upper())
+                    if not cap:
+                        stats["symbols_unresolved"] += 1
+                        if len(stats["unresolved_sample"]) < 15:
+                            stats["unresolved_sample"].append(sym)
+                        continue
+                    upd = conn.execute(
+                        "UPDATE flow SET MktCap = ? "
+                        "WHERE CreatedDate = ? AND Symbol = ? "
+                        "AND (MktCap IS NULL OR MktCap = '' OR MktCap = '0')",
+                        (str(cap), today, sym))
+                    if upd.rowcount:
+                        stats["symbols_resolved"] += 1
+                        stats["rows_updated"] += upd.rowcount
+                conn.commit()
+        except Exception as e:
+            import traceback
+            return {"ok": False, "error": str(e),
+                    "traceback": traceback.format_exc().splitlines()[-4:]}
+        return {"ok": True, "stats": stats}
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/massive/apply-cancel-patches")
@@ -9059,46 +9074,49 @@ async def _massive_normalize_sweep_sides(target_date: str = None):
     target_date: 'M/D/YYYY' format (e.g. '7/2/2026'). If omitted,
     normalizes across ALL dates in flow.db.
     """
-    try:
-        import sqlite3, os
-        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-        conn = sqlite3.connect(db_path, timeout=30)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        if target_date:
-            cursor = conn.execute("""
-                UPDATE flow SET Side = 'A'
-                WHERE Type = 'SWEEP'
-                  AND (Side = '' OR Side IS NULL)
-                  AND CreatedDate = ?
-            """, (target_date,))
-        else:
-            cursor = conn.execute("""
-                UPDATE flow SET Side = 'A'
-                WHERE Type = 'SWEEP'
-                  AND (Side = '' OR Side IS NULL)
-            """)
-        rows_updated = cursor.rowcount
-        conn.commit()
-        conn.close()
-        # Bump data-version so client caches invalidate
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
         try:
-            from api.flow_router import bump_data_version
-            new_ver = bump_data_version()
-        except Exception:
-            new_ver = None
-        return {
-            "ok": True,
-            "stats": {
-                "target_date": target_date or "ALL",
-                "rows_normalized": rows_updated,
-                "new_data_version": new_ver,
+            import sqlite3, os
+            db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+            conn = sqlite3.connect(db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            if target_date:
+                cursor = conn.execute("""
+                    UPDATE flow SET Side = 'A'
+                    WHERE Type = 'SWEEP'
+                      AND (Side = '' OR Side IS NULL)
+                      AND CreatedDate = ?
+                """, (target_date,))
+            else:
+                cursor = conn.execute("""
+                    UPDATE flow SET Side = 'A'
+                    WHERE Type = 'SWEEP'
+                      AND (Side = '' OR Side IS NULL)
+                """)
+            rows_updated = cursor.rowcount
+            conn.commit()
+            conn.close()
+            # Bump data-version so client caches invalidate
+            try:
+                from api.flow_router import bump_data_version
+                new_ver = bump_data_version()
+            except Exception:
+                new_ver = None
+            return {
+                "ok": True,
+                "stats": {
+                    "target_date": target_date or "ALL",
+                    "rows_normalized": rows_updated,
+                    "new_data_version": new_ver,
+                }
             }
-        }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/massive/filter-arb")
@@ -9159,83 +9177,86 @@ async def _massive_cluster_debug(target_date: str = "6/26/2026",
     Returns row-by-row CreatedTime/CallPut/Strike/Exp/Color/Volume so we
     can manually verify the (Symbol, CreatedTime) grouping the filter uses.
     """
-    import sqlite3
-    out = {"target_date": target_date, "symbol": symbol,
-           "window": f"{hour}:{minute_start:02d}-{hour}:{minute_end:02d}"}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            cur = conn.cursor()
-            # Pull all rows for this symbol on this date
-            cur.execute("""
-                SELECT id, CreatedTime, CallPut, Strike, ExpirationDate,
-                       Color, Volume, OI, Side, Type, Premium
-                FROM flow
-                WHERE CreatedDate = ? AND Symbol = ?
-                ORDER BY CreatedTime, id
-            """, (target_date, symbol))
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        out = {"target_date": target_date, "symbol": symbol,
+               "window": f"{hour}:{minute_start:02d}-{hour}:{minute_end:02d}"}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=10) as conn:
+                cur = conn.cursor()
+                # Pull all rows for this symbol on this date
+                cur.execute("""
+                    SELECT id, CreatedTime, CallPut, Strike, ExpirationDate,
+                           Color, Volume, OI, Side, Type, Premium
+                    FROM flow
+                    WHERE CreatedDate = ? AND Symbol = ?
+                    ORDER BY CreatedTime, id
+                """, (target_date, symbol))
 
-            all_rows = []
-            for r in cur.fetchall():
-                t_str = r[1] or ""
-                # Try to parse hour from "H:MM:SS AM/PM"
-                try:
-                    parts = t_str.strip().split(":")
-                    h = int(parts[0])
-                    m = int(parts[1])
-                    is_pm = t_str.upper().endswith("PM")
-                    is_am = t_str.upper().endswith("AM")
-                    if is_pm and h != 12: h += 12
-                    elif is_am and h == 12: h = 0
-                except (ValueError, IndexError):
-                    h = -1
-                    m = -1
-                all_rows.append({
-                    "id": r[0], "time": t_str, "hour": h, "min": m,
-                    "cp": r[2], "strike": r[3], "exp": r[4],
-                    "color": r[5], "volume": r[6], "oi": r[7],
-                    "side": r[8], "type": r[9], "premium": r[10],
-                })
-
-            out["total_rows_on_date"] = len(all_rows)
-
-            # Filter to window
-            in_window = [r for r in all_rows
-                         if r["hour"] == hour
-                         and minute_start <= r["min"] <= minute_end]
-            out["rows_in_window"] = len(in_window)
-            out["window_detail"] = in_window
-
-            # Group by exact CreatedTime within the window and report cluster math
-            from collections import defaultdict
-            groups = defaultdict(list)
-            for r in in_window:
-                groups[r["time"]].append(r)
-            out["groups_in_window"] = []
-            for t, rows in sorted(groups.items()):
-                # Compute the cluster filter's distinct count
-                contracts = set()
-                for rr in rows:
+                all_rows = []
+                for r in cur.fetchall():
+                    t_str = r[1] or ""
+                    # Try to parse hour from "H:MM:SS AM/PM"
                     try:
-                        sk = float(rr["strike"]) if rr["strike"] else 0.0
-                    except (ValueError, TypeError):
-                        sk = 0.0
-                    contracts.add((rr["cp"], sk, rr["exp"]))
-                out["groups_in_window"].append({
-                    "time": t,
-                    "n_rows": len(rows),
-                    "n_distinct_contracts": len(contracts),
-                    "would_be_tagged_arb": len(rows) >= 4 and len(contracts) >= 2,
-                    "row_ids": [rr["id"] for rr in rows],
-                    "row_colors": [rr["color"] for rr in rows],
-                })
+                        parts = t_str.strip().split(":")
+                        h = int(parts[0])
+                        m = int(parts[1])
+                        is_pm = t_str.upper().endswith("PM")
+                        is_am = t_str.upper().endswith("AM")
+                        if is_pm and h != 12: h += 12
+                        elif is_am and h == 12: h = 0
+                    except (ValueError, IndexError):
+                        h = -1
+                        m = -1
+                    all_rows.append({
+                        "id": r[0], "time": t_str, "hour": h, "min": m,
+                        "cp": r[2], "strike": r[3], "exp": r[4],
+                        "color": r[5], "volume": r[6], "oi": r[7],
+                        "side": r[8], "type": r[9], "premium": r[10],
+                    })
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        out["error"] = str(e)
-    return out
+                out["total_rows_on_date"] = len(all_rows)
+
+                # Filter to window
+                in_window = [r for r in all_rows
+                             if r["hour"] == hour
+                             and minute_start <= r["min"] <= minute_end]
+                out["rows_in_window"] = len(in_window)
+                out["window_detail"] = in_window
+
+                # Group by exact CreatedTime within the window and report cluster math
+                from collections import defaultdict
+                groups = defaultdict(list)
+                for r in in_window:
+                    groups[r["time"]].append(r)
+                out["groups_in_window"] = []
+                for t, rows in sorted(groups.items()):
+                    # Compute the cluster filter's distinct count
+                    contracts = set()
+                    for rr in rows:
+                        try:
+                            sk = float(rr["strike"]) if rr["strike"] else 0.0
+                        except (ValueError, TypeError):
+                            sk = 0.0
+                        contracts.add((rr["cp"], sk, rr["exp"]))
+                    out["groups_in_window"].append({
+                        "time": t,
+                        "n_rows": len(rows),
+                        "n_distinct_contracts": len(contracts),
+                        "would_be_tagged_arb": len(rows) >= 4 and len(contracts) >= 2,
+                        "row_ids": [rr["id"] for rr in rows],
+                        "row_colors": [rr["color"] for rr in rows],
+                    })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            out["error"] = str(e)
+        return out
+    return await run_in_threadpool(_sync)
 
 
 @app.get("/api/admin/massive/color-debug")
@@ -9248,126 +9269,129 @@ async def _massive_color_debug(target_date: str = "6/26/2026"):
       - 3 known-large contracts (MU PUT 1000 8/21, TSM PUT 400 9/18, BE CALL 420 12/18)
         with their full row-by-row Volume + OI listing
     """
-    import sqlite3
-    out = {"target_date": target_date}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            cur = conn.cursor()
-            # 1. Row count + Color distribution
-            cur.execute("SELECT COUNT(*) FROM flow WHERE CreatedDate = ?", (target_date,))
-            out["total_rows"] = cur.fetchone()[0]
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        out = {"target_date": target_date}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=10) as conn:
+                cur = conn.cursor()
+                # 1. Row count + Color distribution
+                cur.execute("SELECT COUNT(*) FROM flow WHERE CreatedDate = ?", (target_date,))
+                out["total_rows"] = cur.fetchone()[0]
 
-            cur.execute(
-                "SELECT Color, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY Color",
-                (target_date,)
-            )
-            out["color_distribution"] = {(r[0] or "(blank)"): r[1] for r in cur.fetchall()}
+                cur.execute(
+                    "SELECT Color, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY Color",
+                    (target_date,)
+                )
+                out["color_distribution"] = {(r[0] or "(blank)"): r[1] for r in cur.fetchall()}
 
-            # 2. Volume column parse stats — how many are blank/zero/positive?
-            cur.execute("""
-                SELECT
-                    SUM(CASE WHEN Volume IS NULL OR TRIM(Volume) = '' THEN 1 ELSE 0 END) AS blank_vol,
-                    SUM(CASE WHEN CAST(Volume AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_vol,
-                    SUM(CASE WHEN CAST(Volume AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_vol,
-                    SUM(CAST(Volume AS INTEGER)) AS total_volume,
-                    AVG(CAST(Volume AS REAL)) AS avg_volume,
-                    MAX(CAST(Volume AS INTEGER)) AS max_volume
-                FROM flow WHERE CreatedDate = ?
-            """, (target_date,))
-            r = cur.fetchone()
-            out["volume_stats"] = {
-                "blank": r[0], "zero": r[1], "positive": r[2],
-                "total_volume_sum": r[3], "avg_volume": round(r[4] or 0, 2),
-                "max_volume": r[5],
-            }
-
-            # 3. OI column parse stats
-            cur.execute("""
-                SELECT
-                    SUM(CASE WHEN OI IS NULL OR TRIM(OI) = '' THEN 1 ELSE 0 END) AS blank_oi,
-                    SUM(CASE WHEN CAST(OI AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_oi,
-                    SUM(CASE WHEN CAST(OI AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_oi
-                FROM flow WHERE CreatedDate = ?
-            """, (target_date,))
-            r = cur.fetchone()
-            out["oi_stats"] = {"blank": r[0], "zero": r[1], "positive": r[2]}
-
-            # 4. Source breakdown
-            cur.execute(
-                "SELECT source, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY source",
-                (target_date,)
-            )
-            out["source_distribution"] = {r[0]: r[1] for r in cur.fetchall()}
-
-            # 5. Top 10 contracts by SUM(Volume) — see if cum vol is actually meaningful
-            cur.execute("""
-                SELECT Symbol, CallPut, Strike, ExpirationDate,
-                       COUNT(*) AS n_rows,
-                       SUM(CAST(Volume AS INTEGER)) AS cum_vol,
-                       MAX(CAST(OI AS INTEGER)) AS oi_max,
-                       MIN(CAST(OI AS INTEGER)) AS oi_min
-                FROM flow
-                WHERE CreatedDate = ?
-                GROUP BY Symbol, CallPut, Strike, ExpirationDate
-                ORDER BY cum_vol DESC
-                LIMIT 15
-            """, (target_date,))
-            out["top_contracts_by_cum_volume"] = []
-            for r in cur.fetchall():
-                ratio = (r[5] / r[6]) if r[6] and r[6] > 0 else None
-                out["top_contracts_by_cum_volume"].append({
-                    "symbol": r[0], "cp": r[1], "strike": r[2], "exp": r[3],
-                    "n_rows": r[4], "cum_volume": r[5],
-                    "oi_max": r[6], "oi_min": r[7],
-                    "cum_over_oi_ratio": round(ratio, 3) if ratio is not None else None,
-                })
-
-            # 6. Inspect 3 known large-flow contracts row by row
-            samples = [
-                ("MU", "PUT", "1000", "8/21/2026"),
-                ("TSM", "PUT", "400", "9/18/2026"),
-                ("BE", "CALL", "420", "12/18/2026"),
-            ]
-            out["sample_contracts"] = {}
-            for sym, cp, strike, exp in samples:
-                key = f"{sym} {cp} {strike} {exp}"
+                # 2. Volume column parse stats — how many are blank/zero/positive?
                 cur.execute("""
-                    SELECT CreatedTime, Volume, OI, Color, Side, Type
-                    FROM flow
-                    WHERE CreatedDate = ?
-                      AND Symbol = ? AND CallPut = ?
-                      AND CAST(Strike AS REAL) = CAST(? AS REAL)
-                      AND ExpirationDate = ?
-                    ORDER BY CreatedTime
-                """, (target_date, sym, cp, strike, exp))
-                rows = cur.fetchall()
-                cum = 0
-                detail = []
-                for rr in rows:
-                    vol = 0
-                    try: vol = int(float(rr[1])) if rr[1] not in (None, "") else 0
-                    except: pass
-                    cum += vol
-                    oi = 0
-                    try: oi = int(float(rr[2])) if rr[2] not in (None, "") else 0
-                    except: pass
-                    detail.append({
-                        "time": rr[0], "vol": rr[1], "vol_int": vol, "cum": cum,
-                        "OI": rr[2], "color": rr[3], "side": rr[4], "type": rr[5],
-                    })
-                out["sample_contracts"][key] = {
-                    "n_rows": len(rows),
-                    "total_cum_volume": cum,
-                    "rows": detail,
+                    SELECT
+                        SUM(CASE WHEN Volume IS NULL OR TRIM(Volume) = '' THEN 1 ELSE 0 END) AS blank_vol,
+                        SUM(CASE WHEN CAST(Volume AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_vol,
+                        SUM(CASE WHEN CAST(Volume AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_vol,
+                        SUM(CAST(Volume AS INTEGER)) AS total_volume,
+                        AVG(CAST(Volume AS REAL)) AS avg_volume,
+                        MAX(CAST(Volume AS INTEGER)) AS max_volume
+                    FROM flow WHERE CreatedDate = ?
+                """, (target_date,))
+                r = cur.fetchone()
+                out["volume_stats"] = {
+                    "blank": r[0], "zero": r[1], "positive": r[2],
+                    "total_volume_sum": r[3], "avg_volume": round(r[4] or 0, 2),
+                    "max_volume": r[5],
                 }
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        out["error"] = str(e)
-    return out
+                # 3. OI column parse stats
+                cur.execute("""
+                    SELECT
+                        SUM(CASE WHEN OI IS NULL OR TRIM(OI) = '' THEN 1 ELSE 0 END) AS blank_oi,
+                        SUM(CASE WHEN CAST(OI AS INTEGER) = 0 THEN 1 ELSE 0 END) AS zero_oi,
+                        SUM(CASE WHEN CAST(OI AS INTEGER) > 0 THEN 1 ELSE 0 END) AS positive_oi
+                    FROM flow WHERE CreatedDate = ?
+                """, (target_date,))
+                r = cur.fetchone()
+                out["oi_stats"] = {"blank": r[0], "zero": r[1], "positive": r[2]}
+
+                # 4. Source breakdown
+                cur.execute(
+                    "SELECT source, COUNT(*) FROM flow WHERE CreatedDate = ? GROUP BY source",
+                    (target_date,)
+                )
+                out["source_distribution"] = {r[0]: r[1] for r in cur.fetchall()}
+
+                # 5. Top 10 contracts by SUM(Volume) — see if cum vol is actually meaningful
+                cur.execute("""
+                    SELECT Symbol, CallPut, Strike, ExpirationDate,
+                           COUNT(*) AS n_rows,
+                           SUM(CAST(Volume AS INTEGER)) AS cum_vol,
+                           MAX(CAST(OI AS INTEGER)) AS oi_max,
+                           MIN(CAST(OI AS INTEGER)) AS oi_min
+                    FROM flow
+                    WHERE CreatedDate = ?
+                    GROUP BY Symbol, CallPut, Strike, ExpirationDate
+                    ORDER BY cum_vol DESC
+                    LIMIT 15
+                """, (target_date,))
+                out["top_contracts_by_cum_volume"] = []
+                for r in cur.fetchall():
+                    ratio = (r[5] / r[6]) if r[6] and r[6] > 0 else None
+                    out["top_contracts_by_cum_volume"].append({
+                        "symbol": r[0], "cp": r[1], "strike": r[2], "exp": r[3],
+                        "n_rows": r[4], "cum_volume": r[5],
+                        "oi_max": r[6], "oi_min": r[7],
+                        "cum_over_oi_ratio": round(ratio, 3) if ratio is not None else None,
+                    })
+
+                # 6. Inspect 3 known large-flow contracts row by row
+                samples = [
+                    ("MU", "PUT", "1000", "8/21/2026"),
+                    ("TSM", "PUT", "400", "9/18/2026"),
+                    ("BE", "CALL", "420", "12/18/2026"),
+                ]
+                out["sample_contracts"] = {}
+                for sym, cp, strike, exp in samples:
+                    key = f"{sym} {cp} {strike} {exp}"
+                    cur.execute("""
+                        SELECT CreatedTime, Volume, OI, Color, Side, Type
+                        FROM flow
+                        WHERE CreatedDate = ?
+                          AND Symbol = ? AND CallPut = ?
+                          AND CAST(Strike AS REAL) = CAST(? AS REAL)
+                          AND ExpirationDate = ?
+                        ORDER BY CreatedTime
+                    """, (target_date, sym, cp, strike, exp))
+                    rows = cur.fetchall()
+                    cum = 0
+                    detail = []
+                    for rr in rows:
+                        vol = 0
+                        try: vol = int(float(rr[1])) if rr[1] not in (None, "") else 0
+                        except: pass
+                        cum += vol
+                        oi = 0
+                        try: oi = int(float(rr[2])) if rr[2] not in (None, "") else 0
+                        except: pass
+                        detail.append({
+                            "time": rr[0], "vol": rr[1], "vol_int": vol, "cum": cum,
+                            "OI": rr[2], "color": rr[3], "side": rr[4], "type": rr[5],
+                        })
+                    out["sample_contracts"][key] = {
+                        "n_rows": len(rows),
+                        "total_cum_volume": cum,
+                        "rows": detail,
+                    }
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            out["error"] = str(e)
+        return out
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/ticker-types/sync")
@@ -9435,65 +9459,71 @@ async def _ticker_types_lookup(ticker: str):
     Returns the raw cache row including asset_type, raw_type, name, etc.
     Useful for spot-checking the sync results or debugging misclassifications.
     """
-    import sqlite3
-    try:
-        from api.ticker_types import DB_PATH, ensure_schema
-        conn = sqlite3.connect(DB_PATH, timeout=10)
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
         try:
-            ensure_schema(conn)
-            cur = conn.execute("""
-                SELECT ticker, asset_type, raw_type, name, primary_exchange,
-                       market, active, last_synced
-                FROM ticker_types WHERE ticker = ?
-            """, (ticker.upper().strip(),))
-            row = cur.fetchone()
-            if not row:
-                return {"ok": True, "ticker": ticker.upper(), "found": False,
-                        "asset_type": "UNKNOWN"}
-            return {
-                "ok": True, "found": True,
-                "ticker": row[0], "asset_type": row[1], "raw_type": row[2],
-                "name": row[3], "primary_exchange": row[4], "market": row[5],
-                "active": bool(row[6]), "last_synced": row[7],
-            }
-        finally:
-            conn.close()
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+            from api.ticker_types import DB_PATH, ensure_schema
+            conn = sqlite3.connect(DB_PATH, timeout=10)
+            try:
+                ensure_schema(conn)
+                cur = conn.execute("""
+                    SELECT ticker, asset_type, raw_type, name, primary_exchange,
+                           market, active, last_synced
+                    FROM ticker_types WHERE ticker = ?
+                """, (ticker.upper().strip(),))
+                row = cur.fetchone()
+                if not row:
+                    return {"ok": True, "ticker": ticker.upper(), "found": False,
+                            "asset_type": "UNKNOWN"}
+                return {
+                    "ok": True, "found": True,
+                    "ticker": row[0], "asset_type": row[1], "raw_type": row[2],
+                    "name": row[3], "primary_exchange": row[4], "market": row[5],
+                    "active": bool(row[6]), "last_synced": row[7],
+                }
+            finally:
+                conn.close()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    return await run_in_threadpool(_sync)
 
 
 @app.get("/api/admin/ticker-types/stats")
 async def _ticker_types_stats():
     """Cache health: counts by asset_type + most recent sync time."""
-    import sqlite3
-    try:
-        from api.ticker_types import DB_PATH, ensure_schema
-        conn = sqlite3.connect(DB_PATH, timeout=10)
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
         try:
-            ensure_schema(conn)
-            cur = conn.execute("""
-                SELECT asset_type, COUNT(*) FROM ticker_types
-                GROUP BY asset_type ORDER BY COUNT(*) DESC
-            """)
-            by_type = {r[0]: r[1] for r in cur.fetchall()}
-            cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
-            last_synced = cur.fetchone()[0]
-            cur = conn.execute("SELECT COUNT(*) FROM ticker_types")
-            total = cur.fetchone()[0]
-            return {
-                "ok": True,
-                "total_tickers": total,
-                "by_asset_type": by_type,
-                "last_synced": last_synced,
-            }
-        finally:
-            conn.close()
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+            from api.ticker_types import DB_PATH, ensure_schema
+            conn = sqlite3.connect(DB_PATH, timeout=10)
+            try:
+                ensure_schema(conn)
+                cur = conn.execute("""
+                    SELECT asset_type, COUNT(*) FROM ticker_types
+                    GROUP BY asset_type ORDER BY COUNT(*) DESC
+                """)
+                by_type = {r[0]: r[1] for r in cur.fetchall()}
+                cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
+                last_synced = cur.fetchone()[0]
+                cur = conn.execute("SELECT COUNT(*) FROM ticker_types")
+                total = cur.fetchone()[0]
+                return {
+                    "ok": True,
+                    "total_tickers": total,
+                    "by_asset_type": by_type,
+                    "last_synced": last_synced,
+                }
+            finally:
+                conn.close()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    return await run_in_threadpool(_sync)
 
 
 # ── Bulk ETF/INDEX symbol list ────────────────────────────────────────────────
@@ -9597,44 +9627,47 @@ async def _oi_lookup_key(key: str):
     Also tries LIKE variations to catch near-misses (different case,
     missing decimals, etc.)
     """
-    import sqlite3
-    from fastapi.responses import JSONResponse
-    if not key:
-        return {"ok": False, "error": "key parameter required"}
-    out = {"query_key": key}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=15) as conn:
-            conn.execute("PRAGMA query_only = 1")
-            # Exact match
-            cur = conn.execute(
-                "SELECT snap_date, oi FROM contract_oi_snapshots "
-                "WHERE contract_key = ? ORDER BY snap_date",
-                (key,)
-            )
-            exact = [{"snap_date": r[0], "oi": r[1]} for r in cur.fetchall()]
-            out["exact_match"] = {"count": len(exact), "rows": exact}
-
-            # LIKE fuzzy match — extract prefix before the strike
-            parts = key.split("|")
-            if len(parts) >= 3:
-                sym_cp = f"{parts[0]}|{parts[1]}|"
-                strike_prefix = parts[2].split(".")[0] if "." in parts[2] else parts[2]
-                # Look for any keys starting with SYM|CP| and containing strike
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        from fastapi.responses import JSONResponse
+        if not key:
+            return {"ok": False, "error": "key parameter required"}
+        out = {"query_key": key}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=15) as conn:
+                conn.execute("PRAGMA query_only = 1")
+                # Exact match
                 cur = conn.execute(
-                    "SELECT DISTINCT contract_key FROM contract_oi_snapshots "
-                    "WHERE contract_key LIKE ? "
-                    "AND contract_key LIKE ? "
-                    "LIMIT 20",
-                    (f"{sym_cp}%", f"%{strike_prefix}%")
+                    "SELECT snap_date, oi FROM contract_oi_snapshots "
+                    "WHERE contract_key = ? ORDER BY snap_date",
+                    (key,)
                 )
-                out["similar_keys"] = [r[0] for r in cur.fetchall()]
-        return JSONResponse(out)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e), "partial": out}
+                exact = [{"snap_date": r[0], "oi": r[1]} for r in cur.fetchall()]
+                out["exact_match"] = {"count": len(exact), "rows": exact}
+
+                # LIKE fuzzy match — extract prefix before the strike
+                parts = key.split("|")
+                if len(parts) >= 3:
+                    sym_cp = f"{parts[0]}|{parts[1]}|"
+                    strike_prefix = parts[2].split(".")[0] if "." in parts[2] else parts[2]
+                    # Look for any keys starting with SYM|CP| and containing strike
+                    cur = conn.execute(
+                        "SELECT DISTINCT contract_key FROM contract_oi_snapshots "
+                        "WHERE contract_key LIKE ? "
+                        "AND contract_key LIKE ? "
+                        "LIMIT 20",
+                        (f"{sym_cp}%", f"%{strike_prefix}%")
+                    )
+                    out["similar_keys"] = [r[0] for r in cur.fetchall()]
+            return JSONResponse(out)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e), "partial": out}
+    return await run_in_threadpool(_sync)
 
 
 @app.get("/api/admin/oi/zero-analysis")
@@ -9654,92 +9687,95 @@ async def _oi_zero_analysis(ticker: str = ""):
 
     URL: /api/admin/oi/zero-analysis?ticker=BE
     """
-    import sqlite3
-    from fastapi.responses import JSONResponse
-    out = {}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=30) as conn:
-            conn.execute("PRAGMA query_only = 1")
-            # Overall zero rate
-            cur = conn.execute(
-                "SELECT COUNT(*), SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) "
-                "FROM contract_oi_snapshots"
-            )
-            total, zeros = cur.fetchone()
-            out["overall"] = {
-                "total_rows": total,
-                "zero_oi_rows": zeros,
-                "zero_pct": round(zeros / total * 100, 1) if total else 0,
-            }
-
-            # If ticker filter specified, focus on it
-            if ticker:
-                t = ticker.upper().strip()
-                cur = conn.execute(
-                    "SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
-                    "WHERE contract_key LIKE ? "
-                    "ORDER BY snap_date DESC, contract_key LIMIT 30",
-                    (f"{t}|%",)
-                )
-                out["ticker_samples"] = [
-                    {"key": r[0], "snap_date": r[1], "oi": r[2]}
-                    for r in cur.fetchall()
-                ]
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        from fastapi.responses import JSONResponse
+        out = {}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=30) as conn:
+                conn.execute("PRAGMA query_only = 1")
+                # Overall zero rate
                 cur = conn.execute(
                     "SELECT COUNT(*), SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) "
-                    "FROM contract_oi_snapshots WHERE contract_key LIKE ?",
-                    (f"{t}|%",)
+                    "FROM contract_oi_snapshots"
                 )
-                t_total, t_zeros = cur.fetchone()
-                out["ticker_stats"] = {
-                    "ticker": t,
-                    "total_rows": t_total,
-                    "zero_oi_rows": t_zeros,
-                    "zero_pct": round(t_zeros / t_total * 100, 1) if t_total else 0,
+                total, zeros = cur.fetchone()
+                out["overall"] = {
+                    "total_rows": total,
+                    "zero_oi_rows": zeros,
+                    "zero_pct": round(zeros / total * 100, 1) if total else 0,
                 }
-            else:
-                # Aggregate: which tickers have >90% zero-OI?
-                cur = conn.execute("""
-                    SELECT
-                        substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
-                        COUNT(*) AS total,
-                        SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
-                        ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
-                    FROM contract_oi_snapshots
-                    GROUP BY ticker
-                    HAVING zero_pct >= 90
-                    ORDER BY zero_pct DESC, total DESC
-                    LIMIT 30
-                """)
-                out["all_zero_tickers"] = [
-                    {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
-                    for r in cur.fetchall()
-                ]
-                # Also: which tickers are healthy (< 10% zero)?
-                cur = conn.execute("""
-                    SELECT
-                        substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
-                        COUNT(*) AS total,
-                        SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
-                        ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
-                    FROM contract_oi_snapshots
-                    GROUP BY ticker
-                    HAVING zero_pct < 10 AND total > 50
-                    ORDER BY total DESC
-                    LIMIT 15
-                """)
-                out["healthy_tickers"] = [
-                    {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
-                    for r in cur.fetchall()
-                ]
 
-            return JSONResponse(out)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e), "partial": out}
+                # If ticker filter specified, focus on it
+                if ticker:
+                    t = ticker.upper().strip()
+                    cur = conn.execute(
+                        "SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+                        "WHERE contract_key LIKE ? "
+                        "ORDER BY snap_date DESC, contract_key LIMIT 30",
+                        (f"{t}|%",)
+                    )
+                    out["ticker_samples"] = [
+                        {"key": r[0], "snap_date": r[1], "oi": r[2]}
+                        for r in cur.fetchall()
+                    ]
+                    cur = conn.execute(
+                        "SELECT COUNT(*), SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) "
+                        "FROM contract_oi_snapshots WHERE contract_key LIKE ?",
+                        (f"{t}|%",)
+                    )
+                    t_total, t_zeros = cur.fetchone()
+                    out["ticker_stats"] = {
+                        "ticker": t,
+                        "total_rows": t_total,
+                        "zero_oi_rows": t_zeros,
+                        "zero_pct": round(t_zeros / t_total * 100, 1) if t_total else 0,
+                    }
+                else:
+                    # Aggregate: which tickers have >90% zero-OI?
+                    cur = conn.execute("""
+                        SELECT
+                            substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
+                            COUNT(*) AS total,
+                            SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
+                            ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
+                        FROM contract_oi_snapshots
+                        GROUP BY ticker
+                        HAVING zero_pct >= 90
+                        ORDER BY zero_pct DESC, total DESC
+                        LIMIT 30
+                    """)
+                    out["all_zero_tickers"] = [
+                        {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
+                        for r in cur.fetchall()
+                    ]
+                    # Also: which tickers are healthy (< 10% zero)?
+                    cur = conn.execute("""
+                        SELECT
+                            substr(contract_key, 1, instr(contract_key, '|') - 1) AS ticker,
+                            COUNT(*) AS total,
+                            SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) AS zeros,
+                            ROUND(SUM(CASE WHEN oi=0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS zero_pct
+                        FROM contract_oi_snapshots
+                        GROUP BY ticker
+                        HAVING zero_pct < 10 AND total > 50
+                        ORDER BY total DESC
+                        LIMIT 15
+                    """)
+                    out["healthy_tickers"] = [
+                        {"ticker": r[0], "total": r[1], "zeros": r[2], "zero_pct": r[3]}
+                        for r in cur.fetchall()
+                    ]
+
+                return JSONResponse(out)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e), "partial": out}
+    return await run_in_threadpool(_sync)
 
 
 @app.get("/api/admin/oi/table-diagnose")
@@ -9753,66 +9789,69 @@ async def _oi_table_diagnose():
 
     URL: /api/admin/oi/table-diagnose
     """
-    import sqlite3
-    from fastapi.responses import JSONResponse
-    out = {}
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        # Longer timeout in case cron is holding a write lock
-        with sqlite3.connect(db.db_path, timeout=30) as conn:
-            # Read-only optimization
-            conn.execute("PRAGMA query_only = 1")
-            # 1. Row count (this is the query most likely to be slow if
-            #    the table is huge — do it first so we know if it hangs)
-            try:
-                cur = conn.execute("SELECT COUNT(*) FROM contract_oi_snapshots")
-                out["row_count"] = cur.fetchone()[0]
-            except Exception as e:
-                out["row_count_error"] = str(e)
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3
+        from fastapi.responses import JSONResponse
+        out = {}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            # Longer timeout in case cron is holding a write lock
+            with sqlite3.connect(db.db_path, timeout=30) as conn:
+                # Read-only optimization
+                conn.execute("PRAGMA query_only = 1")
+                # 1. Row count (this is the query most likely to be slow if
+                #    the table is huge — do it first so we know if it hangs)
+                try:
+                    cur = conn.execute("SELECT COUNT(*) FROM contract_oi_snapshots")
+                    out["row_count"] = cur.fetchone()[0]
+                except Exception as e:
+                    out["row_count_error"] = str(e)
 
-            # 2. Existing indexes on the table
-            try:
-                cur = conn.execute(
-                    "SELECT name, sql FROM sqlite_master "
-                    "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
-                )
-                out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
-            except Exception as e:
-                out["indexes_error"] = str(e)
+                # 2. Existing indexes on the table
+                try:
+                    cur = conn.execute(
+                        "SELECT name, sql FROM sqlite_master "
+                        "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
+                    )
+                    out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
+                except Exception as e:
+                    out["indexes_error"] = str(e)
 
-            # 3. Sample contract_key values (5 recent) — critical for format
-            #    detection. Order by snap_date DESC so we see fresh snapshots.
-            try:
-                cur = conn.execute(
-                    "SELECT contract_key, snap_date, oi "
-                    "FROM contract_oi_snapshots "
-                    "ORDER BY snap_date DESC LIMIT 5"
-                )
-                out["sample_keys"] = [
-                    {"key": r[0], "snap_date": r[1], "oi": r[2]}
-                    for r in cur.fetchall()
-                ]
-            except Exception as e:
-                out["sample_keys_error"] = str(e)
+                # 3. Sample contract_key values (5 recent) — critical for format
+                #    detection. Order by snap_date DESC so we see fresh snapshots.
+                try:
+                    cur = conn.execute(
+                        "SELECT contract_key, snap_date, oi "
+                        "FROM contract_oi_snapshots "
+                        "ORDER BY snap_date DESC LIMIT 5"
+                    )
+                    out["sample_keys"] = [
+                        {"key": r[0], "snap_date": r[1], "oi": r[2]}
+                        for r in cur.fetchall()
+                    ]
+                except Exception as e:
+                    out["sample_keys_error"] = str(e)
 
-            # 4. Distinct snap_dates (how far back does data go)
-            try:
-                cur = conn.execute(
-                    "SELECT snap_date, COUNT(*) FROM contract_oi_snapshots "
-                    "GROUP BY snap_date ORDER BY snap_date DESC LIMIT 10"
-                )
-                out["snap_dates"] = [
-                    {"snap_date": r[0], "count": r[1]} for r in cur.fetchall()
-                ]
-            except Exception as e:
-                out["snap_dates_error"] = str(e)
+                # 4. Distinct snap_dates (how far back does data go)
+                try:
+                    cur = conn.execute(
+                        "SELECT snap_date, COUNT(*) FROM contract_oi_snapshots "
+                        "GROUP BY snap_date ORDER BY snap_date DESC LIMIT 10"
+                    )
+                    out["snap_dates"] = [
+                        {"snap_date": r[0], "count": r[1]} for r in cur.fetchall()
+                    ]
+                except Exception as e:
+                    out["snap_dates_error"] = str(e)
 
-        return JSONResponse(out)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e), "partial": out}
+            return JSONResponse(out)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e), "partial": out}
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/oi/create-indexes")
@@ -9825,49 +9864,52 @@ async def _oi_create_indexes():
 
     URL: POST /api/admin/oi/create-indexes
     """
-    import sqlite3, time
-    from fastapi.responses import JSONResponse
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=60) as conn:
-            results = []
-            for idx_name, ddl in [
-                ("idx_oi_snapshots_key",
-                 "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key "
-                 "ON contract_oi_snapshots(contract_key)"),
-                ("idx_oi_snapshots_key_date",
-                 "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key_date "
-                 "ON contract_oi_snapshots(contract_key, snap_date)"),
-            ]:
-                t0 = time.time()
-                try:
-                    conn.execute(ddl)
-                    conn.commit()
-                    results.append({
-                        "index": idx_name, "ok": True,
-                        "elapsed_sec": round(time.time() - t0, 2),
-                    })
-                except Exception as e:
-                    results.append({
-                        "index": idx_name, "ok": False, "error": str(e),
-                        "elapsed_sec": round(time.time() - t0, 2),
-                    })
-            # Confirm what's there now
-            cur = conn.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
-            )
-            existing = [r[0] for r in cur.fetchall()]
-            return JSONResponse({
-                "ok": True,
-                "created": results,
-                "indexes_now": existing,
-            })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        import sqlite3, time
+        from fastapi.responses import JSONResponse
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=60) as conn:
+                results = []
+                for idx_name, ddl in [
+                    ("idx_oi_snapshots_key",
+                     "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key "
+                     "ON contract_oi_snapshots(contract_key)"),
+                    ("idx_oi_snapshots_key_date",
+                     "CREATE INDEX IF NOT EXISTS idx_oi_snapshots_key_date "
+                     "ON contract_oi_snapshots(contract_key, snap_date)"),
+                ]:
+                    t0 = time.time()
+                    try:
+                        conn.execute(ddl)
+                        conn.commit()
+                        results.append({
+                            "index": idx_name, "ok": True,
+                            "elapsed_sec": round(time.time() - t0, 2),
+                        })
+                    except Exception as e:
+                        results.append({
+                            "index": idx_name, "ok": False, "error": str(e),
+                            "elapsed_sec": round(time.time() - t0, 2),
+                        })
+                # Confirm what's there now
+                cur = conn.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='index' AND tbl_name='contract_oi_snapshots'"
+                )
+                existing = [r[0] for r in cur.fetchall()]
+                return JSONResponse({
+                    "ok": True,
+                    "created": results,
+                    "indexes_now": existing,
+                })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/oi/latest-batch")
@@ -10000,301 +10042,304 @@ async def _oi_confirmation_map(request: Request,
     if len(contracts) > 5000:
         return {"ok": False, "error": "Too many contracts (limit 5000)"}
 
-    def _iso(date_str):
-        s = (date_str or "").strip()
-        if not s:
-            return ""
-        parts = s.split("/")
-        if len(parts) == 3:
-            m, d, y = parts[0], parts[1], parts[2]
-            if len(y) == 2:
-                y = "20" + y
-            try:
-                return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
-            except Exception:
-                return s
-        return s
-
-    def _key_variants(c):
-        """Candidate storage formats for contract_key."""
-        sym = str(c.get("sym") or "").upper().strip()
-        cp = str(c.get("cp") or "").upper().strip()
-        cp_letter = cp[0] if cp else ""
-        cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
-        strike = c.get("strike")
-        # Strike format: `XOM|P|140.0|8/21/2026` — one decimal place always.
-        # Try both "140.0" (verified format) and "140" (integer fallback) plus
-        # the raw incoming string in case it has cents like "140.5".
-        try:
-            strike_num = float(strike)
-            if strike_num == int(strike_num):
-                strike_1dp = f"{int(strike_num)}.0"   # 140 -> "140.0"
-                strike_int = f"{int(strike_num)}"      # 140 -> "140"
-            else:
-                strike_1dp = f"{strike_num}"           # 140.5 -> "140.5"
-                strike_int = f"{strike_num}"
-        except (TypeError, ValueError):
-            strike_1dp = str(strike) if strike is not None else ""
-            strike_int = strike_1dp
-        expiry_raw = str(c.get("expiry") or "").strip()
-        expiry_iso = _iso(expiry_raw)
-        # Verified format first (matches sample_keys from oi/table-diagnose):
-        return [
-            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_raw}",   # e.g. "XOM|P|140.0|8/21/2026"
-            f"{sym}|{cp_letter}|{strike_int}|{expiry_raw}",   # "XOM|P|140|8/21/2026" fallback
-            f"{sym}|{cp_word}|{strike_1dp}|{expiry_raw}",
-            f"{sym}|{cp_letter}|{strike_1dp}|{expiry_iso}",
-            f"{sym}|{cp_word}|{strike_int}|{expiry_raw}",
-            f"{sym} {cp_letter} {strike_1dp} {expiry_raw}",
-            f"{sym}_{cp_letter}_{strike_1dp}_{expiry_iso}",
-        ]
-
-    def _orig_key(c):
-        return f"{c.get('sym','')}|{c.get('cp','')}|{c.get('strike','')}|{c.get('expiry','')}"
-
-    # Init confirmations for every requested contract (default = unconfirmed)
-    confirmations = {}
-    for c in contracts:
-        confirmations[_orig_key(c)] = {
-            "confirmed": False,
-            "first_oi": 0,
-            "peak_oi": 0,
-            "pct_change": 0,
-            "snapshots_found": 0,
-        }
-
-    matched_variant_examples = []
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            # ── Step 1: Detect actual contract_key format from a single sample
-            # Instead of trying all 7 variants for every contract (which was
-            # timing out at Cloudflare's 100s limit on large ticker searches),
-            # we detect the format once by looking up the first contract with
-            # each variant format, then use only the winning format for the
-            # batch query. If no format matches, we return early with
-            # matched_variant_examples=[] so the caller can diagnose.
-            detected_format = None
-            if contracts:
-                sample_c = contracts[0]
-                sample_variants = _key_variants(sample_c)
-                # Also try a broader sample — a few random contracts — because
-                # the first one might be a new contract with no snapshots.
-                probe_contracts = contracts[:min(20, len(contracts))]
-                for probe in probe_contracts:
-                    if detected_format is not None:
-                        break
-                    for i, v in enumerate(_key_variants(probe)):
-                        cur = conn.execute(
-                            "SELECT 1 FROM contract_oi_snapshots "
-                            "WHERE contract_key = ? LIMIT 1",
-                            (v,),
-                        )
-                        if cur.fetchone():
-                            detected_format = i  # index into _key_variants()
-                            matched_variant_examples.append(v)
-                            break
-
-            if detected_format is None:
-                # No format matched any probe — return early with diagnostics
-                confirmed_count = 0
-                no_snapshots = len(confirmations)
-                resp = JSONResponse({
-                    "ok": True,
-                    "confirmations": confirmations,
-                    "total": len(confirmations),
-                    "confirmed_count": confirmed_count,
-                    "no_snapshots_count": no_snapshots,
-                    "matched_variant_examples": [],
-                    "window_days": window_days,
-                    "threshold_pct": threshold_pct,
-                    "note": "Could not detect contract_key format from any of the "
-                            "7 candidates on 20 probe contracts. Hit /api/admin/"
-                            "massive/diagnose and share oi_sample_keys.",
-                })
-                resp.headers["Cache-Control"] = "private, max-age=60"
-                return resp
-
-            # ── Step 2: Build the ONE key variant per contract using detected format
-            key_to_orig = {}
-            for c in contracts:
-                variants = _key_variants(c)
-                if detected_format < len(variants):
-                    k = variants[detected_format]
-                    key_to_orig[k] = _orig_key(c)
-
-            # ── Step 3: Batch-fetch snapshots using only the winning format
-            rows_by_key = {}
-            key_list = list(key_to_orig.keys())
-            BATCH = 400
-            for i in range(0, len(key_list), BATCH):
-                batch = key_list[i:i + BATCH]
-                placeholders = ",".join(["?"] * len(batch))
-                cur = conn.execute(
-                    f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
-                    f"WHERE contract_key IN ({placeholders}) "
-                    f"ORDER BY contract_key, snap_date",
-                    batch,
-                )
-                for r in cur.fetchall():
-                    k, sd, oi = r[0], r[1], int(r[2] or 0)
-                    rows_by_key.setdefault(k, []).append((sd, oi))
-
-            # ── Step 4: Compute confirmation per requested contract
-            for c in contracts:
-                original = _orig_key(c)
-                trade_date_raw = str(c.get("first_trade_date") or "").strip()
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        def _iso(date_str):
+            s = (date_str or "").strip()
+            if not s:
+                return ""
+            parts = s.split("/")
+            if len(parts) == 3:
+                m, d, y = parts[0], parts[1], parts[2]
+                if len(y) == 2:
+                    y = "20" + y
                 try:
-                    parts = trade_date_raw.split("/")
-                    if len(parts) == 3:
-                        m, d, y = parts[0], parts[1], parts[2]
-                        if len(y) == 2:
-                            y = "20" + y
-                        trade_dt = datetime(int(y), int(m), int(d))
-                    else:
-                        trade_dt = None
+                    return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
                 except Exception:
-                    trade_dt = None
+                    return s
+            return s
 
-                if trade_dt is None:
-                    continue
-
-                variants = _key_variants(c)
-                if detected_format >= len(variants):
-                    continue
-                match_rows = rows_by_key.get(variants[detected_format])
-                if not match_rows:
-                    continue
-
-                # Two-phase baseline strategy for sparse snapshot data:
-                #   1. Prefer pre-trade OI as baseline (closest snapshot AT or
-                #      BEFORE trade_date within a 10d lookback). This measures
-                #      the true "did OI grow after the trade" signal.
-                #   2. Fallback: earliest snapshot IN the forward window as
-                #      baseline. Weaker signal but still usable — captures OI
-                #      change across days after the trade if pre-trade data
-                #      isn't available.
-                # Peak: max OI across snapshots in the forward window.
-                window_end = trade_dt + timedelta(days=window_days)
-                lookback_start = trade_dt - timedelta(days=10)
-                # Parse all snapshot dates once
-                parsed_rows = []
-                for sd, oi in match_rows:
-                    snap_dt = None
-                    try:
-                        snap_dt = datetime.strptime(sd, "%Y-%m-%d")
-                    except Exception:
-                        try:
-                            parts = sd.split("/")
-                            if len(parts) == 3:
-                                mm, dd, yy = parts[0], parts[1], parts[2]
-                                if len(yy) == 2:
-                                    yy = "20" + yy
-                                snap_dt = datetime(int(yy), int(mm), int(dd))
-                        except Exception:
-                            continue
-                    if snap_dt is None:
-                        continue
-                    parsed_rows.append((snap_dt, oi))
-
-                # Baseline candidate: latest snapshot in [lookback_start, trade_dt]
-                pre_trade = [(dt, oi) for dt, oi in parsed_rows
-                             if lookback_start <= dt <= trade_dt]
-                pre_trade.sort(key=lambda x: x[0])
-                # Forward-window snapshots (trade_dt < dt <= window_end)
-                # Note: strict > trade_dt if we have pre-trade baseline, so we
-                # don't double-count trade_dt in both baseline and peak.
-                post_trade = [(dt, oi) for dt, oi in parsed_rows
-                              if trade_dt < dt <= window_end]
-                post_trade.sort(key=lambda x: x[0])
-
-                if pre_trade and post_trade:
-                    # Best case: baseline from pre-trade, peak from post-trade
-                    baseline_dt, baseline_oi = pre_trade[-1]  # most recent pre-trade
-                    peak_oi = max(oi for _, oi in post_trade)
-                    snapshots_used = len(pre_trade) + len(post_trade)
-                    baseline_source = "pre_trade"
-                elif post_trade and len(post_trade) >= 2:
-                    # Fallback: first vs peak within forward window
-                    baseline_oi = post_trade[0][1]
-                    peak_oi = max(oi for _, oi in post_trade)
-                    snapshots_used = len(post_trade)
-                    baseline_source = "forward_window"
-                elif pre_trade and len(pre_trade) >= 2:
-                    # Pre-trade accumulation signal: contract was being built
-                    # BEFORE the flow event. Baseline = earliest pre-trade,
-                    # peak = latest pre-trade. Different semantic than post-
-                    # trade confirmation (measures pre-flow accumulation vs
-                    # post-flow adds), but equally actionable — flow event
-                    # was a continuation of an existing accumulation trend.
-                    # Example: BE 9/18 $370c snapshots at 6/25 (306), 6/26
-                    # (306), 6/29 (6574) — 21x growth in 4 days leading up
-                    # to the 7/2 flow. Strong signal even without post-trade
-                    # data yet.
-                    baseline_oi = pre_trade[0][1]
-                    peak_oi = max(oi for _, oi in pre_trade)
-                    snapshots_used = len(pre_trade)
-                    baseline_source = "pre_trade_accumulation"
+        def _key_variants(c):
+            """Candidate storage formats for contract_key."""
+            sym = str(c.get("sym") or "").upper().strip()
+            cp = str(c.get("cp") or "").upper().strip()
+            cp_letter = cp[0] if cp else ""
+            cp_word = "CALL" if cp_letter == "C" else "PUT" if cp_letter == "P" else cp
+            strike = c.get("strike")
+            # Strike format: `XOM|P|140.0|8/21/2026` — one decimal place always.
+            # Try both "140.0" (verified format) and "140" (integer fallback) plus
+            # the raw incoming string in case it has cents like "140.5".
+            try:
+                strike_num = float(strike)
+                if strike_num == int(strike_num):
+                    strike_1dp = f"{int(strike_num)}.0"   # 140 -> "140.0"
+                    strike_int = f"{int(strike_num)}"      # 140 -> "140"
                 else:
-                    # Not enough data — need at minimum a baseline + comparison
-                    # Include trade_dt itself as candidate baseline if present.
-                    same_day = [(dt, oi) for dt, oi in parsed_rows if dt == trade_dt]
-                    forward = [(dt, oi) for dt, oi in parsed_rows if dt > trade_dt and dt <= window_end]
-                    if same_day and forward:
-                        baseline_oi = same_day[0][1]
-                        peak_oi = max(oi for _, oi in forward)
-                        snapshots_used = 1 + len(forward)
-                        baseline_source = "same_day"
-                    else:
-                        # Record the snapshot count so caller can see coverage
-                        confirmations[original]["snapshots_found"] = len(parsed_rows)
+                    strike_1dp = f"{strike_num}"           # 140.5 -> "140.5"
+                    strike_int = f"{strike_num}"
+            except (TypeError, ValueError):
+                strike_1dp = str(strike) if strike is not None else ""
+                strike_int = strike_1dp
+            expiry_raw = str(c.get("expiry") or "").strip()
+            expiry_iso = _iso(expiry_raw)
+            # Verified format first (matches sample_keys from oi/table-diagnose):
+            return [
+                f"{sym}|{cp_letter}|{strike_1dp}|{expiry_raw}",   # e.g. "XOM|P|140.0|8/21/2026"
+                f"{sym}|{cp_letter}|{strike_int}|{expiry_raw}",   # "XOM|P|140|8/21/2026" fallback
+                f"{sym}|{cp_word}|{strike_1dp}|{expiry_raw}",
+                f"{sym}|{cp_letter}|{strike_1dp}|{expiry_iso}",
+                f"{sym}|{cp_word}|{strike_int}|{expiry_raw}",
+                f"{sym} {cp_letter} {strike_1dp} {expiry_raw}",
+                f"{sym}_{cp_letter}_{strike_1dp}_{expiry_iso}",
+            ]
+
+        def _orig_key(c):
+            return f"{c.get('sym','')}|{c.get('cp','')}|{c.get('strike','')}|{c.get('expiry','')}"
+
+        # Init confirmations for every requested contract (default = unconfirmed)
+        confirmations = {}
+        for c in contracts:
+            confirmations[_orig_key(c)] = {
+                "confirmed": False,
+                "first_oi": 0,
+                "peak_oi": 0,
+                "pct_change": 0,
+                "snapshots_found": 0,
+            }
+
+        matched_variant_examples = []
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            with sqlite3.connect(db.db_path, timeout=10) as conn:
+                # ── Step 1: Detect actual contract_key format from a single sample
+                # Instead of trying all 7 variants for every contract (which was
+                # timing out at Cloudflare's 100s limit on large ticker searches),
+                # we detect the format once by looking up the first contract with
+                # each variant format, then use only the winning format for the
+                # batch query. If no format matches, we return early with
+                # matched_variant_examples=[] so the caller can diagnose.
+                detected_format = None
+                if contracts:
+                    sample_c = contracts[0]
+                    sample_variants = _key_variants(sample_c)
+                    # Also try a broader sample — a few random contracts — because
+                    # the first one might be a new contract with no snapshots.
+                    probe_contracts = contracts[:min(20, len(contracts))]
+                    for probe in probe_contracts:
+                        if detected_format is not None:
+                            break
+                        for i, v in enumerate(_key_variants(probe)):
+                            cur = conn.execute(
+                                "SELECT 1 FROM contract_oi_snapshots "
+                                "WHERE contract_key = ? LIMIT 1",
+                                (v,),
+                            )
+                            if cur.fetchone():
+                                detected_format = i  # index into _key_variants()
+                                matched_variant_examples.append(v)
+                                break
+
+                if detected_format is None:
+                    # No format matched any probe — return early with diagnostics
+                    confirmed_count = 0
+                    no_snapshots = len(confirmations)
+                    resp = JSONResponse({
+                        "ok": True,
+                        "confirmations": confirmations,
+                        "total": len(confirmations),
+                        "confirmed_count": confirmed_count,
+                        "no_snapshots_count": no_snapshots,
+                        "matched_variant_examples": [],
+                        "window_days": window_days,
+                        "threshold_pct": threshold_pct,
+                        "note": "Could not detect contract_key format from any of the "
+                                "7 candidates on 20 probe contracts. Hit /api/admin/"
+                                "massive/diagnose and share oi_sample_keys.",
+                    })
+                    resp.headers["Cache-Control"] = "private, max-age=60"
+                    return resp
+
+                # ── Step 2: Build the ONE key variant per contract using detected format
+                key_to_orig = {}
+                for c in contracts:
+                    variants = _key_variants(c)
+                    if detected_format < len(variants):
+                        k = variants[detected_format]
+                        key_to_orig[k] = _orig_key(c)
+
+                # ── Step 3: Batch-fetch snapshots using only the winning format
+                rows_by_key = {}
+                key_list = list(key_to_orig.keys())
+                BATCH = 400
+                for i in range(0, len(key_list), BATCH):
+                    batch = key_list[i:i + BATCH]
+                    placeholders = ",".join(["?"] * len(batch))
+                    cur = conn.execute(
+                        f"SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+                        f"WHERE contract_key IN ({placeholders}) "
+                        f"ORDER BY contract_key, snap_date",
+                        batch,
+                    )
+                    for r in cur.fetchall():
+                        k, sd, oi = r[0], r[1], int(r[2] or 0)
+                        rows_by_key.setdefault(k, []).append((sd, oi))
+
+                # ── Step 4: Compute confirmation per requested contract
+                for c in contracts:
+                    original = _orig_key(c)
+                    trade_date_raw = str(c.get("first_trade_date") or "").strip()
+                    try:
+                        parts = trade_date_raw.split("/")
+                        if len(parts) == 3:
+                            m, d, y = parts[0], parts[1], parts[2]
+                            if len(y) == 2:
+                                y = "20" + y
+                            trade_dt = datetime(int(y), int(m), int(d))
+                        else:
+                            trade_dt = None
+                    except Exception:
+                        trade_dt = None
+
+                    if trade_dt is None:
                         continue
 
-                pct = ((peak_oi - baseline_oi) / baseline_oi * 100.0) if baseline_oi > 0 else 0
-                # When baseline_oi is 0 but peak_oi > 0, the contract went from
-                # no open interest to some — a NEW position being established.
-                # That's a strong confirmation signal (institutional opening
-                # trades). Flag as confirmed if peak > some minimum threshold.
-                # We use 50 contracts as a floor to filter out trivial noise.
-                if baseline_oi == 0 and peak_oi >= 50:
-                    confirmations[original] = {
-                        "confirmed": True,
-                        "first_oi": 0,
-                        "peak_oi": peak_oi,
-                        "pct_change": 100,  # sentinel for "new position opened"
-                        "snapshots_found": snapshots_used,
-                        "baseline_source": baseline_source + "_new_position",
-                    }
-                    continue
-                confirmations[original] = {
-                    "confirmed": pct >= threshold_pct,
-                    "first_oi": baseline_oi,
-                    "peak_oi": peak_oi,
-                    "pct_change": round(pct, 1),
-                    "snapshots_found": snapshots_used,
-                    "baseline_source": baseline_source,
-                }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e), "confirmations": confirmations}
+                    variants = _key_variants(c)
+                    if detected_format >= len(variants):
+                        continue
+                    match_rows = rows_by_key.get(variants[detected_format])
+                    if not match_rows:
+                        continue
 
-    confirmed_count = sum(1 for v in confirmations.values() if v["confirmed"])
-    no_snapshots = sum(1 for v in confirmations.values() if v["snapshots_found"] == 0)
-    resp = JSONResponse({
-        "ok": True,
-        "confirmations": confirmations,
-        "total": len(confirmations),
-        "confirmed_count": confirmed_count,
-        "no_snapshots_count": no_snapshots,
-        "matched_variant_examples": matched_variant_examples,
-        "window_days": window_days,
-        "threshold_pct": threshold_pct,
-    })
-    # Cache for 60s so repeated toggle-on/off doesn't re-query
-    resp.headers["Cache-Control"] = "private, max-age=60"
-    return resp
+                    # Two-phase baseline strategy for sparse snapshot data:
+                    #   1. Prefer pre-trade OI as baseline (closest snapshot AT or
+                    #      BEFORE trade_date within a 10d lookback). This measures
+                    #      the true "did OI grow after the trade" signal.
+                    #   2. Fallback: earliest snapshot IN the forward window as
+                    #      baseline. Weaker signal but still usable — captures OI
+                    #      change across days after the trade if pre-trade data
+                    #      isn't available.
+                    # Peak: max OI across snapshots in the forward window.
+                    window_end = trade_dt + timedelta(days=window_days)
+                    lookback_start = trade_dt - timedelta(days=10)
+                    # Parse all snapshot dates once
+                    parsed_rows = []
+                    for sd, oi in match_rows:
+                        snap_dt = None
+                        try:
+                            snap_dt = datetime.strptime(sd, "%Y-%m-%d")
+                        except Exception:
+                            try:
+                                parts = sd.split("/")
+                                if len(parts) == 3:
+                                    mm, dd, yy = parts[0], parts[1], parts[2]
+                                    if len(yy) == 2:
+                                        yy = "20" + yy
+                                    snap_dt = datetime(int(yy), int(mm), int(dd))
+                            except Exception:
+                                continue
+                        if snap_dt is None:
+                            continue
+                        parsed_rows.append((snap_dt, oi))
+
+                    # Baseline candidate: latest snapshot in [lookback_start, trade_dt]
+                    pre_trade = [(dt, oi) for dt, oi in parsed_rows
+                                 if lookback_start <= dt <= trade_dt]
+                    pre_trade.sort(key=lambda x: x[0])
+                    # Forward-window snapshots (trade_dt < dt <= window_end)
+                    # Note: strict > trade_dt if we have pre-trade baseline, so we
+                    # don't double-count trade_dt in both baseline and peak.
+                    post_trade = [(dt, oi) for dt, oi in parsed_rows
+                                  if trade_dt < dt <= window_end]
+                    post_trade.sort(key=lambda x: x[0])
+
+                    if pre_trade and post_trade:
+                        # Best case: baseline from pre-trade, peak from post-trade
+                        baseline_dt, baseline_oi = pre_trade[-1]  # most recent pre-trade
+                        peak_oi = max(oi for _, oi in post_trade)
+                        snapshots_used = len(pre_trade) + len(post_trade)
+                        baseline_source = "pre_trade"
+                    elif post_trade and len(post_trade) >= 2:
+                        # Fallback: first vs peak within forward window
+                        baseline_oi = post_trade[0][1]
+                        peak_oi = max(oi for _, oi in post_trade)
+                        snapshots_used = len(post_trade)
+                        baseline_source = "forward_window"
+                    elif pre_trade and len(pre_trade) >= 2:
+                        # Pre-trade accumulation signal: contract was being built
+                        # BEFORE the flow event. Baseline = earliest pre-trade,
+                        # peak = latest pre-trade. Different semantic than post-
+                        # trade confirmation (measures pre-flow accumulation vs
+                        # post-flow adds), but equally actionable — flow event
+                        # was a continuation of an existing accumulation trend.
+                        # Example: BE 9/18 $370c snapshots at 6/25 (306), 6/26
+                        # (306), 6/29 (6574) — 21x growth in 4 days leading up
+                        # to the 7/2 flow. Strong signal even without post-trade
+                        # data yet.
+                        baseline_oi = pre_trade[0][1]
+                        peak_oi = max(oi for _, oi in pre_trade)
+                        snapshots_used = len(pre_trade)
+                        baseline_source = "pre_trade_accumulation"
+                    else:
+                        # Not enough data — need at minimum a baseline + comparison
+                        # Include trade_dt itself as candidate baseline if present.
+                        same_day = [(dt, oi) for dt, oi in parsed_rows if dt == trade_dt]
+                        forward = [(dt, oi) for dt, oi in parsed_rows if dt > trade_dt and dt <= window_end]
+                        if same_day and forward:
+                            baseline_oi = same_day[0][1]
+                            peak_oi = max(oi for _, oi in forward)
+                            snapshots_used = 1 + len(forward)
+                            baseline_source = "same_day"
+                        else:
+                            # Record the snapshot count so caller can see coverage
+                            confirmations[original]["snapshots_found"] = len(parsed_rows)
+                            continue
+
+                    pct = ((peak_oi - baseline_oi) / baseline_oi * 100.0) if baseline_oi > 0 else 0
+                    # When baseline_oi is 0 but peak_oi > 0, the contract went from
+                    # no open interest to some — a NEW position being established.
+                    # That's a strong confirmation signal (institutional opening
+                    # trades). Flag as confirmed if peak > some minimum threshold.
+                    # We use 50 contracts as a floor to filter out trivial noise.
+                    if baseline_oi == 0 and peak_oi >= 50:
+                        confirmations[original] = {
+                            "confirmed": True,
+                            "first_oi": 0,
+                            "peak_oi": peak_oi,
+                            "pct_change": 100,  # sentinel for "new position opened"
+                            "snapshots_found": snapshots_used,
+                            "baseline_source": baseline_source + "_new_position",
+                        }
+                        continue
+                    confirmations[original] = {
+                        "confirmed": pct >= threshold_pct,
+                        "first_oi": baseline_oi,
+                        "peak_oi": peak_oi,
+                        "pct_change": round(pct, 1),
+                        "snapshots_found": snapshots_used,
+                        "baseline_source": baseline_source,
+                    }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e), "confirmations": confirmations}
+
+        confirmed_count = sum(1 for v in confirmations.values() if v["confirmed"])
+        no_snapshots = sum(1 for v in confirmations.values() if v["snapshots_found"] == 0)
+        resp = JSONResponse({
+            "ok": True,
+            "confirmations": confirmations,
+            "total": len(confirmations),
+            "confirmed_count": confirmed_count,
+            "no_snapshots_count": no_snapshots,
+            "matched_variant_examples": matched_variant_examples,
+            "window_days": window_days,
+            "threshold_pct": threshold_pct,
+        })
+        # Cache for 60s so repeated toggle-on/off doesn't re-query
+        resp.headers["Cache-Control"] = "private, max-age=60"
+        return resp
+    return await run_in_threadpool(_sync)
 
 
 @app.post("/api/admin/flow/delete-by-date")
@@ -10335,99 +10380,102 @@ async def _flow_delete_by_date(
     Only touches the `flow` table. contract_oi_snapshots, aggregates, etc.
     are untouched — their per-date rows remain valid.
     """
-    try:
-        import sqlite3, os
-        if not target_date:
-            return {"ok": False, "error": "target_date is required (M/D/YYYY format)"}
+    from fastapi.concurrency import run_in_threadpool
+    def _sync():
+        try:
+            import sqlite3, os
+            if not target_date:
+                return {"ok": False, "error": "target_date is required (M/D/YYYY format)"}
 
-        # Basic format validation
-        parts = target_date.split("/")
-        if len(parts) != 3:
-            return {"ok": False, "error": f"target_date must be M/D/YYYY, got: {target_date!r}"}
+            # Basic format validation
+            parts = target_date.split("/")
+            if len(parts) != 3:
+                return {"ok": False, "error": f"target_date must be M/D/YYYY, got: {target_date!r}"}
 
-        # Source filter validation
-        if source and source not in ("stocks", "indexes"):
-            return {"ok": False, "error": f"source must be 'stocks', 'indexes', or empty; got: {source!r}"}
+            # Source filter validation
+            if source and source not in ("stocks", "indexes"):
+                return {"ok": False, "error": f"source must be 'stocks', 'indexes', or empty; got: {source!r}"}
 
-        # Ticker filter parse (uppercase, dedupe, strip whitespace)
-        ticker_list = []
-        if tickers:
-            ticker_list = sorted(set(
-                t.strip().upper() for t in tickers.split(",") if t.strip()
-            ))
-            if not ticker_list:
-                return {"ok": False, "error": f"tickers parsed to empty list from: {tickers!r}"}
+            # Ticker filter parse (uppercase, dedupe, strip whitespace)
+            ticker_list = []
+            if tickers:
+                ticker_list = sorted(set(
+                    t.strip().upper() for t in tickers.split(",") if t.strip()
+                ))
+                if not ticker_list:
+                    return {"ok": False, "error": f"tickers parsed to empty list from: {tickers!r}"}
 
-        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-        conn = sqlite3.connect(db_path, timeout=30)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
+            db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+            conn = sqlite3.connect(db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
 
-        # Build WHERE clause dynamically
-        where = ["CreatedDate = ?"]
-        params = [target_date]
-        if source:
-            where.append("source = ?")
-            params.append(source)
-        if ticker_list:
-            placeholders = ",".join(["?"] * len(ticker_list))
-            where.append(f"Symbol IN ({placeholders})")
-            params.extend(ticker_list)
-        where_sql = " AND ".join(where)
+            # Build WHERE clause dynamically
+            where = ["CreatedDate = ?"]
+            params = [target_date]
+            if source:
+                where.append("source = ?")
+                params.append(source)
+            if ticker_list:
+                placeholders = ",".join(["?"] * len(ticker_list))
+                where.append(f"Symbol IN ({placeholders})")
+                params.extend(ticker_list)
+            where_sql = " AND ".join(where)
 
-        # Count first — always safe, no mutation
-        cur = conn.execute(
-            f"SELECT COUNT(*) FROM flow WHERE {where_sql}",
-            params
-        )
-        row_count = cur.fetchone()[0]
+            # Count first — always safe, no mutation
+            cur = conn.execute(
+                f"SELECT COUNT(*) FROM flow WHERE {where_sql}",
+                params
+            )
+            row_count = cur.fetchone()[0]
 
-        # Preview mode — no mutation
-        if not confirm:
+            # Preview mode — no mutation
+            if not confirm:
+                conn.close()
+                return {
+                    "ok": True,
+                    "preview": True,
+                    "stats": {
+                        "target_date": target_date,
+                        "source": source or "ALL",
+                        "tickers": ticker_list or "ALL",
+                        "would_delete": row_count,
+                        "message": "Preview only. Pass confirm=true to actually delete.",
+                    }
+                }
+
+            # Live mode — perform the delete
+            cursor = conn.execute(
+                f"DELETE FROM flow WHERE {where_sql}",
+                params
+            )
+            rows_deleted = cursor.rowcount
+            conn.commit()
             conn.close()
+
+            # Bump data-version so client caches invalidate
+            try:
+                from api.flow_router import bump_data_version
+                new_ver = bump_data_version()
+            except Exception:
+                new_ver = None
+
             return {
                 "ok": True,
-                "preview": True,
+                "preview": False,
                 "stats": {
                     "target_date": target_date,
                     "source": source or "ALL",
                     "tickers": ticker_list or "ALL",
-                    "would_delete": row_count,
-                    "message": "Preview only. Pass confirm=true to actually delete.",
+                    "rows_deleted": rows_deleted,
+                    "new_data_version": new_ver,
                 }
             }
-
-        # Live mode — perform the delete
-        cursor = conn.execute(
-            f"DELETE FROM flow WHERE {where_sql}",
-            params
-        )
-        rows_deleted = cursor.rowcount
-        conn.commit()
-        conn.close()
-
-        # Bump data-version so client caches invalidate
-        try:
-            from api.flow_router import bump_data_version
-            new_ver = bump_data_version()
-        except Exception:
-            new_ver = None
-
-        return {
-            "ok": True,
-            "preview": False,
-            "stats": {
-                "target_date": target_date,
-                "source": source or "ALL",
-                "tickers": ticker_list or "ALL",
-                "rows_deleted": rows_deleted,
-                "new_data_version": new_ver,
-            }
-        }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    return await run_in_threadpool(_sync)
 
 
 def serve_csv():
