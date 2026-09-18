@@ -2,6 +2,50 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — ✅ R37: THE CAPTURE LAYOUT EXISTS. ⛔ A STALE RIG BLOCKED 8129.
+>
+> ✅ **R37 — `UCT CAPTURE RIG — no studies`, id `01f1AcIj`**
+> (`https://www.tradingview.com/chart/01f1AcIj/`), created by the session under
+> owner authorisation and written into `capture-procedure.md` where `<PASTE URL>`
+> stood. **The capture lane is unblocked.** Verified empty: `getAllStudies()` read
+> `["Volume"]` before removal and `[]` after — the accessor demonstrably sees, which
+> is the non-vacuity control — and the Volume pane is visibly gone.
+> ⛔⛔ **`dataSources()` IS BLIND ON THIS BUILD** — it returned 0 of everything,
+> events included, where the procedure says an empty rig shows `Splits`/`Earnings`.
+> Use `getAllStudies()`. ⚠️ The right-click *"Remove N indicators"* cross-check was
+> **INCONCLUSIVE** (no menu rendered at the click point), recorded as such.
+> ⚠️ The owner's layouts, working chart and **Pine Editor** (open throughout on
+> `uct-oracle-cmf-adl-pvt-falling-kcw-v1`) were untouched; no login/2FA/plan dialog.
+>
+> ⛔⛔ **THE CAPTURE ITSELF DID NOT RUN, AND THE REASON IS A FINDING.** `boot_rig.py`
+> collided with **a rig another session has had running on 8129 since 09-13** (PID
+> 18792). uvicorn died with `[Errno 10048]` buried in its log **while the incumbent
+> kept answering `/api/health` with 200** — so the obvious health check read as a
+> successful boot. ⚰️ **A capture then would have measured a checkout predating
+> R33a/R35c/R35d/R36 — Clouds with NO colour fold — and been reported as today's.**
+> What caught it was reading the listener's **START TIME**, not that something
+> answered.
+> ✅ Fixed at the instrument (`92aa8447a`): `boot_rig.py` now **connects** before
+> binding, **refuses** a busy port, never kills the incumbent, names the PowerShell
+> that finds its owner, and honours `UCT_RIG_PORT`. Proven to fire against the live
+> incumbent.
+> ⭐ A clean rig then ran on **8130** (PID 26052, identity confirmed at 42 s old),
+> signed in, loaded `/charts` — **and was stopped by this session at the end.** The
+> 8129 incumbent was deliberately left alone; it is the owner's to stop.
+>
+> ▶️ **WHAT REMAINS FOR THE CAPTURE:** the member-door click path is not documented
+> anywhere the way the VENDOR path is in `capture-procedure.md`. Finding it by
+> hunting the UI is the rabbit-hole this programme's rules say to stop on, so it
+> stopped. **The next session needs the click path to the Pine paste door (PineBox /
+> BuilderSheet / MemberPane) written down first** — then capture → j.4 → R29 is one
+> uninterrupted run on `01f1AcIj`.
+>
+> ⚠️ **Side effect to expect:** the span procedure now carries the PR body via
+> `Set-Clipboard`, so a posting run **overwrites the owner's clipboard**.
+> ⭐ **STANDING RULE ADDED:** offsets are compared in ONE unit system — Python counts
+> code points, JS/.NET count UTF-16 units — and a file is carried by the clipboard,
+> never retyped.
+
 > ### ⏱️ 2026-09-17 — ✅ THE PR BODY IS POSTED. Gate v2.1 PASSED.
 >
 > The owner foregrounded the tab; the gate read **`visible` true, both geometry
