@@ -173,3 +173,69 @@ concurrent gates plus an unscoped pytest, `node_modules` swept to zero, a `.git`
 bundle is on disk, so nothing has to be repeated when the window opens. Step 1 (BEFORE frames)
 starts from `dist/`, not from a rebuild.
 
+---
+
+## 7 · ⛔⛔ THE SNAPSHOT RAIL FIRED, AND IT WAS NOT MINE — the attribution limit
+
+The 22:23 sandbox boot produced this, and it is exactly the alarm the rail exists to raise:
+
+```
+2026-09-17 22:23:21  pre-boot (baseline)  — C:\data, 56 db files — CLEAN
+2026-09-17 22:24:44  post-boot (+15s)     — C:\data, 56 db files — 1 FILE(S) CHANGED
+   CHANGED  wisdom.db   425984 -> 425984 bytes; sha256 5c3aa90bae7a -> 24649b0417a6
+```
+
+**And the app really does write that file at boot** — `api/main.py:3245` calls
+`wisdom.registry.init_stores()`, which applies migrations unconditionally. So the hypothesis
+*"my sandbox leaked into the live root"* was specific, plausible, and had a named mechanism.
+
+### It was false, and here is what settled it
+
+| evidence | reading |
+|---|---|
+| `C:\data-hubtest\wisdom.db` exists, **610,304 bytes**, mtime 22:24 | the sandbox wrote its OWN copy — **the census pin worked** |
+| `C:\data\wisdom.db` is **425,984 bytes** | a *different database*. The sandbox was never writing this one |
+| `C:\data\auth.db` mtime **Sep 12**, and the sandbox made its own | the boot did not touch the live auth store at all |
+| 43 `.db` files in `C:\data-hubtest`, all mtime 22:24 | the whole tree was redirected, not one lucky var |
+
+`api/services/wisdom/core/store.py:43` resolves `WISDOM_DB_PATH` **on every call**, and
+`hub_sandbox_boot.py` sets every census pin in `main()` before `api.main` is imported at `:391`.
+Both halves were correct. **The isolation held.**
+
+The live write at 22:24 was **another session** — the Wisdom programme is in active build, and a
+python process from a different Claude scratchpad (`5691081b-…`) was on this box throughout.
+
+> ### ⛔ THE LIMIT, STATED SO THE NEXT ALARM IS READ CORRECTLY:
+> **The snapshot rail compares the shared root at two moments. On a box with concurrent sessions it
+> cannot attribute a change to the process it is watching.** Its finding is *"something wrote
+> here"*, never *"this boot wrote here"* — and its name, its placement and the moment it fires all
+> suggest the second.
+
+⭐ This is a **kind-2 proxy failure in an instrument I trust and still trust**: it keys on *did
+anything change* while standing in for *did MY boot leak*. That is the same shape as
+`uptime_seconds` standing in for *did my deploy ship*, and it fails the same way — silently, in
+whichever direction the environment happens to lean.
+
+⛔ **It must NOT be "fixed" by narrowing it to this process's writes.** A rail that only watches its
+own handle would have said CLEAN through a genuine leak from a thread it did not own — and the
+2026-09-08 incident was exactly that: a daemon thread writing `auth.db` while the operator believed
+the sandbox was isolated. **The over-reporting is the safe direction.** What is needed beside it is
+the attribution step this section documents: check whether the sandbox produced its OWN copy, and
+compare sizes and mtimes, before concluding anything.
+
+⚠️ And the honest residual: **nothing here proves the other session's write was safe.** It is not
+this session's file, it was not this session's write, and `C:\data\wisdom.db` was deliberately
+left untouched afterwards — including no `quick_check`, because opening it rewrites its `-shm` and
+would put this session's fingerprints on another workstream's active database for no gain.
+
+## 8 · And the first boot died, which is a tooling fact worth keeping
+
+No shutdown line, no traceback, no signal, 5.8 GB free at the time — it stopped mid-prewarm.
+`nohup … &` **inside** a backgrounded harness command does not detach: the wrapper exits
+immediately, reports success, and the child goes down with it. The relaunch runs the server **as**
+the background command instead, which is what keeps it alive across turns.
+
+⛔ Note the shape: the wrapper reported **exit 0** for a server that was dead thirty seconds later,
+and the `until` loop that had just printed `LISTENING` was correct when it printed it. Neither was
+lying; both were answering a question about a moment. **`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`**, in a new costume.
+
