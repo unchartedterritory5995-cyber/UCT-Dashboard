@@ -172,7 +172,14 @@ UNITS = [
     ("d5-cp3-build-record", ["3bf13974a"], False),          # confirmed-splits ledger, nothing reads it yet
     ("d5-cp4-build-record", ["da2930cec"], False),          # dual-compute, dark, INCIDENTAL not live
     ("d5-cp5-build-record", ["c7ac0b7bc"], False),          # source='d5' producer, ship dark
-    ("d5-cp7-build-record", ["8ad9e1d62"], False),          # adjustment-basis label, new sibling endpoint, dark
+    # ⛔ member_visible_files derives True here: api/routers/bars.py is under the
+    # api/routers/ member-surface root (K CP15 -- the layer that MOUNTS an HTTP
+    # endpoint a member's browser CAN reach) and the change is a genuinely new
+    # route, not a comment-only edit. Matches the gate packet's own §4 table,
+    # which calls CP7 "the first member-visible change in the programme" --
+    # reachable by a member's authenticated client even though no UI renders
+    # it yet (that rendering is the explicitly-deferred S8/S10 work).
+    ("d5-cp7-build-record", ["8ad9e1d62"], True),           # adjustment-basis endpoint, MEMBER-VISIBLE (reachable, unrendered)
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
