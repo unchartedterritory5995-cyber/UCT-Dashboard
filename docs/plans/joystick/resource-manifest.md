@@ -116,3 +116,60 @@ exists to avoid. A resource-voided step says nothing whatsoever about the code.
 physical is oscillating across the 4.5 GB line. Per step 5, work continues on everything that
 needs neither a browser nor a build, sampling every 120 s, and the browser work starts the moment
 three consecutive samples pass.
+
+---
+
+## 5 · Step 0 — the build. DONE, artifact verified, and one lesson the threshold did not carry
+
+Ran at 3/3 threshold (5.8 / 5.7 / 5.6 GB free, ~88% commit). Sampled every 30 s throughout.
+
+```
+t+  0s  free 4.6 GB  commit 90.1%
+t+ 30s  free 4.3 GB  commit 90.7%
+t+ 60s  free 5.6 GB  commit 88.0%
+t+150s  free 5.8 GB  commit 87.1%
+t+180s  free 1.9 GB  commit 95.0%   <-- below the 3.5 GB abort line
+t+210s  free 1.5 GB  commit 97.3%   <-- and further
+```
+
+**The build completed before a boundary could be taken.** It is recorded as DONE rather than
+`INCONCLUSIVE-RESOURCE` because the artifact was then verified **by content, not by exit code**:
+
+| checked | result |
+|---|---|
+| `node_modules` — the thing a sweep destroys | **368 entries, unchanged from before the build**; `vite` still present |
+| the worktree is still a repository (a 2026-09-12 sweep destroyed a `.git` file) | `git rev-parse` works |
+| `dist/` | **476 files, 38 MB**, `index.html` 16,586 bytes |
+| the log's own tail | all three stages present (`vite build`, cot-facts, flow-facts), `EXIT=0` |
+
+> ### ⭐ THE LESSON: A THRESHOLD ON THE BOX IS NOT A BUDGET FOR THE STEP.
+> Three consecutive samples at **5.6 GB free** did not predict that this build would take the box
+> to **1.5 GB**. `npm run build` has a peak demand of roughly **4 GB** all by itself. The threshold
+> answers *"is there room right now"*; it says nothing about *"how much will this step ask for"*,
+> and the two are different questions. **Budget the step's own peak against the headroom**, not
+> just the headroom against a constant.
+
+⚠️ It is also why the abort rule could not fire usefully here: the excursion and the completion
+happened inside the same 30 s window. A rule that samples at 30 s cannot stop a step whose entire
+danger window is shorter than that. **For the next expensive step, the headroom has to be there
+BEFORE it starts, not watched for during it.**
+
+## 6 · Why the box is under pressure, measured rather than assumed
+
+The five node processes holding ~1.9 GB after the build are **not this session's**:
+
+```
+pid 38636  574 MB  uct-worktrees\notebook-k\...\vitest.mjs run --shard=2/6
+pid 50192  463 MB  vitest run src/components/chart/engine/ast ...
+pid 42200  436 MB  + three more vitest workers
+```
+
+**Another session is running a six-shard gate right now.** That is the "one gate at a time on this
+box" rule, and it is not this session's to enforce — but it is this session's to *account for*:
+opening Chrome on top of a running six-shard gate is precisely the 2026-09-12 shape (three
+concurrent gates plus an unscoped pytest, `node_modules` swept to zero, a `.git` destroyed).
+
+⛔ **So Chrome waits.** The pressure is transient — a six-shard gate is ~25 minutes — and the built
+bundle is on disk, so nothing has to be repeated when the window opens. Step 1 (BEFORE frames)
+starts from `dist/`, not from a rebuild.
+
