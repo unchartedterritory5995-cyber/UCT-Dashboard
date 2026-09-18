@@ -1,11 +1,41 @@
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
-> sub-timers (live once its push clears the recency window — see below) and name, by field,
-> which SQLite touch carries the 80-110s; R49 LIVE REHEARSAL (not yet run — the D-21 checklist
-> is set-flag → confirm in-process → inject breach → confirm the SCHEDULED-TASK monitor unsets it
-> → confirm the page → confirm the log, for BOTH canary and member phase); W8 (accuracy audit,
-> **BUILT + rail-proved 2026-09-18, no live/production run yet** — see below); R69 (build+prove
-> locally this weekend for Monday); R62 retry (first window with no api/ deploy in the prior
-> 20 min); W5/canary/Monday-F1/member-flip/close-out downstream of all of the above.
+> sub-timers (live now that its push landed — see below) and name, by field, which SQLite
+> touch carries the 80-110s; R49 LIVE REHEARSAL (gate opens 16:20 ET today — check for a
+> genuinely settled window, not just the clock, given today's sustained deploy churn; weekend
+> otherwise); W8 (accuracy audit, **BUILT + rail-proved 2026-09-18, no live/production run
+> yet** — see below); R69 (build+prove locally this weekend for Monday); R62 — **today's
+> 09:30-16:00 ET market-open window closed without a clean 10-consecutive-receipt streak**
+> (read live at ~19:16 UTC: held_lock_ms bounced 456-3200ms all session, never close to
+> settled — today was never quiet enough; retry Monday); W5/canary/Monday-F1/member-flip/
+> close-out downstream of all of the above.
+>
+> ✅ **R71's TWO-STEP PROOF IS NOW FULLY CLOSED, 2026-09-18.** (1) `d517e7cd7`
+> (`docs/d21-checklist-proof` branch, the master-tracked `D14-LOG.md`) came back **SKIPPED** —
+> a docs-only push produces no web deploy record, exactly as `watchPatterns` promises.
+> (2) `25d9e93ad` (R72's own commit, `api/services/screener/live_tier.py` +
+> `snapshot_db.py`) reached **SUCCESS** — an `api/**` push still deploys normally. Both read
+> live from `railway deployment list --service web --json`, not inferred.
+>
+> ⛔⛔ **A REAL, LIVE, REPO-WIDE BUG FOUND AND FIXED WHILE CHASING R72's OWN PUSH — READ THIS
+> BEFORE TRUSTING ANY OLDER "why is the guard stuck" NOTE IN THIS FILE.** `tools/pre_push_guard.py`
+> treated a **SKIPPED** deployment row (Railway's own watchPatterns correctly declining to
+> build a docs/tools-only commit — R71's whole point) as **"a swap is in flight"**, which is
+> categorically false for SKIPPED and permanently jams the guard for EVERY workstream's push
+> the moment such a row becomes "the newest" — a row that can never transition to SUCCESS.
+> Measured live: `bf100aadf` (`tools/hub_prod_smoke.py`) sat as newest for 30+ minutes refusing
+> every push while the real pod was healthy underneath it on the prior SUCCESS. R71 shipping
+> TODAY is what turned this from a latent bug into an active one — SKIPPED rows are now routine.
+> **Fixed in two commits, both merged to master, both mutation-proved, sha-verified restores:**
+> `3b60707a9` (`latest_deployment()` — SKIPPED excluded before guard 1's "must be SUCCESS"
+> check ever sees it; all-SKIPPED collapses to UNREADABLE, never a silent pass) and `4c2d09b1a`
+> (`recent_deployments()` — SKIPPED excluded from BOTH cadence clauses too, after the first fix
+> alone still left burst blocked for ~44 more minutes on pure SKIPPED noise with zero real
+> builds behind it; the mutation-proof additionally caught that the un-fixed code refuses on
+> the WRONG clause — recency on the noise, not burst on real concurrent commits — same verdict,
+> wrong reason, wrong clearing time). 85/85 `tests/test_pre_push_guard.py` green.
+> ⭐ **This fix, uncommitted, is what let R72's own push through** — applying it live in the
+> working tree was what first revealed the guard had been correctly reading `bd03e8cba SUCCESS`
+> underneath the stuck row the whole time.
 >
 > ✅ **W8 BUILT AND RAIL-PROVED 2026-09-18.**
 > `docs/discord-render/instruments/w8_accuracy_audit.py` — accuracy audit for `/chart`
