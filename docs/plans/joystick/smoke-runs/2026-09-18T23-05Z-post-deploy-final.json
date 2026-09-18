@@ -1,0 +1,145 @@
+[
+  {
+    "check": "theme[dark]",
+    "verdict": "PASS",
+    "detail": "data-theme=dark bg=rgb(16, 16, 18)",
+    "bg": "rgb(16, 16, 18)"
+  },
+  {
+    "check": "hub-showing[dark]",
+    "verdict": "PASS",
+    "detail": "box={'w': 84, 'h': 84}"
+  },
+  {
+    "check": "at-rest[dark]",
+    "verdict": "PASS",
+    "detail": "pad+chip+Actions showing; 6 bubbles PRESENT and none showing",
+    "trio": {
+      "pad": true,
+      "chip": true,
+      "actions": true
+    },
+    "sample_transform": "matrix(0.72, 0, 0, 0.72, 0, 0)",
+    "bubble_count": 6
+  },
+  {
+    "check": "drag-opens[dark]",
+    "verdict": "PASS",
+    "detail": "0 \u2192 6 visible: ['chart.planTrade', 'chart.alert', 'chart.flag', 'chart.draw', 'chart.voice', 'chart.home']",
+    "visible": [
+      "chart.planTrade",
+      "chart.alert",
+      "chart.flag",
+      "chart.draw",
+      "chart.voice",
+      "chart.home"
+    ],
+    "chip": "ChartActions"
+  },
+  {
+    "check": "dividers[dark]",
+    "verdict": "PASS",
+    "detail": "exactly 2 dividers render inside the Joystick card (widths ['1px', '1px'], colour rgb(42, 44, 49)) out of 20 divs in the card \u2014 D-49 holds",
+    "total_divs": 20
+  },
+  {
+    "check": "surface-control[dark]",
+    "verdict": "PASS",
+    "detail": "switch present, value='simplified', options=['simplified', 'full']",
+    "options": [
+      "simplified",
+      "full"
+    ]
+  },
+  {
+    "check": "kill-switch[dark]",
+    "verdict": "PASS",
+    "detail": "hub hidden with hub_preview_enabled=false (no hub-root in the DOM)",
+    "scope": "client half on the production bundle; server half railed separately"
+  },
+  {
+    "check": "theme[light]",
+    "verdict": "PASS",
+    "detail": "data-theme=light bg=rgb(255, 255, 255)",
+    "bg": "rgb(255, 255, 255)"
+  },
+  {
+    "check": "hub-showing[light]",
+    "verdict": "PASS",
+    "detail": "box={'w': 84, 'h': 84}"
+  },
+  {
+    "check": "at-rest[light]",
+    "verdict": "PASS",
+    "detail": "pad+chip+Actions showing; 6 bubbles PRESENT and none showing",
+    "trio": {
+      "pad": true,
+      "chip": true,
+      "actions": true
+    },
+    "sample_transform": "matrix(0.72, 0, 0, 0.72, 0, 0)",
+    "bubble_count": 6
+  },
+  {
+    "check": "drag-opens[light]",
+    "verdict": "PASS",
+    "detail": "0 \u2192 6 visible: ['chart.planTrade', 'chart.alert', 'chart.flag', 'chart.draw', 'chart.voice', 'chart.home']",
+    "visible": [
+      "chart.planTrade",
+      "chart.alert",
+      "chart.flag",
+      "chart.draw",
+      "chart.voice",
+      "chart.home"
+    ],
+    "chip": "ChartActions"
+  },
+  {
+    "check": "dividers[light]",
+    "verdict": "PASS",
+    "detail": "exactly 2 dividers render inside the Joystick card (widths ['1px', '1px'], colour rgb(227, 229, 231)) out of 20 divs in the card \u2014 D-49 holds",
+    "total_divs": 20
+  },
+  {
+    "check": "surface-control[light]",
+    "verdict": "PASS",
+    "detail": "switch present, value='simplified', options=['simplified', 'full']",
+    "options": [
+      "simplified",
+      "full"
+    ]
+  },
+  {
+    "check": "kill-switch[light]",
+    "verdict": "PASS",
+    "detail": "hub hidden with hub_preview_enabled=false (no hub-root in the DOM)",
+    "scope": "client half on the production bundle; server half railed separately"
+  },
+  {
+    "check": "smoke-reset-last",
+    "verdict": "PASS",
+    "detail": "joystick_hub restored to baseline '{}': byte-identical"
+  },
+  {
+    "check": "surface-roundtrip",
+    "verdict": "PASS",
+    "detail": "production stores, serves and renders the preference: full=7 bubbles vs simplified=6 \u2014 the R4 cut is reachable from Settings",
+    "full": [
+      "chart.planTrade",
+      "chart.alert",
+      "chart.flag",
+      "chart.draw",
+      "chart.note",
+      "chart.voice",
+      "chart.home"
+    ],
+    "simplified": [
+      "chart.planTrade",
+      "chart.alert",
+      "chart.flag",
+      "chart.draw",
+      "chart.voice",
+      "chart.home"
+    ]
+  }
+]
