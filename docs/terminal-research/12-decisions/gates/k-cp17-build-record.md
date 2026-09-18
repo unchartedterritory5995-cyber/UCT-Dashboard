@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-18
+APPROVED AT SHA:  5beba91be
+SCOPE APPROVED:   CP17 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP17 — a resolution-landed commit reads MERGED, not a permanent BLOCKER.** Scope is
