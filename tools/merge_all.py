@@ -147,6 +147,7 @@ UNITS = [
     ("k-cp15-build-record", [], False),                      # docs worktree only
     ("k-cp13-build-record", [], False),                      # docs worktree only
     ("k-cp16-build-record", [], False),                      # docs worktree only
+    ("k-cp17-build-record", [], False),                      # docs worktree only
     ("packet-t-stale-test-gate", ["7041a04a8"], False),
     ("d3-cp2-build-record", ["af9fe21a6"], False),
     ("s2-accelerator-chord-pre-implementation-gate", ["0ef787268"], True),  # MEMBER-VISIBLE
