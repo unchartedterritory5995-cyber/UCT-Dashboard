@@ -1,9 +1,19 @@
 # OI-13 — the render-token rotation runbook
 
-**Written 2026-09-15 (D-11, Part 4.3). NOT STARTED — deliberately.** R24 says: if any
-step cannot complete inside one window, STOP before setting anything. Reading the source
-first turned up three facts that make the rotation a different shape than the directive
-assumed, and one of them puts a step outside this session entirely.
+**Written 2026-09-15 (D-11, Part 4.3). ✅ COMPLETE 2026-09-18, owner-directed.** All 7 steps
+below ran across two sessions spanning the deliberate delay this doc's own R24 caution called
+for: steps 1-3 (dual tokens on Railway) and step 4 (Morning Wire's local `.env`) landed before
+today; step 5's functional proof (a live `/chart` render + Morning Wire's own successful
+07:35 ET run, fingerprint-matched) and steps 6-7 (clearing `*_PREVIOUS`, re-running the 11×4
+control against 22.5 MB of REAL captured log content) closed it today. Full account:
+`D14-LOG.md`, entries `08:33 ET` and `08:52 ET`. C-13 is CLOSED in `01-failure-forensics.md`.
+Left below verbatim as the record of what the runbook actually required — read it before ever
+rotating this credential again.
+
+~~NOT STARTED — deliberately.~~ R24 says: if any step cannot complete inside one window, STOP
+before setting anything. Reading the source first turned up three facts that make the rotation
+a different shape than the directive assumed, and one of them puts a step outside this session
+entirely.
 
 ---
 

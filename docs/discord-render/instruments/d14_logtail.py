@@ -44,6 +44,16 @@ EVENTS = LOG_DIR / "logtail-events.jsonl"
 LOCK = LOG_DIR / ".logtail.lock"
 LOCK_STALE_S = 600
 
+#: ⛔⛔ FOUND 2026-09-18 reading the daemon's own output: the "web" and "flow-worker" TailWorker
+#: threads both append to EVENTS with no lock. On Windows, two threads' `open(...).write(...)`
+#: calls can interleave mid-line -- measured directly: a captured line read back as
+#: `{"t": "...", "gap": "spawn_failed", ...` immediately followed on the SAME line by a second
+#: JSON object's tail with no newline between them, corrupting one JSONL record. A resilient
+#: parser can recover (skip the byte, resync), but the committed evidence file should not need
+#: one. One process-wide lock around every write closes this without adding cross-process
+#: coordination (each daemon invocation already holds LOCK for that purpose).
+_EVENTS_WRITE_LOCK = threading.Lock()
+
 SERVICES = ("web", "flow-worker")
 RETAIN_HOURS = 72
 MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB hard cap, oldest deleted first
@@ -65,8 +75,9 @@ def _now() -> str:
 
 def _write_event(rec: dict) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(EVENTS, "a", encoding="utf-8", newline="\n") as fh:
-        fh.write(json.dumps(rec) + "\n")
+    with _EVENTS_WRITE_LOCK:
+        with open(EVENTS, "a", encoding="utf-8", newline="\n") as fh:
+            fh.write(json.dumps(rec) + "\n")
 
 
 def _lock_held() -> bool:

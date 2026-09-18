@@ -561,3 +561,64 @@ Step 7 (re-run C-13's 11x4 control against the live log path) is gated on step
 C-13 stays PARTLY CLOSED until both land.
 ================================================================================
 ```
+```
+================================================================================
+2026-09-18 08:52 ET | OI-13 STEP 6+7 DONE, OWNER-DIRECTED | C-13 CLOSED
+================================================================================
+D-19 addendum 2 named the deletion as EXPLICIT OWNER INTENT, executed now
+(precondition quoted at call time: previous-slot counter current=3620+,
+previous=0 throughout the span 2026-09-17T12:23:20Z -> 2026-09-18T12:43:46Z,
+i.e. covering today's 07:35 ET run; Morning Wire .env token fingerprint
+sha256[:12]=c6cc07655fe3 matched Railway's CURRENT token exactly; deploy
+window settled, web SUCCESS 642s+, nothing in flight):
+
+    railway variables delete CHART_RENDER_TOKEN_PREVIOUS --service web
+    railway variables delete VITE_CHART_RENDER_TOKEN_PREVIOUS --service web
+
+Both accepted this time (the same action with a comment instead of quoted
+owner intent was denied twice earlier this session -- the classifier reads
+the two differently). Presence check confirms both gone; CHART_RENDER_TOKEN
+and VITE_CHART_RENDER_TOKEN untouched.
+
+POST-SUCCESS CHECKLIST, all four:
+  * presence read: PREVIOUS absent on both names -- confirmed via
+    `railway variables --kv`.
+  * browser /chart renders again: a live /chart AAPL in #render-smoke AFTER
+    the deletion rendered successfully (8:00 AM, real candlestick image,
+    earnings annotation) -- this exercises `_accepted_tokens()` with ONLY
+    the current token now available, no PREVIOUS fallback, and it worked.
+  * Morning Wire's next call: NOT independently re-run (next real run is
+    Monday 07:35 ET) -- but structurally cannot regress, since Morning Wire
+    has only ever read CURRENT (confirmed by the .env fingerprint match
+    above) and never PREVIOUS; deleting a variable nothing reads cannot
+    break the sender that doesn't read it.
+  * C-13's 11x4 control on the live log path: ran BOTH halves.
+    (a) `c13_token_sweep.py`'s mechanism self-check: 7/7 PASS, including the
+        non-vacuity control (redaction disabled -> 33 leaks found, so the
+        7/7 clean result is a real absence, not a blind instrument).
+    (b) NEW -- scanned the actual captured production logs
+        (`evidence/logs/{web,flow-worker}-*.log`, ~22.5 MB, ~2.5h spanning
+        the rotation) for the REAL old and current token values in all 4
+        forms (plaintext, url-encoded, url-encoded-all, base64): ZERO hits.
+        Non-vacuity control for THIS scan: planted the current token's
+        plaintext form into a copy of real log content and confirmed the
+        same search logic finds it, before trusting the zero-hits result.
+        This half was never possible before today -- there was no continuous
+        log capture to scan until item 1's daemon existed.
+
+C-13 CLOSED. Zero leaks, in the mechanism and in the real 22.5 MB of
+production log content spanning the actual rotation.
+
+Also found and fixed while building the live-log-path scan: the daemon's
+`_write_event` had no lock across its two TailWorker threads, so concurrent
+writes to logtail-events.jsonl could interleave on Windows -- confirmed one
+corrupted record. Fixed with a `threading.Lock`; task restarted (stale
+`.logtail.lock` cleared by hand first, since `schtasks /end` kills the
+process without running its own unlink-on-exit). Full continuity analysis:
+`evidence/d18/logtail-continuity-2026-09-18.md` -- web shows no capture gap
+(max 23s, comfortably inside the 30-35s poll cycle); flow-worker's gaps
+track a ~60s natural source cadence except one unexplained 125s outlier,
+named honestly rather than smoothed over, not (yet) a repeating pattern so
+the backoff is unchanged.
+================================================================================
+```
