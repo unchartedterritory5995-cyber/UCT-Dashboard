@@ -210,6 +210,18 @@ be the invented-cause defect. The next attempt at the missing key name was
 **refused by the harness as credential exploration**, correctly, and was not
 routed around.
 
+⛔⛔ **THE "WHY EMPTY" QUESTION IS ANSWERED, AND IT IS NOT ANSWERABLE FROM
+OUTSIDE THE FUNCTION.** Read `massive.py::get_full_market_snapshot` (no
+execution, no credentials): it calls `self._get(url)` inside a bare
+`try/except Exception: return {}`, and `_get` itself does `resp.raise_for_status()`
+with no status inspection above it. **An entitlement 401/403, a rate-limit 429,
+a 5xx, and a genuinely empty `{"tickers": []}` from the provider are ALL
+indistinguishable at this call site** — every one of them produces the same
+`{}` this probe saw. This is not H.8's cause; it is why H.8's cause cannot be
+named without either instrumenting the method (a code change, not a
+measurement) or the credentialed request the harness correctly refused. Recorded
+as the finding it is, not chased further.
+
 ⚠️ **AND A SECOND OBSERVATION, RECORDED RATHER THAN CONCLUDED.** Two reads
 **49 seconds apart** during RTH returned the **identical** volume 30,092,264.
 That is consistent with the served payload's own cache TTL rather than a
