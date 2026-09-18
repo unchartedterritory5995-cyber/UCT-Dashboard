@@ -2,6 +2,70 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 18:2X ET — R38 continuing: gate 5.4 remerged again; gate 5.2 re-verdict queued; the Ready click is BLOCKED on Gate v2.1, not skipped.
+>
+> Picked up from the entry below (owner delegated "proceed to finish" —
+> R29/R38 decisions themselves are unchanged, this is execution only).
+>
+> ⛔ **THE DRAFT→READY CLICK HAS NOT HAPPENED YET, AND WAS NOT FORCED THROUGH.**
+> Opened PR #145 in the owner's real browser tab (still the one driving this
+> whole leg) and read Gate v2.1 before touching anything:
+> `visibilityState: "hidden"`, `screenY: -32000`, `outerHeight: 28` — the
+> Windows minimized-window sentinel, re-checked a second time a moment later
+> with an identical reading. **Same class of blocker as the 15:20 entry's
+> "not composited at all"**, this time the window is minimized rather than the
+> desktop being off entirely. There is no tool in this session that can restore
+> an OS-level minimized window — that is the owner's hands, not a permission
+> this session lacks. Not clicking blind into it: Gate v2.1 exists precisely so
+> a write never lands on a tab state nobody can see. Will retry when it reads
+> `visible` with real screen coordinates.
+>
+> ✅ **R38 5.4 — remerged a second time.** `origin/master` had moved ONE more
+> commit past the `d2faaabff` merge below: `e38d47b55` ("D5 CP7:
+> adjustment-basis label for one (ticker, tf) series"), touching
+> `api/routers/bars.py` — real overlap with this branch's own changes to that
+> file (checked via `comm -12` on the merge-base-relative diff, not the
+> HEAD-vs-master symmetric one, which is a different and much larger set).
+> Merged clean as **`823d8bf402931cde9422e13a43771f09e36cedcf`** — git's `ort`
+> strategy auto-resolved `bars.py` with no manual conflict markers. Verified:
+> no `<<<<<<<` markers anywhere, both `bars.py` and the new
+> `api/services/adjustment_basis.py` parse, and the merge's own new
+> `tests/test_adjustment_basis.py` passes 12/12.
+>
+> ⏳ **Gate 5.2's verdict against `823d8bf40` (and its predecessor `11d430f4b`)
+> is still pending — the reading two entries below, `NEW_FAILURES exit=1
+> new=5` against baseline, was measured against the now-superseded
+> `1a631599b` and does not cover either merge since.** The gate box
+> (`tools/gate_box_lock.py`) is `HELD` by peer session **JOYSTICK**
+> (`joystick-launch-close`, pid 63640, its own six-shard run) — confirmed
+> directly by JOYSTICK cross-session ("my LAST gate cycle... the box should be
+> yours from roughly 23:05 UTC"), and independently verified rather than taken
+> on trust: JOYSTICK's cited commit `38f60f717` is a real ancestor of
+> `origin/master`, `tools/import_edges.mjs` is real (172 lines, already on
+> this branch), and `gate_carry_over.py` genuinely supports the `--edges-json`
+> flag JOYSTICK pointed at. A background poll of `gate_box_lock.py status` is
+> running to catch the moment it frees, so the next gate run can start without
+> babysitting the lock by hand.
+>
+> ⛔ **Gate 5.3 is unchanged and still not this session's to force.** Same
+> ruling as the entry below: the harness's own safety classifier refused BOTH
+> the read-only `flow_worker_watch_coverage.py` diagnostic and the local,
+> fully-reversible `git commit` of the drafted header touch, tagged
+> `[Production Deploy]` on each attempt. Per the classifier's own instructions,
+> at most one safer alternative was tried (plain `git diff` reasoning instead
+> of the tool) and no third workaround was attempted — the uncommitted edit
+> was cleanly reverted (`git diff --stat` empty). This still needs either the
+> owner pasting the drafted header paragraph in themselves, or a permission
+> rule change on their end. **Nothing about today's remerges changes that
+> reasoning** — the 16-file gap is still traced as pre-existing to this
+> branch's entire history, not introduced by either merge.
+>
+> ▶️ **NEXT:** when the browser comes back into view, click Ready and verify.
+> When the gate box frees, run gate 5.2 fresh against `823d8bf40`, classify any
+> failures against the known 5-name baseline. Gate 5.3 stays owed to the
+> owner. 5.5 (rollback statement) → 5.6 (the actual merge) → 5.7 (post-deploy
+> verify) → 5.8 (this file) follow once 5.2 and the Ready flip both land.
+
 > ### ⏱️ 2026-09-18 15:20–15:30 ET — ✅ THE VENDOR CAPTURE IS DONE. ✅ #145 IS READY. ⛔ R38 STOPS AT GATE 5.3.
 >
 > **The blocker resolved itself: the owner's own desktop became visible again
