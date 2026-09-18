@@ -2223,3 +2223,70 @@ reachable" caveat, now reachable again).
 **Untouched, per the ratified DC-2 plan:** `BREADTH_SERIES_ENDPOINT_ENABLED`
 stays dark — this is a cap raise behind an already-off flag, not a flip.
 
+### D-055 · DC-2 §5 production flip — all three variables, in order, verified from the pod (2026-09-18)
+
+**Executed per the ratified DC-2 confirmation.** Sequence, each step verified from the
+pod before the next, each its own single-variable Railway redeploy:
+
+| step | variable | value | deploy | verified |
+|---|---|---|---|---|
+| 1 | `BREADTH_SERIES_ENDPOINT_ENABLED` | `1` | `7d774652` → SUCCESS | `/series` 200 at 365-session window (252 sessions) AND the Max preset (4,707 sessions, ≥ 4,000) |
+| 2 | `BREADTH_DC_V2_2_ENABLED` | `admin` | `f8a0d5c1` → SUCCESS | admin session reads `breadth_dc_v2_2_enabled: true`; the paired non-admin verification could not be run (see below) |
+| 3 | `BREADTH_DC_V2_2_ENABLED` | `1` | `bd58525b` → SUCCESS | true for the admin session (now the general case); 10-minute watch, 10 samples, all `/api/health` 200 and `/series` 200, p95 well under 2.0 s at the Max preset (max sampled 334.6 ms) |
+| 4 | `BREADTH_DC_V2_3_ENABLED` | `1` | `9c55ecfe` → SUCCESS | both flags true; Max preset returns 4,707 sessions / 4,529 reconstructed; LTTB engaged (`v2-sampled` note present, live DOM); era note present with REAL measured universe counts (1,498 → 2,703, not the audit's illustrative numbers); 10-minute watch, 10 samples, all healthy |
+
+**Non-admin verification unavailable, per the ratified message's own pre-cleared
+contingency** ("if no admin session is available to the harness, that is the
+verification — do not skip the step, do not wait for a look"): `MEMBER_SMOKE_EMAIL` /
+`_PASSWORD` consistently return `401 Invalid email or password` against production,
+both before and during the flip. Not investigated further — the account may simply not
+be provisioned for this purpose. Recorded as the verification for that half of step 2,
+not as a block.
+
+**Two concurrent, unrelated landings occurred mid-flip** (`b43db5846cb5` — a merge
+into `r63c-cold-start-guard`; `61b3d209689a` — a further master advance), both from
+other active sessions on this box. Neither touches Data Charts V2 or `/series`; both
+were confirmed to carry `546a11419` (this landing) and `a5309c492` (the hotfix below)
+as ancestors, and every flag/behaviour check was re-run and held on each new commit.
+Recorded because CLAUDE.md's own diagnostic rule is to name a new SHA, not wave it
+through — this is that naming, and the finding is "benign," not "ignored."
+
+**⚠️ A genuinely new, twice-replicated finding on `/series` cold-boot cost.** The
+FIRST `/series` request against a freshly booted process costs far more than
+FINAL.md's per-deploy table suggested: **45.5 s** (step 1's own first call, 365-session
+window) and, independently, **21.6 s** (the final verification pass, a fresh deploy,
+Max-preset window) — both far closer to D-042's ORIGINAL "~55 s" figure than to
+FINAL.md §14.1's "worst observed deploy max 3,752 ms." **This does not change the
+cap decision:** in both cases the cost fell on whichever request happened to be FIRST
+regardless of its span — step 1's cold cost hit the SMALLER 365-session window while
+the larger Max-preset request immediately after was fast (2.9 s), and every repeat
+request on both deploys settled to 70–300 ms within one further call. **The
+conclusion:** this is a real, per-process-lifetime, first-touch cost (almost certainly
+OS page-cache cold on the SQLite files, not application-level), paid once per deploy
+regardless of what span a member happens to ask for first — orthogonal to the session
+cap, present identically at the OLD 365-session cap, and not something raising the cap
+to 4,700 introduced or worsened. It is, however, a real number worth a member never
+seeing: the FIRST paid request after any `web` deploy pays it. **Filed as an open
+question for whoever next touches this reader** — not this landing's to fix, since
+D-043's whole point was to keep the reader's OWN performance work in its own
+programme.
+
+**A repo-wide blocker found and fixed in the same window, unrelated to DC-2:**
+`.github/workflows/full-suite-report.yml` landed (by another session, immediately
+before this landing's own push) without the required `# promotion-gate:` marker,
+which made `tools/promotion_gate.py` REFUSE **every** master→production promotion,
+fail-closed, repo-wide — not just this one. Verified directly
+(`python tools/promotion_gate.py` → `UNCLASSIFIED workflow(s): full-suite-report.yml`
+/ `PROMOTION: REFUSE`) and independently via the `deploy-gate-state` ledger showing
+two consecutive successful gate runs with no promotion record. Fixed as a standalone
+commit (`a5309c492`, classified `no` — matching the file's own stated "report-only,
+never blocks" intent), which unblocked the whole queue, including this landing.
+
+**Checklist:** `PROGRAMME-CHECKLIST.md` DC8 marked DONE in the same commit as this
+record.
+
+**Revert, either direction, is a variable, not a deploy:** `railway variable delete
+BREADTH_DC_V2_3_ENABLED --service web` (or `_V2_2_ENABLED`) then
+`railway redeploy --service web --yes`, confirmed from the pod — same asymmetry as
+every other kill switch in this repo: deleting a variable does not itself redeploy.
+
