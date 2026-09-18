@@ -44,8 +44,24 @@ material that reads as a physical thing resting on glass — not a card, not a m
 These are the two best references for *gesture feel* on iOS, and neither is about looks.
 
 - **The home indicator** is the standard for *disappearing*: it is present, it is never in the way,
-  and it never competes. **The hub currently draws a pad, a chip and an Actions button at rest** —
-  three elements, permanently, over the data.
+  and it never competes.
+
+  ⚰️⚰️ **THIS SAID THE HUB DRAWS "a pad, a chip and an Actions button at rest — three elements".
+  IT DREW NINE, AND I HAD COUNTED THEM BY READING THE COMPONENTS.** Measured in Chromium on
+  `/charts`, at rest, coach mark dismissed, no gesture performed: **all six fan bubbles were
+  painted too** — `planTrade`/`alert`/`flag` at 0.4 (merely `.bubbleDisabled`, because that fixture
+  had no symbol) and `draw`/`voice`/`home` at **opacity 1**, `transform: none` on every one. On a
+  page with a symbol all six sit at full strength, overlapping each other and the chip, with labels
+  truncated to *"Plan t…"*.
+
+  ⭐ **THE SOURCE SAYS WHAT IS MOUNTED; ONLY THE FRAME SAYS WHAT IS SEEN.** `open` toggled exactly
+  one rule — `.fanOpen .fanWedge { opacity: 1 }` — and nothing in the stylesheet touched the
+  bubbles, so a reader of `HubFan.jsx` sees an `open` prop and reasonably assumes it governs them.
+  This is the entire argument for R8 being a RENDERED critique rather than a source review, and it
+  was proved by the first frame the loop ever took.
+
+  **Fixed 2026-09-18** — the closed fan is now `opacity: 0; transform: scale(0.72)`. At rest the hub
+  is the pad, the chip and the Actions button: the three elements this line always claimed.
 - **The Camera zoom dial** is the standard for *a control that follows a thumb*: it tracks
   continuously, it has detents you can feel, and it settles with physics rather than snapping.
 
