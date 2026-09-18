@@ -1,7 +1,19 @@
-> **NEXT WAKE REASON (D-16):** **W3** — wrap the member-reachable `async` sqlite handler
-> (`/api/oi/confirmation-map`) in `run_in_threadpool`, then the 15 admin routes in one batch with
-> a scanner self-check so the class cannot return. No blocker; it is simply the next unblocked
-> item. Then W5 (R59 hardening merge), W8 (accuracy audit).
+> **NEXT WAKE REASON (D-16):** **W2b** — OI-44 attribution: correlate the durable stall
+> record's wall-clock timestamps against what else runs then — breadth collector, EOD updaters,
+> `/api/push`. The log-tail daemon (`UCT-D14-LogTail`, item 1 of the Friday addendum) is now
+> running continuously so a captured window should finally exist next time this is attempted.
+> No blocker; it is simply the next unblocked item. Then W5 (R59 hardening merge), W8 (accuracy
+> audit).
+>
+> ✅ **W3 DONE AND MERGED 2026-09-18 08:21 ET, `925948522` on master.** NOT on this branch —
+> R59 makes `discord-render-hardening`'s runtime byte-for-byte invariant, and W3 touches
+> `api/main.py`, so it was relocated to `fix/oi44-async-sqlite-threadpool` (branched from master,
+> not this branch) and merged there under R58. All 16 loop-blocking async routes wrapped in
+> `run_in_threadpool`; scanner route-handler count 17 → 1 (`enrich_oi`, partner-owned, left
+> untouched). In-process acceptance on the live pod: a real `/api/oi/confirmation-map` call
+> produced zero new stall-record entries. Full account: `D14-LOG.md`, entry `2026-09-18 08:21 ET`.
+> ⛔ Both original commits (`c3fd509f7`/`dc098124e`) were reverted from THIS branch — do not
+> re-derive them from history; the branch is clean of the api/main.py change again.
 >
 > ✅ **W1 + W1b SHIPPED AND ACCEPTED.** `16e161f5f` then `110f250b7`, both deployed, both SHA-
 > verified two ways. The failure sentence names its cause class (the catch-all is gone) and

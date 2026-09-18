@@ -469,3 +469,95 @@ non-null). If still null -> STOP and diagnose. Then R52 (OI-44, the top item).
 one master push SPENT (owner-directed) | no env change | V2 flag unset
 ================================================================================
 ```
+```
+================================================================================
+2026-09-18 08:21 ET | W3 RELOCATED + MERGED UNDER R58 | 925948522 on master
+================================================================================
+CORRECTION to the 01:41 ET entry: W3's fix (c3fd509f7/dc098124e, wrapping the
+16 loop-blocking async routes) was pushed to discord-render-hardening first --
+wrong, because it touches api/main.py and R59 makes this branch's runtime
+byte-for-byte invariant. Both commits REVERTED here (640408391, cbdf6ac19),
+clean, no conflicts; scanner confirmed back to route_handlers=17 on this
+branch afterward.
+
+RELOCATED to fix/oi44-async-sqlite-threadpool, branched from master
+(8568d13ad): cherry-picked the fix commit (9c430e2d4), brought
+oi44_loop_blockers.py onto it too (4d90dc765 -- the scanner lives only on
+this branch's history; the gate test needs it present on whatever tree it
+merges into). Preflight from merge-base: zero file overlap with master's
+own new commits at every point checked. Roster derived from every test file
+importing api.main (127 files, the module actually touched): chunked into 8
+groups of 16, run individually -- 13 pre-existing failures found
+(test_alert_user_router.py x4, test_launch_hardening.py x1,
+test_refusal_reaches_every_surface.py x8), ALL baselined identical on a
+clean detached worktree at origin/master's tip with none of this change
+present. Zero NEW failures.
+
+Merged to master as 925948522 under R58: a BURST-only refusal (recency and
+in-flight passing on their own -- 3 distinct web deploys in the last 60 min,
+the D-05 shape) attested by Patrick per the owner's own D-19 Friday addendum,
+which named this exact case in advance ("scoped attestation only for
+burst"). Logged to logs/pre-push-guard-bypass.log.
+
+ACCEPTANCE, in-process, on the live pod (commit 925948522cb1): stall record
+read before and after a real POST to /api/oi/confirmation-map (smoke
+account, a real NVDA contract) -- total_recorded 103->103, lifetime_max_ms
+502.8->502.8, ZERO new stall events, loop.max_ms unchanged at 448.2. The
+call itself answered in 0.16s (a real "no such table" error on production's
+current flow.db, caught and returned exactly as before -- proves the error
+path survives the run_in_threadpool move too, not just the happy path).
+Loop-block during the call: unmeasurable because nothing crossed the stall
+recorder's floor, which is the strongest form of "< 100 ms."
+
+flow_worker_watch_coverage: OK, no strand, on both the relocated branch and
+the merge.
+
+NEXT: W2b (unchanged). F2 (OI-13 step 6) checked in parallel -- R29's 24h
+span was still ~2 min short at 08:21 ET; F1 (R61 flow-worker deploy) passed
+its 08:00 ET auto-defer per the owner's own addendum and moves to Monday.
+================================================================================
+```
+```
+================================================================================
+2026-09-18 08:33 ET | F2/OI-13 STEPS 1-5 CONFIRMED DONE; STEP 6 BLOCKED-permission
+================================================================================
+R29's 24h span closed at 08:23:20 ET (current 3413+, previous still 0 throughout
+-- durable across every restart in the window). Read OI-13-ROTATION-RUNBOOK.md
+before touching anything, since D-11's own runbook was NOT STARTED as of
+2026-09-15 and step 6 is flagged as the one irreversible-ish moment.
+
+Checked, not assumed, that steps 1-5 actually happened before considering step 6:
+  * Railway `web`: CHART_RENDER_TOKEN and CHART_RENDER_TOKEN_PREVIOUS both set,
+    to DIFFERENT values -- dual acceptance already live (steps 1-3 done).
+  * C:/Users/Patrick/morning-wire/.env: CHART_RENDER_TOKEN already holds the
+    NEW value, not PREVIOUS's (step 4, owner-only, already done).
+  * Task Scheduler "UCT Morning Wire": Last Run Time 2026-09-18 06:35 (today's
+    07:35 ET run), Last Result 0. run.log's final section shows a clean
+    "[API] Dashboard push: 200" with no 403/token errors anywhere in it.
+  * FUNCTIONAL PROOF, Discord sender (step 5, the half this session could still
+    do directly): a live /chart NVDA in #render-smoke, right now -- rendered
+    successfully, full candlestick image with earnings annotation. This
+    necessarily used the CURRENT (new) token, since that is the only one
+    web's chart-render path reads.
+
+Attempted step 6 (clear CHART_RENDER_TOKEN_PREVIOUS + VITE_CHART_RENDER_TOKEN_PREVIOUS
+on web) -- DENIED by the harness's own auto-mode classifier ("Secret-Store
+Writes"), twice (REVISED A4: retry once restated, then record and continue).
+Per A4, BLOCKED-permission, not worked around.
+
+What the owner needs to run (Railway CLI v4.35.0+ syntax; `railway variable`
+is singular per the CLAUDE.md correction on this exact command):
+
+    railway variable delete CHART_RENDER_TOKEN_PREVIOUS --service web --yes
+    railway variable delete VITE_CHART_RENDER_TOKEN_PREVIOUS --service web --yes
+
+Per the CLAUDE.md lesson on this exact command: delete does NOT redeploy the
+way --set does. Follow with `railway redeploy --service web --yes` and confirm
+from the POD (a real boot / behaviour), never from --kv.
+
+Step 7 (re-run C-13's 11x4 control against the live log path) is gated on step
+6 landing -- still open after that.
+
+C-13 stays PARTLY CLOSED until both land.
+================================================================================
+```

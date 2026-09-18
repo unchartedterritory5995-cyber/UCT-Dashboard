@@ -171,3 +171,10 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 
 # D-14 monitor transient lock (a live poller heartbeat, never evidence)
 docs/discord-render/evidence/d14-monitor/.poller.lock
+
+# D-18 log-tail daemon: raw rotating railway-logs captures (hourly, 72h retention,
+# 2GB hard cap) -- a local durable store oi44_align.py reads from disk, not a
+# committed artifact; unlike the small curated JSONL records, these are large
+# and constantly rewritten. The lock is transient the same way d14-monitor's is.
+docs/discord-render/evidence/logs/.logtail.lock
+docs/discord-render/evidence/logs/*.log
