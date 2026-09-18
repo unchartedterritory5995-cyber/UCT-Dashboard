@@ -454,3 +454,76 @@ def test_the_authoritative_close_is_NOT_lifted_again():
     # the close 1.0 and the name would read far BELOW its level instead.
     assert out["advancing"]["c"] == 0.0
     assert out["new_52w_highs"]["c"] == 1.0       # 10.0 >= 10.0*0.999
+
+
+# ── the fail-closed rule is SCOPED to names that can actually be compared ────
+
+def test_a_name_with_NO_usable_levels_is_counted_not_dropped():
+    """⛔⛔ THE DENOMINATOR TRAP. `_load_frame` returns an all-NaN row for every ticker
+    `bars.db` has no history for — in 2015 that is ~45% of the US union (measured:
+    union 4,707 vs 2,571 settled closes). Failing those closed would delete them from
+    `universe_count` and halve the denominator to buy nothing: a name with no level
+    cannot be compared against one, and `universe_count` never reads the price."""
+    import numpy as np
+    lv = _levels(["REAL", "EMPTY"], [[10.0] * 260, [float("nan")] * 260])
+    assert "REAL" in wr._comparable_names(lv)
+    assert "EMPTY" not in wr._comparable_names(lv), "an all-NaN row has nothing to compare"
+    per = _minutes({"REAL": 10.0, "EMPTY": 7.0})
+    out = wr.session_ohlc("2015-08-24", per, lv, 1, members={"REAL", "EMPTY"},
+                          basis={"REAL": 1.0})        # EMPTY has NO factor
+    assert out["universe_count"]["c"] == 2.0, "EMPTY must still be COUNTED"
+    # ...and it cannot reach a level-dependent metric, because those mask on _ok
+    assert out["new_52w_highs"]["c"] == 1.0, "only REAL, at its level, is a new high"
+
+
+def test_comparable_names_is_driven_by_the_levels_own_ok_flags():
+    lv = _levels(["A"], [[10.0] * 260])
+    names = wr._comparable_names(lv)
+    assert names == {"A"}
+    assert wr._comparable_names({}) == set()
+    assert wr._comparable_names({"tickers": []}) == set()
+
+
+def test_split_DENOMINATION_cannot_change_the_classification():
+    """⛔⛔ THE PROPERTY F1 VIOLATED, stated directly: the SAME economic situation
+    expressed in two different split denominations must classify identically.
+
+    A name trading 10% above its 52-week high is a new high whether you quote it
+    pre-split at 110 against a 100 level, or post-split (10:1) at 11 against a 10
+    level. Before the fix the two disagreed, because only one side was ever restated.
+    """
+    # post-split denomination: levels at 10, trades at 11, factor 1.0
+    post = wr.session_ohlc("2015-08-24", _minutes({"N": 11.0}),
+                           _levels(["N"], [[10.0] * 260]), 1, members={"N"},
+                           basis={"N": 1.0})
+    # pre-split denomination: the SAME name quoted at 110, levels still restated to 10
+    # (which is what bars.db actually holds), so the basis restates the price by 0.1
+    pre = wr.session_ohlc("2015-08-24", _minutes({"N": 110.0}),
+                          _levels(["N"], [[10.0] * 260]), 1, members={"N"},
+                          basis={"N": 0.1})
+    for k in ("new_52w_highs", "new_52w_lows", "pct_above_50sma", "pct_above_200sma",
+              "advancing", "declining", "universe_count"):
+        assert post[k]["c"] == pre[k]["c"], f"{k} changed with the denomination"
+        assert post[k]["o"] == pre[k]["o"], f"{k} open changed with the denomination"
+
+
+def test_the_split_rail_FAILS_against_the_old_unlifted_behaviour():
+    """⚠️ A property test that passes both before and after proves nothing. This pins
+    that the OLD path — no basis at all — gets the pre-split denomination WRONG, which
+    is exactly the defect. `basis=None` is the shipped-before behaviour."""
+    lv = _levels(["N"], [[10.0] * 260])
+    old = wr.session_ohlc("2015-08-24", _minutes({"N": 110.0}), lv, 1,
+                          members={"N"}, basis=None)
+    new = wr.session_ohlc("2015-08-24", _minutes({"N": 110.0}), lv, 1,
+                          members={"N"}, basis={"N": 0.1})
+    assert old["new_52w_highs"]["c"] == 1.0, "old path: the denomination fakes a high"
+    assert new["new_52w_highs"]["c"] == 1.0   # genuinely IS above its level here
+    # the tell is the MAGNITUDE metric, which the old path pins at 100% regardless
+    assert old["pct_above_50sma"]["c"] == 100.0
+    # and a name BELOW its level in truth is where they diverge outright
+    old2 = wr.session_ohlc("2015-08-24", _minutes({"N": 80.0}), lv, 1,
+                           members={"N"}, basis=None)
+    new2 = wr.session_ohlc("2015-08-24", _minutes({"N": 80.0}), lv, 1,
+                           members={"N"}, basis={"N": 0.1})     # truly 8.0 vs 10.0
+    assert old2["pct_above_50sma"]["c"] == 100.0, "old: 80 > 10, spuriously above"
+    assert new2["pct_above_50sma"]["c"] == 0.0, "new: 8.0 < 10.0, correctly below"

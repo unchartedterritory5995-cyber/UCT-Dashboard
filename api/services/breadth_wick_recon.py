@@ -215,6 +215,45 @@ def _levels_for_day(conn, tickers, day_ts):
     return bl.build_levels(tickers, closes, vols, prior)
 
 
+def _comparable_names(levels: dict) -> set:
+    """Names whose levels can actually be COMPARED against a price, and which therefore
+    require a basis.
+
+    ⛔⛔ NOT simply `levels["tickers"]`, and the difference is large. `_load_frame`
+    returns a row for every requested ticker, all-NaN for the ones `bars.db` has no
+    history for — and in 2015 that is roughly 45% of the US union (measured: union 4,707
+    against 2,571 names with a settled close). Treating the whole frame as
+    basis-requiring would fail those closed and delete them from `universe_count`,
+    halving the denominator to buy nothing: a name with no level cannot be compared
+    against one, so it can only ever be COUNTED, and a count does not read the price.
+
+    ⭐ So the rule is exactly "has something to be inconsistent with". A name with any
+    usable level must have a basis or be dropped; a name with none passes through, is
+    counted, and cannot reach a single level-dependent metric because every one of them
+    masks on the level's own `_ok` flag.
+    """
+    import numpy as np
+    tk = levels.get("tickers") or []
+    if not tk:
+        return set()
+    n = len(tk)
+    need = np.zeros(n, dtype=bool)
+    for key in ("max52_ok", "min52_ok", "max20_ok", "min20_ok", "maxath_ok"):
+        v = levels.get(key)
+        if v is not None and len(v) == n:
+            need |= np.asarray(v, dtype=bool)
+    sma_ok = levels.get("sma_ok") or {}
+    for v in sma_ok.values():
+        if v is not None and len(v) == n:
+            need |= np.asarray(v, dtype=bool)
+    for key in ("prev_close", "ema20_prev"):
+        v = levels.get(key)
+        if v is not None and len(v) == n:
+            a = np.asarray(v, dtype=float)
+            need |= np.isfinite(a) & (a > 0.0)
+    return {tk[i] for i in range(n) if need[i]}
+
+
 def session_eod_closes(conn, day_ts: int, tickers=None) -> dict:
     """{ticker: official adjusted close} for session `day_ts`, from `bars.db`.
 
@@ -334,7 +373,7 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     # printed first — a biased fake-low open that becomes a garbage lower wick.
     last_px: dict = {}
     _lv_tk = levels.get("tickers") or []
-    _lv_set = set(_lv_tk)
+    _lv_set = _comparable_names(levels)
     _pc = levels.get("prev_close")
     if _pc is not None:
         for _i, _tk in enumerate(_lv_tk):
