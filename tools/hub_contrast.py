@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hub_critique_capture import PROFILES, PTR_JS  # noqa: E402  — one authority
+from hub_critique_capture import PROFILES, PTR_JS, ensure_account  # noqa: E402 — one authority
 
 WCAG_AA_NORMAL = 4.5
 WCAG_AA_LARGE = 3.0
@@ -217,6 +217,10 @@ def main():
     ap.add_argument("--base", default="http://127.0.0.1:8131")
     ap.add_argument("--out", default="scratchpad/contrast")
     ap.add_argument("--profile", default="iphone", choices=sorted(PROFILES))
+    ap.add_argument("--email", default=None,
+                    help="sign in before measuring (required against production; the harness "
+                         "serves a synthetic admin and needs none)")
+    ap.add_argument("--password", default=None)
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args()
 
@@ -243,6 +247,20 @@ def main():
             for theme in ("dark", "light"):
                 ctx = browser.new_context(**prof)
                 ctx.route("**/api/auth/preferences", _prefs_route(theme))
+                # ⛔ PRODUCTION NEEDS A SIGN-IN; THE HARNESS DOES NOT. The harness serves a
+                # synthetic admin, so this tool was written with no auth at all — pointed at
+                # production it would land on the sign-in page and report "no visible bubbles",
+                # which reads as a PRODUCT result. A login failure must be INCONCLUSIVE and say
+                # so, never a measurement of a page we were never shown.
+                if args.email:
+                    ok, who = ensure_account(ctx, args.base, args.email, args.password,
+                                             allow_signup=False)
+                    if not ok:
+                        rows.append(dict(theme=theme, verdict="INCONCLUSIVE",
+                                         detail=f"login failed: {who} — nothing was measured"))
+                        print(f"  [??  ] {theme}: login failed ({who})")
+                        ctx.close()
+                        continue
                 page = ctx.new_page()
                 page.goto(f"{args.base}/charts", wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(2500)
