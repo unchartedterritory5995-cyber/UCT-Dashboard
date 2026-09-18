@@ -2,6 +2,44 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 (R39) — ✅ THE SESSION-OWNED BROWSER IS BUILT AND PROVEN. ⌨ ONE OWNER STEP LEFT.
+>
+> `tools/pine_vendor_capture.py`. Opens a **headed Playwright Chromium on a
+> persistent profile** at
+> `C:\Users\Patrick\AppData\Local\uct-capture-profile\tradingview` (outside every
+> worktree — the refusal fires if you point it inside one), navigates to
+> `01f1AcIj`, and **stops for the owner to sign in at the keyboard**. It never
+> reads, types, stores or logs a credential, never touches the owner's own Chrome
+> (pid 57780) and never borrows its profile. `_gate` is IMPORTED from the
+> member-pane tool — one gate, one authority — and `--self-check` fires it.
+>
+> **Proven end to end this run:** self-check OK · in-worktree profile REFUSED ·
+> opens the layout · reads **SIGNED OUT** (`signedOut: ["sign in"]`, title
+> `Chart Not Found — TradingView`, which is what a private layout looks like to a
+> stranger) · prints the banner · waits · exits **2** with the profile kept.
+>
+> ⚰️ **THREE DEFECTS IN MY OWN INSTRUMENT, FOUND BY RUNNING IT, ALL FIXED:**
+> (1) `aria-label="Open user menu"` is rendered in BOTH states, so the first run
+> announced *"already signed in"* on a signed-out page — a marker that cannot
+> distinguish the two states is not a marker; signed-out now wins a tie and the
+> ambiguous label is reported, never decisive. (2) "neither marker" was being
+> read as INCONCLUSIVE when it was usually "not settled yet" — the header had not
+> rendered at 9 s; the probe now polls for a determinate reading first. (3) the
+> banner's one non-ASCII glyph killed the run on a cp1252 console with
+> `UnicodeEncodeError`, at the exact moment it was about to ask for the one thing
+> it needs — stdout is reconfigured to UTF-8 (the `flag_ledger_audit.py` trap,
+> decoding the other way).
+>
+> ⌨ **THE ONE REMAINING OWNER STEP:** at a LIVE desktop (the session's window is
+> as invisible as any other if nothing is composited), run
+> `python tools/pine_vendor_capture.py --phase recon --wait 1800` and sign in
+> when prompted. **After that one sign-in the profile persists and no later
+> capture needs the keyboard.** ⚠️ The harness classifier refused to launch that
+> run in the BACKGROUND; a short foreground run is allowed, so either the owner
+> runs it, or the session runs it foreground while the owner is present.
+>
+> ⛔ Unchanged: **#145 DRAFT**, nothing merged, the vendor column UNMEASURED.
+
 > ### ⏱️ 2026-09-18 (H.12) — ✅ RULING RECORDED. ⛔ THE WINDOW READ `hidden` A THIRD TIME.
 >
 > ✅ **H.12 (owner, chat): the phone builder-door gap is WAVE 3, not a Wave 2
