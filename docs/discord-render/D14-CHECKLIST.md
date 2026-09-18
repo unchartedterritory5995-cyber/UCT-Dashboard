@@ -1,3 +1,49 @@
+> ✅✅ **R72 CONFIRMED LIVE IN PRODUCTION (2026-09-18, later pass).** Beyond "pushed" —
+> ancestry-verified two ways: `git merge-base --is-ancestor 875fdb6b0 origin/master` and,
+> after that push's own deploy record was superseded/marked `REMOVED` by later churn,
+> `git merge-base --is-ancestor 875fdb6b0 <the commit that actually reached SUCCESS>`.
+> Both hold. **Next real boot-window receipt is what reads the six new sub-timer fields
+> — this has NOT happened yet this pass** (needs Monday's regular session per
+> `test_the_tier_runs_in_the_regular_session_only`); do not claim it read until it is.
+>
+> ✅ **R69's REAL SCOPE FOUND AND FIXED (2026-09-18, later pass) — NOT "build+prove this
+> weekend", and not discord-render at all.** The terse line below ("R69 (build+prove
+> locally this weekend for Monday)") is this checklist's OWN shorthand for a definition
+> that lives in the owner's actual planning text, recovered by disciplined transcript
+> archaeology after a first grep hit turned out to be a false lead from an unrelated
+> chart-render/token-rotation programme (which ALSO uses R-numbers). R69 is the
+> **Options Flow / OI pipeline**, not chart rendering: `fetch_chain_price_oi()` in
+> `api/massive_oi_snapshots.py` was a SECOND, wasteful full-chain walk (up to 40 pages /
+> 10,000 contracts) on the `/flow` card path, called just to read OI+mark for the
+> ~10-20 contracts the card actually shows.
+> **Fix, on `fix/r69-oi-second-walk-live-mark-split`** (worktree
+> `uct-worktrees\r69-oi-live-mark`, off `origin/master` at `9abba727b`, rebased clean
+> onto a later `origin/master` with zero file overlap): added
+> `fetch_price_oi_for_contracts(sym, contracts)`, which reuses the ALREADY-PRODUCTION
+> per-contract single-endpoint mechanism (`_fetch_fields_all_async`, built 2026-07-20 for
+> `schwab_router.py`) scoped to just the shown contracts, with a ≤60s per-contract cache
+> (`_FIELDS_CACHE`/`FIELDS_CACHE_TTL_SEC`). `live_massive_router._compute_ticker_flow` now
+> calls it with `top` instead of walking the whole chain for `sym`.
+> ⛔ **Deliberately does NOT read OI from the R61 daily snapshot cache** (the plan's own
+> shorthand text) — that would regress the documented IREN 65C incident (~25x OI
+> understatement from stale once-daily snapshot data) the existing live-OI-first /
+> daily-snapshot-fallback logic in `live_massive_router.py` exists to guard against.
+> 8 new tests (`tests/test_massive_r69_contract_scoped_enrichment.py`), mutation-proved
+> two ways (price fallback, cache TTL — each mutation reds exactly its own test and
+> nothing else, reverted, sha-verified restore). Full scoped suite green (127 tests
+> across the affected modules, 1 pre-existing unrelated failure confirmed via stash
+> before/after — `test_flow_classification.py::test_cream_meta_key`, not touched by
+> this change). Committed (`5dd441d52`, rebased).
+> ⏳ **NOT YET PUSHED — blocked on the pre-push guard's burst clause alone** (recency +
+> in-flight pass on their own; 4 distinct web deploys inside the 3600s window). The
+> scoped `UCT_BURST_ATTESTED_BY`/`_AT` attestation the owner authorized for exactly this
+> deadlock is itself refused by the harness's own tool-permission classifier
+> (`[Security Weaken]`) when attempted programmatically, and an automated wait-loop
+> against the guard script is separately refused (`[Auto-Mode Bypass]`) — both are hard
+> tool boundaries, not something to route around. A single bounded sleep+one-shot guard
+> check was dispatched in the background instead; push it the moment that check reports
+> clear, or by hand if it does not clear this session.
+>
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
 > sub-timers (live now that its push landed — see below) and name, by field, which SQLite
 > touch carries the 80-110s; R49 LIVE REHEARSAL (**deferred again, ~20:23 ET or later today,
