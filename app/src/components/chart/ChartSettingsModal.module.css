@@ -1334,62 +1334,97 @@
    gives way (`flex: 1 1 auto` + ellipsis) and the order controls hold their 33px
    whatever the name does. An arrow pushed off the end is a control the member
    cannot reach. */
-.insRowOrder {
+/* ⚰️⚰️ `.insRowOrder` / `.insRowArrow` STOOD HERE — a ↑ and a ↓ at the far
+   right of every orderable row, chrome-less until hovered, boundary members
+   wearing a dimmed ghost so the column would not ripple. It was a careful control
+   and it was the wrong COUNT: seven indicators put fourteen icons and four
+   permanent ghosts down one edge. Owner, 2026-09-17: *"this creates a repetitive
+   column of arrows and makes the list feel crowded."*
+   ⭐ WHAT REPLACES THEM IS BELOW, AND IT IS SMALLER IN EVERY SENSE: one grip per
+   row, invisible until the pointer is on the row, on the LEFT where it cannot be
+   confused with the name it is not part of. ⛔ THE STEP SURVIVED THE ICONS — the
+   grip's arrow keys still call `nudgeRow`. */
+
+/* ⭐⭐ THE SLOT IS PERMANENT; THE GRIP IS NOT. §11 asks that a single-member pane
+   not advertise a reorder it has nothing to do — and that the names do not move
+   when a pane gains or loses its second member. Reserving the width and leaving
+   it empty is what buys both: `Volume` alone shows no grip at all, and the day it
+   is joined by `Dollar Volume` nothing shifts. */
+.insRowGripSlot {
   flex: none;
+  /* 13px, which is the middle of the 12–14px the brief asks for — big enough to
+     aim at with a pointer, small enough that the column it opens does not read as
+     a second control column. */
+  width: 13px;
+  height: 14px;
   display: flex;
   align-items: center;
-  gap: 1px;
-  /* ⛔ THE PAIR HOLDS ITS WIDTH WHETHER OR NOT EITHER ARROW IS LIVE. A first or
-     last row that dropped its disabled arrow would be 18px shorter than its
-     neighbours, and the whole column would ripple every time a row moved — which
-     is the one thing a reorder control must not do to the list it reorders. */
-  margin-left: 2px;
+  justify-content: center;
 }
-.insRowArrow {
-  flex: none;
-  /* A 16×18 hit area around a 10px glyph. ⛔ NO BORDER, NO FILL, NO RADIUS AT
-     REST: the retired chevron taught this panel that a bordered control on a row
-     reads as "open me", and these mean ORDER, not disclosure. */
-  width: 16px;
-  height: 18px;
-  padding: 0;
+
+/* ⭐ REST IS INVISIBLE, AND THAT IS THE POINT OF THE PASS. Owner §20: *"do not
+   replace 14 arrow icons with 7 permanently bright drag icons."* The affordance
+   is the ROW being hoverable; the dots appear the moment the pointer arrives and
+   explain what the `grab` cursor already said.
+   ⛔ NEUTRAL, NEVER TINTED (§4). The micro-rail two pixels to the right carries
+   the series' plot colour and MEANS something; if the grip borrowed that colour
+   the row would have two coloured marks and one of them would be a lie.
+   ⛔ NO BOX, NO BORDER, NO PILL — §3 by name. It is a glyph with a hit area. */
+.insRowGrip {
+  appearance: none;
   border: 0;
   background: none;
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 10px;
+  padding: 0;
+  margin: 0;
+  width: 13px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
   line-height: 1;
-  cursor: pointer;
-  /* ⭐ VISIBLE AT REST, AND QUIET. Hiding them until hover is the discoverability
-     defect this panel has already paid for once (2026-09-16, the pane arrows);
-     showing them at full ink would put twelve marks on a column whose whole job
-     is calm. One tier below the faint text is the setting that does both. */
-  color: var(--menu-text-faint, #93939a);
-  opacity: 0.55;
-  transition: opacity 110ms, color 110ms, background 110ms;
+  color: var(--menu-text-dim, #9a9a9a);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 110ms, color 110ms;
 }
-.insRow:hover .insRowArrow:not([aria-disabled='true']) { opacity: 0.8; }
-.insRowArrow:not([aria-disabled='true']):hover {
+/* ROW HOVER → present but still quiet. GRIP HOVER → clearly the thing you grab. */
+.insRow:hover .insRowGrip { opacity: 0.5; }
+.insRowGrip:hover { opacity: 1; color: var(--menu-text, #ededed); }
+.insRowGrip:active { cursor: grabbing; }
+/* ⚠️ A HANDLE A KEYBOARD CANNOT SEE IS A HANDLE A KEYBOARD CANNOT USE. The
+   grip is the ONLY reorder control now (§13), so focus has to reveal it as
+   plainly as hover does — louder, in fact, because there is no pointer nearby to
+   explain it. */
+.insRowGrip:focus-visible {
   opacity: 1;
-  color: var(--menu-text, #ededed);
-  background: rgba(255, 255, 255, 0.08);
-}
-.insRowArrow:focus-visible {
   outline: none;
-  opacity: 1;
-  color: var(--menu-text, #ededed);
+  color: var(--menu-accent, #dcbb5e);
   box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+  border-radius: 2px;
 }
-/* ⛔ A BOUNDARY ARROW IS STILL THERE AND STILL ALIGNED — it simply stops
-   answering. Quiet enough to read as unavailable, present enough that the row's
-   geometry is identical to every other row's.
-   ⚠️ ADDRESSED BY `[aria-disabled]`, NOT `:disabled` — see the JSX: the button
-   is deliberately not natively disabled, so it keeps its tooltip and its place in
-   the tab order. */
-.insRowArrow[aria-disabled='true'] {
-  opacity: 0.18;
-  cursor: default;
+
+/* ⭐ THE ROW BEING CARRIED. §7 asks for restraint: the source position dims and
+   keeps its place, so the list does not collapse and re-expand under the pointer.
+   ⛔ NO SHADOW, NO LIFT, NO WHITE CARD — the browser is already carrying a ghost
+   of the row; a second floating copy underneath it is the "floating white web
+   card" the brief rules out. */
+.insRowHeld {
+  opacity: 0.4;
+  cursor: grabbing;
 }
+
+/* ⭐⭐ WHERE IT WILL LAND — ONE THIN GOLD RULE, and nothing else changes. §6 is
+   explicit about the alternatives it does not want: not a bright destination row,
+   not a giant drop zone, not a glow, not an animating list. A 2px inset edge is
+   the same mark `.insDropBefore` draws for panes, so a member who has arranged
+   panes already knows what it means.
+   ⚠️ AND THERE ARE TWO OF THEM because a list has one more POSITION than it has
+   rows: `before` paints the top edge of the row you would land above, and `after`
+   paints the bottom edge of the last row — which is the only way to say "last"
+   without inventing a phantom row to hover. */
+.insRowDropBefore { box-shadow: inset 0 2px 0 0 var(--menu-accent, #dcbb5e); }
+.insRowDropAfter { box-shadow: inset 0 -2px 0 0 var(--menu-accent, #dcbb5e); }
 
 /* ── THE RIGHT COLUMN ─────────────────────────────────────────────────────── */
 .insRight {

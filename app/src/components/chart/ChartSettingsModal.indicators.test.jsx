@@ -308,10 +308,15 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // VERB**, and the row is not a door for any verb the Inspector owns. Two
     // controls for one verb is the split this tab exists to end — they drift, and
     // a removal that took the other path would tombstone differently. Order is a
-    // NEW verb whose one and only door is these arrows; it is not in the Inspector
+    // NEW verb whose one and only door is on the row; it is not in the Inspector
     // and the Inspector is not in the row. What is swept for below is therefore
-    // "a row control that is not the order pair", which is the same absence the
+    // "a row control that is not the order handle", which is the same absence the
     // old sweep asserted, measured without forbidding the thing that was added.
+    //
+    // ⚰️⚰️ THE ARROWS THEMSELVES ARE GONE (2026-09-17) — owner: *"with many
+    // indicators, this creates a repetitive column of arrows."* Order is a DRAG,
+    // so the door is a grip rather than a pair, and the sweep names the grip. The
+    // VERB did not move and neither did the writer.
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
 
@@ -320,20 +325,20 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
       'a Remove button exists before anything is selected').toBeNull()
     for (const r of rows()) {
       for (const b of r.querySelectorAll('button')) {
-        expect(b.closest('[data-row-order]'),
-          `the row ${nameOf(r)} carries a control that is not the order pair`).toBeTruthy()
+        expect(b.hasAttribute('data-row-grip'),
+          `the row ${nameOf(r)} carries a control that is not the order handle`).toBe(true)
       }
-      // ⛔ AND THE ORDER PAIR IS EXACTLY TWO BUTTONS THAT SAY ONLY "Move". A verb
-      // smuggled in beside them would pass the check above and fail this one.
-      const order = r.querySelector('[data-row-order]')
-      if (order) {
-        const labels = [...order.querySelectorAll('button')]
-          .map((b) => b.getAttribute('aria-label') || '')
-        expect(labels).toHaveLength(2)
-        for (const l of labels) {
-          expect(l, `the order pair on ${nameOf(r)} carries a verb: ${l}`)
-            .toMatch(/^Move |is already (first|last) in /)
-        }
+      // ⛔ AND THE HANDLE SAYS ONLY "Reorder". A verb smuggled onto it would pass
+      // the check above — it IS the grip — and fail this one.
+      // ⚰️ IT WAS A PAIR OF `Move …` BUTTONS AND IT IS ONE `Reorder …` HANDLE.
+      // Same verb, same writer, one control instead of two.
+      const grip = r.querySelector('[data-row-grip]')
+      if (grip) {
+        expect(grip.getAttribute('aria-label'),
+          `the order handle on ${nameOf(r)} carries a verb: ${grip.getAttribute('aria-label')}`)
+          .toMatch(/^Reorder .+ within /)
+        expect(r.querySelectorAll('[data-row-grip]'),
+          `${nameOf(r)} grew a second order handle`).toHaveLength(1)
       }
     }
 

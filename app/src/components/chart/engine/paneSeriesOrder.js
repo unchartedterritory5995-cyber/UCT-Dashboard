@@ -221,6 +221,51 @@ export function moveSeriesWithinPane(cs, paneKey, rowIds, rowId, delta) {
   return setPaneSeriesOrder(cs, paneKey, next)
 }
 
+/**
+ * Move one series to sit immediately BEFORE another — the drop half of a drag.
+ *
+ * @param {object}   cs
+ * @param {string}   paneKey   the pane the row is CURRENTLY in
+ * @param {string[]} rowIds    that pane's current members, in canonical order
+ * @param {string}   rowId     the series being moved
+ * @param {?string}  beforeId  a sibling to land in front of, or `null` for last
+ * @returns {object} the next settings blob, or `cs` UNCHANGED
+ *
+ * ⭐ IT IS `movePaneTo`, ONE LEVEL DOWN, and deliberately the same five lines:
+ * resolve, remove, find the anchor, splice, write through the one writer. A drag
+ * needs an absolute destination where the arrows needed a step, and expressing
+ * that as "repeat `moveSeriesWithinPane` until the index matches" would produce a
+ * settings write per intermediate position — seven of them to cross a seven-row
+ * pane — for an arrangement the member only ever sees the end of.
+ *
+ * ⛔ SAME BOUNDARY, SAME STRUCTURE. `rowIds` is ONE pane's membership, so both
+ * the moved id and the anchor are looked up inside it; an anchor from another
+ * pane is simply not found and the row goes last WITHIN ITS OWN PANE rather than
+ * anywhere near the pane the pointer was over. Crossing a boundary is `Display`'s
+ * job and writes a different key.
+ *
+ * ⛔ AND IT STILL WRITES ONE KEY, through `setPaneSeriesOrder`. A drop is not a
+ * different kind of event from a nudge; it is the same preference, decided with a
+ * pointer.
+ */
+export function moveSeriesTo(cs, paneKey, rowIds, rowId, beforeId) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!isId(paneKey) || !isId(rowId)) return cs
+  if (rowId === beforeId) return cs
+  const order = resolvePaneSeriesOrder(cs, paneKey, rowIds)
+  if (order.indexOf(rowId) < 0) return cs
+  const without = order.filter((k) => k !== rowId)
+  const at = isId(beforeId) ? without.indexOf(beforeId) : -1
+  const next = at < 0
+    ? [...without, rowId]
+    : [...without.slice(0, at), rowId, ...without.slice(at)]
+  // ⛔ A DROP THAT CHANGES NOTHING IS NOT A WRITE. Letting go on the row's own
+  // slot is the commonest way a drag ends, and it must leave the blob identical
+  // — same promise `moveSeriesWithinPane` keeps at a boundary.
+  if (next.length === order.length && next.every((k, i) => k === order[i])) return cs
+  return setPaneSeriesOrder(cs, paneKey, next)
+}
+
 /** Whether the arrows should be live — the same question the writer answers, so
  *  a disabled control and a refused write can never disagree. */
 export function canMoveSeries(cs, paneKey, rowIds, rowId, delta) {

@@ -18,6 +18,7 @@ import {
   orderPaneRows,
   setPaneSeriesOrder,
   moveSeriesWithinPane,
+  moveSeriesTo,
   canMoveSeries,
 } from '../paneSeriesOrder'
 
@@ -289,5 +290,117 @@ describe('⚰️⚰️ IT SURVIVES A READ — the allow-list trap, for the third
       .toEqual(resolvePaneSeriesOrder(moved, PRICE, MEMBERS))
     expect(resolvePaneSeriesOrder(reloaded, PRICE, MEMBERS))
       .toEqual(['overlay-0', 'overlay-1', 'inst:movingAverage:1', 'overlay-2'])
+  })
+})
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('moveSeriesTo — the DROP half, and the same one key', () => {
+  // ⭐ IT IS `movePaneTo`, ONE LEVEL DOWN. A drag needs an ABSOLUTE destination
+  // where the arrows needed a step, and the alternative — calling
+  // `moveSeriesWithinPane` until the index matches — would write a preference per
+  // intermediate position: seven blobs, and seven undo steps, to cross a
+  // seven-row pane the member only ever sees the end of.
+
+  const order = (cs) => resolvePaneSeriesOrder(cs, PRICE, MEMBERS)
+
+  it('⭐ IT LANDS *BEFORE* THE ANCHOR, from either direction', () => {
+    const cs = mergeChartSettings({})
+    expect(order(cs)).toEqual(MEMBERS)
+    // downward: the first member lands in front of the third
+    expect(order(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[0], MEMBERS[2])))
+      .toEqual([MEMBERS[1], MEMBERS[0], MEMBERS[2], MEMBERS[3]])
+    // upward: the third lands in front of the first
+    expect(order(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[2], MEMBERS[0])))
+      .toEqual([MEMBERS[2], MEMBERS[0], MEMBERS[1], MEMBERS[3]])
+  })
+
+  it('⭐ NO ANCHOR MEANS LAST — the position a list has no row for', () => {
+    // ⚠️ A LIST HAS ONE MORE POSITION THAN IT HAS ROWS. "After the final member"
+    // cannot name a sibling, so the UI passes `null` and this is what reads it.
+    const cs = mergeChartSettings({})
+    expect(order(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[0], null)))
+      .toEqual([MEMBERS[1], MEMBERS[2], MEMBERS[3], MEMBERS[0]])
+    // …and an anchor that is not a member of THIS pane is not an error, it is
+    // simply not found — so the row goes last inside its own pane rather than
+    // anywhere near the pane the pointer was over.
+    expect(order(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[0], 'inst:rsi:1')))
+      .toEqual([MEMBERS[1], MEMBERS[2], MEMBERS[3], MEMBERS[0]])
+  })
+
+  it('⛔⛔ A DROP THAT CHANGES NOTHING RETURNS THE SAME OBJECT', () => {
+    // ⛔ THE COMMONEST WAY A DRAG ENDS is letting go where it started. Returning
+    // `cs` by identity is what lets the caller write `if (next !== settings)` and
+    // produce no preference write at all — the same promise
+    // `moveSeriesWithinPane` keeps at a boundary.
+    const cs = mergeChartSettings({})
+    expect(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[1], MEMBERS[2]), 'its own slot wrote').toBe(cs)
+    expect(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[1], MEMBERS[1]), 'onto itself wrote').toBe(cs)
+    expect(moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[3], null), 'already last wrote').toBe(cs)
+  })
+
+  it('⛔⛔ A ROW THAT IS NOT IN THE PANE IS REFUSED, NOT ADDED', () => {
+    // ⛔ THE PREFERENCE-NOT-INVENTORY RULE, at the writer. A drop naming a
+    // stranger must not conjure it into the pane's order — that is how a stale id
+    // becomes a phantom series.
+    const cs = mergeChartSettings({})
+    expect(moveSeriesTo(cs, PRICE, MEMBERS, 'inst:gone:9', MEMBERS[0])).toBe(cs)
+    expect(moveSeriesTo(cs, PRICE, MEMBERS, '', MEMBERS[0])).toBe(cs)
+    expect(moveSeriesTo(cs, '', MEMBERS, MEMBERS[0], MEMBERS[1])).toBe(cs)
+    expect(moveSeriesTo(null, PRICE, MEMBERS, MEMBERS[0], MEMBERS[1])).toBeNull()
+  })
+
+  it('⛔⛔ IT WRITES ONE KEY, AND THE SET NEVER CHANGES', () => {
+    const cs = mergeChartSettings({})
+    const next = moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[0], MEMBERS[3])
+    // ⛔ THE SAME MEMBERS, PERMUTED. Not a superset, not a subset.
+    expect([...order(next)].sort()).toEqual([...MEMBERS].sort())
+    // ⛔ AND NOTHING ELSE ON THE BLOB MOVED. `preset` flips to 'custom' because
+    // the member has now arranged something, which is what every other preference
+    // writer does.
+    const { [PANE_SERIES_ORDER_KEY]: _a, preset: _b, ...restNext } = next
+    const { [PANE_SERIES_ORDER_KEY]: _c, preset: _d, ...restPrev } = cs
+    expect(restNext).toEqual(restPrev)
+    expect(Object.keys(next[PANE_SERIES_ORDER_KEY])).toEqual([PRICE])
+  })
+
+  it('⭐ A DROP AND A WALK OF NUDGES AGREE — one destination, two doors', () => {
+    // ⛔ THREE DOORS REACH THIS ORDER NOW — a drop, the grip's arrow keys, and
+    // whatever comes next — and they must not be able to produce different stored
+    // states. Two presses of ↑ and one drag onto the anchor two rows up are the
+    // same arrangement, so they must read identical.
+    const cs = mergeChartSettings({})
+    let walked = cs
+    walked = moveSeriesWithinPane(walked, PRICE, MEMBERS, MEMBERS[2], -1)
+    walked = moveSeriesWithinPane(walked, PRICE, MEMBERS, MEMBERS[2], -1)
+    const dropped = moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[2], MEMBERS[0])
+    expect(order(dropped)).toEqual(order(walked))
+    expect(dropped[PANE_SERIES_ORDER_KEY]).toEqual(walked[PANE_SERIES_ORDER_KEY])
+  })
+
+  it('⚠️ A LATENT ID SURVIVES A DROP, exactly as it survives a nudge', () => {
+    // ⚠️ A SERIES THAT LEFT FOR ANOTHER PANE KEEPS ITS SLOT WAITING. The writer
+    // parks ids it cannot place at the end rather than cleaning them up, because
+    // cleanup would have to know WHY an id went missing — and "preference, not
+    // inventory" means it never has to ask.
+    const cs = mergeChartSettings({ [PANE_SERIES_ORDER_KEY]: {
+      [PRICE]: [...MEMBERS, 'inst:elsewhere:1'],
+    } })
+    const next = moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[0], null)
+    expect(next[PANE_SERIES_ORDER_KEY][PRICE], 'the latent id was swept up by a drop')
+      .toContain('inst:elsewhere:1')
+    expect(order(next), 'a latent id leaked into what is on screen')
+      .toEqual([MEMBERS[1], MEMBERS[2], MEMBERS[3], MEMBERS[0]])
+  })
+
+  it('⛔ THE DROP ROUND-TRIPS THROUGH THE ALLOW-LIST', () => {
+    // ⚠️ `mergeChartSettings` IS A HARD ALLOW-LIST — a key missing from its RETURN
+    // is destroyed on every read. This is the same rail the nudge carries, kept
+    // for the drop because a save → reconstruct that quietly reverts a member's
+    // arrangement is the failure mode that was actually measured once.
+    const cs = mergeChartSettings({})
+    const moved = moveSeriesTo(cs, PRICE, MEMBERS, MEMBERS[3], MEMBERS[0])
+    const reloaded = mergeChartSettings(JSON.parse(JSON.stringify(moved)))
+    expect(resolvePaneSeriesOrder(reloaded, PRICE, MEMBERS))
+      .toEqual([MEMBERS[3], MEMBERS[0], MEMBERS[1], MEMBERS[2]])
   })
 })

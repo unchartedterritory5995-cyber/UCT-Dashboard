@@ -111,7 +111,7 @@ import { paneMap, paneRowMeta } from './chartDataMap'
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
 import { movePane, movePaneTo } from './engine/paneOrder'
-import { moveSeriesWithinPane, canMoveSeries } from './engine/paneSeriesOrder'
+import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -270,6 +270,21 @@ export default function ChartSettingsIndicators({
   const dragKeyRef = useRef(null)
   const [dragging, setDragging] = useState(null)
   const [dropBefore, setDropBefore] = useState(null)   // rowId — ONE at a time (§11)
+  /* ⛔⛔ THE SERIES DRAG KEEPS ITS OWN THREE, AND IT IS NOT TIDINESS. `dragging` /
+     `dropBefore` above belong to ARRANGE, which reorders PANES and writes
+     `paneOrder`; these reorder SERIES inside one pane and write
+     `paneSeriesOrder`. The two modes cannot be on screen at once today — which is
+     exactly the argument for not sharing the variables, because the day one of
+     them changes, a shared `dropBefore` is a pane key being read as a row id by a
+     writer that will happily accept it. Two orders, two states.
+     ⚠️ `seriesArmed` IS THE PRECISION RULE (§5). `draggable` goes on the ROW so
+     the drag ghost is the row rather than eight pixels of dots — but only after
+     the GRIP has been pressed, so a member reaching for `SMA 200` to edit it
+     cannot start a reorder by moving the mouse two pixels mid-click. */
+  const seriesDragRef = useRef(null)                  // { rowId, paneKey }
+  const [seriesArmed, setSeriesArmed] = useState(null)
+  const [seriesDrag, setSeriesDrag] = useState(null)  // rowId being carried
+  const [seriesDrop, setSeriesDrop] = useState(null)  // { paneKey, beforeId|null }
   // ⭐ THE TEMPORARY GOLD LANDING MARK. `search → add → SEE IT LAND` is the whole
   // promise of a right-side Add surface, and the thing that lands is a row in a
   // list the member is already looking at. A toast would announce it somewhere
@@ -1066,6 +1081,44 @@ export default function ChartSettingsIndicators({
   const memberIds = (group) => (group && group.rows ? group.rows : []).map((r) => r.id)
   const canNudgeRow = (group, rowId, delta) =>
     orderable(group) && canMoveSeries(settings, group.id, memberIds(group), rowId, delta)
+  /**
+   * Where a drop would land, from the pointer's position over one row.
+   *
+   * ⛔ THE MIDPOINT, NOT THE EDGE. A row is 26px tall; asking "is the pointer in
+   * the top 6px" makes the last position in a pane almost unreachable, so the top
+   * half means BEFORE this row and the bottom half means after it — and "after
+   * the last row" is expressed as `beforeId: null`, which is the same absence
+   * `moveSeriesTo` already understands as "put it last".
+   */
+  const dropSlotFor = (group, overRowId, e) => {
+    const ids = memberIds(group)
+    const at = ids.indexOf(overRowId)
+    if (at < 0) return null
+    const box = e.currentTarget.getBoundingClientRect()
+    const after = e.clientY > box.top + box.height / 2
+    return after ? (ids[at + 1] || null) : overRowId
+  }
+
+  const endSeriesDrag = () => {
+    seriesDragRef.current = null
+    setSeriesArmed(null); setSeriesDrag(null); setSeriesDrop(null)
+  }
+
+  const dropSeries = (group, beforeId) => {
+    const held = seriesDragRef.current
+    endSeriesDrag()
+    // ⛔⛔ THE PANE BOUNDARY, CHECKED AT THE DOOR AS WELL AS IN THE WRITER (§9).
+    // `moveSeriesTo` is already structurally safe — it steps inside ONE pane's
+    // membership — but refusing here is what stops a drag that WANDERED over
+    // Volume from quietly landing the row at the bottom of its own pane instead.
+    // A drag that leaves its pane does nothing at all, which is the honest
+    // outcome: moving a series to another pane is `Display`, and it writes a
+    // different key.
+    if (!held || !orderable(group) || held.paneKey !== group.id) return
+    const next = moveSeriesTo(settings, group.id, memberIds(group), held.rowId, beforeId)
+    if (next !== settings) onChange?.(next)
+  }
+
   const nudgeRow = (group, rowId, delta) => {
     if (!orderable(group)) return
     const next = moveSeriesWithinPane(settings, group.id, memberIds(group), rowId, delta)
@@ -1185,6 +1238,14 @@ export default function ChartSettingsIndicators({
     const on = rowVisible(row)
     const isSel = selected === row.id
     const tint = rowColor(row)
+    // ⛔ A PANE OF ONE HAS NOTHING TO REORDER (§11), so its grip is not a control
+    // — and it is not removed either, because a row that loses its grip when a
+    // sibling is deleted would shift its name 14px left under the pointer.
+    const movable = orderable(group) && group.rows.length > 1
+    const isHeld = seriesDrag === row.id
+    const markBefore = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === row.id
+    const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
+      && group.rows[group.rows.length - 1] && group.rows[group.rows.length - 1].id === row.id
     return (
       <div
         key={row.id}
@@ -1195,9 +1256,118 @@ export default function ChartSettingsIndicators({
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
         data-structure-row="true"
         data-landed={landed === row.id ? 'true' : undefined}
-        className={`${styles.insRow} ${isSel ? styles.insRowSel : ''} ${on ? '' : styles.insRowOff} ${landed === row.id ? styles.insRowLanded : ''}`}
+        data-movable={movable ? 'true' : 'false'}
+        className={[
+          styles.insRow,
+          isSel ? styles.insRowSel : '',
+          on ? '' : styles.insRowOff,
+          landed === row.id ? styles.insRowLanded : '',
+          isHeld ? styles.insRowHeld : '',
+          markBefore ? styles.insRowDropBefore : '',
+          markLast ? styles.insRowDropAfter : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => selectRow(row.id)}
+        /* ⛔⛔ `draggable` IS ARMED, NOT STANDING. The whole row is the drag body
+           — so the ghost the member carries is the thing they grabbed — but the
+           attribute only appears after the GRIP took a mousedown. §5 asks whether
+           whole-row dragging is safe here and the answer measured out as no: the
+           row's primary job is SELECT, a click is a mousedown plus a two-pixel
+           wobble, and a list where choosing an indicator sometimes reorders it is
+           worse than one where reordering needs a handle. Favour precision. */
+        draggable={movable && seriesArmed === row.id ? true : undefined}
+        onDragStart={movable ? (e) => {
+          if (seriesArmed !== row.id) { e.preventDefault(); return }
+          seriesDragRef.current = { rowId: row.id, paneKey: group.id }
+          try {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData('text/plain', row.id)
+          } catch { /* jsdom has no dataTransfer */ }
+          setSeriesDrag(row.id)
+        } : undefined}
+        onDragOver={movable ? (e) => {
+          const held = seriesDragRef.current
+          // ⛔ A FOREIGN PANE IS NOT A TARGET AND SAYS SO. Without
+          // `preventDefault` the browser refuses the drop and shows the no-drop
+          // cursor, which is the feedback §9 wants: the member finds out mid-drag
+          // that a series does not move house this way.
+          if (!held || held.paneKey !== group.id || held.rowId === row.id) return
+          e.preventDefault()
+          try { e.dataTransfer.dropEffect = 'move' } catch { /* jsdom */ }
+          const beforeId = dropSlotFor(group, row.id, e)
+          setSeriesDrop((p) => (p && p.paneKey === group.id && p.beforeId === beforeId)
+            ? p : { paneKey: group.id, beforeId })
+        } : undefined}
+        onDrop={movable ? (e) => {
+          e.preventDefault(); e.stopPropagation()
+          dropSeries(group, dropSlotFor(group, row.id, e))
+        } : undefined}
+        onDragEnd={endSeriesDrag}
       >
+        {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
+            ↓ on every row, two of them permanently dimmed at each pane's edges.
+            They were correct and they were LOUD: owner, 2026-09-17: *"with many
+            indicators, this creates a repetitive column of arrows and makes the
+            list feel crowded... the member should think 'I can grab this
+            indicator and move it', not 'I have to find the correct tiny arrow'."*
+            ⭐ ONE GRIP, ON THE LEFT, AND ONLY WHEN THE POINTER IS OVER THE ROW.
+            ⛔ IT IS NOT THE MICRO-RAIL AND MUST NEVER BE MISTAKEN FOR IT (§4). The
+            rail two pixels to its right is the series' PLOT COLOUR — an identity
+            — and this is an affordance; so the grip is neutral grey, never tinted,
+            and it is dots where the rail is a solid bar.
+            ⛔ AND THE SLOT IS ALWAYS THERE. A pane that drops from two members to
+            one would otherwise pull every remaining name 14px left. */}
+        <span
+          className={styles.insRowGripSlot}
+          aria-hidden={movable ? undefined : 'true'}
+        >
+          {movable && (
+            <button
+              type="button"
+              className={styles.insRowGrip}
+              data-row-grip={row.id}
+              tabIndex={isSel ? 0 : -1}
+              aria-label={`Reorder ${meta.name} within ${group.name}`}
+              aria-keyshortcuts="ArrowUp ArrowDown"
+              title="Drag to reorder"
+              /* ⛔ THE GRIP DOES NOT SELECT, AND IT DOES NOT LET THE ROW SELECT
+                 EITHER. `stopPropagation` on the click is what keeps grabbing a
+                 row distinct from opening it — a member repositioning `SMA 200`
+                 must not watch the Inspector swing to it. */
+              onMouseDown={(e) => { e.stopPropagation(); setSeriesArmed(row.id) }}
+              onMouseUp={() => setSeriesArmed(null)}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
+              /* ⭐⭐ THE KEYBOARD PATH, AND IT IS NOT A CONSOLATION PRIZE. Removing
+                 the arrows removed the only way a member without a pointer could
+                 reorder anything, and §13 is explicit that this may not happen.
+                 The grip IS the control: focus it and the up/down arrows move the
+                 series, which is the established sortable pattern and, more to
+                 the point, ends at `nudgeRow` — the SAME writer the old arrows
+                 used and the same one the drop uses. Three doors, one
+                 `paneSeriesOrder`.
+                 ⛔ AT A BOUNDARY IT SIMPLY DOES NOTHING. `moveSeriesWithinPane`
+                 returns the same object, so there is no write and no wrap — the
+                 old disabled-arrow ghosts are not replaced by a silent surprise.
+                 ⚠️ AND FOCUS FOLLOWS THE ROW. Without this a member pressing ↓
+                 three times moves the series once and then loses the handle,
+                 because React re-renders the list in the new order. */
+              onKeyDown={(e) => {
+                const delta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+                if (!delta) return
+                e.preventDefault(); e.stopPropagation()
+                if (!canNudgeRow(group, row.id, delta)) return
+                nudgeRow(group, row.id, delta)
+                requestAnimationFrame(() => {
+                  try {
+                    listRef.current
+                      ?.querySelector(`[data-row-grip="${CSS.escape(row.id)}"]`)?.focus()
+                  } catch { /* jsdom has no CSS.escape */ }
+                })
+              }}
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
+          )}
+        </span>
         {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
             `flex: none`, nudged half a pixel onto the text's x-height. Not a
             swatch (retired: reads as a bullet), not a chevron (retired), not a
@@ -1220,64 +1390,20 @@ export default function ChartSettingsIndicators({
             member scanning the column sees which lines are off without hovering
             anything, and a screen reader is told rather than shown. */}
         {!on && <span className={styles.insRowOffTag}>Off</span>}
-        {orderable(group) && (
-          /* ⭐⭐ WHERE THIS SERIES SITS **IN THIS PANE** — and nothing else. Two
-             quiet arrows at the row's far right, after the name's flexible space,
-             so a long label truncates into them rather than pushing them onto a
-             second line.
-
-             ⛔ THEY ARE NOT BOXES AND THEY ARE NOT A DISCLOSURE. The retired
-             chevron taught this panel that a control on a row reads as "open me"
-             the moment it wears a border; these carry a glyph, a hit area and no
-             chrome until the pointer or the keyboard reaches them. A chevron
-             here would also re-open the argument the row itself settled: the ROW
-             is what selects, and it still is — see the `stopPropagation` below.
-
-             ⛔ A BOUNDARY ARROW IS DISABLED, NOT REMOVED. Taking it out would
-             shorten the row by 18px on the first and last member of every pane
-             and make the whole column ripple as rows move, which is the one
-             thing a reorder control must not do to the list it is reordering. */
-          <span className={styles.insRowOrder} data-row-order="true">
-            {[[-1, 'up', '↑', 'first'], [1, 'down', '↓', 'last']].map(([delta, word, glyph, edge]) => {
-              const live = canNudgeRow(group, row.id, delta)
-              const why = `${meta.name} is already ${edge} in ${group.name}`
-              return (
-                <button
-                  key={word}
-                  type="button"
-                  className={styles.insRowArrow}
-                  data-move={word}
-                  /* ⛔⛔ `aria-disabled`, NOT THE NATIVE `disabled`, AND THE
-                     DIFFERENCE IS THE REASON. A natively disabled button fires no
-                     pointer events, so its `title` never appears — the member
-                     gets a dimmed glyph and no sentence. It also drops out of the
-                     tab order, so a keyboard member arrowing down the column
-                     loses the control mid-list and finds it again two rows later.
-                     ⚠️ AND IT KEEPS THIS OUT OF A RAIL IT WOULD FALSIFY.
-                     `ChartSettingsModal.indicators.test.jsx` sweeps every
-                     NATIVELY disabled control and demands a capability reason on
-                     each; that rail is about a control the CHART cannot honour
-                     (`NOT_WIRED`), and a top row's ↑ is not that — it is a
-                     position, it changes as the member reorders, and answering it
-                     with the same machinery would blur what the rail measures.
-                     The reason is still carried, in the two places that reach
-                     both kinds of member. */
-                  aria-disabled={live ? undefined : 'true'}
-                  aria-label={live ? `Move ${meta.name} ${word}` : why}
-                  title={live ? `Move ${meta.name} ${word}` : why}
-                  /* ⛔ THE ROW IS STILL THE SELECTOR, SO THE ARROW MUST NOT BE.
-                     Without this a press would reorder the series AND select it,
-                     and the Inspector would swing to a row the member was only
-                     repositioning. `onMouseDown` is stopped too: the row's own
-                     handler is a click, but a focus shift on mousedown is what
-                     scrolls a long list under the pointer mid-press. */
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => { e.stopPropagation(); if (live) nudgeRow(group, row.id, delta) }}
-                >{glyph}</button>
-              )
-            })}
-          </span>
-        )}
+        {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
+            the far right, boundary members carrying a dimmed, `aria-disabled`
+            ghost so the column would not ripple as rows moved. Every word of that
+            reasoning was right about the control and wrong about the LIST: seven
+            indicators meant fourteen buttons and four permanent ghosts down one
+            edge, and the owner read the result as *"a repetitive column of
+            arrows."*
+            ⭐ DRAG REPLACES THEM, AND IT REMOVES THE BOUNDARY PROBLEM RATHER THAN
+            SOLVING IT (§12). There is no first-row ↑ to disable when the member
+            simply drops the row where they want it.
+            ⛔ WHAT DID NOT GO IS THE STEP ITSELF. `nudgeRow` is still here, on the
+            grip's arrow keys — see its note — so `canMoveSeries` still answers the
+            boundary question and §13's accessible Move Up / Move Down still
+            exists. What left the screen is fourteen permanent icons. */}
       </div>
     )
   }

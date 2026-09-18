@@ -420,19 +420,28 @@ describe('accessibility — the way this feature broke before', () => {
     // duplicates a verb the Inspector owns — so the row is still the target for
     // SELECTING, which is what this case is really about.
     //
-    // ⛔ SO THE BUDGET IS ASSERTED RATHER THAN THE ABSENCE. A third control, or a
-    // second one that is not part of the order pair, fails here exactly as the
-    // gear and the ✕ would have.
+    // ⛔ SO THE BUDGET IS ASSERTED RATHER THAN THE ABSENCE. A second control —
+    // or one that is not the order handle — fails here exactly as the gear and the
+    // ✕ would have.    //
+    // ⚰️⚰️ AND THE PAIR BECAME ONE GRIP (2026-09-17). Seven indicators meant
+    // fourteen icons and four permanently dimmed ghosts down one edge — owner:
+    // *"this creates a repetitive column of arrows and makes the list feel
+    // crowded."* Reordering is a DRAG now, so the row's budget went from two
+    // controls to one, and that one is invisible until the pointer or the
+    // keyboard reaches it.
+    // ⛔ THE INVARIANT IS UNCHANGED AND THE BUDGET IS TIGHTER: a row may carry
+    // the ORDER handle and nothing else. A gear, a ✕ or a second handle fails
+    // here exactly as they always would have.
     const { cs } = withSeries(mergeChartSettings({}), 'QQQ')
     show(cs); openIndicators()
     for (const row of document.body.querySelectorAll('[data-structure-row]')) {
       expect(row.getAttribute('role')).toBe('option')
       const controls = [...row.querySelectorAll('button')]
-      expect(controls.length, 'a row grew more controls than the order pair')
-        .toBeLessThanOrEqual(2)
+      expect(controls.length, 'a row grew more controls than the order handle')
+        .toBeLessThanOrEqual(1)
       for (const b of controls) {
-        expect(b.closest('[data-row-order]'),
-          'a row grew a control of its own again').toBeTruthy()
+        expect(b.hasAttribute('data-row-grip'),
+          'a row grew a control of its own again').toBe(true)
       }
     }
   })

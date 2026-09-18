@@ -21,7 +21,7 @@
 
 import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within, waitFor, createEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import ChartSettingsModal from './ChartSettingsModal'
@@ -445,24 +445,91 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
-describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
+describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
   // ⛔⛔ THREE ORDERS, AND THIS BLOCK EXISTS TO KEEP THEM APART.
-  //   · a ROW ARROW reorders series inside the pane they are already in
-  //   · ARRANGE reorders whole panes
-  //   · DISPLAY moves a series to another pane
-  // Every case below asserts not only that the arrow did its own job but that it
-  // did none of the other two, because the failure mode that matters is not a
-  // wrong order — it is an arrow that quietly re-homes a series or restacks the
+  //   · A DRAG (or the grip's arrow keys) reorders series inside the pane they
+  //     are already in.
+  //   · ARRANGE reorders whole panes.
+  //   · DISPLAY moves a series to another pane.
+  // Every case below asserts not only that the reorder did its own job but that
+  // it did none of the other two, because the failure mode that matters is not a
+  // wrong order — it is a drag that quietly re-homes a series or restacks the
   // chart's panes.
+  //
+  // ⚰️⚰️ THE BLOCK WAS CALLED `↑ ↓` AND EVERY CASE DROVE A BUTTON. Seven
+  // indicators put fourteen icons and four permanently dimmed ghosts down one
+  // edge of the column — owner, 2026-09-17: *"this creates a repetitive column of
+  // arrows and makes the list feel crowded... the member should think 'I can grab
+  // this indicator and move it'."* The CONTROL changed; the contract did not, and
+  // that is why these cases were rewritten rather than replaced: the same
+  // permutation, the same one key written, the same pane boundary.
 
-  const arrowsOf = (re) => [...(rowFor(re)?.querySelectorAll('[data-move]') || [])]
-  const arrow = (re, dir) => arrowsOf(re).find((b) => b.getAttribute('data-move') === dir)
-  const dead = (el) => el.getAttribute('aria-disabled') === 'true'
+  const gripOf = (re) => rowFor(re)?.querySelector('[data-row-grip]')
   /** The rows of the pane group a row belongs to, in rendered order. */
   const paneRowNames = (re) => {
     const g = rowFor(re).closest('[data-pane-group]')
     return [...g.querySelectorAll('[data-structure-row]')].map(nameOf)
   }
+
+  /**
+   * Carry one row onto another and let go.
+   *
+   * ⚠️ THE RECT IS STUBBED BECAUSE JSDOM HAS NO LAYOUT — every box is 0×0
+   * there, so "is the pointer past this row's midpoint" would always answer the
+   * same way and the `after` half of the interaction would never be exercised.
+   * Twenty pixels tall at y=100 makes 105 the top half and 115 the bottom.
+   */
+  const drag = (fromRe, ontoRe, half = 'above') => {
+    const from = rowFor(fromRe)
+    const onto = rowFor(ontoRe)
+    onto.getBoundingClientRect = () => ({
+      top: 100, bottom: 120, height: 20, left: 0, right: 0, width: 0, x: 0, y: 100,
+    })
+    const y = half === 'above' ? 105 : 115
+    // ⚠️⚠️ JSDOM HAS NO `DragEvent`, so Testing Library falls back to plain
+    // `Event` — and a plain Event silently DROPS `clientY` out of its init dict.
+    // Passing it as an option looks right, reads right, and arrives as
+    // `undefined`, which compares false against every midpoint: the whole `below`
+    // half of this interaction would have been asserted without ever running.
+    // Measured, not guessed — the 'drag back down' step reordered nothing and the
+    // 'move to last' step landed one slot short, both consistent with "the
+    // pointer is always above the midpoint".
+    const fire = (type) => {
+      const ev = createEvent[type](onto)
+      Object.defineProperty(ev, 'clientY', { value: y })
+      fireEvent(onto, ev)
+    }
+    fireEvent.mouseDown(from.querySelector('[data-row-grip]'))
+    fireEvent.dragStart(from)
+    fire('dragOver')
+    fire('drop')
+    fireEvent.dragEnd(from)
+  }
+
+  it('⚰️⚰️ THERE IS NO ARROW FOREST LEFT, and no boundary ghosts either', () => {
+    // ⚰️⚰️ THE OLD CASE HERE ASSERTED THE OPPOSITE AND WAS RIGHT AT THE TIME:
+    // a boundary arrow had to be PRESENT-BUT-DEAD, because removing it would
+    // shorten the first and last row of every pane by 18px and ripple the column
+    // as rows moved. Drag removes the problem instead of solving it (§12) — there
+    // is no first-row ↑ to disable when the member drops the row where they want
+    // it — so the dimmed ghosts are gone with the arrows that cast them.
+    show(base()); openTab()
+    const list = document.body.querySelector('[data-testid="chart-structure"]')
+    expect(list.querySelectorAll('[data-row-order]'),
+      'the permanent arrow column is back').toHaveLength(0)
+    expect(list.querySelectorAll('[data-move]'),
+      'per-row move buttons are back').toHaveLength(0)
+    expect([...list.querySelectorAll('[data-structure-row]')]
+      .filter((r) => /↑|↓/.test(r.textContent)),
+      'a row is still printing an arrow glyph').toHaveLength(0)
+    // …and what a member CAN see is one grip per movable row, nothing per row
+    // that cannot move.
+    const rows = [...list.querySelectorAll('[data-structure-row]')]
+    const grips = list.querySelectorAll('[data-row-grip]')
+    expect(grips.length, 'no grips at all — nothing can be reordered')
+      .toBeGreaterThan(0)
+    expect(grips.length, 'more grips than rows').toBeLessThanOrEqual(rows.length)
+  })
 
   it('⭐⭐ A MIDDLE ROW MOVES, IMMEDIATELY, AND STAYS IN ITS PANE', () => {
     // The default chart's PRICE pane: EMA 9, EMA 20, SMA 50, SMA 200 — four legacy
@@ -471,43 +538,95 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
     const before = paneRowNames(/^EMA 20$/)
     expect(before.slice(0, 4)).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
 
-    fireEvent.click(arrow(/^EMA 20$/, 'up'))
+    drag(/^EMA 20$/, /^EMA 9$/, 'above')
     expect(paneRowNames(/^EMA 20$/).slice(0, 4),
-      'the list did not reorder on the click — is it waiting for a reload?')
+      'the list did not reorder on the drop — is it waiting for a reload?')
       .toEqual(['EMA 20', 'EMA 9', 'SMA 50', 'SMA 200'])
     // ⛔ SAME PANE, SAME MEMBERS. A reorder is a permutation of one group.
     expect([...paneRowNames(/^EMA 20$/)].sort()).toEqual([...before].sort())
     expect(paneOf(/^EMA 20$/)).toBe('Price')
 
-    fireEvent.click(arrow(/^EMA 20$/, 'down'))
+    drag(/^EMA 20$/, /^EMA 9$/, 'below')
     expect(paneRowNames(/^EMA 20$/).slice(0, 4)).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
   })
 
-  it('⛔ THE BOUNDARIES ARE DEAD, PRESENT, AND DO NOT WRITE', () => {
-    // ⛔ PRESENT IS HALF THE POINT. Removing a boundary arrow would shorten the
-    // first and last row of every pane by 18px and make the whole column ripple
-    // as rows move — the one thing a reorder control must not do to the list it
-    // is reordering.
-    const seen = { cs: null }
-    show(base(), seen); openTab()
-    const first = /^EMA 9$/
-    expect(arrowsOf(first), 'the top row lost an arrow').toHaveLength(2)
-    expect(dead(arrow(first, 'up')), 'the top row can still move up').toBe(true)
-    expect(dead(arrow(first, 'down'))).toBe(false)
+  it('⭐ THE FOUR JOURNEYS — first→middle, middle→first, middle→last, last→middle', () => {
+    // ⛔ ONE CASE, FOUR DESTINATIONS, because the interesting bugs live at the
+    // ENDS: an insert that lands one slot short is invisible in the middle of a
+    // list and obvious at either edge.
+    show(base()); openTab()
+    const price = () => paneRowNames(/^EMA 9$/).slice(0, 4)
+    expect(price()).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
 
-    fireEvent.click(arrow(first, 'up'))
-    expect(seen.cs, 'pressing ↑ on the top row wrote to the blob').toBeNull()
-    expect(names()[0]).toBe('EMA 9')
+    drag(/^EMA 9$/, /^SMA 50$/, 'above')            // first → middle
+    expect(price()).toEqual(['EMA 20', 'EMA 9', 'SMA 50', 'SMA 200'])
 
-    // …and the last row of the PRICE group, whatever it is.
-    const last = paneRowNames(first).at(-1)
-    const lastRe = new RegExp(`^${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
-    expect(dead(arrow(lastRe, 'down')), `${last} can still move down`).toBe(true)
-    fireEvent.click(arrow(lastRe, 'down'))
-    expect(seen.cs, 'pressing ↓ on the last row wrote to the blob').toBeNull()
+    drag(/^SMA 50$/, /^EMA 20$/, 'above')           // middle → first
+    expect(price()).toEqual(['SMA 50', 'EMA 20', 'EMA 9', 'SMA 200'])
+
+    // ⚠️ LAST IS THE POSITION A LIST DOES NOT HAVE A ROW FOR. Landing below the
+    // final member is `beforeId: null` — the absence `moveSeriesTo` reads as
+    // "put it at the end" — and the PRICE group's final member is `Volume`, which
+    // is banded in with the overlays.
+    const lastName = paneRowNames(/^EMA 9$/).at(-1)
+    const lastRe = new RegExp(`^${lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+    drag(/^EMA 20$/, lastRe, 'below')               // middle → last
+    expect(paneRowNames(/^EMA 9$/).at(-1)).toBe('EMA 20')
+
+    drag(/^EMA 20$/, /^EMA 9$/, 'above')            // last → middle
+    expect(paneRowNames(/^EMA 9$/).indexOf('EMA 20'))
+      .toBe(paneRowNames(/^EMA 9$/).indexOf('EMA 9') - 1)
   })
 
-  it('⛔⛔ AN ARROW IS NOT A SELECTOR — the Inspector does not swing', () => {
+  it('⛔⛔ A DRAG CANNOT LEAVE ITS PANE — not even onto a row in another one', () => {
+    // ⛔⛔ §9 IS THE ONE THAT WOULD HURT. Reorder-within-pane and move-to-another-
+    // pane are different verbs writing different keys, and a drag that drifted
+    // over `Volume` must not become a placement — nor quietly land the row at the
+    // bottom of its OWN pane as a consolation, which is the subtler bug.
+    // ⚠️ THE SOURCE MUST BE A ROW THAT CAN MOVE AT ALL — `QQQ` is alone in its
+    // own pane, so it has no grip and could not start a drag to refuse. `EMA 9`
+    // lives in a five-member Price pane; dragging it onto `QQQ`'s row is a real
+    // gesture a member can make, and the one that must do nothing.
+    const seen = { cs: null }
+    const { cs, id } = withSeries(base(), 'QQQ')
+    show(cs, seen); openTab()
+    const homeBefore = paneOf(/^QQQ$/)
+    const orderBefore = names()
+
+    drag(/^EMA 9$/, /^QQQ$/, 'above')
+    expect(seen.cs, 'a cross-pane drag wrote to the blob').toBeNull()
+    expect(names(), 'a cross-pane drag reordered something').toEqual(orderBefore)
+    expect(paneOf(/^QQQ$/), 'a drag changed which pane a series draws in').toBe(homeBefore)
+    expect(paneOf(/^EMA 9$/), 'the dragged series changed pane').toBe('Price')
+    expect(id).toBeTruthy()
+  })
+
+  it('⛔⛔ …NOR ONTO A FOREIGN PANE THAT *CAN* BE REORDERED', () => {
+    // ⚠️⚠️ THE CASE ABOVE HAS A WEAK TARGET AND THIS ONE CLOSES IT. `QQQ` is
+    // alone in its pane, so its row has no drag handlers at all — a drop there
+    // does nothing for a reason that has nothing to do with pane boundaries, and
+    // the day a lone series gains a grip the case would still pass while the
+    // boundary was wide open. Here the foreign pane has TWO members, so its rows
+    // are live drop targets for their OWN pane and must refuse this one.
+    const seen = { cs: null }
+    const seeded = withSeries(base(), 'QQQ')
+    const guest = withMA(seeded.cs, symbolSource('QQQ', 'close'))
+    const cs = setInstanceDisplayTarget(guest.cs, guest.id, `@${seeded.id}`, registry)
+    show(cs, seen); openTab()
+    expect(rowFor(ENGINE_MA).querySelector('[data-row-grip]'),
+      'precondition: the foreign pane is not reorderable, so this proves nothing')
+      .toBeTruthy()
+    const orderBefore = names()
+
+    drag(/^EMA 9$/, ENGINE_MA, 'above')
+    expect(seen.cs, 'a drag into a reorderable foreign pane wrote to the blob').toBeNull()
+    expect(names(), 'a drag into a reorderable foreign pane reordered something')
+      .toEqual(orderBefore)
+    expect(paneOf(/^EMA 9$/), 'the dragged series changed pane').toBe('Price')
+    expect(paneOf(ENGINE_MA), 'the target pane took a new member').toBe('QQQ')
+  })
+
+  it('⛔⛔ THE GRIP IS NOT A SELECTOR, and a drag does not open the editor', () => {
     // ⚰️ WITHOUT `stopPropagation` THE ROW'S OWN CLICK HANDLER FIRES TOO, so a
     // member repositioning EMA 20 would ALSO open it for editing and the right
     // column would jump to a row they were only moving.
@@ -515,51 +634,117 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
     select(/^SMA 200$/)
     expect(inspectorName()).toBe('SMA 200')
 
-    fireEvent.click(arrow(/^EMA 20$/, 'up'))
-    expect(inspectorName(), 'the arrow selected the row it moved').toBe('SMA 200')
+    drag(/^EMA 20$/, /^EMA 9$/, 'above')
+    expect(inspectorName(), 'the drag selected the row it moved').toBe('SMA 200')
 
-    // …and the ROW itself still selects, which is the other half of the contract.
+    // …and the ROW itself still selects, which is the other half of the contract
+    // and the thing §5 says may not be damaged.
     select(/^EMA 20$/)
     expect(inspectorName()).toBe('EMA 20')
   })
 
-  it('⭐ EVERY ARROW IS A REAL BUTTON WITH A NAME — keyboard and screen reader', () => {
+  it('⭐⭐ A DRAGGED ROW KEEPS ITS SELECTION AND ITS EDITOR', () => {
+    // §16: if EMA 20 is open and the member moves it, only its pane-local order
+    // changes — the selection is an IDENTITY, not a position, and the Inspector
+    // must not swing to whatever now occupies the old slot.
     show(base()); openTab()
-    for (const b of arrowsOf(/^EMA 20$/)) {
-      expect(b.tagName, 'an arrow is not a button — it cannot be reached by keyboard').toBe('BUTTON')
-      expect(b.getAttribute('type'), 'an arrow inside a form would submit it').toBe('button')
-      expect(b.getAttribute('aria-label'), 'an arrow with no accessible name').toBeTruthy()
-      expect(b.title, 'an arrow with no tooltip').toBeTruthy()
-    }
-    expect(arrow(/^EMA 20$/, 'up').getAttribute('aria-label')).toBe('Move EMA 20 up')
-    expect(arrow(/^EMA 20$/, 'down').getAttribute('aria-label')).toBe('Move EMA 20 down')
-    // ⛔ A DEAD ARROW SAYS WHY, and it says a POSITION rather than a capability —
-    // it is not the `NOT_WIRED` kind of unavailable, and must not read as one.
-    expect(arrow(/^EMA 9$/, 'up').getAttribute('aria-label')).toBe('EMA 9 is already first in Price')
-    // A keyboard activation is the same door as a pointer one.
-    const el = arrow(/^EMA 20$/, 'up')
-    el.focus()
-    expect(document.activeElement, 'a dead-keyed arrow cannot be focused').toBe(el)
-    fireEvent.click(el)
-    expect(names()[0]).toBe('EMA 20')
+    select(/^EMA 20$/)
+    expect(inspectorName()).toBe('EMA 20')
+    drag(/^EMA 20$/, /^SMA 200$/, 'below')
+    expect(inspectorName(), 'moving the open row closed or changed the editor').toBe('EMA 20')
+    expect(rowFor(/^EMA 20$/).getAttribute('aria-selected'),
+      'the moved row lost its selected state').toBe('true')
+  })
+
+  it('⛔ A DROP THAT CHANGES NOTHING WRITES NOTHING', () => {
+    // ⛔ THE COMMONEST WAY A DRAG ENDS is letting go where it started, and that
+    // must leave the blob identical — the same promise the old arrows kept at a
+    // boundary, where `moveSeriesWithinPane` returned the SAME object.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    drag(/^EMA 20$/, /^SMA 50$/, 'above')   // EMA 20 already sits directly above SMA 50
+    expect(seen.cs, 'a no-op drop still wrote a preference').toBeNull()
+  })
+
+  it('⭐⭐ THE GRIP IS A REAL BUTTON, AND THE ARROW KEYS STILL MOVE THE SERIES', () => {
+    // ⛔⛔ §13 BY NAME: removing the visible arrows may NOT remove accessible
+    // reordering. The grip is the control, and its up/down keys end at `nudgeRow`
+    // — the SAME writer the old arrows used and the same one the drop uses. Three
+    // doors, one `paneSeriesOrder`.
+    show(base()); openTab()
+    const g = gripOf(/^EMA 20$/)
+    expect(g.tagName, 'the grip is not a button — it cannot be reached by keyboard').toBe('BUTTON')
+    expect(g.getAttribute('type'), 'a grip inside a form would submit it').toBe('button')
+    expect(g.getAttribute('aria-label'), 'the grip has no accessible name')
+      .toBe('Reorder EMA 20 within Price')
+    expect(g.title, 'the grip has no tooltip').toBe('Drag to reorder')
+    expect(g.getAttribute('aria-keyshortcuts'), 'the keyboard path is undiscoverable')
+      .toMatch(/ArrowUp/)
+
+    g.focus()
+    expect(document.activeElement, 'the grip cannot take focus').toBe(g)
+    fireEvent.keyDown(g, { key: 'ArrowUp' })
+    expect(names()[0], 'ArrowUp on the grip did not move the series').toBe('EMA 20')
+    fireEvent.keyDown(gripOf(/^EMA 20$/), { key: 'ArrowDown' })
+    expect(names().slice(0, 2)).toEqual(['EMA 9', 'EMA 20'])
+  })
+
+  it('⛔ AT A BOUNDARY THE KEYS DO NOTHING AND WRITE NOTHING', () => {
+    // ⛔ NO WRAP, NO SURPRISE. `canMoveSeries` answers the same question the
+    // writer does, so a member holding ↑ on the top row produces no write at all
+    // — which is what keeps "opening Indicators writes nothing" true for the
+    // keyboard path too.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    fireEvent.keyDown(gripOf(/^EMA 9$/), { key: 'ArrowUp' })
+    expect(seen.cs, 'ArrowUp on the top row wrote to the blob').toBeNull()
+    expect(names()[0]).toBe('EMA 9')
+
+    const lastName = paneRowNames(/^EMA 9$/).at(-1)
+    const lastRe = new RegExp(`^${lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+    fireEvent.keyDown(gripOf(lastRe), { key: 'ArrowDown' })
+    expect(seen.cs, 'ArrowDown on the last row wrote to the blob').toBeNull()
+  })
+
+  it('⛔⛔ A PANE OF ONE OFFERS NO GRIP — and its name does not move', () => {
+    // ⛔ §11: a single-member pane has nothing to reorder, so advertising a
+    // handle would be advertising an action that cannot happen.
+    // ⚠️ AND THE SLOT STAYS. A pane that drops from two members to one would
+    // otherwise pull every remaining name 14px left under the pointer, so the
+    // width is reserved and left empty rather than removed.
+    // ⚠️ `QQQ` ON ITS OWN PANE IS THE LONE MEMBER — one series, one rectangle,
+    // nothing to put it in front of.
+    const { cs } = withSeries(base(), 'QQQ')
+    show(cs); openTab()
+    const solo = rowFor(/^QQQ$/)
+    expect(solo.getAttribute('data-movable'), 'a lone series claims it can be reordered')
+      .toBe('false')
+    expect(solo.querySelector('[data-row-grip]'), 'a lone series offers a grip').toBeNull()
+    expect(solo.querySelector('[class*="insRowGripSlot"]'),
+      'the reserved slot went with the grip — names will jump').toBeTruthy()
+    // …and a pane that CAN be reordered has both.
+    const ema = rowFor(/^EMA 20$/)
+    expect(ema.getAttribute('data-movable')).toBe('true')
+    expect(ema.querySelector('[data-row-grip]')).toBeTruthy()
   })
 
   it('⭐⭐ ONE ORDER ACROSS TWO PERSISTENCE IMPLEMENTATIONS', () => {
     // ⛔ THIS IS THE CASE THE FEATURE EXISTS FOR. `EMA 9` is a slot in
     // `cs.overlays`; `SMA 5` is an entry in `cs.indicatorInstances`. They are in
     // one pane, and the member does not know or care that they are stored in two
-    // arrays — so there is ONE list of arrows, not `overlayOrder` and
+    // arrays — so there is ONE list to drag within, not `overlayOrder` and
     // `instanceOrder`.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
     // ⚠️ THE CANONICAL ORDER IS `listAllIndicators`': every LEGACY row first —
     // the four overlays AND the volume section — then the engine instances. That
-    // shape is exactly what the arrows exist to override.
+    // shape is exactly what a drag exists to override.
     expect(paneRowNames(ENGINE_MA))
       .toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume', 'SMA 5'])
 
-    // The engine MA climbs past four legacy rows, one press at a time.
-    for (let i = 0; i < 4; i += 1) fireEvent.click(arrow(ENGINE_MA, 'up'))
+    // …and ONE drag carries the engine MA past four legacy rows, where the
+    // arrows needed four presses and four writes.
+    drag(ENGINE_MA, /^EMA 20$/, 'above')
     expect(paneRowNames(ENGINE_MA))
       .toEqual(['EMA 9', 'SMA 5', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume'])
   })
@@ -567,23 +752,39 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
   it('⛔⛔ IT WRITES `paneSeriesOrder` AND NOTHING ELSE', () => {
     // ⭐ THE SEPARATION, ASSERTED AS A DIFF ON THE REAL BLOB. Display,
     // `targetExplicit`, `paneOrder`, the overlay array and the instance array are
-    // what the OTHER controls own.
+    // what the OTHER controls own — and a drag is a pointer, not a licence.
     const seen = { cs: null }
     const { cs } = withMA(base(), 'close')
     show(cs, seen); openTab()
-    fireEvent.click(arrow(/^EMA 20$/, 'up'))
+    drag(/^EMA 20$/, /^EMA 9$/, 'above')
 
     const next = seen.cs
-    expect(next, 'the arrow wrote nothing at all').toBeTruthy()
+    expect(next, 'the drag wrote nothing at all').toBeTruthy()
     expect(next[PANE_SERIES_ORDER_KEY].price[0]).toBe('overlay-1')
-    expect(next.overlays, 'the arrow reordered `cs.overlays` — that renumbers every row id')
+    expect(next.overlays, 'the drag reordered `cs.overlays` — that renumbers every row id')
       .toEqual(cs.overlays)
-    expect(next.indicatorInstances).toEqual(cs.indicatorInstances)
-    expect(storedPaneOrder(next), 'the arrow touched paneOrder').toEqual(storedPaneOrder(cs))
+    expect(next.indicatorInstances, 'the drag reordered the instance array — that is COMPUTE order')
+      .toEqual(cs.indicatorInstances)
+    expect(storedPaneOrder(next), 'the drag touched paneOrder').toEqual(storedPaneOrder(cs))
     for (const inst of next.indicatorInstances || []) {
+      const was = (cs.indicatorInstances || []).find((i) => i.instanceId === inst.instanceId)
       expect(inst.targetExplicit, `${inst.instanceId} grew a placement provenance`)
-        .toBe((cs.indicatorInstances || []).find((i) => i.instanceId === inst.instanceId)?.targetExplicit)
+        .toBe(was?.targetExplicit)
+      expect(inst.target, `${inst.instanceId} changed Display`).toEqual(was?.target)
+      expect(inst.source, `${inst.instanceId} changed Source`).toEqual(was?.source)
     }
+  })
+
+  it('⛔⛔ ONE DROP IS ONE WRITE', () => {
+    // §8: preview while dragging, commit on drop. A preference write per
+    // `dragover` would be dozens of blobs for one gesture — and every one of them
+    // an undo step.
+    const writes = []
+    const { cs } = withMA(base(), 'close')
+    render(<ChartSettingsModal open settings={cs} onChange={(n) => writes.push(n)} />)
+    openTab()
+    drag(ENGINE_MA, /^EMA 9$/, 'above')
+    expect(writes.length, 'the drag produced more than one preference write').toBe(1)
   })
 
   it('⛔⛔ A HOST PANE SURVIVES ITS GUESTS BEING REORDERED', () => {
@@ -601,10 +802,10 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
     // ⚠️ THE GUEST LISTS FIRST BY DEFAULT, and that is the canonical order rather
     // than a statement about hosting: `withInstances` sorts the instance array by
     // DEFINITION rank, and `movingAverage` ranks ahead of `dataSeries`. It is
-    // exactly the kind of order nobody chose that these arrows exist to override.
+    // exactly the kind of order nobody chose that this control exists to override.
     expect(paneRowNames(ENGINE_MA)).toEqual(['SMA 5', 'QQQ'])
 
-    fireEvent.click(arrow(/^QQQ$/, 'up'))
+    drag(/^QQQ$/, ENGINE_MA, 'above')
     expect(paneRowNames(ENGINE_MA)).toEqual(['QQQ', 'SMA 5'])
     // ⛔ SAME PANES, SAME ORDER, SAME HOST. The host moved ABOVE its guest in the
     // list and the pane is still QQQ's — hosting is an identity, not a position.
@@ -613,15 +814,15 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
     expect(paneOf(/^QQQ$/)).toBe('QQQ')
   })
 
-  it('⛔ ARRANGE HAS NO SERIES ARROWS — the two languages stay apart', () => {
+  it('⛔ ARRANGE HAS NO SERIES GRIPS — the two languages stay apart', () => {
     // ⚠️ TWO PANES, because Arrange is only offered when there is something to
     // restack — a default chart has one.
     const { cs } = withSeries(base(), 'QQQ')
     show(cs); openTab()
-    expect(document.body.querySelectorAll('[data-row-order]').length).toBeGreaterThan(0)
+    expect(document.body.querySelectorAll('[data-row-grip]').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByTestId('arrange-enter'))
-    expect(document.body.querySelectorAll('[data-row-order]').length,
-      'Arrange grew per-series arrows — Arrange orders PANES').toBe(0)
+    expect(document.body.querySelectorAll('[data-row-grip]').length,
+      'Arrange grew per-series grips — Arrange orders PANES').toBe(0)
   })
 
   it('⛔ A ROW THAT IS NOT DRAWING ANYWHERE HAS NO ORDER', () => {
@@ -635,8 +836,8 @@ describe('↑ ↓ — SERIES ORDER **INSIDE** A PANE', () => {
     expect(repair.length, 'no repair group rendered — the case proves nothing')
       .toBeGreaterThan(0)
     for (const g of repair) {
-      expect(g.querySelectorAll('[data-row-order]').length,
-        `${g.getAttribute('data-pane-kind')} rows carry order arrows`).toBe(0)
+      expect(g.querySelectorAll('[data-row-grip]').length,
+        `${g.getAttribute('data-pane-kind')} rows carry a reorder grip`).toBe(0)
     }
   })
 
