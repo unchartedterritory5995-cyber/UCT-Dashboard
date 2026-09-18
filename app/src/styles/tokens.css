@@ -369,6 +369,24 @@
   --hub-rim-width: 1px;
   --hub-rim-highlight: color-mix(in srgb, var(--text-heading) 35%, transparent);
   --hub-shadow: 0 10px 28px -8px color-mix(in srgb, var(--bg) 65%, transparent);
+
+  /* ─── The hub's MOTION vocabulary. W4 step 2, 2026-09-17 ───────────────────────────────────
+     ⛔ NO THEME VARIANT, DELIBERATELY. A timing function does not change between light and dark,
+     so these are NOT island-pinned tokens — `styles/themeIslands.test.js` derives its required
+     set from the properties that carry a `[data-theme=…]` block, and these carry none.
+
+     ⚰️ WHY THEY EXIST. Measured from hub.module.css with comments stripped: 8 transitions, of
+     which 2 named a curve and 3 relied on the browser default. The two named ones were
+     cubic-bezier(0.34, 1.56, 0.64, 1) at 0.28s and cubic-bezier(0.34, 1.4, 0.64, 1) at 0.26s —
+     a difference of 0.16 of overshoot and 20 ms, which no thumb can feel and no eye can see.
+     That is not two considered motions; it is one motion typed twice and drifted.
+
+     ⛔ AND THEY ARE STILL TWO. Collapsing them to one is a change a member could feel, so it is
+     left as a DELIBERATE, VISIBLE act for the tuning commit rather than smuggled into a rename.
+     `hubMotionTokens.test.js` pins the count at two so the collapse cannot happen silently. */
+  --hub-ease: ease;                                     /* the browser default, now stated */
+  --hub-spring: cubic-bezier(0.34, 1.56, 0.64, 1);      /* knob return */
+  --hub-spring-soft: cubic-bezier(0.34, 1.4, 0.64, 1);  /* bubble in */
   --hub-scrim: color-mix(in srgb, var(--bg) 70%, transparent);
   --hub-knob-face: color-mix(in srgb, var(--text-heading) 16%, var(--bg-elevated) 84%);
   --hub-tick: color-mix(in srgb, var(--text-heading) 14%, transparent);
