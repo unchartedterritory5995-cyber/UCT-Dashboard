@@ -2,6 +2,38 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-17 — ✅ THE PR BODY IS POSTED. Gate v2.1 PASSED.
+>
+> The owner foregrounded the tab; the gate read **`visible` true, both geometry
+> terms true, `hasFocus` true** on the driving tab, and the body was posted through
+> the description's own `Update comment` form (`/issues/145`), **not** the comment
+> box. Verified AT THE TEXTAREA before the write: **62,853 chars, checksum
+> 218064866, no CRLF — exactly `PR-BODY-COMBINED.md`.** #145 remains **Draft**,
+> which is R29 working.
+>
+> ⚰️⚰️ **AND THE INSTRUMENT LESSON OF THE DAY, BECAUSE IT NEARLY CORRUPTED THE
+> BODY.** Transferring the text by retyping it, a checksum ladder reported a
+> persistent **2-character drift** that I chased through three "fixes" — escaping
+> emoji, then `\u` escapes, then ASCII placeholders — each time producing 1,502
+> where I expected 1,500.
+>
+> **There was no drift. The text was correct every time.** Python's `len()` counts
+> **code points**; JavaScript and .NET count **UTF-16 code units**. The file holds
+> **3 astral characters** (🛑 and friends), so every local offset I compared against
+> a browser offset was wrong by one unit per astral char — and the segment I was
+> "fixing" contained exactly two 🛑.
+>
+> ⛔ **I was about to repair correct content on the word of a broken instrument** —
+> `lesson_a_quantised_instrument_can_manufacture_a_finding`, in a new costume. The
+> tell was there from the first measurement and I read past it: PowerShell said
+> **62,853** where Python said **62,850**, a difference of exactly 3.
+>
+> ⭐ **THE FIX WAS TO STOP TRANSCRIBING ALTOGETHER.** `Set-Clipboard` loaded the
+> file's bytes directly and the textarea took them with one paste — no retyping, no
+> offset arithmetic, and the verification then matched on the first try. **When a
+> transfer needs to be byte-exact, do not route it through a keyboard.**
+> ⚠️ It does overwrite the owner's clipboard, which is worth saying out loud.
+
 > ### ⏱️ 2026-09-17 — ✅ OWED LIST CLEARED. FULL VERIFICATION DONE. ONLY THE OWNER ITEMS REMAIN.
 >
 > ✅ **The binder `notes` channel is BUILT** (`d6dd66ff3`). `sync()` returns
