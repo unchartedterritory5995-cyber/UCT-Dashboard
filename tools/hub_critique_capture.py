@@ -98,14 +98,21 @@ def log(msg):
     print(msg, flush=True)
 
 
-def ensure_account(ctx, base, email, password):
-    """Sign up (idempotent), then log in. The sandbox sets ADMIN_EMAILS but creates no user."""
-    try:
-        ctx.request.post(f"{base}/api/auth/signup",
-                         data={"email": email, "password": password, "display_name": "hub critique"},
-                         headers={"Content-Type": "application/json"})
-    except Exception:
-        pass  # already exists, or signup closed — the login below is the real check
+def ensure_account(ctx, base, email, password, allow_signup=True):
+    """Sign up (idempotent), then log in. The sandbox sets ADMIN_EMAILS but creates no user.
+
+    ⛔ `allow_signup=False` IS MANDATORY AGAINST PRODUCTION. The smoke account already exists and
+    is the ONLY account an automated tool may sign in as; a signup POST there is an unwanted write
+    attempt against the live auth store, and `COMING_SOON_MODE` would refuse it anyway — so the
+    request buys nothing and costs a row in the activity log that looks like an attempted breach.
+    """
+    if allow_signup:
+        try:
+            ctx.request.post(f"{base}/api/auth/signup",
+                             data={"email": email, "password": password, "display_name": "hub critique"},
+                             headers={"Content-Type": "application/json"})
+        except Exception:
+            pass  # already exists, or signup closed — the login below is the real check
     r = ctx.request.post(f"{base}/api/auth/login",
                          data={"email": email, "password": password},
                          headers={"Content-Type": "application/json"})
@@ -115,7 +122,7 @@ def ensure_account(ctx, base, email, password):
     return True, body.get("user", {}).get("email")
 
 
-def capture(pw, base, out: Path, pass_no: int, email, password):
+def capture(pw, base, out: Path, pass_no: int, email, password, allow_signup=True):
     rows = []
     browser = pw.chromium.launch(args=["--force-color-profile=srgb", "--disable-lcd-text"])
     try:
@@ -134,7 +141,8 @@ def capture(pw, base, out: Path, pass_no: int, email, password):
                     body=json.dumps({"joystick_hub": json.dumps(
                         {"enabled": True, "handedness": "right", "surface": "simplified"}),
                         "theme": theme})))
-                ok, who = ensure_account(ctx, base, email, password)
+                ok, who = ensure_account(ctx, base, email, password,
+                                         allow_signup=allow_signup)
                 if not ok:
                     rows.append(dict(profile=pname, theme=theme, state="auth",
                                      verdict="INCONCLUSIVE", why=who))
@@ -237,6 +245,8 @@ def main():
     ap.add_argument("--pass", dest="pass_no", type=int, default=1)
     ap.add_argument("--email", default="hubtest@local.dev")
     ap.add_argument("--password", default="LocalTest2026!")
+    ap.add_argument("--no-signup", action="store_true",
+                    help="never POST /api/auth/signup — MANDATORY against production")
     ap.add_argument("--self-check", action="store_true",
                     help="prove the SHOWING predicate can answer NO as well as YES")
     args = ap.parse_args()
@@ -271,7 +281,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     with sync_playwright() as pw:
-        rows = capture(pw, args.base, out, args.pass_no, args.email, args.password)
+        rows = capture(pw, args.base, out, args.pass_no, args.email, args.password,
+                       allow_signup=not args.no_signup)
 
     manifest = dict(pass_no=args.pass_no, base=args.base, seconds=round(time.time() - t0, 1),
                     captured=sum(1 for r in rows if r["verdict"] == "CAPTURED"),
