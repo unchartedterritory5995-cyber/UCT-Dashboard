@@ -180,6 +180,13 @@ UNITS = [
     # reachable by a member's authenticated client even though no UI renders
     # it yet (that rendering is the explicitly-deferred S8/S10 work).
     ("d5-cp7-build-record", ["8ad9e1d62"], True),           # adjustment-basis endpoint, MEMBER-VISIBLE (reachable, unrendered)
+    ("s6-cp2-prime-build-record", ["47e2ad559"], False),    # member_interest.py body-swap, api/services only
+    # ⛔ member_visible_files derives True here: importance.js/Calendar.jsx/
+    # FeedView.jsx/WeekView.jsx are all under app/src/, a real (non-comment-
+    # only) code change. Matches the gate's own §4 table calling CP3
+    # "ranking could shift — must be proved identical" (proved identical by
+    # the build record's mutation test).
+    ("s6-cp3-build-record", ["a35762d0d"], True),           # impEff derives weightBuckets, MEMBER-VISIBLE
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

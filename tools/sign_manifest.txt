@@ -106,7 +106,9 @@
 #!after: d5-cp4-build-record <- d5-cp3-build-record
 #!after: d5-cp5-build-record <- d5-cp4-build-record
 #!after: d5-cp7-build-record <- d5-cp5-build-record
-#!last: d5-cp7-build-record
+#!after: s6-cp2-prime-build-record <- d5-cp7-build-record
+#!after: s6-cp3-build-record <- s6-cp2-prime-build-record
+#!last: s6-cp3-build-record
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
 docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | CP1,CP2 | c443515eb
@@ -181,3 +183,5 @@ docs/terminal-research/12-decisions/gates/d5-cp3-build-record.md | CP3 | c6f071b
 docs/terminal-research/12-decisions/gates/d5-cp4-build-record.md | CP4 | 51e4434d0
 docs/terminal-research/12-decisions/gates/d5-cp5-build-record.md | CP5 | b448dd7b3
 docs/terminal-research/12-decisions/gates/d5-cp7-build-record.md | CP7 | de099a452
+docs/terminal-research/12-decisions/gates/s6-cp2-prime-build-record.md | CP2' | 952aa032e
+docs/terminal-research/12-decisions/gates/s6-cp3-build-record.md | CP3 | 03137dac2
