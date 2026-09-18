@@ -18,6 +18,7 @@
 import { gestureTracePayload } from './gestureTrace.js'
 import { ROLLOUT_STAGE } from './rolloutStage.js'
 import { routeToModeId } from './hubRoutes.js'
+import { showingFromTriple } from './hubShowing'
 
 export const REPORT_ENDPOINT = '/api/hub/reports'
 export const NOTE_MAX = 280
@@ -73,7 +74,15 @@ export function buildReport({
       dpr: win ? win.devicePixelRatio : null,
       userAgent: nav ? nav.userAgent : null,
     },
-    visibility: visibilityTriple(hubEl, win),
+    // ⛔ THE TRIPLE IS THE MEASUREMENT; `showing` IS THE VERDICT, and the owner's report needs
+    // the verdict. A payload carrying only `{hiddenAttr, display, box}` makes every reader of a
+    // report re-derive "was it actually on screen" — and PRESENT IS NOT SHOWING is exactly the
+    // inference a tired reader gets wrong. `hubShowing.js` is the single place that judgement is
+    // made, shared with the rendering harness so the two cannot drift.
+    visibility: (() => {
+      const triple = visibilityTriple(hubEl, win)
+      return { ...triple, showing: showingFromTriple(triple) }
+    })(),
     page: path,
     // ⭐ DERIVED, never passed in. `hubRoutes.routeToModeId` is the one authority on which mode a
     // route belongs to; a `mode` threaded down from the host would be a second spelling of it, and

@@ -2530,3 +2530,104 @@ through this landing — the redeploy this commit triggers already carries
 `BREADTH_SERIES_BOOT_WARM_ENABLED=1`, so no separate variable flip (and no
 extra burst-guard slot) is needed.
 
+### D-056 addendum · DC-3(c) verification — CLOSED, with an honest residual finding (2026-09-18)
+
+**Five captures, not two — the picture only became clear by looking past the
+first anomaly rather than stopping at "the bar passed."**
+
+| capture | uptime at probe | request shape | first | second | adv_seed | io_read_bytes |
+|---|---|---|---|---|---|---|
+| own (`509d9a851`) | 25s | default span (no from/to) | 324.5 ms | 81.7 ms | 23.4 ms | ~1.0 MB |
+| foreign #1 (`d8b3f1701c59`) | 53s | default span | 193.0 ms | 70.4 ms | 33.4 ms | **0** |
+| foreign #2 (`e3d2a1b1c47e`) | 77s | default span | **14,354.5 ms** | 118.8 ms | **12,026.1 ms** | 18.5 MB |
+| foreign #2 reboot (same commit) | 66s | explicit 2010→2026 span | 4,036.1 ms (502) | 4,828.6 ms | — (shallow path) | 0 |
+| foreign #3 (`4f3955406baf`) | 64s | explicit 2010→2026 span | 4,411.3 ms | 101.9 ms | **6.9 ms** | **0** |
+
+**The two default-span captures that matter most (own, foreign #1) are clean:**
+both landed well inside the first minute, both show the targeted seed cost
+(`adv_seed`) in the tens of milliseconds, and foreign #1 shows **exactly zero**
+fresh disk I/O. Both are dramatic improvements over pre-DC-3(c) behaviour,
+where a probe at 25-53s post-boot was GUARANTEED to hit the full multi-second
+to multi-ten-second cold path (D-056's own "flip verification on its own
+boot" addendum measured 29.9s at 30-90s post-boot, before this reorder).
+
+**Foreign #2 is a genuine, not-explained-away anomaly, and it is reported as
+one.** Diagnosed, not guessed: `/api/breadth-monitor/series` with no `from`/
+`to` makes **two** separate `svc.get_history_deep()` calls — one (undocumented
+until now) to resolve the default `from_date` via `_SERIES_DEFAULT_SESSIONS`
+(`api/routers/breadth_monitor.py:876`), and the timed one immediately after.
+`reader_ms` (Server-Timing's `reader;dur=`) wraps ONLY the second call, while
+`breadth_timing.phase('adv_seed')` **accumulates** across both — so on a boot
+where the FIRST of the two calls hits a genuine partial disk-cold path, its
+`adv_seed` time is added to the total while `reader_ms` never reflects it,
+producing exactly the "`adv_seed` (12,026 ms) exceeds `reader` (4,733 ms)"
+inconsistency this capture shows. **This is a PRE-EXISTING measurement
+quirk in the `/series` route, not something DC-3(c) introduced** — it was
+invisible before because no earlier capture happened to land while the
+underlying data was still page-cache-cold.
+
+**What actually happened on that boot:** `io_read_bytes=18.5 MB` — real, but
+7-20× smaller than the 137–398 MB cold misses measured pre-fix — says the
+boot-warm's own read had NOT fully populated the page cache by the time this
+probe landed (uptime 77s at `/api/health`, meaning the actual `/series` call
+itself landed a little later still, past the mandate's literal 60s bar). The
+warm starts at a fixed 5s delay and its own execution time depends on how
+cold THIS PARTICULAR host's disk cache is — evidently, on this one boot, that
+took longer than the ~72s available. This is a real, if reduced and
+occasional, residual exposure — stated plainly rather than rounded away.
+
+**The explicit-span probes (reboot, foreign #3) answer a different, narrower
+question and should not be read as boot-warm results at all.** They used an
+arbitrary wide 2010–2026 window specifically to sidestep the double-call
+quirk above, and foreign #3 shows the seed cost fully warm (`adv_seed=6.9 ms`,
+`io_read_bytes=0`) while `reconstructed_fetch` (3.9 s, materializing 4,529
+rows for a span no real client requests) dominates instead — a CPU-bound
+row-materialization cost for an unrealistic span, unrelated to disk-cache
+warmth and outside D-056's scope entirely. The reboot capture's first probe
+hit a **502** (an unrelated deploy-swap race, not an application response) and
+is excluded as contaminated.
+
+**Decision.** DC-3(c)'s reorder does what it was authorised to do: it moved
+the warm far enough forward that the SUBSTANCE of the early-boot exposure
+window — the multi-second-to-tens-of-seconds cold read a real member could
+hit — shrank to near-zero on 2 of 3 default-span captures, and even the one
+exception (foreign #2) shows a 7-20× reduction versus the pre-fix baseline,
+not a full reproduction of it. **It does not provide an absolute, every-single-
+boot guarantee** — host-level disk-cache variance and the newly-surfaced
+double-call quirk mean an occasional early probe can still see a genuine,
+smaller residual cost. Recorded here for whoever next touches this reader;
+not fixed further in this landing, per the same "recorded as a caveat, not
+fixed unilaterally" discipline as the honest-caveat addendum above. No code
+change follows from this record — DC-3(c)'s own authorised scope (the reorder
+itself) is complete and already landed (`0dd30b3c6`/`5c513429f`, confirmed on
+production ancestry).
+
+**Flag state at this record: `BREADTH_SERIES_BOOT_WARM_ENABLED=1` on `web`,
+confirmed live throughout.** DC-3 (a, b, c) closed.
+
+### D-056 addendum · SHA provenance correction + final production confirmation (2026-09-18)
+
+**Two small corrections to the record above, not to the findings.** The DC-3(c)
+closing addendum cited commits `0dd30b3c6` (code) and `5c513429f`/`6216adb0b`
+(docs) as landed on `breadth/dc-v2` → `master`. Both remain valid commit
+objects, but neither is an ancestor of the CURRENT `master`/`production` —
+each was superseded by an equivalent commit (same diff, different parent
+chain) when this branch was rebased onto a moving `origin/master` during the
+long burst-guard wait that followed. **This is expected git behaviour, not a
+lost landing** — verified by content, not by chasing the stale hash:
+
+```
+git show origin/production:api/main.py | grep _start_breadth_series_warm_background
+  -> present: the function, its docstring cross-reference, and its boot call site
+git show origin/production:docs/breadth/DECISIONS.md | grep -c "DC-3(c)"
+  -> present
+```
+
+**Final state, confirmed directly rather than inferred from an earlier
+report:** `origin/master` and `origin/production` are at the **identical**
+SHA (`45189bc46`), the `web` deploy for that commit shows `SUCCESS`
+(`0e5fd64d`), a fresh-boot `/api/health` reads `{"status":"ok",
+"uptime_seconds":126}`, and `BREADTH_SERIES_BOOT_WARM_ENABLED=1` is confirmed
+live via `railway variables --kv`. DC-2 and DC-3 (a, b, c) are closed with
+nothing pending.
+

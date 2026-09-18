@@ -825,6 +825,37 @@ export default function ChartSettingsIndicators({
     return [...secs, ...idx, ...brd]
   }, [breadthAll])
 
+  // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
+  // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
+  //
+  // `addRow` is kind-blind on purpose: it looks the clicked row's key up here,
+  // and a hit goes to `createFromResult` (the ONE composition that honours a
+  // `create` descriptor) while a miss falls through to `addInstance(row.id)`.
+  // That fall-through is correct for a CATALOGUE row, whose id names a real
+  // engine definition. It is a silent no-op for a ticker: there is no definition
+  // called `SPX`, so `addInstance` refuses BY IDENTITY, `commit` sees
+  // `next === settings`, and the click writes nothing.
+  //
+  // ⛔ AND THE MAP WAS BUILT FROM THE **QUERY'S** RESULTS ALONE. With no query
+  // there are none — `results` swaps in `browsed` for exactly that case — so a
+  // member who clicked the `Indexes` tab and pressed `S&P 500 Index` was clicking
+  // a row whose result this lookup had never been told about. Measured on master:
+  // Technical added; Symbols, Indexes and Breadth were dead through BOTH doors
+  // (the `＋ Add` is an `aria-hidden` span, so it bubbles to the same handler).
+  //
+  // ⭐ SO THE MAP COVERS WHAT IS ON SCREEN, WHICHEVER HALF THAT IS. No new
+  // dispatcher, no second add path: the fix is that the UI can now find the
+  // result for a row it is already rendering. The query's answer overwrites the
+  // browsed one on a key collision — the same precedence `results` applies a few
+  // lines below, so the row a member sees and the result it creates from are the
+  // same object.
+  const resultByKey = useMemo(() => {
+    const m = new Map()
+    for (const res of browsed) if (res && res.key) m.set(res.key, res)
+    for (const res of symbolResults) if (res && res.key) m.set(res.key, res)
+    return m
+  }, [browsed, symbolResults])
+
   const results = useMemo(() => {
     const byQuery = catalog.filter((r) => matches(r, query))
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
@@ -992,7 +1023,7 @@ export default function ChartSettingsIndicators({
       return true
     }
     armAdd()
-    const res = symbolRows.byKey.get(row.key)
+    const res = resultByKey.get(row.key)
     if (res) {
       if (!commit(createFromResult(settings, res, registry))) pendingAddRef.current = null
       return
@@ -1005,7 +1036,7 @@ export default function ChartSettingsIndicators({
     // persisting a no-op would mark the preset custom for a click that did nothing
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
-  }, [settings, onChange, registry, symbolRows, armAdd, leaveBrowse])
+  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -1309,7 +1340,12 @@ export default function ChartSettingsIndicators({
             indicators, this creates a repetitive column of arrows and makes the
             list feel crowded... the member should think 'I can grab this
             indicator and move it', not 'I have to find the correct tiny arrow'."*
-            ⭐ ONE GRIP, ON THE LEFT, AND ONLY WHEN THE POINTER IS OVER THE ROW.
+            ⭐ ONE GRIP, ON THE LEFT, AND VISIBLE AT REST. ⚰️ It used to fade in
+            on row hover, which hid the whole reorder capability behind a gesture a
+            member had no reason to make and left every idle row with a blank 13px
+            gutter where the slot is reserved. It is quiet rather than absent now —
+            the ladder lives in `.insRowGrip` — and nothing about its geometry, its
+            column or the row's spacing changed.
             ⛔ IT IS NOT THE MICRO-RAIL AND MUST NEVER BE MISTAKEN FOR IT (§4). The
             rail two pixels to its right is the series' PLOT COLOUR — an identity
             — and this is an affordance; so the grip is neutral grey, never tinted,
@@ -2247,7 +2283,7 @@ export default function ChartSettingsIndicators({
     // creates them must keep offering. A row carrying a `create` descriptor is
     // asked nothing; it simply adds.
     // ⭐ AND A RESTORE ROW IS AN ADD ROW TOO — see `discoveryCatalog.libraryRowFor`.
-    const creates = symbolRows.byKey.has(row.key) || row.restores === true
+    const creates = resultByKey.has(row.key) || row.restores === true
     const on = creates ? false : isRowOn(row, settings)
     // ⛔ DISCOVERY IS NOT CHARTABILITY. The facade reports what the SERVER already
     // said — a delisted ticker, an index the bars route will not serve — and

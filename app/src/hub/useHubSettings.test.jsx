@@ -43,6 +43,12 @@ describe('HUB_SETTINGS_DEFAULTS — the one authority for "what a fresh account 
       // ⛔ The G0 gesture trace ships OFF. It is a diagnostic, and a diagnostic that is on because
       // nobody chose is the shape `project_feature_flag_ledger` exists to prevent.
       traceGestures: false,
+      // ⭐ R4, 2026-09-17 — which action surface the fan draws. `'simplified'` is the strong cut
+      // and is the DEFAULT; `'full'` restores all 62 actions. Unlike `traceGestures` this is NOT
+      // admin-gated: it picks between two surfaces of one shipped control rather than exposing a
+      // diagnostic. Spelled out here rather than counted, so a key arriving or leaving forces
+      // somebody to look at it — the same reason the fan's ring lists are spelled out.
+      surface: 'simplified',
       overrides: {},
     })
   })
@@ -158,6 +164,7 @@ describe('useHubSettings — updateHubSettings is a JSON-patch merge, not a repl
       doubleTapMs: 280,
       stickyFan: true,
       highContrast: false,
+      surface: 'simplified',  // R4's default, folded in by withDefaults like every other key
       // ⭐ Written as the DEFAULT, not as the resolved value. This user is a member, so
       // `settings.traceGestures` reads false for them either way — but the blob must carry the
       // stored intent, never the admin-resolved answer, or an admin toggling handedness on a

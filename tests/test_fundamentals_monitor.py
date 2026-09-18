@@ -173,9 +173,11 @@ def test_blank_sales_not_flagged_but_counted(monkeypatch):
 
 # ── self-heal ─────────────────────────────────────────────────────────────────
 def test_heal_uses_exact_delete_for_earnings_table(monkeypatch):
-    # The earnings_table:: key has no trailing separator, so healing 'A' must NOT
-    # prefix-wipe AAPL/AMZN — use exact-key invalidate. mb_year_earnings_ IS
-    # separator-anchored so delete_prefix is safe there.
+    # D4 CP4' (F-D4-1): the earnings_table:: key now carries a trailing \x1f
+    # terminator so a per-ticker delete_prefix is safe BY CONSTRUCTION (healing
+    # 'A' can never prefix-wipe AAPL/AMZN) — exact-key invalidate is still what
+    # this call site uses. mb_year_earnings_ IS separator-anchored so
+    # delete_prefix is safe there too.
     fm = _mod()
     invalidated, prefixed = [], []
     monkeypatch.setattr(fm.cache, "invalidate", lambda k: invalidated.append(k))
@@ -183,7 +185,7 @@ def test_heal_uses_exact_delete_for_earnings_table(monkeypatch):
     monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _payload())
     r = fm._heal("a")
     assert r["ok"] is True
-    assert invalidated == ["earnings_table::A"]           # exact, not prefix
+    assert invalidated == ["earnings_table::A" + fm._KEY_TERM]  # exact, not prefix
     assert prefixed == ["mb_year_earnings_A_"]            # anchored prefix ok
 
 
@@ -243,9 +245,11 @@ def test_get_state_shape():
 # ── warm-biased sampling ──────────────────────────────────────────────────────
 def test_sample_prefers_warm_and_bounds_cold_tail(monkeypatch):
     fm = _mod()
+    T = fm._KEY_TERM
     monkeypatch.setattr(fm, "_COLD_TAIL", 2)
     monkeypatch.setattr(fm.cache, "keys_with_prefix",
-                        lambda p: ["earnings_table::WARMA", "earnings_table::WARMB", "earnings_table::WARMC"])
+                        lambda p: ["earnings_table::WARMA" + T, "earnings_table::WARMB" + T,
+                                   "earnings_table::WARMC" + T])
     monkeypatch.setattr(fm, "_load_universe", lambda: ["COLD1", "COLD2", "COLD3", "COLD4", "COLD5"])
     out = fm._sample_tickers(12)
     assert len(out) == len(set(out))                       # deduped
@@ -254,3 +258,37 @@ def test_sample_prefers_warm_and_bounds_cold_tail(monkeypatch):
     assert len(cold) <= 2                                  # cold tail bounded
     warm = [s for s in out if s.startswith("WARM")]
     assert warm                                            # warm cache entries included
+
+
+def test_sample_refuses_a_malformed_warm_key_rather_than_guessing(monkeypatch):
+    """D4 CP4' (F-D4-1): a key missing the \\x1f terminator (e.g. a stale key
+    from before this format, or an unrelated family that happens to share the
+    'earnings_table::' prefix) must be SKIPPED, never split-and-upcased into a
+    garbled 'ticker' that then gets fed to check_ticker as if it were real."""
+    fm = _mod()
+    T = fm._KEY_TERM
+    monkeypatch.setattr(fm, "_PRIORITY", [])
+    monkeypatch.setattr(fm, "_COLD_TAIL", 0)
+    monkeypatch.setattr(fm.cache, "keys_with_prefix",
+                        lambda p: ["earnings_table::GOOD" + T, "earnings_table::NOTERM",
+                                   "earnings_table::"])
+    monkeypatch.setattr(fm, "_load_universe", lambda: [])
+    out = fm._sample_tickers(12)
+    assert "GOOD" in out
+    assert "NOTERM" not in out
+    assert "" not in out
+
+
+def test_warm_ticker_recovery_cannot_collide_a_short_ticker_into_a_longer_one(monkeypatch):
+    """D4 CP4' (F-D4-1) collision proof: the OLD key shape (no terminator) let
+    delete_prefix('earnings_table::A') also match 'earnings_table::AAPL'. The
+    terminator makes that impossible by construction — prove it directly on
+    the real key builder + a real in-memory cache, not just on the parse."""
+    from api.services.earnings_table import _cache_key
+    from api.services.cache import TTLCache
+    c = TTLCache()
+    c.set(_cache_key("A"), {"ticker": "A"}, ttl=60)
+    c.set(_cache_key("AAPL"), {"ticker": "AAPL"}, ttl=60)
+    n = c.delete_prefix(_cache_key("A"))
+    assert n == 1
+    assert c.get(_cache_key("AAPL")) is not None  # AAPL survives a delete aimed at "A"

@@ -2139,3 +2139,53 @@ describe('MA over each canonical source lands in the right pane', () => {
       .toMatch(/^Automatic · /)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('⭐ THE GRIP IS VISIBLE AT REST', () => {
+  // ⚰️ IT FADED IN ON ROW HOVER, so the one reorder control in the panel was
+  // discoverable only by accident — and because the slot reserves its 13px
+  // whether or not the dots are drawn, an idle list carried a blank gutter down
+  // its left edge. Owner: *"no mysterious blank gutter when the row is idle."*
+  //
+  // ⛔ A CSS RAIL, because the defect IS a stylesheet value: a component test
+  // renders the markup identically at `opacity: 0` and at `0.3`, so only the
+  // sheet can be asked. Read from the file for the same reason `priceAxisPinSite`
+  // reads its call sites — the arithmetic being right elsewhere proves nothing
+  // about the number that ships.
+  const sheet = readFileSync(
+    join(process.cwd(), 'src/components/chart/ChartSettingsModal.module.css'), 'utf8')
+  const block = (sel) => {
+    const i = sheet.indexOf(`\n${sel} {`)
+    return i < 0 ? '' : sheet.slice(i, sheet.indexOf('}', i))
+  }
+
+  it('⛔ rest opacity is neither 0 nor loud', () => {
+    const rest = block('.insRowGrip').match(/opacity:\s*([\d.]+)/)
+    expect(rest, '.insRowGrip declares no rest opacity').toBeTruthy()
+    const v = Number(rest[1])
+    expect(v, 'the grip is invisible at rest again — the blank gutter is back').toBeGreaterThan(0)
+    expect(v, 'the grip shouts; §20 rules out permanently BRIGHT handles').toBeLessThanOrEqual(0.45)
+  })
+
+  it('⭐ and hover still raises it — rest < row hover < grip hover', () => {
+    const at = (re) => {
+      const m = sheet.match(re)
+      expect(m, `no rule matched ${re}`).toBeTruthy()
+      return Number(m[1])
+    }
+    const rest = Number(block('.insRowGrip').match(/opacity:\s*([\d.]+)/)[1])
+    const rowHover = at(/\.insRow:hover \.insRowGrip \{\s*opacity:\s*([\d.]+)/)
+    const gripHover = at(/\.insRowGrip:hover \{\s*opacity:\s*([\d.]+)/)
+    expect(rest).toBeLessThan(rowHover)
+    expect(rowHover).toBeLessThan(gripHover)
+  })
+
+  it('⛔ it is still neutral, still grabbable, and still has no chrome', () => {
+    const b = block('.insRowGrip')
+    expect(b, 'the grip borrowed the series colour — §4').not.toMatch(/--series|plotColor|tint/)
+    expect(b).toMatch(/cursor:\s*grab/)
+    expect(b).toMatch(/background:\s*none/)
+    expect(b).toMatch(/border:\s*0/)
+    expect(block('.insRowGrip:active'), 'the grabbing cursor went').toMatch(/cursor:\s*grabbing/)
+  })
+})

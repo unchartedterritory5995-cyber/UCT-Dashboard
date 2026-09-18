@@ -2,7 +2,7 @@
 // See docs/plans/joystick/00-master-spec-v1.4.md §5 (chip) and §C1/§C2 (scrub readout, live region).
 
 import styles from './hub.module.css'
-import { PAD_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
+import { PAD_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX, FAN_RADIUS_OUTER } from './constants'
 
 // The reference prototype's chip height (prototype.html `.chip{height:28px}`)
 // — used only to vertically centre the chip on the pad; the rendered chip's
@@ -84,6 +84,24 @@ export default function HubChip({
     ? ringName
     : (scrubbing ? scrubReadout || 'Scrub' : tapHint)
   const verticalOffset = PAD_PX / 2 - CHIP_HEIGHT_PX / 2
+
+  /* ⛔⛔ WHILE THE FAN IS OPEN THE CHIP LIFTS CLEAR OF IT. R8 critique pass 1, finding F2.
+   *
+   * ⚰️ WHAT THE FRAME SHOWED. At rest the chip sits vertically centred on the pad, to its left —
+   * which is INSIDE the quadrant the fan sweeps. With the fan open and a ring selected, one
+   * horizontal band carried the chip, the word "Actions" (this chip's own `ringName`), the Draw
+   * bubble, the Home bubble and the Actions button, all semi-transparent and all on top of each
+   * other. Asked to "name the single cheapest-looking thing in the frame", that band was the
+   * answer — and it is a LAYOUT COLLISION, not a material failure.
+   *
+   * ⭐ NOTHING WAS WRONG WITH THE CHIP'S LOGIC. `open && !ringName` already returns null (spec §5,
+   * "hidden while the fan is open"), and it correctly stays to announce the selected ring. The
+   * defect is that it announced it from its RESTING position, which the fan had since grown over.
+   *
+   * The lift is derived from `FAN_RADIUS_OUTER`, never typed: the fan's own reach decides what
+   * "clear of the fan" means, so a future radius change moves this with it. `CHIP_GAP_PX` is the
+   * same gutter the chip already uses against the pad — no new spacing constant enters the file. */
+  const openLift = open && ringName ? FAN_RADIUS_OUTER + CHIP_GAP_PX : 0
   const clearance = actionsWidthPx > 0 ? actionsWidthPx + ACTIONS_CLEARANCE_PX : 0
   const inset = EDGE_OFFSET_PX + PAD_PX + CHIP_GAP_PX + clearance
   const sideStyle = mirrored ? { left: `${inset}px` } : { right: `${inset}px` }
@@ -108,7 +126,7 @@ export default function HubChip({
          * `.chipHint` ellipsises inside it and `.chipMode` does not shrink (`hub.module.css`) —
          * the mode name is the part that must survive, the tap hint is the part that may yield. */
         maxWidth: `calc(100vw - ${inset + EDGE_OFFSET_PX}px)`,
-        bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + verticalOffset}px)`,
+        bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + verticalOffset + openLift}px)`,
       }}
     >
       <b className={styles.chipMode} style={{ color: modeColor ? `var(${modeColor})` : undefined }}>

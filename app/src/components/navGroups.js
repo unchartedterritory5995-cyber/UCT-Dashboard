@@ -21,9 +21,9 @@ export const NAV_GROUPS = [
   { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
     routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
-             '/post-market', '/screener', '/catalysts', '/ai-search', '/uct-20'] },
+             '/post-market', '/screener', '/catalysts', '/catalysts/history', '/ai-search', '/uct-20'] },
   { key: 'charts', label: 'Charts', icon: 'chart',
-    routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library'] },
+    routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library', '/formulas/reference'] },
   { key: 'journal', label: 'Journal', icon: 'journal',
     routes: ['/journal', '/community', '/desk', '/support'] },
 ]

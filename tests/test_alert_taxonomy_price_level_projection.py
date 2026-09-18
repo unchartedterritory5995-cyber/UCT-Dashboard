@@ -1036,3 +1036,70 @@ def test_the_dry_run_reports_a_missing_bar_instead_of_substituting_one():
     assert any("STALE" in x for x in missing), (
         "a bar from a different session was substituted instead of reported")
     assert "NONE" in missing
+
+
+# ── S7 dark-read investigation, 2026-09-18 — breadth pseudo-tickers ───────────
+# ⛔ `_prices_for` (the price resolver every dark-sweep tick uses) had no path
+# to a UCT breadth pseudo-ticker's quote at all — the shared live-price cache
+# never carries one (only Massive-sourced prices are written there), and
+# Massive itself has no quote for a pseudo-ticker. A predicate armed on one of
+# these (e.g. UCTA5, "% of Stocks Above 5-Day MA") was therefore silently
+# NEVER-EVALUATED: no span, no heartbeat count, absent from the comparison
+# report entirely — found live, `heartbeat.projected=12` vs
+# `price_level_comparison_spans` holding only 10 rows, both UCTA5.
+
+def test_prices_for_resolves_a_breadth_pseudo_ticker_via_breadth_symbols(monkeypatch):
+    """A cache-miss, Massive-miss symbol that IS a breadth pseudo-ticker must be
+    priced via `breadth_symbols.latest_quotes` before falling through to
+    `missing` — the same resolution `live_prices.py`'s real endpoint already
+    does for the identical symbol."""
+    from api.services import breadth_symbols as _bs
+
+    monkeypatch.setattr(_bs, "is_breadth_symbol", lambda s: s.strip().upper() == "UCTA5")
+    monkeypatch.setattr(_bs, "latest_quotes", lambda syms: {"UCTA5": {"price": 41.7}})
+
+    def _boom(*a, **k):
+        raise AssertionError("Massive must not be consulted for a breadth symbol")
+    monkeypatch.setattr("api.services.massive._get_client", _boom)
+
+    prices, missing = _proj._prices_for(["UCTA5"])
+    assert prices == {"UCTA5": 41.7}
+    assert missing == []
+
+
+def test_prices_for_still_reports_a_breadth_symbol_with_no_quote(monkeypatch):
+    """`breadth_symbols.latest_quotes` returning nothing for the symbol (e.g. no
+    breadth snapshot has landed yet) must still land in `missing` — REPORTED,
+    never silently dropped."""
+    from api.services import breadth_symbols as _bs
+
+    monkeypatch.setattr(_bs, "is_breadth_symbol", lambda s: s.strip().upper() == "UCTA5")
+    monkeypatch.setattr(_bs, "latest_quotes", lambda syms: {})
+
+    prices, missing = _proj._prices_for(["UCTA5"])
+    assert prices == {}
+    assert missing == ["UCTA5"]
+
+
+def test_prices_for_MUTATION_without_the_breadth_path_a_pseudo_ticker_is_lost(monkeypatch):
+    """Non-regression / mutation proof: with the breadth-symbol lookup disabled
+    (simulating the pre-fix code), a breadth pseudo-ticker falls all the way
+    through to the Massive fallback and is reported missing even though a real
+    quote exists — this is the exact bug the fix above closes."""
+    from api.services import breadth_symbols as _bs
+
+    monkeypatch.setattr(_bs, "is_breadth_symbol", lambda s: False)  # pre-fix behaviour
+    monkeypatch.setattr(_bs, "latest_quotes", lambda syms: {"UCTA5": {"price": 41.7}})
+
+    def _empty_massive(*a, **k):
+        class _C:
+            def get_batch_rich_snapshots(self, syms):
+                return {}
+        return _C()
+    monkeypatch.setattr("api.services.massive._get_client", _empty_massive)
+
+    prices, missing = _proj._prices_for(["UCTA5"])
+    assert prices == {}
+    assert missing == ["UCTA5"], (
+        "with the breadth path disabled the pseudo-ticker should be lost, "
+        "proving the real fix (not this test) is what recovers it")

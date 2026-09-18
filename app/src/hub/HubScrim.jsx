@@ -28,7 +28,9 @@ export default function HubScrim({ open, excludeBottom = null, onPointerDown }) 
   return (
     <div
       data-testid="hub-scrim"
-      className={styles.scrim}
+      className={excludeBottom != null
+        ? `${styles.scrim} ${styles.scrimFade}`
+        : styles.scrim}
       style={excludeBottom != null ? { bottom: excludeBottom } : undefined}
       aria-hidden="true"
       onPointerDown={onPointerDown}

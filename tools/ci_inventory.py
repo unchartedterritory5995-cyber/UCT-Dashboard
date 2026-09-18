@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import posixpath
 import re
 import sys
 
@@ -221,7 +222,8 @@ def failing_keys(pytest_text: str, vitest_text: str) -> set:
 
 def diff(baseline_failing: set, current_failing: set, current_ran: set,
          current_summary: dict, baseline_summary=None, flaky=None,
-         flaky_previous=None, repo=".") -> dict:
+         flaky_previous=None, repo=".", first_run=False,
+         attribute=False) -> dict:
     """NEW / FIXED / UNCHANGED / MISSING + a verdict. Never raises.
 
     ⛔ **F-CI-30: `flaky` is SUBTRACTED FROM NEW, AND FROM NOTHING ELSE.** A flaky test is
@@ -230,11 +232,17 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
     name, in its own bucket and in `flaky_findings.md`.
     ⭐ `flaky` arrives as a DERIVED set (see `flaky_set`). If it ever arrives from a file
     somebody edits, that file is the finding.
+
+    ⛔⛔ **`first_run=True` (E CP38) means no prior VALID run exists to compare against —
+    NOT that the comparison came back clean.** The verdict is FIRST_RUN, distinct from
+    NO_NEW_FAILURES, so a rolling baseline with nothing yet behind it can never read as a
+    passed gate. `attribute=True` additionally derives per-entry NEW/FIXED attribution
+    (`attribute_new_and_fixed`) and folds NEW-OURS/NEW-OTHERS/UNATTRIBUTED counts in.
     """
     invalid = []
     s = current_summary or {}
     p = s.get("pytest") or {}
-    if not baseline_failing:
+    if not baseline_failing and not first_run:
         invalid.append("the BASELINE holds zero failure entries — nothing to diff against")
     if p.get("shards_total") and p.get("shards_success", 0) < p["shards_total"]:
         invalid.append("current: shards_success %s of %s"
@@ -306,28 +314,36 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
         verdict = "DID_NOT_RECONCILE"
     elif unattributed:
         verdict = "COVERAGE_LOST"
+    elif first_run:
+        verdict = "FIRST_RUN"
     elif new:
         verdict = "NEW_FAILURES"
     else:
         verdict = "NO_NEW_FAILURES"
     prev_flaky = set(flaky_previous or ())
-    return {"verdict": verdict, "new": new, "fixed": fixed, "unchanged": unchanged,
-            "missing": missing, "new_flaky": new_flaky,
-            "file_level_resolved": file_level, "missing_buckets": missing_buckets,
-            "coverage_lost": unattributed,
-            "counts": {"new": len(new), "fixed": len(fixed),
-                       "unchanged": len(unchanged),
-                       "missing": len(missing),
-                       "baseline": len(baseline_failing),
-                       "current": len(current_failing),
-                       "current_ran": len(current_ran),
-                       "new_flaky": len(new_flaky),
-                       "flaky_size": len(flaky),
-                       "flaky_new": len(flaky - prev_flaky),
-                       "flaky_fixed": len(prev_flaky - flaky),
-                       "file_level_resolved": len(file_level),
-                       "coverage_lost": len(unattributed)},
-            "arithmetic": arithmetic, "invalid_because": invalid}
+    counts = {"new": len(new), "fixed": len(fixed),
+              "unchanged": len(unchanged),
+              "missing": len(missing),
+              "baseline": len(baseline_failing),
+              "current": len(current_failing),
+              "current_ran": len(current_ran),
+              "new_flaky": len(new_flaky),
+              "flaky_size": len(flaky),
+              "flaky_new": len(flaky - prev_flaky),
+              "flaky_fixed": len(prev_flaky - flaky),
+              "file_level_resolved": len(file_level),
+              "coverage_lost": len(unattributed)}
+    result = {"verdict": verdict, "new": new, "fixed": fixed, "unchanged": unchanged,
+              "missing": missing, "new_flaky": new_flaky,
+              "file_level_resolved": file_level, "missing_buckets": missing_buckets,
+              "coverage_lost": unattributed, "counts": counts,
+              "arithmetic": arithmetic, "invalid_because": invalid,
+              "first_run": first_run}
+    if attribute and not invalid:
+        table, attr_counts = attribute_new_and_fixed(new, fixed, sha_a, sha_b, repo)
+        result["attribution"] = table
+        counts.update(attr_counts)
+    return result
 
 
 def load_record(d):
@@ -358,9 +374,16 @@ def render_diff(d: dict, baseline_id: str, current_id: str) -> str:
            "⚠️ DERIVED by `tools/ci_inventory.py --baseline … --current …`. Not hand-edited.",
            "", "**baseline `%s` → current `%s`**" % (baseline_id, current_id), "",
            "## VERDICT: %s" % d["verdict"], ""]
+    if d.get("first_run"):
+        out += ["⛔⛔ **FIRST_RUN** — no prior VALID run exists to compare against. This is "
+                "NOT a clean bill of health; every current failure is listed as NEW because "
+                "there is nothing yet behind it to diff against.", ""]
     if d["invalid_because"]:
         out += ["⛔ INVALID because:", ""] + ["- %s" % r for r in d["invalid_because"]] + [""]
     c = d["counts"]
+    if "new_ours" in c:
+        out += ["**NEW %d · NEW-OURS %d · NEW-OTHERS %d · UNATTRIBUTED %d**"
+                % (c["new"], c["new_ours"], c["new_others"], c["new_unattributed"]), ""]
     out += ["| NEW | FIXED | UNCHANGED | MISSING |", "|---|---|---|---|",
             "| **%d** | %d | %d | **%d** |" % (c["new"], c["fixed"], c["unchanged"],
                                                c["missing"]), "",
@@ -396,6 +419,19 @@ def render_diff(d: dict, baseline_id: str, current_id: str) -> str:
         out += ["### NEW but FLAKY — excluded from the verdict, named anyway", ""]
         out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new_flaky"][:50]]
         out.append("")
+    if d.get("attribution"):
+        out += ["### Attribution — commit range, never a hand-typed list", "",
+                "| entry | class | commit | workstream | ours? |", "|---|---|---|---|---|"]
+        for key, a in sorted(d["attribution"].items()):
+            if not a.get("workstreams"):
+                out.append("| `%s` | %s | — | — | — |" % (key[:60], a["class"]))
+                continue
+            for w in a["workstreams"]:
+                out.append("| `%s` | %s | `%s` | %s | %s |"
+                           % (key[:60], a["class"], w["commit"], w["workstream"],
+                              "OURS" if w["ours"] else ""))
+        out += ["", "⛔ UNATTRIBUTED carries the evidence of absence (range + path checked), "
+                "never a bare label — see `reason` in the JSON.", ""]
     if d["new"]:
         out += ["### NEW — failing now, not in the baseline", ""]
         out += ["- `%s` · `%s` · %s" % (k[0], k[1], k[2]) for k in d["new"][:50]]
@@ -877,6 +913,277 @@ def collect_runs(root, repo="."):
     return runs
 
 
+# ── E CP38 — rolling baseline with attribution ──────────────────────────────────────
+#
+# ⛔⛔ **R-ROLLING-BASELINE.** A fixed `BASELINE_RUN_ID` on a SHARED branch measures
+# every workstream's drift against one frozen point, so a wide NEW count is mostly
+# other people's work. The baseline for a run on `master` is instead the previous
+# VALID `master` run — so the diff carries only what changed in the range between
+# them, and every NEW/FIXED entry can be attributed to the commit that caused it.
+# `BASELINE_RUN_ID` is RETIRED for master; kept, unchanged, for feat-branch runs
+# (there the comparison point is a deliberate feat-branch anchor, not a moving one).
+
+def record_is_valid(summary: dict) -> bool:
+    """VALID = every pytest shard succeeded, the totals are present, and the suite
+    actually collected something. Mirrors `diff()`'s own INVALID checks — a baseline
+    this function calls valid is one `diff()` would never mark INVALID on its own
+    account."""
+    p = (summary or {}).get("pytest") or {}
+    total = p.get("shards_total")
+    success = p.get("shards_success")
+    if not total or success != total:
+        return False
+    if p.get("shards_unreadable") or p.get("shards_without_totals") or p.get("shards_missing"):
+        return False
+    if not p.get("collected"):
+        return False
+    return True
+
+
+def previous_valid_master_run(results_root, current_run_id=None, branch="master",
+                              current_run_number=None):
+    """(run_id, summary, candidates, exclusions) — the nearest EARLIER VALID run on
+    `branch`, skipping INVALID ones in between.
+
+    ⛔⛔ **`current_run_number` is load-bearing, not decorative.** Excluding only the
+    current run's OWN id from the candidate pool is not enough — without a
+    run-number cutoff, a run published AFTER the one being diffed (e.g. re-deriving
+    an OLDER run's historical baseline once master has moved on) would be picked as
+    its "baseline", comparing a run against something that did not exist yet at the
+    time it ran. Caught by testing this against a real, already-published record
+    store before wiring it into the workflow — with no cutoff, re-deriving run #42's
+    baseline picked run #50, eight runs in its own future.
+
+    ⭐ **Controls this satisfies (E38.1):** two valid runs with an INVALID run between
+    them still resolve to the nearer valid one (INVALID is skipped, never treated as
+    a gap that resets the search); a branch with no prior valid run returns `None`
+    for `run_id`, which the caller reports as FIRST-RUN, never NO_NEW_FAILURES (an
+    absence of evidence is not evidence of health).
+
+    `candidates` and `exclusions` are the printed derivation — every run considered,
+    and why the ones that were skipped were skipped — so this is never a black box.
+    """
+    root = pathlib.Path(results_root)
+    candidates, exclusions = [], []
+    if not root.is_dir():
+        return None, {}, candidates, exclusions
+    for d in sorted((p for p in root.glob("*") if p.is_dir()), key=lambda p: p.name):
+        if current_run_id is not None and d.name == str(current_run_id):
+            continue
+        sp = d / "summary.json"
+        if not sp.is_file():
+            continue
+        try:
+            s = json.loads(sp.read_text(encoding="utf-8"))
+        except ValueError:
+            exclusions.append((d.name, "summary.json unreadable"))
+            continue
+        if (s.get("branch") or "") != branch:
+            continue
+        try:
+            n = int(s.get("run_number") or 0)
+        except (TypeError, ValueError):
+            n = 0
+        if current_run_number is not None and n >= current_run_number:
+            exclusions.append((d.name, "run #%s is not earlier than the current run #%s"
+                               % (n, current_run_number)))
+            continue
+        if record_is_valid(s):
+            candidates.append((n, d.name, s))
+        else:
+            p = s.get("pytest") or {}
+            exclusions.append((d.name, "INVALID: shards_success=%s/%s collected=%s"
+                               % (p.get("shards_success"), p.get("shards_total"),
+                                  p.get("collected"))))
+    if not candidates:
+        return None, {}, candidates, exclusions
+    candidates.sort(key=lambda c: c[0])
+    n, run_id, summary = candidates[-1]
+    return run_id, summary, candidates, exclusions
+
+
+_MERGE_BRANCH_RE = re.compile(r"^Merge (?:remote-tracking )?branch '([^']+)'(?: into (\S+))?")
+
+
+def _branch_from_merge_subject(subject):
+    """The workstream name from a merge commit's own subject, or None.
+
+    'Merge branch 'X' into HEAD' -> X. 'Merge remote-tracking branch 'origin/master'
+    into fix/Y' -> fix/Y — the branch being UPDATED, since 'origin/master' names no
+    workstream at all, only the ref that was pulled in.
+    """
+    m = _MERGE_BRANCH_RE.match((subject or "").strip())
+    if not m:
+        return None
+    name, into = m.group(1), m.group(2)
+    if name in ("master", "origin/master") and into:
+        return into
+    return name
+
+
+_MESSAGE_TAG_RE = re.compile(r"^([A-Za-z][\w. -]*?)(?:\s*\([^)]*\))?\s*:")
+
+
+def _message_tag(subject):
+    """The self-declared leading tag on a commit subject, or None — e.g. 'E CP36'
+    from 'E CP36: …', 'DC-3' from 'DC-3 (b): …', 'wisdom' from 'wisdom(session-25): …'.
+    Every concurrent workstream on this shared master uses this same idiom, including
+    this session's own 'K CP'/'E CP' checkpoints — it is the most specific signal
+    available for a commit that never went through its own merge commit."""
+    m = _MESSAGE_TAG_RE.match((subject or "").strip())
+    return m.group(1) if m else None
+
+
+def commit_workstream(sha: str, sha_b: str, repo=".") -> tuple:
+    """(label, confidence) for one commit in a range ending at sha_b.
+
+    Tried in order: 'merge' (the commit IS a merge naming a branch) > 'message-tag'
+    (its own subject declares one) > 'nearest-merge' (the next merge commit reachable
+    after it, up to sha_b, names one) > 'author' (last resort, prefixed so it reads as
+    the weaker signal it is) > (None, 'unattributed').
+
+    ⛔ Author name was measured and ruled out as a PRIMARY signal on this repo: at
+    least four distinct concurrent workstreams push under the identical git identity
+    "Claude Fable 5", so it cannot discriminate between them — it survives only as
+    the last-resort fallback here.
+    """
+    rc, subj = _git(["log", "-1", "--format=%s", sha], repo)
+    subj = subj.strip() if rc == 0 else ""
+    b = _branch_from_merge_subject(subj)
+    if b:
+        return b, "merge"
+    tag = _message_tag(subj)
+    if tag:
+        return tag, "message-tag"
+    rc, merges = _git(["log", "--merges", "--format=%H", "--reverse",
+                        "%s..%s" % (sha, sha_b)], repo)
+    if rc == 0:
+        for m in merges.splitlines():
+            m = m.strip()
+            if not m:
+                continue
+            rc2, msubj = _git(["log", "-1", "--format=%s", m], repo)
+            b = _branch_from_merge_subject(msubj.strip()) if rc2 == 0 else None
+            if b:
+                return b, "nearest-merge"
+    rc, an = _git(["log", "-1", "--format=%an", sha], repo)
+    if rc == 0 and an.strip():
+        return "author:%s" % an.strip(), "author"
+    return None, "unattributed"
+
+
+_OURS_SUBJECT_RE = re.compile(
+    r"^(?:[EKDST]\d*\s*CP\d+\b|fix\(ci\)|fix\(tests\)|packet-)", re.I)
+
+
+def commit_is_ours(sha: str, repo=".") -> bool:
+    """True when a commit's own subject matches THIS programme's checkpoint
+    convention (K CP20:, E CP36:, D5 CP3:, S6 CP2:, T CP1:, fix(ci):, fix(tests):,
+    packet-…). Best-effort and reviewable, not a cross-repo authority — this tool
+    has no reach into the docs repo's own signing manifest, which is the ground
+    truth for 'ours'; that cross-check is done by hand at E38.3, not by this
+    function, which exists for the WORKFLOW's automated, repo-local approximation."""
+    rc, subj = _git(["log", "-1", "--format=%s", sha], repo)
+    return rc == 0 and bool(_OURS_SUBJECT_RE.match(subj.strip()))
+
+
+_PY_IMPORT_RE = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.M)
+_JS_IMPORT_RE = re.compile(r"""(?:from\s+|require\()\s*['"]([^'"]+)['"]""")
+
+
+def _imported_product_files(test_path: str, sha: str, repo=".") -> set:
+    """Best-effort: the product files a test file's own imports resolve to, at sha.
+    Never raises — an unreadable file or an unresolvable import is silently skipped.
+    This WIDENS the search for a touching commit; it is not a claim of a complete
+    import graph (no transitive resolution, no package-alias resolution)."""
+    rc, text = _git(["show", "%s:%s" % (sha, test_path)], repo)
+    if rc != 0:
+        return set()
+    out = set()
+    if test_path.endswith(".py"):
+        for m in _PY_IMPORT_RE.finditer(text):
+            mod = m.group(1) or m.group(2)
+            if not mod or mod.split(".")[0] in ("pytest", "unittest", "os", "sys"):
+                continue
+            rel = mod.replace(".", "/")
+            for cand in (rel + ".py", rel + "/__init__.py"):
+                rc2, _out = _git(["cat-file", "-e", "%s:%s" % (sha, cand)], repo)
+                if rc2 == 0:
+                    out.add(cand)
+    elif test_path.endswith((".js", ".jsx", ".ts", ".tsx")):
+        base_dir = posixpath.dirname(test_path)
+        for m in _JS_IMPORT_RE.finditer(text):
+            spec = m.group(1)
+            if not spec.startswith("."):
+                continue
+            joined = posixpath.normpath(posixpath.join(base_dir, spec))
+            for cand in (joined, joined + ".js", joined + ".jsx", joined + ".ts",
+                         joined + ".tsx", joined + "/index.js", joined + "/index.jsx"):
+                rc2, _out = _git(["cat-file", "-e", "%s:%s" % (sha, cand)], repo)
+                if rc2 == 0:
+                    out.add(cand)
+                    break
+    return out
+
+
+def attribute_change(key, sha_a: str, sha_b: str, repo=".") -> dict:
+    """Attribution for one NEW or FIXED entry: which commit(s) in (sha_a, sha_b]
+    touched its test file or a product file it imports, and each one's workstream.
+
+    ⭐ **Controls this satisfies (E38.1):** a NEW/FIXED entry whose test file changed
+    in range is attributed via 'test-file-change'; failing that, one whose imported
+    product file changed is attributed via 'imported-file-change'; an entry with
+    nothing in range is UNATTRIBUTED, carrying the evidence of that absence (the
+    exact range and path checked) rather than a bare label.
+    """
+    path = _key_file(key)
+    if not path or not sha_a or not sha_b:
+        return {"class": UNATTRIBUTED, "commits": [], "workstreams": [],
+                "reason": "no test-file path or no commit range"}
+    rc, log = _git(["log", "--format=%H", "--reverse", "%s..%s" % (sha_a, sha_b),
+                     "--", path], repo)
+    commits = [c for c in (log.splitlines() if rc == 0 else []) if c.strip()]
+    reason_kind = "test-file-change"
+    if not commits:
+        for prod in sorted(_imported_product_files(path, sha_b, repo)):
+            rc2, log2 = _git(["log", "--format=%H", "--reverse",
+                               "%s..%s" % (sha_a, sha_b), "--", prod], repo)
+            commits += [c for c in (log2.splitlines() if rc2 == 0 else []) if c.strip()]
+        if commits:
+            reason_kind = "imported-file-change"
+    if not commits:
+        return {"class": UNATTRIBUTED, "commits": [], "workstreams": [],
+                "reason": "no commit in %s..%s touched %s or anything it imports"
+                          % (sha_a[:9], sha_b[:9], path)}
+    workstreams = []
+    for c in commits:
+        label, conf = commit_workstream(c, sha_b, repo)
+        workstreams.append({"commit": c[:9], "workstream": label or UNATTRIBUTED,
+                             "confidence": conf, "ours": commit_is_ours(c, repo)})
+    return {"class": reason_kind, "commits": [c[:9] for c in commits],
+            "workstreams": workstreams}
+
+
+def attribute_new_and_fixed(new_keys, fixed_keys, sha_a: str, sha_b: str, repo="."):
+    """{'entry|key': attribution} for every NEW and FIXED key, plus rollup counts
+    (NEW-OURS / NEW-OTHERS / UNATTRIBUTED) — the per-entry table and the verdict
+    line's own numbers, derived from the same pass so they can never disagree."""
+    table = {}
+    counts = {"new_ours": 0, "new_others": 0, "new_unattributed": 0}
+    for k in new_keys:
+        a = attribute_change(k, sha_a, sha_b, repo)
+        table["|".join(k)] = a
+        if a["class"] == UNATTRIBUTED:
+            counts["new_unattributed"] += 1
+        elif any(w["ours"] for w in a["workstreams"]):
+            counts["new_ours"] += 1
+        else:
+            counts["new_others"] += 1
+    for k in fixed_keys:
+        table["|".join(k)] = attribute_change(k, sha_a, sha_b, repo)
+    return table, counts
+
+
 def _self_check() -> int:
     ok = True
 
@@ -1204,10 +1511,44 @@ def main(argv=None) -> int:
             print("--baseline and --current are used together")
             return FAIL
         root = pathlib.Path(a.results_root)
-        bdir = pathlib.Path(a.baseline_dir) if a.baseline_dir else root / a.baseline
+        rolling = (a.baseline == "previous-valid-master")
+        first_run = False
+        derivation_lines = []
         cdir = pathlib.Path(a.current_dir) if a.current_dir else root / a.current
-        bf, _, bs = load_record(bdir)
         cf, cr, cs = load_record(cdir)
+        if rolling:
+            # ⛔⛔ R-ROLLING-BASELINE (E CP38) — the baseline for a MASTER run is the
+            # previous VALID master run, derived here, never a constant. Printed BEFORE
+            # the diff so the choice is reviewable, not just the result of it. The
+            # current run's OWN run_number is threaded through so a run published
+            # after the one being diffed can never be chosen as its baseline.
+            try:
+                _cur_n = int(cs.get("run_number") or 0) or None
+            except (TypeError, ValueError):
+                _cur_n = None
+            run_id, bsum, candidates, exclusions = previous_valid_master_run(
+                root, current_run_id=a.current, branch="master",
+                current_run_number=_cur_n)
+            derivation_lines.append("[ci-inventory] rolling-baseline derivation:")
+            for n, rid, _s in candidates:
+                mark = " <= CHOSEN" if rid == run_id else ""
+                derivation_lines.append("  candidate  run #%s (%s)%s" % (n, rid, mark))
+            for rid, why in exclusions:
+                derivation_lines.append("  excluded   %s — %s" % (rid, why))
+            if run_id is None:
+                first_run = True
+                bf, bs = set(), {}
+                derivation_lines.append("  -> no prior VALID master run: FIRST-RUN")
+            else:
+                bdir = root / run_id
+                bf, _, bs = load_record(bdir)
+                derivation_lines.append("  -> baseline = run #%s (%s), sha %s"
+                                        % (bsum.get("run_number"), run_id,
+                                           (bsum.get("sha") or "")[:9]))
+            a = argparse.Namespace(**{**vars(a), "baseline": (run_id or "NONE")})
+        else:
+            bdir = pathlib.Path(a.baseline_dir) if a.baseline_dir else root / a.baseline
+            bf, _, bs = load_record(bdir)
         # ⛔ The FLAKY set is DERIVED HERE, from the published record, not read from a
         # file. If the record is not reachable the set is EMPTY — and an empty set means
         # every NEW entry fires the gate, which is the safe direction.
@@ -1219,7 +1560,10 @@ def main(argv=None) -> int:
                 flaky = {k for k, v in derived.items() if not v["retired"]}
                 prev, _ = flaky_set(runs[:-1], a.repo)
                 flaky_prev = {k for k, v in prev.items() if not v["retired"]}
-        d = diff(bf, cf, cr, cs, bs, flaky=flaky, flaky_previous=flaky_prev)
+        d = diff(bf, cf, cr, cs, bs, flaky=flaky, flaky_previous=flaky_prev, repo=a.repo,
+                 first_run=first_run, attribute=rolling)
+        for line in derivation_lines:
+            print(line)
         text = render_diff(d, a.baseline, a.current)
         if a.out:
             import json as _json
@@ -1227,6 +1571,10 @@ def main(argv=None) -> int:
                 {"verdict": d["verdict"], "counts": d["counts"],
                  "arithmetic": d["arithmetic"], "invalid_because": d["invalid_because"],
                  "baseline_run_id": a.baseline, "current_run_id": a.current,
+                 "baseline_sha": (bs or {}).get("sha"), "current_sha": (cs or {}).get("sha"),
+                 "commit_range": "%s..%s" % ((bs or {}).get("sha") or "NONE",
+                                             (cs or {}).get("sha") or ""),
+                 "first_run": first_run,
                  "new": ["|".join(k) for k in d["new"]],
                  "missing": ["|".join(k) for k in d["missing"]],
                  "fixed": ["|".join(k) for k in d["fixed"]],
@@ -1234,12 +1582,14 @@ def main(argv=None) -> int:
                  "flaky": ["|".join(k) for k in sorted(flaky)],
                  "file_level_resolved": ["|".join(k) for k in d.get("file_level_resolved", [])],
                  "coverage_lost": ["|".join(k) for k in d.get("coverage_lost", [])],
-                 "missing_buckets": d.get("missing_buckets", {})},
+                 "missing_buckets": d.get("missing_buckets", {}),
+                 "attribution": d.get("attribution", {})},
                 indent=2) + "\n", encoding="utf-8")
             print("[ci-inventory] wrote %s" % a.out)
         print(text)
         # ⛔ Non-zero on anything that is not a clean diff: a gate that cannot fail is not
-        # a gate, and INVALID must never read as a pass.
+        # a gate, and INVALID must never read as a pass. FIRST_RUN is likewise never OK —
+        # "nothing to compare against" is not "compared clean".
         return OK if d["verdict"] == "NO_NEW_FAILURES" else FAIL
 
     if not a.dir:

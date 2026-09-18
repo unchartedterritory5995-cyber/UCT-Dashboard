@@ -86,7 +86,7 @@ Four fast flicks at each target — as quick as you can, twenty in total.
 | A1 | `journal.close` | Journal fan → **Close** | ⛔ **NOTHING FIRES. 0 of 4.** This is the only `flickable: false` action in the registry, and this row IS D4. The fan opens instead. | ☐ PASS ☐ FAIL |
 | A2 | `journal.moveStop` | Journal fan → **Move stop** | The **stop sheet opens** — this action is `flickable: true`, so firing is correct. ⛔ What must NOT happen is a stop being written with no sheet. | ☐ PASS ☐ FAIL |
 | A3 | `journal.breakeven` | Journal fan → **Breakeven** | The **stop sheet opens**, seeded at entry. Same rule: a sheet, never a silent write. | ☐ PASS ☐ FAIL |
-| A4 | `journal.planTrade` | Journal fan → **Plan trade** | **ONE** plan-trade sheet opens, never two. | ☐ PASS ☐ FAIL |
+| A4 | `scan.planTrade` | Screener fan → **Plan trade** | **ONE** plan-trade sheet opens, never two. | ☐ PASS ☐ FAIL |
 | A5 | `scan.alert` | Screener fan → **Alert** | The **confirm sheet opens**. A `kind: 'confirm'` never writes on the gesture itself. ⭐ Last on purpose: it is the only one that needs you to leave the Journal. | ☐ PASS ☐ FAIL |
 
 ### A6 — the control block. Do these LAST, all five together.
@@ -108,9 +108,22 @@ above:
 
     python tools/hub_trace_analyze.py trace-15pro.json --control 5 \
       --expect journal.close:4 --expect journal.moveStop:4 --expect journal.breakeven:4 \
-      --expect journal.planTrade:4 --expect scan.alert:4 \
+      --expect scan.planTrade:4 --expect scan.alert:4 \
       --expect journal.close:1 --expect journal.moveStop:1 --expect journal.breakeven:1 \
-      --expect journal.planTrade:1 --expect scan.alert:1
+      --expect scan.planTrade:1 --expect scan.alert:1
+
+⚰️ **A4 MOVED FROM `journal.planTrade` TO `scan.planTrade` ON 2026-09-17, AND THE TEST IS
+UNCHANGED.** Owner ruling R4 made the strong cut the default surface, and `journal.planTrade` is one
+of the 25 actions it removes — a second write verb on a mode that already has Move stop, Breakeven
+and Close, where a member cannot say which one files what. **Plan trade survives on `scan` and on
+`chart`**, and A4's invariant is about the SHEET (*one opens, never two*), not about the Journal. So
+the row is re-pointed rather than deleted, and `scan` was chosen over `chart` because A5 is already
+on the Screener — two consecutive steps, one page, less to get wrong on a phone.
+
+⚠️ **If you are running the FULL surface** (Settings → Joystick → *Actions shown* → **Full**), the
+Journal fan does still carry Plan trade and the original row is equally valid. **Declare which
+surface you ran** in the report: a trace whose targets do not exist on the surface that produced it
+is unreadable, and the analyser cannot tell that from a genuine miss.
 
 ⛔ **The `--expect` list is positional and must match what you actually did.** It is how the tool
 tells *"correctly suppressed"* from *"fired a different action"*; declared against the wrong targets

@@ -31,13 +31,26 @@
 /* The brand's 8-tick compass ring — repeating-conic-gradient (8 * 45deg = a
    full turn) punched into a ring by a radial mask. Dual-declared for Safari. */
 .padRing {
+  /* ⛔ THE PAD READ AS A DISABLED RADIO BUTTON — R8 pass 2, F8.
+     ─────────────────────────────────────────────────────────────────────────────────────────────
+     ⚰️ SHIPPED: 8 ticks around the ring (`0deg 1deg, transparent 1deg 45deg`), each ONE degree
+     wide, in `--hub-tick` at 14% of text-heading. On a 84px pad that made each tick ~0.7px — sub-
+     pixel on every phone this ships to — over a background at 8% opacity. Result: a flat grey
+     circle with no read of "instrument", the exact frame the design bar's §1 calls out (the pad
+     was in the "at rest" element count that used to say three).
+
+     ⭐ EIGHT TICKS AT CARDINAL AND INTERCARDINAL POSITIONS is the right vocabulary — a thumb has a
+     ROTATIONAL relationship with the pad, and eight is what a knurled dial suggests without
+     announcing itself. Kept. What changed: each tick is 4°, at slightly stronger opacity, and the
+     mask is thinner (73%→75% instead of 67%→74%), so the ring reads as a band of marks rather
+     than a full-width plate. */
   position: absolute;
   inset: 5px;
   border-radius: var(--radius-pill);
-  background: repeating-conic-gradient(var(--hub-tick) 0deg 1deg, transparent 1deg 45deg);
-  -webkit-mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
-  mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
-  opacity: 0.7;
+  background: repeating-conic-gradient(var(--hub-tick) 0deg 4deg, transparent 4deg 45deg);
+  -webkit-mask: radial-gradient(circle, transparent 71%, black 73%, black 78%, transparent 80%);
+  mask: radial-gradient(circle, transparent 71%, black 73%, black 78%, transparent 80%);
+  opacity: 0.9;
   pointer-events: none;
 }
 
@@ -63,7 +76,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.28s var(--hub-spring);
 }
 
 /* Suppresses the spring-back transition while a drag is live, so the knob
@@ -76,7 +89,7 @@
   width: 7px;
   height: 7px;
   border-radius: var(--radius-pill);
-  transition: transform 0.15s, background-color 0.15s;
+  transition: transform 0.15s var(--hub-ease), background-color 0.15s var(--hub-ease);
 }
 
 .knobDotPressing {
@@ -111,13 +124,20 @@
 }
 
 .fanWedge {
+  /* ⛔⛔ THE WEDGE RENDERS AS AN ARC, NOT A RECTANGLE WITH A CORNER CLIPPED. R8 pass 2, F3.
+     ─────────────────────────────────────────────────────────────────────────────────────────────
+     ⚰️ SHIPPED: `border-radius: 100% 0 0 0` clips the top-left corner to a quarter-circle, but
+     `border-left` and `border-top` still drew two STRAIGHT LINES down the left edge and across the
+     top. So the frame carried an arc AND two ruler-straight rim lines meeting it at 90°. The box
+     read as a bounding rectangle, and the arc as decoration inside it.
+
+     ⭐ THE ARC IS THE SHAPE. Nothing else on this element is a rim — the background radial ends at
+     70%, and the two hard lines were the only reason the wedge appeared rectangular. Removed. */
   position: fixed;
   border-radius: 100% 0 0 0;
   background: radial-gradient(circle at 100% 100%, var(--hub-glass-tint), transparent 70%);
-  border-left: var(--hub-rim-width) solid var(--hub-rim);
-  border-top: var(--hub-rim-width) solid var(--hub-rim);
   opacity: 0;
-  transition: opacity 0.18s;
+  transition: opacity 0.18s var(--hub-ease);
   z-index: var(--z-hub-open);
 }
 
@@ -130,7 +150,7 @@
   inset: 0;
   border-radius: inherit;
   opacity: 0;
-  transition: opacity 0.1s;
+  transition: opacity 0.1s var(--hub-ease);
   background: conic-gradient(
     from 180deg at 100% 100%,
     transparent var(--hub-slice-a0),
@@ -152,17 +172,27 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: color-mix(in srgb, var(--hub-bubble-color) 22%, var(--hub-glass-tint));
+  /* ⛔ R8 pass 3, F11 (second attempt). The first tried substituting --hub-glass-tint-strong
+     and did not shift the read: the bubble was still ~78% mostly-transparent, so on the un-
+     scrimmed dark region below the scrim fade the label read dark-on-dark in light theme.
+
+     ⭐ THE FAN IS A MATERIAL AND ITS PAINT MUST NOT DEPEND ON THE PAGE THEME. The bubble is
+     `color-mix(--hub-bubble-color 60%, --bg-elevated 40%)` — the accent carries 60% of the pigment
+     (up from 22%), which stays legible on ANY backdrop the fan overlaps, and `--bg-elevated` is a
+     theme-aware surface token that adapts to the page without inheriting its low contrast.
+     Text stays `var(--text)` because a bubble that reads over both regions has enough contrast
+     for either text colour. Verified across both themes on both profiles in pass 8. */
+  background: color-mix(in srgb, var(--hub-bubble-color) 60%, var(--bg-elevated));
   border: var(--hub-rim-width) solid var(--hub-rim);
   color: var(--text);
   text-align: center;
   line-height: 1.1;
   z-index: var(--z-hub-open);
   transition:
-    transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
-    opacity 0.18s,
-    background-color 0.12s,
-    border-color 0.12s;
+    transform 0.26s var(--hub-spring-soft),
+    opacity 0.18s var(--hub-ease),
+    background-color 0.12s var(--hub-ease),
+    border-color 0.12s var(--hub-ease);
 }
 
 .bubbleOuter {
@@ -172,6 +202,20 @@
 }
 
 .bubbleInner {
+  /* ⚰️ AN F6 FIX WAS ATTEMPTED HERE AND REVERTED. R8 pass 3, 2026-09-18: raising these to 46/46
+     with --text-xs contradicts a spec decision:
+       - registry.js:784 records the master spec's contrast analysis: "Wire (outer ring) beside
+         Journal (inner ring) in Home's fan, luminance separation only 1.74 — weak for a
+         hue-blind viewer", mitigated by "ring radius, by bubble size (46px vs 36px) and by icon".
+       - HubFan.jsx:9 quotes spec §5 verbatim: "Outer bubbles 46px, inner bubbles 36px."
+     So the size difference IS the accessibility mitigation the 1.74 separation depends on.
+     Erasing it would spend the very mitigation the spec's own analysis names.
+
+     ⭐ 9px is still small on a phone, and that is a real read; the answer is not this rule.
+     Either the ring gains more visual separation from another cue (an outline, a slight offset,
+     a badge for the ring name), or the labels themselves become icon-forward with a smaller/
+     hidden text, so 9px is not what a member READS. Either way, this is a NEXT-pass structural
+     question, not a same-pass tweak. Recorded for the sandbox judgement. */
   width: 36px;
   height: 36px;
   font-size: 9px;
@@ -182,15 +226,84 @@
   background: color-mix(in srgb, var(--hub-bubble-color) 40%, transparent);
 }
 
+/* ⛔⛔ THE FAN IS INVISIBLE WHILE IT IS CLOSED. R8 critique pass 1, finding 1 — 2026-09-18.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   ⚰️ WHAT WAS SHIPPING. `open` toggled exactly one rule — `.fanOpen .fanWedge { opacity: 1 }` —
+   and NOTHING in this stylesheet touched the bubbles. Measured in Chromium at rest, on /charts,
+   with the coach mark dismissed and no gesture performed:
+
+       chart.planTrade  opacity 0.4   chart.draw   opacity 1
+       chart.alert      opacity 0.4   chart.voice  opacity 1
+       chart.flag       opacity 0.4   chart.home   opacity 1     (transform: none on all six)
+
+   The three at 0.4 are merely `.bubbleDisabled` — their `requires` was unmet in that fixture. On a
+   page with a symbol, **all six sit at full opacity, permanently, over the data.**
+
+   ⭐ SO THE HUB AT REST DREW NINE THINGS, NOT THREE: six bubbles, the chip, the pad and the
+   Actions button — overlapping each other and the chip, with labels truncated to "Plan t…".
+   `design-bar.md` §1 said "a pad, a chip and an Actions button at rest — three elements". That
+   count was taken by READING THE COMPONENTS and it was wrong by six. It is exactly why R8 requires
+   rendered frames: the source says what is mounted, only the frame says what is SEEN.
+
+   ⛔ And it is the design bar's own first principle, failed: *"Its job is to disappear. A control
+   that is constantly announcing itself over a chart is failing regardless of how good it looks."*
+   This is the single largest contributor to the owner's "too much going on" and "clunky from the
+   90s" — before a single question of material or motion is reached.
+
+   ⛔ SPEC §5 IS HONOURED, NOT OVERRIDDEN. `HubFan.jsx` keeps every bubble in the DOM because §5
+   requires that under reduced motion "the fan still appears, instantly, every bubble at its final
+   position". That is a statement about MOTION and about the DOM — not a licence to paint them
+   while the fan is shut. They stay mounted; they are simply not drawn until the fan opens, and the
+   reduced-motion block below (`transition: none`) makes that appearance instant, at final
+   position, exactly as §5 asks.
+
+   ⚠️ `transform` and `opacity` ONLY — design bar M6. No layout property is animated, so this
+   cannot cost a frame, and the scale collapses toward the knob rather than from nowhere. */
+.fan .bubble {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.fanOpen .bubble {
+  opacity: 1;
+  transform: none;
+}
+
+/* Disabled stays legible-but-subdued once the fan is actually open. Specificity note: this is
+   (0,2,0) like the rule above it and comes later, so it wins for a disabled bubble — without it,
+   `.fanOpen .bubble` would repaint every disabled action at full strength and lose the one signal
+   that says "this needs a symbol first". */
+.fanOpen .bubbleDisabled {
+  opacity: 0.4;
+}
+
 .bubbleDisabled {
   opacity: 0.4;
 }
 
 .bubbleLabel {
-  max-width: 90%;
+  /* ⚰️ WAS `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, and in a 46px circle it
+     truncated 8 of the strong cut's 11 outer actions - "Plan t...", "Move s...", "Breakev...",
+     "Voice n...", "Set tic...", "Templa...", "New no...", "Voice n...". A label that cannot show
+     its own verb IS decoration, and this repeats for over half the shipped surface.
+
+     ⭐ Two lines with a hard word break, tighter tracking, and a line-height that keeps them
+     inside the bubble. Any label >= 8 chars now reads in full. `bubbleInner` labels stay 9px
+     for pass 3 to critique - a label a member can read is a bigger fix than a label they cannot.
+     A CJK-first label whose "word" is one glyph would still truncate to that glyph; recorded
+     rather than caught, because the app is English-only today and this would otherwise be a
+     guard nobody has seen fire. */
+  max-width: 96%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  padding: 0 2px;
 }
 
 /* Remove interpolation, never functionality (spec §5): under reduced motion
@@ -259,6 +372,32 @@
   inset: 0;
   background: var(--hub-scrim);
   z-index: var(--z-backdrop); /* the scrim itself owns this rung */
+}
+
+/* ⛔⛔ A SCRIM THAT STOPS SHORT MUST NOT STOP WITH A RULER-STRAIGHT EDGE. R8 pass 2, finding F9.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   `excludeBottom` is deliberate and stays: spec §2c keeps the scrim off the volume-pane region on
+   the portrait phone chart, so a member can still read volume while the fan is open. The cost was
+   never the exclusion — it was that the exclusion ended in a hard horizontal line across the
+   display.
+
+   ⚰️ MEASURED with the fan open: the scrim is 390x626 on an 844-high viewport. Dark theme hides
+   the seam (dark over dark), so it had never been seen. In LIGHT theme the scrim is
+   `rgba(255,255,255,.7)` and that boundary is a glaring light/dark split with a straight border —
+   it reads as a rendering error rather than as dimming.
+
+   ⭐ AND IT WAS INVISIBLE FOR THE LIFE OF THE FEATURE because nobody had rendered the hub in light
+   theme: `prefers-color-scheme` appears nowhere in this app's stylesheets, so a capture that set
+   the OS scheme changed nothing and every "light" frame was the dark one filed twice.
+
+   The dim still ENDS where §2c says it must; it stops being a line. Masked rather than resized, so
+   the element's geometry — and the tap target that dismisses a sticky fan — are unchanged.
+   ⚠️ Applied ONLY when the caller excludes a bottom region: with a full-bleed scrim there is no
+   seam to soften, and fading there would let the bottom of the page show through un-dimmed, which
+   is a different behaviour nobody asked for. */
+.scrimFade {
+  -webkit-mask-image: linear-gradient(to bottom, currentColor calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - 56px), transparent 100%);
 }
 
 /* ── Actions button (§2c, §5) ─────────────────────────────────────────── */

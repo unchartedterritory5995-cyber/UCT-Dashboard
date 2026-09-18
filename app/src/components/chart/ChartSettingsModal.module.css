@@ -1362,14 +1362,22 @@
   justify-content: center;
 }
 
-/* ⭐ REST IS INVISIBLE, AND THAT IS THE POINT OF THE PASS. Owner §20: *"do not
-   replace 14 arrow icons with 7 permanently bright drag icons."* The affordance
-   is the ROW being hoverable; the dots appear the moment the pointer arrives and
-   explain what the `grab` cursor already said.
+/* ⚰️ REST WAS INVISIBLE, AND THAT COST MORE THAN IT SAVED. Owner §20 ruled out
+   *"14 arrow icons replaced by 7 permanently bright drag icons"* — and the word
+   doing the work there is **BRIGHT**, not *permanent*. Hiding the dots entirely
+   bought a calm list at two prices the owner has now called: the reorder
+   capability was discoverable only by accident, and the slot below still reserves
+   its 13px, so every idle row carried a blank gutter where a mark should be.
+   ⭐ SO THE GRIP IS PRESENT AT REST AND QUIET ABOUT IT — 0.3 against the dim ink
+   the rest of this panel already uses for secondary marks, which reads as texture
+   beside the name rather than as a control competing with it. Hover raises it to
+   half, the grip's own hover to full: the same three-step ladder as before, with
+   its floor lifted off zero.
    ⛔ NEUTRAL, NEVER TINTED (§4). The micro-rail two pixels to the right carries
    the series' plot colour and MEANS something; if the grip borrowed that colour
    the row would have two coloured marks and one of them would be a lie.
-   ⛔ NO BOX, NO BORDER, NO PILL — §3 by name. It is a glyph with a hit area. */
+   ⛔ NO BOX, NO BORDER, NO PILL — §3 by name. It is a glyph with a hit area, and
+   its geometry, its column and the row's spacing are all unchanged. */
 .insRowGrip {
   appearance: none;
   border: 0;
@@ -1384,12 +1392,14 @@
   font-size: 12px;
   line-height: 1;
   color: var(--menu-text-dim, #9a9a9a);
-  opacity: 0;
+  opacity: 0.3;
   cursor: grab;
   transition: opacity 110ms, color 110ms;
 }
-/* ROW HOVER → present but still quiet. GRIP HOVER → clearly the thing you grab. */
-.insRow:hover .insRowGrip { opacity: 0.5; }
+/* REST → visible, quiet. ROW HOVER → present. GRIP HOVER → clearly the thing you
+   grab. ⛔ AND `:active` STILL ONLY CHANGES THE CURSOR — the row being carried is
+   drawn by `.insRowHeld`, which is the existing drag treatment and is untouched. */
+.insRow:hover .insRowGrip { opacity: 0.6; }
 .insRowGrip:hover { opacity: 1; color: var(--menu-text, #ededed); }
 .insRowGrip:active { cursor: grabbing; }
 /* ⚠️ A HANDLE A KEYBOARD CANNOT SEE IS A HANDLE A KEYBOARD CANNOT USE. The

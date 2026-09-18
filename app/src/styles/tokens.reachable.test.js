@@ -89,19 +89,49 @@ function definedNames() {
   return defined
 }
 
+/** Strip `//` line comments as well — JS carries them and CSS does not. */
+const stripJs = (s) => stripComments(s).replace(/^\s*\/\/[^\n]*$/gm, ' ')
+
 /** `var(--x)` references with NO fallback, by name. A reference WITH a fallback
  *  still renders something (it is merely theme-blind); one without is the
- *  invalid-declaration case above. */
+ *  invalid-declaration case above.
+ *
+ *  ⚰️⚰️ THIS SCANNED `CSS` ONLY, AND THAT ASYMMETRY SHIPPED A LIVE DEFECT.
+ *  `definedNames()` above reads BOTH stylesheets and JS — deliberately, and the
+ *  comment explains why: the widget-theming families are defined from JS, so a
+ *  CSS-only definition scan reports 200 phantoms. But the USAGE scan stayed
+ *  CSS-only, so the rail was generous about definitions and blind to half the
+ *  usages — and a one-sided scan fails in the FLATTERING direction: fewer
+ *  undefined tokens reported than exist.
+ *
+ *  What it hid: `JoystickSettingsCard.jsx` carried
+ *  `borderTop: '1px solid var(--color-border)'` at TWO sites.
+ *  `--color-border` is defined nowhere in `app/src`. An invalid `var()` inside
+ *  the `border-top` SHORTHAND is invalid-at-computed-value-time, so the whole
+ *  declaration takes its unset value and **no border renders at all** — both
+ *  section dividers in that card were invisible from the day they were written,
+ *  and this rail could not see them because they live in a `style={{}}`.
+ *
+ *  ⭐ Found by accident while editing an adjacent line, which is the part worth
+ *  keeping: a defect a rail structurally cannot see is found by luck or not at
+ *  all. Fixed to `var(--border)` and the scan widened here so the next one is
+ *  found by the suite instead.
+ *
+ *  ⚠️ JS is scanned for USAGE only where the reference is a literal `var(--x)`
+ *  inside a string. A name built by concatenation (`var(${name})`) is invisible
+ *  to this and always will be — stated rather than implied, because an absence
+ *  this rail reports is only evidence for the forms it can actually see. */
 function bareReferences() {
   const bare = new Map()
-  for (const f of CSS) {
-    const s = stripComments(readFileSync(f, 'utf8'))
+  const scan = (f, s) => {
     for (const m of s.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)\s*([,)])/g)) {
       if (m[2] === ',') continue
       if (!bare.has(m[1])) bare.set(m[1], [])
       bare.get(m[1]).push(rel(f))
     }
   }
+  for (const f of CSS) scan(f, stripComments(readFileSync(f, 'utf8')))
+  for (const f of CODE) scan(f, stripJs(readFileSync(f, 'utf8')))
   return bare
 }
 
@@ -115,6 +145,29 @@ describe('CSS custom properties resolve', () => {
       .map(([name, files]) => `${name} (${files.length} refs, e.g. ${files[0]})`)
       .sort()
     expect(undef).toEqual([])
+  })
+
+  it('⛔ NON-VACUITY — the JS half of the usage scan is actually running', () => {
+    // ⛔ WITHOUT THIS, A BROKEN `CODE` LOOP PASSES SILENTLY. The assertion above is
+    // `toEqual([])`, and an empty set satisfies it however few files were read — so if the JS
+    // scan were dropped, mis-globbed, or its regex broken, this rail would go on reporting "no
+    // undefined tokens" while checking only the stylesheets, which is exactly the state it was
+    // in when `--color-border` shipped. An absence is only evidence if the instrument could have
+    // seen a presence.
+    const refs = bareReferences()
+    const fromJs = [...refs.entries()]
+      .flatMap(([name, files]) => files.filter((f) => /\.jsx?$/.test(f)).map((f) => `${name} ${f}`))
+
+    expect(fromJs.length, 'the JS usage scan found nothing at all — it is not running')
+      .toBeGreaterThan(50)
+
+    // Named, not counted. A count drifts silently; a name fails loudly when the file moves.
+    const settingsCard = [...refs.entries()]
+      .filter(([, files]) => files.some((f) => f.endsWith('pages/settings/JoystickSettingsCard.jsx')))
+      .map(([name]) => name)
+    expect(settingsCard, 'the Joystick settings card is not being scanned for token usage — it '
+      + 'is the file whose two invisible dividers this widening exists to have caught')
+      .toContain('--border')
   })
 
   it('the nine legacy aliases are defined, and point at real tokens', () => {

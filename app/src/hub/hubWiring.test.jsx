@@ -215,22 +215,45 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     // FLICK_MS's 120ms window, on real timers.
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers()
     global.fetch = realFetch
     unstubHubCapable()
+    // R4: `surfaceMode` is module state. A test that switches to the full variant and does not
+    // put it back would silently hand every later test in this file the wrong surface.
+    const { setHubSurface } = await import('./registry')
+    setHubSurface('simplified')
   })
 
   it('a navigate action moves the router (wire mode, "Chart it" -> /charts)', async () => {
     const { wedgeAngles } = await import('./fanGeometry')
-    const { modesById } = await import('./registry')
+    const { modesById, fanFor, setHubSurface } = await import('./registry')
+
+    // ⚰️ R4 CUT EVERY `kind: 'navigate'` ACTION FROM THE DEFAULT SURFACE — a navigate loses the
+    // cursor's place in the list, which is the one thing the cursor exists to hold. So the
+    // navigate WIRING still ships (the full surface draws it, and Settings → Joystick switches
+    // to it) but there is no navigate bubble on the default fan to aim at. This test proves the
+    // wiring, so it runs on the surface that has one.
+    //
+    // ⛔ THE PREFERENCE IS WHAT SELECTS IT — `HubRoot` calls `setHubSurface(settings.surface)` in
+    // its render body, so seeding the stored blob is the only thing that reaches the projection.
+    // The module-state call below is belt-and-braces for the two assertions taken outside React.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: true, surface: 'full' }) }
+    setHubSurface('full')
 
     await renderHub('/morning-wire')
     expect(screen.getByTestId('loc').textContent).toBe('/morning-wire')
 
-    const outer = modesById.wire.fan.filter((a) => a.ring === 0)
+    // ⛔ AIM FROM THE PROJECTION, NEVER `mode.fan`. This read the DECLARED fan until 2026-09-17,
+    // and got away with it only because the two lists happened to be identical for `wire`. That
+    // is precisely the defect `fanResolutionParity.test.js` exists for — a member tapping the
+    // third bubble firing the third DECLARED action instead of the third DRAWN one, live in
+    // production since Increment 2. A rail reproducing the bug it is adjacent to is worth fixing
+    // even when it is currently green.
+    const outer = fanFor(modesById.wire).filter((a) => a.ring === 0)
     const angles = wedgeAngles(outer.length)
     const idx = outer.findIndex((a) => a.id === 'wire.chartIt')
+    expect(idx, 'wire.chartIt is not on the drawn outer ring').toBeGreaterThanOrEqual(0)
     expect(outer[idx].kind).toBe('navigate')
     const { dx, dy } = vecAtAngle(30, angles[idx])
 
@@ -265,7 +288,8 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
   // `validateRegistry` accepts. A mode nobody classified fails, rather than defaulting to either.
 
   it('A4 — membership runs BOTH directions: in the set is preview-clean, out of it is ship-ready', async () => {
-    const { modes, PREVIEW_MODES, fanFor, validatePreview, validateRegistry } = await import('./registry')
+    const { modes, PREVIEW_MODES, fanFor, validatePreview, validateRegistry, setHubSurface } = await import('./registry')
+    setHubSurface('full')
 
     // ⛔ NO MODE MAY BE UNCLASSIFIED. `calendar` was left out of the first hand-typed set and
     // `fanFor` returned its FULL five-action fan into a preview sold as navigation-only. Absence
@@ -295,6 +319,40 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
       // projection — that is the thing that would silently revert.
       expect(fanFor(mode), `${id} is still receiving a preview projection`).toEqual(mode.fan)
     }
+  })
+
+  it('A4 under R4 — on the DEFAULT surface a shipped mode is its registry fan CUT, never the preview', async () => {
+    // ⭐ The claim the assertion above actually protects is *"a shipped mode gets its REGISTRY
+    // fan rather than the preview projection — that is the thing that would silently revert."*
+    // R4 adds a second projection on top, so `toEqual(mode.fan)` can no longer carry that claim
+    // on the surface members get. This is the same claim, restated for the strong cut: every
+    // action drawn comes from the mode's OWN declaration, and the result is not the preview
+    // shape. Both halves are needed — a subset check alone passes on [Voice, Home], which IS
+    // the preview shape.
+    const { modes, PREVIEW_MODES, fanFor, setHubSurface, hubSurface } = await import('./registry')
+    setHubSurface('simplified')
+    expect(hubSurface()).toBe('simplified')
+
+    const shipped = modes.filter((m) => !PREVIEW_MODES.has(m.id))
+    expect(shipped.length, 'no mode has left the preview — this rail is vacuous').toBeGreaterThan(0)
+
+    const strangers = []
+    for (const mode of shipped) {
+      const declared = new Set(mode.fan.map((a) => a.id))
+      for (const a of fanFor(mode)) {
+        if (!declared.has(a.id)) strangers.push(`${mode.id}/${a.id}`)
+      }
+    }
+    expect(strangers, 'a drawn action is not declared by its own mode — fanFor is inventing')
+      .toEqual([])
+
+    // The anti-revert half: at least one shipped mode still draws a REAL action (not Voice, not
+    // Home). If the cut ever collapsed every mode to the universal pair, the product would be
+    // indistinguishable from the preview it spent three increments leaving.
+    const real = shipped.flatMap((m) => fanFor(m))
+      .filter((a) => a.kind !== 'home' && !a.id.endsWith('.voice'))
+    expect(real.map((a) => a.id), 'every shipped mode collapsed to [Voice, Home] — the cut has '
+      + 'gone too far and the surface is a preview again').not.toEqual([])
   })
 
   it('a mode STILL in the preview contains no run action except Voice, and no confirm at all', async () => {

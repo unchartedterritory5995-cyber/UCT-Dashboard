@@ -251,6 +251,40 @@ def test_instrumentation_wraps_every_job_without_a_roster():
     assert calls == [1, 2], "the wrapper changed which jobs ran"
 
 
+def test_two_distinct_jobs_log_two_distinct_qualnames():
+    """R73 (D-20): APScheduler's own `get_callable_name` reads `__qualname__`, never
+    `__name__` (verified against the installed apscheduler package, not assumed —
+    `apscheduler.util.get_callable_name` does `func.__qualname__` for a plain function).
+    `wrapped.__name__` alone being reset is therefore not enough: every job registered
+    through this wrapper logged under the SAME generic name
+    (`instrument_scheduler.<locals>.add_job.<locals>.wrapped`) from 2026-08-29 until this
+    fix, since only `__name__` was copied and `__qualname__` was left at whatever Python
+    assigned the nested closure. Two named functions (not lambdas — every lambda shares
+    `__qualname__ == '<lambda>'`, which would pass trivially) must come out of the wrapper
+    with THEIR OWN distinct qualnames, not the wrapper's."""
+    def job_alpha():
+        pass
+
+    def job_beta():
+        pass
+
+    s = _FakeScheduler()
+    mp.instrument_scheduler(s)
+    s.add_job(job_alpha, "interval", id="a")
+    s.add_job(job_beta, "interval", id="b")
+
+    wrapped_alpha, wrapped_beta = s.registered[0][0], s.registered[1][0]
+    assert wrapped_alpha.__qualname__ != wrapped_beta.__qualname__, (
+        "two distinct jobs produced the SAME qualname -- APScheduler's own "
+        "get_callable_name would log them identically"
+    )
+    assert "job_alpha" in wrapped_alpha.__qualname__
+    assert "job_beta" in wrapped_beta.__qualname__
+    # And neither is the generic wrapper name the bug produced for a year.
+    assert "instrument_scheduler" not in wrapped_alpha.__qualname__
+    assert "instrument_scheduler" not in wrapped_beta.__qualname__
+
+
 def test_a_job_delta_is_recorded_under_its_id(monkeypatch):
     mp._JOB_MEM.clear()
     rss = iter([100.0, 4700.0])            # before, after
