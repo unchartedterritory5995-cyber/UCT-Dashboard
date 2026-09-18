@@ -801,6 +801,14 @@ def get_breadth_series(
     rows and rolling warm-up are whatever that function says they are.
     """
     t0 = time.monotonic()
+    # ⛔⛔ DC-3 (2026-09-18): `get_history_deep`'s own `_bt.phase(...)` calls were
+    # SILENTLY NO-OPPING here — phase()/mark() are no-ops without an open context,
+    # and nothing on this path ever called `begin()`. Wired identically to the
+    # monitor route below so the SAME reader phases (already computed inside
+    # `get_history_deep` regardless of caller) become visible on THIS route's own
+    # Server-Timing header and log line too. See `breadth_timing._ROUTES`.
+    from api.services import breadth_timing
+    breadth_timing.begin(span="series")
     requested = [k.strip() for k in (keys or "").split(",") if k.strip()]
     # Dedupe, order preserved — a repeated key must not consume the budget twice.
     seen = set()
@@ -845,34 +853,40 @@ def get_breadth_series(
     hit = cache.get(ck)
     if hit is not None:
         _log_series(requested, span_days, None, True, t0)
+        breadth_timing.note(cache="hit", cache_tier="series_body", rows=None)
+        breadth_timing.mark("route_return")
         return Response(content=hit, media_type="application/json",
                         headers={"Cache-Control": "private, max-age=60"})
 
     # Over-fetch by CALENDAR days then filter: calendar days >= stored sessions, so the
     # window always covers the span, and `sessions` below is counted from what is stored.
+    _rt0 = time.perf_counter()
     rows = [r for r in svc.get_history_deep(span_days, end=to_date, anchor="le")
             if r.get("date", "") >= from_date]
-    rows.sort(key=lambda r: r.get("date", ""))
-
-    known = series_known_keys(rows)
-    missing = [k for k in requested if k not in known]
-    present = [k for k in requested if k in known]
-
-    payload = {
-        "from": from_date,
-        "to": to_date,
-        "sessions": len(rows),
-        "dates": [r["date"] for r in rows],
-        "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
-        "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
-        "missing": missing,
-    }
-    body = json.dumps(payload, separators=(",", ":"))
+    breadth_timing.note(reader_ms=(time.perf_counter() - _rt0) * 1000.0, rows=len(rows),
+                        cache="miss")
+    with breadth_timing.phase("route_tail"):
+        rows.sort(key=lambda r: r.get("date", ""))
+        known = series_known_keys(rows)
+        missing = [k for k in requested if k not in known]
+        present = [k for k in requested if k in known]
+        payload = {
+            "from": from_date,
+            "to": to_date,
+            "sessions": len(rows),
+            "dates": [r["date"] for r in rows],
+            "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
+            "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
+            "missing": missing,
+        }
+    with breadth_timing.phase("serialise"):
+        body = json.dumps(payload, separators=(",", ":"))
     # ⛔ Cached under the `breadth_history_` prefix DELIBERATELY: every snapshot write
     # already calls `cache.delete_prefix("breadth_history_")`, so this needs no new
     # invalidation path and none can be forgotten.
     cache.set(ck, body, ttl=_SERIES_TTL)
     _log_series(requested, span_days, len(rows), False, t0)
+    breadth_timing.mark("route_return")
     return Response(content=body, media_type="application/json",
                     headers={"Cache-Control": "private, max-age=60"})
 
