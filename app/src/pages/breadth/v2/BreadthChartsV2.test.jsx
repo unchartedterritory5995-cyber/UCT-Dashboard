@@ -26,7 +26,7 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 it('says the range is not available yet — and says it as a status, not an error', async () => {
-  render(<BreadthChartsV2 keys={['breadth_score']} from="2010-01-01" to="2026-01-01" />)
+  render(<BreadthChartsV2 keys={['breadth_score']} from="1990-01-01" to="2026-01-01" />)
   const msg = await screen.findByTestId('v2-range-refused')
   expect(msg).toHaveTextContent(`Range not yet available — up to ${MAX_SESSIONS} sessions for now.`)
   // ⛔ role=status, not alert: the member did nothing wrong and nothing is broken.

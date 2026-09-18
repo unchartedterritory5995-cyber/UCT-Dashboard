@@ -223,7 +223,15 @@ def test_the_cap_is_configurable(monkeypatch, stub_history):
 
 def test_a_bad_cap_value_falls_back_rather_than_crashing(monkeypatch):
     monkeypatch.setenv("BREADTH_SERIES_MAX_SESSIONS", "not-a-number")
-    assert rt.series_max_sessions() == rt._SERIES_DEFAULT_SESSIONS
+    assert rt.series_max_sessions() == rt._SERIES_MAX_SESSIONS_DEFAULT
+
+
+def test_the_cap_and_the_default_window_are_independent_constants(monkeypatch):
+    """L-A decoupled them — the cap must never silently track the window size again."""
+    monkeypatch.delenv("BREADTH_SERIES_MAX_SESSIONS", raising=False)
+    assert rt.series_max_sessions() == rt._SERIES_MAX_SESSIONS_DEFAULT
+    assert rt._SERIES_MAX_SESSIONS_DEFAULT != rt._SERIES_DEFAULT_SESSIONS
+    assert rt._SERIES_DEFAULT_SESSIONS == 365, "the default WINDOW is unrelated to this change"
 
 
 def test_defaults_when_from_and_to_are_omitted(monkeypatch, stub_history):

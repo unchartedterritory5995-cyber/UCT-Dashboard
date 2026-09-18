@@ -2160,3 +2160,66 @@ same polarity as every enablement gate in this programme) — caught by a rail
 mutation-proved two ways), `v23Wiring.test.jsx` (6, rewritten to assert the OPTION's
 `sampling` field rather than an x-axis length that no longer changes).
 
+### D-054 · The /series span cap is raised to 4,700 sessions — D-043's own release condition, met (2026-09-17)
+
+**Owner-directed (L-A, DC-2 confirmation).** D-043 capped `/series` at 365 sessions
+“until the reader work lands,” with its own stated release condition:
+*“the cap is raised when the reader work lands, not to satisfy a wider view.”*
+`session6-report.md` §2.5, taken mid-reader-programme, additionally withheld a
+lift until *“a member-facing feature that actually requests > 365 sessions”*
+existed. Both conditions are now met: the Breadth History Reader programme
+(SD-1.7) closed with `get_history_deep` materialized, and V2-3's back-to-2008
+"Max" preset is exactly the feature session6-report named.
+
+**What changed.** `_SERIES_MAX_SESSIONS_DEFAULT = 4700` in
+`api/routers/breadth_monitor.py`, decoupled from `_SERIES_DEFAULT_SESSIONS`
+(365, unchanged — that constant governs only the default WINDOW when `from`
+is omitted, a UX choice, not a safety bound; the two used to share one
+constant, which is what made the cap and the window impossible to move
+independently). `BREADTH_SERIES_MAX_SESSIONS` remains the env override.
+
+**Why 4,700.** V2-3's `MAX_HISTORY_FROM = '2008-01-02'` needs ≈ 4,700 stored
+sessions to reach today (2026-09-17: 6,833 calendar days at ~252 sessions/year
+less US market holidays). 4,700 × 1.6 = 7,520 calendar days, comfortably under
+the untouched `_SERIES_DAY_CEILING = 8000` (which mirrors the monitor route's
+own ceiling and is not this decision's to move). ⚠️ This is a fixed session
+count against a fixed start date — the margin shrinks ≈252 sessions/year as
+"today" advances; re-derive, don't just re-bump, when it stops covering "Max".
+
+**The cost evidence, combined for the first time:**
+- The READER (`svc.get_history_deep`, shared with `/api/breadth-monitor`):
+  `docs/breadth-history-reader/FINAL.md` §14.1/§14.3, per-deploy, post-fix —
+  p50 277.2–497.2 ms across six deploys, worst observed deploy max 3,752.1 ms
+  (n=54–77/deploy), against D-042's 54,923 ms cold baseline (15x–141x
+  depending on deploy). Measured against a different route sharing this
+  reader — only the reader cost transfers, not that route's own
+  post/derive/serialise phases.
+- This ENDPOINT's own marginal cost (filter + project + encode, on top of the
+  reader): `docs/breadth/api-series.md` (D-035, 2026-09-14) — the full
+  2008– span, 8 keys, 4,530 sessions, measured directly at 30.3 ms cold p50 /
+  36.0 ms cold p95, via a stubbed full-size row set isolating what this
+  endpoint adds (not a local `C:\data\breadth_monitor.db` read — 12 KB,
+  schema-only, which would have flattered the number).
+- **Combined**, a cold full-history 8-key request costs roughly the reader's
+  277–497 ms typical (up to ≈3.75 s worst observed deploy) plus this
+  endpoint's own ≈30–36 ms — dominated by the reader, nowhere near the
+  retired 55 s figure that the old docstring cited (Kind 3b: true when
+  written, superseded by the same session's own reader-fix work before the
+  docstring was ever read again).
+
+**What did NOT need a fresh sandboxed `/series`-specific timing run.** The two
+measurements above are BOTH real, both already in the repo, and together they
+answer the question completely — the reader cost transfers because the reader
+is literally the same function call, and this endpoint's own added cost was
+already isolated and measured at the exact span in question. No local DB was
+touched to produce this decision.
+
+**Corrected in the same commit:** `series_max_sessions()`'s docstring (the
+stale “~55 s … measured on production” claim), the 400 response body's
+matching claim, and `docs/breadth/api-series.md`'s span-cap section (365 →
+4,700 sessions, 584 → 7,520 calendar days, and the "5y/2008– rows no longer
+reachable" caveat, now reachable again).
+
+**Untouched, per the ratified DC-2 plan:** `BREADTH_SERIES_ENDPOINT_ENABLED`
+stays dark — this is a cap raise behind an already-off flag, not a flip.
+

@@ -650,23 +650,75 @@ SERIES_FLAG = "BREADTH_SERIES_ENDPOINT_ENABLED"
 _SERIES_MAX_KEYS = 8
 #: Mirrors the monitor endpoint's own `le=8000` rather than inventing a second ceiling.
 _SERIES_DAY_CEILING = 8000
+#: The DEFAULT WINDOW size when `from` is omitted — a UX choice matching V1's own
+#: default (D-052), NOT a safety bound. Deliberately decoupled from the cap below;
+#: the two used to share one constant and that conflation is what "L-A: cap raise"
+#: is untangling.
 _SERIES_DEFAULT_SESSIONS = 365
+#: The safety cap's fallback. Raised 2026-09-17 (L-A) from 365 once the reader work
+#: had actually landed — see `series_max_sessions()`'s docstring. Sized to cover
+#: V2-3's back-to-2008 "Max" preset (`MAX_HISTORY_FROM` in `BreadthChartsV2.jsx`) —
+#: ~4,700 stored sessions from 2008-01-02 to 2026-09-17 (6,833 calendar days,
+#: ~252 sessions/year less US market holidays) — with real margin, while staying
+#: under `_SERIES_DAY_CEILING` at the ×1.6 conversion (4,700 × 1.6 = 7,520 days).
+#: ⚠️ This is a FIXED session count against a FIXED start date, so the margin
+#: shrinks by ~252 sessions/year as "today" advances; re-derive it, don't just bump
+#: it, when `MAX_HISTORY_FROM` moves or this stops covering "Max".
+_SERIES_MAX_SESSIONS_DEFAULT = 4700
 
 
 def series_max_sessions() -> int:
-    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default 365.
+    """The span cap, in STORED SESSIONS. `BREADTH_SERIES_MAX_SESSIONS`, default
+    `_SERIES_MAX_SESSIONS_DEFAULT` (4,700).
 
-    ⛔ THIS EXISTS BECAUSE THE READER IS SLOW, NOT BECAUSE THE RESPONSE IS BIG (D-042).
-    A cold `get_history_deep` over a deep span costs ~55 s on the single uvicorn process —
-    measured on production — and that is spent PRODUCING rows, upstream of anything this
-    endpoint does with them. So the cap has to make a deep read UNREACHABLE, and it is
-    raised only when the reader work lands, never to satisfy a UI that wants more.
+    ⛔⛔ RAISED 2026-09-17 (L-A) — CORRECTING A STALE DOCSTRING, NOT LOOSENING A LIVE
+    ONE. This previously read *"~55 s cold ... measured on production"* citing D-042 —
+    the same defect the (now-closed) Breadth History Reader programme fixed. That
+    number described the reader BEFORE its materialization fix
+    (`api/services/breadth_monitor.py::get_history_deep`: *"used to assemble 174,187
+    OHLC rows into 4,529 rows on every cold request; it is now one indexed read of
+    pre-built rows"*), which had already landed, in this same session, before this
+    docstring was ever written. True when written; the world had moved under it
+    (Kind 3b).
+
+    This endpoint calls that SAME reader (`svc.get_history_deep` — no second reader,
+    see the router docstring), whose current, measured, per-deploy cost is in
+    `docs/breadth-history-reader/FINAL.md` §14.1/§14.3: **p50 277.2-497.2 ms across
+    six deploys, worst observed deploy max 3,752.1 ms** (n=54-77/deploy), against
+    D-042's 54,923 ms cold baseline — 15x-141x depending on deploy. ⚠️ That table was
+    measured against `/api/breadth-monitor`, a DIFFERENT ROUTE sharing this reader —
+    its own post/derive/serialise phases do not transfer, only the reader cost does.
+
+    This endpoint's OWN marginal cost (filter + project + encode, on top of the
+    reader) IS measured directly, in `docs/breadth/api-series.md` (D-035,
+    2026-09-14): the full 2008- span at 8 keys, 4,530 sessions, costs **30.3 ms
+    cold p50 / 36.0 ms cold p95** — a stubbed full-size row set isolating what this
+    endpoint adds, deliberately excluding `get_history_deep`'s own cost (measured
+    separately, above) rather than a local `C:\\data\\breadth_monitor.db` read
+    (12 KB, schema-only, which would have flattered the number).
+
+    **Combined, a cold full-history 8-key request costs roughly the reader's
+    277-497 ms typical (up to ~3.75 s worst observed deploy) plus this endpoint's
+    own ~30-36 ms** — dominated by the reader, and nowhere near the retired 55 s
+    figure.
+
+    ⭐ **This is the condition the owner ruling itself named, not a override of it.**
+    D-043 (`docs/breadth/DECISIONS.md`, 2026-09-14) is the ruling that set this cap:
+    *"the reader gets its own programme... until that programme lands, the cost is
+    made unreachable rather than tolerated"* — and states its own release condition
+    verbatim: *"the cap is raised when the reader work lands, not to satisfy a wider
+    view."* The reader programme (Breadth History Reader / SD-1.7) has since closed;
+    its own `session6-report.md` §2.5, taken mid-programme before the fix had fully
+    landed, additionally recommended no change YET, naming its own exception:
+    *"a member-facing feature that actually requests > 365 sessions"* — which V2-3's
+    back-to-2008 "Max" preset now is. Both conditions this cap was waiting on are
+    met: the reader work landed, and a feature asked for more.
     """
     try:
-        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_DEFAULT_SESSIONS)
-        return v if v > 0 else _SERIES_DEFAULT_SESSIONS
+        v = int(os.getenv("BREADTH_SERIES_MAX_SESSIONS", "") or _SERIES_MAX_SESSIONS_DEFAULT)
+        return v if v > 0 else _SERIES_MAX_SESSIONS_DEFAULT
     except ValueError:
-        return _SERIES_DEFAULT_SESSIONS
+        return _SERIES_MAX_SESSIONS_DEFAULT
 
 
 def series_max_calendar_days(max_sessions: int | None = None) -> int:
@@ -780,9 +832,9 @@ def get_breadth_series(
         raise HTTPException(
             status_code=400,
             detail=(f"span {span_days} days exceeds the {max_sessions}-session cap "
-                    f"({max_days} calendar days). The cap exists because a cold deep read "
-                    f"costs ~55s on the web process (D-042); it is raised when the reader "
-                    f"work lands, not to satisfy a wider view."))
+                    f"({max_days} calendar days). Raised 2026-09-17 once the reader "
+                    f"work behind D-042 actually landed; still capped so a span past "
+                    f"what has been measured cannot reach an unmeasured reader depth."))
     if span_days > _SERIES_DAY_CEILING:                  # belt: the monitor route's own ceiling
         raise HTTPException(
             status_code=400,
