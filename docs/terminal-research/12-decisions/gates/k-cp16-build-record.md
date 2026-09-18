@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-18
+APPROVED AT SHA:  f74b8fcbf
+SCOPE APPROVED:   CP16 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP16 — the REAL merge loop applies recorded resolutions; only the PREVIEW ever did.**
