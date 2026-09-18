@@ -2,6 +2,20 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ✅ R38 5.5 — rollback plan, stated before merging (required in this order by the gate itself)
+>
+> If gate 5.7's post-deploy check finds a regression: `git revert -m 1
+> <merge-commit-sha>` committed and pushed directly to `master` — **never**
+> `git reset --hard` and **never** a force-push. `-m 1` is required because
+> the commit being undone is itself a merge: reverting a merge commit needs
+> the mainline-parent number, and parent 1 is `master`'s own prior history
+> (parent 2 is `feat/indicator-r0r1`) — reverting against the wrong parent
+> silently re-applies the branch instead of removing it. The revert is an
+> ordinary new commit on top of history, reviewable, and rewrites nothing.
+> `<merge-commit-sha>` is filled in once gate 5.6 actually produces one —
+> it cannot exist before the merge does, so this states the *procedure*, not
+> yet the *SHA*, which is what "before merging" means here.
+
 > ### ⏱️ 2026-09-18 18:2X ET — R38 continuing: gate 5.4 remerged again; gate 5.2 re-verdict queued; the Ready click is BLOCKED on Gate v2.1, not skipped.
 >
 > Picked up from the entry below (owner delegated "proceed to finish" —
