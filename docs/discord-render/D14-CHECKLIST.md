@@ -1,5 +1,19 @@
-> **NEXT WAKE REASON (D-16):** W5 (R59 hardening merge), W8 (accuracy audit), R63(d), R69,
-> canary R38/R39.
+> **NEXT WAKE REASON (D-20):** R72's actual code (three sub-timers + contention_trace_temp
+> reuse, needs a real boot to verify — see below), R73, R62 retry (needs a settled window),
+> R69 (flow-worker, proof by Monday 04:00 ET under R60), W8, W5, canary R38/R39.
+>
+> 🟡 **D-20 PROGRESS 2026-09-18 (this pass):** R71 read-only investigation + derived watch-path
+> list DONE, dashboard flip handed off (`BLOCKED-permission` — no CLI path exists, and this
+> Chrome profile has no Railway session; signing in is outside what this session may do).
+> R49 BUILT + rail-proved (11-case self-check, 3/3 required mutations RED, all sha-verified
+> restored); live rehearsal deliberately deferred (today already had two unplanned web deploys
+> collide with the R62 window; the rehearsal itself would be a third). R72's own premise
+> (cold caches) was CHECKED AGAINST SOURCE and does not hold — `derive_row` is pure in-memory
+> arithmetic, `cap_universe` is never referenced in `live_tier.py`; redirected to a
+> code-evidenced SQLite-lock-contention hypothesis (`screener.db`'s `busy_timeout=5000`), with
+> the concrete next patch fully specified but NOT built (needs a real boot to verify per R63(c)'s
+> own stated constraint — "needs production time to pass, not more code tonight"). Details:
+> `evidence/d18/{R71-web-watch-paths,R49-rollback-watchdog,R72-boot-window-screener-derive}-2026-09-18.md`.
 >
 > 🟡 **W2b — FIRST REAL-LOG ATTEMPT DONE 2026-09-18, still not closed.** With the log-tail
 > daemon's captured window, 12 real stalls aligned against 74k+ timestamped `web` log lines for
