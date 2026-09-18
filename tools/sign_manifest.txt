@@ -98,6 +98,7 @@
 #!after: e-cp35-build-record <- e-cp34-build-record
 #!after: e-cp36-build-record <- e-cp35-build-record
 #!after: e-cp37-build-record <- e-cp36-build-record
+#!after: e-cp38-build-record <- e-cp37-build-record
 #!last: s2-accelerator-chord-pre-implementation-gate
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
