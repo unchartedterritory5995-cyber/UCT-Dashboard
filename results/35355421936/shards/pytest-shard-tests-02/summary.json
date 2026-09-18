@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1700,
+  "passed": 1686,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 127.34,
+  "failed_files": [
+    "tests/test_audit_sandbox_env.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 1686 passed, 10 skipped, 96 warnings in 127.34s (0:02:07)",
+  "ok": true
+}
