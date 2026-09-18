@@ -10,7 +10,12 @@ import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
   listAllIndicators, applyRowPatch, splitIndTarget, isIndTarget, overlayRowId,
+  isSignTarget, splitSignTarget,
 } from './indicatorRegistry'
+// ⭐ THE PRESENTATION WRITER FOR A SIGNED HISTOGRAM'S PAIR. Already shipped, and
+// already deleting the key when the chosen colour IS the chart's — which is how
+// a series stays theme-derived instead of freezing a hex.
+import { setInstanceCandleColor, findInstance } from './engine/instanceControls'
 // The consolidated Indicators tab — search · browse · author · the active list ·
 // per-indicator settings, all in one place. It renders THIS file's rows through
 // THIS file's writer and colour swatch; see its header for why it is a
@@ -609,6 +614,20 @@ export default function ChartSettingsModal({
     dpLabelColor: ['darkPool', 'labelColor'],
   }
   const setColorTarget = (target, hex) => {
+    // ⭐⭐ THE SIGNED-HISTOGRAM PAIR, THROUGH ITS OWN WRITER. `setInstanceCandleColor`
+    // stores the colour ONLY when it differs from the chart's own — pick the
+    // chart's green and the key is deleted, so the series goes back to following
+    // every UCT Chart Theme. Provenance is ABSENCE, which is the convention this
+    // codebase already had; nothing new is invented here.
+    if (isSignTarget(target)) {
+      const { rowId, which } = splitSignTarget(target)
+      const next = setInstanceCandleColor(
+        settings, rowId, which, hex, engineRegistry, undefined,
+        (candles && candles[which]) || null,
+      )
+      if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+      return
+    }
     if (isIndTarget(target)) {
       const { rowId, field } = splitIndTarget(target)
       const row = indRowById(rowId)
@@ -678,6 +697,17 @@ export default function ChartSettingsModal({
   }
 
   const targetValue = (t) => {
+    // The swatch's own preview: what this half is EFFECTIVELY wearing right now —
+    // the member's stored choice, else the chart's candle colour, which is what
+    // `resolveSignColors` will hand the renderer for an instance storing nothing.
+    if (isSignTarget(t)) {
+      const { rowId, which } = splitSignTarget(t)
+      const inst = findInstance(settings, rowId)
+      const pres = (inst && inst.presentation) || null
+      return (pres && pres[which])
+        || (candles && candles[which])
+        || (which === 'upColor' ? SIGN_POS : SIGN_NEG)
+    }
     // Registry-driven indicator fields carry their path in the target string, so the
     // switch below never needs a case per indicator.
     if (isIndTarget(t)) {

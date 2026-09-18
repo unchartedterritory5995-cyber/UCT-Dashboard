@@ -317,7 +317,11 @@ export function presentedPlot(plot, instance, ctx) {
   const style = resolvePlotStyle(instance, plot, ctx)
   const defStyle = PLOT_STYLE_TO_DEF_STYLE[style]
   const effective = defStyle || plot.style
-  const sign = effective === 'histogram' ? resolveSignColors(instance, plot) : null
+  // ⭐ THE CHART'S OWN PALETTE TRAVELS IN, exactly as it does for candles. Without
+  // it a signed histogram fell back to a CONSTANT green/red and stopped agreeing
+  // with the member's chart theme — see `resolveSignColors`.
+  const sign = effective === 'histogram'
+    ? resolveSignColors(instance, plot, ctx && ctx.candles) : null
   const styleChanged = !!defStyle && defStyle !== plot.style
   // ⚠️ BOTH QUESTIONS BEFORE THE EARLY RETURN. This read `if (defStyle === plot.style)
   // return plot`, which is correct for style alone and wrong the moment a SECOND
@@ -362,7 +366,7 @@ export function presentedPlot(plot, instance, ctx) {
  * ⚠️ Per output, over an instance fallback — the same chain `resolvePlotStyle`,
  * `resolveDotSize` and `resolveCandleColors` already walk.
  */
-export function resolveSignColors(instance, plot) {
+export function resolveSignColors(instance, plot, fallback) {
   const pres = instance && instance.presentation
   if (!pres) return null
   const key = plot && plot.key
@@ -371,10 +375,32 @@ export function resolveSignColors(instance, plot) {
     ? perOutput.signColors : pres.signColors
   if (!on) return null
   const ok = (v) => (typeof v === 'string' && v ? v : null)
-  const up = (perOutput && ok(perOutput.colorUp)) || ok(pres.colorUp)
-    || ok(plot && plot.colorUp) || DEFAULT_SIGN_UP
-  const down = (perOutput && ok(perOutput.colorDown)) || ok(pres.colorDown)
-    || ok(plot && plot.colorDown) || DEFAULT_SIGN_DOWN
+  const base = fallback && typeof fallback === 'object' ? fallback : {}
+  // ⚰️⚰️ THE INSTANCE LEVEL READ `colorUp`/`colorDown` AND NOTHING EVER WROTE
+  // THEM. Those two names belong to a PLOT — `nativeRegistry` declares MACD's
+  // histogram with them and `defSchema` validates them there — so at the instance
+  // level they were a vocabulary with no door: a member had no way to choose the
+  // two colours of a signed histogram at all.
+  //
+  // ⭐ SO THE INSTANCE LEVEL USES THE PAIR THAT ALREADY HAS ONE. `upColor` /
+  // `downColor` is what `setInstanceCandleColor` writes, and reusing it means an
+  // instance has ONE up/down colour pair whether it paints candles or signed
+  // bars — which is the same sentence `DEFAULT_SIGN_UP` has always made.
+  //
+  // ⛔ AND THE ORDER PUTS THE DEFINITION ABOVE THE THEME, DELIBERATELY. MACD
+  // DECLARES its two colours; a theme must not repaint an indicator whose author
+  // chose them. A `dataSeries` pointed at a signed breadth measure declares
+  // nothing, so it falls through to the chart's candle palette and follows every
+  // UCT Chart Theme — which is the whole point.
+  //
+  // ⚠️ PROVENANCE IS ABSENCE, and that is this codebase's existing convention
+  // rather than a new one: `setInstanceCandleColor` DELETES the key when the
+  // member picks the chart's own colour, so "theme-derived" is "nothing stored"
+  // and a theme switch re-derives it with no migration and no stale hex.
+  const up = (perOutput && ok(perOutput.upColor)) || ok(pres.upColor)
+    || ok(plot && plot.colorUp) || ok(base.upColor) || DEFAULT_SIGN_UP
+  const down = (perOutput && ok(perOutput.downColor)) || ok(pres.downColor)
+    || ok(plot && plot.colorDown) || ok(base.downColor) || DEFAULT_SIGN_DOWN
   return { up, down }
 }
 

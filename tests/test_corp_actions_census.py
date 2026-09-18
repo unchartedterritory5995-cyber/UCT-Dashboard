@@ -124,14 +124,24 @@ def test_the_register_names_NO_ROW_THE_CENSUS_CANNOT_PRODUCE(rows):
 
 
 def test_OUTSTANDING_is_allowed_to_be_the_long_list(rows):
-    """⭐ REPORTED, NOT ASSERTED DOWNWARD. D5 has migrated nothing, so a census
-    opening with everything already `migrated` would be describing a programme
-    that had not started. What matters is that the state is CHOSEN."""
+    """⭐ REPORTED, NOT ASSERTED DOWNWARD. At CP1, D5 had migrated nothing, so a
+    census opening with everything already `migrated` would have described a
+    programme that had not started. What matters is that the state is CHOSEN.
+
+    ⛔ D5 CP3 (2026-09-18) is the first real migration — `reference_corp_
+    actions.py`'s confirmed-splits reader — so `migrated` is no longer
+    required to be empty. It IS asserted to be the single row CP3 actually
+    shipped: a bare `not by_state[MIGRATED]` would now silently pass if a
+    checkpoint's migration landed without ever updating the register (the
+    exact failure mode this docstring already names), so the count is pinned
+    rather than merely allowed to be non-zero."""
     by_state = {s: [r for r in rows if r.state == s] for s in cac.STATES}
     print("[corp-actions] %s" % {s: len(v) for s, v in by_state.items()})
-    assert not by_state[cac.MIGRATED], (
-        "something is marked `migrated` and D5 has shipped no producer. Either "
-        "a checkpoint landed without updating this note, or the state is wrong.")
+    migrated_paths = {r.path for r in by_state[cac.MIGRATED]}
+    assert migrated_paths == {"api/services/reference_corp_actions.py"}, (
+        "the set of migrated corp-action sites has changed (%r) -- either a "
+        "new checkpoint landed and this test's expectation needs updating, or "
+        "a row's state changed without a real migration behind it" % migrated_paths)
 
 
 # ═════════════════════════════════════════════════════════════════════════

@@ -260,12 +260,36 @@ def _read_rows_uncached() -> dict:
 
 
 def latest_deployment() -> dict:
-    """The newest row, shaped for `decide()`. Unchanged contract — guard 2's tests
-    drive this and `main()` still monkeypatch-substitutes it by name."""
+    """The newest row that Railway actually attempted to build, shaped for
+    `decide()`. Unchanged contract otherwise — guard 2's tests drive this and
+    `main()` still monkeypatch-substitutes it by name.
+
+    ⛔⛔ SKIPPED ROWS ARE EXCLUDED, and this is load-bearing after R71.
+    `SKIPPED` means Railway's own `watchPatterns` correctly decided NOT to
+    build the commit — a docs/tools-only push, exactly what R71's config-as-
+    code change is FOR. Nothing swapped; the running pod is completely
+    untouched; the row will never transition to SUCCESS/FAILED/CRASHED. Before
+    this fix, `decide()` reads any non-SUCCESS status as "a swap is in
+    flight" — true for BUILDING/DEPLOYING, categorically false for SKIPPED —
+    so a SKIPPED row sitting as the newest permanently jams the guard for
+    EVERY future push, repo-wide, until an unrelated api/**-touching commit
+    happens to land elsewhere and become the new "newest".
+
+    ⚰️ MEASURED LIVE, 2026-09-18: `bf100aadf` (`tools/hub_prod_smoke.py`,
+    correctly excluded from web's watchPatterns) sat as the newest row for
+    30+ minutes reporting "a swap is in flight" and refusing every push,
+    while the actually-running pod was untouched and healthy on the prior
+    SUCCESS (`bd03e8cba`). R71 shipped the same day this bug started firing —
+    the fix that makes SKIPPED rows normal is exactly what exposed it."""
     raw = _read_rows()
     if raw.get("state") != "READ":
         return raw
-    d = raw["rows"][0]
+    rows = [d for d in raw["rows"] if (d.get("status") or "").upper() != "SKIPPED"]
+    if not rows:
+        return {"state": UNREADABLE,
+                "why": "every %s deployment row is SKIPPED — no build has ever "
+                       "actually run for this service" % SERVICE}
+    d = rows[0]
     meta = d.get("meta") or {}
     return {"state": "READ", "status": d.get("status"), "createdAt": d.get("createdAt"),
             # ⛔ `id` is carried for R67's second read ONLY. `decide()` does not look at it, and
@@ -521,12 +545,31 @@ BURST_MIN_DEPLOYS = 3
 
 
 def recent_deployments() -> dict:
-    """`{"state": READ, "rows": [{commit, createdAt, status}, ...]}` or UNREADABLE."""
+    """`{"state": READ, "rows": [{commit, createdAt, status}, ...]}` or UNREADABLE.
+
+    ⛔ SKIPPED ROWS EXCLUDED — same reasoning as `latest_deployment()`'s fix, applied
+    here because BOTH cadence clauses below rest on "a BUILD may be in flight
+    somewhere" (the burst comment's own words). SKIPPED is Railway's own, immediate,
+    terminal answer that THIS commit never entered a build pipeline at all — it is
+    decided by matching the diff against `watchPatterns` at push time, with no
+    build/deploy stage to lag or flip later, unlike BUILDING/DEPLOYING which are
+    genuinely transitional. Counting a known-non-build toward "how many builds might
+    be in flight" cannot serve either clause's stated purpose, and R71's watchPatterns
+    change makes SKIPPED routine (any docs/tools-only push), not rare.
+
+    ⚰️ MEASURED LIVE, 2026-09-18: after the `latest_deployment()` fix unblocked one
+    push, THIS same day's docs/tools-only traffic (`bf100aadf`, `d517e7cd7`,
+    `888791525` — three separate SKIPPED rows) still tripped the BURST clause for
+    the next push, and would have kept doing so for up to ~44 more minutes as the
+    oldest SKIPPED row aged out of the 60-minute window — an escalating cost with no
+    real deploy anywhere in it."""
     raw = _read_rows()
     if raw.get("state") != "READ":
         return raw
     rows = []
     for d in raw["rows"]:
+        if (d.get("status") or "").upper() == "SKIPPED":
+            continue
         meta = d.get("meta") or {}
         rows.append({"commit": (meta.get("commitHash") or "")[:9],
                      "createdAt": d.get("createdAt"), "status": d.get("status"),

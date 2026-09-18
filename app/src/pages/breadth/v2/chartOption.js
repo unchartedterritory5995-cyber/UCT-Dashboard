@@ -25,8 +25,15 @@ const LABEL_INK = '#b8b2a4'
 //: V2-3's two coverage inks. ⛔ DIFFERENT ON PURPOSE: "never recorded" and
 //: "reconstructed from bars" are different claims, and one ink for both would
 //: merge them back into the single undifferentiated state A-10 is about.
-const NOT_RECORDED_INK = 'rgba(139, 133, 120, 0.10)'
-const RECONSTRUCTED_INK = 'rgba(96, 165, 250, 0.07)'
+//: ⭐ Fill + a solid edge, not fill alone: at 0.10/0.07 opacity (the original
+//: values) the band all but disappeared against the panel's own dark ground —
+//: exactly the "nearly invisible" audit finding — and a reader cannot act on
+//: a caveat they cannot see. The border gives the region a legible boundary
+//: even at a fill opacity light enough not to obscure the series drawn over it.
+const NOT_RECORDED_FILL = 'rgba(139, 133, 120, 0.22)'
+const NOT_RECORDED_BORDER = 'rgba(139, 133, 120, 0.55)'
+const RECONSTRUCTED_FILL = 'rgba(96, 165, 250, 0.18)'
+const RECONSTRUCTED_BORDER = 'rgba(96, 165, 250, 0.55)'
 
 /**
  * Can this panel take a log axis?
@@ -223,7 +230,8 @@ function coverageMarks(coverage, key, dates) {
   const region = coverage.regions?.[key]
   if (region) {
     areas.push([
-      { xAxis: dates[region.fromIndex], itemStyle: { color: NOT_RECORDED_INK } },
+      { xAxis: dates[region.fromIndex],
+        itemStyle: { color: NOT_RECORDED_FILL, borderColor: NOT_RECORDED_BORDER, borderWidth: 1 } },
       { xAxis: dates[region.toIndex] },
     ])
   }
@@ -231,7 +239,8 @@ function coverageMarks(coverage, key, dates) {
   // are tinted differently from "not recorded at all" — two different facts, two inks.
   for (const run of coverage.runs ?? []) {
     areas.push([
-      { xAxis: dates[run.fromIndex], itemStyle: { color: RECONSTRUCTED_INK } },
+      { xAxis: dates[run.fromIndex],
+        itemStyle: { color: RECONSTRUCTED_FILL, borderColor: RECONSTRUCTED_BORDER, borderWidth: 1 } },
       { xAxis: dates[run.toIndex] },
     ])
   }

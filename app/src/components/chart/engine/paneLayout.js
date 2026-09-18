@@ -559,6 +559,27 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
   const above = h > 0
     ? bandsAboveHeights(h, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
     : new Array(firstPaneIndex).fill(0)
+  // ⚰️⚰️ THE SLOTS WERE COMPUTED HERE AND NEVER REPORTED, and that is a real
+  // hole rather than a tidy-up. `keyByIndex` below has always known which slot
+  // Price and Volume occupy on this path — a chart with no oscillator panes takes
+  // it, which is MOST charts — but the object it is part of returned no
+  // `priceIndex` / `volumeIndex` at all. So `placement.js:124` read `undefined`
+  // for the candles' pane, `chromeGeometry` had no boxes to resolve a right-click
+  // against, and `StockChart` fell back to a LITERAL 1 for `VOL_PANE_INDEX`.
+  //
+  // ⛔ WHICH IS WRONG THE MOMENT VOLUME IS ABOVE PRICE. A member who drags Volume
+  // to the top has Volume at slot 0 and Price at 1; the fallback put every
+  // volume-pane guest, the volume MA and the extended-hours shading into PRICE's
+  // pane. Same arrangement on a chart with one oscillator went down the full
+  // builder and got it right, so the bug was a function of how many panes you had.
+  const pinned = mainPaneIndex
+  const ord = Array.isArray(order) ? order : null
+  const priceAt = ord ? ord.indexOf(PRICE_PANE) : -1
+  const volAt = ord ? ord.indexOf(VOLUME_PANE) : -1
+  const priceSlot = priceAt >= 0 ? pinned + priceAt : mainPaneIndex
+  const volSlot = ord
+    ? (volAt >= 0 ? pinned + volAt : -1)
+    : (firstPaneIndex > mainPaneIndex + 1 ? mainPaneIndex + 1 : -1)
   return {
     chartHeight: h,
     separatorPx,
@@ -567,6 +588,16 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     panes: [],
     above,
     bands,
+    priceIndex: priceSlot,
+    /** `null`, not `-1` — the same "there is no volume pane" the full builder
+     *  reports, so `Number.isInteger` is the one test either path needs. */
+    volumeIndex: volSlot >= 0 ? volSlot : null,
+    /** ⛔ AND THE COUNT, BY THE FULL BUILDER'S OWN ARITHMETIC (`order ?
+     *  idxPaneCount + order.length : firstPaneIndex + keys.length`, with
+     *  `keys.length === 0` here). Absent, `prepareArrangement` read
+     *  `need = 0` and created NOTHING — which a native volume series papers over
+     *  by being born in pane 1, and a guest-only volume pane does not. */
+    paneCountRequired: ord ? mainPaneIndex + ord.length : firstPaneIndex,
     // ⭐ A CHART WITH NO OSCILLATOR PANES STILL HAS SEPARATORS. Price and a
     // separate volume pane can be dragged apart like any other pair, so this
     // path needs the same slot → key identities or their sizes would be the only
@@ -574,7 +605,6 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     paneSizes: (paneSizes && typeof paneSizes === 'object') ? paneSizes : null,
     keyByIndex: (() => {
       const m = new Map()
-      const ord = Array.isArray(order) ? order : null
       // ⚰️⚰️ THE OFFSET IS THE PANES *ABOVE THE ARRANGEMENT*, AND NOTHING ELSE.
       // This was derived from `firstPaneIndex` minus a volume BAND, which is right
       // for a banded chart (1 - 1 - 1 -> 0) and off by one for the shipped
@@ -596,11 +626,10 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
       // ⭐ THE ONLY PANE THAT IS ABOVE THE ARRANGEMENT AND NOT IN IT is the Model
       // Book index pane, and `mainPaneIndex` already counts it (1 there, 0
       // everywhere else). `order` supplies every other position.
-      const pinned = mainPaneIndex
-      const priceSlot = ord ? pinned + ord.indexOf(PRICE_PANE) : mainPaneIndex
-      const volSlot = ord ? pinned + ord.indexOf(VOLUME_PANE) : (firstPaneIndex > mainPaneIndex + 1 ? mainPaneIndex + 1 : -1)
-      if (Number.isInteger(priceSlot) && priceSlot >= 0) m.set(priceSlot, PRICE_PANE)
-      if (Number.isInteger(volSlot) && volSlot >= 0) m.set(volSlot, VOLUME_PANE)
+      // ⭐ THE SAME TWO SLOTS THE OBJECT NOW REPORTS — read from above rather
+      // than recomputed, so the map and the indices cannot disagree.
+      if (priceSlot >= 0) m.set(priceSlot, PRICE_PANE)
+      if (volSlot >= 0) m.set(volSlot, VOLUME_PANE)
       return m
     })(),
     pane0: {

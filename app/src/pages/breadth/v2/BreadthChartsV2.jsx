@@ -20,6 +20,7 @@ import { todayET, shiftISO } from '../sessionDates'
 import { defaultSelectionFor } from './defaults'
 import { coverageModel } from './coverage'
 import { shouldSample } from './lttb'
+import { shortOf, CHART_GROUPS } from '../chartMetrics'
 
 const DEFAULT_WINDOW_DAYS = 90
 
@@ -58,7 +59,26 @@ export default function BreadthChartsV2({ keys, from, to }) {
   // invisible to a member and to a reviewer. With V2-2 on, the default adds the most-used
   // non-percentage metric so the stack is visible immediately. ⛔ With it OFF the default
   // is V1's exactly — the flag-off path must not diverge by even one key.
-  const selection = keys ?? defaultSelectionFor({ v22 })
+  //
+  // ⛔⛔ CONTROLLED VS UNCONTROLLED. A `keys` prop — every existing test, and any future
+  // embedder that wants a fixed view — takes over the selection completely and hides the
+  // picker below: nobody who explicitly asked for a set of keys wants a checkbox list
+  // second-guessing them. The live, unwrapped mount (`BreadthCharts.jsx` renders
+  // `<BreadthChartsV2 />` with no props at all) is the ONLY uncontrolled case, and it is
+  // exactly the one that had no way to change the metrics at all — V1 ships a full
+  // 6-group picker; V2 shipped none.
+  const isControlled = keys !== undefined
+  const [pickedKeys, setPickedKeys] = useState(() => defaultSelectionFor({ v22 }))
+  const baseSelection = isControlled ? keys : pickedKeys
+  // ⛔ THE ERA NOTE'S ONE-TAP SWAP (A-11) — kept as a layer OVER `baseSelection`, never
+  // folded into it, so a day-range change (which does not touch `baseSelection`) keeps
+  // the reader's swap, while a genuinely new `keys` prop (a different question) simply
+  // stops matching `swap.from` and the layer becomes a no-op on its own.
+  const [swap, setSwap] = useState(null) // { from, to } | null
+  const selection = useMemo(
+    () => (swap ? baseSelection.map(k => (k === swap.from ? swap.to : k)) : baseSelection),
+    [baseSelection, swap],
+  )
   // ⛔ `daysChoice` is IGNORED whenever a `from` prop is given — the same override
   // pattern `selection` uses above, so every existing test that pins an explicit window
   // keeps behaving exactly as it did before this control existed.
@@ -134,6 +154,47 @@ export default function BreadthChartsV2({ keys, from, to }) {
     return buildOption(s.dates, s.series, selection, { logPanels, coverage, allowSampling: v23 })
   }, [v22, v23, s.series, s.dates, selection, logPanels, coverage])
 
+  // ⛔⛔ THE CANVAS IS INVISIBLE TO ASSISTIVE TECH — ECharts' canvas renderer
+  // carries no series names, no values, and no legend (`chartOption.js` turns
+  // the real legend off on purpose; identity is carried by end-labels drawn
+  // INTO the canvas, which a screen reader cannot read either). A member using
+  // one gets nothing at all from this chart today. This gives them two things:
+  // a one-line summary always present as the chart's own accessible name, and
+  // a real `<table>` alternative — the `dataviz` skill's own non-negotiable —
+  // behind a toggle so it never dumps years of rows into the page by default.
+  const chartSummary = useMemo(() => {
+    if (!panels.length || !s.dates?.length) return ''
+    const seriesLabels = selection.map(shortOf).join(', ')
+    return `Line chart with ${panels.length} panel${panels.length === 1 ? '' : 's'}: `
+      + `${seriesLabels}. ${s.dates.length} sessions, `
+      + `${s.dates[0]} to ${s.dates[s.dates.length - 1]}. `
+      + 'A data table with the same values is available via the "View as table" button.'
+  }, [panels.length, selection, s.dates])
+  const [showTable, setShowTable] = useState(false)
+
+  // ⛔ Metric picker (uncontrolled mode only — see `isControlled` above).
+  const [expandedGroups, setExpandedGroups] = useState({})
+  function toggleMetricGroup(group) {
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }))
+  }
+  function togglePickedKey(key) {
+    setPickedKeys(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(k => k !== key)
+        // ⛔ Never drop to zero — an empty selection has nothing to draw, and
+        // "the chart just vanished" is a worse reading than a disabled checkbox.
+        return next.length ? next : prev
+      }
+      // ⛔ `/series` caps at MAX_KEYS. Silently bumping an existing pick to
+      // make room would be a surprise; refusing the ADD and saying so (via
+      // `v2-picker-full` below) is the honest version of the same limit
+      // `chartOption.js`'s own log-refusal and A-11's universe_count-room
+      // check already apply elsewhere in this file.
+      if (prev.length >= MAX_KEYS) return prev
+      return [...prev, key]
+    })
+  }
+
   function toggleLog(unit) {
     setLogPanels(prev => {
       const next = new Set(prev)
@@ -146,6 +207,58 @@ export default function BreadthChartsV2({ keys, from, to }) {
   return (
     <section data-testid="breadth-charts-v2" aria-label="Data Charts V2">
       <h2>Data Charts V2</h2>
+
+      {/* ⛔⛔ THE METRIC PICKER — uncontrolled mount only (see `isControlled`).
+          V1 ships a full 6-group picker; the live V2 mount shipped with none
+          at all, so a member could see only the 3-metric default forever. */}
+      {!isControlled && (
+        <div data-testid="v2-metric-picker">
+          <div data-testid="v2-metric-group-buttons">
+            {CHART_GROUPS.map(g => {
+              const selectedInGroup = g.metrics.filter(m => baseSelection.includes(m.key)).length
+              return (
+                <button
+                  key={g.group}
+                  type="button"
+                  aria-expanded={Boolean(expandedGroups[g.group])}
+                  aria-controls={`v2-metric-group-${g.group.replace(/[^a-z0-9]+/gi, '-')}`}
+                  data-testid={`v2-metric-group-toggle-${g.group}`}
+                  onClick={() => toggleMetricGroup(g.group)}
+                >
+                  {g.group}{selectedInGroup > 0 ? ` (${selectedInGroup})` : ''}
+                </button>
+              )
+            })}
+          </div>
+          {baseSelection.length >= MAX_KEYS && (
+            <p role="status" data-testid="v2-picker-full">
+              Up to {MAX_KEYS} metrics at a time — remove one to add another.
+            </p>
+          )}
+          {CHART_GROUPS.map(g => expandedGroups[g.group] && (
+            <div
+              key={g.group}
+              id={`v2-metric-group-${g.group.replace(/[^a-z0-9]+/gi, '-')}`}
+              data-testid={`v2-metric-group-${g.group}`}
+            >
+              {g.metrics.map(m => {
+                const checked = baseSelection.includes(m.key)
+                return (
+                  <label key={m.key}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!checked && baseSelection.length >= MAX_KEYS}
+                      onChange={() => togglePickedKey(m.key)}
+                    />
+                    <span>{m.label}</span>
+                  </label>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
 
       {v23 && (
         // ⭐ Unconditional under v23 — see the note on EXTENDED_DAYS_PRESETS. A member
@@ -248,16 +361,68 @@ export default function BreadthChartsV2({ keys, from, to }) {
             <p role="status" data-testid="v2-era-note">
               {coverage.era.text}
               {coverage.era.swap && (
-                <button type="button" data-testid="v2-era-swap">Use %</button>
+                // ⛔⛔ WAS UNWIRED — `eraNote()` computed the right {from,to} pair
+                // (coverage.test.js proved that) and the click handler was never added,
+                // so the button did nothing. `setSwap` is the layer above; once applied,
+                // `hi_ratio`'s own unit (PCT) moves it out of the count panel, so this
+                // very note's own precondition (a count panel present) stops holding and
+                // the note honestly disappears on its own next render — no second control
+                // needed to "undo" it.
+                <button
+                  type="button"
+                  data-testid="v2-era-swap"
+                  onClick={() => setSwap(coverage.era.swap)}
+                >
+                  Use %
+                </button>
               )}
             </p>
           )}
-          <ReactECharts
-            option={option}
-            style={{ height: Math.max(320, panels.length * 190), width: '100%' }}
-            notMerge
-            lazyUpdate
-          />
+          <button
+            type="button"
+            data-testid="v2-table-toggle"
+            aria-expanded={showTable}
+            aria-controls="v2-data-table"
+            onClick={() => setShowTable(v => !v)}
+          >
+            {showTable ? 'Hide data table' : 'View as table'}
+          </button>
+
+          {/* ⛔ `role="img"` deliberately flattens the interactive canvas subtree
+              for assistive tech — there is nothing accessible inside it to walk
+              into, and the real content is the table above/below this toggle. */}
+          <div role="img" aria-label={chartSummary}>
+            <ReactECharts
+              option={option}
+              style={{ height: Math.max(320, panels.length * 190), width: '100%' }}
+              notMerge
+              lazyUpdate
+            />
+          </div>
+
+          {showTable && (
+            <div data-testid="v2-data-table-wrap" style={{ overflowX: 'auto' }}>
+              <table id="v2-data-table" data-testid="v2-data-table">
+                <caption>{chartSummary}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    {selection.map(key => <th scope="col" key={key}>{shortOf(key)}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.dates.map((date, i) => (
+                    <tr key={date}>
+                      <th scope="row">{date}</th>
+                      {selection.map(key => (
+                        <td key={key}>{formatTableValue(s.series[key]?.[i])}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
@@ -277,4 +442,12 @@ export default function BreadthChartsV2({ keys, from, to }) {
       )}
     </section>
   )
+}
+
+/** The table's own honest-absence convention: a null reading is an em dash,
+ *  never a zero — the same rule the V2-1 diagnostic list above already keeps. */
+function formatTableValue(v) {
+  if (v === null || v === undefined) return '—'
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return Number.isInteger(v) ? String(v) : v.toFixed(2)
 }
