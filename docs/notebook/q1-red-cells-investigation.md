@@ -838,3 +838,67 @@ watched those three sites fire.
 
 > **A hypothesis dies by reading or by measurement. This one needed measurement,
 > and two days were spent proving that by trying everything else.**
+
+
+---
+
+## ✅ P2 — STAGE-1 PRODUCTION PROOF, guard still `full`
+
+**Fix 6 shipped `8568d13ad`. These cells ask whether it broke anything on the
+paths that already worked.** They are not a test of fix 6's own defect — the
+door guard still stands in front of that — they are the regression half.
+
+### The four metadata settle-first cells: ALL GREEN, 6 of 6 orderings each
+
+| door | verdict | seconds | evidence |
+|---|---|---|---|
+| `folder` | **GREEN 6/6** | 229 | `evidence/20260918T120334-p2-metadata-settle-first-folder/` |
+| `ticker` | **GREEN 6/6** | 211 | `evidence/20260918T105245-p2-metadata-settle-first-ticker/` |
+| `tags` | **GREEN 6/6** | 260 | `evidence/20260918T105618-p2-metadata-settle-first-tags/` |
+| `hero` | **GREEN 6/6** | 208 | `evidence/20260918T120725-p2-metadata-settle-first-hero/` |
+
+Each GREEN reads, on production:
+
+```
+⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s),
+         baseline `…` · 5 request(s) carried the sentence
+```
+
+⭐ **This is the production half of M2.** These doors go through
+`settleLandedSave`, which fix 6 rewired to ask the SHARED authority
+`discardsUnsentWork` rather than its own inline copy. The behaviour had to be
+*unchanged*, and that is what makes the extraction safe. M2 proved it at unit
+level — killing the shared predicate reds fix 4's rails too — and these four
+cells are the same claim measured against the live product.
+
+### 2.8b — the editor path `persist` now guards
+
+⛔ **Still owed a GREEN artifact of its own.** Its best run so far reached cell
+21 of 39 before the 1800s ceiling killed it, with **16 GREEN, 4 INCONCLUSIVE,
+ZERO RED** (`evidence/20260918T121054-p2-2.8b-second-writer-while-away/`). That
+is encouraging and it is **not** a pass: P2's criterion is a GREEN artifact per
+cell, and "every cell that could be measured was GREEN" is not that.
+
+Re-staged at a **measured** 3300s: 21 cells at ~80s plus one 108s swap-wait is
+~1790s against an 1800s ceiling, so 39 cells need ~3120s.
+
+### ⛔⛔ What nearly went in the wrong column
+
+P2's first three windows produced mostly INCONCLUSIVE, and the obvious
+explanation was the deploy churn that had already cost a run. **It was the
+instrument.** The cell sampled for the editor with `query_selector` on a
+5-second cadence and lost mounts the product had already served:
+
+| the SAME `ticker` cell | GREEN | INCONCLUSIVE | seconds |
+|---|---|---|---|
+| sampling | 3 | 3 | 748 |
+| **waiting (`wait_for_selector`)** | **6** | **0** | **211** |
+
+⭐ **The swap detector is what separated the two causes.** It recorded **zero**
+swap-waits for that window — production had been stable throughout — so "another
+session swapped us" was available, plausible, and wrong. Without an independent
+signal it would have been filed as churn and the instrument would still be
+losing three cells in six.
+
+⚠️ **ZERO RED anywhere in P2**, across every cell and every attempt, on
+production, with fix 6 live and the guard still `full`.

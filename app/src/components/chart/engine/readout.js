@@ -194,6 +194,21 @@ export function chipValueText(chip) {
   return chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : DEFAULT_DECIMALS)
 }
 
+/** The name a PANE STRIP should print for an instance: its compact identity when
+ *  the catalogue gave it one, else its full name.
+ *
+ *  ⭐ ONE READER, THREE CALL SITES. `chipsFrom`, the source-picker branch and the
+ *  hidden-instance branch all name the same instance, and before this they each
+ *  reached for `display.name` by hand — which is how a fourth would have drifted.
+ *  ⛔ FULL IS THE FALLBACK, NEVER THE UNIVERSE: an instance stored before the
+ *  compact name existed has only `name`, and that is a complete answer. */
+const legendName = (inst) => {
+  const d = inst && inst.display
+  if (!d) return null
+  return (typeof d.compact === 'string' && d.compact) ? d.compact
+    : ((typeof d.name === 'string' && d.name) ? d.name : null)
+}
+
 function chipLabel(def, plot, inputs, displayName) {
   if (plot.legend && typeof plot.legend.label === 'string') return plot.legend.label
   // ⭐⭐ `meta.labelFrom: 'source'` — THE ONE DEFINITION WHOSE NAME IS NOT ITS OWN.
@@ -211,6 +226,13 @@ function chipLabel(def, plot, inputs, displayName) {
   if (def.meta && def.meta.labelFrom === 'source') {
     // ⭐ A STORED DISPLAY NAME FIRST. An instance added through a catalogue door
     // carries one; one created any other way names itself from its source.
+    //
+    // ⭐⭐ AND THE **COMPACT** ONE WINS HERE, BECAUSE THIS IS THE PANE STRIP. The
+    // caller hands the instance's compact identity when it has one — `US: Net H-L`
+    // rather than the full `Net New 52-Week Highs-Lows · US`, which would push the
+    // value off a legend row. A security has no compact/full distinction (both are
+    // the ticker), so nothing else changes. ⛔ THE UNIVERSE ALONE IS NOT A NAME:
+    // see `discoveryCatalog.semanticNamesFor` for what this replaced.
     if (typeof displayName === 'string' && displayName) return displayName
     const fromSource = sourceStemOf(def, inputs)
     if (fromSource) return fromSource
@@ -489,7 +511,7 @@ export function describeSourceValue(value, get, byId) {
     const plot = (def.plots || []).find((p) => p && p.legend && p.legend.hide !== true)
     if (!plot) return null
     return chipLabel(def, plot, (inst.inputs && typeof inst.inputs === 'object') ? inst.inputs : null,
-      (inst.display && inst.display.name) || null)
+      legendName(inst))
   }
   return null
 }
@@ -633,10 +655,7 @@ export function engineChips(bindings, seriesData, registry, instances) {
   // ⭐ THE STORED DISPLAY NAME, BY INSTANCE — the same per-instance read
   // `inputsFor` makes, for the same reason: two copies of one definition can
   // carry two names, and `cs.indicators[defId]` cannot express that.
-  const displayFor = (_defId, instanceId) => {
-    const inst = byId.get(instanceId)
-    return (inst && inst.display && inst.display.name) || null
-  }
+  const displayFor = (_defId, instanceId) => legendName(byId.get(instanceId))
   return chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances)
 }
 
@@ -716,8 +735,7 @@ export function legendChips(bindings, seriesData, registry, instances) {
       // This walks the INSTANCE LIST so a hidden instance still has a chip to
       // un-hide from, and it formats its own label — so a `labelFrom` definition
       // fixed only in `chipsFrom` would still print "Series" for a hidden QQQ.
-      const label = chipLabel(def, plot, inputs,
-        (inst.display && inst.display.name) || null)
+      const label = chipLabel(def, plot, inputs, legendName(inst))
       out.push({
         defId: def.id,
         plotKey: plot.key,

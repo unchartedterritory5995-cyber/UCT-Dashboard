@@ -1,0 +1,91 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 6 cell(s) to run · stamp 2026-09-18T17-03-35Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ folder  ·  settle-first
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:03:59.061507+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T17:03:59.061507+00:00', 'marker': None, 'ring': ['2026-09-18T17:03:59.061507+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /d2bc06d4bf6f40a3b421860659dd80fb/opened→200 · PUT /d2bc06d4bf6f40a3b421860659dd80fb[11+00:00]→200 · PUT /d2bc06d4bf6f40a3b421860659dd80fb+SENT[07+00:00]→None · PUT /d2bc06d4bf6f40a3b421860659dd80fb+SENT[07+00:00]→None · PUT /d2bc06d4bf6f40a3b421860659dd80fb+SENT[07+00:00]→None · PUT /d2bc06d4bf6f40a3b421860659dd80fb→200 · PUT /d2bc06d4bf6f40a3b421860659dd80fb+SENT[07+00:00]→409 · PUT /d2bc06d4bf6f40a3b421860659dd80fb+SENT[14+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:03:59.061507+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  drain-first (the editor could NOT report local state)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:04:24.257885+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T17:04:24.257885+00:00', 'marker': None, 'ring': ['2026-09-18T17:04:24.257885+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /dfa8b71f2cda40dd98d1eb1a6ffb89b2/opened→200 · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2[71+00:00]→200 · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2+SENT[85+00:00]→None · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2+SENT[85+00:00]→None · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2+SENT[85+00:00]→None · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2→200 · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2+SENT[85+00:00]→409 · PUT /dfa8b71f2cda40dd98d1eb1a6ffb89b2+SENT[36+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:04:24.257885+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  marker LIVE
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:05:06.675507+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, this tab, live', 'baseUpdatedAt': '2026-09-18T17:05:06.675507+00:00', 'marker': {'sessionId': 'this-tab', 'startedAt': 1789751116956, 'baseUpdatedAt': '2026-09-18T17:05:06.675507+00:00'}, 'ring': ['2026-09-18T17:05:06.675507+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /3a05f992176440ec854d97dd79c2836d/opened→200 · PUT /3a05f992176440ec854d97dd79c2836d[66+00:00]→200 · PUT /3a05f992176440ec854d97dd79c2836d+SENT[07+00:00]→None · PUT /3a05f992176440ec854d97dd79c2836d+SENT[07+00:00]→None · PUT /3a05f992176440ec854d97dd79c2836d+SENT[07+00:00]→None · PUT /3a05f992176440ec854d97dd79c2836d→200 · PUT /3a05f992176440ec854d97dd79c2836d+SENT[07+00:00]→409 · PUT /3a05f992176440ec854d97dd79c2836d+SENT[94+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:05:06.675507+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  marker EXPIRED
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:05:31.695931+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, dead session, aged past the TTL', 'baseUpdatedAt': '2026-09-18T17:05:31.695931+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789751127472, 'baseUpdatedAt': '2026-09-18T17:05:31.695931+00:00'}, 'ring': ['2026-09-18T17:05:31.695931+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /f9a2030d1dce41f7860407d7eeb23943/opened→200 · PUT /f9a2030d1dce41f7860407d7eeb23943[84+00:00]→200 · PUT /f9a2030d1dce41f7860407d7eeb23943+SENT[31+00:00]→None · PUT /f9a2030d1dce41f7860407d7eeb23943+SENT[31+00:00]→None · PUT /f9a2030d1dce41f7860407d7eeb23943+SENT[31+00:00]→None · PUT /f9a2030d1dce41f7860407d7eeb23943→200 · PUT /f9a2030d1dce41f7860407d7eeb23943+SENT[31+00:00]→409 · PUT /f9a2030d1dce41f7860407d7eeb23943+SENT[66+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:05:31.695931+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  slow PUT (landed, ring populated)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:05:58.424793+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'landed ring carries the revision + an expired marker', 'baseUpdatedAt': '2026-09-18T17:05:58.424793+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789751153856, 'baseUpdatedAt': '2026-09-18T17:05:58.424793+00:00'}, 'ring': ['2026-09-18T17:05:58.424793+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /bccf3c38c6324785b125498edef35d3d/opened→200 · PUT /bccf3c38c6324785b125498edef35d3d[90+00:00]→200 · PUT /bccf3c38c6324785b125498edef35d3d+SENT[93+00:00]→None · PUT /bccf3c38c6324785b125498edef35d3d+SENT[93+00:00]→None · PUT /bccf3c38c6324785b125498edef35d3d+SENT[93+00:00]→None · PUT /bccf3c38c6324785b125498edef35d3d→200 · PUT /bccf3c38c6324785b125498edef35d3d+SENT[93+00:00]→409 · PUT /bccf3c38c6324785b125498edef35d3d+SENT[73+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:05:58.424793+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  reload mid-flight (marker from a dead tab)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:06:23.982146+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker from a previous tab', 'baseUpdatedAt': '2026-09-18T17:06:23.982146+00:00', 'marker': {'sessionId': 'previous-tab', 'startedAt': 1789751194608, 'baseUpdatedAt': '2026-09-18T17:06:23.982146+00:00'}, 'ring': ['2026-09-18T17:06:23.982146+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /92336bd6a17b43b49a73c1205da7b606/opened→200 · PUT /92336bd6a17b43b49a73c1205da7b606[39+00:00]→200 · PUT /92336bd6a17b43b49a73c1205da7b606+SENT[46+00:00]→None · PUT /92336bd6a17b43b49a73c1205da7b606+SENT[46+00:00]→None · PUT /92336bd6a17b43b49a73c1205da7b606+SENT[46+00:00]→None · PUT /92336bd6a17b43b49a73c1205da7b606→200 · PUT /92336bd6a17b43b49a73c1205da7b606+SENT[46+00:00]→409 · PUT /92336bd6a17b43b49a73c1205da7b606+SENT[39+00:00]→200
+      the door fired after call #6; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:06:23.982146+00:00` · 5 request(s) carried the sentence (la
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:33632) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:2544) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

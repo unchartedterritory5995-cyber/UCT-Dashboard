@@ -31,8 +31,52 @@ describe('resolveSignColors', () => {
   it('lets a per-output choice override the instance, in both directions', () => {
     const off = withPres({ signColors: true, plots: { value: { signColors: false } } })
     expect(resolveSignColors(off, HIST)).toBeNull()
-    const custom = withPres({ signColors: true, plots: { value: { colorUp: '#0f0', colorDown: '#f00' } } })
+    // ⚰️ THE INSTANCE-LEVEL KEYS WERE `colorUp`/`colorDown` AND NOTHING WROTE THEM.
+    // Those two names belong to a PLOT — `nativeRegistry` declares MACD's histogram
+    // with them, `defSchema` validates them there — so at the instance level they
+    // were a vocabulary with no door, and a member could not choose either colour.
+    // ⭐ The instance level now uses `upColor`/`downColor`: the pair
+    // `setInstanceCandleColor` already writes, so an instance has ONE up/down pair
+    // whether it paints candles or signed bars.
+    const custom = withPres({ signColors: true, plots: { value: { upColor: '#0f0', downColor: '#f00' } } })
     expect(resolveSignColors(custom, HIST)).toEqual({ up: '#0f0', down: '#f00' })
+    // …and at the instance level, not only per output.
+    expect(resolveSignColors(withPres({ signColors: true, upColor: '#0f0' }), HIST).up).toBe('#0f0')
+  })
+
+  // ─── THEME ────────────────────────────────────────────────────────────────
+  it('⭐⭐ with nothing stored it wears the CHART’S candle pair, not a constant', () => {
+    // ⛔ THE THEME GAP. `resolveCandleColors` has always taken the chart's palette
+    // as a fallback; this resolver jumped straight to a hard-coded green/red, so a
+    // signed breadth histogram ignored every UCT Chart Theme. Same chain now.
+    const inst = withPres({ signColors: true })
+    expect(resolveSignColors(inst, HIST, { upColor: '#11aa55', downColor: '#cc2233' }))
+      .toEqual({ up: '#11aa55', down: '#cc2233' })
+    // A DIFFERENT theme repaints it, with nothing migrated and no hex stored.
+    expect(resolveSignColors(inst, HIST, { upColor: '#3366ff', downColor: '#ff9900' }))
+      .toEqual({ up: '#3366ff', down: '#ff9900' })
+  })
+
+  it('⛔ an explicit choice OUTRANKS the theme — provenance is presence', () => {
+    const chosen = withPres({ signColors: true, upColor: '#0f0', downColor: '#f00' })
+    expect(resolveSignColors(chosen, HIST, { upColor: '#11aa55', downColor: '#cc2233' }))
+      .toEqual({ up: '#0f0', down: '#f00' })
+  })
+
+  it('⛔ a DEFINITION that declares its colours outranks the theme too', () => {
+    // MACD chose its own two colours; a theme must not repaint an indicator whose
+    // author specified them. Only a definition that declares NOTHING follows the
+    // chart — which is exactly the `dataSeries`/breadth case.
+    const declared = { key: 'value', label: 'Value', style: 'histogram',
+      colorUp: '#4caf50', colorDown: '#f44336' }
+    expect(resolveSignColors(withPres({ signColors: true }), declared,
+      { upColor: '#3366ff', downColor: '#ff9900' }))
+      .toEqual({ up: '#4caf50', down: '#f44336' })
+  })
+
+  it('⚠️ no palette at all still answers — the shipped constants', () => {
+    expect(resolveSignColors(withPres({ signColors: true }), HIST))
+      .toEqual({ up: DEFAULT_SIGN_UP, down: DEFAULT_SIGN_DOWN })
   })
 })
 

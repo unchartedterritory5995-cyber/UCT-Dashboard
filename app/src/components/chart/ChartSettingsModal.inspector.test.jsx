@@ -706,26 +706,36 @@ describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
     expect(seen.cs, 'ArrowDown on the last row wrote to the blob').toBeNull()
   })
 
-  it('⛔⛔ A PANE OF ONE OFFERS NO GRIP — and its name does not move', () => {
-    // ⛔ §11: a single-member pane has nothing to reorder, so advertising a
-    // handle would be advertising an action that cannot happen.
-    // ⚠️ AND THE SLOT STAYS. A pane that drops from two members to one would
-    // otherwise pull every remaining name 14px left under the pointer, so the
-    // width is reserved and left empty rather than removed.
-    // ⚠️ `QQQ` ON ITS OWN PANE IS THE LONE MEMBER — one series, one rectangle,
-    // nothing to put it in front of.
+  it('⭐⭐ A PANE OF ONE STILL SHOWS ITS GRIP — visible, and inert', () => {
+    // ⚰️⚰️ THIS CASE ASSERTED THE OPPOSITE, under §11: a single-member pane has
+    // nothing to reorder, so it advertised no handle. OWNER REVERSAL — drawing the
+    // grip only where a reorder is possible made the LIST's geometry a function of
+    // pane arity: four Price rows wore a mark while `Volume` and a breadth pane
+    // wore a blank gutter, and the column read as broken rather than informative.
+    //
+    // ⭐ THE GRIP IS THE ROW'S OWN MARK — *this is a plotted series* — and its
+    // INTERACTIVITY is what varies. `movable` still gates every write, `draggable`,
+    // the keyboard path and the tooltip; a lone series gets `aria-disabled` so a
+    // screen reader is told exactly what the pointer is.
     const { cs } = withSeries(base(), 'QQQ')
     show(cs); openTab()
     const solo = rowFor(/^QQQ$/)
     expect(solo.getAttribute('data-movable'), 'a lone series claims it can be reordered')
       .toBe('false')
-    expect(solo.querySelector('[data-row-grip]'), 'a lone series offers a grip').toBeNull()
+    const grip = solo.querySelector('[data-row-grip]')
+    expect(grip, 'a lone series has no grip — the blank gutter is back').toBeTruthy()
+    expect(grip.getAttribute('data-grip-inert'), 'the lone grip is live').toBe('true')
+    expect(grip.getAttribute('aria-disabled')).toBe('true')
+    expect(grip.getAttribute('draggable') ?? null, 'a lone series is draggable').toBeNull()
     expect(solo.querySelector('[class*="insRowGripSlot"]'),
       'the reserved slot went with the grip — names will jump').toBeTruthy()
-    // …and a pane that CAN be reordered has both.
+    // …and a pane that CAN be reordered has a LIVE one.
     const ema = rowFor(/^EMA 20$/)
     expect(ema.getAttribute('data-movable')).toBe('true')
-    expect(ema.querySelector('[data-row-grip]')).toBeTruthy()
+    const live = ema.querySelector('[data-row-grip]')
+    expect(live).toBeTruthy()
+    expect(live.getAttribute('data-grip-inert') ?? null).toBeNull()
+    expect(live.getAttribute('aria-disabled') ?? null).toBeNull()
   })
 
   it('⭐⭐ ONE ORDER ACROSS TWO PERSISTENCE IMPLEMENTATIONS', () => {

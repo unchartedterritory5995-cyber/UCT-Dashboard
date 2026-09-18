@@ -1,0 +1,103 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 6 cell(s) to run · stamp 2026-09-18T17-07-25Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ hero  ·  settle-first
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/00098b8d29aa463a9b017c0178544835/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:07:53.442533+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T17:07:53.442533+00:00', 'marker': None, 'ring': ['2026-09-18T17:07:49.649916+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /00098b8d29aa463a9b017c0178544835/opened→200 · PUT /00098b8d29aa463a9b017c0178544835[77+00:00]→200 · POST /00098b8d29aa463a9b017c0178544835/hero→200 · POST /00098b8d29aa463a9b017c0178544835/opened→200 · PUT /00098b8d29aa463a9b017c0178544835+SENT[33+00:00]→None · PUT /00098b8d29aa463a9b017c0178544835+SENT[33+00:00]→None · PUT /00098b8d29aa463a9b017c0178544835+SENT[33+00:00]→None · POST /00098b8d29aa463a9b017c0178544835/hero→200 · PUT /00098b8d29aa463a9b017c0178544835+SENT[33+00:00]→409 · PUT /00098b8d29aa463a9b017c0178544835+SENT[58+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:07:53.442533+00:00` · 5 request(s) carried the sentence (la
+
+═══ hero  ·  drain-first (the editor could NOT report local state)
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/8c40b6a4c62d4e2eac71f429ef7cfa44/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:08:21.298222+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T17:08:21.298222+00:00', 'marker': None, 'ring': ['2026-09-18T17:08:17.078446+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /8c40b6a4c62d4e2eac71f429ef7cfa44/opened→200 · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44[78+00:00]→200 · POST /8c40b6a4c62d4e2eac71f429ef7cfa44/hero→200 · POST /8c40b6a4c62d4e2eac71f429ef7cfa44/opened→200 · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44+SENT[22+00:00]→None · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44+SENT[22+00:00]→None · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44+SENT[22+00:00]→None · POST /8c40b6a4c62d4e2eac71f429ef7cfa44/hero→200 · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44+SENT[22+00:00]→409 · PUT /8c40b6a4c62d4e2eac71f429ef7cfa44+SENT[83+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:08:21.298222+00:00` · 5 request(s) carried the sentence (la
+
+═══ hero  ·  marker LIVE
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/8e885659071b468eb5af4e4fb9aa3605/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:08:48.699403+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, this tab, live', 'baseUpdatedAt': '2026-09-18T17:08:48.699403+00:00', 'marker': {'sessionId': 'this-tab', 'startedAt': 1789751337560, 'baseUpdatedAt': '2026-09-18T17:08:48.699403+00:00'}, 'ring': ['2026-09-18T17:08:44.271034+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /8e885659071b468eb5af4e4fb9aa3605/opened→200 · PUT /8e885659071b468eb5af4e4fb9aa3605[04+00:00]→200 · POST /8e885659071b468eb5af4e4fb9aa3605/hero→200 · POST /8e885659071b468eb5af4e4fb9aa3605/opened→200 · PUT /8e885659071b468eb5af4e4fb9aa3605+SENT[03+00:00]→None · PUT /8e885659071b468eb5af4e4fb9aa3605+SENT[03+00:00]→None · PUT /8e885659071b468eb5af4e4fb9aa3605+SENT[03+00:00]→None · POST /8e885659071b468eb5af4e4fb9aa3605/hero→200 · PUT /8e885659071b468eb5af4e4fb9aa3605+SENT[03+00:00]→409 · PUT /8e885659071b468eb5af4e4fb9aa3605+SENT[66+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:08:48.699403+00:00` · 5 request(s) carried the sentence (la
+
+═══ hero  ·  marker EXPIRED
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/306d3c902c874d9c99d555075ff5ad17/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:09:16.411714+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, dead session, aged past the TTL', 'baseUpdatedAt': '2026-09-18T17:09:16.411714+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789751352299, 'baseUpdatedAt': '2026-09-18T17:09:16.411714+00:00'}, 'ring': ['2026-09-18T17:09:12.348116+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /306d3c902c874d9c99d555075ff5ad17/opened→200 · PUT /306d3c902c874d9c99d555075ff5ad17[32+00:00]→200 · POST /306d3c902c874d9c99d555075ff5ad17/hero→200 · POST /306d3c902c874d9c99d555075ff5ad17/opened→200 · PUT /306d3c902c874d9c99d555075ff5ad17+SENT[14+00:00]→None · PUT /306d3c902c874d9c99d555075ff5ad17+SENT[14+00:00]→None · PUT /306d3c902c874d9c99d555075ff5ad17+SENT[14+00:00]→None · POST /306d3c902c874d9c99d555075ff5ad17/hero→200 · PUT /306d3c902c874d9c99d555075ff5ad17+SENT[14+00:00]→409 · PUT /306d3c902c874d9c99d555075ff5ad17+SENT[69+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:09:16.411714+00:00` · 5 request(s) carried the sentence (la
+
+═══ hero  ·  slow PUT (landed, ring populated)
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/6d1faec1fac142339a0436847e07cad5/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:09:45.616718+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'landed ring carries the revision + an expired marker', 'baseUpdatedAt': '2026-09-18T17:09:45.616718+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789751379652, 'baseUpdatedAt': '2026-09-18T17:09:45.616718+00:00'}, 'ring': ['2026-09-18T17:09:45.616718+00:00', '2026-09-18T17:09:41.335817+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /6d1faec1fac142339a0436847e07cad5/opened→200 · PUT /6d1faec1fac142339a0436847e07cad5[95+00:00]→200 · POST /6d1faec1fac142339a0436847e07cad5/hero→200 · POST /6d1faec1fac142339a0436847e07cad5/opened→200 · PUT /6d1faec1fac142339a0436847e07cad5+SENT[18+00:00]→None · PUT /6d1faec1fac142339a0436847e07cad5+SENT[18+00:00]→None · PUT /6d1faec1fac142339a0436847e07cad5+SENT[18+00:00]→None · POST /6d1faec1fac142339a0436847e07cad5/hero→200 · PUT /6d1faec1fac142339a0436847e07cad5+SENT[18+00:00]→409 · PUT /6d1faec1fac142339a0436847e07cad5+SENT[68+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:09:45.616718+00:00` · 5 request(s) carried the sentence (la
+
+═══ hero  ·  reload mid-flight (marker from a dead tab)
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/9bf8c667adf34ed1aa26469a3ddca2d0/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T17:10:12.703472+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker from a previous tab', 'baseUpdatedAt': '2026-09-18T17:10:12.703472+00:00', 'marker': {'sessionId': 'previous-tab', 'startedAt': 1789751421640, 'baseUpdatedAt': '2026-09-18T17:10:12.703472+00:00'}, 'ring': ['2026-09-18T17:10:08.470766+00:00']}
+      door: {'ok': True, 'via': 'input[data-uct-hero-input].set_input_files'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /9bf8c667adf34ed1aa26469a3ddca2d0/opened→200 · PUT /9bf8c667adf34ed1aa26469a3ddca2d0[49+00:00]→200 · POST /9bf8c667adf34ed1aa26469a3ddca2d0/hero→200 · POST /9bf8c667adf34ed1aa26469a3ddca2d0/opened→200 · PUT /9bf8c667adf34ed1aa26469a3ddca2d0+SENT[72+00:00]→None · PUT /9bf8c667adf34ed1aa26469a3ddca2d0+SENT[72+00:00]→None · PUT /9bf8c667adf34ed1aa26469a3ddca2d0+SENT[72+00:00]→None · POST /9bf8c667adf34ed1aa26469a3ddca2d0/hero→200 · PUT /9bf8c667adf34ed1aa26469a3ddca2d0+SENT[72+00:00]→409 · PUT /9bf8c667adf34ed1aa26469a3ddca2d0+SENT[38+00:00]→200
+      the door fired after call #8; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T17:10:12.703472+00:00` · 5 request(s) carried the sentence (la
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): '0' the rig IS opted out
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:54400) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

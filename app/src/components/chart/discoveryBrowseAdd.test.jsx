@@ -241,21 +241,26 @@ describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => 
     expect(spxRow, `no left-list row reads SPX — got ${ids.join(', ')}`).toBeTruthy()
   })
 
-  it('⭐ a breadth add keeps the catalogue’s own naming (UCTA50 stays UCTA50)', async () => {
-    // ⚠️ NOT A DEFECT AND NOT OURS TO PRETTIFY. `breadthResults` states the rule:
-    // a legacy UCT row's SYMBOL is its recognisable name — what a member types and
-    // what the axis has shown for a year — so `shortName` stays the symbol and the
-    // universe badge is reserved for the namespaced rows that need distinguishing.
+  it('⭐ a breadth add names the METRIC, and keeps UCTA50 as its compact identity', async () => {
+    // ⚠️ THE EARLIER RULING IS PRESERVED IN THE HALF IT BELONGS TO. A legacy UCT
+    // row's SYMBOL is its recognisable name — what a member types and what the
+    // axis has shown for a year — so it stays the COMPACT identity the pane strip
+    // prints. The list and the editor, which have room, now say what it measures.
     const seen = {}
     show(seen); openIndicators(); openAdd(); pickTab('breadth')
     await waitFor(() => expect(rowByKey('breadth:UCTA50')).toBeTruthy())
     fireEvent.click(rowByKey('breadth:UCTA50'))
     await waitFor(() => expect(seen.cs).toBeTruthy())
+    // ⭐ THE LIST SAYS WHAT IT MEASURES. It used to read `UCTA50` — an address —
+    // and now reads the metric, which is the whole of this change.
     const row = [...document.body.querySelectorAll('[data-row-id^="inst:dataSeries"]')]
-      .find((e) => (e.textContent || '').includes('UCTA50'))
-    expect(row, 'the breadth series is not named in the left list').toBeTruthy()
+      .find((e) => (e.textContent || '').includes('% of Stocks Above 50-Day MA'))
+    expect(row, 'the left list does not name the breadth metric').toBeTruthy()
+    expect(row.textContent, 'the list collapsed the metric back to an address')
+      .not.toMatch(/^\s*⠿?\s*UCTA50\s*$/)
     const inst = live(seen.cs).find((i) => (i.inputs && /^sym:UCTA50/.test(String(i.inputs.source))))
-    expect(inst.display ?? null, 'a derived name was stored as if it were a choice').toBeNull()
+    expect(inst.display.name, 'the list lost the metric').toBe('% of Stocks Above 50-Day MA')
+    expect(inst.display.compact, 'the pane strip lost the familiar symbol').toBe('UCTA50')
   })
 
   it('⭐ Display stays AUTOMATIC — the add writes no explicit target', async () => {

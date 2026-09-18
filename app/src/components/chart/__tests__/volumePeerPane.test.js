@@ -3,7 +3,7 @@
 // ─── ONE ANSWER TO "DOES VOLUME OWN A PANE?" ────────────────────────────────
 //
 // ⚰️⚰️ THE RENDERER AND CHART DATA ASKED THE SAME HELPER DIFFERENT QUESTIONS.
-// `volumeOwnsPane` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
+// `nativeVolumeOwnsPane` needs `volumeSeparatePane` / `blankVolume` / `shown`, and
 // those are PROPS the host hands to `StockChart`. Chart Data never received
 // them, so it asked the settings-only question — and `ChartPane` passes
 // `volumeSeparatePane` UNCONDITIONALLY, so on the main chart the renderer
@@ -20,7 +20,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { paneMap } from '../chartDataMap'
-import { volumeOwnsPane } from '../engine/volumePresentation'
+import { nativeVolumeOwnsPane } from '../engine/volumePresentation'
 
 /** The rows Chart Data builds from: the four price MAs plus Volume. */
 const ROWS = [
@@ -45,14 +45,14 @@ describe('⚰️⚰️ Volume is a PEER pane, and Chart Data says so', () => {
   it('⛔⛔ THE REGRESSION: without the host inputs, Volume reads as a BAND', () => {
     // The pre-fix call — settings only. Kept as the control so the fix below is
     // not proving something that could never have gone wrong.
-    expect(volumeOwnsPane({ cs: FRESH }), 'the settings-only answer changed')
+    expect(nativeVolumeOwnsPane({ cs: FRESH }), 'the settings-only answer changed')
       .toBe(false)
     expect(groupKinds(FRESH, null), 'a volume GROUP appeared without the props')
       .not.toContain('volume')
   })
 
   it('⭐⭐ THE FIX: with the host inputs, Volume is its own group', () => {
-    expect(volumeOwnsPane({ cs: FRESH, ...HOST })).toBe(true)
+    expect(nativeVolumeOwnsPane({ cs: FRESH, ...HOST })).toBe(true)
     const groups = paneMap(ROWS, FRESH, defOf, HOST)
     const vol = groups.find((g) => g.kind === 'volume')
     expect(vol, 'Volume is still not a pane group of its own').toBeTruthy()
@@ -74,7 +74,7 @@ describe('⚰️⚰️ Volume is a PEER pane, and Chart Data says so', () => {
       { cs: { volumeOverlayIndicators: ['rsi'] } },
     ]
     for (const c of cases) {
-      const owns = volumeOwnsPane(c)
+      const owns = nativeVolumeOwnsPane(c)
       const mapped = groupKinds(c.cs, c).includes('volume')
       expect(mapped, `disagreement for ${JSON.stringify(c)}`).toBe(owns)
     }
@@ -83,7 +83,7 @@ describe('⚰️⚰️ Volume is a PEER pane, and Chart Data says so', () => {
   it('⭐ a BANDED volume is still correctly inside Price', () => {
     // The fix must not turn every chart's volume into a pane.
     const banded = { cs: FRESH, volumeSeparatePane: false, blankVolume: false }
-    expect(volumeOwnsPane(banded)).toBe(false)
+    expect(nativeVolumeOwnsPane(banded)).toBe(false)
     expect(groupKinds(FRESH, banded)).not.toContain('volume')
   })
 })

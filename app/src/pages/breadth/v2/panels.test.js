@@ -6,7 +6,7 @@
  * expected answer — a fixture that restates the source cannot catch the source moving.
  */
 import { describe, it, expect } from 'vitest'
-import { ALL_METRICS, UNIT, unitOf, resolveColors } from '../chartMetrics'
+import { ALL_METRICS, UNIT, unitOf, resolveColors, shortOf } from '../chartMetrics'
 import { panelsFor, gridFor, panelIndexByKey, PANEL_ORDER } from './panels'
 import { stickyColour, stickyColours, collisionsWithin, STICKY_COLOURS } from './stickyColours'
 
@@ -98,6 +98,26 @@ describe('gridFor · the stack', () => {
     const [r] = gridFor(panelsFor([ALL_METRICS[0].key]))
     expect(parseFloat(r.top)).toBeGreaterThan(0)
     expect(parseFloat(r.top) + parseFloat(r.height)).toBeLessThan(100)
+  })
+
+  it('⛔⛔ the right margin fits the end label instead of clipping it — was a fixed 72px', () => {
+    // `chartOption.js` turns the real legend off ("identity is carried by the
+    // end labels"), so the right margin is the only thing standing between a
+    // long `shortOf` label and getting clipped. `new_52w_highs` has no `short`
+    // override in the registry, so its end label is the FULL label — longer
+    // than the old fixed 72px margin.
+    const longLabelKey = 'new_52w_highs'
+    expect(shortOf(longLabelKey).length, 'fixture assumption').toBeGreaterThan(10)
+    const [longPanel] = gridFor(panelsFor([longLabelKey]))
+    expect(parseFloat(longPanel.right)).toBeGreaterThan(72)
+
+    // ⭐ PER-PANEL, not one global margin: a short-label panel elsewhere in the
+    // same stack keeps a tight margin rather than borrowing space sized for
+    // the long-label panel.
+    const shortLabelKey = 'breadth_score'
+    expect(shortOf(shortLabelKey).length).toBeLessThan(shortOf(longLabelKey).length)
+    const [shortPanel] = gridFor(panelsFor([shortLabelKey]))
+    expect(parseFloat(shortPanel.right)).toBeLessThan(parseFloat(longPanel.right))
   })
 })
 

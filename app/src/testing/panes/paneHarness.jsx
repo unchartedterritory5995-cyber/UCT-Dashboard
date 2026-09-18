@@ -292,6 +292,55 @@ function Harness() {
     addCatalogue(res, symbol)
   }, [addCatalogue])
 
+  /**
+   * A NAMESPACED Breadth Library row — universe × metric, signed, histogram.
+   *
+   * ⭐ THE ROW SHAPE `breadth_symbols.py` EMITS FOR THE LIBRARY, verbatim, so the
+   * naming and presentation chains are exercised exactly as production would.
+   * The local dev backend serves only the legacy UCT symbols, and `US:NETHL` is
+   * the one identity that proves BOTH of this pass's rules at once: a universe is
+   * not a name, and a signed histogram has two colours.
+   *
+   * ⚠️ ITS BARS ARE NOT SERVED HERE (the Library artifact is dark), so the series
+   * has no line — which is fine and is the point: naming, the editor's capability
+   * gate and the micro-rail are all settings-driven and fully observable without
+   * one.
+   */
+  const addLibraryBreadth = useCallback(() => {
+    const [res] = breadthResults([{
+      universe: 'us', universe_label: 'US', metric: 'net_new_high_low', code: 'NETHL',
+      symbol: 'US:NETHL', name: 'Net New 52-Week Highs-Lows', short_name: 'Net H-L',
+      group: 'highs_lows', group_label: 'Highs / Lows', unit: 'count',
+      domain: 'signed', presentation: 'histogram', legacy: false,
+    }], { tf: TF, bars: 400 })
+    addCatalogue(res, 'US:NETHL')
+  }, [addCatalogue])
+
+  // ─── VOLUME-PANE RESIDENCY (2026-09-18) ───────────────────────────────────
+  //
+  // ⭐⭐ THE LOCKED RULE, AS TWO BUTTONS: *a display pane exists if it has a
+  // resident plotted series; volume BARS do not own the volume pane.* Deleting
+  // the bars with an MA of Volume still displayed there must leave the RECTANGLE
+  // and the MA exactly where they were.
+  //
+  // ⛔ `volume.removed` IS THE MEMBER'S REMOVE, not `visible: false`. The
+  // Indicators list's Remove writes that key (`isVolumeRemoved`), and it is the
+  // one this defect was reported against.
+  const setVolumeRemoved = useCallback((removed) => {
+    write((c) => ({ ...c, volume: { ...(c.volume || {}), removed } }),
+      removed ? 'REMOVE Volume (bars)' : 'restore Volume (bars)')
+  }, [write])
+
+  /** Swap the two unhosted panes — Price is SEMANTIC, never physical pane 0. */
+  const flipVolumeAbovePrice = useCallback(() => {
+    write((c) => {
+      const cur = Array.isArray(c.paneOrder) ? c.paneOrder : null
+      const above = cur && cur[0] === 'volume'
+      const rest = (cur || []).filter((k) => k !== 'price' && k !== 'volume')
+      return { ...c, paneOrder: above ? ['price', 'volume', ...rest] : ['volume', 'price', ...rest] }
+    }, 'flip Volume ↕ Price')
+  }, [write])
+
   const maFollowing = useCallback((hostId) => {
     // A follower does NOT get an explicit target: reading another instance's
     // output is what makes its home derive to that instance's pane. Writing a
@@ -403,11 +452,23 @@ function Harness() {
         <button style={btn} onClick={() => addMa('pane', symbolSource('UCTA50', 'close'))}>+ MA(UCTA50) → pane</button>
       </Row>
 
+      <Row label="volume residency">
+        <button style={btn} onClick={() => addMa('volume')}>+ MA → Volume pane</button>
+        <button style={btn} onClick={() => addMa('volume', 'volume')}>+ MA(Volume) → Volume pane</button>
+        <button style={btn} onClick={() => setVolumeRemoved(true)}>✕ Remove Volume (bars)</button>
+        <button style={btn} onClick={() => setVolumeRemoved(false)}>↩ Restore Volume</button>
+        <button style={btn} onClick={flipVolumeAbovePrice}>⇅ Volume ↕ Price</button>
+        <span style={{ color: '#8b93a1' }}>
+          volume.removed: {String(!!(cs && cs.volume && cs.volume.removed))}
+        </span>
+      </Row>
+
       <Row label="P2.1 catalogue">
         <button style={btn} onClick={() => addSecurity('QQQ', 'Invesco QQQ Trust', 'etf')}>QQQ</button>
         <button style={btn} onClick={() => addSecurity('SPY', 'SPDR S&P 500 ETF Trust', 'etf')}>SPY</button>
         <button style={btn} onClick={() => addBreadth('UCTA50', '% of Stocks Above 50-Day MA')}>UCTA50</button>
         <button style={btn} onClick={() => addSecurity('NVDA', 'NVIDIA Corp', 'stock')}>NVDA</button>
+        <button style={btn} onClick={addLibraryBreadth}>US:NETHL (signed)</button>
         {rsis.map((r) => (
           <button key={r.instanceId} style={btn} onClick={() => maFollowing(r.instanceId)}>
             + MA following {r.instanceId}

@@ -122,15 +122,45 @@ export function prepareArrangement(chart, opts) {
  */
 export function settleArrangement(chart, opts) {
   const order = Array.isArray(opts?.order) ? opts.order : []
-  if (order.length <= 1) return
   try {
+    // ⚰️⚰️ THE ARITY GUARD USED TO STAND HERE, OVER BOTH HALVES, AND THAT IS THE
+    // GHOST PANE. It read `if (order.length <= 1) return` — right about the MOVES
+    // (there is nothing to arrange when one key is all there is) and wrong about
+    // the SWEEP below, which is exactly the case a SHRINKING chart hits.
+    //
+    // A member deleting Volume from a Price+Volume chart leaves an order of ONE
+    // key, so the function returned before reaching the reclaim and
+    // lightweight-charts kept the emptied rectangle: a divider and a strip of
+    // height nothing draws in. Measured in the live harness — panes
+    // `[538, sep, 152, axis]` before the delete and byte-identical after it, the
+    // volume pane still carrying its four canvases.
+    //
+    // ⭐ SO THE GUARD MOVED ONTO THE HALF IT BELONGS TO. Ordering needs two keys;
+    // reclaiming an empty rectangle needs none.
+    //
+    // ⚠️ AND THE SAME DEFECT HID AT EVERY ARITY. Price+Volume+RSI → delete Volume
+    // left a TWO-key order, took no early return, and reclaimed correctly — which
+    // is why this only ever reproduced on the simplest chart there is.
+    //
     // Top-to-bottom: each pane into its slot. Moving one shifts the others, so
     // the live index is re-read at every step rather than precomputed.
-    for (const key of order) moveKeyToSlot(chart, key, opts)
+    if (order.length > 1) for (const key of order) moveKeyToSlot(chart, key, opts)
     // ⛔ AND NO PLACEHOLDERS LEFT BEHIND. `addPane(true)` keeps an empty pane
     // alive on purpose; one the binder never filled would sit in the stack
     // taking height and make the pane COUNT disagree with the number of panes
     // the chart actually has anything in.
+    //
+    // ⭐⭐ THIS IS ALSO WHERE A DELETED SERIES' PANE GOES, AND IT IS THE SAME
+    // QUESTION. "Nothing draws here" is the only test either case needs — so a
+    // pane emptied by `removeSeries` is reclaimed by the rule that was already
+    // reclaiming panes emptied by never being filled. RESIDENCY, never
+    // `volume.enabled`: an MA whose Display is the Volume pane is a series in
+    // that pane, so the rectangle stays for exactly as long as it draws there.
+    //
+    // ⚠️ `blankVolume` IS NOT AT RISK. It reserves an empty-LOOKING volume pane
+    // for a breadth symbol, but it still adds a real `HistogramSeries` fed with
+    // whitespace (`StockChart`'s volume block) — so the pane has a resident and
+    // this sweep never sees it.
     const pinned = pinnedCount(opts)
     const panes = paneList(chart)
     for (let i = panes.length - 1; i >= pinned; i--) {

@@ -37,6 +37,7 @@ Kill switch: BARS_SANITIZE_ENABLED=0.
 from __future__ import annotations
 
 import os
+import random
 import time
 import threading
 import logging
@@ -230,6 +231,50 @@ class MetaUnavailable(RuntimeError):
     """The provider did not ANSWER. Distinct from "it answered: no splits"."""
 
 
+# D5 CP4 — dark. `_fetch_meta`'s FMP splits fetch is dual-computed against D5's
+# `reference_corp_actions.confirmed_splits` ledger for the same ticker: both
+# computed on EVERY call under pytest, and on a SAMPLED FRACTION in production
+# (this sits on a serve-time path — bars_sanitize.py is reachable but NOT
+# watched by flow-worker's deploy list; see D5 CP4's build record for why that
+# makes this an incidental, not a live, inert strand). Log-only, never raises,
+# and never changes what is served — FMP stays the value of record until a
+# later checkpoint (CP7) makes a member-visible call on which source wins.
+_DUAL_COMPUTE_SAMPLE_RATE = float(os.environ.get("D5_CP4_DUAL_COMPUTE_SAMPLE_RATE", "0.05"))
+
+
+def _dual_compute_outcome(fmp_splits: list[tuple[str, float]],
+                           d5_splits: list[tuple[str, float]]) -> str:
+    """Named outcome categories — never a rate (the packet's own scope: "the
+    outcomes the dual-compute enumerates, never a rate"). Pure and total: every
+    pair of split lists maps to exactly one of these five names."""
+    fmp_set, d5_set = set(fmp_splits), set(d5_splits)
+    if not fmp_set and not d5_set:
+        return "BOTH_EMPTY"
+    if fmp_set == d5_set:
+        return "AGREE"
+    if fmp_set and not d5_set:
+        return "FMP_ONLY"
+    if d5_set and not fmp_set:
+        return "D5_ONLY"
+    return "PARTIAL_MISMATCH"
+
+
+def _dual_compute_splits(ticker: str, fmp_splits: list[tuple[str, float]]) -> None:
+    """Best-effort: any failure here is swallowed and logged, never raised into
+    `_fetch_meta`'s caller. Sampling is skipped entirely under pytest so the
+    comparison logic itself is exercised on every test run."""
+    if "PYTEST_CURRENT_TEST" not in os.environ and random.random() >= _DUAL_COMPUTE_SAMPLE_RATE:
+        return
+    try:
+        from api.services import reference_corp_actions as _rca
+        d5_splits = _rca.read_confirmed_splits(ticker)
+        outcome = _dual_compute_outcome(fmp_splits, d5_splits)
+        _log.info("[d5-cp4-dual-compute] %s outcome=%s fmp=%d d5=%d",
+                   ticker, outcome, len(fmp_splits), len(d5_splits))
+    except Exception as e:  # noqa: BLE001
+        _log.info("[d5-cp4-dual-compute] failed for %s: %s", ticker, e)
+
+
 def _fetch_meta(ticker: str) -> dict:
     """Listing date + split list for `ticker`. RAISES when the provider refused.
 
@@ -282,6 +327,7 @@ def _fetch_meta(ticker: str) -> dict:
     except Exception as e:  # noqa: BLE001
         _log.warning("bars_sanitize meta fetch failed for %s: %s", ticker, e)
         raise
+    _dual_compute_splits(ticker, splits)
     return {"ipo": ipo, "splits": splits}
 
 
