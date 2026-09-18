@@ -16,6 +16,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { join } from 'node:path'
 
 const SRC = readFileSync(join(__dirname, 'AuthContext.jsx'), 'utf8')
@@ -74,15 +75,35 @@ describe('⛔⛔ K-R10 — one map, four paths', () => {
     expect(stragglers, '⛔ a server-served flag is set outside the one map').toEqual([])
   })
 
-  it('the Notebook capabilities are fed to the LATCH from that same applier', () => {
+  it('⛔⛔ the latch is fed by DERIVATION over FLAG_FALLBACKS, not a hand-copied list', () => {
     // K's flags keep no React state — they are latched — but they must still
     // travel the same four paths, which they do by riding the one applier.
+    //
+    // ⚰️ THIS RAIL USED TO LIST THE FOUR KEYS AND ASSERT EACH APPEARED HERE.
+    // That pinned the old SHAPE: it passed only while the applier hand-copied
+    // every key, which is the very duplication K-R10's own header calls the
+    // hazard. Adding a fifth (`notebook_door_guard`, Q1 fix 6's rollback lever)
+    // meant typing it in two files — `notebookFlags.js`, which owns the list,
+    // and here. The applier now DERIVES the list, so the property this rail
+    // wants holds by construction and cannot be missed for a new key.
+    //
+    // ⛔ So the assertion inverts: no capability key may be hand-typed in the
+    // applier at all. Revert to a hand-copied list and this goes red on the
+    // first key, which is the mutation proof.
     const at = CODE.indexOf('const applyServerFlags')
     const body = CODE.slice(at, at + 900)
     expect(body, 'the latch must be fed from the applier, not from one path').toContain('latchNotebookFlags')
-    for (const k of ['notebook_offline_default_on', 'notebook_offline_read_on',
-      'notebook_conflict_ux_on', 'notebook_attachments_on']) {
-      expect(body, `${k} must reach the latch`).toContain(k)
+    expect(body, 'the key list must come from the module that owns it').toContain('FLAG_FALLBACKS')
+
+    const keys = Object.keys(FLAG_FALLBACKS)
+    // ⛔ NON-VACUITY. An empty fallback table would make the loop below prove
+    // nothing while reading as coverage.
+    expect(keys.length, 'FLAG_FALLBACKS must actually carry capabilities').toBeGreaterThan(3)
+    expect(keys, 'the mode flag is the one that motivated the derivation')
+      .toContain('notebook_door_guard')
+    for (const k of keys) {
+      expect(body, `${k} is hand-typed in the applier again — the module owns the list`)
+        .not.toContain(k)
     }
   })
 

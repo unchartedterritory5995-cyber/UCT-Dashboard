@@ -1796,6 +1796,48 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⛔⛔ REAPING ANOTHER WORKSTREAM'S LEAK — BY SIGNATURE, BY AGE, BY WORKTREE, NEVER BY NAME
+
+> **Enumerate first and paste the list. Kill only what matches ALL THREE of a
+> command-line SIGNATURE, an AGE floor, and a WORKTREE. Re-enumerate after.
+> Never by process name alone, and never mid-gate.**
+
+⚰️ Measured 2026-09-17. `uct-worktrees/breadth-dc` leaked a `vite preview` server
+every few minutes and reaped none: **76 processes, 2,138 MB, ages 147–267
+minutes**, plus ~40 `npx` wrappers. It killed a six-shard gate twice — and the
+second kill took the *waiter* armed to watch for a quiet box, which is how little
+headroom was left.
+
+**The rule, and each clause stops a different mistake:**
+
+| clause | what it prevents |
+|---|---|
+| **SIGNATURE** — the command line contains `vite preview` or `esbuild` | `Stop-Process -Name node` kills every Node on the box, including the gate, the rig and other sessions |
+| **WORKTREE** — the command line resolves under the *named* worktree | another workstream's identical-looking server is not yours to reap |
+| **AGE** — older than 10 minutes | a process seconds old is something STARTING, not something leaked. Two breadth-dc processes were 3 minutes old at reap time and were correctly spared |
+| **NEVER a vitest** | a test run is work in flight; wait for it, and if it is foreign you do not get to decide it is finished |
+| **NEVER mid-gate** | nothing touches the box while a gate runs — that is what makes the manifest readable |
+
+⭐ **KILL THE CHILDREN AND THE WRAPPERS FOLLOW.** The ~40 `npx-cli.js` processes
+did not match the signature (their command line never names the worktree) and
+were deliberately left alone — **39 of them exited on their own** once their
+`vite` children died. A wrapper is not a separate leak; reaping by the narrow
+signature is both safer and sufficient.
+
+⛔⛔ **AND `FreePhysicalMemory` IS A PROXY — `Memory\Available MBytes` IS THE
+NUMBER.** WMI's free memory EXCLUDES the standby list, which Windows reclaims on
+demand, so it under-reports what a process can actually allocate. Ask the
+performance counter. (Measured the same day: 4.44 GB "free" vs 4.53 GB available —
+close *here*, because the standby list happened to be small at 0.34 GB, and that
+is exactly the kind of agreement that teaches you to trust the wrong instrument.)
+
+⚠️ **A REAP IS NOT A GUARANTEE OF HEADROOM, AND THE ARITHMETIC SHOULD BE DONE
+BEFORE THE RUN.** Reaping 96 processes and 2.1 GB moved this box from ~3.3 GB to
+~4.5 GB available — and **not to the 8 GB a full gate wants**, because the real
+holders were a 6.9 GB `llama-server.exe`, 4.4 GB of Chrome and 4.6 GB of
+`claude.exe` sessions, **none of which is in any reap signature**. Reaping the
+leak you are allowed to reap does not entitle you to the box.
+
 ### ⛔⛔ RESOURCE RULES — AT MOST **3** AGENTS ON THIS BOX, AND THE WHISPER JOB RUNS ALONE
 
 > **Owner ruling 2026-09-13, written from three separate self-inflicted failures in two days.**
@@ -2880,6 +2922,72 @@ assertion alone passes if the body ignores the parameter
 in `tests/`**, so none is inert today. Left as-is with that reason recorded rather than changed
 for tidiness — but any test that starts patching `probe` or `mint_session_token` must late-bind
 the seam first, or it will be testing the real function while believing otherwise.
+
+### ⛔⛔ TWO INSTRUMENTS AGREEING IS EVIDENCE ABOUT THEIR SHARED INPUT
+
+> **When two independent tools agree on something surprising, the thing they
+> SHARE is the first suspect — not the flaw you are about to attribute to both.**
+
+⚰️ Measured 2026-09-17, Wave Q1. A vitest spy reported a call site at
+`useDurableNote.js:957` in a **563-line file**, and an independent acorn parse
+reported `:952`. Two instruments, two languages, no shared code — so I concluded
+both were reading a transformed module, labelled the spy's output *"not a source
+line"*, and wrote that into the file as a correction.
+
+⛔ **The instruments were right. The FILE was corrupt, and I had corrupted it.**
+A patch script read the file preserving its CRLF endings and wrote it back
+through a writer that translated newlines to CRLF *again*, so 556 line endings
+became CR-CR-LF. A bare CR **is** a line terminator in ECMAScript, so both tools
+counted ~1.7× the lines — correctly.
+
+⭐ **The tell was free and I walked past it:** `wc -l` said 563 the whole time.
+**When a derived number disagrees with the artifact itself, suspect the artifact
+before the readers.** Agreement between independent instruments is the strongest
+signal available that their common input moved; reading it as corroboration of a
+shared defect inverts the one thing independence buys you.
+
+⚠️ **`tools/check_repo_hygiene.py` cannot catch this shape**, by design: it
+reports a path only when line endings are the **ONLY** difference, and a file
+you are also editing has content changes too. The byte-level check is
+`grep -c $'\r\r\n'`, or count CR against CRLF and require them equal.
+
+⛔ **And the write pattern that causes it, because it looks correct:**
+
+```python
+s = io.open(P, encoding='utf-8', newline='').read()      # PRESERVES \r\n
+io.open(P, 'w', encoding='utf-8', newline='\r\n').write(s)   # translates AGAIN
+```
+
+Normalise to `\n` in memory first, or write with `newline=''`. This is R-2's
+neighbour: R-2 is about matching the *stored blob's* endings, this is about not
+translating twice on the way there.
+
+### ⛔ A GUARD ON THE INCOMING RECORD CANNOT PROTECT THE OUTGOING ONE
+
+> **A guard keyed on the value a function is HANDED does not constrain the value
+> already in the store. If a writer can change the field the guard reads, in the
+> same write, the guard is not on that path.**
+
+⚰️ Wave Q1 fix 6, 2026-09-17. `putNoteWithIntent` carried an explicit class
+guard — *"a null intent is not permission to delete unsent work"* — written
+`else if (noteRecord.dirty)`. It reads the record being written. A writer that
+flips `dirty: 1 → 0` in the same transaction satisfies the `else` and takes the
+cursor-delete branch, deleting the member's queued words. The guard was correct,
+documented, mutation-proved at its own layer, and **structurally unable to see
+the case it was written for**.
+
+⭐ The companion guard has to read **the record already in the store**, because
+that is the only place the unsent work still exists at that moment. Both stay;
+they are complementary, and neither is redundant.
+
+⛔ **Corollary, and it is the same disease as the three-copies rule:** the
+identical invariant also lived in `settleLandedSave` and NOT in `persist`, so
+one implementation had one hole — and the hole was invisible **because the other
+copy read as coverage for both**. The fix is ONE exported predicate both writers
+ask (`discardsUnsentWork`), never a second copy
+(`lesson_a_guard_repeated_is_a_guard_unproved`). Its mutation proof is what
+demonstrates the extraction is real: killing the shared predicate reds **both**
+fixes' rails at once.
 
 ### ⛔⛔ KIND 3 — a TRUE record standing in for a LIVE obligation (and it has two faces)
 

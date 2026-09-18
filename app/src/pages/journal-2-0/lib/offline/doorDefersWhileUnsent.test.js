@@ -20,6 +20,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { installKeyRange } from './__fixtures__/fakeIndexedDb'
 import { noteHasUnsentWork, STILL_SYNCING_MESSAGE } from './noteHasUnsentWork'
+import {
+  latchNotebookFlags, __resetNotebookFlags, doorGuardMode,
+  DOOR_GUARD_FULL, DOOR_GUARD_UNKNOWN_ONLY,
+} from './notebookFlags'
 
 const LAST_NOTE_KEY = 'uct.jw.lastNote'
 const NOTE = 'note-1'
@@ -68,12 +72,13 @@ async function doorVerdict({ lastNote, account = ACCT, connect }) {
 }
 
 beforeEach(() => {
+  __resetNotebookFlags()
   installKeyRange()
   localStorage.clear()
   localStorage.setItem('uct.notebook.offline', '1')
   vi.stubGlobal('indexedDB', { open: () => ({}) })
 })
-afterEach(() => { vi.unstubAllGlobals(); localStorage.clear() })
+afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); __resetNotebookFlags() })
 
 describe('the capture door defers while a note has unsent work', () => {
   it('⛔ a QUEUED entry with a CLEAN record DEFERS — the five-cell shape', async () => {
@@ -228,5 +233,182 @@ describe('copy contract — the member must SEE the sentence', () => {
     expect(STILL_SYNCING_MESSAGE).toMatch(/still syncing/i)
     expect(STILL_SYNCING_MESSAGE.trim().length, 'an empty toast is an invisible toast')
       .toBeGreaterThan(10)
+  })
+})
+
+
+describe('⛔⛔ THE GUARD MODE — the flag that makes fix 6 provable on production', () => {
+  // ⚰️ WHY THIS EXISTS, and it is a circularity, not a preference. Q1 fix 6
+  // fixes the WRITER; this guard is the mitigation that has stood in front of
+  // it since D1. Proving fix 6 on production needs the rig to REACH the append
+  // route — and in `full` the guard defers every cell, so "prove it, then
+  // release the guard" can never start. The mode is therefore a runtime flag on
+  // the same latched payload, flippable without a deploy, and it is fix 6's
+  // FIRST rollback lever.
+  //
+  // ⛔ EVERY CASE DRIVES THE REAL PREDICATE. None of them re-implements the
+  // decision, and the store stub is a STORE stub — the logic under test still
+  // runs (R-05).
+
+  /** Latch a mode the way the server would deliver it. ⛔ Through the real
+   *  `latchNotebookFlags`, never by poking module state: the latch's own rules
+   *  (first payload wins, a payload with no capability keys is an OLDER
+   *  BACKEND and must not latch) are part of what this is testing. */
+  const latchMode = (mode) => latchNotebookFlags({
+    notebook_offline_default_on: true,
+    notebook_offline_read_on: false,
+    notebook_conflict_ux_on: false,
+    notebook_attachments_on: false,
+    notebook_door_guard: mode,
+  })
+
+  beforeEach(() => {
+    // ⛔⛔ A MOCK FROM AN EARLIER BLOCK IN THIS FILE REACHES THIS ONE.
+    //
+    // ⚰️ Caught by the ABSENT control below, which is the only reason it was
+    // caught at all. The `sendCaptureToJournal` block above `vi.doMock`s
+    // `../captureTargets` with a `freshLastNote` that ALWAYS returns a note —
+    // and `vi.resetModules()` clears the MODULE CACHE, not the MOCK REGISTRY.
+    // So `doorVerdict({lastNote: undefined})` still received a note id, and the
+    // control named "ABSENT" was silently measuring a PRESENT note: a fixture
+    // that cannot distinguish the case it exists for.
+    //
+    // ⭐ It failed loudly here only because `unknown-only` gives ABSENT and
+    // "released by the mode" two DIFFERENT `why` values. Under `full` both
+    // answer `unsent: false` and it would have passed for the wrong reason.
+    vi.doUnmock('../captureTargets')
+    vi.resetModules()
+  })
+
+  it('⛔ NOTHING LATCHED ⇒ the SAFE mode, and the door still defers', async () => {
+    // A tab that has not heard from the server yet must keep guarding. The cost
+    // of a false defer is one "try again in a moment"; the cost of a false pass
+    // is the member's words.
+    expect(doorGuardMode()).toBe(DOOR_GUARD_FULL)
+    const v = await doorVerdict({
+      lastNote: { id: NOTE, ts: Date.now() },
+      connect: connectOk({ record: { noteId: NOTE, dirty: 0 }, queued: true }),
+    })
+    expect(v.unsent).toBe(true)
+    expect(v.why).toBe('queued')
+  })
+
+  it('⛔ an UNRECOGNISED mode takes the SAFE default, never the permissive one', async () => {
+    latchMode('unkown-only')          // the typo that must not open a live path
+    expect(doorGuardMode()).toBe(DOOR_GUARD_FULL)
+    const v = await doorVerdict({
+      lastNote: { id: NOTE, ts: Date.now() },
+      connect: connectOk({ record: { noteId: NOTE, dirty: 1 }, queued: false }),
+    })
+    expect(v.unsent, 'a typo must degrade to MORE guarding, not less').toBe(true)
+  })
+
+  describe('mode: unknown-only', () => {
+    beforeEach(() => { latchMode(DOOR_GUARD_UNKNOWN_ONLY) })
+
+    it('⭐ a QUEUED entry with a CLEAN record now PASSES — fix 6 owns this case', async () => {
+      // This is the exact five-cell shape. In `full` it defers; with fix 6 live
+      // the write that used to discard it cannot, so the capture may proceed.
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ record: { noteId: NOTE, dirty: 0 }, queued: true }),
+      })
+      expect(v.unsent).toBe(false)
+      expect(v.why, 'the reason must NAME the mode, or a deferral cannot be diagnosed')
+        .toBe('guard-unknown-only')
+    })
+
+    it('⭐ a DIRTY record now PASSES too', async () => {
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ record: { noteId: NOTE, dirty: 1 }, queued: false }),
+      })
+      expect(v.unsent).toBe(false)
+      expect(v.why).toBe('guard-unknown-only')
+    })
+
+    it('⛔⛔ AN UNREADABLE STORE STILL DEFERS — this mode releases ONE half', async () => {
+      // ⭐ THE LOAD-BEARING CASE. `unknown-only` is not "the guard is off": an
+      // unreadable store means the answer is genuinely NOT KNOWN, and no fix to
+      // a writer changes what a wrong pass costs there. If this ever passes,
+      // the mode has become a kill switch and the name is a lie.
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectThrows(),
+      })
+      expect(v.unsent).toBe(true)
+      expect(v.why).toBe('unreadable')
+    })
+
+    it('⛔ a store that cannot be READ still defers', async () => {
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ throwOn: 'notes' }),
+      })
+      expect(v.unsent).toBe(true)
+      expect(v.why).toBe('unreadable')
+    })
+
+    it('⛔⛔ AN ID-SHAPED BUG STILL DEFERS', async () => {
+      // A programming error is not a case fix 6 covers, so the mode must not
+      // relax it. This is the failure direction that costs the member's words.
+      const v = await noteHasUnsentWork({ id: NOTE, ts: Date.now() }, {
+        accountId: ACCT,
+        connect: connectOk({ record: null, queued: false }),
+      })
+      expect(v.unsent).toBe(true)
+      expect(v.why).toBe('unreadable')
+    })
+
+    it('⭐ CONTROL — a clean, drained note still passes, with NO mode reason', async () => {
+      // ⛔ Without this, `guard-unknown-only` could be returned for every note
+      // and the two cases above would prove nothing about the mode.
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ record: { noteId: NOTE, dirty: 0 }, queued: false }),
+      })
+      expect(v.unsent).toBe(false)
+      expect(v.why, 'a note with nothing unsent was not RELEASED by the mode').toBe(null)
+    })
+
+    it('⭐ CONTROL — ABSENT is still no-store, not a mode release', async () => {
+      const v = await doorVerdict({
+        lastNote: undefined,
+        connect: connectOk({ record: { noteId: NOTE, dirty: 1 }, queued: true }),
+      })
+      expect(v.unsent).toBe(false)
+      expect(v.why).toBe('no-store')
+    })
+  })
+
+  describe('mode: full — the shipped behaviour is unchanged', () => {
+    beforeEach(() => { latchMode(DOOR_GUARD_FULL) })
+
+    it('⛔ a QUEUED entry with a CLEAN record DEFERS', async () => {
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ record: { noteId: NOTE, dirty: 0 }, queued: true }),
+      })
+      expect(v.unsent).toBe(true)
+      expect(v.why).toBe('queued')
+    })
+
+    it('⛔ a DIRTY record DEFERS', async () => {
+      const v = await doorVerdict({
+        lastNote: { id: NOTE, ts: Date.now() },
+        connect: connectOk({ record: { noteId: NOTE, dirty: 1 }, queued: false }),
+      })
+      expect(v.unsent).toBe(true)
+      expect(v.why).toBe('dirty')
+    })
+  })
+
+  it('⛔ THE COPY CONTRACT IS UNCHANGED BY THE MODE', () => {
+    // The sentence a member reads when the door DOES defer is the same in both
+    // modes — the mode changes WHEN it defers, never what it says. A mode that
+    // quietly changed the copy would be a second authority over the one string
+    // the rail at the bottom of this file pins.
+    latchMode(DOOR_GUARD_UNKNOWN_ONLY)
+    expect(STILL_SYNCING_MESSAGE).toBe('This note is still syncing — try again in a moment.')
   })
 })

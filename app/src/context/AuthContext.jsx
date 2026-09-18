@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
-import { latchNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 
 export const AuthContext = createContext(null)
 
@@ -76,12 +76,16 @@ export function AuthProvider({ children }) {
     for (const [, read, set] of SERVER_FLAGS) set(read(data || {}))
     // ⛔ The Notebook LATCHES its own answer for the life of the tab (K-R9).
     // This call is what feeds the latch; the latch decides whether to take it.
-    latchNotebookFlags({
-      notebook_offline_default_on: (data || {}).notebook_offline_default_on,
-      notebook_offline_read_on: (data || {}).notebook_offline_read_on,
-      notebook_conflict_ux_on: (data || {}).notebook_conflict_ux_on,
-      notebook_attachments_on: (data || {}).notebook_attachments_on,
-    })
+    //
+    // ⛔⛔ DERIVED FROM `FLAG_FALLBACKS`, NEVER RE-TYPED HERE. This was four
+    // hand-copied keys, and a fifth (`notebook_door_guard`, Q1 fix 6's rollback
+    // lever) would have had to be added in this file as well as the module that
+    // already owns the list — the second-authority-over-one-value defect, in
+    // the file K-R10 exists to keep honest. A key added to the module now
+    // arrives here the day it lands.
+    latchNotebookFlags(Object.fromEntries(
+      Object.keys(FLAG_FALLBACKS).map((k) => [k, (data || {})[k]]),
+    ))
   }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation

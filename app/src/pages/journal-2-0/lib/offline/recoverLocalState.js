@@ -52,6 +52,50 @@ export const sameAuthoredContent = (a, b) =>
   && JSON.stringify(a?.bodyJson ?? null) === JSON.stringify(b?.bodyJson ?? null)
 
 /**
+ * ⛔⛔ Q1 FIX 6 — WOULD RECONCILING THIS RECORD CLEAN DISCARD UNSENT WORK?
+ *
+ * `putNoteWithIntent` deletes every queued entry for a note when the record it
+ * is handed is CLEAN and the intent is null. That is correct when the note
+ * really has nothing left to say, and it is the whole defect when it does.
+ *
+ * ⚰️ MEASURED, not reasoned — `q1AppendWriterCensus.test.jsx`, spy call 1:
+ * `persist` (in `useDurableNote.js`) wrote `dirty 1 -> 0` with a NULL intent on
+ * the append route, taking `queued 1 -> 0` and `sentence-in-record true ->
+ * false` with it. The words were not on the server, were not forked to a
+ * sibling, and were not in the queue. They were gone.
+ *
+ * ⛔ Corroborated three ways before it was written down: the spy's stack, an
+ * acorn parse (`node tools/q1_clean_write_sweep.mjs`) and `grep -n` all name
+ * the same call site. No line number is repeated HERE, because a line number
+ * in a comment drifts on the next edit — ask the sweep.
+ *
+ * ⛔⛔ ONE AUTHORITY, AND THAT IS THE POINT OF EXTRACTING IT.
+ * `settleLandedSave` already enforced exactly this (Q1 fix 4) and `persist` did
+ * not, so the SAME invariant had one implementation and one hole. Two copies
+ * could not have been mutation-proved as one thing
+ * (`lesson_a_guard_repeated_is_a_guard_unproved`), and the hole was invisible
+ * precisely because the other copy looked like coverage. Both writers now ask
+ * THIS function.
+ *
+ * ⛔ WHY IT IS NOT `putNoteWithIntent`'s GUARD. That guard reads the record it
+ * is HANDED (`else if (noteRecord.dirty)`), so a writer that flips dirty 1 -> 0
+ * in the same write walks straight past it. This one reads the record already
+ * IN THE STORE, which is the only place the unsent work still exists at that
+ * moment. The two are complementary and both stay.
+ *
+ * @param prev      the durable record as the store currently holds it, or null
+ * @param incoming  the content about to be written over it
+ * @returns true when `prev` is carrying words `incoming` does not have
+ */
+export function discardsUnsentWork(prev, incoming) {
+  // ⛔ A CLEAN `prev` HAS NOTHING OWED. Treating an absent or clean record as
+  // unsent work would keep every note dirty forever — the failure direction
+  // that breaks sync rather than the one that loses words.
+  if (!prev || !prev.dirty) return false
+  return !sameAuthoredContent(incoming, prev)
+}
+
+/**
  * @param server    the note as the server has it: {title, subtitle, bodyJson, updatedAt}
  * @param idbRecord the durable working copy, or null:
  *                  {title, subtitle, bodyJson, generation, sessionId, localSavedAt, baseUpdatedAt}

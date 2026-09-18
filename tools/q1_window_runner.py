@@ -43,6 +43,18 @@ import sys
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+# ⛔⛔ THE OPERATOR CONSOLE ON THIS BOX IS cp1252, AND THIS IS THE TOOL THAT CAN
+# LEAST AFFORD TO DIE PRINTING. `--help` raised UnicodeEncodeError here on
+# 2026-09-17: the runner exists so a window is never lost, and it could be lost
+# to the runner's own banner. `q1_f5_matrix.py` has carried this guard since it
+# was written; the runner did not, which is the same "one copy has it, the other
+# is the hole" shape as Q1 fix 6 itself.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 QUEUE = REPO / "tools" / "q1_window_queue.json"
 RUNLOG = REPO / "docs" / "notebook" / "q1-window-runs.md"
 POLL_SECONDS = 30

@@ -34,7 +34,9 @@ import {
   markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
 } from './inFlight'
 import { offlineEnabled } from './offlineFlag'
-import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
+import {
+  chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
+} from './recoverLocalState'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
 
@@ -281,7 +283,12 @@ export async function settleLandedSave({
     // ⭐ THE QUESTION THE CONTENT COULD HAVE ANSWERED, and now does: is there
     // unsent work here, and does what landed contain it? Both were available in
     // this function the whole time — `prev.dirty`, and `prev`'s own body.
-    const unsentWork = Boolean(prev && prev.dirty) && !sameAuthoredContent(acked, prev)
+    // ⛔⛔ THE SAME AUTHORITY `persist` ASKS (Q1 fix 6). This condition was
+    // written here first and lived ONLY here, so the identical invariant had one
+    // implementation and one hole -- and the hole was invisible because this copy
+    // read as coverage for both. Two copies cannot be mutation-proved as one
+    // thing (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    const unsentWork = discardsUnsentWork(prev, acked)
     // ⛔ UNKNOWN IS NOT CAUGHT UP. A missing or unreadable `prev` answers
     // false to `unsentWork` and the old behaviour stands — that case is the
     // ordinary first save, not a remount, and treating it as unsent work would
@@ -408,19 +415,48 @@ export function useDurableNote({
       // is only ever taken at the clean→dirty transition — one extra body per
       // UNSYNCED note, never per note.
       const prev = await getNote(db, noteId)
-      const record = {
-        noteId,
+      // ⛔⛔ Q1 FIX 6 — THIS WRITE MAY NOT RECONCILE AWAY WORDS THE SERVER HAS
+      // NEVER SEEN.
+      //
+      // ⚰️ THE DEFECT, measured rather than reasoned (`q1AppendWriterCensus
+      // .test.jsx`, spy call 1: `persist at useDurableNote.js:444`, intent NULL,
+      // dirty 1 -> 0, queued 1 -> 0, sentence-in-record true -> false).
+      // `markSynced` does NOT go through `settleLandedSave`, so Q1 fix 4's
+      // identical guard was never on this path; and `caughtUp` there is
+      // `sameAuthoredContent(acked, current)` — the ack against the EDITOR'S
+      // OWN DOCUMENT, which cannot see words that live only in the durable
+      // record and the queue. That is exactly what an offline session leaves
+      // behind, and it is why the comparison has to be against `prev`.
+      //
+      // ⛔ THE DURABLE COPY WINS, the same way it does in `settleLandedSave`:
+      // keep the member's body, keep `dirty`, keep the record's own baseline,
+      // and keep an intent carrying it. The entry then 409s and the drain runs
+      // classify-then-rebase/merge/fork — the path 2.8b measured GREEN on
+      // production, and the path the control case in the reproduction exercises.
+      const unsentWork = discardsUnsentWork(prev, {
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,
-        baseUpdatedAt: usableBaseline(state?.baseUpdatedAt),
+      })
+      const source = unsentWork ? prev : state
+      const record = {
+        noteId,
+        title: source?.title ?? '',
+        subtitle: source?.subtitle ?? '',
+        bodyJson: source?.bodyJson ?? null,
+        // ⛔ The baseline does NOT move while work is unsent. Moving it is
+        // precisely what lets `landedBaseline` hand the drain a "newer landed
+        // save" whose contents nobody checked.
+        baseUpdatedAt: usableBaseline(
+          unsentWork ? prev?.baseUpdatedAt : state?.baseUpdatedAt,
+        ),
         generation,
         sessionId: SESSION_ID,
         localSavedAt: Date.now(),
         // ⛔ 0/1, not a boolean — IndexedDB cannot index a boolean, and
         // `byDirty` exists so a reconnect can find unsynced work without
         // reading every note.
-        dirty: state?.synced ? 0 : 1,
+        dirty: (state?.synced && !unsentWork) ? 0 : 1,
       }
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
       // one value is a second authority over it.

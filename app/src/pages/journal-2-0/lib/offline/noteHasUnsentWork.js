@@ -26,6 +26,7 @@
  * same mistake with the sign flipped.
  */
 import { offlineEnabled } from './offlineFlag'
+import { doorGuardMode, DOOR_GUARD_UNKNOWN_ONLY } from './notebookFlags'
 import { offlineStorageAvailable, STORE_NOTES, STORE_OUTBOX } from './notebookDb'
 import { getCurrentAccountId } from './currentAccount'
 
@@ -82,6 +83,21 @@ export async function noteHasUnsentWork(noteId, { accountId, connect } = {}) {
     }
     // ⛔ A MISSING RECORD IS NOT A CLEAN ONE when an entry is queued for it.
     const dirty = Boolean(rec && rec.dirty)
+    // ⛔⛔ UNKNOWN-ONLY: THE WRITER IS FIXED, SO dirty/queued NO LONGER NEED A
+    // CLOSED DOOR.
+    //
+    // Q1 fix 6 makes `persist` refuse to reconcile a record clean over unsent
+    // work, so a dirty record with a queued entry is now SAFE to capture into —
+    // the clean write can no longer discard it. Continuing to defer there costs
+    // a member a real capture for a hazard that no longer exists.
+    //
+    // ⛔ THE `unreadable` BRANCHES ABOVE ARE UNTOUCHED BY THIS MODE, and that is
+    // the whole distinction. An unreadable store means the answer is genuinely
+    // NOT KNOWN, and no fix to a writer changes what a wrong pass costs there.
+    // This mode releases the half fix 6 covers and not one inch more.
+    if (doorGuardMode() === DOOR_GUARD_UNKNOWN_ONLY) {
+      return { unsent: false, why: dirty || queued ? 'guard-unknown-only' : null }
+    }
     if (dirty && queued) return { unsent: true, why: 'both' }
     if (dirty) return { unsent: true, why: 'dirty' }
     if (queued) return { unsent: true, why: 'queued' }
