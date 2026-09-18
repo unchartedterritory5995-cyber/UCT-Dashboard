@@ -1939,3 +1939,287 @@ programme closes. That command now errors out. It is **not corrected here** — 
 programme's file and this one has no standing to edit it — but it is recorded so whoever
 closes that programme is not surprised, and so the two halves (the new syntax, and the fact
 that a delete does not restart anything) travel together.
+
+### D-052 · The V2-2 default selection must exercise the split (2026-09-17)
+
+DC-2 §3.3. Owner ruling, given on the DC-2 confirmation: *"the default selection must
+exercise the split — if the roadmap names default metrics, use them; if it names only
+the two percentages, add the single most-used non-percentage metric from the registry to
+the default set under the V2-2 flag (V1 defaults untouched), so a member sees ≥ 2
+panels on first load."*
+
+**The roadmap names no defaults.** Searched `01-audit.md` and `02-design.md`: neither
+specifies a default metric set for the V2 tab. So the second branch of the ruling applies.
+
+#### Why it was needed
+
+V1's default is `['breadth_score', 'pct_above_50sma']` — both unit `pct`, therefore ONE
+unit family, therefore exactly ONE panel. V2-2's entire subject is the split, and it
+defaulted to the one selection that cannot show it. The feature was proved by rails and
+by nothing a person could look at; the §3.2 screenshots showed a single chart.
+
+⚠️ That is the shape this repo keeps paying for from the other side: usually a
+feature is built and connected to nothing. Here it was built, connected, and defaulted
+into invisibility — which a green suite cannot see either.
+
+#### The derivation, and the tie
+
+"Most used" is measured as **appears in the most `CHART_PRESETS`** — the firm's own
+record of what it reaches for, rather than a preference. Measured 2026-09-17 over 36
+presets, restricted to non-`pct`, chartable metrics:
+
+| metric | unit | presets |
+|---|---|---|
+| **`new_52w_highs`** | `count` | **4** |
+| **`vix`** | `vix` | **4** |
+| `new_ath` | `count` | 3 |
+| `sp500_close` | `index` | 3 |
+
+⛔ **The derivation TIED, and a tie is not a result.** Taking the alphabetical winner
+would have dressed a coin-flip as a measurement. The tiebreak is stated, and it is a
+reason rather than a taste:
+
+> ⭐ **Prefer the COUNT family, because the rest of DC-2 needs it exercised.**
+> · A-28 specifies **bars** for counts, so V2-3's mark work has something to draw.
+> · The era note attaches to **count panels** (*"Counts depend on the measured
+>   universe…"*), so V2-3's headline honest-state has a surface to appear on.
+> `vix` is a second family too, but it exercises neither.
+
+**Decision: `V2_DEFAULT_SELECTED = V1 default + `new_52w_highs`.**
+
+#### How it is held
+
+⛔ **V1's default is untouched.** `BreadthCharts.jsx::DEFAULT_SELECTED` is the shipped
+product's first view and is not this increment's to move. The V2 list applies only when
+V2-2 is ON, so a flag-off member's first load is byte-identical — which is exactly what
+`flagOff.golden.html` asserts, and it stayed unchanged through this commit.
+
+⛔ **Pinned as a literal, with a rail that re-derives it.** A default that silently
+followed the preset table would move every member's first view whenever a preset was
+added — a member-visible change nobody decided. `defaults.test.js` re-runs the
+derivation and fails if the pin stops being a legitimate winner, so a registry change is
+a REVIEWABLE red rather than a quiet drift. A second rail asserts the tie is still real,
+so this record cannot go stale without something going red.
+
+⭐ And the rails carry a **control**: V1's default must still yield exactly one panel.
+If it ever splits on its own, D-052 is solving nothing and this decision should be
+revisited rather than kept green.
+
+**Goldens:** re-recorded as an EXPECTED on-state change (`v22__*`, `both__*`). The
+`off__*` shots came back byte-identical, which is the whole point of that classification.
+
+### D-053 · LTTB has no natural threshold to measure — the trigger is the viewport's own resolution (2026-09-17)
+
+DC-2 §3.4. The owner's directive asked for "LTTB above the measured mobile threshold."
+Measured first, and the honest result changed what "the threshold" means.
+
+#### What was measured
+
+Real wheel-zoom interaction (not a `window.echarts` dispatch — see the correction below),
+phone viewport (380x800), three samples per span, sweeping 365 -> 4,530 points (the full
+stored history, the ceiling `/series` will serve once L-A raises its cap):
+
+| span | paint (median) | zoom-settle (median) |
+|---|---|---|
+| 365 | 825 ms | 333 ms |
+| 750 | 824 ms | 349 ms |
+| 1,500 | 818 ms | 347 ms |
+| 2,250 | 839 ms | 370 ms |
+| 3,000 | 818 ms | 348 ms |
+| 3,750 | 815 ms | 366 ms |
+| 4,530 | 807 ms | 369 ms |
+
+**First paint stayed within 2% and zoom-settle within 11% across a 12.4x increase in point
+count.** No cliff, no trend. An 8-metric/8-panel stress test (the `/series` key cap, the
+worst case for panel count) could not even be constructed against the real product:
+V2-4's metrics picker does not exist yet, so `BreadthChartsV2` always renders the D-052
+default (2-3 keys, 2 panels) — there is no UI path to more panels in THIS release. The
+honestly measured worst case IS the default, and it does not degrade.
+
+⛔⛔ **Two measurement bugs caught before either number was trusted, both recorded because
+each looked exactly like a real finding:**
+
+1. **The zoom never fired.** First written as
+   `window.echarts.getInstanceByDom(el).dispatchAction(...)` — `echarts-for-react` does
+   NOT expose echarts on `window`, so the dispatch silently reached nothing and every
+   "zoom_ms" printed was the settle loop's own floor (~180-240 ms), a confident number
+   describing a no-op. Caught by capturing `reached` and comparing pixels before AND
+   after, which is the check that should have been there first.
+2. **The corrected version's wheel target (dead-center of the canvas) ALSO did nothing** —
+   analytically explained, not guessed: `gridFor`'s defaults (top=6, bottom=14, gap=4)
+   put a 4%-high gap between D-052's two panels, and with weights 1.25:1 that gap sits at
+   48.2%-52.2% of the canvas height — straddling the exact 50% midpoint a "click the
+   center" probe reaches for. Moved to 25% height (inside panel 1) and re-verified the
+   pixels actually moved before trusting the timing.
+
+**Neither the fixture's invented `sampling` field nor D-035's server-side deferral apply
+here.** `docs/breadth/api-series.md`'s real response has no `sampling` key at all — the
+fixture had invented one, now removed. D-035 deferred SERVER-side downsampling on
+BACKEND compute cost (30ms, 33x under budget) and named PAYLOAD SIZE as the metric to
+revisit on, not render time. LTTB is a CLIENT-side pre-processing step, answering a
+different question, and does not reopen D-035.
+
+#### The decision
+
+**No time-based cliff exists to gate on, so the trigger is the measured PHONE VIEWPORT'S
+OWN RESOLUTION** — the actual reason LTTB exists as an algorithm: once a series has more
+points than pixels to place them in, additional points cost payload and paint for zero
+additional visual information.
+
+    THRESHOLD_POINTS = 1500   -- 4x the measured 380px mobile viewport width
+    TARGET_POINTS    = 800    -- 2x the viewport width, comfortably above visual resolution
+
+Below 1,500 points, `downsampleForChart` is a complete no-op — same object references,
+no computation. Above it, per requested key: real (non-null) points are fed through a
+Largest-Triangle-Three-Buckets selection to `TARGET_POINTS` real indices; those indices
+are UNIONED across every requested key (plus any key riding along for the era note, e.g.
+`universe_count`) into ONE shared, sorted index set; every series — including unrequested
+ones — is resliced by that single set.
+
+⛔⛔ **NEVER SYNTHESISES A VALUE.** Classic LTTB implementations sometimes average a
+bucket into a representative point; this one selects a REAL measured point from each
+bucket and nothing else. A-10/A-28 exist to stop a chart from showing a number nobody
+measured — LTTB must not become the one code path that quietly reintroduces exactly that.
+
+⛔⛔ **ONE SHARED INDEX SET, not independent per-series sampling.** W2-2's stack has ONE
+x-axis (`axisPointer.link`, `dataZoom.xAxisIndex: 'all'`), mutation-proofed in
+`chartOption.test.js` — downsampling each series independently would give each one its
+own reduced date array, which cannot share a category axis at all.
+
+#### What this means in practice, today
+
+`useBreadthSeries.MAX_SESSIONS = 365` (calendar days) mirrors the server's CURRENT cap.
+Raising it is coupled to L-A's server-side cap raise, not to this landing. So within
+today's reachable range (at most 365 calendar days, well under 1,500 points), LTTB is
+structurally inert — `sampled.sampled` is always `false` — exactly like the other
+long-history V2-3 features that wait on the same cap raise. It engages the day L-A ships,
+which is precisely when it starts being needed.
+
+**Rails:** `lttb.js`'s 12 pure-algorithm tests (mutation-proved: a synthesized average,
+a first-key-only union, and an unsliced un-requested key each fail their own named rail
+and no other), plus `v23Wiring.test.jsx`'s 4 component-level tests (sampled fires past
+the threshold, does not at/below it, is gated on v23, and the chart option's own x-axis
+genuinely shrinks) driven by mocking the hook directly — the only way to exercise it
+before L-A, since the client's own guard makes a naturally-long window unreachable today.
+
+#### ⚰️ CORRECTION, same day: the decision above shipped a hand-rolled algorithm; it now delegates to ECharts' own native `sampling` option
+
+The measurement and the 1,500-point threshold stand unchanged. The IMPLEMENTATION that
+followed the decision did not survive review of its own premise.
+
+**What happened.** `01-audit.md:305`'s actual text — read carefully only AFTER building
+against a paraphrase of it — is *"client: ECharts `sampling: 'lttb'` so a 4,700-point
+line draws at pixel density without dropping extremes."* That names ECharts' OWN BUILT-IN
+series option. A ~150-line hand-rolled Largest-Triangle-Three-Buckets implementation was
+built instead — unioning per-key selected indices into one shared set, re-slicing every
+series by it — mutation-proved and passing (never synthesised a value, one shared index
+set, nulls preserved: three deliberate mutations, three named rails, each caught). It was
+solving a problem the installed library already solves.
+
+**Verified against the ACTUALLY INSTALLED package** (`node_modules/echarts@6.0.0`,
+`lib/processor/dataSample.js`), not assumed from memory or documentation elsewhere:
+
+- `sampling` is registered for BOTH `line` and `bar` series
+  (`chart/line/install.js:68`, `chart/bar/install.js:56`) — both needed, since A-28 draws
+  `adv_decline`/`hvc_52w` as bars.
+- It operates on `cartesian2d` coordinate systems generally — category axes included, not
+  only continuous ones. The "different axis types might not be supported" concern that
+  first justified a bespoke implementation was unfounded.
+- The decisive property: it downsamples each series' OWN internal render data via
+  `seriesModel.setData(data.lttbDownSample(...))` and **never touches `xAxis.data`**. The
+  shared category axis stays full-length regardless of how many series are sampled or how
+  aggressively — so the "union indices across every series so the shared x-axis survives"
+  machinery the hand-rolled version needed was solving a problem that does not exist once
+  the axis itself never shrinks.
+- It recomputes the actual sampling RATE from the LIVE rendered pixel width
+  (`baseAxis.getExtent()`), on every zoom and resize, automatically — strictly better
+  behaviour than a one-shot fixed-target computation, which cannot adapt without
+  re-running itself on every interaction.
+
+**What changed:** `lttb.js` now owns exactly one decision (`shouldSample(n)`, the
+1,500-point threshold) instead of an algorithm; `chartOption.js` sets
+`sampling: 'lttb'` per series when both `allowSampling` (the caller's v23 gate) and
+`shouldSample` agree; `BreadthChartsV2.jsx` no longer pre-processes `dates`/`series` at
+all — `coverage` and the chart option go back to reading the hook's output directly,
+exactly as before LTTB existed. The honest-disclosure note (`v2-sampled`) lost its exact
+"N of M points" claim — genuinely unknowable now, since ECharts decides the surviving
+count internally and dynamically per zoom level — and states only what is actually true:
+some points are combined for readability, real readings throughout, zoom in for all of
+them.
+
+**A second mutation-proved bug found while wiring the correction in:** the first version
+of `chartOption.js`'s `sampling` line read point count alone, with no v22/v23 awareness —
+`shouldSample` cannot know which flag is on, so a v22-only view with a hypothetically long
+series would have been silently downsampled by a V2-3 capability nobody enabled.
+Fixed by an explicit `allowSampling` parameter, **defaulting FALSE** (fail closed, the
+same polarity as every enablement gate in this programme) — caught by a rail
+(`⛔⛔ FAILS CLOSED`) before it reached a screenshot, let alone production.
+
+**Rails, current:** `lttb.test.js` (5, the threshold decision only), `chartOption.test.js`
+(6 new: native sampling on line and bar, the axis never shrinking, the fail-closed default
+mutation-proved two ways), `v23Wiring.test.jsx` (6, rewritten to assert the OPTION's
+`sampling` field rather than an x-axis length that no longer changes).
+
+### D-054 · The /series span cap is raised to 4,700 sessions — D-043's own release condition, met (2026-09-17)
+
+**Owner-directed (L-A, DC-2 confirmation).** D-043 capped `/series` at 365 sessions
+“until the reader work lands,” with its own stated release condition:
+*“the cap is raised when the reader work lands, not to satisfy a wider view.”*
+`session6-report.md` §2.5, taken mid-reader-programme, additionally withheld a
+lift until *“a member-facing feature that actually requests > 365 sessions”*
+existed. Both conditions are now met: the Breadth History Reader programme
+(SD-1.7) closed with `get_history_deep` materialized, and V2-3's back-to-2008
+"Max" preset is exactly the feature session6-report named.
+
+**What changed.** `_SERIES_MAX_SESSIONS_DEFAULT = 4700` in
+`api/routers/breadth_monitor.py`, decoupled from `_SERIES_DEFAULT_SESSIONS`
+(365, unchanged — that constant governs only the default WINDOW when `from`
+is omitted, a UX choice, not a safety bound; the two used to share one
+constant, which is what made the cap and the window impossible to move
+independently). `BREADTH_SERIES_MAX_SESSIONS` remains the env override.
+
+**Why 4,700.** V2-3's `MAX_HISTORY_FROM = '2008-01-02'` needs ≈ 4,700 stored
+sessions to reach today (2026-09-17: 6,833 calendar days at ~252 sessions/year
+less US market holidays). 4,700 × 1.6 = 7,520 calendar days, comfortably under
+the untouched `_SERIES_DAY_CEILING = 8000` (which mirrors the monitor route's
+own ceiling and is not this decision's to move). ⚠️ This is a fixed session
+count against a fixed start date — the margin shrinks ≈252 sessions/year as
+"today" advances; re-derive, don't just re-bump, when it stops covering "Max".
+
+**The cost evidence, combined for the first time:**
+- The READER (`svc.get_history_deep`, shared with `/api/breadth-monitor`):
+  `docs/breadth-history-reader/FINAL.md` §14.1/§14.3, per-deploy, post-fix —
+  p50 277.2–497.2 ms across six deploys, worst observed deploy max 3,752.1 ms
+  (n=54–77/deploy), against D-042's 54,923 ms cold baseline (15x–141x
+  depending on deploy). Measured against a different route sharing this
+  reader — only the reader cost transfers, not that route's own
+  post/derive/serialise phases.
+- This ENDPOINT's own marginal cost (filter + project + encode, on top of the
+  reader): `docs/breadth/api-series.md` (D-035, 2026-09-14) — the full
+  2008– span, 8 keys, 4,530 sessions, measured directly at 30.3 ms cold p50 /
+  36.0 ms cold p95, via a stubbed full-size row set isolating what this
+  endpoint adds (not a local `C:\data\breadth_monitor.db` read — 12 KB,
+  schema-only, which would have flattered the number).
+- **Combined**, a cold full-history 8-key request costs roughly the reader's
+  277–497 ms typical (up to ≈3.75 s worst observed deploy) plus this
+  endpoint's own ≈30–36 ms — dominated by the reader, nowhere near the
+  retired 55 s figure that the old docstring cited (Kind 3b: true when
+  written, superseded by the same session's own reader-fix work before the
+  docstring was ever read again).
+
+**What did NOT need a fresh sandboxed `/series`-specific timing run.** The two
+measurements above are BOTH real, both already in the repo, and together they
+answer the question completely — the reader cost transfers because the reader
+is literally the same function call, and this endpoint's own added cost was
+already isolated and measured at the exact span in question. No local DB was
+touched to produce this decision.
+
+**Corrected in the same commit:** `series_max_sessions()`'s docstring (the
+stale “~55 s … measured on production” claim), the 400 response body's
+matching claim, and `docs/breadth/api-series.md`'s span-cap section (365 →
+4,700 sessions, 584 → 7,520 calendar days, and the "5y/2008– rows no longer
+reachable" caveat, now reachable again).
+
+**Untouched, per the ratified DC-2 plan:** `BREADTH_SERIES_ENDPOINT_ENABLED`
+stays dark — this is a cap raise behind an already-off flag, not a flip.
+

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -30,48 +30,67 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-**Measure it, don't quote it** — the list is the `NAV` array at the top of
-`app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
-At 2026-08-09 it reads:
+⛔ **THIS SECTION IS GENERATED. Do not hand-edit it, and do not hand-count it.**
 
-Dashboard · Morning Wire · **Charts** · **AI Search** (`/ai-search`) · UCT 20 ·
-Breadth · Calendar · Screener · Options Flow · **Flow Record**
-(`/flow-scoreboard`) · **Live Flow** (`/live-massive`) · Post Market ·
-Model Book · **The Desk** · Journal · **Community** · Support
+```sh
+node tools/nav_manifest.mjs            # this table, plus the route diff
+node tools/nav_manifest.mjs --self-check
+```
 
-⚰️ The 2026-08-09 reading of this line listed **Patterns** — there is no
-`/patterns` route and no such NAV entry (measured 2026-09-01); the string only
-survived in `tools/mobile_audit.py`'s hand-typed route list, where it made the
-harness audit the 404 page while `/ai-search`, `/flow-scoreboard`,
-`/live-massive`, `/desk` and `/community` were never audited at all.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
+on **2026-09-14**. Regenerate after any change to that array.
+
+| label | route |
+|---|---|
+| UCT Terminal | `/calendar` |
+| Charts | `/charts` |
+| Morning Wire | `/morning-wire` |
+| Dashboard | `/dashboard` |
+| AI Search | `/ai-search` |
+| UCT 20 | `/uct-20` |
+| Breadth | `/breadth` |
+| Screener | `/screener` |
+| Options Flow | `/options-flow` |
+| Flow Record | `/flow-scoreboard` |
+| Live Flow | `/live-massive` |
+| Model Book | `/model-book` |
+| The Desk | `/desk` |
+| Journal | `/journal` |
+| Community | `/community` |
+| Support | `/support` |
+
+**16 entries.** Every one resolves to a registered route
+(`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**phantom-entry defect this section used to commit is currently absent**, and the
+generator is what keeps saying so.
+
+⚠️ **`/post-market` is NOT in this list and used to be.** It is still a real route;
+it is simply not a sidebar entry. **7** reachable member-facing routes have no
+nav entry — **F-NAV-1**, recorded in
+`docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md`, deliberately NOT
+in this section: *what the sidebar shows* and *what the router serves* are two facts, and
+the whole reason this section kept going stale is that it tried to hold both.
+
+⚰️ **What this section used to say, and why the generator exists.** It named an
+array called `NAV` (the identifier is `NAV_ITEMS`), listed **Calendar** (the label is
+**UCT Terminal**), and listed **Post Market**, which is not an entry at all. Before that
+it listed **Patterns**, a page no route reached — and that string survived into
+`tools/mobile_audit.py`'s hand-typed route list, where it made the harness audit the 404
+page while five real routes were never audited. **A hand-typed list beside the array it
+describes is the defect this file records over and over** (the writer-index `FOUR`, the
+COT router's "4 routes", the setup catalog's "24").
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
 Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
-admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision
-2026-08-26); phones still land on the Daily tab (key `overview` — it replaced
-the old duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`,
-whose finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
+admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision 2026-08-26);
+phones still land on the Daily tab (key `overview` — it replaced the old
+duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`, whose
+finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
 
-⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
-`/theme-tracker` is a `LegacyRedirect` (see below). **Traders is still not a nav
-entry, but it is no longer unreachable** — this said *"reachable from nothing but
-`Traders.test.jsx`"*, which was true until 2026-08-09 and is the reason it got
-fixed: `GET /api/traders` was mounted and paid-gated the whole time, and
-`api/services/voice_client_action_tools.py` navigated members to `/traders`,
-which `App.jsx` did not route. **`/traders` is a real route now**; its door is the
-voice assistant, not the sidebar. Rail:
-`tests/test_navigation_targets_resolve.py`, which resolves every value in
-`PAGE_ALIASES` and every key in `voice.py::_PAGE_DESCRIPTIONS` against App.jsx's
-route table — it is what caught the second one, `"uct 20" → /uct20`, against a
-route that has always been `/uct-20`. It also **omitted** Charts, Patterns,
-Live Flow, The Desk and Community; called Breadth's "Views" tab "Heatmap"; dropped
-"Overview"; and did not say Analogues is admin-gated. Every one of those is wrong, in
-the first section a new engineer reads — and the two phantom entries are the worse
-half: **a nav entry documented for a page no route reaches teaches the next engineer
-that the orphan is the idiom.** *(Deliberately no count here: a typed count beside the
-list it describes is the defect this whole file keeps re-committing. Diff the two.)*
-
-**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`. Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in `app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
+**No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were
+retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`.
+Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in
+`app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
 Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below

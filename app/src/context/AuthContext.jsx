@@ -27,6 +27,15 @@ export function AuthProvider({ children }) {
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
+  // Breadth Data Charts V2 increments (DC-2 §2). Default FALSE, same enablement
+  // polarity and the same reason. ⭐ These REPLACE the build-time
+  // `VITE_BREADTH_CHARTS_V2_ENABLED`: baked into the bundle, a flip was a rebuild,
+  // a rollback was a deploy, and a per-owner preview was inexpressible because
+  // there is only one bundle. The server also accepts `admin`, which is why the
+  // value arrives already resolved for THIS user — the client is told yes or no
+  // and never re-derives it from a role it would have to keep in step.
+  const [breadthDcV22Enabled, setBreadthDcV22Enabled] = useState(false)
+  const [breadthDcV23Enabled, setBreadthDcV23Enabled] = useState(false)
   // ⛔ WAVE K KEEPS NO REACT STATE FOR THE NOTEBOOK'S FLAGS, deliberately.
   // They are LATCHED for the life of the tab (`notebookFlags.js`), so they can
   // never change — and a `useState` that can never change is a second copy of a
@@ -59,6 +68,8 @@ export function AuthProvider({ children }) {
     ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
     ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
+    ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
+    ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
   ]
 
   const applyServerFlags = (data) => {
@@ -249,7 +260,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

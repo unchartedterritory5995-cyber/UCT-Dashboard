@@ -11,25 +11,38 @@
 | `keys` | *(empty)* | canonical snake_case metric keys, comma separated. **Cap 8** — a 9th is `400`. Repeats are deduped and do not consume the budget twice. |
 | `to` | latest stored session | |
 | `from` | the **365 most recent stored sessions** ending at `to` | `from > to` → `400` |
-| span | — | capped at **365 sessions** (`BREADTH_SERIES_MAX_SESSIONS`), enforced as **584 calendar days** = `365 × 1.6`. Over → `400` naming both numbers. |
+| span | — | capped at **4,700 sessions** (`BREADTH_SERIES_MAX_SESSIONS`), enforced as **7,520 calendar days** = `4,700 × 1.6`. Over → `400` naming both numbers. |
 
 ### The span cap, and why it is checked before the read
 
-A cold deep read of the breadth history costs **~55 s on the single web process** (D-042) — a
-pre-existing property of `get_history_deep`, not something B1 introduced. Until the reader has its
-own programme, that cost must be **unreachable from `/series` regardless of the flag**, so the cap
-exists to make it so rather than to express a view about how much history a chart should show.
+⛔⛔ **RAISED 2026-09-17 (L-A) from a 365-session cap.** This section previously said a cold deep
+read cost *"~55 s on the single web process (D-042)"* and left the cap at 365 sessions until "the
+reader has its own programme" — that programme (the Breadth History Reader) closed in this same
+session, with `get_history_deep` materialized (*"used to assemble 174,187 OHLC rows into 4,529 rows
+on every cold request; it is now one indexed read of pre-built rows"*). The 55 s figure described
+the reader BEFORE that fix and was true when written, not when this cap was still being enforced by
+it (Kind 3b — see `CLAUDE.md`).
+
+The reader's current, measured, per-deploy cost — `docs/breadth-history-reader/FINAL.md` §14.1/§14.3
+— is **p50 277.2-497.2 ms across six deploys, worst observed deploy max 3,752.1 ms**, against
+D-042's 54,923 ms cold baseline (15x-141x depending on deploy; that table was measured against
+`/api/breadth-monitor`, a different route sharing this reader, so only the reader cost transfers).
+Combined with this endpoint's own measured marginal cost below (~30-36 ms at full span), a cold
+full-history request is dominated by the reader and nowhere near 55 s.
+
+**4,700 sessions is sized to cover V2-3's back-to-2008 "Max" preset** (`MAX_HISTORY_FROM` in
+`BreadthChartsV2.jsx`) — ~4,700 stored sessions from 2008-01-02 to 2026-09-17 — with real margin,
+not raised to "unlimited": a fixed session count against a fixed start date, so the margin shrinks
+by ~252 sessions/year as "today" advances.
 
 ⛔ **The 400 is raised BEFORE the read.** Counting sessions requires reading them, so a post-read
-rejection has already paid the 55 s it exists to prevent — the check is therefore on calendar days,
-which are knowable from the request alone.
+rejection has already paid the reader cost it exists to prevent — the check is therefore on calendar
+days, which are knowable from the request alone.
 
 ⭐ **×1.6 is generous on purpose, in the safe direction.** A year holds ~252 sessions in 365
 calendar days, so a session cap enforced as an equal number of days would 400 a genuine full-span
 request. Erring wide admits at most a few hundred extra rows; erring narrow refuses the request the
 cap is sized to allow.
-
-The cap is raised when the reader work lands, not to satisfy a wider view.
 
 ## Response — `200 application/json`
 
@@ -71,9 +84,9 @@ Measured 2026-09-14, B1's **marginal** cost (filter + project + encode) over a f
 | 5y | 1,260 | 75 KB | 13.1 ms | 14.8 ms | 5.2 ms |
 | 2008– (18y) | 4,530 | 270 KB | **30.3 ms** | **36.0 ms** | 6.5 ms |
 
-⚠️ **The 5y and 2008– rows are no longer reachable through `/series`** — the span cap above stops
-at 365 sessions. They stay in this table because they are what settled the downsampling question:
-the rows measure what B1 *adds*, and that answer does not change when the cap is raised.
+✅ **The 5y and 2008– rows are reachable through `/series` again as of the 2026-09-17 cap raise** —
+they were briefly stated as unreachable while the cap sat at 365 sessions. They are also what
+settled the downsampling question below, independent of whether the cap covers them.
 
 D-035's trigger was "if 2008– with 8 keys exceeds ~1 s cold, add server-side downsampling". It costs **30 ms** — ~33× under it — so **downsampling is deferred**, and `bucket=` is not implemented. Revisit if the payload rather than the time becomes the constraint (270 KB over a phone connection is the number to watch, not the CPU).
 

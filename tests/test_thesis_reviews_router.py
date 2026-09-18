@@ -18,9 +18,41 @@ from api.services.journal_two import thesis_reviews as tr
 
 @pytest.fixture()
 def app():
+    """⛔⛔ THE OVERRIDE IS REMOVED AFTERWARDS, BECAUSE `api.main.app` IS SHARED.
+
+    ⚰️ **THIS FILE LEAKED A `get_current_user` OVERRIDE INTO EVERY TEST THAT RAN AFTER
+    IT, AND IT COST 41 FAILURES IN CI.** `_login` installs
+    `app.dependency_overrides[get_current_user] = lambda: {"id": user_id}` on the REAL
+    app object; nothing removed it, and pytest hands the same module to every later test
+    in the process. A stub user with **no plan and no subscription** then answered for
+    everybody — so an UNAUTHENTICATED request stopped returning 401 (the override supplies
+    a user) and the paid gate returned **402 Payment Required** instead. Both symptoms,
+    exactly.
+
+    ⭐ **It was invisible until the shard partition moved.** At 8 buckets this file and
+    `test_voice_router.py` were in different shards — different processes — so the leak
+    reached nobody. At 12 they shared one, and 41 voice-router tests turned red on a
+    change that touched no product code (F-CI-36). Reproduced deterministically with
+    exactly two files: `pytest tests/test_thesis_reviews_router.py
+    tests/test_voice_router.py` -> **41 failed, 21 passed**; the voice file alone -> 48
+    passed. Found by bisecting the 52 files that joined its process, with both
+    non-vacuity ends proved first.
+
+    ⚠️ **The class is wider than this file** — 96 test files install a
+    `dependency_overrides[...]` on a shared app and only 50 ever clear one (F-CI-38). This
+    fixes the one that was measured; the sweep is its own unit.
+    """
     auth_db.init_db()
     from api.main import app as real
-    return real
+    before = dict(real.dependency_overrides)
+    try:
+        yield real
+    finally:
+        # ⛔ RESTORE, never `.clear()`: another fixture may legitimately have installed an
+        # override before this test, and clearing would break IT instead — trading one
+        # leak for another.
+        real.dependency_overrides.clear()
+        real.dependency_overrides.update(before)
 
 
 @pytest.fixture()
