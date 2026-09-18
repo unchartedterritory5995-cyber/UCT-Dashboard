@@ -148,3 +148,30 @@ def test_MUTATION_the_upsert_key_is_ticker_and_execution_date_together(tmp_path)
     count = conn.execute("SELECT COUNT(*) FROM confirmed_splits").fetchone()[0]
     conn.close()
     assert count == 3, "same-ticker or same-date rows collided instead of coexisting"
+
+
+# ── D5 CP4 — the first real reader of the ledger ──────────────────────────────
+
+def test_read_confirmed_splits_returns_the_same_shape_fmp_meta_uses(tmp_path):
+    db = str(tmp_path / "rca.db")
+    rows = [
+        {"ticker": "NVDA", "execution_date": "2026-06-10", "split_from": 1, "split_to": 10},
+        {"ticker": "NVDA", "execution_date": "2026-01-01", "split_from": 2, "split_to": 3},
+    ]
+    rca.record_confirmed_splits(rows, db_path=db)
+    got = rca.read_confirmed_splits("nvda", db_path=db)  # lowercase query ticker
+    assert got == [("2026-01-01", 1.5), ("2026-06-10", 10.0)], (
+        "expected (execution_date, split_to/split_from) tuples, ordered by date; "
+        "the QUERY ticker's case must not matter, since fetch_confirmed_splits "
+        "always stores uppercase already")
+
+
+def test_read_confirmed_splits_on_an_empty_or_missing_ledger_returns_empty_list(tmp_path):
+    missing = str(tmp_path / "does_not_exist_yet.db")
+    assert rca.read_confirmed_splits("AAPL", db_path=missing) == []
+
+
+def test_read_confirmed_splits_never_raises_on_a_corrupt_db_path(tmp_path):
+    corrupt = tmp_path / "corrupt.db"
+    corrupt.write_bytes(b"not a sqlite file at all")
+    assert rca.read_confirmed_splits("AAPL", db_path=str(corrupt)) == []
