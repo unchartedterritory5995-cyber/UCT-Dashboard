@@ -16,6 +16,7 @@
 import { UNIT_LABEL, shortOf, markOf, MARK } from '../chartMetrics'
 import { panelsFor, gridFor, panelIndexByKey } from './panels'
 import { stickyColour } from './stickyColours'
+import { shouldSample } from './lttb'
 
 /** Ink that reads on both themes — V2-2's palette lands with W2-0. */
 const AXIS_INK = '#8b8578'
@@ -65,7 +66,14 @@ export function logEligibility(panel, valuesByKey) {
  * @param opts         { logPanels: Set<unit>, endLabels: boolean }
  */
 export function buildOption(dates, valuesByKey, selected, opts = {}) {
-  const { logPanels = new Set(), endLabels = true, coverage = null } = opts
+  // ⛔⛔ `allowSampling` DEFAULTS FALSE — FAIL CLOSED, same polarity as every enablement
+  // gate in this programme. Caught by a rail, not by review: `shouldSample` alone knows
+  // nothing about v22/v23, so a first version set `sampling` purely from point count and
+  // a v22-only view with a long series (hypothetically) would have been silently
+  // downsampled by a V2-3 capability nobody turned on. LTTB is v23's, so the CALLER
+  // states that explicitly rather than this module inferring it from data shape.
+  const { logPanels = new Set(), endLabels = true, coverage = null,
+          allowSampling = false } = opts
   const panels = panelsFor(selected)
   const grids = gridFor(panels)
   const { indexOf } = panelIndexByKey(panels)
@@ -140,6 +148,15 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       // ⛔ `connectNulls: false` — a null is an ABSENT reading, and bridging it draws a
       // line through a period nobody measured.
       connectNulls: false,
+      // ⛔⛔ NATIVE ECHARTS LTTB, delegated rather than reimplemented (D-053, `lttb.js`).
+      // `shouldSample` reads the FULL series length, not the visible/zoomed extent —
+      // ECharts recomputes the actual sampling RATE itself from the rendered pixel width
+      // on every zoom and resize (`baseAxis.getExtent()` in its own `dataSample`
+      // processor), so this only needs to decide whether the series is long enough to be
+      // worth asking ECharts to manage at all. `undefined` when below threshold, never
+      // `'none'` — the processor treats an unset `sampling` and `'none'` identically, but
+      // `undefined` is the honest "we did not ask for this" rather than a stated no-op.
+      sampling: (allowSampling && shouldSample(values.length)) ? 'lttb' : undefined,
       // Direct label at the series end. ⭐ At the END only, never a number on every
       // point: `dataviz` calls that out, and on 4,530 sessions it is unreadable anyway.
       endLabel: endLabels && last >= 0

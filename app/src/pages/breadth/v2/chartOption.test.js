@@ -157,6 +157,59 @@ describe('W2-6 · end labels', () => {
   })
 })
 
+describe('D-053 · LTTB is delegated to ECharts\' own `sampling` option', () => {
+  const longDates = Array.from({ length: 1501 }, (_, i) => `d${String(i).padStart(6, '0')}`)
+  const shortDates = longDates.slice(0, 1500)
+
+  it('a series past the threshold gets `sampling: "lttb"` when EXPLICITLY allowed', () => {
+    const [a] = pickTwoFamilies()
+    const opt = buildOption(longDates, { [a]: longDates.map((_, i) => i) }, [a],
+      { allowSampling: true })
+    expect(opt.series[0].sampling).toBe('lttb')
+  })
+
+  it('⛔⛔ FAILS CLOSED — `allowSampling` defaults FALSE regardless of point count', () => {
+    // Caught by a rail after shipping the wrong default once: `shouldSample` alone knows
+    // nothing about v22/v23, so a v22-only view with a long series would otherwise be
+    // silently downsampled by a V2-3 capability nobody turned on.
+    const [a] = pickTwoFamilies()
+    const opt = buildOption(longDates, { [a]: longDates.map((_, i) => i) }, [a])
+    expect(opt.series[0].sampling).toBeUndefined()
+  })
+
+  it('`allowSampling: false` explicitly also refuses, even past the threshold', () => {
+    const [a] = pickTwoFamilies()
+    const opt = buildOption(longDates, { [a]: longDates.map((_, i) => i) }, [a],
+      { allowSampling: false })
+    expect(opt.series[0].sampling).toBeUndefined()
+  })
+
+  it('⭐ CONTROL — a series AT the threshold does NOT get it', () => {
+    const [a] = pickTwoFamilies()
+    const opt = buildOption(shortDates, { [a]: shortDates.map((_, i) => i) }, [a])
+    expect(opt.series[0].sampling).toBeUndefined()
+  })
+
+  it('⛔ a BARS metric (A-28) also gets native sampling — not line-only', () => {
+    // adv_decline is drawn as bars (MARK.BARS); ECharts registers the same `dataSample`
+    // processor for bar series, so this must not be silently line-only.
+    const opt = buildOption(longDates, { adv_decline: longDates.map((_, i) => i - 750) },
+      ['adv_decline'], { allowSampling: true })
+    expect(opt.series[0].type).toBe('bar')
+    expect(opt.series[0].sampling).toBe('lttb')
+  })
+
+  it('⛔ NEVER touches xAxis.data — that is the whole point of delegating', () => {
+    // The shared category axis must stay the FULL length regardless of any series'
+    // sampling — ECharts downsamples the series' own render data internally, never the
+    // axis. A reslice here would break the "one shared x-axis" invariant (W2-2).
+    const [a] = pickTwoFamilies()
+    const opt = buildOption(longDates, { [a]: longDates.map((_, i) => i) }, [a])
+    expect(opt.xAxis[0].data.length).toBe(longDates.length)
+    expect(opt.series[0].data.length).toBe(longDates.length)
+  })
+})
+
 describe('the option survives the empty and the odd', () => {
   it('an empty selection builds an empty, non-throwing option', () => {
     const opt = buildOption(DATES, {}, [])

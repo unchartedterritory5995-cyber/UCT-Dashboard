@@ -164,8 +164,14 @@ def _fixture(span_sessions: int) -> dict:
         "series": series,
         "reconstructed": reconstructed,
         "missing": [],
-        "sampling": "lttb" if n > 1000 else None,
     }
+    # ⛔⛔ `sampling` WAS NEVER IN THE CONTRACT. `docs/breadth/api-series.md`'s documented
+    # response has no such field -- D-035 explicitly DEFERRED server-side downsampling
+    # (30ms cold-read cost, 33x under the 1s trigger) and named PAYLOAD SIZE, not a
+    # sampling flag, as the thing to watch if the decision is revisited. A fixture
+    # carrying a field the real endpoint never sends tests the client against a shape
+    # that will never arrive -- the same class of defect as the missing `dates` key,
+    # just in the other direction (an EXTRA field instead of a missing one).
 
 
 def _auth_payload(flags: dict) -> dict:
@@ -732,16 +738,146 @@ def self_check() -> int:
     return 0 if ok else 1
 
 
+
+# ── The LTTB threshold sweep (DC-2 §3.4) ─────────────────────────────────────────────
+#: Point counts to sweep. Spans the range between "what the tab asks for today" (365) and
+#: "everything stored" (~4,530), with enough intermediate steps to see WHERE the curve
+#: bends rather than only that its ends differ.
+MEASURE_SPANS = (365, 750, 1500, 2250, 3000, 3750, 4530)
+
+#: Repeats per span. ⛔ One sample per span cannot separate a trend from a hiccup, and this
+#: session has already published one conclusion drawn from a single clean run.
+MEASURE_REPEATS = 3
+
+
+def measure_render() -> int:
+    """Time the V2 chart's first settled paint against point count, at the PHONE viewport.
+
+    ⛔ THE PHONE IS THE MEASUREMENT THAT MATTERS. A desktop has the headroom to hide the
+    problem, and the audit's own long-history item is about opening seventeen years of
+    history to a reader who is most likely holding a phone. Measuring at 1280 and shipping
+    a threshold for 380 would be a proxy — the failure kind this programme keeps finding.
+
+    ⭐ It reports the MEDIAN of `MEASURE_REPEATS` runs per span, and the raw values beside
+    it, so a reader can see the spread rather than trusting a single number.
+    """
+    from playwright.sync_api import sync_playwright
+    sys.path.insert(0, str(REPO))
+    from tools.mobile_audit import _dismiss_intro  # noqa: PLC0415
+
+    w, h = VIEWPORTS["380"]
+    flags = FLAG_STATES["both"]
+    rows = []
+
+    with Preview() as prev, sync_playwright() as p:
+        browser = p.chromium.launch(args=[
+            "--font-render-hinting=none", "--disable-lcd-text",
+            "--disable-font-subpixel-positioning", "--force-color-profile=srgb",
+            "--disable-skia-runtime-opts",
+        ])
+        for span in MEASURE_SPANS:
+            samples = []
+            for _ in range(MEASURE_REPEATS):
+                ctx = browser.new_context(viewport={"width": w, "height": h},
+                                          device_scale_factor=1, reduced_motion="reduce")
+                page = ctx.new_page()
+                page.clock.install(time=FROZEN_ISO)
+                _install_routes(page, span, flags)
+                page.goto(prev.base + "/breadth?tab=charts", wait_until="networkidle")
+                _dismiss_intro(page)
+                t0 = time.time()
+                _open_data_charts(page)
+                # Settle on the CHART, not on a timer: wait for the canvas the chart draws
+                # into, then for two identical frames, which is the same definition of
+                # "finished" the screenshots use.
+                page.wait_for_selector('[data-testid="breadth-charts-v2"] canvas',
+                                       timeout=30000)
+                prev_frame = None
+                for _ in range(40):
+                    page.wait_for_timeout(100)
+                    frame = page.screenshot(animations="disabled", caret="hide")
+                    if prev_frame is not None and frame == prev_frame:
+                        break
+                    prev_frame = frame
+                paint_ms = int((time.time() - t0) * 1000)
+
+                # ⛔⛔ FIRST PAINT IS NOT USABILITY, AND A DISPATCH THAT NEVER LANDS IS
+                # NOT A MEASUREMENT. This was first written as
+                # `window.echarts.getInstanceByDom(el).dispatchAction({type:'dataZoom'})`.
+                # `echarts-for-react` does NOT put echarts on `window`, so the instance
+                # was never reached, the action never ran, and every "zoom_ms" printed was
+                # the settle loop's own floor (~180-240 ms) — a confident number
+                # describing nothing. Verified by capturing `reached` and comparing pixels,
+                # which is the check that should have been there first.
+                #
+                # So: drive the wheel over the chart, which `dataZoom: {type:'inside'}`
+                # handles, and REQUIRE the pixels to move. A zoom that changes nothing is
+                # reported as a failure rather than as a fast zoom.
+                # ⛔⛔ DEAD CENTER LANDS IN THE INTER-PANEL GAP, NOT ON A GRID.
+                # `gridFor`'s defaults (top=6, bottom=14, gap=4) put a 4%-high gap between
+                # the two panels the D-052 default produces, and with weights 1.25:1 that
+                # gap sits at 48.2%-52.2% of the canvas -- straddling the 50% midpoint a
+                # "click the center" probe reaches for. A wheel event there has no grid to
+                # act on and nothing moves, which looked exactly like a broken zoom rather
+                # than a badly-aimed one. Verified against 6 other heights before
+                # concluding this, not assumed from one failure.
+                box = page.locator('[data-testid="breadth-charts-v2"] canvas').bounding_box()
+                before = page.screenshot(animations="disabled", caret="hide")
+                t1 = time.time()
+                page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] * 0.25)
+                page.mouse.wheel(0, -600)
+                zprev = None
+                for _ in range(40):
+                    page.wait_for_timeout(50)
+                    zf = page.screenshot(animations="disabled", caret="hide")
+                    if zprev is not None and zf == zprev:
+                        break
+                    zprev = zf
+                zoom_ms = int((time.time() - t1) * 1000)
+                after = page.screenshot(animations="disabled", caret="hide")
+                if after == before:
+                    raise RuntimeError(
+                        f"{span} points: the wheel-zoom changed NOTHING on screen. "
+                        "Refusing to report a settle time for an interaction that did not "
+                        "happen — that is how the previous version of this measurement "
+                        "produced numbers for a no-op.")
+
+                samples.append((paint_ms, zoom_ms))
+                ctx.close()
+            paints = sorted(x[0] for x in samples)
+            zooms = sorted(x[1] for x in samples)
+            med_p, med_z = paints[len(paints) // 2], zooms[len(zooms) // 2]
+            rows.append((span, med_p, med_z, paints, zooms))
+            print(f"[measure] {span:5d} points   paint {med_p:5d} ms {paints}"
+                  f"   zoom {med_z:5d} ms {zooms}")
+        browser.close()
+
+    print()
+    print("span     paint_ms   zoom_ms")
+    for span, med_p, med_z, _, _ in rows:
+        print(f"{span:5d}    {med_p:7d}   {med_z:7d}")
+    bp, bz = rows[0][1], rows[0][2]
+    print()
+    print(f"baseline at {rows[0][0]} points: paint {bp} ms, zoom {bz} ms")
+    for span, med_p, med_z, _, _ in rows[1:]:
+        print(f"  {span:5d} points: paint {med_p / bp:4.2f}x   zoom {med_z / bz:4.2f}x")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--capture", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--update-goldens", action="store_true")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--measure-render", action="store_true",
+                    help="sweep point count vs settle time at the phone viewport")
     a = ap.parse_args()
 
     if a.self_check:
         return self_check()
+    if a.measure_render:
+        return measure_render()
     if a.capture or a.check or a.update_goldens:
         m = capture(OUT)
         slow = {k: v["load_ms"] for k, v in m["cases"].items() if v["load_ms"] > 8000}

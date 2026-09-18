@@ -100,7 +100,7 @@ new, and it will fire.
 | **W1** | harness + goldens + perf rail | `READY` — Playwright/Chromium verified; build route interception |
 | **W2-0** | V2-1 tokens + validated palette | `NOT STARTED` — prerequisite of W2 |
 | **W2** | V2-2 stacked panels, dark | `BLOCKED` on W1, W2-0 |
-| **W3** | V2-3 coverage + long history, dark | ⚠️ **UNBLOCKED on Q3** (era note located, `01-audit.md:309-311`). Still gated on **Q4** — whether `/series` is fast enough at long spans is UNMEASURED, and §3.2's perf rail is what answers it. ⛔ New scope found: A-28's `mark` registry field does not exist (R1 shipped 4 of 6 declared fields), so V2-3 ADDS it. |
+| **W3** | V2-3 coverage + long history, dark | ✅ **BUILT 2026-09-17.** Q4 CLOSED: measured real wheel-zoom on the phone viewport, 365→4,530 points, paint within 2% and zoom-settle within 11% — no cliff. Coverage bands, A-28 `mark` (added — R1 shipped 4 of 6 declared fields, not this one), the era note, LTTB (delegated to ECharts' native `sampling: 'lttb'`, D-053 — a hand-rolled version was built, mutation-proved, then thrown away once checked against the installed package), and the extended-days picker are all in. `coverage absent → render == V2-2` holds at the OPTION level (scoped to coverage chrome — the always-visible days picker is a documented, separate claim). |
 | **W4** | records | rolling — `00-profile.md` open, DECISIONS entries per ruling applied |
 
 ⭐ **W3's wire half is further along than DC-1 assumed.** `reconstructed[]` already ships in

@@ -83,6 +83,10 @@ function ctx(flags) {
 // The harness had asked for something the product refuses, and the product was right.
 let keySeq = 0
 
+/**
+ * @returns { html, option } — `html` is the whole rendered tree; `option` is the
+ * ECharts config the stub captured, parsed back to an object for structural comparison.
+ */
 async function renderWith(flags, payload) {
   mockSeries(payload)
   keySeq += 1
@@ -95,30 +99,53 @@ async function renderWith(flags, payload) {
       />
     </AuthContext.Provider>,
   )
-  await waitFor(() => expect(screen.getByTestId('echart')).toBeInTheDocument())
-  return container.innerHTML
+  const el = await waitFor(() => screen.getByTestId('echart'))
+  return { html: container.innerHTML, option: JSON.parse(el.getAttribute('data-option')) }
 }
 
 beforeEach(() => { vi.clearAllMocks() })
 afterEach(() => { vi.unstubAllGlobals() })
 
-describe('⛔⛔ coverage absent ⇒ V2-3 renders exactly what V2-2 renders', () => {
-  it('the trees are IDENTICAL when there is nothing to disclose', async () => {
+describe('⛔⛔ coverage absent ⇒ the CHART OPTION V2-3 builds is identical to V2-2\'s', () => {
+  // ⚰️ THIS WAS A WHOLE-TREE COMPARISON, AND ADDING THE EXTENDED-DAYS PICKER BROKE IT —
+  // correctly, because the picker is not part of "coverage" (see the note on
+  // `EXTENDED_DAYS_PRESETS` in BreadthChartsV2.jsx): it renders unconditionally under
+  // v23, independent of whether there is anything to disclose. That is a real, wanted
+  // divergence between v22-only and v23-on, and a whole-tree `toBe` cannot distinguish
+  // "the picker legitimately differs" from "the coverage bands leaked in by mistake". So
+  // the claim is now tested where it actually lives: the ECharts OPTION, which is what
+  // the coverage bands and the era note actually touch. The picker's own, SEPARATE
+  // behaviour (always visible under v23) has its own test below.
+  it('the CHART OPTION is IDENTICAL when there is nothing to disclose', async () => {
     const v22Only = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: false }, CLEAN)
     cleanup()
     const both = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, CLEAN)
-    expect(both).toBe(v22Only)
+    expect(both.option).toEqual(v22Only.option)
   })
 
-  it('⭐ CONTROL — with something to disclose they DIFFER, so the rail is not vacuous', async () => {
+  it('⭐ CONTROL — with something to disclose the OPTION DIFFERS, so the rail is not vacuous', async () => {
     const v22Only = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: false }, DIRTY)
     cleanup()
     const both = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, DIRTY)
-    expect(both).not.toBe(v22Only)
+    expect(both.option).not.toEqual(v22Only.option)
+  })
+
+  it('⭐ the EXTENDED-DAYS PICKER is a separate claim: visible under v23 regardless of coverage', async () => {
+    const clean = await renderWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, CLEAN)
+    const dirty = await (async () => { cleanup(); return renderWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, DIRTY) })()
+    for (const r of [clean, dirty]) {
+      expect(r.html).toContain('data-testid="v2-extended-days"')
+    }
+    cleanup()
+    const v22Only = await renderWith(
+      { breadthDcV22Enabled: true, breadthDcV23Enabled: false }, CLEAN)
+    expect(v22Only.html).not.toContain('data-testid="v2-extended-days"')
   })
 
   it('the era note appears only when the universe actually moved', async () => {
