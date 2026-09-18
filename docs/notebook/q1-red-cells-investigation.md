@@ -793,3 +793,48 @@ furniture nobody can justify removing later.
 on production (2.8c, `evidence/20260917T122035-2.2-ring-on-the-drivable-door/`):
 door driven to completion, unsent work present, no `/embeds` call. That is why
 fix 6 is not urgent enough to justify pushing it outside the owner's word.
+
+
+---
+
+## ✅ THE CHAIN — fix 4 → fix 5 → the guard → fix 6, and what each one actually closed
+
+**Four changes, and only the last one is the root cause. The first three are worth
+reading precisely because each looked sufficient at the time.**
+
+| # | what it changed | what it ACTUALLY closed | why it was not enough |
+|---|---|---|---|
+| **fix 4** `85e68247c` | `settleLandedSave` keeps a DIRTY record dirty and never overwrites it from a server-derived copy | the editor's own ack path, where the door's landed revision meets unsent work | ⛔ **It guards where IT decides.** `markSynced` does not route through `settleLandedSave` at all — it goes to `persist`, which had no such guard. Fix 4's protection was real and its REACH was one function wide |
+| **fix 5** `1ceb3c5c2` | the drain refuses to supersede an entry unless the landed save PROVABLY contains its content | the `isSupersededBaseline` clear, which had been reading *"a save this browser landed is newer"* as *"the server already has these words"* | ⛔ Necessary, not sufficient. `landedBaseline` refuses a DIRTY record, so fix 5 only ever fires where the record is clean — and the append door reconciled the record clean **by another path** before the drain ever looked |
+| **the door guard** `noteHasUnsentWork` | `sendCaptureToJournal` DEFERS while a note has unsent work | the member's ability to REACH the loss at all — thirteen capture doors, one chokepoint | ⭐ A **mitigation, not a fix**. It closed the door without naming what was behind it, and it is why the rig stopped being able to reproduce the defect at all (D1). That was the right trade and it also became the obstacle: the instrument could no longer see the thing it was hunting |
+| **fix 6** `8568d13ad` | `discardsUnsentWork` — ONE authority, asked by BOTH `settleLandedSave` and `persist` | ⭐⭐ **the writer.** `persist` at `useDurableNote.js:480` wrote `dirty 1 → 0` with a NULL intent, taking the queue with it in the same transaction | — |
+
+### ⭐ The pattern across all four, which is the transferable part
+
+Fix 4 and fix 5 were **both correct** and **both insufficient**, for the *same*
+reason in two costumes: each fixed the instance it could see, at the layer it was
+already standing in. Fix 4 guarded one function; fix 5 guarded one branch of the
+drain. Neither asked *"what is the CLASS, and where else does it live?"*
+
+Fix 6 is the first one that asked. The §10.36 sweep found **8 call sites, 5 able
+to empty a queue**, and judged each with a reason — which is how `persist` stopped
+being one of three census candidates and became a name.
+
+⛔ **And the guard that was supposed to catch all of them could not.**
+`putNoteWithIntent` carries an explicit class guard — *"a null intent is not
+permission to delete unsent work"* — written `else if (noteRecord.dirty)`. It reads
+the record it is **handed**, so a writer that flips `dirty 1 → 0` in the same
+write satisfies the `else` and takes the delete branch. Correct, documented,
+mutation-proved at its own layer, and structurally unable to see the case it was
+written for.
+
+### What made the difference, stated plainly
+
+Three sessions read this code and produced a census of three candidates. What
+named the writer was **one instrument**: a pass-through spy on the real
+`putNoteWithIntent`, driving the REAL modules, with the loss reproduced. The
+census was right the whole time and stayed a census because nothing had ever
+watched those three sites fire.
+
+> **A hypothesis dies by reading or by measurement. This one needed measurement,
+> and two days were spent proving that by trying everything else.**
