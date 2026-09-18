@@ -34,7 +34,7 @@ material that reads as a physical thing resting on glass — not a card, not a m
 
 | what it does | what this hub does today |
 |---|---|
-| The material **refracts what is behind it** — the blur is lensed, brighter at the rim, and the tint shifts with content | **TEN `backdrop-filter` declarations, every one of them the byte-identical string `blur(18px) saturate(160%)`** — measured with comments stripped. Not merely "uniform": the pad, the knob, the chip, the bubbles, the scrim and the sheets sit at different depths over different content and are all given one value. No lensing, no edge brightening, no variation by role. |
+| The material **refracts what is behind it** — the blur is lensed, brighter at the rim, and the tint shifts with content | **FIVE elements carry a backdrop-filter — `.pad`, `.chip`, `.actionsButton`, `.coachMark`, `.edgeTabGrip` — and all five use the byte-identical string `blur(18px) saturate(160%)`.** They sit at different depths over different content and are given one value: no lensing, no edge brightening, no variation by role. ⚰️ *This said TEN declarations. It is ten LINES and five elements — each correctly carries both the `-webkit-` and unprefixed spellings, because Safari ships only the prefixed one. Counting lines where the subject is elements doubled the number; the criticism is unchanged, the figure was wrong.* |
 | A **specular highlight that tracks motion** — the rim catches light as the element moves | `inset 0 1px 0 var(--hub-rim-highlight)` — a **static** top-edge line. It does not move, ever. |
 | **Layered depth**: an ambient shadow plus a tighter key shadow, so it sits *above* rather than *on* | `--hub-shadow: 0 10px 28px -8px` — **one layer**. |
 | Material **thickens on press** and relaxes on release | Bubbles: `transition: transform 0.15s, background-color 0.15s` — no named curve, so the browser default `ease`. Reads as CSS. |
@@ -150,6 +150,18 @@ Restraint in the critique cuts both ways — these are measured, not assumed:
 - The theme-island discipline: `--hub-*` tokens are pinned in every island, railed by
   `styles/themeIslands.test.js`.
 - `styles/tapFloor.test.js` already enforces the 44px floor.
+- ⭐ **NO ANIMATING ELEMENT CARRIES A `backdrop-filter`** — measured, comments stripped. The three
+  that animate `transform` (`.knobFace`, `.knobDot`, `.bubble`) have none, and all five
+  backdrop-filtered elements are static. That is the single most expensive mistake this material
+  invites: a blurred surface that moves forces the compositor to re-sample its backdrop every
+  frame, and on a phone it is the difference between a control that glides and one that smears.
+  **W4 must not break this.** Whatever lensing the knob and the bubbles gain has to be painted
+  with gradients and shadows, never with a filter that reads the backdrop.
+- ⭐ **M6 ALREADY HOLDS: every transition animates `transform`, `opacity` or a colour — not one
+  layout property.** Swept for `width`/`height`/`top`/`left`/`right`/`bottom`/`margin`/`padding`/
+  `font-size` in a transition list; zero hits. A bar item that is already met is worth stating,
+  because the critique loop's job is to find what is wrong and it needs to know what not to
+  re-litigate.
 
 ⚰️ **AND A DEFECT I NEARLY PUT IN THIS DOCUMENT THAT DOES NOT EXIST.** An earlier draft of §4 said
 *"`--color-border` is used 4× in `hub.module.css` and is defined nowhere — a silent no-op"*, and
