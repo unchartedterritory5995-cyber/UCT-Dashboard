@@ -1796,6 +1796,45 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⚰️⚰️ A GLOBAL PROCESS COUNT IS NOT A MEASUREMENT OF *YOUR* RUN
+
+> **Counting processes by a command-line substring counts the whole box. On a
+> machine with concurrent sessions and a leak, that number is about the machine,
+> not about the thing you launched. Baseline, launch, measure the DELTA, and
+> carry a control proving your run happened at all.**
+
+⚰️ Measured 2026-09-18, and it is recorded because the wrong version was
+**published twice** — in a commit message and in a report — before it was checked.
+
+**The claim I made:** *"`--maxWorkers=1` does not bound vitest here; the repo's
+config (`maxWorkers: '50%'`) overrides it"*, on the evidence that ~15
+vitest-matching processes were live during a gate launched with `--max-workers 1`.
+
+**What that count actually was:** every process on the box whose command line
+contained `vitest` — including another workstream's leak and other sessions'
+suites. It was never a measurement of my run.
+
+**What a controlled measurement says** — baseline `node.exe`, launch, sample the
+delta, plus a control asserting a totals line appeared:
+
+| `--maxWorkers` | 1 | 2 | 6 | 12 |
+|---|---|---|---|---|
+| peak node delta | 5 | 7 | 9 | 15 |
+
+Monotonic, ≈ bound + 3–4 fixed overhead. ⭐ **The CLI bound is honoured and always
+was.** Rail: `test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config` (opt-in).
+
+⛔⛔ **AND THE COST OF BELIEVING IT WOULD HAVE BEEN A CODE CHANGE.** A fix to the
+gate's shard command was authorised on the strength of this finding. The finding
+was wrong; the command was already correct. **Changing working code to satisfy a
+mismeasurement is the defect, not the remedy** — so nothing was changed, and the
+measurement is railed instead.
+
+⚠️ The first two attempts at the counter returned **0** — a filter that matched
+nothing — which is the *"an empty result is a failed invocation until proven
+otherwise"* rule arriving in a new costume. A zero from a process query is a
+broken query until a control says otherwise.
+
 ### ⛔⛔ A MEASUREMENT THAT TAKES LONGER THAN THE GAP BETWEEN DISTURBANCES CANNOT COMPLETE
 
 > **Before starting a long measurement, measure the DISTURBANCE INTERVAL. If the
