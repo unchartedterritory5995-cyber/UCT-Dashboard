@@ -163,6 +163,7 @@ UNITS = [
     # own push triggers a master run. Placed first it would have queued one run per merge.
     ("e-cp34-build-record", ["4c4ba1cb1"], False),
     ("e-cp35-build-record", ["d50fadadf"], False),          # F-OPS-1
+    ("e-cp36-build-record", ["afbbd39b5"], False),          # F-CI-46
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
