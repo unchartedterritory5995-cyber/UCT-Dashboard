@@ -32,7 +32,47 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(r"C:\Users\Patrick\uct-worktrees\indicator-r0r1")
-PORT = 8129
+
+#: ⛔⛔ A PORT ASSIGNMENT IS NOT A SERVER IDENTITY, AND THIS SCRIPT LEARNED IT THE
+#: EXPENSIVE WAY. `PORT` was the bare constant 8129 with no pre-bind check, so on
+#: 2026-09-17 a boot collided with a rig **another session had left running since
+#: 09-13** — four days old, booted from a checkout that predates R33a, R35c/R35d
+#: and R36. uvicorn died with a raw `[Errno 10048]` buried in the log while the
+#: INCUMBENT kept answering `/api/health` with **200**, so the obvious health
+#: check read as a successful boot.
+#:
+#: ⚰️ A capture taken then would have measured code four days stale — Clouds with
+#: no colour fold — and been reported as today's. The only thing that caught it
+#: was reading the listener's **start time**, not that something answered.
+#:
+#: ⭐ SO THE CHECK CONNECTS RATHER THAN BINDS, AND IT NEVER KILLS THE INCUMBENT —
+#: the same shape `hub_sandbox_boot.py` already uses: refuse, name the command
+#: that finds the owner, and let the operator decide.
+PORT = int(os.environ.get("UCT_RIG_PORT", "8129"))
+
+
+def _refuse_if_port_busy(port: int) -> None:
+    """Refuse to boot on a port somebody else holds. Connect, never bind."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(1.5)
+    try:
+        busy = s.connect_ex(("127.0.0.1", port)) == 0
+    finally:
+        s.close()
+    if not busy:
+        return
+    raise SystemExit(
+        f"[rig] REFUSING TO BOOT: something is already listening on 127.0.0.1:{port}.\n"
+        f"[rig] It is NOT this session's and will NOT be killed. Find its owner:\n"
+        f"[rig]   Get-NetTCPConnection -LocalPort {port} -State Listen |\n"
+        f"[rig]     ForEach-Object {{ Get-Process -Id $_.OwningProcess | "
+        f"Select-Object Id,ProcessName,StartTime }}\n"
+        f"[rig] Then either stop it deliberately, or boot elsewhere:\n"
+        f"[rig]   UCT_RIG_PORT=<free port> python docs/pine/wip/rig/boot_rig.py\n"
+        f"[rig] ⛔ A server that merely ANSWERS is not this run's server: check its\n"
+        f"[rig]    START TIME. A stale one serves 200s from code you are not testing."
+    )
 
 
 def _worktree_root(path: pathlib.Path):
@@ -108,6 +148,7 @@ def main():
 
     sys.path.insert(0, str(REPO))
     os.chdir(REPO)
+    _refuse_if_port_busy(PORT)
     print(f"[rig] sandbox {sb}", flush=True)
     print(f"[rig] http://127.0.0.1:{PORT}", flush=True)
     import uvicorn
