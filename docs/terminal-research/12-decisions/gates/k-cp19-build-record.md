@@ -11,10 +11,10 @@ status: UNSIGNED
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick
+APPROVED ON:      2026-09-18
+APPROVED AT SHA:  ce5f54e14
+SCOPE APPROVED:   CP19 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP19 — `_resolution_landed`'s base ref is a PARAMETER, and `replay()` consults it
