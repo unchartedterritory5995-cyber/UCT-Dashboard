@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2114,
+  "passed": 2085,
+  "failed": 21,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 212.96,
+  "failed_files": [
+    "tests/test_gate_box_lock.py",
+    "tests/test_gitattributes_eol.py",
+    "tests/test_implied_backfill.py",
+    "tests/test_launch_hardening.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "21 failed, 2085 passed, 8 skipped, 14 warnings in 212.96s (0:03:32)",
+  "ok": true
+}

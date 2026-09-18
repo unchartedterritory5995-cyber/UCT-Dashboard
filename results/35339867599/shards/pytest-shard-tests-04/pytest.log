@@ -1,0 +1,257 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+.....F.................................................................. [ 18%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+..FF......F........                                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+_________ test_every_corporate_action_site_is_REGISTERED_with_a_state __________
+
+rows = [Row(path='api/services/bars_sanitize.py', kind='ADJUSTMENT_APPLIED', occurrences=5, state='outstanding', reason='_app...splits AND /v3/reference/dividends — the only file reading both. CP3 moves the splits half behind a D1 adapter.'), ...]
+
+    def test_every_corporate_action_site_is_REGISTERED_with_a_state(rows):
+        """⛔ THE RAIL. It fails BY NAME, never with a count."""
+        unregistered = sorted((r.path, r.kind) for r in rows if r.state == "UNREGISTERED")
+>       assert not unregistered, (
+            "a corporate-action site nobody has classified:\n" +
+            "\n".join("    %s [%s]" % (p, k) for p, k in unregistered) +
+            "\n\nAdd it to tools/corp_actions_census.py::REGISTER with one of "
+            f"{cac.STATES} and, if `outside`, a written reason.")
+E       AssertionError: a corporate-action site nobody has classified:
+E             api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED]
+E         
+E         Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+E       assert not [('api/services/wisdom/capture/families/gex.py', 'VENDOR_ADJUSTED')]
+
+tests/test_corp_actions_census.py:88: AssertionError
+____ test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason ____
+
+rows = [Row(path='api/services/bars_sanitize.py', kind='ADJUSTMENT_APPLIED', occurrences=5, state='outstanding', reason='_app...splits AND /v3/reference/dividends — the only file reading both. CP3 moves the splits half behind a D1 adapter.'), ...]
+
+    def test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason(rows):
+        """⛔ `outside` IS A DECISION, NOT A SUPPRESSION. An exclusion with no reason
+        attached is a silent skip wearing a register's clothes."""
+        for r in rows:
+>           assert r.state in cac.STATES, f"{r.path} [{r.kind}] has state {r.state!r}"
+E           AssertionError: api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] has state 'UNREGISTERED'
+E           assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+E            +  where 'UNREGISTERED' = Row(path='api/services/wisdom/capture/families/gex.py', kind='VENDOR_ADJUSTED', occurrences=1, state='UNREGISTERED', reason='').state
+E            +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+
+tests/test_corp_actions_census.py:99: AssertionError
+__________ test_the_census_runs_as_a_command_and_reports_its_verdict ___________
+
+    def test_the_census_runs_as_a_command_and_reports_its_verdict():
+        """⛔ AN AUDIT NOBODY CAN RUN READS AS COVERAGE. This programme's own
+        history: the Desk insights pass was written, documented as scheduled, and
+        wired into no scheduler for weeks."""
+        r = subprocess.run([sys.executable, str(_TOOL)], cwd=str(_REPO),
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace")
+>       assert r.returncode == 0, (
+            "the census exits non-zero, so something is unregistered:\n"
+            + (r.stdout or "") + (r.stderr or ""))
+E       AssertionError: the census exits non-zero, so something is unregistered:
+E         CORPORATE-ACTIONS CENSUS — 24 rows across 22 files
+E         
+E         adjustment entry points, DERIVED from api/**'s own defs:
+E             _apply_split_adjust          api/services/bars_sanitize.py:480
+E             unadjusted_splits            api/services/bars_sanitize.py:384
+E         
+E         == PROVIDER_READ — 4 rows (outstanding 3, migrated 0, outside 1) ==
+E             api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+E             api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+E             api/services/massive.py                                  PROVIDER_READ        x1   outstanding  Massive /v3/reference/splits behind get_split_tickers, which the D5 pa
+E             api/services/polygon_extras.py                           PROVIDER_READ        x2   outstanding  Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+E         
+E         == ADJUSTMENT_APPLIED — 2 rows (outstanding 2, migrated 0, outside 0) ==
+E             api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x5   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+E             api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+E         
+E         == VENDOR_ADJUSTED — 18 rows (outstanding 8, migrated 0, outside 9) ==
+E             api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+E             api/gex_service.py                                       VENDOR_ADJUSTED      x4   outside      options GEX surface; an equity split basis is not a claim it makes, an
+E             api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+E             api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+E             api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+E             api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+E             api/services/bars_fetch.py                               VENDOR_ADJUSTED      x6   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+E             api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+E             api/services/breadth_pit_frame.py                        VENDOR_ADJUSTED      x4   outstanding  get_grouped_daily_frame(..., adjusted=True) — the point-in-time breadt
+E             api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+E             api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+E             api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+E             api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+E             api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+E             api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+E             api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   UNREGISTERED 
+E         
+E         ⛔ UNREGISTERED (1) — a corporate-action site nobody has classified:
+E             api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...action site nobody has classified:\n    api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1\n", stderr='').returncode
+
+tests/test_corp_actions_census.py:223: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_corp_actions_census.py::test_every_corporate_action_site_is_REGISTERED_with_a_state - AssertionError: a corporate-action site nobody has classified:
+      api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED]
+  
+  Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+assert not [('api/services/wisdom/capture/families/gex.py', 'VENDOR_ADJUSTED')]
+FAILED tests/test_corp_actions_census.py::test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason - AssertionError: api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] has state 'UNREGISTERED'
+assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+ +  where 'UNREGISTERED' = Row(path='api/services/wisdom/capture/families/gex.py', kind='VENDOR_ADJUSTED', occurrences=1, state='UNREGISTERED', reason='').state
+ +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+FAILED tests/test_corp_actions_census.py::test_the_census_runs_as_a_command_and_reports_its_verdict - AssertionError: the census exits non-zero, so something is unregistered:
+  CORPORATE-ACTIONS CENSUS — 24 rows across 22 files
+  
+  adjustment entry points, DERIVED from api/**'s own defs:
+      _apply_split_adjust          api/services/bars_sanitize.py:480
+      unadjusted_splits            api/services/bars_sanitize.py:384
+  
+  == PROVIDER_READ — 4 rows (outstanding 3, migrated 0, outside 1) ==
+      api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+      api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+      api/services/massive.py                                  PROVIDER_READ        x1   outstanding  Massive /v3/reference/splits behind get_split_tickers, which the D5 pa
+      api/services/polygon_extras.py                           PROVIDER_READ        x2   outstanding  Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+  
+  == ADJUSTMENT_APPLIED — 2 rows (outstanding 2, migrated 0, outside 0) ==
+      api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x5   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+      api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+  
+  == VENDOR_ADJUSTED — 18 rows (outstanding 8, migrated 0, outside 9) ==
+      api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+      api/gex_service.py                                       VENDOR_ADJUSTED      x4   outside      options GEX surface; an equity split basis is not a claim it makes, an
+      api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+      api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+      api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+      api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+      api/services/bars_fetch.py                               VENDOR_ADJUSTED      x6   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+      api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+      api/services/breadth_pit_frame.py                        VENDOR_ADJUSTED      x4   outstanding  get_grouped_daily_frame(..., adjusted=True) — the point-in-time breadt
+      api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+      api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+      api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+      api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+      api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+      api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+      api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   UNREGISTERED 
+  
+  ⛔ UNREGISTERED (1) — a corporate-action site nobody has classified:
+      api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...action site nobody has classified:\n    api/services/wisdom/capture/families/gex.py [VENDOR_ADJUSTED] x1\n", stderr='').returncode
+4 failed, 1527 passed, 1 skipped, 224 warnings in 135.58s (0:02:15)
