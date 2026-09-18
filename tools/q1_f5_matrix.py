@@ -1775,16 +1775,51 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # ⛔ This does NOT weaken the control — a sentence that never lands still
         # refuses the cell at the end of the budget. It stops refusing cells where
         # the sentence landed a second after the rig happened to look.
+        # ⛔⛔ AND TYPE AGAIN ONCE IF IT DID NOT LAND. Measured 2026-09-18 across
+        # five chunks: this setup step fails intermittently at roughly ONE CELL
+        # PER SEVEN, and it MOVES BETWEEN FAMILIES (`tags`, then
+        # `append_document_excerpt`, then `folder`) — so it is a flaky keystroke
+        # delivery, not a property of any door.
+        #
+        # ⭐ THE ARITHMETIC IS WHY THIS MATTERS, AND IT IS NOT A SMALL EFFECT. A
+        # chunk is banked only if EVERY cell in it lands in ONE attempt, so at
+        # ~85% per cell a 7-cell chunk passes ~32% of the time and a 4-cell chunk
+        # ~52%. That is exactly what was observed: the 4-cell chunk banked on
+        # attempt 3, the 7-cell chunks kept latching INCONCLUSIVE with six of
+        # seven GREEN. One retry per cell turns ~85% into ~98%, which turns a
+        # 7-cell chunk from ~32% to ~87%.
+        #
+        # ⛔ ONE retry, never a loop. A keystroke that does not land twice is not
+        # slow delivery, it is something else, and the cell must still refuse
+        # rather than grind. The control is unchanged: a sentence that never
+        # reaches the durable copy still produces INCONCLUSIVE at the end.
         q = None
-        _qdeadline = time.time() + SETUP_QUEUED_BUDGET_S
-        while time.time() < _qdeadline:
-            q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
-                                          "sentence": sentence})
-            if isinstance(q, dict) and q.get("sentenceInQueuedEntry"):
+        for _attempt in (1, 2):
+            _qdeadline = time.time() + SETUP_QUEUED_BUDGET_S
+            while time.time() < _qdeadline:
+                q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                              "sentence": sentence})
+                if isinstance(q, dict) and q.get("sentenceInQueuedEntry"):
+                    break
+                if isinstance(q, dict) and q.get("err"):
+                    break  # a store that cannot be READ is not a store that is EMPTY
+                page.wait_for_timeout(500)
+            if not isinstance(q, dict) or q.get("sentenceInQueuedEntry") or q.get("err"):
                 break
-            if isinstance(q, dict) and q.get("err"):
-                break  # a store that cannot be READ is not a store that is EMPTY
-            page.wait_for_timeout(500)
+            if _attempt == 1:
+                log(f"      the sentence did not reach the durable copy in "
+                    f"{SETUP_QUEUED_BUDGET_S}s (on screen: {q.get('sentenceOnScreen')}) "
+                    f"— re-focusing the editor and typing it ONCE more")
+                try:
+                    pm2 = page.wait_for_selector(".ProseMirror",
+                                                 timeout=SETUP_EDITOR_MOUNT_MS,
+                                                 state="attached")
+                    pm2.click()
+                    page.keyboard.press("End")
+                    page.keyboard.type(" " + sentence)
+                except Exception as _e:  # noqa: BLE001
+                    log(f"      the re-type could not run ({type(_e).__name__})")
+                    break
         log(f"      queued: {q}")
         if not isinstance(q, dict) or q.get("err"):
             return {"verdict": "INCONCLUSIVE",
