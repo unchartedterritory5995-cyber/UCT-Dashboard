@@ -2,6 +2,35 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 11:35 ET — 🟡 H.8: ONE LEG OF THREE. ⛔ THE FULL GATE IS HELD BY ANOTHER WORKSTREAM.
+>
+> **RTH was open, so the engine legs were attempted rather than deferred.**
+> Symbol SPY, one moment, 15:35:32 UTC:
+> · `bars.py` developing daily bar → `v` **30,092,264** (c 759.70, 200 rows) ✅
+> · `scan_evaluator.live_bars_for` → **refused**, `no-live-quote / no_feed`,
+>   `live_cols 0` — the scanner declining to invent a forming row, which is the
+>   contract working. ⛔ WHY the snapshot was empty (`get_full_market_snapshot()`
+>   returned **0 rows** while the same credentials served 200 bars) is **NOT
+>   established** — entitlement, a second key name, or transport; naming one
+>   would be an invented cause. The next probe of the key name was **refused by
+>   the harness as credential exploration**, correctly, and not routed around.
+> · TradingView leg → still needs R39's signed-in browser.
+> ⚠️ Recorded, not concluded: two reads **49 s apart** in RTH returned the
+> IDENTICAL volume — consistent with the served payload's cache TTL rather than a
+> tick-level read. That is a candidate explanation, not a measurement, and it is
+> exactly the kind of divergence H.8 exists to compare.
+>
+> ⛔ **THE SIX-SHARD GATE (Part 5.2) DID NOT RUN — AND THAT IS THE BOX LOCK
+> WORKING.** `VERDICT=REFUSED-LOCK exit=4`, holder **pid 11408** since
+> **10:26:20**, workstream **joystick-launch-close**, `--shards 6
+> --max-workers 1`. Not bypassed: the refusal itself says a bypass still lands
+> INCONCLUSIVE-CONTENDED while that holder is alive, and "one gate at a time on
+> this machine" is the rule that cost this box a `node_modules` and a worktree.
+> ⚠️ Nothing heavy was started beside it. Re-run when pid 11408 is gone.
+>
+> ⭐ **Note the wrapper lied again, as designed-for:** the background task reported
+> "exit code 0" while the gate's own line read `GATE EXIT: 4`. Read the log.
+
 > ### ⏱️ 2026-09-18 (R39) — ✅ THE SESSION-OWNED BROWSER IS BUILT AND PROVEN. ⌨ ONE OWNER STEP LEFT.
 >
 > `tools/pine_vendor_capture.py`. Opens a **headed Playwright Chromium on a

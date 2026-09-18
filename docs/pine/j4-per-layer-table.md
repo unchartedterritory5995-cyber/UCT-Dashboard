@@ -188,7 +188,36 @@ owner's TradingView account it is not**: a click behind a failing visibility gat
 is exactly the case the gate was written for, and taking one would be the
 "a rendering is not the source" failure with somebody else's layouts underneath.
 
-⚠️ **H.8 is additionally out of session.** Its measurement is the developing
+### H.8 — ONE LEG OF THREE IS MEASURED (2026-09-18, RTH open)
+
+Taken at **15:35:32 UTC / 11:35 ET**, Friday, market open, symbol **SPY** — the
+same symbol and timeframe as the member-door capture.
+
+| leg | reading |
+|---|---|
+| `bars.py` developing daily bar | `t 2026-09-18 · c 759.70 · **v 30,092,264**` (200 rows) |
+| `scan_evaluator.live_bars_for` | **REFUSED** — `reason "no-live-quote" · detail "no_feed" · live_cols 0` |
+| TradingView, same minute | **NOT TAKEN** — needs the signed-in browser (R39) |
+
+⭐ **THE REFUSAL IS THE SCANNER WORKING, NOT THE FEED FAILING.** `live_bars_for`
+was handed a quote it could not use and returned a named refusal instead of a
+forming row — which is exactly `_f`'s contract ("a price of 0 is never true of
+anything"). ⛔ **What is NOT established is WHY the snapshot was empty**:
+`get_full_market_snapshot()` returned **0 rows** in this process while the same
+credentials served 200 daily bars through the bars path. Entitlement, a second
+key name, or transport — three candidates, none measured, and naming one would
+be the invented-cause defect. The next attempt at the missing key name was
+**refused by the harness as credential exploration**, correctly, and was not
+routed around.
+
+⚠️ **AND A SECOND OBSERVATION, RECORDED RATHER THAN CONCLUDED.** Two reads
+**49 seconds apart** during RTH returned the **identical** volume 30,092,264.
+That is consistent with the served payload's own cache TTL rather than a
+tick-level read — which is a plausible explanation and not a measurement. It is
+also precisely the kind of thing H.8 exists to compare, so it is written down
+where the vendor leg will land beside it.
+
+⚠️ **H.8's original blocker also stands.** Its measurement is the developing
 bar's volume read in `bars.py`, in `scan_evaluator.py` and on the vendor chart
 **at the same moment**; the run reached this point at **02:24 ET**, with no
 developing bar to read. Both code sites were re-read and are unchanged
