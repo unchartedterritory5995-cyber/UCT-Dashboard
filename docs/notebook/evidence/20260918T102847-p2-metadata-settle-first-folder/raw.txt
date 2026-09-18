@@ -1,0 +1,67 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 6 cell(s) to run · stamp 2026-09-18T15-28-47Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 2, 'deadNotes': 2, 'removed': 2}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ folder  ·  settle-first
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T15:30:26.364293+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T15:30:26.364293+00:00', 'marker': None, 'ring': ['2026-09-18T15:30:26.364293+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '93+00:00', True), (0, False, 'None', True)]
+      drain: emptied after 5.0s
+      wire: POST /→200 · POST /2b3ebe5ad50140918175285a78094b52/opened→None · POST /2b3ebe5ad50140918175285a78094b52/opened→200 · PUT /2b3ebe5ad50140918175285a78094b52[07+00:00]→200 · PUT /2b3ebe5ad50140918175285a78094b52+SENT[93+00:00]→None · PUT /2b3ebe5ad50140918175285a78094b52+SENT[93+00:00]→None · PUT /2b3ebe5ad50140918175285a78094b52+SENT[93+00:00]→None · PUT /2b3ebe5ad50140918175285a78094b52→200 · PUT /2b3ebe5ad50140918175285a78094b52+SENT[93+00:00]→409 · PUT /2b3ebe5ad50140918175285a78094b52+SENT[76+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T15:30:26.364293+00:00` · 5 request(s) carried the sentence (la
+
+═══ folder  ·  drain-first (the editor could NOT report local state)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': False, 'sentenceInQueuedEntry': False, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T15:31:33.459903+00:00', 'dirty': True}
+      cleanup: {'err': 502}
+   ⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer, 
+
+═══ folder  ·  marker LIVE
+      /api/auth/me → 502: a deploy swap. Waiting for a pod to settle (bounded 360s)…
+      swap-wait: status=200 uptime=30 bundle=VUp_6oMw (0s)
+      swap-wait: status=200 uptime=45 bundle=VUp_6oMw (15s)
+      swap-wait: status=200 uptime=59 bundle=VUp_6oMw (29s)
+      swap-wait: status=200 uptime=74 bundle=VUp_6oMw (43s)
+      settled after 43.8s — uptime 45→74s strictly monotonic over 3 readings, bundle VUp_6oMw; re-asking auth ONCE
+   ⇒ INCONCLUSIVE  a deploy swap settled after 43.8s but /api/auth/me still answered {'status': 500, 'json': False} — swap not settled for THIS cell. INSTRUMENT fact, no
+
+═══ folder  ·  marker EXPIRED
+      /api/auth/me → 500: a deploy swap. Waiting for a pod to settle (bounded 360s)…
+      swap-wait: status=200 uptime=97 bundle=VUp_6oMw (6s)
+      swap-wait: status=200 uptime=119 bundle=VUp_6oMw (22s)
+      swap-wait: status=200 uptime=133 bundle=VUp_6oMw (36s)
+      settled after 36.8s — uptime 97→133s strictly monotonic over 3 readings, bundle VUp_6oMw; re-asking auth ONCE
+      auth is back — resuming the cell
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T15:36:04.665329+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, dead session, aged past the TTL', 'baseUpdatedAt': '2026-09-18T15:36:04.665329+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789745789479, 'baseUpdatedAt': '2026-09-18T15:36:04.665329+00:00'}, 'ring': ['2026-09-18T15:36:04.665329+00:00']}
+      door: {'ok': True, 'via': 'select.change'}
+      stayed on the note — no return navigation (this is the variable)
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '29+00:00', True), (0, False, 'None', True)]
+      drain: emptied after 5.0s
+      wire: POST /→200 · POST /9957c3b254134d12b5f060f84ec4acd0/opened→200 · PUT /1f20bfe985c14058be1bc4c3acdfe83b[03+00:00]→409 · PUT /1f20bfe985c14058be1bc4c3acdfe83b[54+00:00]→200 · PUT /9957c3b254134d12b5f060f84ec4acd0[51+00:00]→200 · PUT /9957c3b254134d12b5f060f84ec4acd0+SENT[29+00:00]→None · PUT /9957c3b254134d12b5f060f84ec4acd0+SENT[29+00:00]→None · PUT /9957c3b254134d12b5f060f84ec4acd0→200 · PUT /9957c3b254134d12b5f060f84ec4acd0+SENT[29+00:00]→409 · PUT /9957c3b254134d12b5f060f84ec4acd0+SENT[18+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T15:36:04.665329+00:00` · 4 request(s) carried the sentence (la
+
+═══ folder  ·  slow PUT (landed, ring populated)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': False, 'sentenceInQueuedEntry': False, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T15:37:32.936375+00:00', 'dirty': True}
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer, 
+
+═══ folder  ·  reload mid-flight (marker from a dead tab)
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 2, 'queuedForThisNote': 1, 'sentenceInDurableCopy': False, 'sentenceInQueuedEntry': False, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T15:38:55.435719+00:00', 'dirty': True}
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) — an INSTRUMENT answer, 
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): '0' the rig IS opted out
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:13052) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

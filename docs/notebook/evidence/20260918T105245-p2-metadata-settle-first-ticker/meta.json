@@ -1,0 +1,17 @@
+{
+  "id": "p2-metadata-settle-first-ticker",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "ticker",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T10:52:45",
+  "seconds": 211.3,
+  "why": "P2 stage-1 proof, guard still FULL. The `ticker` metadata door, settle-first. These doors go through `settleLandedSave`, which Q1 fix 6 rewired to ask the SHARED authority `discardsUnsentWork` instead of its own inline copy. The behaviour must be UNCHANGED - that is what makes the extraction safe, and it is exactly what M2 proved at unit level (killing the shared predicate reds fix 4's rails too). This is the production half of that proof."
+}
