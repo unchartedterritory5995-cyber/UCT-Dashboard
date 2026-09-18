@@ -164,6 +164,7 @@ UNITS = [
     ("e-cp34-build-record", ["4c4ba1cb1"], False),
     ("e-cp35-build-record", ["d50fadadf"], False),          # F-OPS-1
     ("e-cp36-build-record", ["afbbd39b5"], False),          # F-CI-46
+    ("e-cp37-build-record", ["e9741b9d4"], False),          # stale test_weekly_exec rail
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
