@@ -1,13 +1,30 @@
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
 > sub-timers (live now that its push landed — see below) and name, by field, which SQLite
-> touch carries the 80-110s; R49 LIVE REHEARSAL (gate opens 16:20 ET today — check for a
-> genuinely settled window, not just the clock, given today's sustained deploy churn; weekend
-> otherwise); W8 (accuracy audit, **BUILT + rail-proved 2026-09-18, no live/production run
-> yet** — see below); R69 (build+prove locally this weekend for Monday); R62 — **today's
-> 09:30-16:00 ET market-open window closed without a clean 10-consecutive-receipt streak**
-> (read live at ~19:16 UTC: held_lock_ms bounced 456-3200ms all session, never close to
-> settled — today was never quiet enough; retry Monday); W5/canary/Monday-F1/member-flip/
-> close-out downstream of all of the above.
+> touch carries the 80-110s; R49 LIVE REHEARSAL (**deferred again, ~20:23 ET or later today,
+> or weekend — see below, a mechanical lock conflict, not a judgment call**); W8 (accuracy
+> audit, **BUILT + rail-proved 2026-09-18, no live/production run yet** — see below); R69
+> (build+prove locally this weekend for Monday); R62 — **today's 09:30-16:00 ET market-open
+> window closed without a clean 10-consecutive-receipt streak** (read live at ~19:16 UTC:
+> held_lock_ms bounced 456-3200ms all session, never close to settled — today was never quiet
+> enough; retry Monday); W5/canary/Monday-F1/member-flip/close-out downstream of all of the
+> above.
+>
+> ⏳ **R49 GATE OPENED 16:20 ET, REHEARSAL STILL NOT RUN — two separate reasons, recorded
+> before acting on either.** (1) Traced `do_rollback`'s positive path before touching anything:
+> a firing rollback that observes no natural boot within 180s issues an UNCONDITIONAL
+> `railway redeploy --service web --yes` — a real forced production restart entirely outside
+> the pre-push guard (a direct Railway CLI call, not a git push), so it could collide with
+> another workstream's in-flight deploy on a day that has had zero quiet stretches. Put to the
+> owner; delegated back. Judgment: negative control only today, positive path (the forced
+> redeploy) held for a window without that collision risk. (2) **The negative control itself
+> is mechanically blocked right now**: `d14_monitor.py`'s own lock file is held by a LIVE,
+> standing process — `python d14_monitor.py --minutes 360`, PID 25724, started 14:23:01 ET,
+> running until ~20:23 ET (the overnight/continuous D-14 poller, not started this pass). A
+> second invocation would silently exit "another poller holds the lock" — indistinguishable
+> from a clean pass unless checked for exactly this. **Not killed**: that process is a
+> concurrent session's standing infrastructure, not mine to interrupt without coordination.
+> Full account: `evidence/d18/R49-rollback-watchdog-2026-09-18.md`. Next window: ~20:23 ET
+> naturally, the weekend, or sooner with an explicit owner-coordinated pause of the poller.
 >
 > ✅ **R71's TWO-STEP PROOF IS NOW FULLY CLOSED, 2026-09-18.** (1) `d517e7cd7`
 > (`docs/d21-checklist-proof` branch, the master-tracked `D14-LOG.md`) came back **SKIPPED** —

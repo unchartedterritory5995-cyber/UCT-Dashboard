@@ -87,3 +87,39 @@ for one test run, which is the next concrete step before treating this rehearsal
   `PAGE_PROBE` assumes (`sys.path.insert(0, "/app")` then `from api.services import
   chart_health_alerts`) — mirrors the existing `poll_once` SSH pattern's assumptions but has not
   itself been exercised against the live pod.
+
+## Live rehearsal — attempted 16:16 ET, blocked by a mechanical conflict, not a judgment call
+
+Checked the moment the 16:20 ET gate was about to open. Two things changed the plan:
+
+1. **Traced `do_rollback`'s own positive-path mechanics before touching anything**: if the
+   synthetic trigger fires and no natural boot appears within 180s, it issues an
+   **unconditional `railway redeploy --service web --yes`** — forcing an immediate production
+   restart, entirely outside the pre-push guard's protections (a direct Railway CLI call, not
+   a git push, so none of today's recency/burst/settle checks apply). Given today's persistent,
+   unpredictable concurrent deploy activity from other workstreams (the exact reason R62 never
+   found a clean window all day), this could collide with someone else's in-flight deploy —
+   the same D-05 shape the push guard exists to prevent, reached by a door the guard cannot see.
+   Put to the owner; the owner delegated the call. Judgment: run the NEGATIVE control (passive,
+   zero writes) today; hold the POSITIVE path (forces a real redeploy) for a window without
+   this collision risk.
+
+2. **The negative control itself cannot run right now, for a reason the staging doc did not
+   anticipate.** `d14_monitor.py`'s own lock (`OUT_DIR/.poller.lock`) is held by a LIVE,
+   ALREADY-RUNNING process: `python d14_monitor.py --minutes 360`, PID 25724, started
+   14:23:01 ET (confirmed via `Get-CimInstance Win32_Process`), which will run until ~20:23 ET.
+   This is the standing overnight/continuous D-14 observability poller (not started this pass),
+   and `main()`'s own lock check (`if _lock_held(): ... return 0`) means a SECOND invocation —
+   my rehearsal — would silently exit doing nothing the instant it tried to run, which would be
+   indistinguishable from "ran cleanly, nothing fired" unless checked for exactly this.
+   **Not killed.** That process is a concurrent session's active, standing infrastructure, not
+   mine to interrupt without coordination — the same rule this repo applies to reaping any
+   other workstream's live process (signature + age + worktree, never by convenience, never
+   mid-observation).
+
+**Consequence: R49's live rehearsal, BOTH halves, is deferred again today** — not because the
+mechanism isn't ready (it is, rail-proved, sha-verified), and not purely because of deploy
+turbulence, but because the staged procedure's own lock file is legitimately busy with standing
+work. **Next window: after ~20:23 ET when the current 360-minute poller window ends naturally,
+or the weekend, or a coordinated pause of the overnight poller if the owner wants it sooner.**
+Nothing about this changes R49's own readiness — the gate is external, not the tool.
