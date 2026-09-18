@@ -99,6 +99,7 @@
 #!after: e-cp36-build-record <- e-cp35-build-record
 #!after: e-cp37-build-record <- e-cp36-build-record
 #!after: e-cp38-build-record <- e-cp37-build-record
+#!after: d-cp4-build-record <- e-cp38-build-record
 #!last: s2-accelerator-chord-pre-implementation-gate
 
 docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
@@ -167,3 +168,4 @@ docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 51c470
 docs/terminal-research/12-decisions/gates/e-cp36-build-record.md | CP36 | 85bd06d20
 docs/terminal-research/12-decisions/gates/e-cp37-build-record.md | CP37 | 99f53fb54
 docs/terminal-research/12-decisions/gates/e-cp38-build-record.md | CP38 | 2e91d23c6
+docs/terminal-research/12-decisions/gates/d-cp4-build-record.md | CP4 | 45472396e
