@@ -1,19 +1,40 @@
-> **NEXT WAKE REASON (D-20):** R72's actual code (three sub-timers + contention_trace_temp
-> reuse, needs a real boot to verify — see below), R62 retry (needs a settled window — a THIRD
-> deploy today, R73's own, is landing now), R69 (flow-worker, proof by Monday 04:00 ET under
-> R60), W8, W5, canary R38/R39.
+> **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
+> sub-timers (live once its push clears the recency window — see below) and name, by field,
+> which SQLite touch carries the 80-110s; R49 LIVE REHEARSAL (not yet run — the D-21 checklist
+> is set-flag → confirm in-process → inject breach → confirm the SCHEDULED-TASK monitor unsets it
+> → confirm the page → confirm the log, for BOTH canary and member phase); W8 (accuracy audit,
+> not started); R69 (build+prove locally this weekend for Monday); R62 retry (first window with
+> no api/ deploy in the prior 20 min); W5/canary/Monday-F1/member-flip/close-out downstream of
+> all of the above.
 >
-> 🟡 **D-20 PROGRESS 2026-09-18 (this pass):** R71 read-only investigation + derived watch-path
-> list DONE, dashboard flip handed off (`BLOCKED-permission` — no CLI path exists, and this
-> Chrome profile has no Railway session; signing in is outside what this session may do).
-> R49 BUILT + rail-proved (11-case self-check, 3/3 required mutations RED, all sha-verified
-> restored); live rehearsal deliberately deferred (today already had two unplanned web deploys
-> collide with the R62 window; the rehearsal itself would be a third). R72's own premise
-> (cold caches) was CHECKED AGAINST SOURCE and does not hold — `derive_row` is pure in-memory
-> arithmetic, `cap_universe` is never referenced in `live_tier.py`; redirected to a
-> code-evidenced SQLite-lock-contention hypothesis (`screener.db`'s `busy_timeout=5000`), with
-> the concrete next patch fully specified but NOT built (needs a real boot to verify per R63(c)'s
-> own stated constraint — "needs production time to pass, not more code tonight").
+> 🟢 **D-21 PROGRESS 2026-09-18 (this pass) — owner corrected R71's D-20 conclusion.** R71 is
+> **config-as-code, not a login**: Railway's `build.watchPatterns` in `railway.web.json` (web's
+> OWN config file, confirmed live via deployment metadata — distinct from the SHARED
+> `railway.json` worker/bars-api/flow-worker/terminal-next-monitor branch off) is a documented,
+> real field (confirmed against Railway's own docs, gitignore-style syntax). **DONE and MERGED**
+> (`5f21367b2`, fast-forward): `api/**`, `app/**`, `requirements*.txt`, `railway*.json`,
+> `Dockerfile.web`, plus the two tools this repo's own watch-coverage checker names.
+> ⏳ **R71's own two-step PROOF is not yet run**: (1) a docs-only D14-LOG.md push must produce NO
+> web deploy record — not yet attempted; (2) R72's api/ push (below) must still deploy normally —
+> pending its own push clearing the recency window.
+> ✅ **R72's code is BUILT and PUSHED** (`fix/r72-sqlite-instrument` → master, landing right after
+> R71's): the three named sub-timers (`_timed_touch`, `live_tier.py`) with busy-wait genuinely
+> separated from statement time — `set_busy_handler` confirmed REMOVED on this Python
+> (3.14 / sqlite3 3.50.4), so the retry is implemented by hand against a `busy_timeout_ms=0`
+> connection, capped at the same 5000ms every other caller already had. Reuses
+> `contention_trace_temp`'s existing `_active_jobs_snapshot()`/`_wal_state()` verbatim (a fourth
+> call site, not a reimplementation), captured on EVERY receipt (not gated on a threshold — see
+> the deviation recorded in the R72 evidence doc). **Rail mutation-proved**: summing both timers
+> into one reds exactly the two contention-bearing test cases and nothing else; reverted.
+> 89/89 green (`test_r72_sqlite_touch_timing.py` + the full `test_screener_live_tier.py`).
+> ⏳ Push is retrying past the post-R71-deploy recency window (Monitor `bobl2rjnt`); once merged,
+> **read the next ≥3 real boots** before choosing a fix — no candidate is picked before that.
+> Full account: `evidence/d18/R72-boot-window-screener-derive-2026-09-18.md` (updated this pass),
+> `evidence/d18/R71-web-watch-paths-2026-09-18.md` (its `BLOCKED-permission` conclusion is now
+> SUPERSEDED by the above — read the D-21 correction there before trusting that doc's own verdict).
+> ⏳ **R49's live rehearsal is still not run** (was deliberately deferred under D-20's own
+> reasoning about an unsettled day; D-21 explicitly directs running it this weekend / after
+> 16:20 ET in a genuinely settled window) — the build + rail-proof from D-20 stand unchanged.
 > ✅ **R73 DONE, MERGED TO MASTER** (`fcc7d5b3b`, fast-forward, pre-push guard cleared): both
 > `memory_probe.py` and `contention_trace_temp.py` now reset `wrapped.__qualname__`, not just
 > `__name__` — APScheduler's `get_callable_name` reads the former. 2 new tests (named functions,

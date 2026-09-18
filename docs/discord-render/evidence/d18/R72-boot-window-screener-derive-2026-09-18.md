@@ -95,3 +95,57 @@ a chance to read it against a real episode this session would be motion, not pro
    choosing among those now, before knowing which of anchor-read/upsert/prune actually dominates,
    would be exactly the "one candidate is a story, not a finding" trap this whole programme's own
    `oi44_align.py` was built to avoid.
+
+## D-21 — BUILT and MERGED (2026-09-18), the "not built tonight" step from above is now done
+
+Owner directive D-21 corrected the R71 approach (config-as-code, not a login — see R71's own
+doc) and explicitly authorized building this step's instrumentation now: *"That needs a boot to
+verify, and boots are not scarce — instrument now, read on the next one."*
+
+**What shipped** (`fix/r72-sqlite-instrument` → `master`, api/ commit, landing right after R71's):
+
+- `api/services/screener/live_tier.py::_timed_touch` — the three sub-timers this doc specified,
+  built. `sqlite3.Connection.set_busy_handler` — the historically-standard way to split
+  "busy-wait" from "statement time" — is **confirmed removed** on this box's Python (3.14 /
+  sqlite3 3.50.4; `hasattr(conn, "set_busy_handler")` is `False`), so `_timed_touch` implements
+  the retry itself: each of the three touches now runs against a connection opened with
+  `busy_timeout_ms=0` (SQLite raises `database is locked` immediately instead of blocking
+  internally), and `_timed_touch` retries with a 20ms sleep, accumulating every failed attempt +
+  sleep into `busy_wait_ms` while `statement_ms` is ONLY the final successful attempt's own
+  elapsed time. Total wait is capped at 5000ms — the same ceiling `busy_timeout=5000` already
+  gave every other caller — so a touch that never clears still raises
+  `sqlite3.OperationalError` exactly as before (`run_sweep`'s existing `except` clause is
+  unchanged).
+- Six new receipt fields, declared in `_blank_receipt` (not written only on the path that
+  measures it — this file's own standing rule): `sqlite_anchor_read_ms` /
+  `sqlite_anchor_read_busy_wait_ms`, `sqlite_upsert_ms` / `sqlite_upsert_busy_wait_ms`,
+  `sqlite_prune_ms` / `sqlite_prune_busy_wait_ms`.
+- `active_jobs_at_sweep` / `wal_state_at_sweep` — reused verbatim from
+  `contention_trace_temp._active_jobs_snapshot()` / `_wal_state()`, per D-21's explicit
+  instruction not to reinvent them. This is a FOURTH call site for that module (previously three:
+  `api/main.py`, `api/routers/screener.py`, `api/services/screener/query.py`).
+- ⚠️ **Deviation from this doc's own "Recommended next step" §1, stated so nobody reads the old
+  plan as current**: that section proposed gating the active-jobs/WAL capture on
+  `held_lock_ms >= 5000`. D-21 did not repeat that gate, and it was dropped deliberately — both
+  captures are cheap (a dict snapshot + four `os.path` stat calls), and capturing on EVERY cycle
+  means a slow cycle can be compared against the FAST cycles immediately before and after it in
+  the same log, rather than only ever seeing the slow tail in isolation. This also keeps the
+  receipt's own "same key set on every cycle" invariant honest without a conditional branch.
+
+**Rail** (`tests/test_r72_sqlite_touch_timing.py`, 4 cases): a write lock held in a SECOND
+connection, entirely outside `snapshot_db._WRITE_LOCK`, must show up in `busy_wait_ms` and
+nowhere in `statement_ms`. **Mutation-proved**, not merely asserted: `_timed_touch` was
+temporarily replaced with a version that sums both into one timer (busy-wait forced to 0.0,
+statement = total elapsed) — that mutation reds exactly the two contention-bearing cases
+(`test_busy_wait_absorbs_a_held_write_lock_never_the_statement_timer`,
+`test_a_touch_that_never_clears_still_raises_database_is_locked`) and correctly leaves the two
+no-contention cases green, then was reverted. 89/89 green
+(`test_r72_sqlite_touch_timing.py` + the full `test_screener_live_tier.py` suite, confirming no
+regression to the live tier this instruments).
+
+**Still open, unchanged from this doc's step 3 — needs a real boot, not more code**: read the
+next ≥3 real boot-window receipts once this is live and name, by field, which of anchor-read,
+upsert, or prune (or something the three sub-timers don't cover) actually carries the 80-110s
+seen in R62-F3-attempt, and whether `active_jobs_at_sweep` names a genuine contending writer at
+that instant. No fix is chosen before that reading — picking among the candidate fixes in step 4
+above now would be the same "story, not a finding" trap this doc already named.
