@@ -545,12 +545,31 @@ BURST_MIN_DEPLOYS = 3
 
 
 def recent_deployments() -> dict:
-    """`{"state": READ, "rows": [{commit, createdAt, status}, ...]}` or UNREADABLE."""
+    """`{"state": READ, "rows": [{commit, createdAt, status}, ...]}` or UNREADABLE.
+
+    ⛔ SKIPPED ROWS EXCLUDED — same reasoning as `latest_deployment()`'s fix, applied
+    here because BOTH cadence clauses below rest on "a BUILD may be in flight
+    somewhere" (the burst comment's own words). SKIPPED is Railway's own, immediate,
+    terminal answer that THIS commit never entered a build pipeline at all — it is
+    decided by matching the diff against `watchPatterns` at push time, with no
+    build/deploy stage to lag or flip later, unlike BUILDING/DEPLOYING which are
+    genuinely transitional. Counting a known-non-build toward "how many builds might
+    be in flight" cannot serve either clause's stated purpose, and R71's watchPatterns
+    change makes SKIPPED routine (any docs/tools-only push), not rare.
+
+    ⚰️ MEASURED LIVE, 2026-09-18: after the `latest_deployment()` fix unblocked one
+    push, THIS same day's docs/tools-only traffic (`bf100aadf`, `d517e7cd7`,
+    `888791525` — three separate SKIPPED rows) still tripped the BURST clause for
+    the next push, and would have kept doing so for up to ~44 more minutes as the
+    oldest SKIPPED row aged out of the 60-minute window — an escalating cost with no
+    real deploy anywhere in it."""
     raw = _read_rows()
     if raw.get("state") != "READ":
         return raw
     rows = []
     for d in raw["rows"]:
+        if (d.get("status") or "").upper() == "SKIPPED":
+            continue
         meta = d.get("meta") or {}
         rows.append({"commit": (meta.get("commitHash") or "")[:9],
                      "createdAt": d.get("createdAt"), "status": d.get("status"),
