@@ -588,6 +588,41 @@ argument reading, **outside this grant**; recorded, not fixed.
 ⛔ Either sub-step needing a 12th `NODE_TYPE`, a 42nd `REFUSALS` entry, a change
 outside `staticColourOf`'s colour branches, or a general folder **STOPS as H.10**.
 
+# ✅ `paramSingleTranslation` — CAUSE ESTABLISHED, OWED ENTRY CLOSED (2026-09-17)
+
+**It was R13** (`482c98bb7` — *"the closing pass resolves without minting"*).
+
+⭐ **ESTABLISHED BY CAUSATION, NOT BY BISECT.** A bisect names the commit; it does
+not name the mechanism, and the mechanism is what was owed. So R13's one option
+was REVERTED in place — the closing pass's probe given a live `paramMint` again —
+and the rail went red at once:
+
+```
+MUTATION Q1 — paramMint restored on the closing pass's probe
+  × one Pine input gets exactly one control
+    AssertionError: bullFloor is claimed twice: expected true to be false
+  1 failed | 10 passed (11)
+```
+
+⛔ **AND THE SYMBOL IS THE CONFIRMATION.** R13's own write-up names the three
+inputs it broke — *"three of which (`bullFloor`, `regTol`, `bearCeil`) are
+DECLARED member inputs and so ended up with two authorities over one input — the
+exact defect `paramSingleTranslation.test.js` exists to catch"*. The mutation
+reproduces `bullFloor` by name. The rail did not "go green on its own": it went
+green when the second authority over that input was removed, one commit that never
+touched the test file — which is exactly why "no commit touched it" was never
+evidence of anything.
+
+Restored byte-exact to `9836d75410d9edaff88a3dc27e2cae147ea6a8ad3fc06bd6e751b3ea46d56ca2`.
+**Removed from the owed list.**
+
+⚠️ The general form, worth keeping: **a test that starts passing without a commit
+that names it has still been caused by something.** "Cause not established" is a
+debt, not a resolution, and the cheapest way to settle it is usually to try to
+break it again rather than to walk the history.
+
+---
+
 # ✅ R36 — A PRESENTATION FOLD READS AN INPUT'S DEFAULT AND DOES **NOT** MINT (owner, 2026-09-17)
 
 > **Parameter ids (`__uct_param_N`) address saved member definitions. A parameter
