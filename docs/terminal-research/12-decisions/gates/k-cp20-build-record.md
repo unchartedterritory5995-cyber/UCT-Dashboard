@@ -13,8 +13,8 @@ status: UNSIGNED
 ```
 APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
 APPROVED ON:      2026-09-18
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED AT SHA:  51c47081a
+SCOPE APPROVED:   CP20 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > **K CP20 — F-ATTEST-ISO-1.** Scope is `tools/merge_all.py`

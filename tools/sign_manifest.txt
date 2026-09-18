@@ -160,4 +160,4 @@ docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementatio
 docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | T-CP2 | 21c37a3bc
 docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | CP34 | aa663d7e2
 docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | CP35 | 922385382
-docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 889cd03bf
+docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 51c47081a
