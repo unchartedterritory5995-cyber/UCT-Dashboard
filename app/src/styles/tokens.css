@@ -370,6 +370,35 @@
   --hub-rim-highlight: color-mix(in srgb, var(--text-heading) 35%, transparent);
   --hub-shadow: 0 10px 28px -8px color-mix(in srgb, var(--bg) 65%, transparent);
 
+  /* ─── W4 pass 1 — THE BUBBLE'S MATERIAL. 2026-09-18 ────────────────────────────────────────
+     ⚰️ WHY THIS EXISTS. Measured on the shipped bundle: five hub surfaces carry the glass recipe
+     (`.pad`, `.chip`, `.actionsButton`, `.coachMark`, `.edgeTabGrip`) and `.bubble` — the ONLY
+     element a member looks at for the whole gesture — carried none. R8 pass 3's F11 fix had moved
+     it the other way, to `color-mix(--hub-bubble-color 60%, --bg-elevated)`: a solid pill. It
+     fixed the legibility it was aimed at and spent the material to do it.
+
+     ⭐ THE SPLIT THIS ENCODES: the RIM is glass, the CENTRE is a backplate. Legibility comes from
+     a contrast token INSIDE the material (--hub-label-plate, painted as a radial ground under the
+     text), never from making the pill opaque. So the bubble still reads as one lens at its edge
+     while the label sits on ground it can be read against — on the scrimmed region and on the
+     un-scrimmed one, in both themes. The WCAG ratios are SAMPLED FROM RENDERED PIXELS, not
+     asserted here; a number in a comment is a forecast until it is derived.
+
+     ⛔ NO THEME VARIANT AND NONE NEEDED. Every value composes --bg / --bg-elevated /
+     --text-heading, which already flip per theme, so these adapt for free and carry no
+     `[data-theme=…]` block — which is what keeps them out of `themeIslands.test.js`'s required
+     set. Same decision as the rest of this family, linked rather than re-argued.
+
+     ⚠️ --hub-blur-bubble IS ENGAGED ONLY WHILE THE FAN IS SETTLED (see hub.module.css). A
+     backdrop-filter on a TRANSFORMING element re-samples its backdrop every frame, which is the
+     one thing `w4-material-plan.md` §0 says not to do on a phone. */
+  --hub-blur-bubble: 14px;
+  --hub-saturate: 160%;
+  --hub-label-plate: color-mix(in srgb, var(--bg-elevated) 76%, transparent);
+  --hub-rim-lowlight: color-mix(in srgb, var(--bg) 30%, transparent);
+  --hub-shadow-ambient: 0 12px 28px -10px color-mix(in srgb, var(--bg) 70%, transparent);
+  --hub-shadow-key: 0 2px 5px -1px color-mix(in srgb, var(--bg) 55%, transparent);
+
   /* ─── The hub's MOTION vocabulary. W4 step 2, 2026-09-17 ───────────────────────────────────
      ⛔ NO THEME VARIANT, DELIBERATELY. A timing function does not change between light and dark,
      so these are NOT island-pinned tokens — `styles/themeIslands.test.js` derives its required
