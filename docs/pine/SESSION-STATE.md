@@ -2,6 +2,39 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⏱️ 2026-09-18 11:08 — ⚰️ I KILLED THE OWNER'S SIGN-IN WINDOW. ONE PROFILE, ONE BROWSER.
+>
+> **Attributable, and mine.** The `patrick-cd` session had the owner's
+> **30-minute sign-in wait** open on `uct-capture-profile\tradingview`; it had
+> printed the banner and its first heartbeat (`signed_out`, HTTP 403). At
+> **11:08:17** this session launched `--phase recon --wait 15` on that same
+> profile to "verify" the peer's commit against the live product. **Chromium
+> permits one process per user-data-dir**, so the second launch killed the first
+> browser: the owner's window vanished mid-wait and no sign-in landed. Chain:
+> python 49896 → driver 21040 → chrome 46404; lockfile rewritten 11:08:18.
+>
+> ⛔ **THE VERIFICATION DID NOT NEED A BROWSER.** The peer's 16 unit cases and
+> `--self-check` cover that commit completely. What I actually bought with the
+> live run was nothing, and what it cost was the owner's keyboard step.
+> ⚰️ My failed launch then left an orphan browser (**pid 11012** + 7 children)
+> still holding the profile, which is why a later launch of mine failed too — the
+> raw symptom being `TargetClosedError` and a 50-line traceback. 11012 was mine
+> and was stopped; the owner's Chrome (57780) was never touched.
+>
+> ✅ **BOTH LESSONS ARE IN THE TOOL, NOT IN A RULE NOBODY READS** (`607b03473`):
+> `_profile_holders` names the pids and process types on a launch failure —
+> **reporting, never killing**, because one of those windows may be the sign-in
+> somebody is standing in front of — and a `TargetClosedError` out of
+> `acquire()`/`recon` now exits **2 (INCONCLUSIVE)** rather than Python's
+> uncaught **1**, which this file's own docstring reserves for a MEASURED
+> failure. A window closing measures nothing. The second fix is the peer's
+> contract catch and their wording.
+> ⭐ Verified without going near the shared profile: 16/16 unit cases green, and
+> `--self-check` pointed at a **throwaway** `--profile`.
+>
+> ⛔ **STANDING, now, between sessions:** nothing launches on
+> `uct-capture-profile` while a sign-in wait may be open. Ask first.
+
 > ### ⏱️ 2026-09-18 — ⛔ GOOGLE REFUSES THE SIGN-IN IN THE BUNDLED BUILD. USE TRADINGVIEW'S **Email** ROUTE.
 >
 > The owner ran R39's tool; the window opened, TradingView's modal appeared, and
