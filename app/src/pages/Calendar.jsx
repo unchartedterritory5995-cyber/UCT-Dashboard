@@ -497,7 +497,7 @@ export default function Calendar() {
   // sticks for the payload's lifetime.
   const mainEventFrozen = useRef({})
   const weekTiers = useMemo(() => {
-    const tiers = tierWeek(days, weekDates)
+    const tiers = tierWeek(days, weekDates, mySets?.weight_buckets)
     const weekKey = data?.week_start || ''
     // Freeze ONLY once metrics have actually DELIVERED data for this week —
     // mc_b is the dominant imp term and arrives lazily. A failed batch resolves
@@ -532,7 +532,7 @@ export default function Calendar() {
       }
     }
     return tiers
-  }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate])
+  }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate, mySets?.weight_buckets])
 
   // Prune freeze keys from weeks the user has paged away from — the ref would
   // otherwise grow one entry per (week, day) across a long browsing session.

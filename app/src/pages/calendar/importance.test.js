@@ -35,15 +35,32 @@ describe('computeImportance', () => {
   })
 })
 
+// S6 CP3: impEff derives its boost from a server-sent weightBuckets registry
+// instead of hardcoding it. This mirrors member_interest.SOURCE_BUCKETS
+// exactly -- test fixture data, not a second product-code copy (the actual
+// numbers live in exactly one place: api/services/member_interest.py).
+const WEIGHT_BUCKETS = [
+  { sources: ['positions'], weight: 3 },
+  { sources: ['watchlist', 'flagged'], weight: 2 },
+  { sources: ['uct20'], weight: 1 },
+]
+
 describe('impEff', () => {
   it('boosts positions > watchlist > uct20, additively', () => {
-    expect(impEff(0, E('X', { _sources: ['positions'] }))).toBe(3)
-    expect(impEff(0, E('X', { _sources: ['watchlist'] }))).toBe(2)
-    expect(impEff(0, E('X', { _sources: ['flagged'] }))).toBe(2)
-    expect(impEff(0, E('X', { _sources: ['uct20'] }))).toBe(1)
-    expect(impEff(0, E('X', { _sources: ['positions', 'watchlist', 'uct20'] }))).toBe(6)
+    expect(impEff(0, E('X', { _sources: ['positions'] }), WEIGHT_BUCKETS)).toBe(3)
+    expect(impEff(0, E('X', { _sources: ['watchlist'] }), WEIGHT_BUCKETS)).toBe(2)
+    expect(impEff(0, E('X', { _sources: ['flagged'] }), WEIGHT_BUCKETS)).toBe(2)
+    expect(impEff(0, E('X', { _sources: ['uct20'] }), WEIGHT_BUCKETS)).toBe(1)
+    expect(impEff(0, E('X', { _sources: ['positions', 'watchlist', 'uct20'] }), WEIGHT_BUCKETS)).toBe(6)
     // watchlist+flagged is ONE +2 boost, not two
-    expect(impEff(0, E('X', { _sources: ['watchlist', 'flagged'] }))).toBe(2)
+    expect(impEff(0, E('X', { _sources: ['watchlist', 'flagged'] }), WEIGHT_BUCKETS)).toBe(2)
+  })
+
+  it('boosts nothing when weightBuckets is absent (pre-mySets-load window)', () => {
+    // ⛔ Deliberate: entries carry no real _sources before mySets loads
+    // either, so this is not a case that needs a fallback registry to be
+    // "correct" -- see importance.js's own comment on impEff.
+    expect(impEff(5, E('X', { _sources: ['positions'] }))).toBe(5)
   })
 })
 

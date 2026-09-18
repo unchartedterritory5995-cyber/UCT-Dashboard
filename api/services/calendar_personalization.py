@@ -11,8 +11,15 @@ provably a no-op at every one of them.
 
 Each source is wrapped in try/except (inside `member_interest.py` now, not
 here) so one failing source never blocks the others. Never raises.
+
+S6 CP3 -- `to_payload` gains an additive `weight_buckets` field, read from
+`member_interest.weight_buckets_payload()`. `importance.js`'s `impEff`
+(app/src/pages/calendar/importance.js) derives its personalization boost
+from this instead of hardcoding an independent copy of the same weights --
+the single authority for those numbers is now `member_interest.py`'s
+`SOURCE_BUCKETS`, not two files that happen to agree.
 """
-from api.services.member_interest import interest_for, SOURCES
+from api.services.member_interest import interest_for, weight_buckets_payload, SOURCES
 
 
 def get_user_ticker_sets(user_id: str) -> dict:
@@ -23,4 +30,6 @@ def get_user_ticker_sets(user_id: str) -> dict:
 
 
 def to_payload(sets: dict) -> dict:
-    return {k: sorted(v) for k, v in sets.items()}
+    out = {k: sorted(v) for k, v in sets.items()}
+    out["weight_buckets"] = weight_buckets_payload()
+    return out
