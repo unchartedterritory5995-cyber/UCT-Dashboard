@@ -1777,6 +1777,48 @@ files**.
 suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
 contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
+### ⛔⛔ REAPING ANOTHER WORKSTREAM'S LEAK — BY SIGNATURE, BY AGE, BY WORKTREE, NEVER BY NAME
+
+> **Enumerate first and paste the list. Kill only what matches ALL THREE of a
+> command-line SIGNATURE, an AGE floor, and a WORKTREE. Re-enumerate after.
+> Never by process name alone, and never mid-gate.**
+
+⚰️ Measured 2026-09-17. `uct-worktrees/breadth-dc` leaked a `vite preview` server
+every few minutes and reaped none: **76 processes, 2,138 MB, ages 147–267
+minutes**, plus ~40 `npx` wrappers. It killed a six-shard gate twice — and the
+second kill took the *waiter* armed to watch for a quiet box, which is how little
+headroom was left.
+
+**The rule, and each clause stops a different mistake:**
+
+| clause | what it prevents |
+|---|---|
+| **SIGNATURE** — the command line contains `vite preview` or `esbuild` | `Stop-Process -Name node` kills every Node on the box, including the gate, the rig and other sessions |
+| **WORKTREE** — the command line resolves under the *named* worktree | another workstream's identical-looking server is not yours to reap |
+| **AGE** — older than 10 minutes | a process seconds old is something STARTING, not something leaked. Two breadth-dc processes were 3 minutes old at reap time and were correctly spared |
+| **NEVER a vitest** | a test run is work in flight; wait for it, and if it is foreign you do not get to decide it is finished |
+| **NEVER mid-gate** | nothing touches the box while a gate runs — that is what makes the manifest readable |
+
+⭐ **KILL THE CHILDREN AND THE WRAPPERS FOLLOW.** The ~40 `npx-cli.js` processes
+did not match the signature (their command line never names the worktree) and
+were deliberately left alone — **39 of them exited on their own** once their
+`vite` children died. A wrapper is not a separate leak; reaping by the narrow
+signature is both safer and sufficient.
+
+⛔⛔ **AND `FreePhysicalMemory` IS A PROXY — `Memory\Available MBytes` IS THE
+NUMBER.** WMI's free memory EXCLUDES the standby list, which Windows reclaims on
+demand, so it under-reports what a process can actually allocate. Ask the
+performance counter. (Measured the same day: 4.44 GB "free" vs 4.53 GB available —
+close *here*, because the standby list happened to be small at 0.34 GB, and that
+is exactly the kind of agreement that teaches you to trust the wrong instrument.)
+
+⚠️ **A REAP IS NOT A GUARANTEE OF HEADROOM, AND THE ARITHMETIC SHOULD BE DONE
+BEFORE THE RUN.** Reaping 96 processes and 2.1 GB moved this box from ~3.3 GB to
+~4.5 GB available — and **not to the 8 GB a full gate wants**, because the real
+holders were a 6.9 GB `llama-server.exe`, 4.4 GB of Chrome and 4.6 GB of
+`claude.exe` sessions, **none of which is in any reap signature**. Reaping the
+leak you are allowed to reap does not entitle you to the box.
+
 ### ⛔⛔ RESOURCE RULES — AT MOST **3** AGENTS ON THIS BOX, AND THE WHISPER JOB RUNS ALONE
 
 > **Owner ruling 2026-09-13, written from three separate self-inflicted failures in two days.**
