@@ -2905,9 +2905,13 @@ export default function BuilderSheet({
             />
           </div>
 
-          {storeError && (
-            <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
-          )}
+          {/* ⛔ THE STORE'S REFUSAL USED TO RENDER HERE, AND HERE IS THE
+              SCROLLING BODY. On a pasted script it sat below the whole listing —
+              9,811 characters of `uncharted-clouds.pine` between the button a
+              member pressed and the sentence saying why nothing happened. It now
+              rides the sticky footer with the control that produced it; see the
+              footer's own comment, which already made this exact argument for
+              the discard confirm. */}
           {listError && (
             <p className={styles.storeError} role="alert" data-testid="list-error">
               {listError.status === 402
@@ -2943,6 +2947,19 @@ export default function BuilderSheet({
             formula?", with its Keep-editing/Discard buttons peeking out below and
             unreachable. A sticky element must carry whatever it is answering. */}
         <div className={styles.footer}>
+          {/* ⭐⭐ THE REFUSAL TRAVELS WITH THE BUTTON. A sentence that explains a
+              control has to be reachable from that control, and in the scrolling
+              body it was not: the member presses Save, nothing appears to
+              happen, and the reason is a screenful below the paste box. This is
+              the same rule the block below already states for the discard
+              confirm — "a sticky element must carry whatever it is answering" —
+              applied to the one refusal that was left behind.
+              ⚠️ `list-error` deliberately stays in the body: it answers the
+              saved-formulas list, not this button, and two unrelated failures
+              sharing one bar make neither obviously about anything. */}
+          {storeError && (
+            <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
+          )}
           {saveHint && (
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}
