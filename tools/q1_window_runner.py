@@ -38,6 +38,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import time
@@ -202,6 +203,36 @@ def run_entry(entry: dict, log=print) -> dict:
                    " so a kill discards the lot and an entirely healthy run reads as a"
                    " hang at startup.")
         code = 124
+        # ⛔⛔ A KILLED CELL LEAVES ITS BROWSER HOLDING THE PROFILE, AND THE
+        # NEXT CELL THEN REFUSES TO START.
+        #
+        # ⚰️ Measured twice on 2026-09-18. A 2.8b run hit its ceiling; the
+        # kill reached the PYTHON process and not the Chrome it had spawned,
+        # so the four metadata cells behind it each died in ~7s with "the rig
+        # profile is locked by a running Chrome". Four cells lost to one
+        # timeout - and they refused CORRECTLY, which is why nothing looked
+        # broken until the whole window had been spent.
+        #
+        # ⛔ BY MARKER, NEVER BY NAME. `chrome.exe` alone would take the
+        # owner's 25 browser processes with it. The marker is the rig
+        # profile path, which only the rig's own browser carries.
+        # ⛔ THE PROFILE ITSELF IS NEVER TOUCHED: a fresh profile is a
+        # SIGNED-OUT profile, and a sign-in is a 30-day event.
+        try:
+            _ps = shutil.which("powershell") or "powershell"
+            subprocess.run(
+                [_ps, "-NoProfile", "-Command",
+                 "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
+                 "Where-Object { $_.CommandLine -like '*canary-chrome-profile-persistent*' } | "
+                 "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"],
+                capture_output=True, timeout=60)
+            print("  [runner] timed-out cell: tore down the rig browser BY MARKER "
+                  "(profile kept) so the next cell can start", flush=True)
+        except Exception as _e:                      # noqa: BLE001
+            # ⛔ Teardown is best-effort and must never mask the timeout that
+            # caused it. The next cell refuses loudly if this did not work.
+            print(f"  [runner] ⚠️ teardown after timeout failed: {type(_e).__name__}",
+                  flush=True)
     except Exception as e:  # noqa: BLE001
         out, code = f"{type(e).__name__}: {e}", 125
     secs = (datetime.datetime.now() - started).total_seconds()
