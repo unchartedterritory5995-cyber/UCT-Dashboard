@@ -22,10 +22,23 @@ owner's own Chrome (pid 57780) and does not borrow its profile. The persistent
 profile it creates is the owner's to delete, its path is printed, and it is
 refused if it would land inside a git worktree.
 
-⭐ SIGN-IN IS MEASURED, NOT ASSUMED, AND THE PROBE PROVES ITSELF FIRST. The tool
-requires that it can SEE the signed-OUT marker before it will believe the
-signed-IN one — an absence is only evidence if the instrument could have seen a
-presence. Neither marker visible is INCONCLUSIVE, never a pass.
+⭐ SIGN-IN IS MEASURED, NOT ASSUMED, AND THE PRODUCT ANSWERS IT. A background
+request for the private layout, sharing the browser context's cookie jar (it
+reads no cookie), returns **403 "Chart Not Found"** to a stranger — measured
+2026-09-18 — and the owner can open their own layout, so the same request
+flipping to a plain 200 IS the sign-in. It touches no tab, so it is polled while
+the owner types. Both answers are PRESENCES — a 403 carrying TradingView's own
+"Chart Not Found", or a 200 that is still the layout — so a first reading of 200
+proceeds (the persistent profile doing its job, no keyboard), and in the wait
+loop the same measurement flipping 403 -> 200 is the evidence. Anything else — a
+bot-wall 403 without the marker, a redirect off the layout, a soft 404, a 5xx,
+no answer — is INCONCLUSIVE, never a pass and never a prompt.
+
+⚰️ The first version decided from header markup, and on the owner's first real
+run the layout tab landed on the HOME page, whose signed-out control is a
+"Get started" SPAN inside an A. The own-text probe saw neither marker and the
+tool exited INCONCLUSIVE before it ever asked for the sign-in. The DOM reading
+is still printed, as context; it no longer decides.
 
 ⛔ PHASES, BECAUSE A WRITE ON SOMEBODY ELSE'S ACCOUNT IS NOT WRITTEN BLIND.
 
@@ -61,8 +74,9 @@ import os
 import pathlib
 import sys
 import time
+from urllib.parse import urlparse
 
-REPO = pathlib.Path(__file__).resolve().parents[1]
+REPO =pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
 
 # ⭐ ONE GATE AUTHORITY. `_gate` is imported, never re-implemented: two copies of
@@ -110,9 +124,49 @@ def resolve_profile(raw: str | None) -> pathlib.Path:
     return p
 
 
-# ⛔⛔ THE PROBE PROVES ITSELF BEFORE IT BELIEVES AN ABSENCE. `signedOut` is the
-# control: if the tool cannot see the signed-out marker on a signed-out page it
-# has no business reporting a signed-in one, and "neither" is INCONCLUSIVE.
+#: The private layout's answer to a STRANGER, measured 2026-09-18 through the
+#: browser context's own request API: HTTP 403 carrying this title. The status
+#: alone is not the verdict — Cloudflare's bot wall is also a 403 — the marker is
+#: what makes it TradingView answering "not yours".
+STRANGER_MARKER = "Chart Not Found"
+
+
+def classify_layout_access(status, body, final_url) -> str:
+    """'signed_out' | 'signed_in' | 'inconclusive', from the layout's HTTP answer.
+
+    Only the measured shape (403 + marker) and its direct opposite (200, still on
+    the layout, no marker) decide. ⛔ A redirect that lands anywhere but the
+    layout is NOT the layout opening — a stranger bounced to the home page is a
+    plain 200 with no marker — so the final URL has to still be the layout.
+    Everything else is reported, never guessed."""
+    if status is None or not body or not final_url:
+        return "inconclusive"
+    on_layout = urlparse(final_url).path.startswith(urlparse(LAYOUT).path)
+    if status == 403 and on_layout and STRANGER_MARKER in body:
+        return "signed_out"
+    if status == 200 and on_layout and STRANGER_MARKER not in body:
+        return "signed_in"
+    return "inconclusive"
+
+
+def layout_access(page) -> tuple[str, str]:
+    """Ask the server whether this browser may open the layout — from the page's
+    own context, so it carries the session the owner signs into, and WITHOUT
+    touching the tab, so it can be polled while the owner types. It sends the
+    context's cookies and reads none."""
+    try:
+        resp = page.context.request.get(LAYOUT)
+        body = resp.text()
+    except Exception as exc:  # no answer is not an answer
+        return "inconclusive", f"request failed: {type(exc).__name__}: {str(exc)[:160]}"
+    return (classify_layout_access(resp.status, body, resp.url),
+            f"HTTP {resp.status} at {resp.url}")
+
+
+# ⚰️ NO LONGER DECIDES ANYTHING — printed as context beside the server's answer.
+# It read OWN text on button/a only, and on 2026-09-18 the layout tab landed on
+# the home page, whose signed-out control is a "Get started" SPAN inside an A:
+# neither marker, exit 2, and the owner was never asked to sign in.
 AUTH_JS = r"""() => {
   const ownText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3)
     .map((n) => n.textContent.trim()).join(' ').trim();
@@ -204,40 +258,33 @@ CHART_JS = r"""() => {
 }"""
 
 
+def _to_layout(page) -> None:
+    """Put the tab on the layout for recon — only ever after the server has said
+    this browser may open it, so it never interrupts the owner mid-sign-in."""
+    page.goto(LAYOUT, wait_until="domcontentloaded")
+    page.wait_for_timeout(9000)
+
+
 def acquire(page, wait_s: int) -> int:
     """Get a signed-in session, or say plainly that we did not."""
-    # ⛔ "NEITHER MARKER" IS OFTEN "NOT SETTLED YET", AND THE TWO MUST NOT BE
-    # COLLAPSED. Measured 2026-09-18: one run read `signedOut: ["sign in"]` and
-    # the next, on the same profile, read neither — the header simply had not
-    # rendered at the 9-second mark, and the layout URL redirects a stranger to
-    # the home page. So the probe is given a bounded chance to become
-    # determinate before "neither" is believed, and only a persistent neither is
-    # INCONCLUSIVE.
-    first = None
-    for _ in range(12):
-        first = page.evaluate(AUTH_JS)
-        if first["signedOut"] or first["signedIn"]:
-            break
-        page.wait_for_timeout(2500)
-    print(f"[vendor] auth probe: {json.dumps(first)}")
+    # The page's own reading is printed as CONTEXT and decides nothing — see the
+    # ⚰️ note above AUTH_JS for the run it stranded.
+    print(f"[vendor] page (context only): {json.dumps(page.evaluate(AUTH_JS))}")
 
-    # ⛔⛔ SIGNED-OUT WINS A TIE, AND THE TIE IS REAL. Measured 2026-09-18: a
-    # signed-out page shows the "Sign in" control AND an "Open user menu"
-    # control simultaneously. Testing the positive first turned a signed-out
-    # session into a confident "already signed in" — the instrument reporting a
-    # property of itself as a property of what it measured. A private layout
-    # also renders as "Chart Not Found" to a stranger, which is the corroborating
-    # reading and the reason that title is carried here.
-    if first["signedOut"]:
-        pass
-    elif first["signedIn"]:
+    # ⛔⛔ THE SERVER DECIDES, AND ONLY IN ITS TWO READABLE SHAPES. A first 200
+    # proceeds — that is the persistent profile working, not an inference from
+    # silence. Anything that is neither shape is INCONCLUSIVE, and the owner is
+    # not asked to type into a browser whose state this tool cannot read.
+    verdict, detail = layout_access(page)
+    print(f"[vendor] layout access: {verdict} ({detail})")
+    if verdict == "signed_in":
         print("[vendor] already signed in — the persistent profile carried the session.")
+        _to_layout(page)
         return 0
-    elif not first["signedOut"]:
-        # ⛔ Neither marker. The probe cannot see a presence, so its absence says
-        # nothing. This is the one outcome that must never read as a pass.
-        print("[vendor] INCONCLUSIVE: the probe saw neither a signed-out nor a "
-              "signed-in marker. It is not reporting a state it cannot measure.")
+    if verdict != "signed_out":
+        print("[vendor] INCONCLUSIVE: the layout answered neither as a stranger (403 "
+              f"'{STRANGER_MARKER}') nor as its owner (200). Not reporting a state "
+              "it cannot measure.")
         return 2
 
     print("")
@@ -245,6 +292,9 @@ def acquire(page, wait_s: int) -> int:
     print("  >>  SIGN IN TO TRADINGVIEW IN THIS WINDOW.")
     print("     It is the browser this tool just opened — not your own Chrome.")
     print("     Nothing you type is read, stored or logged by this session.")
+    print("     The page may show 'Chart Not Found' or TradingView's home page —")
+    print("     either is fine: use its Sign in / Get started control, or the")
+    print("     person icon at the top right.")
     print("")
     print("     >> USE THE 'Email' OPTION, NOT 'Continue with Google'.")
     print("        Measured 2026-09-18: Google answers 'Couldn't sign you in —")
@@ -262,18 +312,19 @@ def acquire(page, wait_s: int) -> int:
     deadline = time.time() + wait_s
     last_beat = 0.0
     while time.time() < deadline:
-        state = page.evaluate(AUTH_JS)
-        # Same discipline as the first read: the signed-OUT control disappearing
-        # is the necessary half, and a `data-name` user-menu control is the
-        # sufficient one. The ambiguous aria-label is never allowed to decide.
-        if not state["signedOut"] and state["signedIn"]:
-            print(f"[vendor] signed in — evidence: {json.dumps(state['signedIn'])}, "
-                  f"title now {state['title']!r}")
+        verdict, detail = layout_access(page)
+        # The same measurement that just said "stranger" flipping to "owner" is
+        # the sign-in. An unreadable answer mid-wait is reported, not fatal — the
+        # owner may be half-way through a 2FA step.
+        if verdict == "signed_in":
+            print(f"[vendor] signed in — the layout now opens for this browser ({detail}).")
+            _to_layout(page)
             return 0
         now = time.time()
         if now - last_beat > 60:
             last_beat = now
-            print(f"[vendor] still waiting ({int(deadline - now)}s left)…", flush=True)
+            print(f"[vendor] still waiting ({int(deadline - now)}s left; last answer "
+                  f"{verdict}, {detail})…", flush=True)
         page.wait_for_timeout(5000)
 
     print("[vendor] INCONCLUSIVE: no sign-in inside the wait. The profile is kept, "
