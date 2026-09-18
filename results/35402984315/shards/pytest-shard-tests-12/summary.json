@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 1492,
+  "passed": 1477,
+  "failed": 11,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 154.1,
+  "failed_files": [
+    "tests/test_web_capture_coverage.py",
+    "tests/test_wisdom_extract_tools.py",
+    "tests/test_wisdom_publish_adapters_routes.py",
+    "tests/test_yf_guard_binds.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "11 failed, 1477 passed, 4 skipped, 7 warnings in 154.10s (0:02:34)",
+  "ok": true
+}

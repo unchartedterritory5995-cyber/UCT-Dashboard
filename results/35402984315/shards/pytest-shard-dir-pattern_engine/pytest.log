@@ -1,0 +1,86 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+................................................................xx...... [ 85%]
+...x.............................x...............x........xxx........... [ 87%]
+x....................................................................... [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+..F..............................                                        [100%]
+=================================== FAILURES ===================================
+_________ test_explicit_allow_shared_root_override_bypasses_the_guard __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f9f797e5550>
+
+    def test_explicit_allow_shared_root_override_bypasses_the_guard(monkeypatch):
+        """The deliberate, obvious, documented opt-in (§5) — absent by default,
+        never set automatically by ordinary test execution."""
+        _simulate_unconfigured_windows_with_real_shared_root(monkeypatch)
+        monkeypatch.setenv("PATTERN_DB_ALLOW_SHARED_ROOT", "1")
+        assert pattern_db._would_hit_shared_root() is False
+        # Resolves to the real shared path only because the override was explicit.
+>       assert pattern_db._db_path() == os.path.abspath(r"C:\data\patterns.db")
+E       AssertionError: assert '/data/patterns.db' == '/home/runner...\\patterns.db'
+E         
+E         - /home/runner/work/UCT-Dashboard/UCT-Dashboard/C:\data\patterns.db
+E         + /data/patterns.db
+
+/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/pattern_engine/test_pattern_db_shared_root_guard.py:111: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[52w_proximity] - Structure detector: confidence is proximity-based (100 - 8*distance_from_extreme_pct, floor 60). Not the canonical 4-weight formula.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[accumulation_distribution] - Structure detector: confidence is a step value (55/60/70/80/90) based on A/D score bands, not the canonical 4-weight formula.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[can_slim_composite] - CAN SLIM meta-detector: confidence = round(composite_score, 2) per docstring; quality_components stores pillar sub-scores, not the canonical 4-weight formula inputs.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[major_trendlines] - Structure detector: confidence uses touch-count + r_squared formula (not 4-weight composite). Documented in detector docstring.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[range_detection] - Structure detector: confidence uses duration + touch-count bonuses. Not the canonical 4-weight formula.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[stage_analysis] - Structure detector: confidence uses a stage-specific composite (MA stack, slope, volume, breadth components), not the canonical 4-weight formula. Documented in detector source.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[support_resistance] - Structure detector: confidence uses touch-count formula, not the canonical 4-weight composite.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[swing_pivots] - Structure detector: always emits confidence=100 per docstring (pivot detection is deterministic, not scored). Not the canonical 4-weight formula.
+XFAIL tests/pattern_engine/test_confidence_formula_engine_wide.py::test_confidence_formula_pin[volume_profile_nodes] - Structure detector: confidence is computed from node type and volume ratio (HVN/LVN), not the canonical 4-weight formula.
+FAILED tests/pattern_engine/test_pattern_db_shared_root_guard.py::test_explicit_allow_shared_root_override_bypasses_the_guard - AssertionError: assert '/data/patterns.db' == '/home/runner...\\patterns.db'
+  
+  - /home/runner/work/UCT-Dashboard/UCT-Dashboard/C:\data\patterns.db
+  + /data/patterns.db
+1 failed, 2615 passed, 9 xfailed, 2 warnings in 26.13s
