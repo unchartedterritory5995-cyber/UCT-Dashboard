@@ -1,15 +1,15 @@
-# POST-MERGE QUEUE — PLANNED ONLY
+# POST-MERGE QUEUE — RE-DERIVED AGAINST MASTER, 2026-09-18
 
-⛔⛔ **NOTHING HERE IS BUILT, AND NOTHING HERE HAS A MANIFEST ROW.** The signable surface is
-frozen until Sitting 4 is reported complete. Every checkpoint below is **PROPOSED**, with its
-collision proof, and becomes a row only after the freeze lifts.
-
-**Collision proof for the E numbers below:** E's packet table declares **CP1–CP3**; build
-records on disk top out at **e-cp33**; manifest rows top out at **CP33**. **CP34+ free.**
+⭐ **The freeze lifted 2026-09-18.** Every item below is re-derived against the CURRENT tree
+(origin/master `56f6a6fe9`, `sitting_verify` CLEAN — 65 rows signed, 45 merged, universe 0
+unclaimed) rather than restated from when this file was written PLANNED-ONLY. Disposition per
+item: **CLOSED** (built and verified), **CARRIED** (moved into a section of the current session
+prompt — Q or O — rather than duplicated here), or **OPEN-WITH-OWNER** (still needs the owner's
+call; nothing here can close it).
 
 ---
 
-## P.1 — PROPOSED **E CP34**: CI does not run on master at all
+## P.1 — CLOSED. **E CP34**: CI does not run on master at all
 
 ⛔ **Measured, and it is worse than "the baseline is on the wrong branch":**
 
@@ -33,70 +33,79 @@ contains the branch. So: `NEW 0 · verdict NO_NEW_FAILURES`.
 ⚠️ **Non-vacuity for that prediction:** if the first master run shows `NEW 0` because it
 never ran, the record will show `ZERO-RECORDS` or a missing `results/<id>/`, not a pass.
 
-## P.2 — PROPOSED **E CP35**: re-anchor the baseline to a master run
+⭐ **CLOSED, but the prediction was wrong, and that is worth keeping.** `master` was added to
+`push.branches` on the E CP34 commit itself; the first two real master runs
+(`35315716615` then, after E CP36/37, `35340953181`) both fired for real. The `NEW 0` prediction
+did not hold — the first run showed `verdict: COVERAGE_LOST` (a real defect, F-CI-46, not
+predicted), and even after that fix the second run showed `NEW 41` — but every one of those 41 is
+now attributed (§E38 of the current session), and none of them means the PREDICTION MECHANISM
+was wrong; it means the prediction's premise ("identical to the last feat run") assumed a quiet
+master, and master turned out to be under heavy concurrent development from other workstreams the
+same night. The trigger itself works exactly as built.
 
-`BASELINE_RUN_ID` currently points at a **feat** run (`35008710335`, #19). Once P.1 lands and
-one clean master run exists, re-anchor to it.
+## P.2 — CARRIED into E38 (this session). Baseline re-anchor, renumbered twice more
 
-⛔ **The acceptance is a reconciliation, not a green:** the diff between the last feat
-baseline and the first master run must close with **FIXED = {F-CI-42's entry} and nothing
-else**. Any other FIXED or NEW means the merge changed behaviour, and that is a finding
-before it is a re-anchor.
+`BASELINE_RUN_ID` currently points at a **feat** run (`35008710335`, #19). This slot was
+originally planned as E CP35, then (per E CP35's own build record) renumbered to E CP36 when
+F-OPS-1 built first, then again to E CP37 when the PyYAML fix (F-CI-46) built first, then again
+to **E CP38** when the stale `test_weekly_exec` fix built first. Collision proof is the
+authority, not this file's spelling, each time.
 
-## P.3 — Promotion's second half stays OUT — restated
+⛔ **The acceptance bar as originally written — "FIXED = {F-CI-42's entry} and nothing else" —
+is no longer the right bar**, and the current session's own ruling (R-ROLLING-BASELINE, E CP38)
+replaces it: a fixed baseline on a shared, multi-workstream master measures everyone's drift, not
+just this programme's, so the fix is a ROLLING baseline with per-entry attribution, not a
+stricter reconciliation against a fixed point. See E38 in the current session report.
 
-**No branch protection. No required check.** `merge_all` pushes master directly 41 times; a
-required check would refuse every one of those pushes. **The gate's colour is truthful
-(E CP26); that it does not block is a separate decision and remains unmade.**
+## P.3 — OPEN-WITH-OWNER, unchanged
 
-## P.4 — The whole-queue premise audit, refreshed against master
+**No branch protection. No required check.** `merge_all` pushed master directly many more times
+than 41 by the time the programme finished; a required check would have refused every one of
+those pushes. **The gate's colour is truthful (E CP26); that it does not block is a separate
+decision and remains unmade.** Nothing this session did resolves this — it is restated, not
+re-derived, because nothing changed.
 
-**The first thing built after Sitting 4.** Method (unchanged, and it is the point): re-resolve
-every noun each packet names against the tree **as master will then stand**, and classify
-**BUILDABLE / NEEDS-REWORD / UNBUILDABLE** with the resolution printed beside each.
+## P.4 — CARRIED into Q (this session)
 
-Queued subjects: **D5 CP3–CP7 · S6 CP2–CP5 · S3 `/status` · the bell panel ·
-COMPLETION_AUDIT recount**, plus a dependency map across the whole queue.
+**The whole-queue premise audit** (D5 CP3–CP7 · S6 CP2–CP5 · S3 `/status` · the bell panel ·
+COMPLETION_AUDIT recount, plus D4 CP4's corrected assertion) is Q.1–Q.4 of the current session
+prompt. Not duplicated here — see that section for the resolved-nouns table, verdicts, and any
+units built from it.
 
-⚠️ **Not started.** It is docs-only and therefore permitted during the freeze, but it must be
-run against **post-merge master**, and master does not contain the units yet. Running it now
-would audit a tree that is about to change under it — the exact staleness the audit exists to
-find.
+## P.5 — Open items, re-derived
 
-## P.5 — Open items, one line each
-
-| item | status, derived today | what unblocks it |
+| item | status, re-derived 2026-09-18 | disposition |
 |---|---|---|
-| **F-NAV-1** | Still open. `nav_manifest.mjs` lists UNLISTED routes incl. `/post-market`, `/setup-library`, `/journal-2-0/report`, `/catalysts/history` — reachable, member-facing, no nav entry | an owner ruling on which are meant to be reachable; the generator already names them |
-| **F-CI-38** | **Structurally closed, population unchanged**: 95 test files install a `dependency_overrides`, 27 clear one, **70 install without clearing** — and all 70 are protected by E CP28's autouse fixture (present in `tests/conftest.py`, verified) | nothing; the sweep was deliberately not done, and the harness guarantee replaces it |
-| **the four flaky findings** | flaky set is 6 and stable across #29–#31; `AuthContext.test.jsx` correctly counted `new_flaky` | a master-run baseline (P.2) before re-deriving |
-| **the two single-file buckets** | not re-measured this session — the 12-bucket split holds with 633 s of headroom | a post-merge run at ROOT_BUCKETS 12 |
-| **D4 CP4's corrected assertion** | untouched during the freeze (it is a gates/ file) | the freeze lifting |
-| **F-CI-42** | OPEN, Notebook-owned, untouched. Goes green when `HEAD..origin/master` is empty — i.e. after Sitting 4 | Sitting 4, or a Notebook fix; ⚠️ it will also go green on any branch that is merely current, which is the vacuity |
+| **F-NAV-1** | Still open, same shape: `nav_manifest.mjs` lists UNLISTED routes incl. `/post-market`, `/setup-library`, `/journal-2-0/report`, `/catalysts/history` | **CARRIED into O.3** — the current session prompt's R-NAV ruling gives a measured default (inbound links + traffic) rather than waiting on a bare owner ruling |
+| **F-CI-38** | Unchanged since last measured — structurally closed, population unchanged (70 of 95 `dependency_overrides` sites protected by E CP28's autouse fixture) | **CLOSED**, nothing to re-open |
+| **the four flaky findings** | **UNBLOCKED, not yet re-derived.** A real master-run baseline now exists (`35340953181`); `flaky_size: 2` on that run (not 6 — the number moved since this row was last measured, on a different branch/session's own flaky tracking). Re-deriving against the master-anchored flaky set is real, undone work | **OPEN-WITH-OWNER** — not in scope for E38/Q/O this session; flagged so it is not silently dropped |
+| **the two single-file buckets** | still not re-measured against a post-merge master run | **OPEN-WITH-OWNER**, same reason |
+| **D4 CP4's corrected assertion** | the freeze that blocked it is lifted | **CARRIED into Q.1** — explicitly named in the current session prompt's Q.1 subject list |
+| **F-CI-42** | **CLOSED.** Confirmed directly against `35340953181`'s diff.json: `legendFromDefinitions.test.jsx` now appears in `fixed`, `file_level_resolved: 1` — exactly the E CP29 mechanism working as designed, now that `HEAD..origin/master` is genuinely non-empty | closed by the merge itself, no code change needed |
 
-## P.6 — PROPOSAL ONLY: the wall-time cost of one-unit-one-merge
+## P.6 — CLOSED. Superseded by R-BATCH, adopted and used repeatedly
 
-**41 pushing units × 5.73 min = 235.1 min**, of which **41 × 186 s = 127 min is build** and
-**41 × 150 s = 102.5 min is settle**. The work itself — cherry-pick and push — is about
-**5.5 min in total**.
+The batching proposal here was explicitly adopted by the owner's own R-BATCH ruling this
+session ("consecutive non-member-visible units push as one batch, PRODUCT units alone, F-S2-1
+alone") and used for real, multiple times: T CP2/E CP34/E CP35 batched together, and again for
+E CP36/E CP37 individually where batching didn't apply (each depended on the prior run's fresh
+CI result). **The revert-granularity cost this section worried about did not materialise** — no
+batch needed reverting. This proposal is superseded by the ruling, not merely decided in its
+favor; nothing further to build.
 
-**Proposed (NOT decided):** consecutive **docs-only** units may be batched into one push.
+## CLOSED — F-MV-1 · the member-visible gate reads a FLAG; the `#!last:` rule DERIVES
 
-- **The standing rule it bends:** *"ONE UNIT AT A TIME, AND IT WAITS"*, written after
-  2026-09-12, when two merges four minutes apart marked the first deploy `REMOVED` and
-  `/api/health` served 502 for ~45 s.
-- **Why docs-only is arguably different:** the failure that rule was written for is a
-  **deploy** colliding with a **deploy**. A docs-only batch still triggers exactly one build,
-  so it does not add a collision — it removes N−1 of them.
-- **What it costs:** revert granularity. A bad batch reverts as a batch, and this programme's
-  whole unit discipline is that one unit is one revertable thing.
-- **The number:** of 51 rows, **10 carry no commits** and 41 do; batching would only help
-  where consecutive rows are docs-only, so the saving is smaller than it looks. **Measure the
-  actual runs of consecutive docs-only rows before ruling.**
+**Found 2026-09-17 (session 7), during Route C. FIXED by K CP15 this programme** — the exact
+shape this section asked for: `is_member_visible_path()`, `_strip_line_comment()`,
+`_diff_lines()`, `_is_comment_only_change()`, `member_visible_files()` (comment-stripped
+multiset diff comparison, surface = `app/src/` + `api/routers/` expanded). K CP15's own build
+record and self-check cover exactly the two cases this section named as the acceptance bar: a
+comment-only edit to an `app/src/` file reads as NOT member-visible, and a real JSX change
+reads as member-visible. Nothing further to build.
 
-⛔ **For the owner to rule on after Sitting 4. Not adopted, not built.**
+---
 
-## PROPOSED — F-MV-1 · the member-visible gate reads a FLAG; the `#!last:` rule DERIVES
+## PROPOSED — F-MV-1 (original text, kept for the record) — the member-visible gate reads a FLAG; the `#!last:` rule DERIVES
 
 **Found 2026-09-17 (session 7), during Route C. Not built: a fix is a new signable row and the
 signing freeze forbids one mid-merge. Drafted here, unsigned.**
@@ -144,7 +153,18 @@ the predicate is narrowed. Its self-check must include *"a comment-only edit to 
 file is NOT member-visible"* and *"a real JSX change IS"* — a predicate that cannot tell those
 apart is the thing being fixed.
 
-## PROPOSED — F-VERIFY-1 · `verify_manifest` cannot read a manifest once ANY row is signed
+## CLOSED — F-VERIFY-1 · `verify_manifest` cannot read a manifest once ANY row is signed
+
+**FIXED by K CP14 this programme.** `verify_manifest.py` gained `_at_sha_matches()`,
+`_row_state()` (the SIGNED-aware branch this section asks for), a rewritten `check()` that asks
+`read_approval()` first, and a hardened `main()` with `_GOOD_STATES = ("OK", "SIGNED-OK")`. The
+self-check this session's own `pre_sitting.py` runs (`verify_manifest --check-commits`,
+`50 of 50 mapped`) is direct, running proof the fix holds under real signed rows, not just K
+CP14's own fixtures. Nothing further to build.
+
+---
+
+## PROPOSED — F-VERIFY-1 (original text, kept for the record) — `verify_manifest` cannot read a manifest once ANY row is signed
 
 **Found 2026-09-17 (session 7), one signature into Sitting 1. Not fixed: `tools/verify_manifest.py`
 is IN the freeze set, and the freeze's own rule is "a new row after the current `--until` is the
@@ -200,7 +220,18 @@ pass — or make main() run all three and report each independently, so one unre
 never blind the other two. Self-check must include *"a manifest with one signed row still
 verifies the other 54 and still reports commit coverage."*
 
-## PROPOSED — ⛔⛔ F-DEPLOY-1 · `merge_all.wait_for_deploy` CANNOT INVOKE `railway` ON WINDOWS
+## CLOSED — F-DEPLOY-1 · `merge_all.wait_for_deploy` CANNOT INVOKE `railway` ON WINDOWS
+
+**FIXED by K CP13 this programme.** `_resolve_bin(name)` + a `_RESOLVED_BIN` cache, exactly the
+`shutil.which`-based fix this section proposed, matching `pre_push_guard._railway()`'s existing
+pattern in the same repo. `merge_all` has since completed real, multi-unit sittings across many
+sessions with real `wait_for_deploy` calls succeeding — the operational consequence this section
+called total ("can merge at most one unit per run") is the thing that got fixed; every session
+since has merged far more than one unit per invocation. Nothing further to build.
+
+---
+
+## PROPOSED — F-DEPLOY-1 (original text, kept for the record) — `merge_all.wait_for_deploy` CANNOT INVOKE `railway` ON WINDOWS
 
 **Found 2026-09-17 (session 7) by merging the first unit. `tools/merge_all.py` is IN the freeze
 set, so the fix is a new signable row, not an edit. Drafted here, unsigned.**
