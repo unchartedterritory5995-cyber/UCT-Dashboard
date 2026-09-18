@@ -1,0 +1,143 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 7 cell(s) to run · stamp 2026-09-18T21-45-29Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 1, 'deadNotes': 1, 'removed': 1}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ folder  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:45:55.396313+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:45:55.396313+00:00', 'marker': None, 'ring': ['2026-09-18T21:45:55.396313+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:45:55.396313+00:00', 'server_after': '2026-09-18T21:47:01.343697+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /2de64ce9b9644ede9d01ab9d8a6c90a2/opened→200 · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2[67+00:00]→200 · POST /2de64ce9b9644ede9d01ab9d8a6c90a2/opened→200 · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→None · POST /2de64ce9b9644ede9d01ab9d8a6c90a2/opened→200 · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[13+00:00]→409 · PUT /2de64ce9b9644ede9d01ab9d8a6c90a2+SENT[97+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:45:55.396313+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ ticker  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:47:24.672843+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:47:24.672843+00:00', 'marker': None, 'ring': ['2026-09-18T21:47:24.672843+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:47:24.672843+00:00', 'server_after': '2026-09-18T21:48:25.573170+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /f00cb793be454a9aae396e171e23a006/opened→200 · PUT /f00cb793be454a9aae396e171e23a006[91+00:00]→200 · POST /f00cb793be454a9aae396e171e23a006/opened→200 · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→None · POST /f00cb793be454a9aae396e171e23a006/opened→200 · PUT /f00cb793be454a9aae396e171e23a006+SENT[43+00:00]→409 · PUT /f00cb793be454a9aae396e171e23a006+SENT[70+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:47:24.672843+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ tags  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:48:48.776073+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:48:48.776073+00:00', 'marker': None, 'ring': ['2026-09-18T21:48:48.776073+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:48:48.776073+00:00', 'server_after': '2026-09-18T21:49:41.363285+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /31c91721745b44a1abe5444fde5251c3/opened→200 · PUT /31c91721745b44a1abe5444fde5251c3[59+00:00]→200 · POST /31c91721745b44a1abe5444fde5251c3/opened→200 · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→None · POST /31c91721745b44a1abe5444fde5251c3/opened→200 · PUT /31c91721745b44a1abe5444fde5251c3+SENT[73+00:00]→409 · PUT /31c91721745b44a1abe5444fde5251c3+SENT[85+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:48:48.776073+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ hero  ·  drain-first (the editor could NOT report local state)
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/9b6e80b70abc4a6abc68450009f361f8/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:50:09.716496+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:50:09.716496+00:00', 'marker': None, 'ring': ['2026-09-18T21:50:05.795775+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:50:09.716496+00:00', 'server_after': '2026-09-18T21:50:53.363179+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /9b6e80b70abc4a6abc68450009f361f8/opened→200 · PUT /9b6e80b70abc4a6abc68450009f361f8[38+00:00]→200 · POST /9b6e80b70abc4a6abc68450009f361f8/hero→200 · POST /9b6e80b70abc4a6abc68450009f361f8/opened→200 · POST /9b6e80b70abc4a6abc68450009f361f8/opened→200 · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→None · POST /9b6e80b70abc4a6abc68450009f361f8/opened→200 · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[96+00:00]→409 · PUT /9b6e80b70abc4a6abc68450009f361f8+SENT[79+00:00]→200
+      the door fired after call #9; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:50:09.716496+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ append_widget_embed  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:51:30.926583+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:51:30.926583+00:00', 'marker': None, 'ring': ['2026-09-18T21:51:30.926583+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:51:30.926583+00:00', 'server_after': '2026-09-18T21:52:35.175683+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /0267b42b5bd6453085686338d62ef0a4/opened→200 · PUT /0267b42b5bd6453085686338d62ef0a4[41+00:00]→200 · POST /0267b42b5bd6453085686338d62ef0a4/opened→200 · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→None · POST /0267b42b5bd6453085686338d62ef0a4/opened→200 · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→409 · PUT /0267b42b5bd6453085686338d62ef0a4+SENT[83+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:51:30.926583+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ append_financial_fact  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:52:58.566327+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:52:58.566327+00:00', 'marker': None, 'ring': ['2026-09-18T21:52:58.566327+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:52:58.566327+00:00', 'server_after': '2026-09-18T21:53:45.912689+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /1a3c0406bd5b499589426cd386a6401f/opened→200 · PUT /1a3c0406bd5b499589426cd386a6401f[83+00:00]→200 · POST /1a3c0406bd5b499589426cd386a6401f/opened→200 · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→None · POST /1a3c0406bd5b499589426cd386a6401f/opened→200 · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[27+00:00]→409 · PUT /1a3c0406bd5b499589426cd386a6401f+SENT[89+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:52:58.566327+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+
+═══ append_document_excerpt  ·  drain-first (the editor could NOT report local state)
+      attached: {'count': 1, 'status': ['ready']}
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-18T21:54:29.094253+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-18T21:54:29.094253+00:00', 'marker': None, 'ring': ['2026-09-18T21:54:29.094253+00:00', '2026-09-18T21:54:23.848189+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-18T21:54:29.094253+00:00', 'server_after': '2026-09-18T21:55:30.773552+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /ed87b4f538664969a1fdca9b842b9f88/opened→200 · PUT /ed87b4f538664969a1fdca9b842b9f88[55+00:00]→200 · POST /ed87b4f538664969a1fdca9b842b9f88/attachments→200 · PUT /ed87b4f538664969a1fdca9b842b9f88[89+00:00]→200 · POST /ed87b4f538664969a1fdca9b842b9f88/opened→200 · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→None · POST /ed87b4f538664969a1fdca9b842b9f88/opened→200 · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[53+00:00]→409 · PUT /ed87b4f538664969a1fdca9b842b9f88+SENT[52+00:00]→200
+      the door fired after call #9; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-18T21:54:29.094253+00:00` · 8 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): None THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:60104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:62408) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

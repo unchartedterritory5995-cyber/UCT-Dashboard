@@ -1,0 +1,20 @@
+{
+  "id": "p2-2.8b-drain-first",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--ordering",
+    "drain-first (the editor could NOT report local state)",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T16:45:29",
+  "seconds": 672.7,
+  "why": "2.8b chunk 2 of 6 \u2014 the `drain-first` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved."
+}
