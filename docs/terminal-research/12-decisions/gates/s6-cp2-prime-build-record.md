@@ -13,7 +13,7 @@ status: UNSIGNED
 ```
 APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-18)
 APPROVED ON:      2026-09-18
-APPROVED AT SHA:  952aa032e
+APPROVED AT SHA:  57b9fe9a6
 SCOPE APPROVED:   CP2'
 ```
 

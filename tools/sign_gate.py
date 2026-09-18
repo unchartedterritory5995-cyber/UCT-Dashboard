@@ -414,6 +414,24 @@ def sign(path: pathlib.Path, by: str, on: str, scope: str) -> str:
               "scope could not be written. Nothing was written." % path.name)
         raise SystemExit(REFUSED_NO_SCOPE_LINE)
     fp = fingerprint(t, span)
+    # ⛔⛔ 2026-09-18 — `fp` IS COMPUTED HERE, ON `t` AS IT STANDS RIGHT NOW. If the
+    # caller pre-filled `APPROVED BY:`/`APPROVED ON:` in the template BEFORE running
+    # this tool (rather than leaving all FOUR fields blank and letting `--by`/`--on`
+    # below write them), `fp` pins bytes that INCLUDE that pre-filled text — but
+    # `rederive_signed()` (the verifier) unconditionally blanks all FOUR fields on
+    # every check, assuming BY/ON were EMPTY at fingerprint time same as SHA/SCOPE.
+    # The two disagree, and `sign_all.py --verify` reports SIGNED-DRIFTED on a packet
+    # that was never actually edited after signing.
+    # ⚰️ Found 2026-09-18: three packets signed this way in one session
+    # (d5-cp7-build-record, s6-cp2-prime-build-record, s6-cp3-build-record) all
+    # drifted for exactly this reason, while packets signed with a genuinely-blank
+    # template re-derive cleanly. Fixed by re-blanking all four fields and re-running
+    # this tool from scratch — never by hand-patching the manifest's expected value.
+    # ⭐ **Leave ALL FOUR fields blank in the template — `APPROVED BY:`, `APPROVED ON:`,
+    # `APPROVED AT SHA:`, `SCOPE APPROVED:`, each with nothing after the colon — and
+    # let this tool write every one of them.** Pre-filling BY/ON "for readability
+    # before signing" is the exact trap.
+    #
     # ⚠️ Normalise the padding rather than preserving whatever was there: an
     # UNSIGNED block has zero spaces after the colon, so preserving it produced
     # "APPROVED AT SHA:40caca541" — correct, unreadable, and inconsistent with

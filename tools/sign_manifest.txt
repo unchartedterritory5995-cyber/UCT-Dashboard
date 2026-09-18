@@ -182,6 +182,6 @@ docs/terminal-research/12-decisions/gates/s7-price-level-f6-build-record.md | CP
 docs/terminal-research/12-decisions/gates/d5-cp3-build-record.md | CP3 | c6f071bf6
 docs/terminal-research/12-decisions/gates/d5-cp4-build-record.md | CP4 | 51e4434d0
 docs/terminal-research/12-decisions/gates/d5-cp5-build-record.md | CP5 | b448dd7b3
-docs/terminal-research/12-decisions/gates/d5-cp7-build-record.md | CP7 | de099a452
-docs/terminal-research/12-decisions/gates/s6-cp2-prime-build-record.md | CP2' | 952aa032e
-docs/terminal-research/12-decisions/gates/s6-cp3-build-record.md | CP3 | 03137dac2
+docs/terminal-research/12-decisions/gates/d5-cp7-build-record.md | CP7 | d8c232db0
+docs/terminal-research/12-decisions/gates/s6-cp2-prime-build-record.md | CP2' | 57b9fe9a6
+docs/terminal-research/12-decisions/gates/s6-cp3-build-record.md | CP3 | de2ed54f8
