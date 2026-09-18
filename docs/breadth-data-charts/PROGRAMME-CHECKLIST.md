@@ -8,8 +8,10 @@ The programme ends when this file reads **DONE** — DC-1 §5's DC8, which is re
 everything buildable is built, previewed, and the flips are the owner's.
 
 Created 2026-09-17 (Session 1, discovery).
-Last updated: **2026-09-17 — DC2/DC3/DC5/DC6 DONE, DC4/DC7 REACHABLE (Q1/Q3/Q4 all
-CLOSED), L-A/L-B landed (D-054 cap raise). DC8 (§5 flips) is the remaining work.**
+Last updated: **2026-09-18 — DC8 DONE (D-055). PROGRAMME DONE.** All items built,
+previewed, and the §5 production flip executed and pod-verified: `BREADTH_SERIES_
+ENDPOINT_ENABLED=1`, `BREADTH_DC_V2_2_ENABLED=1`, `BREADTH_DC_V2_3_ENABLED=1` are all
+live on `web`. Every paid member now sees Data Charts V2.
 
 ---
 
@@ -45,25 +47,20 @@ V2-1 was already merged.
 | **DC5** V2-3 wire fields dark | ✅ **NO WIRE FIELDS NEEDED** (Q3 resolved 2026-09-17). `reconstructed[]` is already on the wire; the era note is computed CLIENT-SIDE from `universe_count` (`01-audit.md:309-311`), and the start-of-data marker from the first non-null per key. **The client-side injection that makes this true — `universe_count` riding the request whenever a count panel is selected under v23, without becoming its own panel — landed 2026-09-17 (L-A/L-B, `BreadthChartsV2.jsx`).** |
 | **DC6** V2-3 UI dark, LTTB, cap raised | ✅ **DONE 2026-09-17.** V2-3 UI (coverage, A-28 marks, era note, LTTB via ECharts native `sampling`, extended-days picker) built `670376b5d`/`a80cef80f`. **Q4 CLOSED same day (D-054):** `/series`' span cap raised 365→4,700 sessions (`_SERIES_MAX_SESSIONS_DEFAULT`), server AND client (`useBreadthSeries.MAX_SESSIONS`) in lockstep, with a real bug fixed in the same landing — the client's session-count-as-calendar-day comparison would have silently refused V2-3's own "Max" preset even after the raise; now scaled by `SESSION_TO_CALENDAR_DAY_RATIO` matching the server's `×1.6`. |
 | **DC7** V2-3 previewed | ✅ **REACHABLE** — same mechanism as DC4, `BREADTH_DC_V2_3_ENABLED=admin`. Not yet armed. |
-| **DC8** flips, watches, records, FINAL | **NOT STARTED** — §5's three-variable flip sequence (series read path → `V2_2_ENABLED=admin` → widen to `1`), each step pod-verified before the next, both directions given 10-minute watches |
+| **DC8** flips, watches, records, FINAL | ✅ **DONE 2026-09-18 (D-055).** All three variables flipped in order, each its own redeploy, each pod-verified before the next: series read path ON → `V2_2_ENABLED=admin` → widen to `1` (10-min watch, 10/10 healthy) → `V2_3_ENABLED=1` (10-min watch, 10/10 healthy). Live evidence captured on production at 1280/380: coverage bands, era note (real universe counts, not the audit's illustrative ones), LTTB engaged on the Max preset. **THE PROGRAMME IS DONE.** |
 
-**Q1 is RESOLVED (2026-09-17), not the blocking fact anymore.** V2's flags moved from
-build-time `VITE_*` (compiled into the bundle) to the auth payload
-(`BREADTH_DC_V2_2_ENABLED`/`BREADTH_DC_V2_3_ENABLED`, read per-request in
-`_access_payload`, exactly `HUB_PREVIEW_ENABLED`'s pattern) — `0`/unset = off, `admin` =
-owner-preview, `1` = every paid member. DC4/DC7's per-user preview and DC-1 §4.4's
-flag-OFF rollback are both now **no-deploy** operations. **What remains is §5: nothing on
-this branch is merged to master, and no Railway variable has been set yet** — building
-and previewability are done; the production flip is DC8, still ahead.
+**Q1 is RESOLVED (2026-09-17).** V2's flags moved from build-time `VITE_*` (compiled
+into the bundle) to the auth payload (`BREADTH_DC_V2_2_ENABLED`/`BREADTH_DC_V2_3_ENABLED`,
+read per-request in `_access_payload`, exactly `HUB_PREVIEW_ENABLED`'s pattern) — `0`/unset
+= off, `admin` = owner-preview, `1` = every paid member. Both are now `1` in production
+(D-055) — every paid member sees V2-2 and V2-3.
 
-⚠️ **This branch (`breadth/dc-v2`) is 14 commits ahead of, and 6 behind, `origin/master`
-as of 2026-09-17.** Measured overlap (`git diff --name-only` on both sides of the merge
-base) is **empty** — master's six new commits touch `CLAUDE.md`, `api/main.py`, the
-discord-render cold-start guard, and deploy-tooling docs, none of which this branch
-touches. Per this repo's own rebase rule ("rebase only when master has touched a file the
-branch touches, or the branch is more than five commits behind"), the count is a hair over
-the threshold but the overlap is provably zero — a rebase here buys nothing and only adds
-force-push risk to a 14-commit branch. Left un-rebased; re-measure before merging.
+**Landing history:** `breadth/dc-v2` merged to master as `546a11419` (rebased clean onto
+master first, zero file overlap measured and confirmed). A separate, unrelated
+promotion-pipeline bug (`full-suite-report.yml` missing its `promotion-gate:` marker,
+blocking ALL production promotions repo-wide) was found and fixed in the same window
+(`a5309c492`) — see D-055. Both landed to `production` and were confirmed live via
+`/api/health` and the auth-payload flags before any variable was touched.
 
 ---
 
