@@ -2,6 +2,30 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ✅✅ R38 5.6 — #145 MERGED. `e855f62cdb960297268cd9ecc72b7b4d94c56a2f` on `master`.
+>
+> Clicked in the owner's real browser (Gate v2.1 re-checked immediately
+> before — `visible`, real coordinates), after all 5 required checks read
+> green and GitHub's own "Ready to merge"/"No conflicts" status confirmed.
+> **Squash and merge** (this repo's configured method — the only primary
+> button offered). Verified after the click, not assumed from the UI alone:
+> `git fetch origin master` shows master's tip is `e855f62cd`, commit
+> message `"Pine → chart engine: ... (#145)"`, exactly one `parent` line
+> (`git cat-file -p`) confirming a true single-parent squash.
+>
+> ⚠️ **Master moved 27 more commits between my last local sync (`e38d47b55`)
+> and the actual GitHub-side merge** — checked, not waved through:
+> `comm -12` between those 27 commits' own diff and this branch's diff
+> against the same point is **EMPTY**. Zero file overlap, so the squash
+> correctly folded in master's independent movement with no interaction
+> with anything this branch touches. The 67-file diffstat between my last
+> local branch tip and the final squash commit is entirely that — other
+> workstreams' own files (`tools/q1_*`, `tools/hub_contrast.py`) — not lost
+> or altered work.
+>
+> ▶️ **NEXT: gate 5.7 (post-deploy health + member-facing regression check),
+> then 5.8 (this close-out).**
+
 > ### ⭐⭐ GitHub's OWN full-suite CI check found 71 "new" failures — investigated fully, three were real, now FIXED at `8fde10fcb`
 >
 > Opening the PR's merge-status panel to click Ready surfaced a check this
@@ -129,12 +153,12 @@
 > struck rather than silently swapped.
 >
 > **The actual plan:** if gate 5.7's post-deploy check finds a regression,
-> `git revert <squash-commit-sha>` (no `-m` flag — a squash commit has one
-> parent, so there is no mainline to name) committed and pushed directly to
-> `master` — **never** `git reset --hard` and **never** a force-push. The
-> revert is an ordinary new commit on top of history, reviewable, and
-> rewrites nothing. `<squash-commit-sha>` is filled in the moment gate 5.6
-> actually produces one.
+> `git revert e855f62cdb960297268cd9ecc72b7b4d94c56a2f` (no `-m` flag — a
+> squash commit has one parent, confirmed via `git cat-file -p`, so there is
+> no mainline to name) committed and pushed directly to `master` — **never**
+> `git reset --hard` and **never** a force-push. The revert is an ordinary
+> new commit on top of history, reviewable, and rewrites nothing.
+> `e855f62cd` is gate 5.6's actual squash-commit SHA, filled in below.
 >
 > ☠️ ~~If gate 5.7's post-deploy check finds a regression: `git revert -m 1
 > <merge-commit-sha>`... `-m 1` is required because the commit being undone
