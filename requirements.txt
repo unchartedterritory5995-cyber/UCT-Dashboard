@@ -60,6 +60,11 @@ mdit-py-plugins>=0.6.0,<1  # GFM tables + tasklists plugin, used alongside markd
 numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
+scikit-image>=0.22.0    # perceptual (SSIM) comparison for vendor-parity capture — see
+                        # tools/vendor_parity_capture.py; chart_parity.py's exact-pixel
+                        # diff() is the wrong tool for cross-platform comparison (different
+                        # fonts/AA/compression make two vendors' renders of the same data
+                        # never near-pixel-identical)
 # PDF text extraction. Was ALREADY a real runtime dependency of
 # api/services/voice_document_service.py (Compass Document Q&A) without ever
 # being pinned here — found unpinned during the Wave I notebook-attachments
