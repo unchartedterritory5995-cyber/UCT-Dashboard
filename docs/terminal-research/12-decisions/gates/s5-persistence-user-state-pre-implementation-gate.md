@@ -87,6 +87,47 @@ SCOPE APPROVED:   CP3 (S5-C RULED): the second adopter's A-1 obligation (SPEC §
   the lock name (`uct.tracings.sync.${accountId}`), fork-on-every-409, and the compiled
   default-OFF constant are CP4's scope, not this one's.
 
+## ⛔ APPROVAL — LINE 4 (**CP4**). Lines 1-3 above stand as granted, unchanged.
+
+```
+APPROVED BY:
+APPROVED ON:
+APPROVED AT SHA:
+SCOPE APPROVED:
+```
+
+### ✅ EXECUTED 2026-09-19 — CP4 built
+
+- `app/src/components/chart/tracingsStoreFlag.js` — `TRACINGS_STORE_ENABLED = false`, a compiled
+  constant (not a runtime/localStorage flag, unlike Notebook's evolved `offlineFlag.js` — CP5 is
+  this adopter's own certification gate, unscheduled, so rollback for now is a deploy).
+- `app/src/components/chart/useTracingsSync.js` — the pre-existing implementation is UNCHANGED
+  (renamed to `useTracingsSyncViaPreferences`, byte-identical body); a second implementation
+  (`useTracingsSyncViaStore`) reads/writes `/api/tracings` with the revision as its CAS baseline.
+  The exported hook branches on the compiled constant at the top — safe under the rules of hooks
+  because the branch cannot change across a mounted instance's renders (it is baked in at build
+  time, not runtime state).
+  - A-1/A-2: `expectedRevision` sent on every PUT; the server's returned `revision` becomes the
+    next baseline.
+  - A-5 fork-on-every-409: on a conflict, re-fetches and ADOPTS the server's copy rather than
+    attempting a merge — honest per the spec, since Tracings has no server-side appender and
+    there is nothing benign to reconcile.
+  - A-9: `unsyncedCopy.js`'s vocabulary is explicitly reserved for CP5, when this path first gets
+    a member-visible surface — CP4 adds none.
+  - A-6 (door enumeration): trivially one door, `flushPush`, matching the spec's own sizing.
+  - A-7/A-8 (store layer, lock name): NOT built at CP4 — with only one hook instance and no
+    outbox/leader-election need (a single in-flight push per debounce, never concurrent), there is
+    nothing yet for a lock or a durable local queue to arbitrate. Recorded here rather than
+    silently dropped: if CP5 or a later pass finds a real need (e.g. multi-tab races), build it
+    then, against a measured need rather than a forecast one.
+- Tests: `tracingsStoreFlag.test.js` (2, pins the OFF default + a mutation control),
+  `useTracingsSync.viaStore.test.js` (6: hydrate/adopt, correct-baseline push, fork-on-409,
+  a non-conflict control, a failed-network case), and the PRE-EXISTING
+  `useTracingsSync.test.js` (16) verified to still pass UNCHANGED — proving CP4 made no behavior
+  change while the flag is off.
+- **NOT done at CP4:** the flag is not flipped. No member is on this path. CP5 (browser
+  certification, member-visible) needs its own line.
+
 ### ⏸️ F-S5-1 — THE EXTRACTION, DEFERRED WITH A NAMED CONDITION
 
 > **Extracting the Notebook offline pattern as a reusable module is deferred until a SECOND
