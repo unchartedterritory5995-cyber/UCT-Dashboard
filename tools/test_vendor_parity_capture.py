@@ -1,3 +1,4 @@
+import json
 import pathlib
 import tempfile
 from PIL import Image, ImageDraw
@@ -62,3 +63,26 @@ def test_verdict_reports_size_mismatch_before_looking_at_score():
 
 def test_verdict_threshold_is_overridable():
     assert vpc.verdict({"score": 0.82, "size_mismatch": False}, threshold=0.90) == "NEEDS_REVIEW"
+
+
+def test_write_report_creates_md_and_json_with_expected_naming(tmp_path):
+    a = tmp_path / "member.png"
+    b = tmp_path / "vendor.png"
+    Image.new("RGB", (100, 100)).save(a)
+    Image.new("RGB", (100, 100)).save(b)
+    result = vpc.compare(a, b)
+    v = vpc.verdict(result)
+
+    paths = vpc.write_report(
+        out_dir=tmp_path, slug="test-indicator", tag="2026-09-19",
+        member_shot=a, vendor_shot=b, compare_result=result, verdict_str=v,
+    )
+
+    assert paths["md"].name == "parity-report-test-indicator-2026-09-19.md"
+    assert paths["json"].name == "parity-report-test-indicator-2026-09-19.json"
+    assert paths["md"].exists() and paths["json"].exists()
+
+    data = json.loads(paths["json"].read_text())
+    assert data["verdict"] == v
+    assert data["score"] == result["score"]
+    assert "test-indicator" in paths["md"].read_text()

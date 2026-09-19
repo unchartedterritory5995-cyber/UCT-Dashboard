@@ -14,7 +14,9 @@ catching a genuinely different shape or color family.
 """
 from __future__ import annotations
 
+import json
 import pathlib
+import time
 
 from PIL import Image
 from skimage.metrics import structural_similarity
@@ -60,3 +62,30 @@ def verdict(compare_result: dict, threshold: float = DEFAULT_THRESHOLD) -> str:
     if compare_result["size_mismatch"]:
         return "SIZE_MISMATCH"
     return "OK" if compare_result["score"] >= threshold else "NEEDS_REVIEW"
+
+
+def write_report(out_dir: pathlib.Path, slug: str, tag: str, member_shot: pathlib.Path,
+                  vendor_shot: pathlib.Path, compare_result: dict, verdict_str: str) -> dict:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"parity-report-{slug}-{tag}"
+    md_path = out_dir / f"{stem}.md"
+    json_path = out_dir / f"{stem}.json"
+
+    record = {
+        "slug": slug, "tag": tag, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "member_shot": str(member_shot), "vendor_shot": str(vendor_shot),
+        "score": compare_result["score"], "size_mismatch": compare_result["size_mismatch"],
+        "verdict": verdict_str,
+    }
+    json_path.write_text(json.dumps(record, indent=2))
+
+    md_path.write_text(
+        f"# Vendor parity report — {slug} ({tag})\n\n"
+        f"**Verdict:** {verdict_str}\n"
+        f"**SSIM score:** {compare_result['score']!r}\n"
+        f"**Member shot:** `{member_shot}`\n"
+        f"**Vendor shot:** `{vendor_shot}`\n\n"
+        f"{'⚠️ Needs human review — score below threshold.' if verdict_str == 'NEEDS_REVIEW' else ''}"
+        f"{'⛔ Size mismatch — the two captures are not directly comparable.' if verdict_str == 'SIZE_MISMATCH' else ''}\n"
+    )
+    return {"md": md_path, "json": json_path}
