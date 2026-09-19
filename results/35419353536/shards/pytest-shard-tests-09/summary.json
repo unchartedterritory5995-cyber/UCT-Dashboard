@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2104,
+  "passed": 2095,
+  "failed": 5,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 174.68,
+  "failed_files": [
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py",
+    "tests/test_scan_screener_auth.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "5 failed, 2095 passed, 4 skipped, 11 warnings in 174.68s (0:02:54)",
+  "ok": true
+}
