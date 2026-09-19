@@ -401,6 +401,31 @@ def test_a_slot_written_off_is_not_re_warned_every_minute(mods, monkeypatch, cap
     assert "MISSED" not in caplog.text
 
 
+def test_multi_slot_outage_marks_all_but_the_newest_missed_and_posts_one(mods, monkeypatch, caplog):
+    """⛔ Found by a 2026-09-19 reliability audit: every catch_up test above
+    exercises exactly one due slot per call. A real multi-hour outage (the pod
+    down since before 10:00, back up at 17:35) leaves SIX slots due at once --
+    this proves the loop correctly marks every past-grace slot missed AND
+    still finds and posts the one slot still within the honesty window,
+    rather than stopping at the first miss or posting more than once."""
+    store, _, digest = mods
+    import logging
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    posts = []
+    with caplog.at_level(logging.WARNING):
+        out = digest.catch_up(now=_at(17, 35),      # 5m after 17:30; 6 earlier slots never fired
+                              render_fn=lambda w: None,
+                              post_fn=lambda **k: posts.append(k) or True)
+    assert out["posted"] is True
+    assert out["slot"] == "17:30", "the newest still-in-grace slot must be the one that posts"
+    assert len(posts) == 1, "a multi-slot outage must still post exactly once, not once per missed slot"
+    for label in ("10:00", "10:30", "11:30", "12:30", "14:00", "16:15"):
+        assert f"2026-09-01 {label}" in digest.missed_keys(), f"{label} should be recorded missed"
+    assert caplog.text.count("MISSED") == 6, "every past-grace slot gets its own warning, no more, no fewer"
+
+
 def test_nothing_is_caught_up_before_the_first_slot(mods, monkeypatch):
     """CONTROL. Without it, a catch-up that posted unconditionally would pass
     every test above."""
