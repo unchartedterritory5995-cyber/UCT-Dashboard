@@ -113,8 +113,91 @@ of "stalls/day" should consider excluding shutdown-adjacent ones or tagging them
 - Re-run this alignment over a LARGER sample once more stalls accumulate under continuous log-tail
   coverage (the daemon is still running) — with the qualname fix in place, a per-job (not
   per-trigger-shape) distribution becomes possible for the first time.
-- `api.routers.calendar` / catalyst-engine prominence in the mid-sized stalls (11:51:56Z, 11:52:03Z)
-  has NOT been control-tested the way apscheduler was — that is the honest next candidate, not
-  apscheduler.
 - Anything about `flow-worker`'s side, not analyzed in this pass (this correlation used only the
   `web` log; flow-worker's OPRA-tape stalls are a structurally different question).
+
+## 2026-09-19 — `api.routers.calendar` / `catalyst.engine` control-tested. It SURVIVES.
+
+The honest next candidate named above has now been run through the same control discipline that
+killed apscheduler — with a stronger control than the original, using data that accumulated under
+continuous `UCT-D14-LogTail` coverage since this doc was first written (11:22Z 2026-09-18 through
+04:07Z 2026-09-19, 805,876 timestamped `web` log lines, 16.8 hours).
+
+**The apscheduler control used 5 hand-picked windows.** That is fine when the candidate is common
+(apscheduler dominates ordinary traffic too, so 5 samples reliably land on representative ground).
+It is NOT fine here: a first pass at 5 hand-picked 22.9s/4.0s windows found **zero** occurrences of
+either logger in all five — which looked like a stronger refutation than apscheduler even got, but
+turned out to be a coincidence of sample size, not a real baseline. `api.routers.calendar` is
+**bursty**: 90% of its own inter-arrival gaps are 0.0s (it logs in rapid clusters), and it occupies
+only **12.9% of all 30-second buckets** across the full 16.8-hour span. Five discrete samples had
+roughly a 50% chance of hitting zero purely by that burst structure, independent of any real
+correlation with stalls.
+
+**The real control: a full sliding-window scan, not discrete samples.** Every 22.9s window across
+the whole capture (12,062 windows, 5s stride) was scanned for `api.routers.calendar` share:
+
+| | value |
+|---|---|
+| windows containing ANY `api.routers.calendar` line | 1,197 / 12,062 (9.9%) |
+| median share, when present | 12.7% |
+| windows reaching the stall's own share (37.6% = 50/133) | **110 / 12,062 (0.9%)** |
+
+Same treatment for `catalyst.engine` at 4.0s width (21,088 windows, 2s stride, **restricted to its
+own documented active hours** 11:22Z–23:05Z — it goes fully silent after 23:04Z, matching the
+"5min burst pre-market + open + close + AMC" schedule this repo's own CLAUDE.md already documents,
+so scanning past that would be comparing against a period the logger cannot fire in at all, which
+would make it look rarer than it honestly is):
+
+| | value |
+|---|---|
+| windows containing ANY `catalyst.engine` line | 199 / 21,088 (0.9%) |
+| median share, when present | 40.9% |
+| windows reaching the stall's own share (48.0% = 179/373) | **95 / 21,088 (0.5%)** |
+
+**Both candidates reach the stall's own dominance in under 1% of all sampled windows across the
+full day — the opposite of apscheduler's 35–65% everywhere-baseline.** This is not "consistent
+with, like everything else" (the tool's own caveat about every job running across a stall window);
+it is specifically rare, and the stall windows are two of the rare hits.
+
+⛔⛔ **THE HONEST CAVEAT THAT KEEPS THIS A CANDIDATE, NOT A FINDING.** The two "mid-sized stalls"
+this whole analysis rests on — 11:51:56Z (22,946.3ms) and 11:52:03Z (4,018.0ms) — are **~7 seconds
+apart**: the second stall's window (11:51:58.982Z→11:52:03Z) starts barely 3 seconds after the
+first one ends. These are almost certainly ONE underlying episode recorded as two consecutive
+watcher samples, not two independent events. **This candidate currently rests on n=1 independent
+episode, not n=2** — a single rare coincidence, even at a well-measured <1% base rate, is not proof
+of correlation on its own. `api.routers.calendar`/`catalyst.engine` survives a real control in a
+way apscheduler never did, which makes it the honest next candidate to carry forward — but it must
+not be reported as more than that until a temporally-SEPARATE stall (not adjacent to this one)
+shows the same pattern. The current live `r31-trace.jsonl` record's newest `events` array holds
+only five 2026-09-17 stalls, outside this pass's captured log window (`web-2026091{8,9}-*.log`
+starts 11:22Z 9/18) — **no log coverage for them, and they cannot be used to test independence.**
+The next real test needs either a fresh stall inside the still-running log-tail window, or a wider
+capture reaching back to 9/17.
+
+**A mechanism exists, and it is not a new one for this codebase.** Neither `api/routers/calendar.py`
+nor `api/services/catalyst/engine.py` shows blocking I/O at the lines grepped in this pass — the
+actual external calls (yfinance, Twitter search, RSS, Perplexity, Anthropic synthesis) live one
+layer down, in `catalyst/sources.py` and `catalyst/synthesize.py`, not traced in this pass. But this
+repo's own CLAUDE.md already documents the exact outage CLASS this would be if traced further:
+*"Unbounded external calls pin threadpool workers"* — the 2026-07-01 524 outage's root cause,
+already fixed for `fundamentals.get_fundamentals`'s `.info` call and `dividends_calendar.get_events`
+via `yf_util.bounded_call`, but not stated anywhere as fixed for catalyst-engine's own 8-source pull
+(`sources.py`) or its Perplexity/Twitter enrichment calls. If catalyst-engine's refresh cycle and
+calendar's enrichment path share the same anyio threadpool as everything else on this single-process
+pod, a burst of unbounded external calls from either would be mechanistically capable of starving
+whatever else needs a threadpool slot at that moment — a far more plausible mechanism than
+apscheduler's own dispatch overhead, which is exactly why apscheduler died on contact with a control
+and this candidate has not.
+
+**Concrete next steps, in order:**
+1. Wait for the still-running log-tail daemon to capture a temporally-separated stall (ideally hours
+   away from 11:51–11:52Z, on a different UTC hour) and re-run this same sliding-window check against
+   it. One more genuinely independent hit at <1% base rate would move this from "candidate" toward
+   "credible."
+2. Trace `catalyst/sources.py` and `catalyst/synthesize.py` for any external call NOT already routed
+   through `yf_util.bounded_call` or an equivalent bounded/threadpool-safe pattern, and separately
+   check `api/routers/calendar.py`'s own enrichment path for the same. Confirmed-unbounded call sites
+   would upgrade this from "plausible mechanism" to "named cause."
+3. Fix the qualname bug (above) first if either of these traces needs per-job log attribution rather
+   than per-trigger-shape — right now every apscheduler dispatch line for EITHER job still reads the
+   same generic wrapper name.

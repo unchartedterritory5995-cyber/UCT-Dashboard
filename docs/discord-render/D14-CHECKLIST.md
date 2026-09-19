@@ -238,9 +238,31 @@
 > `__name__` but not `__qualname__`, and APScheduler's `get_callable_name` reads the latter) —
 > per-job attribution from these logs is impossible until that one-line bug is fixed in
 > `memory_probe.py` + `contention_trace_temp.py` (both owned elsewhere, not touched here). Full
-> account: `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`. Next candidate,
-> untested against a control: `api.routers.calendar` / catalyst-engine prominence in two
-> mid-sized stalls.
+> account: `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`.
+>
+> 🟡 **W2b — 2026-09-19: the next candidate CONTROL-TESTED using BACK DATA (the log-tail daemon's
+> own accumulated span), and it SURVIVES — still a candidate, not a finding.**
+> `api.routers.calendar`/`catalyst.engine` prominence in the two mid-sized stalls was run through a
+> FULL SLIDING-WINDOW scan (12,062 windows for calendar, 21,088 for catalyst-engine, across the
+> whole 16.8h captured span) rather than 5 hand-picked samples — the hand-picked style that killed
+> apscheduler turned out to be too weak a control for a BURSTY logger (calendar occupies only 12.9%
+> of all 30s buckets; 5 discrete samples had ~50% odds of hitting zero by pure chance). The rigorous
+> scan: both loggers reach the stall's own dominance share in **under 1% of ALL sampled windows
+> across the full day** (calendar: 110/12,062 = 0.9%; catalyst-engine, restricted to its own
+> documented active hours: 95/21,088 = 0.5%) — the OPPOSITE of apscheduler's 35–65%-everywhere
+> baseline. ⛔⛔ **The load-bearing caveat: the two "mid-sized stalls" are only ~7 SECONDS apart —
+> almost certainly one underlying episode recorded as two watcher samples, not two independent
+> data points.** This candidate currently rests on **n=1 independent episode**. A plausible
+> MECHANISM exists and is not new to this codebase — this repo's own CLAUDE.md already documents
+> "unbounded external calls pin threadpool workers" as the 2026-07-01 524 outage's root cause,
+> already fixed for `fundamentals.get_fundamentals`/`dividends_calendar.get_events` but not
+> confirmed fixed for catalyst-engine's own 8-source pull or calendar's enrichment path — NOT traced
+> in this pass (`catalyst/sources.py`/`synthesize.py` one layer down were not read). **Next steps,
+> in order:** (1) a temporally-SEPARATE stall (not adjacent to 11:51–11:52Z) needs to hit the same
+> pattern before this moves past "candidate"; (2) trace `sources.py`/`synthesize.py` for an
+> unbounded external call not already routed through `yf_util.bounded_call`. Full account (the
+> statistics, the burst-structure finding that motivated re-testing with a scan instead of samples,
+> and both next steps in full): `evidence/oi44-attribution/2026-09-18-first-real-alignment.md`.
 >
 > ✅ **W3 DONE AND MERGED 2026-09-18 08:21 ET, `925948522` on master.** NOT on this branch —
 > R59 makes `discord-render-hardening`'s runtime byte-for-byte invariant, and W3 touches
