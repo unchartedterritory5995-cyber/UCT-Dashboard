@@ -1307,3 +1307,64 @@ API (403→200, real messages returned) and Jersace's authorship confirmed the s
 original four (48/50 recent messages from a single author, `jersace.x`,
 id `395070112748666881`). `#bracco` re-confirmed working at the same time. Still open: the
 SETUP EXAMPLES category (18 channels) and the AtTheAsk/`alex-jones` question above.
+
+## Session 28 closed out (2026-09-19) — Setup Examples granted, Twitter/X built,
+## everything landed to master and verified live end to end
+
+Owner granted the SETUP EXAMPLES category (18 channels) the same way as jersace; all 18
+confirmed 200 via the bot's API. Real data settled the open authorship-scope question with
+measurement, not a guess: 56 of 57 sampled messages across all 18 channels are from the six
+named authors (mostly tsdr/bracco) — unlike Main Chat, the existing strict author-only filter
+already captures nearly everything here, no broadened-capture change needed.
+
+**Twitter/X built** (`api/services/wisdom/sources/twitter.py`) per the owner's "full ongoing
+pipeline" ruling: reads the existing `tweets.db` cache read-only for exactly the three official
+accounts (never calls the Twitter API itself), one tweet = one source = one segment matching
+Discord's model (not Sunday Scans' — a tweet never changes after posting, so there is no
+content-hash re-versioning to do), idempotent by tweet id, its own kill switch
+(`WISDOM_TWITTER_LISTENER_ENABLED`) on a 6-hour cadence. **Caught two silent, dangerous bugs
+before either shipped**: the base contract's `wisdom_sources.stream` and `wisdom_segments.kind`
+columns are `CHECK`-constrained to fixed enums that do not include `'twitter'`/`'tweet'` —
+`INSERT OR IGNORE` swallowed both violations with zero rows written while `written=N` was still
+reported. Found by testing real table content rather than the returned dict, mutation-proved,
+fixed to the schema's own already-reserved values (`stream='x'`, `kind='message'`).
+`TWEET_RETENTION_DAYS` extended 7→30 as a rescue for the tweets already sitting in the cache
+while this shipped.
+
+**A full-suite run (not just the narrow file touched each time) turned up three more tests left
+stale by earlier tonight's Discord scope work** — `call_authors()` still asserted the original
+four, `discord_status()`'s channel count still asserted 4, and two tests used `#main-chat` as
+their "must be refused, out of scope" fixture after Main Chat was correctly made in-scope for
+AtTheAsk. Fixed; two of the three now derive their expected value from the real config instead
+of a literal, specifically so this doesn't recur the same way next time scope changes.
+
+**Landed to master** (`dd2acb5a0`) once the pre-push guard found a genuinely quiet window —
+it had correctly refused for over an hour on real concurrent activity from other sessions, not
+red tape. Confirmed via ancestry (`git merge-base --is-ancestor dd2acb5a0 origin/production`),
+not by trusting a commit-hash string, since `production` (what `web` actually serves, a separate
+branch from `master`) was itself being raced by unrelated concurrent work the whole time.
+Confirmed live in the running container directly: `twitter.py` present on disk, all six authors
+resolve, `twitter.STREAM == 'x'`, both new job specs registered.
+
+**Extraction re-armed at the moderate pilot scale** the owner chose after the earlier
+15x-overscale pause: `WISDOM_EXTRACT_BUDGET_USD=175`, `WISDOM_EXTRACT_DAILY_BUDGET_USD=28`,
+`WISDOM_EXTRACT_ENABLED=1` — confirmed in-process, not just set. Model/passes/segment-limit/
+priority order left exactly as before. The daily chain only runs on trading days
+(Mon-Fri 18:47 ET); today is a weekend, so the first real pass fires Monday regardless of when
+the flag flipped.
+
+**Both new listeners flipped on and manually fired once each for real, immediate verification**
+rather than waiting on their natural cron slots (15 min / 6 h): Discord wrote **2,548 new
+sources** across all six authors (bracco 524, manrav 522, tsdr 509, chartmaster 496, jersace
+488, attheask 9 — Main Chat's backfill reached one page of recent history) plus the 18 Setup
+Examples channels; Twitter/X wrote **126 tweets** (chartmaster 84, tsdr 22, bracco 20), zero
+errors. `wisdom_segments` total: **30,795** (up from 28,121), exactly +2,674 = 2,548 + 126, one
+segment per source as designed. `WISDOM_EXTRACT_ENABLED` was `0`/newly `1` at $28/night the
+whole time — none of this ingestion touched paid extraction; R64 ("force never spends") makes
+that structurally true regardless.
+
+Every content source discussed this session is now live and verified end to end: Zoom/YouTube
+(unchanged, already complete), Substack/Sunday Scans (65 sources), Discord (all six authors +
+Main Chat + Setup Examples), and Twitter/X (all three official accounts) — with extraction
+re-armed at a budget the owner chose with real numbers in front of them, not one that crept up
+15x unnoticed.
