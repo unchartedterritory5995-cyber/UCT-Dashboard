@@ -89,6 +89,39 @@
         "manrav"
       ],
       "substack_sections": []
+    },
+    {
+      "author_id": "jersace",
+      "display_name": "Jersace",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "395070112748666881",
+      "discord_username": "jersace.x",
+      "discord_verified": "48/50 most recent #jersace messages (bot read after the 2026-09-19 grant); other 2 = manrav and alexjonesindustrialaverage guest posts",
+      "x_handle": null,
+      "aliases": [
+        "Jersace",
+        "jersace",
+        "jersace.x"
+      ],
+      "substack_sections": []
+    },
+    {
+      "author_id": "attheask",
+      "display_name": "At.The.Ask",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "808925866184409188",
+      "discord_username": "at.the.ask",
+      "discord_verified": "Owner ruled this a 6th author 2026-09-19, posting in #main-chat rather than a dedicated channel (unlike the other five, and unlike an earlier candidate 'AskingA'/def1led the owner explicitly rejected). Identity confirmed 2026-09-19 via an owner-provided screenshot of the Discord profile (username at.the.ask, display name At.The.Ask, x.com/attheask) matched exactly against a guild member search (id 808925866184409188, only result for that username). 11 messages found scanning main-chat's last ~600 messages, all dated 2026-09-18, mix of short comments and attachments — an active poster there.",
+      "x_handle": "attheask",
+      "aliases": [
+        "AtTheAsk",
+        "attheask",
+        "At.The.Ask",
+        "at.the.ask"
+      ],
+      "substack_sections": []
     }
   ],
   "ambiguous_speaker_labels": [
@@ -135,7 +168,11 @@
       "Chartmaster": "the author_id itself, a stage name",
       "EliteSwingTrader": "X display name",
       "Manrav": "the author_id itself",
-      "manrav": "Discord username, lowercase"
+      "manrav": "Discord username, lowercase",
+      "Jersace": "the author_id itself, a stage name, not observed as anyone's given name in this room",
+      "jersace": "Discord username / channel name, lowercase",
+      "AtTheAsk": "the author_id itself, a stage name, not observed as anyone's given name in this room",
+      "attheask": "lowercase form of the stage name"
     }
   }
 }

@@ -61,7 +61,25 @@ CREATE TABLE IF NOT EXISTS wisdom_sunday_scans_checks (
 CREATE INDEX IF NOT EXISTS ix_sunday_scans_checks_lineage ON wisdom_sunday_scans_checks(lineage_id, checked_at);
 """
 
+# sources_003: the twitter.py tracking ledger (2026-09-19), the same role
+# wisdom_discord_messages plays for Discord -- idempotency by primary key, since a
+# tweet (unlike a Substack post) never changes after posting, so there is no
+# content-hash re-versioning to track here.
+_SOURCES_003 = """
+CREATE TABLE IF NOT EXISTS wisdom_twitter_tweets (
+  tweet_id              TEXT PRIMARY KEY,
+  author_handle         TEXT NOT NULL,
+  author_id             TEXT NOT NULL,           -- always resolved: authors.json x_handle match is exact, never ambiguous
+  created_at            INTEGER,                 -- unix seconds, copied from tweets.db
+  segment_id            TEXT,
+  source_id             TEXT,
+  ingested_at           TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_twitter_tweets_author ON wisdom_twitter_tweets(author_id, created_at);
+"""
+
 MIGRATIONS: list[tuple[str, str]] = [
     ("sources_001_discord_messages", _SOURCES_001),
     ("sources_002_attributions_checks", _SOURCES_002),
+    ("sources_003_twitter_tweets", _SOURCES_003),
 ]

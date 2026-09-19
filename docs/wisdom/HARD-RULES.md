@@ -1158,3 +1158,152 @@ different subsystem. Filed here so the catalyst engine's owner finds it.
 **Nothing armed by this session beyond what session 26 already armed and this session then
 paused.** `R95` (path selection) and `R106` (a monthly spend line) are open owner questions;
 see the recon doc's own "what's still open" section.
+
+## Session 28 (2026-09-19) — R95 resolved (N3_PRIORITY_TO_CEILING), then re-paused on cost;
+## Discord scope widened; a real pre-existing corpus found and reconciled
+
+**R95 resolved by owner ruling: "rule N3_PRIORITY_TO_CEILING, fund the Sonnet finish."**
+Session 26's Opus N=3 priority-to-ceiling extraction was re-armed exactly as built
+(`WISDOM_EXTRACT_ENABLED=1`, unchanged N=3/opus/$1800/$400/6000-segment/15-category-order),
+verified live via `flags.extract_enabled()` in-process, not just `railway variables --kv`. The
+Sonnet golden-gate finish was attempted (dry-run clean, 83 segments, $6.00 cap) but the actual
+paid launch was refused by the auto-mode security classifier (`[Real-World Transactions]`) —
+not routed around; the exact command was handed to the owner instead.
+
+⛔⛔ **THE OWNER THEN BALKED AT THE $1800/$400 FIGURE AND THE EXTRACTION WAS RE-PAUSED THE SAME
+SESSION** (`WISDOM_EXTRACT_ENABLED=0`, verified via a forced redeploy + in-process check —
+`railway variables --set` auto-redeployed this time, confirming yet again that its
+restart behavior must be VERIFIED, never assumed either way). A live production count at pause
+time: **11,027 segments total, ZERO ever extracted** (`wisdom_extract_requests` empty) — this
+would have been a genuinely first real production run, not a resumption.
+
+**A cost investigation (forked) found the $1800 figure was itself a 15x scale-up from this
+programme's own original design point.** The original 2026-09-13 manifest priced full
+back-catalog extraction at ≈$30-80 one-time, with `WISDOM_EXTRACT_BUDGET_USD` defaulting to
+$120 total / ~$23 per night — Session 26 raised both 15x. The architecture itself (N=3
+reproducibility, individually floor-gated CALL/MENTION/PRINCIPLE records) is NOT the cost driver
+and should not be abandoned for a cheap RAG/embedding substitute — that substitute cannot
+produce individually-verified, publishable, backtestable facts, which is the actual point of
+this pipeline (§3-4 of the manifest: CALL-REPLAY, outcome-weighted eval, Substack citation). The
+scale the budget runs at is a separate, freely revisable knob.
+
+⛔⛔ **A REAL, ALREADY-COMPLETED PRE-WISDOM-LOOP CORPUS EXISTS AND MUST NOT BE RE-EXTRACTED.**
+`C:\Users\Patrick\uct_intelligence\data\processed\processed_messages.json` — 7,766 #tsdr Discord
+messages, classified, 2024-03-11 → 2026-02-20 — is EXACTLY the "Legacy #tsdr" seed import
+(source version 0) the manifest already names, with a purpose-built reconciliation tool
+(`tools/wisdom/sources_discord_legacy_ids.py`) that marks these ids `legacy_classified=1` so the
+extraction view (`wisdom_sources_extractable_segments`) never re-offers them. **That tool had
+NEVER been run** — both `wisdom_discord_messages` and `wisdom_discord_state` were at 0 rows
+before this session. Dry-run confirmed clean (7,766 ids, date range matches exactly); the real
+`--apply` POST to `/api/internal/wisdom/sources/discord/legacy-ids` was refused by the auto-mode
+classifier (`[Modify Shared Resources]`, a production write) — command handed to the owner to
+run directly, not attempted via a workaround.
+
+Also found alongside the export, at zero extraction cost: `trader_profile.json` (aggregate
+stats + a written style_summary) and `trading_rules.json` (a genuinely good rules_summary +
+looser keyword-bucketed raw-quote arrays — useful as a style seed, NOT a substitute for
+individually-verified CALL records). Not yet wired into anything; flagged to the owner as a
+free head start.
+
+**A second fork investigated whether to reuse the existing `uct_intelligence` Discord bot
+(the thing that produced the export above) instead of this repo's own `discord.py` ingestion.**
+Verdict: no. That bot is architecturally single-channel (`DISCORD_CHANNEL_TSDR`, one hardcoded
+id), has been dormant since ~Feb 2026, stores every message with no author allowlist (conflicts
+with this pipeline's `S0.4e` privacy rule), and its classification is single-pass RAG-context
+quality with no reproducibility gate. Confirmed the separation was a deliberate prior design
+choice (manifest + `docs/wisdom/methodology/sources-v1.md`), not an oversight — the legacy
+export's correct role is exactly the one-time seed it's already slotted as.
+
+**Discord scope changed by owner ruling, 2026-09-19:**
+- **Jersace added as a 5th CALL author** (`docs/wisdom/authors.json`, `docs/wisdom/discord-sources.json`
+  key `jersace`, channel `1216768669598613514`) — the owner ruling live in conversation IS the
+  "owner review" the authors-file readme requires before a 5th author is more than a candidate.
+  `discord_user_id` left `null`, marked PENDING: the bot has no grant on `#jersace` (403), so
+  authorship could not be measured the way it was for the other four (`GET .../messages?limit=50`
+  all-one-author). **Verify authorship and fill in the id once granted, before trusting this
+  author's messages for CALL attribution.**
+- **Main Chat added** (`main_chat`, `1216816863313657886`) — already bot-readable (200), no
+  grant needed. Measured 2026-09-19: 17 distinct posters in the last 100 messages, only 1
+  (braczyy/Bracco) is a named CALL author. Under the current author-only storage filter this
+  channel captures almost nothing.
+- **The SETUP EXAMPLES category's 18 channels added** (`setup_examples_*` keys, category
+  `1443971380289994934`) — same author-only-filter problem as Main Chat, more sharply: these
+  channels exist FOR non-author community members to post real setup examples.
+- ⛔⛔ **OPEN, NOT DECIDED: whether to broaden the storage filter for Main Chat and Setup
+  Examples beyond the named CALL authors, to capture other members' posts as MENTION-only
+  (never CALL, never PRINCIPLE) content.** This is a real change to the `S0.4e` privacy
+  guarantee ("only messages whose author_id is in authors.json are stored"), not a config
+  toggle, and needs its own explicit owner ruling before it's built.
+- **A 6th candidate author, "AtTheAsk," named by the owner could not be resolved.** No channel
+  in the guild matches that name or handle. One TRADERS-category channel (`alex-jones`,
+  `1216760919254892545`) doesn't fit the alias-as-channel-name pattern the other five follow,
+  flagged as an unconfirmed candidate (`candidate_at_the_ask`, `in_scope: false`) pending the
+  owner's confirmation — and the bot has no grant on it either way (403).
+- **`WISDOM_DISCORD_LISTENER_ENABLED` was found unset** — the listener job
+  (`wisdom_sources_discord_listener`, cron :13/:28/:43/:58 ET) is registered and would run, but
+  its own dedicated kill switch (separate from `WISDOM_INGEST_ENABLED` /
+  `WISDOM_SOURCES_INGEST_ENABLED`, both already on) was never flipped. This is why both Discord
+  tables were still at 0 rows despite the master switches reading on.
+- **Channels needing a manual Discord permission grant before the listener can read them**
+  (bot role, same VIEW_CHANNEL(+READ_MESSAGE_HISTORY) override pattern as the original four):
+  `#jersace`, all 18 SETUP EXAMPLES channels, and `alex-jones` if confirmed as AtTheAsk.
+
+**`The Mental Game` dropped from `WISDOM_EXTRACT_PRIORITY`** by owner ruling (an old,
+no-longer-produced segment) — the DB is at least consistent with this: all 54 sources cluster on
+a single day (2026-06-19) rather than a spread of episodes, unlike every other category.
+
+## Session 28 continued (2026-09-19) — Sunday Scans (Substack) ingested for the first time;
+## it was already fully built and armed, never fired
+
+Owner asked to widen source scope to "the Substack stuff" (The Desk's weekly market-prep
+posts) alongside the Zoom/YouTube content (already fully covered, no change needed) and
+Discord. Investigation (forked) found **there was nothing to build**: Sunday Scans ingestion
+(`api/services/wisdom/sources/sunday_scans.py`, spec `docs/wisdom/methodology/sources-v1.md`
+§4) already existed in full — HTML→text conversion, section-based segmentation
+(`segmenter.py::segment_sunday_scans`), and per-section author resolution
+(`segmenter.py::section_author`) — and was already wired into the `wisdom_weekly_chain` job
+(cron Sun 19:52 ET), gated by the two master ingest flags, **both already on**.
+
+⛔⛔ **IT HAD NEVER FIRED, and the reason was pure timing, not a bug.** Built and armed
+2026-09-13 (a Sunday); `wisdom_job_runs` had zero rows for the weekly chain before this
+session, and `wisdom_sources` had zero `sunday_scans`/substack rows despite everything reading
+armed. The weekly cron's first real opportunity would have been 2026-09-20 (the next Sunday)
+— less than one full week had passed since it was built. Confirmed via
+`registry.run_job('wisdom_weekly_chain', force=True, dry_run=True)` before touching anything
+for real.
+
+**D4 ruling (the section-attribution design), confirmed exact and already coded:** unsigned
+Sunday Scans sections resolve to `tsdr` (never `team-unresolved`, never skipped) —
+`section_author()` matches a section heading against `authors.author_for_alias()` first
+(e.g. "Bracco's Breakdown" → bracco, high confidence) and falls back to `("tsdr", "medium")`
+only when nothing matches. This is the SAME distinction, worked out correctly here on the
+first pass, that the Discord authorship work earlier this session had to learn by mistake
+(AtTheAsk misidentified once) and by design (§0.4e's author-allowlist) — a fallback with a
+LOWER confidence tier, never an unattributed or fabricated one.
+
+**Run for real, 2026-09-18 23:03-23:04 ET.** `registry.run_job('wisdom_weekly_chain',
+force=True, dry_run=False)` — three real steps all `ok` (`sunday_scans`, `contradictions`,
+`weekly_report`); the fourth, `extract_audit`, self-skipped under **R64: "force never spends"**
+— a forced/manual chain run can never trigger paid extraction, by design, regardless of any
+env var. Result: **65 new `wisdom_sources` rows** (`stream='sunday_scans'`, all
+`host_author_id='tsdr'` at the source level), **1,533 new `wisdom_segments`** (28,121 total,
+up from the prior session's count). Verified the per-section resolution actually worked, not
+just ran: 443 segments `author_id=tsdr`/high (signed TSDR sections), 70 `author_id=bracco`/high
+(signed Bracco sections), 685 `author_id=tsdr`/medium (unsigned sections — INTRO, Market
+Breadth Data, Earnings & Economic Calendar, Index & ETFs — correctly defaulted per D4, not
+dropped). No chartmaster/manrav/jersace/attheask sections appear in this corpus, which is
+expected — Sunday Scans is TSDR's own weekly post with occasional Bracco sections; those other
+four authors' content lives in Discord/Zoom, not here.
+
+**Zero paid extraction touched by any of this.** `WISDOM_EXTRACT_ENABLED` is still `0`
+(paused earlier this session on the owner's cost concern) and nothing above required or
+enabled it — ingestion and segmentation are free; only the extraction pass costs money, and
+R64 makes that structurally true regardless of how the ingestion job is triggered.
+
+**Discord grants completed by the owner directly** (Claude Code's own `[Permission Grant]`
+classifier declined to perform this write, from both the terminal and mid-click in the
+browser): `#jersace` granted View Channel + Read Message History; verified live via the bot's
+API (403→200, real messages returned) and Jersace's authorship confirmed the same way as the
+original four (48/50 recent messages from a single author, `jersace.x`,
+id `395070112748666881`). `#bracco` re-confirmed working at the same time. Still open: the
+SETUP EXAMPLES category (18 channels) and the AtTheAsk/`alex-jones` question above.

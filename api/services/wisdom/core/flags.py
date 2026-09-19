@@ -42,6 +42,10 @@ def discord_listener_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_DISCORD_LISTENER_ENABLED", "0"))
 
 
+def twitter_listener_enabled() -> bool:
+    return _truthy(os.environ.get("WISDOM_TWITTER_LISTENER_ENABLED", "0"))
+
+
 def sources_ingest_enabled() -> bool:
     return _truthy(os.environ.get("WISDOM_SOURCES_INGEST_ENABLED", "0"))
 
@@ -131,6 +135,7 @@ GATES = (
     ("WISDOM_X_BACKFILL_ENABLED", x_backfill_enabled, False),
     ("WISDOM_VOCAB_AUTOPROMOTE_ENABLED", vocab_autopromote_enabled, False),
     ("WISDOM_DISCORD_LISTENER_ENABLED", discord_listener_enabled, False),
+    ("WISDOM_TWITTER_LISTENER_ENABLED", twitter_listener_enabled, False),
     ("WISDOM_SOURCES_INGEST_ENABLED", sources_ingest_enabled, False),
     ("WISDOM_EXTRACT_ENABLED", extract_enabled, False),
     ("WISDOM_VISION_ENABLED", vision_enabled, False),

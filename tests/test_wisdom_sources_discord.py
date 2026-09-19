@@ -258,8 +258,11 @@ def test_legacy_ids_are_reconciled_and_never_reach_extraction():
 
 
 def test_legacy_ids_refuse_an_out_of_scope_channel_and_an_oversized_batch():
+    # #main-chat was out of scope until session 28 (2026-09-19) added it for AtTheAsk;
+    # #alex-jones stays out of scope by owner ruling the same session ("doesn't really
+    # bring much value") -- still a valid out-of-scope fixture.
     with pytest.raises(ValueError):
-        dc.record_legacy_ids("1216816863313657886", [_mid(1)])  # #main-chat: member channel
+        dc.record_legacy_ids("1216760919254892545", [_mid(1)])  # #alex-jones: out of scope
     with pytest.raises(ValueError):
         dc.record_legacy_ids(TSDR_CH, [_mid(i) for i in range(dc.MAX_LEGACY_BATCH + 1)])
 
@@ -270,7 +273,9 @@ def test_status_reports_cursors_backoff_and_counts():
     with store.read() as conn:
         status = dc.discord_status(conn, now=T0 + timedelta(minutes=5))
     by_id = {c["channel_id"]: c for c in status["channels"]}
-    assert set(by_id) == {"882459873823043655", "882460017352130630", "1399095349607530588", "1193233724440059946"}
+    # Derived, not hardcoded: the in-scope set grew from 4 to 24 in session 28
+    # (2026-09-19, Jersace/Main Chat/Setup Examples) and will keep moving.
+    assert set(by_id) == set(dc.in_scope_channel_ids())
     assert by_id[TSDR_CH]["stored"] == 2 and by_id[TSDR_CH]["stored_by_author"] == {"tsdr": 1, "bracco": 1}
     assert by_id["882460017352130630"]["blocked"] is True
     assert status["token_configured"] is True and "test-token" not in repr(status)
