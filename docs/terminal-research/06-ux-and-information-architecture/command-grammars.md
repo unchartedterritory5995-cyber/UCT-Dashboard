@@ -7,8 +7,8 @@ group: C
 category: domain
 scope: Command/search grammars across financial terminals (Bloomberg, Godel, Koyfin, LSEG Workspace, TradingView, thinkorswim, Benzinga Pro, Unusual Whales) and software analogs (Raycast, Spotlight, VS Code, GitHub, Slack, Linear)
 confidence: 🟡 (grammar mechanics 🟢 · disambiguation/ranking internals 🟡 · latency and real usage 🔴)
-evidence_ceiling: "No product was operated with a live seat. Every claim about how a grammar FEELS — keystroke counts, misdirection rate, time-to-competence, keyboard-vs-mouse split, suggestion latency — is 🔴 and reconstructed from documentation, never measured. Bloomberg's autocomplete ranking rule is undocumented in every source reached. TradingView's individual key bindings sit behind client-side accordions. Linear's command-menu documentation was not reachable (both candidate URLs 404). Godel's per-command doc pages 404 on direct URL guesses. thinkorswim's Composite Symbols page 404s to a direct fetch and is quoted from the search index of its own official page."
-sources: "16 primary (official product documentation, read directly); 13 secondary (on-disk sibling dossiers citing primary sources, university library guides, official-page search snippets, one founder interview, one HCI reference)"
+evidence_ceiling: "No product was operated with a live seat. Every claim about how a grammar FEELS — keystroke counts, misdirection rate, time-to-competence, keyboard-vs-mouse split, suggestion latency — is 🔴 and reconstructed from documentation, never measured. Bloomberg's autocomplete ranking rule is undocumented in every source reached. Linear's command-menu documentation was not reachable (both candidate URLs 404). thinkorswim's Composite Symbols page 404s to a direct fetch and is quoted from the search index of its own official page. ⚠️ 2026-09-19: TradingView's key bindings and Godel's composition syntax — previously ceilinged as client-side-accordion-blocked and 404-on-guess respectively — were CLOSED via a real browser session (no login, no account created); see GAPS items 3-4 and §2/§5. Neither required crossing this task's own boundary against account creation or form submission."
+sources: "18 primary (official product documentation, read directly); 13 secondary (on-disk sibling dossiers citing primary sources, university library guides, official-page search snippets, one founder interview, one HCI reference)"
 uct_relevance: high
 status: draft
 date: 2026-09-02
@@ -174,11 +174,24 @@ what the published page *is*: the entire product's address space on one screen. 
 discoverability artifact Bloomberg does not have a public equivalent of, and it is nearly free to
 produce once a grammar exists.
 
-Note also what is **absent**: the docs page publishes commands and *window* shortcuts, but no syntax
-statement — nothing on the page says whether you type `AAPL DES` or `DES AAPL`, whether a market-sector
-token exists, or how a mismatch fails. Per-command detail pages exist ("Click any pill to open its full
-documentation") but their URLs were not recoverable within budget. **The grammar's shape at Godel is
-therefore inferred from vocabulary shape, not read.**
+**The composition syntax is now read directly — closed 2026-09-19.** The per-command pill pages
+("Click any pill to open its full documentation") were unreachable by URL guess in the first pass;
+a real browser session opened `godelterminal.com/docs/commands/des` (found via search, not guessed)
+and it renders fully — the earlier "404 on direct URL guesses" ceiling was a guessing failure, not a
+platform block. The DES page states the invocation as a labelled four-slot sentence: **`Security
+Identifier/Ticker` → `Country/Instrument` → `Asset Class` → `DES`**, worked example `NVDA US EQ DES`
+opens Nvidia's description page. That is Bloomberg's own `TICKER <SECTOR> FUNC <GO>` shape with the
+`<GO>` commit key dropped and the country/asset-class annotation kept — noun-first, four slots, no
+separate commit keystroke documented (Enter is presumed but not stated on this page).
+
+Each pill page also documents a **screen-scoped keyboard layer**, distinct from the global layer in
+the table above — the DES screen binds bare letter keys (no modifier) to jump to a *related* command
+without retyping the ticker: `G` → price graph, `N` → company news, `CHAT` → stock chat room, `FA` →
+financial analysis, `EM` → earnings matrix, `ANR` → analyst ratings. This is a third keyboard layer
+this file had not previously catalogued anywhere: global window shortcuts (table above), the typed
+command grammar, and now a *per-screen contextual shortcut layer* that only exists once a security is
+loaded — the same idea as Koyfin's colour-linked widgets, but keyboard-driven instead of click-driven,
+and scoped to "commands related to the one you're looking at" rather than "commands sharing a ticker."
 
 **RELEVANCE TO UCT.** Two transfers, both cheap. (a) **Publish the address space on one page.** UCT
 has a widget registry, a route taxonomy and a nav grouping already; a single public "every address in
@@ -189,18 +202,23 @@ palette all compete for keystrokes; UCT's `/charts` already routes typing into s
 chart has focus, which is the same instinct without the escape hatch back out.
 
 **CONFIDENCE.** 🟢 for the command list and the shortcut table (read directly from the vendor's own
-page). 🟡 for "roughly two-thirds are Bloomberg mnemonics" — that is my comparison against the
-Bloomberg evidence file, not a claim either vendor makes. 🔴 for whether Godel's grammar composes
-(`AAPL DES` in one line) — the syntax is undocumented on the page I reached.
+page). 🟢 for the composition syntax (closed 2026-09-19, was 🔴 — read directly from the DES pill
+page, one worked example, no login required). 🟡 for "roughly two-thirds are Bloomberg mnemonics" —
+that is my comparison against the Bloomberg evidence file, not a claim either vendor makes. 🟡 for
+whether the four-slot sentence is *required* in full or whether the country/asset-class slots have
+documented defaults — only one worked example was read; the other ~44 pill pages were not sampled.
 
 **RECOMMENDATION (hypothesis).** *Adopting an existing mnemonic vocabulary where one exists costs
 nothing and imports installed muscle memory; inventing a parallel one for the same concept spends the
 user's learning budget on nothing.* And: *a one-page public index of every address is the highest
 learnability-per-hour artifact a grammar produces.*
 
-**OPEN QUESTION.** Does Godel accept `TICKER FUNCTION` in one line, or does it require a loaded
-context? A logged-in session or one demo-video transcript would settle it. Godel's own YouTube demo
-channel exists and was not sampled.
+**OPEN QUESTION — CLOSED 2026-09-19.** *Was:* Does Godel accept `TICKER FUNCTION` in one line, or does
+it require a loaded context? *Answer, from the DES pill page:* the documented form is the full
+four-slot sentence (`NVDA US EQ DES`), not a bare `TICKER FUNCTION` pair — closer to Bloomberg's shape
+than to Koyfin's two-slot `ticker → function`. Whether a *shorter* form (bare ticker + command, letting
+country/asset-class default) also works was not tested — no session was opened, only public docs pages
+were read, per this task's no-login-and-no-account-creation scope.
 
 ---
 
@@ -357,15 +375,30 @@ its place:
    `/chart/?symbol=NASDAQ%3ANVDA` — a chart for any symbol is a GET away [S9].
 5. **A published, categorised hotkey surface.** The shortcuts page's own copy says shortcuts exist to
    *"Manage watchlists, set alerts, navigate Supercharts"*, organised into seven categories: Chart ·
-   Indicators and drawings · Watchlist · Screener · Pine Script® Editor · Trading · Alerts [S10].
+   Indicators and drawings · Watchlist · Screener · Pine Script® Editor · Trading · Alerts [S10]. **The
+   individual bindings were unreadable by static fetch (client-side accordions) and are now read in
+   full** — closed 2026-09-19 by clicking each of the seven accordion headers in a real browser session
+   and extracting the rendered DOM. All ~130 bindings are on-disk verbatim; the load-bearing shape for
+   UCT is: **no chord composes across categories** — every binding is either a single key, a two-key
+   chord, or a mouse-modifier combo, and none of them take a typed argument (contrast Bloomberg's
+   `TICKER <SECTOR> FUNC <GO>` sentence). Representative bindings: `Ctrl+K` quick search, `/` open
+   indicators, `Alt+A` add alert, `Alt+G` go to date, any letter key changes the symbol with no focus
+   act (confirming item 1 directly), any number key or `,` changes the interval, `Alt+W` add symbol to
+   active watchlist, `Alt+T`/`Alt+H`/`Alt+J`/`Alt+V`/`Alt+C`/`Alt+F` place a drawing tool (trendline /
+   horizontal line / horizontal ray / vertical line / crossline / Fib retracement — a *one-letter verb
+   per drawing type*, the densest mnemonic-per-keystroke ratio in this file), `Shift+T`/`Shift+B`/
+   `Shift+S` open the order ticket / place a market buy / place a market sell, `Shift+D` open/close the
+   DOM. The Pine Script Editor sub-list is a near-total VS Code keymap re-implementation (`Ctrl+Shift+P`
+   command palette alias, `Ctrl+D` add selection to next match, `Ctrl+Shift+L` select all occurrences,
+   `Alt+Click` insert cursor) — TradingView did not invent an editor grammar, it imported one wholesale.
 
 **EVIDENCE.** Items 1–4 from the program's on-disk `03-competitive-research/tradingview/dossier.md`
 §C/§H [S9], citing TradingView help-center articles and the AI-Screener/Pine-Screener blog posts
 (Tier 1, **verified**) plus rendered pages (**demonstrated**), 2026-09-02. Item 5 read directly:
-`https://www.tradingview.com/support/shortcuts/`, in-browser 2026-09-02 — **verified for the seven
-category names and the quoted sentence**; the individual key bindings sit behind client-side
-accordions that did not expand in a text extraction, which independently reproduces the sibling
-dossier's stated ceiling [S10].
+`https://www.tradingview.com/support/shortcuts/`, in-browser, first pass 2026-09-02 (seven category
+names + intro sentence only, accordions did not expand in text extraction) — **superseded 2026-09-19**
+by a second in-browser pass that clicked all seven accordion headers (`mcp__claude-in-chrome`, real
+Chrome, not a headless fetch) and extracted the fully-rendered DOM text — **verified, complete** [S30].
 
 **INTERPRETATION.** TradingView made a defensible opposite bet, and the reason is audience: a grammar
 must be learned, and TradingView's audience churns. So it replaced one grammar with three *modes*,
@@ -380,9 +413,12 @@ independently arrived at [S9]. What UCT does not have is (a) the modifier+cursor
 gesture, and (b) a *published* shortcut inventory spanning non-chart surfaces. Mode three (English → a
 scan) maps onto UCT's existing English-to-scan Concierge.
 
-**CONFIDENCE.** 🟢 on the three modes and symbol addressing. 🟡 on "no palette" — the sibling role
-inferred absence from a complete shortcut-category list plus the help taxonomy, not from a definitive
-statement, and I reproduced the same ceiling.
+**CONFIDENCE.** 🟢 on the three modes and symbol addressing. 🟢 on the full shortcut inventory
+(closed 2026-09-19, was 🟡). 🟡 on "no palette" — the sibling role inferred absence from a complete
+shortcut-category list plus the help taxonomy, not from a definitive statement, and the now-complete
+shortcut page corroborates rather than settles it: nothing in any of the seven categories opens a
+typed-argument box, which is consistent with "no palette" but is still an absence, not a vendor
+statement.
 
 **RECOMMENDATION (hypothesis).** *Three explicit search modes may serve a mixed audience better than
 one omnibox, because each mode's result set can be typed correctly instead of guessed* — set against
@@ -391,7 +427,9 @@ cannot have both as its default.
 
 **OPEN QUESTION.** Does TradingView accept **any** text-command syntax in the same box as symbol
 search (an interval code, a comparison expression like `AAPL/QQQ`)? Both the sibling role and I left
-this open; a logged-in session answers it in thirty seconds.
+this open; a logged-in session answers it in thirty seconds. **Still open** — the 2026-09-19 pass
+read the public shortcuts page only, which requires no login and settles the *binding* question but
+not this one.
 
 ---
 
@@ -596,7 +634,7 @@ Read this as *what is documented*, not *what is good*. 🟢/🟡/🔴 is confide
 | Product | Grammar shape | Commit | Disambiguation | User-minted verbs | Fuzzy match | Autocomplete presentation | History / favourites | Discoverability aids | Deterministic ↔ AI | Deep-linkable | Conf. |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **Bloomberg** | Noun-first, 4 slots: `TICKER <SECTOR> FUNC <GO>` | `<GO>` key (green) | Yellow sector key = typed type annotation; type mismatch **errors** | No evidence | Keyword→function (`MERG`), partial ID (`DIS 7`) | Categorised mixed list (functions · securities · searches); typing *is* searching | **Three separate**: `<End/Back>`, `<CMND HISTORY>` (editable text), toolbar recents split into *securities* and *functions*; `LAST <GO>` | `HELP` key ×2 → human; `BMC` course; `FFM` = today's move → the function; `BU`, `BPS`, `BNEW`; Suggested Functions | NL question in the same box → SEARCH screen | Address is text, so shareable; no URL evidence | 🟢 |
-| **Godel** | Noun/verb mnemonics, ~45 published codes; composition **undocumented** | Unknown | Unknown | No evidence | Unknown | Unknown | `⌘Z` undo window close; no history evidence | **The whole address space on one public page**; `HELP`/`F1`; `CHANGE` changelog | None documented | Unknown | 🟡 |
+| **Godel** | Noun-first, 4 slots: `TICKER COUNTRY ASSET_CLASS FUNC` (e.g. `NVDA US EQ DES`) | Unknown (Enter presumed, not stated) | Unknown | No evidence | Unknown | Unknown | `⌘Z` undo window close; no history evidence | **The whole address space on one public page**; `HELP`/`F1`; `CHANGE` changelog; per-command pill pages with a screen-scoped shortcut layer | None documented | Unknown | 🟢 |
 | **Koyfin** | Noun-first: `/` → ticker → function → enter; `/FUNC` direct | Enter | Filter by asset type + country; page-name search as fallback | **Yes** — shortcuts on saved chart templates (`fcsp`), dashboards (`DBOLL`), FA templates (`RGM`) | Not documented | Ranked list; **rule published**: best match × trading volume (AUM for funds) | 7 colour link groups; watchlists; no command-history evidence | Help-center hotkey page; 1–3-letter codes; page-name search | None documented in §H | Not documented | 🟢 |
 | **LSEG Workspace** | Verb-only app codes **or** a security, into one global bar | Enter | Ranking (unpublished) | Layouts, not verbs | Not documented | Not documented | Layouts | Vendor guides; university guides | Positioned **AI-first** (*"AI-powered search, recommendations…"*) | Not documented | 🟡 |
 | **TradingView** | **No grammar.** Type-to-search on chart; 3 modes | Selection | Modes are chosen by intent, not parsed | No | Yes (AI Screener typo-tolerant) | Search box appears on first keystroke, no focus act | Watchlists; layouts | Published 7-category hotkey page | **AI Screener** = mode 3 (NL → a scan) | **Yes** — `/chart/?symbol=NASDAQ:NVDA` | 🟢 |
@@ -845,14 +883,18 @@ what would fix it.**
    `linear.app/docs/command-menu` both 404; the docs index reached lists neither [S29]. No claim about
    Linear appears in this file. *What would raise it:* the correct current docs slug, or the in-app
    `?` overlay via a logged-in session.
-3. **Godel's syntax is unread.** The command *vocabulary* and the *window* shortcuts are verified from
-   the vendor's own page, but nothing on that page states whether commands compose with a ticker, or
-   how. Per-command doc pages exist ("Click any pill…") and my URL guesses 404'd. *What would raise
-   it:* opening one pill in a browser (one click), or a transcript of one of the vendor's own demo
-   videos.
-4. **TradingView's individual key bindings are behind client-side accordions** — I reproduced the
-   sibling dossier's ceiling exactly. Only the seven category names are verified. *What would raise
-   it:* one click-capable browser pass on `tradingview.com/support/shortcuts/`.
+3. **✅ CLOSED 2026-09-19 — Godel's syntax is now read.** *Was:* nothing on the vendor's page states
+   whether commands compose with a ticker, and my URL guesses at the per-command pill pages 404'd.
+   *Closed by:* finding the real pill-page URL via search (`godelterminal.com/docs/commands/des`,
+   not a guess) and opening it in a real browser — it renders fully, no login, no account. The syntax
+   is a four-slot noun-first sentence (`NVDA US EQ DES`); see §2. Only one of ~45 pill pages was
+   sampled, so whether every command follows the same slot pattern (vs. e.g. `HELP` or `CALC`, which
+   plausibly take no ticker at all) is still unread.
+4. **✅ CLOSED 2026-09-19 — TradingView's key bindings are now read in full.** *Was:* the shortcuts
+   page's accordions did not expand in a text extraction; only the seven category names were verified.
+   *Closed by:* a real browser session that clicked each accordion header and re-extracted the DOM —
+   this is exactly the "one click-capable browser pass" this gap asked for. All ~130 bindings across
+   all seven categories are now on-disk verbatim; see §5.
 5. **thinkorswim is the thinnest row in the table.** The vendor's own thinkManual index has no section
    for keyboard shortcuts, symbol syntax, or gadget linking; the Composite Symbols page 404s to a
    direct fetch and is quoted from the search index of that same official page [S23]. I deliberately
@@ -952,3 +994,14 @@ practitioner/founder commentary · **P6** professional HCI reference.
     fetched 2026-09-02; **claimed** tier.
 29. **[S29]** `https://linear.app/docs` — **P1**, fetched 2026-09-02; command-menu and keyboard-shortcut
     pages **not reachable** (both candidate slugs 404). Recorded for the negative result only.
+30. **[S30]** `https://www.tradingview.com/support/shortcuts/` — **P1**, re-read in-browser 2026-09-19
+    with all seven accordion sections expanded by click (`mcp__claude-in-chrome`); full ~130-binding
+    text extraction, closing the client-side-rendering ceiling recorded against [S10]. Supersedes [S10]
+    for the individual bindings; [S10] still stands for the first-pass category-name read.
+31. **[S31]** `https://godelterminal.com/docs/commands/des` — **P1**, read in-browser 2026-09-19; URL
+    found via web search (`godelterminal.com` site search, not a guess), not the guessed slugs that
+    404'd in the first pass. States the four-slot composition syntax and the DES screen's contextual
+    shortcut layer, closing the syntax gap recorded against [S4]. `https://docs.godelterminal.com/`
+    (which redirects to `https://godelterminal.com/docs`, the same page as [S4]) was re-read the same
+    session and shows no additional syntax statement beyond what [S4] already carried — the composition
+    syntax lives only on the per-command pill pages, not the index.
