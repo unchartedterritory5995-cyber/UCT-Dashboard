@@ -1,0 +1,42 @@
+{
+  "_what": "Three Group B readings taken together on a live TradingView chart: `math.round`'s rounding rule, whether `math.max`/`math.min` are genuinely variadic, and what `ta.vwap`'s 1-argument form does.",
+  "_and_a_fourth_reading_that_arrived_as_a_COMPILE_FAILURE": "⚰️⚰️ THE FIRST ATTEMPT DID NOT COMPILE, AND THAT WAS ITSELF A MEASUREMENT. `math.round(1234.5, -2)` is REJECTED by TradingView: `CE10041 — Invalid value \"-2\" for \"precision\" parameter of the \"math.round()\" function. It must be between 0 and 100`, at line 34, columns 6-26. Negative precision — round to the nearest hundred — does not exist there. It took the other three readings down with it exactly as the probe's own header warned it could, the line was split out to `groupb-round-negprecision.pine`, and the rest is below. ⛔ THE LESSON THE HEADER GOT WRONG: it grouped these because their forms are DOCUMENTED and therefore \"expected to compile\". Expected is a prediction. The rule should be one question per file unless the forms are PROVEN.",
+
+  "math_round": {
+    "_ruling": "⭐ HALF-UP, AWAY FROM ZERO — not banker's rounding. And it is not fooled by the binary-float hazard.",
+    "round_2p5": 3,
+    "round_neg2p5": -3,
+    "round_3p5_CONTROL": 4,
+    "round_0p125_to_2dp": 0.13,
+    "round_2p675_to_2dp": 2.68,
+    "_how_to_read_it": "2.5 → 3 and −2.5 → −3 is half-up away from zero; banker's rounding would have given 2 and −2. 0.125 → 0.13 says the same at two decimal places (banker's: 0.12). ⭐ 3.5 → 4 is the CONTROL: both rules agree there, so if it had come back anything other than 4 the function would be doing something neither rule describes and the other readings could not be read as a rule at all.",
+    "_the_float_hazard_is_the_interesting_one": "⚠️ 2.675 IS NOT 2.675 IN IEEE 754 — it is 2.67499999999999982236431605997495353221893310546875, so a naive implementation that scales and rounds gives 2.67. TradingView gives 2.68, so it is not doing the naive thing. Any reimplementation that scales by 10^n, rounds, and divides will disagree with the vendor on exactly this class of input, and only on it — which is the kind of difference that survives a green test suite.",
+    "_sites": "101 corpus sites ride on the rounding rule."
+  },
+
+  "math_max_variadic": {
+    "_ruling": "⭐ GENUINELY VARIADIC, not capped at two arguments.",
+    "max_2arg": 2,
+    "max_3arg": 3,
+    "max_5arg": 5,
+    "min_5arg": 1,
+    "_how_to_read_it": "Each arity has a DIFFERENT right answer by construction, so a wrong arity shows up as a wrong NUMBER rather than as an error. A `math.max` that silently ignored arguments past the second would have returned 2 for the 5-argument call; it returned 5."
+  },
+
+  "ta_vwap_default_source": {
+    "_ruling": "⭐⭐ `ta.vwap`'s DEFAULT SOURCE IS `hlc3`, and the 1-argument form anchors identically to the bare form.",
+    "vwap_hlc3_minus_vwap_noarg": { "bars_read": 40, "min": 0, "max": 0, "all_zero": true },
+    "vwap_close_minus_vwap_noarg": { "bars_read": 40, "min": -4.28666666666652, "max": 2.910000000000082, "all_zero": false },
+    "vwap_noarg_last_value": 758.1933333333333,
+    "_how_to_read_it": "`ta.vwap(hlc3) - ta.vwap` is 0 on every one of 40 consecutive bars, so passing `hlc3` explicitly changes nothing — the default IS `hlc3`. `ta.vwap(close) - ta.vwap` is non-zero and varies, which is what makes the first reading meaningful rather than a comparison of something with itself.",
+    "_read_ACROSS_bars_on_purpose": "⛔ THE ANCHOR IS THE QUESTION, NOT THE SOURCE. If the 1-arg form anchored differently from the bare form, the difference would DRIFT over a session rather than sit at a fixed offset — and on any single bar a drifting difference and a constant one look the same. That is why this is read over 40 bars and reported as a range, not as one value."
+  },
+
+  "_instrument": "UCTPROBE_GB_ROUND_MAX_VWAP, pasted via the Monaco model handle, added with the action button asserted to read \"Add to chart\". Buffer verified sha256-identical to the committed source before the click: dfc57aa230cd449a5df2be57d6e1024c73aedf963693ac9069caf3e006f2b86f, 3900 characters.",
+  "_gates": "isFailed() === false; plot roster 14 == the balanced-paren scan of the committed source after the N06 split; 400 bars.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "bars": 400,
+  "capturedAtUTC": "2026-09-11T01:13:00Z",
+  "_bounds": "⚠️ The `math.round` and `math.max` readings are over CONSTANTS, so they are properties of the functions and carry no symbol or session dependence at all — that is why the probe feeds them literals rather than `close`. The `ta.vwap` reading is one symbol, one session, 40 bars: it establishes the default SOURCE and that the two forms do not diverge over those bars, not that they can never diverge."
+}

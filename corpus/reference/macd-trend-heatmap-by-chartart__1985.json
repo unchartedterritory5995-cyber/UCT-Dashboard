@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1985",
+ "title": "MACD trend heatmap (by ChartArt)",
+ "author": "ChartArt",
+ "url": "https://www.tradingview.com/script/28RbNaGq-macd-trend-heatmap-by-chartart/",
+ "agreeCount": 2915,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v2",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/macd-trend-heatmap-by-chartart__1985.pine",
+ "our_status": "reference-only"
+}

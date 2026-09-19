@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9",
+ "title": "CCI coded OBV",
+ "author": "LazyBear",
+ "url": "https://www.tradingview.com/script/D8ld7sgR-cci-coded-obv/",
+ "agreeCount": 9210,
+ "category": "momentum",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/cci-coded-obv__9.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;582421244d8a4388b0bbe02a1f87bf6d",
+ "title": "Luxy Super-Duper SuperTrend Predictor Engine",
+ "author": "orenluxy",
+ "url": "https://www.tradingview.com/script/AcNWmGMV-luxy-super-duper-supertrend-predictor-engine/",
+ "agreeCount": 4936,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/luxy-super-duper-supertrend-predictor-engine__582421244d.pine",
+ "our_status": "reference-only"
+}

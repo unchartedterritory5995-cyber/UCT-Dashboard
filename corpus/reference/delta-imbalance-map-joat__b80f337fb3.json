@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b80f337fb3124092b93e0d9bc459e762",
+ "title": "Delta Imbalance Map [JOAT]",
+ "author": "officialjackofalltrades",
+ "url": "https://www.tradingview.com/script/uDsOvhzO-delta-imbalance-map-joat/",
+ "agreeCount": 632,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/delta-imbalance-map-joat__b80f337fb3.pine",
+ "cached_source": "tools/pine_survey/cache/sources/delta-imbalance-map-joat__b80f337fb3.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,104 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SimoneMicucci00
+
+//@version=5
+indicator("ICT Killzone [Index Version]", "Strikezone", true)
+
+//background disply options
+bbg = input.bool(true, "", "", "bg", "Background")
+cbg = input.color(#80ADFF, "", "", "bg", "Background")
+tbg = input.int(80, "", 0, 99, 1,
+     "1. Display index Strikezone Backgorund\n2. Color of the background\n3. Transparency level", 
+     "bg", "Background")
+//swing high-low options
+bsw = input.bool(false, "", "", "sw", "Weak Highs and Lows of the strikezone")
+csw = input.color(#000000, "", "", "sw", "Weak Highs and Lows of the strikezone")
+tsw = input.int(0, "", 0, 99, 1, "", "sw", "Weak Highs and Lows of the strikezone")
+wsw = input.int(1, "", [1,2,3,4],
+     "1. Display index Strikezone High and Low\n2. Color of the line\n3. Transparency\n4. Style of the level\n5. Width",
+     "sw", "Weak Highs and Lows of the strikezone")
+bbox = input.bool(true, "Background", "if you don't want to display full background but only between the high and low of the session\nturn off background and turn this on",
+     "", "Weak Highs and Lows of the strikezone")
+
+
+//background plot
+t1 = time("", "0830-1201", "America/New_York")
+t2 = time("", "1300-1631", "America/New_York")
+bgcolor(bbg and (t1 or t2) ? color.new(cbg, tbg) : na)
+
+//line plot
+line_(price) => 
+    ret = line.new(bar_index, price, bar_index, price, color = csw , width = wsw)
+box_(hi, lo) =>
+    ret = box.new(bar_index, hi, bar_index, lo, na, bgcolor = color.new(cbg, tbg))
+update_(id_line, price) =>
+    line.set_x2(id_line, bar_index)
+    line.set_y1(id_line, price)
+    line.set_y2(id_line, price)
+update(id_box, hi, lo) =>
+    box.set_right(id_box, bar_index)
+    box.set_top(id_box, hi)
+    box.set_bottom(id_box, lo)
+
+if bsw
+    //position declaration
+    var float t1high = na
+    var float t1low = na
+    var float t2high = na
+    var float t2low = na
+    //line declaration
+    var line hi1 = na
+    var line lo1 = na
+    var line hi2 = na
+    var line lo2 = na
+    //box declaration
+    var box b1 = na
+    var box b2 = na
+    if(t1 and not t1[1])
+        t1high := high
+        t1low := low
+        hi1 := line_(high)
+        lo1 := line_(low)
+        if not bbg and bbox
+            b1 := box_(high, low)
+    if(t1 and t1[1])
+        t1high := high>t1high[1] ? high : t1high[1]
+        t1low := low<t1low[1] ? low : t1low[1]
+        update_(hi1, t1high)
+        update_(lo1, t1low)
+        if not bbg and bbox
+            update(b1, t1high, t1low)
+    if(not t1 and t1[1])
+        hi1 := na
+        lo1 := na
+        b1 := na
+    if(t2 and not t2[1])
+        t2high := high
+        t2low := low
+        hi2 := line_(high)
+        lo2 := line_(low)
+        if not bbg and bbox
+            b2 := box_(high, low)
+    if(t2 and t2[1])
+        t2high := high>t2high[1] ? high : t2high[1]
+        t2low := low<t2low[1] ? low : t2low[1]
+        update_(hi2, t2high)
+        update_(lo2, t2low)
+        if not bbg and bbox
+            update(b2, t2high, t2low)
+    if(not t2 and t2[1])
+        hi2 := na
+        lo2 := na
+        b2 := na
+
+
+
+
+
+
+
+
+
+
+
+

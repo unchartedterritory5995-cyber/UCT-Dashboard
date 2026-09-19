@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from api.routers.user_definitions import MAX_PROPOSE_BARS, require_paid
 from api.services import indicator_from_image as svc
+from api.services import indicator_telemetry as telemetry
 
 router = APIRouter(prefix="/api/indicator-vision", tags=["indicator-vision"])
 
@@ -104,6 +105,14 @@ def _bars_from(raw: str) -> list:
     ⚠️ A MULTIPART FIELD CARRIES TEXT, so the bars arrive as a JSON string. A
     malformed one is the CALLER'S mistake and answers 400 — unlike a picture this
     door cannot read, which is a legitimate 200 refusal.
+
+    🔴 RISK-016 (Phase One Track B, 2026-09-04). "Too many bars" used to raise
+    the SAME 400 as genuinely malformed input — but a long-listed symbol's full
+    cached history is a well-formed request that is simply too big, not a
+    caller mistake, and deserves the graceful `{ok:false, gate, reason}` answer
+    this door already gives a picture it cannot read. That check now lives in
+    the route handler, which can return a dict; this function stays a plain
+    `list`-or-raise for the cases that really are malformed input.
     """
     if not raw or not raw.strip():
         return []
@@ -113,10 +122,6 @@ def _bars_from(raw: str) -> list:
         raise HTTPException(status_code=400, detail="bars: not valid JSON") from exc
     if not isinstance(parsed, list):
         raise HTTPException(status_code=400, detail="bars: expected a list")
-    if len(parsed) > MAX_PROPOSE_BARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got {len(parsed)}")
     return parsed
 
 
@@ -143,17 +148,48 @@ def candidates_from_screenshot(
     if not svc.vision_enabled():
         return svc.disabled_refusal()
 
+    # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+    # the plain-language door: submission and compile happen in one call here,
+    # so there is no earlier client-side moment to correlate with.
+    import uuid
+    import_id = str(uuid.uuid4())
+    telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                        dialect="screenshot")
+
     parsed_bars = _bars_from(bars)
+    # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+    # `_bars_from`, specifically so this ONE case — well-formed input that is
+    # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+    # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+    # malformed input. Before the fix on Save, before charging the member's
+    # hourly allowance for a request that was always going to be refused.
+    if len(parsed_bars) > MAX_PROPOSE_BARS:
+        telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                            dialect="screenshot", success=False, stage="gate",
+                            gate="bars:too-large")
+        refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+        refusal["import_id"] = import_id
+        return refusal
     _charge(str(user["id"]))
 
     # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
     # reading the whole of an oversized upload into memory to then reject it is the
     # DoS the ceiling exists to prevent. The service owns the refusal sentence.
     data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
-    return svc.candidates_from_image(
+    result = svc.candidates_from_image(
         image_bytes=data,
         media_type=(file.content_type or "").split(";")[0].strip().lower(),
         user_id=user["id"],
         bars=parsed_bars,
         note=note,
     )
+    # ⭐ Phase One Track C. Never logs the image bytes or `note` — see
+    # indicator_telemetry.py's module docstring. `success` reads `ok` the same
+    # way the plain-language door does, so the two doors' `compile_finished`
+    # rows are comparable without a per-door reading of the field.
+    telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                        dialect="screenshot", success=bool(result.get("ok")),
+                        stage="compile", gate=result.get("gate"))
+    result = dict(result)
+    result["import_id"] = import_id
+    return result

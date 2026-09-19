@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "17-volume-surge-radar.pine",
+  "title": "Volume Surge Radar - 2x/4x/8x/16x",
+  "author": "sunilp303",
+  "source_url": "https://www.tradingview.com/script/HR7VSSAZ-Volume-Surge-Radar-2x-4x-8x-16x/",
+  "retrieved_at": "2026-09-07T12:15:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"Aug 28\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 230,
+  "complexity_bucket": "long",
+  "sha256_source": "4bace6a62c7875a1c194f72c7347c1da6b2b8fa3f102e130ccdd9abb0a8a9ac5",
+  "sha256_normalized": "9f04e5bbc121f066d6ba38f345bd5c1f860b6f74c639d004c22c4f4f0c7781ef",
+  "storage": "git"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0794882a3723495fbba884a4f2fed6f2",
+ "title": "Volatility Trend Score [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/FB7eZl9c-volatility-trend-score-backquant/",
+ "agreeCount": 2312,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volatility-trend-score-backquant__0794882a37.pine",
+ "our_status": "committed"
+}

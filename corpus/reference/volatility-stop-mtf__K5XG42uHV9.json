@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;K5XG42uHV9T8rm2NDrmoXKyzqI4YajYw",
+ "title": "Volatility Stop MTF",
+ "author": "TradingView",
+ "url": "https://www.tradingview.com/script/tT0t369u-volatility-stop-mtf/",
+ "agreeCount": 4443,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volatility-stop-mtf__K5XG42uHV9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volatility-stop-mtf__K5XG42uHV9.pine",
+ "our_status": "committed"
+}

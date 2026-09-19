@@ -1,0 +1,211 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Mango2Juice
+//
+// Correlation Matrix for any market
+// Inspired by @Daveatt's Correlation Matrix
+// https://www.tradingview.com/script/Hxl7bE86-Correlation-MATRIX-Flexible-version/
+// 
+// In financial terms, 'correlation' is the numerical measure of the relationship between two variables (in this case, the variables are Forex pairs). 
+// The range of the correlation coefficient is between -1 and +1. A correlation of +1 indicates that two currency pairs will flow in the same direction. 
+// A correlation of -1 indicates that two currency pairs will move in the opposite direction.
+// Here, I multiplied correlation coefficient by 100 so that it is easier to read.
+// Custom Symbol : I use input.string instead of input.symbol so that the header does not showing the symbol prefix.
+// 
+// Color Coding:-
+// The darker the color, the higher the correlation or inversely.
+//
+// Extra Light Blue (up to +29): Weak correlation. Positions on these symbols will tend to move independently.
+// Light Blue (up to +49)      : There may be similarity between positions on these symbols.
+// Medium Blue (up to +75)     : Medium positive correlation.
+// Navy Blue (up to +100)      : Strong positive correlation.
+
+// Extra Light Red (up to -30) : Weak correlation. Positions on these symbols will tend to move independently
+// Light Red (up to -49)       : There may be similarity between positions on these symbols.
+// Dark Red: (up to -75)       : Medium negative correlation.
+// Maroon: (up to -100)        : Strong negative correlation. 
+
+// Last row have no header, I know. The reason I had to remove it is pine give an error because too much drawings. Will update later if I found solution.
+//@version=4
+study("Correlation Matrix",precision=2)
+
+// ————————————————————————————————————————————————————————————
+// >>>>>>>>>>>>>>>>>>>>>>>>  Inputs  <<<<<<<<<<<<<<<<<<<<<<<<<<
+// ————————————————————————————————————————————————————————————
+
+dummy_1   = input(true,"═════════════ General Settings")
+length    = input(100,"Numbers of Bars Back")
+alt       = input(false,"Alternative Timeframe?")
+tf        = input("D","Timeframe",input.resolution)
+_tf       = alt ? tf : timeframe.period
+labelSize = input(size.normal, "Label Size", options=[size.large,size.normal, size.small, size.tiny])
+offset    = input(10, "Label Offset")
+
+dummy_2   = input(true,"═════════════ Currency Pairs")
+OP1 = "EUR", OP2 = "GBP", OP3 = "AUD", OP4 = "NZD", OP5 = "USD"
+OP6 = "CAD", OP7 = "CHF", OP8 = "JPY", OP9 = "CUSTOM"
+
+pairs      = input(OP1, "Currency Pairs", options = [OP1,OP2,OP3,OP4,OP5,OP6,OP7,OP8,OP9] )
+custom     = input(false,"Insert custom symbol below")
+_sym01     = input("BTCUSD","SYMBOL 1")
+_sym02     = input("ETHUSD","SYMBOL 2")
+_sym03     = input("XBTUSD","SYMBOL 3")
+_sym04     = input("LTCUSD",  "SYMBOL 4")
+_sym05     = input("BCHUSD","SYMBOL 5")
+_sym06     = input("XRPUSD","SYMBOL 6")
+_sym07     = input("XRPBTC","SYMBOL 7")
+
+sym01      = pairs == OP1 ? "EURGBP" : pairs == OP2 ? "EURGBP" : pairs == OP3 ? "EURAUD" : pairs == OP4 ? "EURNZD" : pairs == OP5 ? "EURUSD" : pairs == OP6 ? "EURCAD" : pairs == OP7 ? "EURCHF" : pairs == OP8 ? "EURJPY" : _sym01
+sym02      = pairs == OP1 ? "EURAUD" : pairs == OP2 ? "GBPAUD" : pairs == OP3 ? "GBPAUD" : pairs == OP4 ? "GBPNZD" : pairs == OP5 ? "GBPUSD" : pairs == OP6 ? "GBPCAD" : pairs == OP7 ? "GBPCHF" : pairs == OP8 ? "GBPJPY" : _sym02
+sym03      = pairs == OP1 ? "EURNZD" : pairs == OP2 ? "GBPNZD" : pairs == OP3 ? "AUDNZD" : pairs == OP4 ? "AUDNZD" : pairs == OP5 ? "AUDUSD" : pairs == OP6 ? "AUDCAD" : pairs == OP7 ? "AUDCHF" : pairs == OP8 ? "AUDJPY" : _sym03
+sym04      = pairs == OP1 ? "EURUSD" : pairs == OP2 ? "GBPUSD" : pairs == OP3 ? "AUDUSD" : pairs == OP4 ? "NZDUSD" : pairs == OP5 ? "NZDUSD" : pairs == OP6 ? "NZDCAD" : pairs == OP7 ? "NZDCHF" : pairs == OP8 ? "NZDJPY" : _sym04
+sym05      = pairs == OP1 ? "EURCAD" : pairs == OP2 ? "GBPCAD" : pairs == OP3 ? "AUDCAD" : pairs == OP4 ? "NZDCAD" : pairs == OP5 ? "USDCAD" : pairs == OP6 ? "USDCAD" : pairs == OP7 ? "USDCHF" : pairs == OP8 ? "USDJPY" : _sym05
+sym06      = pairs == OP1 ? "EURCHF" : pairs == OP2 ? "GBPCHF" : pairs == OP3 ? "AUDCHF" : pairs == OP4 ? "NZDCHF" : pairs == OP5 ? "USDCHF" : pairs == OP6 ? "CADCHF" : pairs == OP7 ? "CADCHF" : pairs == OP8 ? "CADJPY" : _sym06
+sym07      = pairs == OP1 ? "EURJPY" : pairs == OP2 ? "GBPJPY" : pairs == OP3 ? "AUDJPY" : pairs == OP4 ? "NZDJPY" : pairs == OP5 ? "USDJPY" : pairs == OP6 ? "CADJPY" : pairs == OP7 ? "CHFJPY" : pairs == OP8 ? "CHFJPY" : _sym07
+
+sec01     = security(sym01,_tf,close,lookahead=barmerge.lookahead_on)
+sec02     = security(sym02,_tf,close,lookahead=barmerge.lookahead_on)
+sec03     = security(sym03,_tf,close,lookahead=barmerge.lookahead_on)
+sec04     = security(sym04,_tf,close,lookahead=barmerge.lookahead_on)
+sec05     = security(sym05,_tf,close,lookahead=barmerge.lookahead_on)
+sec06     = security(sym06,_tf,close,lookahead=barmerge.lookahead_on)
+sec07     = security(sym07,_tf,close,lookahead=barmerge.lookahead_on)
+
+// ————————————————————————————————————————————————————————————
+// >>>>>>>>>>>>>>>  Correlation Calculation  <<<<<<<<<<<<<<<<<<
+// ————————————————————————————————————————————————————————————
+
+cor_sec01_sec02 = correlation(sec01,sec02,length)*100
+cor_sec01_sec03 = correlation(sec01,sec03,length)*100
+cor_sec01_sec04 = correlation(sec01,sec04,length)*100
+cor_sec01_sec05 = correlation(sec01,sec05,length)*100
+cor_sec01_sec06 = correlation(sec01,sec06,length)*100
+cor_sec01_sec07 = correlation(sec01,sec07,length)*100
+
+cor_sec02_sec03 = correlation(sec02,sec03,length)*100
+cor_sec02_sec04 = correlation(sec02,sec04,length)*100
+cor_sec02_sec05 = correlation(sec02,sec05,length)*100
+cor_sec02_sec06 = correlation(sec02,sec06,length)*100
+cor_sec02_sec07 = correlation(sec02,sec07,length)*100
+
+cor_sec03_sec04 = correlation(sec03,sec04,length)*100
+cor_sec03_sec05 = correlation(sec03,sec05,length)*100
+cor_sec03_sec06 = correlation(sec03,sec06,length)*100
+cor_sec03_sec07 = correlation(sec03,sec07,length)*100
+
+cor_sec04_sec05 = correlation(sec04,sec05,length)*100
+cor_sec04_sec06 = correlation(sec04,sec06,length)*100
+cor_sec04_sec07 = correlation(sec04,sec07,length)*100
+
+cor_sec05_sec06 = correlation(sec05,sec06,length)*100
+cor_sec05_sec07 = correlation(sec05,sec07,length)*100
+
+cor_sec06_sec07 = correlation(sec06,sec07,length)*100
+
+// ————————————————————————————————————————————————————————————
+// >>>>>>>>>>>>>>>>>>>>  Plots & Labels  <<<<<<<<<<<<<<<<<<<<<<
+// ————————————————————————————————————————————————————————————
+// ————— Header String
+_text(str) => str
+header_sym01 = _text(sym01 + "   ")
+header_sym02 = _text(sym02 + "   ")
+header_sym03 = _text(sym03 + "   ")
+header_sym04 = _text(sym04 + "   ")
+header_sym05 = _text(sym05 + "   ")
+header_sym06 = _text(sym06 + "   ")
+header_sym07 = _text(sym07 + "   ")
+
+// ————— Function for label
+function_label(bars_back,_txt,_mult,_correlation) => 
+    y = highest(10)
+    _color = 
+     _correlation > 0    and _correlation <  30 ? #6696cc  : _correlation >=  30 and _correlation <  50 ? #0080FFff : 
+     _correlation >= 50  and _correlation <  75 ? #00297a : _correlation >=  75 ? #000080ff : 
+     _correlation < 0    and _correlation > -30 ? #e46161  : _correlation <= -30 and _correlation > -50 ? #ff5237 : 
+     _correlation <= -50 and _correlation > -75 ? #a51b0f : _correlation <= -75 ? #6b0901 : color.black
+     
+    var _label = label.new(bar_index[bars_back + offset], y - (y*_mult), _txt, xloc.bar_index, yloc.price, _color, label.style_label_center, color.white, labelSize, text.align_center), 
+ label.set_xy(_label, bar_index[bars_back + offset], y - (y*_mult)), label.set_text(_label, _txt), label.set_color(_label,_color)
+
+// ————— Header Columns
+Label_Head_Col1 = function_label(70,header_sym01,0.05,0)
+Label_Head_Col2 = function_label(60,header_sym02,0.05,0)
+Label_Head_Col3 = function_label(50,header_sym03,0.05,0)
+Label_Head_Col4 = function_label(40,header_sym04,0.05,0)
+Label_Head_Col5 = function_label(30,header_sym05,0.05,0)
+Label_Head_Col6 = function_label(20,header_sym06,0.05,0)
+Label_Head_Col7 = function_label(10,header_sym07,0.05,0)
+
+// ————— Header Rows
+Label_Head_Row1 = function_label(85,header_sym01,0.10,0)
+Label_Head_Row2 = function_label(85,header_sym02,0.15,0)
+Label_Head_Row3 = function_label(85,header_sym03,0.20,0)
+Label_Head_Row4 = function_label(85,header_sym04,0.25,0)
+Label_Head_Row5 = function_label(85,header_sym05,0.30,0)
+Label_Head_Row6 = function_label(85,header_sym06,0.35,0)
+//Label_Head_Row7 = function_label(85,header_sym07,0.40,0)
+
+// ————— First row
+//Label_Row1_Col1 = function_label(70,"100",0.10,100)
+Label_Row1_Col2 = function_label(60,tostring(cor_sec01_sec02,"#"),0.10,cor_sec01_sec02)
+Label_Row1_Col3 = function_label(50,tostring(cor_sec01_sec03,"#"),0.10,cor_sec01_sec03)
+Label_Row1_Col4 = function_label(40,tostring(cor_sec01_sec04,"#"),0.10,cor_sec01_sec04)
+Label_Row1_Col5 = function_label(30,tostring(cor_sec01_sec05,"#"),0.10,cor_sec01_sec05)
+Label_Row1_Col6 = function_label(20,tostring(cor_sec01_sec06,"#"),0.10,cor_sec01_sec06)
+Label_Row1_Col7 = function_label(10,tostring(cor_sec01_sec07,"#"),0.10,cor_sec01_sec07)
+
+// ————— Second row
+Label_Row2_Col1 = function_label(70,tostring(cor_sec01_sec02,"#"),0.15,cor_sec01_sec02)
+//Label_Row2_Col2 = function_label(60,"100",0.15,100)
+Label_Row2_Col3 = function_label(50,tostring(cor_sec02_sec03,"#"),0.15,cor_sec02_sec03)
+Label_Row2_Col4 = function_label(40,tostring(cor_sec02_sec04,"#"),0.15,cor_sec02_sec04)
+Label_Row2_Col5 = function_label(30,tostring(cor_sec02_sec05,"#"),0.15,cor_sec02_sec05)
+Label_Row2_Col6 = function_label(20,tostring(cor_sec02_sec06,"#"),0.15,cor_sec02_sec06)
+Label_Row2_Col7 = function_label(10,tostring(cor_sec02_sec07,"#"),0.15,cor_sec02_sec07)
+
+// ————— Third row
+Label_Row3_Col1 = function_label(70,tostring(cor_sec01_sec03,"#"),0.20,cor_sec01_sec03)
+Label_Row3_Col2 = function_label(60,tostring(cor_sec02_sec03,"#"),0.20,cor_sec02_sec03)
+//Label_Row3_Col3 = function_label(50,"100",0.20,100)
+Label_Row3_Col4 = function_label(40,tostring(cor_sec03_sec04,"#"),0.20,cor_sec03_sec04)
+Label_Row3_Col5 = function_label(30,tostring(cor_sec03_sec05,"#"),0.20,cor_sec03_sec05)
+Label_Row3_Col6 = function_label(20,tostring(cor_sec03_sec06,"#"),0.20,cor_sec03_sec06)
+Label_Row3_Col7 = function_label(10,tostring(cor_sec03_sec07,"#"),0.20,cor_sec03_sec07)
+
+// ————— Fourth row
+Label_Row4_Col1 = function_label(70,tostring(cor_sec01_sec04,"#"),0.25,cor_sec01_sec04)
+Label_Row4_Col2 = function_label(60,tostring(cor_sec02_sec04,"#"),0.25,cor_sec02_sec04)
+Label_Row4_Col3 = function_label(50,tostring(cor_sec03_sec04,"#"),0.25,cor_sec03_sec04)
+//Label_Row4_Col4 = function_label(40,"100",0.25,100)
+Label_Row4_Col5 = function_label(30,tostring(cor_sec04_sec05,"#"),0.25,cor_sec04_sec05)
+Label_Row4_Col6 = function_label(20,tostring(cor_sec04_sec06,"#"),0.25,cor_sec04_sec06)
+Label_Row4_Col7 = function_label(10,tostring(cor_sec04_sec07,"#"),0.25,cor_sec04_sec07)
+
+// ————— Fifth row
+Label_Row5_Col1 = function_label(70,tostring(cor_sec01_sec05,"#"),0.30,cor_sec01_sec05)
+Label_Row5_Col2 = function_label(60,tostring(cor_sec02_sec05,"#"),0.30,cor_sec02_sec05)
+Label_Row5_Col3 = function_label(50,tostring(cor_sec03_sec05,"#"),0.30,cor_sec03_sec05)
+Label_Row5_Col4 = function_label(40,tostring(cor_sec04_sec05,"#"),0.30,cor_sec04_sec05)
+//Label_Row5_Col5 = function_label(30,"100",0.30,100)
+Label_Row5_Col6 = function_label(20,tostring(cor_sec05_sec06,"#"),0.30,cor_sec05_sec06)
+Label_Row5_Col7 = function_label(10,tostring(cor_sec05_sec07,"#"),0.30,cor_sec05_sec07)
+
+// ————— Sixth row
+Label_Row6_Col1 = function_label(70,tostring(cor_sec01_sec06,"#"),0.35,cor_sec01_sec06)
+Label_Row6_Col2 = function_label(60,tostring(cor_sec02_sec06,"#"),0.35,cor_sec02_sec06)
+Label_Row6_Col3 = function_label(50,tostring(cor_sec03_sec06,"#"),0.35,cor_sec03_sec06)
+Label_Row6_Col4 = function_label(40,tostring(cor_sec04_sec06,"#"),0.35,cor_sec04_sec06)
+Label_Row6_Col5 = function_label(30,tostring(cor_sec05_sec06,"#"),0.35,cor_sec05_sec06)
+//Label_Row6_Col6 = function_label(20,"100",0.35,100)
+Label_Row6_Col7 = function_label(10,tostring(cor_sec06_sec07,"#"),0.35,cor_sec06_sec07)
+
+// ————— Seventh row
+Label_Row7_Col1 = function_label(70,tostring(cor_sec01_sec07,"#"),0.40,cor_sec01_sec07)
+Label_Row7_Col2 = function_label(60,tostring(cor_sec02_sec07,"#"),0.40,cor_sec02_sec07)
+Label_Row7_Col3 = function_label(50,tostring(cor_sec03_sec07,"#"),0.40,cor_sec03_sec07)
+Label_Row7_Col4 = function_label(40,tostring(cor_sec04_sec07,"#"),0.40,cor_sec04_sec07)
+Label_Row7_Col5 = function_label(30,tostring(cor_sec05_sec07,"#"),0.40,cor_sec05_sec07)
+Label_Row7_Col6 = function_label(20,tostring(cor_sec06_sec07,"#"),0.40,cor_sec06_sec07)
+//Label_Row7_Col7 = function_label(10,"100",0.40,100)
+
+
+// >>>>>>>>>>>>>>>>>>>>  End of Script  <<<<<<<<<<<<<<<<<<<<<<

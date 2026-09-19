@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "22-reversal-probability-profile-algoalpha.pine",
+  "title": "Reversal Probability Profile [AlgoAlpha]",
+  "author": "AlgoAlpha",
+  "source_url": "https://www.tradingview.com/script/ZWLdxZtM-Reversal-Probability-Profile-AlgoAlpha/",
+  "retrieved_at": "2026-09-07T17:09:53Z",
+  "pine_version": "6",
+  "license": "Mozilla Public License 2.0 (stated in script header)",
+  "publish_or_update_date": "2026-09-04T16:28:09Z",
+  "declared_type": "indicator",
+  "capture_method": "pine-facade source endpoint (PUB;7cece6f2f1d84f899b0e868887dd2648/last) fetched with browser User-Agent; SHA-256 cross-checked byte-for-byte against an independent DOM line-walk of the TradingView source viewer (per-line textContent joined with newlines, NBSP normalized to space)",
+  "non_comment_lines": 369,
+  "complexity_bucket": "long",
+  "sha256_source": "091ad178e08ce8c3eb014f6325f2db7403ba75b0a4084239745931525616ecca",
+  "sha256_normalized": "6fac70058391dbe643968cdb361d90534383aa182387a29dacfa55775fa96b38",
+  "storage": "git"
+}

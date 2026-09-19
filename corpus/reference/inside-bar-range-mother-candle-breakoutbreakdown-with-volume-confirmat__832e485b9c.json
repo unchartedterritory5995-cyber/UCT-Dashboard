@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;832e485b9c4c474f9e462e5e260178ad",
+ "title": "Inside Bar Range + Mother Candle Breakout/Breakdown with Volume Confirmation",
+ "author": "tarun171977",
+ "url": "https://www.tradingview.com/script/7HV2nibg-inside-bar-range-mother-candle-breakout-breakdown-with-volum/",
+ "agreeCount": 749,
+ "category": "candlestick patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+ "our_status": "committed"
+}

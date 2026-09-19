@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bd2f816c88de4a25abaf15969e1e4963",
+ "title": "Trend Speed Analyzer (Zeiierman)",
+ "author": "Zeiierman",
+ "url": "https://www.tradingview.com/script/YUAV6jit-trend-speed-analyzer-zeiierman/",
+ "agreeCount": 4969,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trend-speed-analyzer-zeiierman__bd2f816c88.pine",
+ "our_status": "reference-only"
+}

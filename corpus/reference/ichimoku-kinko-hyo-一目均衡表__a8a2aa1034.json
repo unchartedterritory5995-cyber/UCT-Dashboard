@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a8a2aa10346348f7a92270fc5d2c2dde",
+ "title": "Ichimoku Kinko Hyo (一目均衡表)",
+ "author": "RickSimpson",
+ "url": "https://www.tradingview.com/script/HG385dBY-ichimoku-kinko-hyo/",
+ "agreeCount": 6112,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ichimoku-kinko-hyo-一目均衡表__a8a2aa1034.pine",
+ "our_status": "reference-only"
+}

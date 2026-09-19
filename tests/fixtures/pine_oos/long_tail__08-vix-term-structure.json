@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "08-vix-term-structure.pine",
+  "title": "VIX Term Structure",
+  "author": "IvanLabrie",
+  "source_url": "https://www.tradingview.com/script/3BQ5rtnq-VIX-Term-Structure/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 62,
+  "complexity_bucket": "medium",
+  "sha256_source": "fa8acc1de8c00c2c6799ecd41f234ddf5e2d9782cdbb885f4a7dbf89b1d7af5e",
+  "sha256_normalized": "4c8e43e3e4ec1e0a62eb2d1ab0d4f20a6a6f5c63b4307507195c147c50c5e65e",
+  "storage": "git"
+}

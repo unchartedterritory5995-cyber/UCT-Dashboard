@@ -143,6 +143,10 @@ from api.services import ast_interpret
 from api.services import ast_table
 from api.services import definition_record
 from api.services import scan_definition
+from api.services.nyse_calendar import (
+    NYSE_EARLY_CLOSES_YYYYMMDD,
+    NYSE_HOLIDAYS_YYYYMMDD,
+)
 from api.services.screener import scan_store
 from api.services.screener import snapshot_builder
 from api.services.screener import snapshot_db
@@ -313,6 +317,22 @@ SWEEP_STOP_BEFORE_OPEN = datetime.timedelta(minutes=30)
 #: boundaries` drives the other one's clock to the same four instants and demands
 #: the same answer, so the three stay consistent without a second authority.
 REGULAR_SESSION_LENGTH = datetime.timedelta(hours=6, minutes=30)
+
+#: ⏰ THE HALF-DAY'S LENGTH — the same open, a 13:00 ET close. ⛔ A LENGTH, NOT AN
+#: HOUR, for exactly the reason above: the open is derived, so stating the close as
+#: a duration from it keeps ONE authority over where the session starts. 09:30 plus
+#: this is 13:00; the `13` is never typed.
+#:
+#: ⚰️⚰️ THE WINDOW RAN TO 16:00 ON THESE DAYS UNTIL 2026-09-10, because the
+#: trading-day test asked `bars_fetch._is_nyse_holiday` — FULL CLOSURES ONLY, whose
+#: own docstring says half-days are "intentionally NOT included" — and then added a
+#: fixed `REGULAR_SESSION_LENGTH` regardless. So on a 1pm ET half-day the live cycle
+#: kept firing for three hours after the exchange had settled the day's last bar,
+#: sweeping a universe whose newest bar could not move again. `bar_close_state`
+#: already knew (`tests/test_scan_sweep_bar_close_state.py`): the tri-state read
+#: CLOSED at 14:00 while the window that produced the read said the session was
+#: open. ⛔ TWO ANSWERS TO ONE QUESTION, and the cycle was on the wrong side of it.
+EARLY_CLOSE_SESSION_LENGTH = datetime.timedelta(hours=3, minutes=30)
 
 #: ⭐ THE MEASURED WORST CASE FOR ONE DEFINITION, ROUNDED UP. 42.4 s of compute
 #: for `close > sma(close,50)` over 3,742 symbols on this box, contended (module
@@ -549,27 +569,64 @@ def _live_cycle_budget_s() -> int:
     return live_interval_s() - LIVE_DEFINITION_WORST_CASE_S
 
 
+def _session_length_et(day: datetime.date) -> Optional[datetime.timedelta]:
+    """How long the regular session runs on ``day``, or ``None`` if there is none.
+
+    ⭐⭐ THE ONE PLACE THIS MODULE ASKS THE CALENDAR ANYTHING. "Is there a session"
+    and "how long is it" are the SAME question asked to one grain finer, and
+    answering them in two places is how the module ended up gated on full closures
+    while quietly assuming every open day was 6h30m long. One function, one return
+    value, three cases — a caller cannot get the first right and the second wrong.
+
+    ⛔ THE SETS COME FROM THE LEAF, `api.services.nyse_calendar`, which imports
+    NOTHING. `bars_fetch._is_nyse_holiday` reads the same frozenset re-exported
+    from there, so this is not a second authority over the dates — it is the same
+    authority, reached without dragging `fastapi`, `massive`, the cache and a
+    thread pool in behind a session test.
+
+    ⛔ AND THE TWO SETS ARE NEVER UNIONED. A full closure produces no bars at all;
+    a 1pm ET half-day is a REAL SESSION that trades, and answering `None` for it
+    would stop the live cycle on a morning it should be running.
+
+    ⚠️ IT IS A LENGTH, NOT A CLOSE. The open is `market_open_et`'s to state — this
+    says only how far past it the session runs, so neither 09:30 nor 16:00 nor
+    13:00 is typed anywhere in this module.
+    """
+    if day.weekday() >= 5:
+        return None
+    ymd = int(day.strftime("%Y%m%d"))
+    if ymd in NYSE_HOLIDAYS_YYYYMMDD:
+        return None
+    if ymd in NYSE_EARLY_CLOSES_YYYYMMDD:
+        return EARLY_CLOSE_SESSION_LENGTH
+    return REGULAR_SESSION_LENGTH
+
+
 def _live_session_state(now: datetime.datetime) -> Optional[str]:
     """``None`` inside the regular session of a trading day, else ``"closed"``.
 
     ⛔ BOTH ENDS ARE DERIVED. The open is `market_open_et` — the bars store's own
     session anchor, the same one `sweep_deadline` reads — and the close is that
-    plus `REGULAR_SESSION_LENGTH`. Nothing here types 09:30 or 16:00.
+    plus the day's OWN length from `_session_length_et`. Nothing here types 09:30,
+    16:00 or 13:00.
 
-    ⛔ AND THE TRADING-DAY TEST IS THE BARS STORE'S HOLIDAY TABLE, not a second
-    calendar of this module's own: `market_open_et` answers 09:30 on a Saturday
-    (correctly — it is the clock-time open, not a session test), so the weekend
-    and the NYSE holiday walk have to be asked separately, and they are asked of
-    the module that already owns them.
+    ⛔ AND THE TRADING-DAY TEST IS THAT SAME CALL, not a second calendar of this
+    module's own: `market_open_et` answers 09:30 on a Saturday (correctly — it is
+    the clock-time open, not a session test), so the weekend and both NYSE tables
+    have to be asked separately, and they are asked ONCE, of the function that owns
+    the whole question.
 
-    ⚠️ HALF-OPEN: `open <= now < close`. A cycle firing AT 16:00 would read a
+    ⚰️ IT ASKED ONLY ABOUT FULL CLOSURES UNTIL 2026-09-10 — see
+    `EARLY_CLOSE_SESSION_LENGTH` for what that cost on a half-day.
+
+    ⚠️ HALF-OPEN: `open <= now < close`. A cycle firing AT the close would read a
     forming bar the exchange has already settled and file it as live.
     """
-    from api.services import bars_fetch
-    if now.weekday() >= 5 or bars_fetch._is_nyse_holiday(int(now.strftime("%Y%m%d"))):
+    length = _session_length_et(now.date())
+    if length is None:
         return "closed"
     open_at = market_open_et(now.date())
-    if now < open_at or now >= open_at + REGULAR_SESSION_LENGTH:
+    if now < open_at or now >= open_at + length:
         return "closed"
     return None
 
@@ -1375,8 +1432,36 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     def_hash = spec["def_hash"]
 
     tf_code = scan_store._normalise_tf(tf)
+    # ⭐ ONE INSTANT FOR THE WHOLE CALL, HANDED IN. `tick` is the sweep's own
+    # `int(started.timestamp())` -- both modes pass it -- so every row of one
+    # cycle is evaluated against the SAME `now`. Two rows disagreeing about
+    # whether the newest bar had closed would be a second authority over it.
+    #
+    # ⛔ AND IT IS NOT READ FROM A CLOCK HERE, DELIBERATELY.
+    # `test_NOTHING_inside_evaluate_one_READS_THE_CLOCK__BY_AST` forbids it: the
+    # instant belongs to `run_sweep`, which is the only thing that knows how long
+    # the sweep has run. A `_now_et()` fallback was written here and that rail
+    # caught it -- correctly, and the fix was to make the nightly caller pass one
+    # rather than to weaken the rail. Absent, the four CLOCK_REALTIME columns
+    # blank, which is the honest answer to "nobody told me".
+    _eval_now = float(tick) if tick is not None else None
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
+
+    # 🔴 RISK-017 (Phase One Track B, 2026-09-04): THE SAME TF GATE LIVE MODE HAS,
+    # NOW HERE TOO — because this is `on-demand`'s actual entry point and it had
+    # no gate of its own. `_run_live_cycle` refuses a bad `tf` before it ever
+    # calls `evaluate_one`, so `mode='live'` never reaches this line with a bad
+    # `tf` today; `mode='on-demand'` (`scan_run.py::_run_job`) calls straight in
+    # with whatever `tf` the job was queued with, and nothing upstream of this
+    # function has ever checked it — safe today only because the frontend's
+    # `RUN_TFS` picker doesn't offer an intraday choice, which is a UI boundary,
+    # not an architectural one. Scoped to both non-nightly modes on purpose: a
+    # nightly caller never passes a non-`DEFAULT_TF` value in practice, so this
+    # costs nightly nothing, and putting the check at the shared entry point
+    # means a future direct call in either mode is covered with no new edit.
+    if mode in (LIVE, ON_DEMAND) and tf_code != DEFAULT_TF:
+        raise ScanRunRefused("tf", _wrong_tf_reason(tf_code))
 
     # ⭐ THE HONEST RE-RUN CADENCE, OFF THE TREE, COMPUTED ONCE. See
     # `cadence_ceiling`: a scan naming any declared scalar is capped by that
@@ -1653,9 +1738,47 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # confident 1 on a five-minute chart. ⛔ THE NORMALISED CODE, not the
             # caller's spelling: `scan_store._TF_CODES` and
             # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
+            # ⭐⭐ THE EVALUATING INSTANT, HANDED IN, AND `ast_interpret` DERIVES
+            # THE BAR-CLOSE TRI-STATE FROM IT via `indicator_compute.bar_close_state`
+            # -- the one place either NYSE set is read. That tri-state decides the
+            # four CLOCK_REALTIME columns; absent, they blank, and
+            # `barstate.islastconfirmedhistory` -- which the Pine door does NOT
+            # fold, unlike `isconfirmed`/`ishistory`/`isrealtime` -- comes back
+            # `not_computable` on every saved scan that reads it.
+            #
+            # ⚰⚰ THIS PASSED `mode == LIVE` FOR ONE COMMIT AND THAT WAS WRONG.
+            # It answers "is the live sweep running", and the seam asks "is the
+            # newest bar still forming". A mode is not a clock even when the two
+            # windows coincide, and for a while they did not: `_live_session_state`
+            # gated on `open <= now < open + REGULAR_SESSION_LENGTH`, a FIXED
+            # 6h30m, and asked `bars_fetch._is_nyse_holiday` -- FULL CLOSURES ONLY,
+            # whose own docstring says half-days are "intentionally NOT included".
+            # So on a 1pm ET half-day the window ran to 16:00, the sweep kept
+            # firing, `live_bars_for` kept appending a bar the exchange settled at
+            # 13:00, and `mode == LIVE` would have called it FORMING for three
+            # hours -- a confident wrong answer on a closed bar, which is the exact
+            # failure the tri-state exists to prevent and the exact case
+            # `NYSE_EARLY_CLOSES_YYYYMMDD` was wired into `bar_close_state` for.
+            #
+            # ⭐ THE WINDOW ITSELF WAS FIXED 2026-09-10 -- `_session_length_et`
+            # reads BOTH leaf sets, so the cycle now stops at 13:00 on a half-day
+            # and never starts on a full closure. ⛔ THAT DOES NOT MAKE THE INSTANT
+            # REDUNDANT, and reverting to a mode check on the strength of it would
+            # be the same defect wearing a fresher window: the tri-state is a
+            # property of the BAR, this cycle is a property of the SWEEP, and a
+            # nightly run at 05:00 is `mode != LIVE` over bars that are equally
+            # closed. One of them derives; the other asserts.
+            #
+            # ⭐ `tick` IS THE CYCLE'S OWN INSTANT (`int(started.timestamp())`),
+            # so every symbol in one cycle is evaluated against ONE `now` rather
+            # than a clock read per row. The nightly sweep passes none, so it
+            # falls back to this module's single clock -- and answers `False`
+            # correctly there, because last session's close is behind that
+            # instant by derivation rather than by assertion.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
                                              opts={"tf": tf_code,
-                                                   "symbols": symbol_series})
+                                                   "symbols": symbol_series,
+                                                   "now": _eval_now})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -2026,7 +2149,11 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     swept_handles, unswept, refused2, refusals2, stopped = _sweep_entries(
         entries,
         evaluate=lambda definition: evaluate_one(
-            definition, tf, universe=universe, as_of=session),
+            definition, tf, universe=universe, as_of=session,
+            # ⭐ THE SWEEP'S OWN INSTANT, so `evaluate_one` never reads a clock
+            # and the bar-close tri-state is DERIVED rather than assumed. Without
+            # it every CLOCK_REALTIME column in every nightly scan blanks.
+            tick=int(started.timestamp())),
         stop_reason=lambda: UNSWEPT_REASON if _now_et() >= deadline else None,
         on_result=_tally)
     swept = len(swept_handles)
@@ -2407,6 +2534,18 @@ def definitions_to_sweep() -> list:
     for row in user_definitions.live_definitions():
         definition = row.get("definition")
         if not isinstance(definition, dict):
+            continue
+        # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
+        # `user_definitions.consumer_refusal` is one authority for five consumers;
+        # here it stops a fetch-dependent column from being filed in `scan_hits`
+        # under an `ast_hash` that promises the number means the same thing
+        # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
+        # background job with no member in front of it, and the SAME definition is
+        # refused BY NAME at `routers/user_definitions._stamped` before it can
+        # ever be offered as a filter — so nobody learns of this skip by its
+        # absence. A log line per definition per night would be noise about a
+        # refusal the member already read.
+        if user_definitions.consumer_refusal("sweep", row.get("requirements")):
             continue
         compute = definition.get("compute")
         if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:

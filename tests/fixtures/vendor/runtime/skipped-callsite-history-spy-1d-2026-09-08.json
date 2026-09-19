@@ -1,0 +1,101 @@
+{
+  "_": "VENDOR TRUTH — read out of TradingView's own chart model on 2026-09-08. This is the P7.2 pin, and it answers the semantic the directive called the most important unresolved question in the wave: what does history mean for a UDF call site that does NOT execute on every chart bar?",
+  "captured_at": "2026-09-08",
+  "method": "study model read — _exposed_chartWidgetCollection -> activeChartWidget -> model().model().dataSources() -> study.data().each(). Never a screenshot, never the Data Window, never the editor DOM.",
+  "context": {
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "timeframe": "1D",
+    "rows_returned": 400,
+    "call_bars_in_window": 133,
+    "loaded_history_bars": 8459
+  },
+  "_probe_shape": "A UDF is called from ONE source call site inside `if go`, where `go = bar_index % 3 == 0`. The function is handed `bar_index`, so every value is self-labelling: a result of A-3 means 'three chart bars back' and A-6 means 'six'. The gap of 3 is what makes the hypotheses separate — with a gap of 1 they all coincide.",
+  "probes": {
+    "shallow_v5": {
+      "source": "//@version=5\nindicator(\"UCT skipcall probe\")\nf1(v) => v[1]\nf2(v) => v[2]\ngo = bar_index % 3 == 0\nfloat p1 = na\nfloat p2 = na\nif go\n    p1 := f1(bar_index)\n    p2 := f2(bar_index)\nplot(bar_index, \"A\")\nplot(p1, \"B\")\nplot(p2, \"C\")\nplot(go ? 1 : 0, \"D\")\n",
+      "compiled_study_identity_proof": {
+        "study_id": "DG0hU9",
+        "shortDescription": "UCT skipcall probe",
+        "plot_count": 4,
+        "plot_titles": ["A", "B", "C", "D"],
+        "other_uct_studies_on_chart": 0
+      },
+      "observations": {
+        "call_bars": 133,
+        "distinct_A_minus_v1": [3],
+        "distinct_A_minus_v2": [3],
+        "v1_na_on_call_bars": 0,
+        "v2_na_on_call_bars": 0,
+        "non_call_bars_plot_na": true
+      }
+    },
+    "deep_v5": {
+      "source": "//@version=5\nindicator(\"UCT skipcall deep probe\")\nf1(v) => v[3]\nf2(v) => v[4]\ngo = bar_index % 3 == 0\nfloat p1 = na\nfloat p2 = na\nif go\n    p1 := f1(bar_index)\n    p2 := f2(bar_index)\nplot(bar_index, \"A\")\nplot(p1, \"B\")\nplot(p2, \"C\")\nplot(go ? 1 : 0, \"D\")\n",
+      "compiled_study_identity_proof": {
+        "study_id": "DG0hU9",
+        "shortDescription": "UCT skipcall deep probe",
+        "plot_count": 4,
+        "plot_titles": ["A", "B", "C", "D"],
+        "other_uct_studies_on_chart": 0
+      },
+      "observations": {
+        "call_bars": 133,
+        "distinct_A_minus_v3": [3],
+        "distinct_A_minus_v4": [6],
+        "sample_A_v3_v4": [[8067, 8064, 8061], [8070, 8067, 8064], [8073, 8070, 8067]]
+      }
+    },
+    "deep_v6": {
+      "source": "//@version=6\nindicator(\"UCT skipcall deep probe v6\")\nf1(v) => v[3]\nf2(v) => v[4]\ngo = bar_index % 3 == 0\nfloat p1 = na\nfloat p2 = na\nif go\n    p1 := f1(bar_index)\n    p2 := f2(bar_index)\nplot(bar_index, \"A\")\nplot(p1, \"B\")\nplot(p2, \"C\")\nplot(go ? 1 : 0, \"D\")\n",
+      "compiled_study_identity_proof": {
+        "study_id": "DG0hU9",
+        "shortDescription": "UCT skipcall deep probe v6",
+        "plot_count": 4,
+        "plot_titles": ["A", "B", "C", "D"],
+        "other_uct_studies_on_chart": 0
+      },
+      "observations": {
+        "call_bars": 133,
+        "distinct_A_minus_v3": [3],
+        "distinct_A_minus_v4": [6],
+        "sample_A_v3_v4": [[8070, 8067, 8064], [8073, 8070, 8067], [8076, 8073, 8070]]
+      }
+    }
+  },
+  "hypotheses": {
+    "A1_chart_bar_na_on_skip": "a skipped bar leaves the function-local series `na`, so v[1] on a call bar right after two skips is `na`",
+    "A2_chart_bar_hold_on_skip": "the series is indexed by CHART BAR and HOLDS its last value across skipped bars: v[1]=v[2]=v[3]=A-3 and v[4]=A-6",
+    "B_per_invocation": "history counts INVOCATIONS, not bars: v[1]=A-3 and v[2]=A-6",
+    "C_clamp_to_last_execution": "every offset returns the last executed value: v[1]=v[2]=v[3]=v[4]=A-3",
+    "D_evaluated_every_bar": "the call runs on every bar despite the `if`, so v[1]=A-1"
+  },
+  "discrimination": {
+    "v1_and_v2_both_A_minus_3": "excludes B (per-invocation would give A-6 for v[2]), excludes A1 (would be na), excludes D (would give A-1)",
+    "v3_is_A_minus_3_but_v4_is_A_minus_6": "excludes C (clamp would give A-3 for BOTH). Only A2 survives: the third bar back is still the held value, the fourth reaches the previous execution.",
+    "_note": "A gap of 3 is essential. The shallow probe alone cannot separate A2 from C, and the deep probe alone cannot separate A2 from B. Together they leave exactly one model."
+  },
+  "conclusion": {
+    "rule": "FUNCTION-LOCAL SERIES HISTORY IS INDEXED BY CHART BAR. On a bar where the call site does NOT execute, the series HOLDS its previous value.",
+    "verified_versions": ["v5", "v6"],
+    "versions_agree": true,
+    "rejects": [
+      "per-invocation indexing",
+      "clamp-to-last-execution",
+      "na-on-skipped-bar",
+      "the call being evaluated on every bar despite the `if`"
+    ],
+    "implication_for_uct": "a per-call-site history ring is committed EVERY chart bar, using the value the site last produced — so a skipped call re-commits the previous value rather than advancing or blanking. The live frame local still resets per invocation; only the committed series holds."
+  },
+  "not_observed": {
+    "warmup_at_the_first_bar_of_history": "the returned window begins at bar_index 8060, so the first bar of the call site's life is outside it. Still NOT vendor-pinned (carried from the 2F-2A fixture).",
+    "committed_na_history_value": "a call site whose committed value is itself `na` was not probed. Still NOT vendor-pinned.",
+    "two_distinct_call_sites_to_one_udf_with_history": "the 2E fixture pins per-call-site PERSISTENT STATE; per-call-site HISTORY identity is implemented to match it but is not separately vendor-pinned here."
+  },
+  "hygiene": {
+    "scripts_added": ["UCT skipcall probe (v5)", "UCT skipcall deep probe (v5)", "UCT skipcall deep probe v6"],
+    "all_removed_after": true,
+    "layout_saved": false,
+    "brokerage_state_touched": false
+  }
+}

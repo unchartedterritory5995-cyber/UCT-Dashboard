@@ -258,7 +258,22 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # first `reads: "bars"` entry that also takes a `series`, and it is the ruling
     # that lets `_functions_excluded.obv` and the new `_functions_excluded.cum`
     # point at a successor instead of only refusing.
-    assert len(ast_table.bar_names()) == 97, len(ast_table.bar_names())
+    # 97 -> 101 (2026-09-06): Vendor Parity Tranche 2, Lane B -- `rising`,
+    # `median`, `percentrank`, `bbw`, each resolved by a real TradingView
+    # capture rather than documentation alone (`closedTable.json::
+    # _functions_vendor_parity_resolutions`). No new node type, argument
+    # kind, or lookback form -- ordinary `arg1` windows like `sma`/`stdev`.
+    # 101 -> 103 (2026-09-06): Vendor-Backed Unserved Builtins, Batch 1 --
+    # `falling` (an ordinary `arg1` window, the structural mirror of `rising`,
+    # resolved by an INDEPENDENT real vendor capture) and `pvtN` (a bar
+    # reader, the structural mirror of `obvN`, window `arg0`). No new node
+    # type, argument kind, or lookback form.
+    # 103 -> 104 (2026-09-09): `cum`, admitted under owner Ruling D with its
+    # containment on the DEFINITION (`_requirement_tags`) rather than on the entry.
+    # 104 -> 110 (2026-09-09): the six barstate clock columns. Named rather than
+    # bumped -- islast, isfirst, isrealtime, isconfirmed, ishistory,
+    # islastconfirmedhistory. See closedTable.json::_barstate.
+    assert len(ast_table.bar_names()) == 110, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -277,7 +292,16 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # ⭐ 208 -> 234 (2026-09-02) is the SAME 26 Wave-1 columns as the scalar
     # bump below; this is their combined total, so the two move together or
     # one of them is wrong.
-    assert len(declared) == 234, f"the table declares {len(declared)} names, not 234"
+    # 234 -> 238 (2026-09-06): the same four Lane B functions; the scalar half
+    # is untouched at 137.
+    # 238 -> 240 (2026-09-06): the same `falling`/`pvtN` pair as the bar count
+    # above; the scalar half is untouched at 137.
+    # 240 -> 241 (2026-09-09): `cum`. The bar half moved and the scalar half did
+    # not, which is what the two assertions above are for; this is their sum and
+    # it has to move with them or the pair stops being a partition claim.
+    # 241 -> 247 (2026-09-09): the six BARSTATE clock columns. The bar half moved
+    # and the scalar half did not, which is what the two assertions above are for.
+    assert len(declared) == 247, f"the table declares {len(declared)} names, not 247"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -470,6 +494,22 @@ def test_the_node_types_are_DERIVED_from_the_committed_corpus():
     """
     seen = set()
     stack = [c["ast"] for c in load_corpus()["cases"]]
+    # ⭐⭐ AND THE BIND-TIME NODES COME FROM THE OTHER NET, BECAUSE THEY CANNOT
+    # COME FROM THIS ONE. `corpus.json` is the EVALUATED net — every case here is
+    # computed over `bars` and digested. `str`, `symtext` and `textop` are not
+    # evaluable BY CONSTRUCTION: they must be folded (`ast_bind.fold_bound`)
+    # before a tree is interpreted, and `interpret` refuses one that reaches it.
+    # A row for them in the evaluated corpus would either be skipped by every
+    # evaluator (a case that proves nothing) or force each one to learn an
+    # exception.
+    # ⛔ THE CLAIM IS UNCHANGED — every node type is exercised by a committed
+    # regression net that runs in BOTH lanes. What changed is that there are TWO
+    # nets and the union is asserted, so nothing is exempt: a twelfth type with
+    # no coverage anywhere still fails here.
+    parity = json.loads(
+        (pathlib.Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "ast"
+         / "bind_fold_parity.json").read_text(encoding="utf-8"))
+    stack.extend(c["tree"] for c in parity["cases"])
     while stack:
         node = stack.pop()
         if isinstance(node, list):
@@ -482,8 +522,43 @@ def test_the_node_types_are_DERIVED_from_the_committed_corpus():
             if isinstance(value, (dict, list)):
                 stack.append(value)
     assert seen == set(ast_interpret.NODE_TYPES)
+    # ⛔ AND THE SECOND NET IS REALLY CARRYING ITS HALF. Without this, a parity
+    # fixture that lost its text rows would fail the assertion above reading
+    # "the corpus is missing three types" — pointing an engineer at the wrong
+    # file. This names the right one.
+    from_parity = set()
+    probe = [c["tree"] for c in parity["cases"]]
+    while probe:
+        node = probe.pop()
+        if isinstance(node, dict):
+            from_parity.add(node.get("type"))
+            probe.extend(v for v in node.values() if isinstance(v, (dict, list)))
+        elif isinstance(node, list):
+            probe.extend(node)
+    for kind in ("str", "symtext", "textop"):
+        assert kind in from_parity, (
+            f"bind_fold_parity.json no longer exercises {kind!r}. It is the ONLY "
+            "net that can — a bind-time node is not evaluable, so it cannot live "
+            "in corpus.json.")
     import ast_conformance                                    # the instrument agrees
-    assert set(ast_conformance.CANONICAL_NODE_TYPES) == set(ast_interpret.NODE_TYPES)
+    # ⭐ THE INSTRUMENT CARRIES THE EVALUABLE VOCABULARY, WHICH IS THE WHOLE SET
+    # MINUS THE BIND-TIME TRIO — and the trio is READ from the module rather than
+    # typed here, so the two rosters cannot drift apart in the one place that
+    # would make this equality meaningless.
+    # ⛔ THE CONFORMANCE CENSUS MEASURES NUMERIC AGREEMENT between the lanes. A
+    # node that never becomes a number has nothing for it to compare, so
+    # including it would either be skipped (proving nothing) or force the census
+    # to grow an exception. It is covered by the parity fixture instead, where
+    # the comparison that matters — same answer, same refusal STRING — is the
+    # one being made.
+    assert (set(ast_conformance.CANONICAL_NODE_TYPES)
+            == set(ast_interpret.NODE_TYPES) - set(ast_interpret.BIND_TIME_NODE_TYPES))
+    # ⛔ AND THE SUBTRACTION IS NOT VACUOUS. If `BIND_TIME_NODE_TYPES` were
+    # emptied, the line above would demand the census carry types it cannot
+    # evaluate; if it swallowed a numeric type, the census would quietly stop
+    # measuring one. Both directions are named.
+    assert set(ast_interpret.BIND_TIME_NODE_TYPES) < set(ast_interpret.NODE_TYPES)
+    assert set(ast_interpret.BIND_TIME_NODE_TYPES), "the bind-time subset went empty"
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -736,6 +811,15 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
             [{"o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0 + (i % 7) * 0.1, "v": 1000.0}
              for i in range(ast_interpret.MAX_RECURRENCE_STEPS // 500 + 10)],
             {}),
+        # ⭐⭐ R-K (2026-09-12). The shape T5 measured 18 times in the member
+        # pane: `str.contains(syminfo.tickerid, "/")`, unfolded because the chart
+        # lane handed the fold a bare ticker STRING and `symbol_constants` takes
+        # an object. It used to come out as `interpret:node — unknown node type
+        # 'textop'`, in a message listing `textop` among the legal types.
+        "interpret:bind-time-text": lambda: run(
+            {"type": "textop", "name": "contains",
+             "args": [{"type": "symtext", "name": "tickerid"},
+                      {"type": "str", "value": "/"}]}),
     }
     assert sorted(triggers) == sorted(ast_interpret.REFUSALS)
     for guard, fire in triggers.items():
@@ -995,13 +1079,34 @@ def test_stdev_is_the_POPULATION_divisor_and_the_two_are_DISTINGUISHABLE_here():
     assert abs(population - sample) > 1e-3, "the two divisors agree — this pins nothing"
 
 
-def test_ema_RESTARTS_its_seed_after_a_hole_and_never_averages_bars_it_never_saw():
+def test_ema_HOLDS_its_state_across_a_hole_because_that_is_what_tradingview_does():
+    """⚰⚰ THIS TEST WAS NAMED
+    ``test_ema_RESTARTS_its_seed_after_a_hole_and_never_averages_bars_it_never_saw``
+    AND IT PINNED A DEFECT. The engine reset the smoother on a hole and this test
+    demanded it, so the divergence could not be seen from inside the suite.
+
+    TradingView HOLDS. Measured 2026-09-08 on four holes for ema and rma
+    (err 0-1.1e-13) and again over a 400-bar capture where 0 of 133 na bars
+    carried an ema while every finite bar did. Owner ruled the same day: vendor
+    truth wins, and cross-lane agreement is worth nothing when the shared
+    authority is wrong. Fixture:
+    ``tests/fixtures/vendor/runtime/na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08.json``.
+
+    ⛔ The old assertion is preserved as an EXCLUSION below rather than deleted:
+    a test that only confirms the new rule would pass for an engine that had
+    never had the bug, and the point is that this one did.
+    """
     bars = [dict(b) for b in BARS]
     del bars[2]["c"]                              # one hole in the middle
     col = run(CALL("ema", SER("close"), NUM(2)), bars=bars)
-    assert col[2] is None, "the hole itself must stay a hole"
-    assert col[3] is None, "the seed did not restart — it carried state across a hole"
-    assert col[4] == pytest.approx((11.0 + 10.0) / 2, rel=1e-12)
+    assert col[2] is None, "the hole itself is still a hole - the bar answers na"
+    # ⭐ THE RULING: the very next finite bar answers, from the HELD state.
+    assert col[3] is not None, (
+        "state must be held across the hole - a `None` here is the old reset bug")
+    # and it is exactly one step of the smoother from the pre-hole value
+    k = 2 / (2 + 1)
+    assert col[3] == pytest.approx(col[1] * (1 - k) + bars[3]["c"] * k, rel=1e-12)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

@@ -44,6 +44,12 @@ says which name and why — it never guesses a meaning.
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
 | `isweekly` | 1 when the chart's timeframe is weekly, otherwise 0 |
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
+| `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
+| `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
+| `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- never a guess |
+| `isconfirmed` | 1 on a bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- collapsing blank onto 1 would put a confident isconfirmed on a bar that may still be open |
+| `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This engine evaluates a static fetch, so ishistory is exactly isconfirmed -- a divergence from the vendor, recorded in `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` |
+| `islastconfirmedhistory` | 1 on the newest bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This is a POINTER to the right edge of the confirmed region and moves as soon as the newest bar closes -- consumers must not treat it as a per-bar fact |
 
 ## Operators
 
@@ -68,7 +74,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (64)
+## Functions (71)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -84,12 +90,14 @@ decide whether a formula can run at all.
 | `atr(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close` |
 | `avwap(anchor)` | a number | a session (960 bars) | the volume-weighted average price accumulated from the first bar at or after epoch `anchor` |
 | `barssince(condition, period)` | a number | whatever `period` asks for | the number of bars since `condition` was last true, and `period` when it has not been true that recently |
+| `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
 | `change(source)` | a number | 1 bar | the bar-over-bar change in `source` |
 | `cos(source)` | a number | 0 bars | the cosine of `source` |
 | `crossOver(left, right)` | true or false | 1 bar | `left` crossing above `right` |
 | `crossUnder(left, right)` | true or false | 1 bar | `left` crossing below `right` |
+| `cum(source)` | a number | series | the running total of `source` over every bar of the loaded history |
 | `cumFrom(source, anchor, windowPeriod)` | a number | whatever `windowPeriod` asks for | the running total of `source` from the first bar at or after epoch `anchor`, for at most `windowPeriod` bars |
 | `dev(source, period)` | a number | whatever `period` asks for | the mean absolute deviation of `source` over the last `period` bars |
 | `donchianLower(high, low, period)` | a number | whatever `period` asks for | the bottom of the `period`-bar Donchian channel over `high` and `low` |
@@ -97,8 +105,9 @@ decide whether a formula can run at all.
 | `donchianUpper(high, low, period)` | a number | whatever `period` asks for | the top of the `period`-bar Donchian channel over `high` and `low` |
 | `ema(source, period)` | a number | whatever `period` asks for | the `period`-bar exponential average of `source` |
 | `exp(source)` | a number | 0 bars | e raised to `source` |
+| `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
-| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the highest `source` of the last `period` bars |
+| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the highest `source` of the last `period` bars |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
 | `ichimokuChikou(high, low, close, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku lagging span of `close` over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
 | `ichimokuKijun(high, low, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku base line over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
@@ -109,9 +118,10 @@ decide whether a formula can run at all.
 | `ln(source)` | a number | 0 bars | the natural log of `source` |
 | `log10(source)` | a number | 0 bars | the base-10 log of `source` |
 | `lowest(source, period)` | a number | whatever `period` asks for | the lowest `source` of the last `period` bars |
-| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the lowest `source` of the last `period` bars |
+| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the lowest `source` of the last `period` bars |
 | `macd(source, fastPeriod, slowPeriod)` | a number | whatever `slowPeriod` asks for | the `fastPeriod`/`slowPeriod` MACD line of `source` |
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
+| `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |
 | `mfi(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume` |
 | `min(left, right)` | a number | 0 bars | the smaller of `left` and `right` |
 | `minusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar -DI of `high`, `low` and `close` |
@@ -119,10 +129,13 @@ decide whether a formula can run at all.
 | `na(source)` | true or false | 0 bars | `source` being unknown |
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
+| `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
 | `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `plusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar +DI of `high`, `low` and `close` |
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
+| `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
+| `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |
 | `rsi(source, period)` | a number | whatever `period` asks for | the `period`-bar RSI of `source` |

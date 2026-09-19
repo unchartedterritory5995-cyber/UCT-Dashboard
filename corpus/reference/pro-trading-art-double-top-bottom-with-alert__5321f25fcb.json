@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5321f25fcbc94f82b62d2cd927cd29ab",
+ "title": "Pro Trading Art - Double Top & Bottom with alert",
+ "author": "protradingart",
+ "url": "https://www.tradingview.com/script/92tmeSms-pro-trading-art-double-top-bottom-with-alert/",
+ "agreeCount": 3178,
+ "category": "harmonic patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+ "our_status": "committed"
+}

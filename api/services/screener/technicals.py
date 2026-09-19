@@ -70,9 +70,35 @@ def _rsi(closes, n=14):
     reaches the movement before it and reads **52.39**. The ``0/0`` guard was
     only ever half the protection; this is the other half, and it needed no
     special case.
+
+    ⛔⛔ THE ZERO-MOVEMENT GUARD LIVES HERE NOW, NOT IN THE DEFINITION OF RSI.
+    Owner ruling 2026-09-08. ``rsi_from_wilder_averages`` used to answer ``None``
+    for the ``0/0`` case -- gains and losses both zero -- and that was a UCT
+    INVENTION: measured directly on TradingView, ``ta.rsi`` of a source that
+    never moves returns **100**, because Pine tests ``down == 0`` FIRST. The
+    engine now matches the vendor, so every Pine script this platform runs and
+    the chart a member opens all agree.
+
+    That correction hands the frozen-ticker problem back to this column, which
+    is where it belongs: a dead ticker topping an "RSI > 70" scan is a SCREENING
+    defect, not an arithmetic one. SIM, TMTS, CWEN-A, DRDB and OBA did it on
+    2026-08-09. So a series that did not move AT ALL across the lookback is
+    reported as NOT COMPUTABLE for this column.
+
+    ⭐ ``None`` HERE MEANS "NOT COMPUTABLE", WHICH IS ALREADY THIS COLUMN'S
+    VOCABULARY -- the same answer a too-short history gets, and the same one
+    ``CoverageLine`` counts separately from "no match". It is NOT zero, and it
+    is deliberately narrower than "flat": ``chg_pct_1d`` of a frozen ticker
+    stays **0.00**, because a change of zero is a TRUE statement about price
+    while an RSI of a flat series is an undefined one.
     """
     from api.services import indicator_compute
     if len(closes) < n + 1:
+        return None
+    # The lookback Wilder actually seeds from is the whole series it is handed;
+    # a ticker that never moved across ANY of it has no momentum to measure.
+    window = closes[-(n + 1):]
+    if all(c == window[0] for c in window):
         return None
     return indicator_compute.compute_rsi_raw(closes, n)[-1]
 

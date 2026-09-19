@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e4a81d76f6524285bc7e4e3f0287bd36",
+ "title": "Keltner Center Of Gravity Channel",
+ "author": "eykpunter",
+ "url": "https://www.tradingview.com/script/vnpB6Jmq-keltner-center-of-gravity-channel/",
+ "agreeCount": 687,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+ "our_status": "committed"
+}

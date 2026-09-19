@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;543",
+ "title": "Bill Williams. Awesome Oscillator (AO)",
+ "author": "HPotter",
+ "url": "https://www.tradingview.com/script/0207Rs64-bill-williams-awesome-oscillator-ao/",
+ "agreeCount": 615,
+ "category": "momentum",
+ "pine_version": "v1 (inferred: catalog revision -1)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/bill-williams-awesome-oscillator-ao__543.pine",
+ "our_status": "reference-only"
+}

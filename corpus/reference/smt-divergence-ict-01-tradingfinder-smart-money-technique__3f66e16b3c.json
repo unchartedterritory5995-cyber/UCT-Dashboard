@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3f66e16b3cdd46e185d29051fdae4e98",
+ "title": "SMT Divergence ICT 01 [TradingFinder] Smart Money Technique",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/l3AfMB1k-smt-divergence-ict-01-tradingfinder-smart-money-technique/",
+ "agreeCount": 4904,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+ "our_status": "committed"
+}

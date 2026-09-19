@@ -30,6 +30,10 @@ import pytest
 
 from api.services.bars_fetch import _NYSE_HOLIDAYS_YYYYMMDD
 from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD
+from api.services.nyse_calendar import (
+    NYSE_EARLY_CLOSES_YYYYMMDD as _LEAF_EARLY_CLOSES,
+    NYSE_HOLIDAYS_YYYYMMDD as _LEAF_HOLIDAYS,
+)
 
 _JS_PATH = (
     pathlib.Path(__file__).resolve().parents[1]
@@ -63,9 +67,24 @@ def _yyyymmdd_to_iso(dates: frozenset[int]) -> set[str]:
 _BACKEND_HOLIDAYS_ISO = _yyyymmdd_to_iso(_NYSE_HOLIDAYS_YYYYMMDD)
 _BACKEND_EARLY_CLOSES_ISO = _yyyymmdd_to_iso(_NYSE_EARLY_CLOSES_YYYYMMDD)
 
-#: Years nyseCalendar.js currently declares -- add a year here (and to the JS
-#: file's own COVERED_YEARS/exports) together, never independently.
-_FRONTEND_YEARS = (2026, 2027)
+def _js_covered_years() -> tuple[int, ...]:
+    """The years nyseCalendar.js DECLARES, read from its own ``COVERED_YEARS``.
+
+    ⛔ DERIVED, NEVER RETYPED. This was a hand-typed ``(2026, 2027)`` sitting
+    beside the ``COVERED_YEARS`` that owns it -- the repo's most-repeated defect
+    (the writer-index ``FOUR``, the COT router's "4 routes", the setup catalog's
+    "24"). It fails in the SILENT direction: add 2028 to nyseCalendar.js and the
+    parity assertions below simply never run on it, so a brand-new year's dates
+    -- the ones most likely to be wrong, because they were just hand-entered --
+    are the ones nothing compares. The test would stay green and say nothing.
+    """
+    m = re.search(r"export const COVERED_YEARS = Object\.freeze\(\[([^\]]*)\]\)",
+                  _js_source())
+    assert m, "COVERED_YEARS not found in nyseCalendar.js -- has it been renamed?"
+    return tuple(int(y) for y in re.findall(r"\d{4}", m.group(1)))
+
+
+_FRONTEND_YEARS = _js_covered_years()
 
 
 class TestTheParserItselfIsNotVacuous:
@@ -86,6 +105,41 @@ class TestTheParserItselfIsNotVacuous:
     def test_the_parser_finds_the_backend_tables_too(self):
         assert len(_BACKEND_HOLIDAYS_ISO) >= 20
         assert len(_BACKEND_EARLY_CLOSES_ISO) >= 3
+
+
+class TestTheReExportIsTheLeafTheEngineActuallyReads:
+    """⛔⛔ THE PARITY ABOVE CHECKS A RE-EXPORT; THE ENGINE READS THE LEAF.
+
+    Both NYSE tables moved to the dependency-free leaf ``api/services/nyse_calendar.py``
+    on 2026-09-09; ``bars_fetch`` and ``liveflow_monitor`` re-export them under
+    their historical names so all 55 read sites kept working, and this file was
+    deliberately left importing those names to prove exactly that.
+
+    ⭐ BUT NOTHING PINNED THE TWO TOGETHER. ``ast_interpret`` imports the LEAF
+    (``_nyse_full_closures`` / ``_nyse_early_closes``), so if a future edit gave
+    ``bars_fetch`` its own literal again -- which is precisely the state the leaf
+    refactor undid -- every assertion above would keep passing against a table the
+    engine no longer reads, while the engine and the browser silently disagreed
+    about which days the market is shut. A second authority over one value, with
+    a green test standing over it.
+
+    Identity, not equality: two equal frozensets built from two literals are the
+    thing being forbidden, so ``==`` would accept the defect.
+    """
+
+    def test_bars_fetch_reexports_the_very_same_holiday_object(self):
+        assert _NYSE_HOLIDAYS_YYYYMMDD is _LEAF_HOLIDAYS, (
+            "bars_fetch._NYSE_HOLIDAYS_YYYYMMDD is no longer the leaf's object. "
+            "If it has grown its own literal, the engine (which reads "
+            "api/services/nyse_calendar.py) and this parity test are now looking "
+            "at two different calendars."
+        )
+
+    def test_liveflow_monitor_reexports_the_very_same_early_close_object(self):
+        assert _NYSE_EARLY_CLOSES_YYYYMMDD is _LEAF_EARLY_CLOSES, (
+            "liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD is no longer the leaf's "
+            "object -- see the sibling test above for why that is not cosmetic."
+        )
 
 
 class TestFullHolidayParity:

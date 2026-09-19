@@ -241,11 +241,29 @@ def check(observations=None, divergences=None, out=sys.stdout):
             file=out)
         return 2
 
+    # ⛔⛔ 2026-09-05: A "vendor_semantics_only" observation (`engine.ast is
+    # None` -- real vendor screen values recorded for a function this engine
+    # does not implement yet, e.g. the ta.rising/ta.bbw/ta.percentrank/
+    # ta.median research capture) MUST NEVER reach `compare()`. It has no
+    # tree to interpret, so `evaluate()` raised `TableRefusal: not a
+    # canonical node got None` before this split existed -- crashing the
+    # ENTIRE run, including every OTHER observation's real comparison. This
+    # split derives comparability from `engine.ast`'s presence rather than a
+    # separately-stored status flag, on purpose: a stored flag could drift
+    # from whether an AST actually exists, and this repo's own manifest
+    # names that exact shape as its most repeated defect. See
+    # VENDOR_OBSERVATION_SCHEMA_EXTENSION.md for the full ruling this
+    # implements: "vendor observed" and "parity verified" are NOT the same
+    # claim, and holding the former must never silently inflate a count that
+    # implies the latter.
+    comparable = [o for o in obs_list if (o.get("engine") or {}).get("ast") is not None]
+    semantics_only = [o for o in obs_list if (o.get("engine") or {}).get("ast") is None]
+
     by_shape = {s: 0 for s in SHAPES}
     total_values = 0
     deltas = []
     empties = []
-    for obs in obs_list:
+    for obs in comparable:
         by_shape[obs["shape"]] += 1
         rows = compare(obs)
         total_values += len(rows)
@@ -257,8 +275,28 @@ def check(observations=None, divergences=None, out=sys.stdout):
 
     # ⭐ THE DENOMINATOR FIRST, ALWAYS. "0 divergences" over 0 comparisons and
     # "0 divergences" over 400 are opposite facts that print the same way.
-    print(f"\nran     : {len(obs_list)} observations, {total_values} compared values",
-          file=out)
+    print(f"\nran     : {len(obs_list)} observations held, {len(comparable)} parity-comparable, "
+          f"{len(semantics_only)} vendor-semantics-only (no UCT implementation yet), "
+          f"{total_values} compared values", file=out)
+    if semantics_only:
+        print("          vendor-semantics-only (NOT counted toward parity, listed for the record):",
+              file=out)
+        for obs in semantics_only:
+            print(f"            - {obs['id']}", file=out)
+    if not comparable:
+        # ⛔ THE SAME REFUSAL AS AN EMPTY STORE, FOR THE SAME REASON. Every
+        # held observation being vendor-semantics-only is a real and useful
+        # state (pre-implementation research), but "0 comparable, 0 deltas"
+        # must never print as a quiet pass -- that is the exact vacuous
+        # "iterate nothing, find nothing, exit 0" shape this file's empty-
+        # store branch already refuses, reached by a different door.
+        print(
+            "\n⛔ 0 OF THE HELD OBSERVATIONS ARE PARITY-COMPARABLE (none has an "
+            "engine.ast -- no UCT implementation exists yet for any of them).\n"
+            "   This is NOT a pass. Real vendor semantics are documented, which is\n"
+            "   valuable, but nothing here has been compared to anything this engine\n"
+            "   computes. Do not report this as vendor parity.\n", file=out)
+        return 2
     print(f"shapes  : " + " · ".join(f"{s} {by_shape[s]}" for s in SHAPES), file=out)
     print(f"matched : {total_values - len(deltas) - len(empties)}", file=out)
     print(f"deltas  : {len(deltas)}", file=out)
@@ -303,25 +341,47 @@ def check(observations=None, divergences=None, out=sys.stdout):
 
 
 def coverage(out=sys.stdout):
-    """What truth we hold, by shape. A zero here names a class of blindness."""
+    """What truth we hold, by shape. A zero here names a class of blindness.
+
+    ⛔⛔ 2026-09-05: "held" and "parity-comparable" are DIFFERENT CLAIMS, kept
+    visibly separate for the same reason `check()` splits them -- a
+    vendor_semantics_only observation (no `engine.ast`, a pre-implementation
+    research capture) is real, useful evidence, but it is not parity
+    COVERAGE. Folding it into one "N observations" count would let holding
+    vendor screen values for a function this engine doesn't implement yet
+    read as if that function's parity were covered.
+    """
     obs_list = load_observations(OBS_DIR)
     by_shape = {s: [] for s in SHAPES}
+    by_shape_semantics_only = {s: [] for s in SHAPES}
     for obs in obs_list:
-        by_shape[obs["shape"]].append(obs["id"])
+        if (obs.get("engine") or {}).get("ast") is None:
+            by_shape_semantics_only[obs["shape"]].append(obs["id"])
+        else:
+            by_shape[obs["shape"]].append(obs["id"])
 
     print("VENDOR-TRUTH COVERAGE", file=out)
     print("-" * 78, file=out)
     for shape in SHAPES:
         held = by_shape[shape]
+        semantics_only = by_shape_semantics_only[shape]
         mark = "✅" if held else "⛔"
-        print(f"{mark} {shape:10s} {len(held)}", file=out)
+        print(f"{mark} {shape:10s} {len(held)} parity-comparable", file=out)
         for oid in held:
             print(f"       {oid}", file=out)
-        if not held:
+        if semantics_only:
+            print(f"   ({len(semantics_only)} vendor-semantics-only, NOT parity coverage):",
+                  file=out)
+            for oid in semantics_only:
+                print(f"       {oid}", file=out)
+        if not held and not semantics_only:
             print(f"       NOTHING HELD. {_BLIND[shape]}", file=out)
     total = sum(len(v) for v in by_shape.values())
+    total_semantics_only = sum(len(v) for v in by_shape_semantics_only.values())
     print("-" * 78, file=out)
-    print(f"{total} observations", file=out)
+    print(f"{total} parity-comparable observations "
+          f"({total_semantics_only} additional vendor-semantics-only, not counted above)",
+          file=out)
     return 0 if total else 2
 
 

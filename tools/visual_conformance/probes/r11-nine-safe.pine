@@ -1,0 +1,44 @@
+//@version=6
+indicator("UCTPROBE_R11_NINE_SAFE", overlay = false)
+
+// ⭐⭐ ITEM 8, THE FOUR LOW-RISK NAMES — GROUPED BECAUSE THEIR ARITY RISK IS SHARED
+// AND NEGLIGIBLE. `math.pi` is a constant, `math.ceil`/`math.floor` are one-argument
+// functions that certainly exist, and `year` is a bare clock name. Item 7's split
+// rule says separate a RISKY arity so it cannot take the others down; none of these
+// four is risky, so grouping them costs one add instead of four.
+//
+// ⛔ `alma`, `ta.nvi`, `ta.correlation` and `ta.percentile_linear_interpolation`
+// are NOT here for exactly that reason — `alma` is a v3-era bare spelling that may
+// not exist in v6 at all, and a compile failure there would take these four with it.
+//
+// ⚠️ AND A COMPILE FAILURE IS ITSELF A READING for any of them: it would mean the
+// name is not ours to add, and the error text at
+// `status().errorDescription.editorError` says which.
+
+// ── 1. math.pi — no vendor question, it is π ────────────────────────────────
+// Read anyway: a table row that says 3.14159... should be CONFIRMED against the
+// vendor's own constant rather than against arithmetic we already believe.
+plot(math.pi, "N01_math_pi")                                                // N01
+
+// ── 2/3. math.ceil and math.floor ON NEGATIVES — the whole question ─────────
+// ⛔ The positives tell you nothing: ceil(2.5)=3 and floor(2.5)=2 under every
+// rule anyone has ever shipped. The negatives separate "toward zero" from
+// "toward +/- infinity", and that is the only thing worth an add.
+//   toward +inf : ceil(-2.5) = -2      toward zero : ceil(-2.5) = -2   (agree)
+//   toward -inf : floor(-2.5) = -3     toward zero : floor(-2.5) = -2  (DIFFER)
+plot(math.ceil(-2.5), "N02_ceil_neg2p5_expect_neg2")                        // N02
+plot(math.floor(-2.5), "N03_floor_neg2p5_neg3_is_toward_neg_inf")           // N03
+plot(math.ceil(2.5), "N04_ceil_pos2p5_CONTROL_expect_3")                    // N04
+plot(math.floor(2.5), "N05_floor_pos2p5_CONTROL_expect_2")                  // N05
+
+// ── 4. `year` — the bare v1-v3 spelling, and WHICH CLOCK it reads ───────────
+// ⭐ THE TIMEZONE IS SETTLED BY `hour`, NOT BY `year`. `year` only disagrees
+// between exchange time and UTC across a New Year boundary, so on any other day
+// it cannot answer its own question. `hour` disagrees by 4-5 EVERY day, and both
+// names read the SAME clock — so `hour` is the discriminator and `year` rides on
+// its answer. That is why the control is in this file rather than assumed.
+plot(year, "N06_year")                                                      // N06
+plot(month, "N07_month")                                                    // N07
+plot(dayofmonth, "N08_dayofmonth")                                          // N08
+plot(hour, "N09_hour_THE_TIMEZONE_DISCRIMINATOR")                           // N09
+plot(minute, "N10_minute")                                                  // N10

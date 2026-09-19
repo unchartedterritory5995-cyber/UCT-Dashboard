@@ -63,7 +63,15 @@
 
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
-  SESSION_LOOKBACK, SESSION_MAX_BARS,
+  SESSION_LOOKBACK, SESSION_MAX_BARS, SERIES_LOOKBACK,
+  // ⭐⭐ THE SHARED WINDOW PREDICATE, AND IT IS IN `parse.js` PRECISELY SO THIS
+  // IMPORT CAN EXIST. The natural home is beside the fold in `bind.js` — but that
+  // module imports `interpret.js`, and the rail below this file's own header
+  // asserts the linter's import graph is exactly `['./parse.js']`, because a
+  // linter that could reach an evaluator could reach a verdict by RUNNING a
+  // formula. `bindFoldableWindow` reads the tree and never runs it, so the
+  // guarantee is intact in the letter and in the purpose.
+  bindFoldableWindowMax,
 } from './parse.js'
 
 /** How many BASE bars one higher-timeframe bar spans.
@@ -235,6 +243,19 @@ export function declaredInputs(def) {
 function resolveDeclaration(decl, argNodes) {
   if (decl === UNBOUNDED) return UNBOUNDED
   if (decl === SESSION_LOOKBACK) return SESSION_MAX_BARS
+  // ⭐⭐ `series` RESOLVES TO 0, FOR THE SAME REASON `session` RESOLVES TO A
+  // NUMBER AT ALL: `UNKNOWN` fails closed, and failing closed HERE means branding
+  // the definition `repaints`. `ta.cum` cannot repaint — bar `i` depends on bars
+  // `0..i`, every one of them closed — so `UNKNOWN` would be a wrong badge on a
+  // member's pane, and the badge is a GATE rather than a label.
+  //
+  // ⚰️⚰️ MISSING ON THIS SIDE ONLY, and the R-G agreement rail is what found it.
+  // `ast_lint._resolve_declaration` has had this arm since 2026-09-11 — its own
+  // comment calls itself "THE THIRD READER OF A LOOKBACK DECLARATION" and says a
+  // parity test "is what caught this one missing". It caught it in the Python
+  // lane and nobody carried it across, so the browser has been branding every
+  // `ta.cum` formula `repaints` ever since — fail-closed, nothing red.
+  if (decl === SERIES_LOOKBACK) return 0
   if (typeof decl === 'number') {
     return Number.isInteger(decl) ? decl : UNKNOWN
   }
@@ -245,10 +266,32 @@ function resolveDeclaration(decl, argNodes) {
     // multiplier is applied here so the linter bounds the SAME window the
     // interpreter and the budget walker do — three readers, one grammar.
     const node = argNodes[Number(m[2])]
-    if (!node || node.type !== 'num') return UNKNOWN
-    if (!Number.isInteger(node.value)) return UNKNOWN
     const times = m[1] === undefined ? 1 : Number(m[1])
-    return times * node.value
+    if (node && node.type === 'num' && Number.isInteger(node.value)) {
+      return times * node.value
+    }
+    // ⭐⭐⭐ THE BIND-TIME LENGTH, BOUNDED BY ITS LARGEST ARM.
+    // `ta.sma(v, isWeekly ? lenWeekly : lenDaily)` — Uncharted Volume line 233 —
+    // has no literal here and never will: there is no chart yet, so the ternary
+    // cannot reduce. Answering UNKNOWN brands it `repaints`, and `canSaveFormula`
+    // refuses `repaints` outright, so the script could not be saved even after the
+    // save door stopped refusing it. That is why the door wiring came back out on
+    // 2026-09-10 and this line is what lets it go back in.
+    //
+    // ⛔ THE BOUND IS THE MAXIMUM OVER THE ARMS — never the first, never the one
+    // matching today's chart. A repaint bound may only ever OVER-state: too large
+    // costs warm-up bars, too small lets a formula read a bar the budget never
+    // paid for, which is the one direction a budget cannot absorb.
+    //
+    // ⛔ AND IT IS THE SAME WALK THE SAVE DOOR AND THE BIND STAGE ASK. A second
+    // classifier here could admit a length the stage then refuses — the door
+    // would defer, the linter would bound, and the member would get a number
+    // nothing produced.
+    const bound = bindFoldableWindowMax(node)
+    if (bound !== null && Number.isInteger(bound) && bound >= 0) {
+      return times * bound
+    }
+    return UNKNOWN
   }
   return UNKNOWN
 }
@@ -390,6 +433,28 @@ export function astReach(ast, opts = {}) {
     }
     switch (node.type) {
       case 'num': {
+        reachOf.set(node, { back: 0, forward: 0 })
+        break
+      }
+      case 'str':
+      case 'symtext':
+      case 'textop': {
+        // ⭐ BIND-TIME TEXT REACHES NO BAR, IN EITHER DIRECTION. A `symtext` is
+        // settled by the BINDING — `syminfo.ticker` is decided the moment a symbol
+        // is chosen — and a `textop` over such operands is decided with it, so the
+        // whole subtree costs zero bars back and zero forward.
+        //
+        // ⚰️⚰️ THIS ARM WAS MISSING ON THIS SIDE ONLY, and the R-G agreement rail is
+        // what found it. `ast_lint.py` has had it since 2026-09-11 with this exact
+        // argument; `interpret.js::maxLookback` has its own `str`/`symtext`/`textop`
+        // arm answering 0. So THREE readers said zero and this one fell through to
+        // the default, whose message names `str, symtext, textop` in the list of
+        // types it claims to accept — the sentence contradicted the branch.
+        //
+        // ⛔ THE COST WAS A LIE ON A BADGE, NOT A CRASH. Every tree touching
+        // bind-time text came back `back: unknown` ⇒ `repaints`, fail-closed and
+        // invisible. Measured on `uncharted-volume-v2.pine`: four of five outputs
+        // read `repaints` here while `ast_lint.py` read them correctly.
         reachOf.set(node, { back: 0, forward: 0 })
         break
       }

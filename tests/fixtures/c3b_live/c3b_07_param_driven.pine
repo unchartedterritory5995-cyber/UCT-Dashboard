@@ -1,0 +1,8 @@
+//@version=5
+indicator("C3B Param Driven", overlay = true, max_lines_count = 400)
+len = input.int(20, "Length", minval = 2, maxval = 200)
+ma = ta.sma(close, len)
+var line lvl = na
+if barstate.islast
+    lvl := line.new(bar_index - 60, ma, bar_index, ma, color = color.yellow, width = 3)
+plot(ma, title = "MA")

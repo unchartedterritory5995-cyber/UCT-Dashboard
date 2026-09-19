@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;XQTKs6HB2yXgpJzqMYoB9or9Q5VREkYA",
+ "title": "Trend Direction Helper",
+ "author": "Daveatt",
+ "url": "https://www.tradingview.com/script/prH14cfo-trend-direction-helper/",
+ "agreeCount": 16481,
+ "category": "market structure / smart-money",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trend-direction-helper__XQTKs6HB2y.pine",
+ "our_status": "reference-only"
+}

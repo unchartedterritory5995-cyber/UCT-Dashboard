@@ -89,8 +89,72 @@ const ACCEPTED = FILES.filter((f) => {
 })
 
 /** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
- *  once the member takes the engine's OWN offer, in a click rather than a retype. */
-const ACCEPT_FLOOR = 28
+ *  once the member takes the engine's OWN offer, in a click rather than a retype.
+ *
+ *  ⭐⭐ 28 -> 27 LOOKS LIKE A REGRESSION AND IS NOT ONE. This constant was
+ *  ALREADY STALE before Vendor Parity Tranche 2 touched it: the program's own
+ *  Project Evidence & Assumption Audit (2026-09-05) established that "28/48
+ *  is NOT current truth" for this exact blind-corpus claim — the verified,
+ *  reproducible baseline going into this tranche was 21/48, not 28 — but this
+ *  ONE constant was missed by that correction pass and stayed silently wrong
+ *  (a second-authority-over-one-value defect this program keeps finding).
+ *
+ *  21 -> 27 IS VENDOR PARITY TRANCHE 2, LANE B (2026-09-06): `ta.rising`,
+ *  `ta.median`, `ta.percentrank` and `ta.bbw` declared, each resolved by a
+ *  real TradingView capture (`closedTable.json::_functions_vendor_parity_resolutions`),
+ *  not by guessing to close this gap. MEASURED, not assumed
+ *  higher: the remaining 21 misses are blocked by OTHER unimplemented names
+ *  this authorization does not cover — `syminfo.mintick` (9), `ta.valuewhen`
+ *  (arity, not a missing name), `ta.falling` (rising's twin, deliberately
+ *  NOT authorized alongside it), `ta.cci`, `ta.supertrend`, `ta.kcw`,
+ *  `ta.cmf`, `ta.obv` — see the exam's own `console.log('still short ...')`
+ *  output. Implementing any of those is a separate, future authorization,
+ *  not a way to force this floor higher.
+ *
+ *  ⭐⭐ 27 -> 36 IS RISK-004 REMEDIATION A (2026-09-06): the mintick offer's
+ *  span was computed in `lexPine`'s LF-normalized index space and spliced
+ *  into `this.source` (the RAW, `\r\n`-intact script) — corrupting every
+ *  application on a CRLF, multi-line source, which every one of these 48
+ *  fixtures is. `lexPine` now also returns `rawOffsetMap`, and
+ *  `Resolver.toRawSpan` translates through it before the offer touches
+ *  `this.source` or leaves as `refusal.span`. All 9 of the corpus's
+ *  `syminfo.mintick` misses now apply in exactly one offer step and fully
+ *  recover — see `pine.blindCorpusDecomposition.test.js`. This is a REAL
+ *  gain, not a bookkeeping correction: the engine earned it.
+ *
+ *  ⭐⭐ 36 -> 37 IS RISK-004 REMEDIATION, `ta.barssince` (2026-09-06):
+ *  `breakout-squeeze-release-breakout`'s `nz(ta.barssince(squeeze), 1000) <=
+ *  3` now recovers on RAW translation — it needed no offer at all, since
+ *  `contextBoundedPlan` is a compile-time static identity, not an
+ *  assisted-edit — so it counts here too. See `FLOOR`, below, for the
+ *  raw-side accounting of the same change.
+ *
+ *  ⭐⭐ 37 -> 38 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06),
+ *  tracking `FLOOR`'s 28 -> 29 move one-for-one: `candles-doji-at-extension`
+ *  needed no assisted offer either, since `ta.falling`'s translation is a
+ *  RAW gain like `ta.barssince`'s. See `FLOOR`'s own note for the full
+ *  accounting of what did and did not move in this tranche.
+ *
+ *  🔴🔴 38 -> 36 IS A CORRECTNESS CORRECTION, NOT A REGRESSION (RISK-043,
+ *  2026-09-07): `volume-pocket-pivot-up-volume` and
+ *  `meanrev-consecutive-down-closes-exhaustion` were both COUNTED HERE, and
+ *  both were SILENT_WRONG_RESULT the entire time. Each mutates a scalar
+ *  inside a top-level `for` loop (`maxDownVol`, `downCount`) and reads it
+ *  afterward through an ordinary intermediate binding
+ *  (`screen = ... volume > maxDownVol ...` / `streak = downCount >= minDown`)
+ *  rather than directly inside the output call. The translator's closing-pass
+ *  safety net for an un-foldable loop mutation ran once, AFTER the whole
+ *  script had already been walked — too late for a binding made earlier in
+ *  program order, which had already captured a stale, pre-loop snapshot of
+ *  the mutated name and silently folded it into a compile-time constant. See
+ *  `FLOOR`'s own note on the same tranche, and the permanent regression net
+ *  at `pine.forLoopReassignSilentWrongResult.test.js`. The floor drops
+ *  because two scripts that used to be silently, confidently wrong are now
+ *  correctly refused — this is the engine getting MORE honest, not less
+ *  capable, and this program's own correctness policy ranks that above the
+ *  headline count. Do not restore these two to ACCEPTED without first
+ *  implementing genuine loop-carried-state execution (not authorized). */
+const ACCEPT_FLOOR = 36
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -103,18 +167,29 @@ const ACCEPT_FLOOR = 28
  *  script using it actually refuses, and the rail below checks that every run.
  */
 const UNSERVED_PROBES = Object.freeze({
-  'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
-  'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
-  'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
-  'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
-  'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) MOVED `ta.rising`,
+  // `ta.bbw`, `ta.percentrank` and `ta.median` OUT of this roster and INTO
+  // `SERVED_CONTROLS` below — each now resolves, so a probe for it here
+  // would fail this file's own staleness check ("a name may sit in this
+  // roster only while a minimal script using it actually refuses").
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS — BATCH 1 (2026-09-06) MOVED
+  // `ta.falling` and `ta.kcw` OUT of this roster too, for the same reason —
+  // see `SERVED_CONTROLS`'s own note.
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
+  'ta.accdist': 'plot(ta.accdist > 1000 ? 1 : 0)',
   'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
   'ta.valuewhen': 'plot(ta.valuewhen(close > open, close, 0) > 10 ? 1 : 0)',
   'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
-  'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
-  'request.security': 'plot(request.security(syminfo.tickerid, "D", close) > 10 ? 1 : 0)',
+  // ➕ ADDENDUM 2026-09-12 (ruling 3.5, `29d64a2ef`): this probe asked for "D" and
+  // "D" now TRANSLATES — a literal naming the engine's own base folds to the identity.
+  // ⛔ So `request.security` is no longer WHOLLY unserved: it serves the base period,
+  // `W`, `M`, and another nameable symbol. What remains unserved is the
+  // UNSERVABLE-TIMEFRAME case, so the probe is re-pointed at "60" and the name's row
+  // keeps measuring a real gap.
+  // ⭐ THE RAIL CAUGHT THIS ITSELF, saying the histograms were "overstating the gap by
+  // one name" — which they were.
+  'request.security': 'plot(request.security(syminfo.tickerid, "60", close) > 10 ? 1 : 0)',
   'syminfo.mintick': 'plot(high - low > syminfo.mintick ? 1 : 0)',
 })
 const UNSERVED = Object.keys(UNSERVED_PROBES)
@@ -127,6 +202,21 @@ const SERVED_CONTROLS = Object.freeze({
   'ta.linreg': 'plot(ta.linreg(close, 20, 0) > ta.linreg(close, 20, 1) ? 1 : 0)',
   'ta.mfi': 'plot(ta.mfi(hlc3, 14) > 50 ? 1 : 0)',
   'ta.dev': 'plot(ta.dev(close, 20) > 1 ? 1 : 0)',
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — moved from
+  // UNSERVED_PROBES above now that each resolves via a real vendor capture.
+  'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
+  'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
+  'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
+  'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS — BATCH 1 (2026-09-06) — resolved by
+  // real TradingView capture (`tests/fixtures/vendor/observations/
+  // ta-falling-close3-2026-09-06.json` / `ta-kcw-close20-2-2026-09-06.json`).
+  // `ta.pvt`'s windowed-delta rewrite is proven separately, through the
+  // comparison shape a member actually writes — see `pine.batch1VendorBacked
+  // .test.js`'s `ta.pvt` describe block — a bare `ta.pvt` probe here would
+  // correctly still refuse (the LEVEL stays excluded, exactly like `ta.obv`).
+  'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
+  'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
 })
 
 /** ⭐ 2026-09-04 — 20 → 21 / 27 → 28: A VENUE-QUALIFIED TICKER.
@@ -144,8 +234,63 @@ const SERVED_CONTROLS = Object.freeze({
  *  against a whole number is decided by that many bars, so `pine:state` left this
  *  exam's guard histogram entirely. It widened no vocabulary — a genuine running
  *  total still refuses, and that control is the first test in the new file. */
-/** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 21
+/** ⭐ 2026-09-06 — RISK-004 blind-corpus decomposition tranche: re-running this
+ *  exam against current HEAD found `PASSING.length` already at 27 (Vendor
+ *  Parity Tranche 2 Lane B had moved it there on 2026-09-05, but this
+ *  constant was never ratcheted to match — a bookkeeping lag, not a
+ *  regression). Corrected here per that tranche's explicit "a trivial
+ *  bookkeeping/documentation error required to report the truth" allowance.
+ *  No engine behavior changed; only this floor's own honesty. */
+/** ⭐⭐ 27 -> 28 IS RISK-004 REMEDIATION, `ta.barssince` (2026-09-06):
+ *  `contextBoundedPlan` (pine.js) now also recognises `nz(ta.barssince(cond),
+ *  S) <cmp> K` — inline and through a binding — as the SAME bounded identity
+ *  already used for the bare form, WHEN `S`'s own truth under `<cmp> K`
+ *  agrees with what the capped window would answer (`nzSentinelSound`).
+ *  `breakout-squeeze-release-breakout` is sound and now translates outright,
+ *  RAW, needing no offer. The other three `ta.barssince` misses stay refused,
+ *  correctly: one supplies a sentinel that DISAGREES with the cap (forcing it
+ *  would silently invert the answer on a symbol with no pivot yet — a
+ *  confident wrong result this engine will not manufacture), and two use
+ *  `barssince` numerically or compare it against ANOTHER unbounded
+ *  `barssince` call — neither reduces to any finite comparison at all, and
+ *  both are recorded as execution-model capability gaps, not fixed. See
+ *  `pine.blindCorpusDecomposition.test.js`. */
+/** ⭐⭐ 28 -> 29 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06):
+ *  `ta.falling` declared (`interpret.js::windowFallingMonotone`, resolved by
+ *  an INDEPENDENT real vendor capture rather than assumed symmetry with
+ *  `ta.rising` — see `closedTable.json`'s `falling_resolution`), `ta.kcw`
+ *  declared (`BUILTIN_CALL_TREE.kcw`, composed from already-declared `ema`
+ *  and `ta.tr`'s own expansion), and the `ta.pvt` windowed-delta rewrite
+ *  declared (`pvtN`, mirroring `obvN` exactly). `candles-doji-at-extension`
+ *  needed only `ta.falling` and now translates RAW, needing no offer at all.
+ *  MEASURED, not assumed higher: `volatility-range-contraction-base` needs
+ *  BOTH `ta.kcw` and `ta.falling` and STILL misses — its real remaining
+ *  blocker is `request.security`, an unrelated pre-existing gap — and
+ *  `volume-obv-accumulation-divergence` needed only `ta.pvt`'s windowed
+ *  delta (now served) but its SAME boolean expression also reads `ta.obv`'s
+ *  bare LEVEL (`obvLine = ta.obv`, used in `obvNewHigh`/`obvLine > obvSig`),
+ *  which stays permanently refused for the reason `_functions_excluded.obv`
+ *  states — a genuine secondary blocker, not a partial implementation.
+ *  `ta.cmf` and `ta.accdist` were deliberately NOT implemented:
+ *  `volume-dollar-volume-money-flow` (which needs both) correctly still
+ *  misses. See `tests/test_vendor_parity_batch1.py` and
+ *  `pine.batch1VendorBacked.test.js` for the vendor evidence and mutation
+ *  controls behind each of these three. */
+/** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it —
+ *  EXCEPT for a documented correctness correction, below.
+ *
+ *  🔴🔴 29 -> 27 IS THE SAME CORRECTNESS CORRECTION AS `ACCEPT_FLOOR`'s
+ *  38 -> 36 (RISK-043, 2026-09-07), one-for-one: `volume-pocket-pivot-up-volume`
+ *  and `meanrev-consecutive-down-closes-exhaustion` were both counted as RAW
+ *  passes and both were SILENT_WRONG_RESULT — a scalar mutated inside a
+ *  top-level `for` loop, read afterward through an intermediate binding, and
+ *  silently folded to its pre-loop value instead of refusing. See
+ *  `ACCEPT_FLOOR`'s note for the full mechanism and
+ *  `pine.forLoopReassignSilentWrongResult.test.js` for the permanent
+ *  regression net. This is a correctness improvement lowering a headline
+ *  number, not a capability regression — do not chase the number back up by
+ *  reverting the fix. */
+const FLOOR = 27
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
@@ -301,7 +446,14 @@ plot(${body} ? 1 : 0)
   it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
     // Without this, a change that appended the mintick paragraph to every
     // built-in refusal would satisfy both cases above.
-    const r = refuse('barstate.islast')
+    // ⚰️ THIS USED `barstate.islast`, WHICH NOW TRANSLATES. Its refusal was
+    // withdrawn on 2026-09-09 (the newest bar is the same bar at any fetch
+    // depth), so the control had quietly become a test of a name that no longer
+    // refuses — it would have gone red for the right reason and been "fixed" by
+    // deleting it. `timeframe.period` is a REAL Pine built-in this engine still
+    // holds no column for and has ruled nothing about, which is exactly the
+    // property this control needs.
+    const r = refuse('timeframe.period')
     expect(r.guard).toBe('pine:builtin')
     expect(r.message).not.toContain('minimum price increment')
   })

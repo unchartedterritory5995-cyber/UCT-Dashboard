@@ -1,0 +1,1292 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © VolProfex
+
+//@version=6
+indicator("Fibonacci Retracement Statistics by VolProfex", "VPX Fib", overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=500)
+// VPX_Fib_version = v1.122
+
+// =====================================================
+// Types
+// =====================================================
+type pivot
+    int   barIndex
+    float price
+    bool  isHigh
+    int   time
+
+type trend
+    int   startIdx
+    int   endIdx
+    int   startTime
+    int   endTime
+    float startPrice
+    float endPrice
+    bool  isUptrend
+    float retracePct
+    int   swingNumber
+
+type htfSwing
+    int   startTime
+    int   endTime
+    int   startBar
+    int   endBar
+    float highPrice
+    float lowPrice
+    bool  isBullish
+
+type twInterval
+    int   startTime
+    int   endTime
+    float highPrice
+    float lowPrice
+
+// =====================================================
+// Input groups
+// =====================================================
+string gSwg  = "══════ SWING ENGINE ═════"
+string gHTF  = "══════ HTF CONTEXT ══════"
+string gFilt = "═════ SWING FILTERS ═════"
+string gFib  = "════ FIB RETRACEMENTS ═══"
+string gCnt  = "═════ FIB EXTENSIONS ════"
+string gTbl  = "═════════ TABLE ═════════"
+string gBox  = "═════════ BOXES ═════════"
+string gRt   = "══ RETRACEMENT VISUALS ══"
+string gExt  = "═══ EXTENSION VISUALS ═══"
+
+// =====================================================
+// Inputs
+// =====================================================
+// ── Swing Engine ─────────────────────────────────────
+int   atrPeriod   = input.int(14,   "ATR Period",                          minval=1,   maxval=100,  group=gSwg,
+    tooltip="Period for ATR calculations. Shared by local ZigZag and HTF swing detection.")
+float zzDevMult   = input.float(3.0, "ZigZag Deviation Multiplier (ATR ×)", minval=0.5, maxval=10.0, step=0.1, group=gSwg,
+    tooltip="Pivot confirmed when price reverses by ATR × this value.")
+float minSwingATR = input.float(0.8, "Min Swing Size (ATR multiple)",        minval=0.0, maxval=20.0, step=0.1, group=gSwg,
+    tooltip="Swing legs smaller than ATR × this are discarded. Set 0 to disable.")
+
+// ── HTF Context ──────────────────────────────────────
+bool   useHTFContext  = input.bool(true, "Use Higher Timeframe Swing Context", group=gHTF,
+    tooltip="When ON, local swings are counted only when their direction matches the current HTF swing bias.")
+string htfTF          = input.timeframe("60", "HTF Timeframe", group=gHTF,
+    tooltip="Must be higher than the chart timeframe.",
+    active=useHTFContext)
+float  htfZZDevMult   = input.float(3.5, "HTF Swing Deviation (ATR ×)",      minval=0.5, maxval=20.0, step=0.1, group=gHTF, inline="htfDev",
+    active=useHTFContext)
+float  htfMinSwingATR = input.float(1.5, "HTF Min Swing Size (ATR ×)",       minval=0.0, maxval=20.0, step=0.1, group=gHTF, inline="htfDev",
+    tooltip="ATR multiplier for HTF pivot reversals and minimum swing leg size. Set Min Swing to 0 to disable.",
+    active=useHTFContext)
+bool   retraceHTFGate = input.bool(true, "Exclude Retracements outside HTF swing", group=gHTF,
+    tooltip="When ON, only trends with a valid counter-swing inside the same HTF box contribute to retracement boxes, labels, and statistics. When OFF, all trends with a counter-swing are included.")
+
+// ── Direction Filter ─────────────────────────────────
+string direction = input.string("Both", "Trend Direction",
+     options=["Both", "Uptrends Only", "Downtrends Only"], group=gFilt,
+     tooltip="Filter which trend directions appear in statistics and chart.")
+
+// ── Time Window Filter ───────────────────────────────
+bool   useTimeWindow      = input.bool(false, "Use Intraday Time Window", group=gFilt,
+    tooltip="Applies a daily clock window only on intraday charts. Swings/retracements outside this window are excluded by the selected Time Window Mode.")
+
+string timeWindowSession  = input.session("0930-1600", "Window Session", group=gFilt, inline="twConfig", active=useTimeWindow)
+string timeWindowMode     = input.string("Pivot Confirmed Inside", "Window Mode",
+     options=["Pivot Confirmed Inside", "Full Cycle Inside"], group=gFilt, inline="twConfig", active=useTimeWindow,
+     tooltip="Session time window (HHMM-HHMM) and mode: Pivot Confirmed Inside or Full Cycle Inside.")
+
+string timeWindowTimezone = input.string("Exchange", "Window Timezone",
+     options=[
+         "Exchange", "UTC",
+         "Europe/London", "Europe/Berlin", "Europe/Paris", "Europe/Madrid", "Europe/Rome", "Europe/Amsterdam", "Europe/Zurich", "Europe/Warsaw", "Europe/Athens", "Europe/Moscow",
+         "Africa/Johannesburg",
+         "Asia/Dubai", "Asia/Karachi", "Asia/Kolkata", "Asia/Dhaka", "Asia/Bangkok", "Asia/Singapore", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Tokyo", "Asia/Seoul", "Asia/Taipei", "Asia/Manila", "Asia/Jakarta",
+         "Australia/Perth", "Australia/Sydney", "Australia/Melbourne", "Pacific/Auckland",
+         "America/St_Johns", "America/Halifax", "America/New_York", "America/Toronto", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Mexico_City", "America/Sao_Paulo"],
+     group=gFilt, active=useTimeWindow,
+     tooltip="Timezone used for the intraday time window. Exchange = use syminfo.timezone.")
+
+// ── Spike Filter ─────────────────────────────────────
+bool  useSpikeFilter = input.bool(true,  "Enable Spike Filter", group=gFilt,
+    tooltip="Discard ZigZag reversal when the triggering bar's wick/body ratio exceeds the threshold.")
+float spikeWickRatio = input.float(4.0,  "Max Wick-to-Body Ratio",         minval=1.0, maxval=20.0, step=0.5, group=gFilt,
+    tooltip="Upper/lower wick ≥ this × body size = spike bar. 3 = wick 3× the body.",
+    active=useSpikeFilter)
+
+// ── Fibonacci Levels ─────────────────────────────────
+bool fib236 = input.bool(true,  "23.6 %",  inline="fib1", group=gFib)
+bool fib382 = input.bool(true,  "38.2 %",  inline="fib1", group=gFib)
+bool fib500 = input.bool(true,  "50.0 %",  inline="fib1", group=gFib)
+bool fib618 = input.bool(true,  "61.8 %",  inline="fib1", group=gFib)
+bool fib786 = input.bool(true,  "78.6 %",  inline="fib2", group=gFib)
+bool fib886 = input.bool(false, "88.6 %",  inline="fib2", group=gFib)
+bool fib100 = input.bool(true,  "100.0 %", inline="fib2", group=gFib)
+bool fib127 = input.bool(false, "127.2 %", inline="fib2", group=gFib)
+bool fib138 = input.bool(true,  "138.2 %", inline="fib3", group=gFib)
+bool fib150 = input.bool(false, "150.0 %", inline="fib3", group=gFib)
+bool fib161 = input.bool(true,  "161.8 %", inline="fib3", group=gFib)
+bool fib261 = input.bool(false, "261.8 %", inline="fib3", group=gFib)
+
+float custom1 = input.float(0.0, "Custom Fib 1 (%)", minval=0.0, maxval=500.0, step=0.5, group=gFib, inline="custfib1")
+float custom2 = input.float(0.0, "Custom Fib 2 (%)", minval=0.0, maxval=500.0, step=0.5, group=gFib, inline="custfib1", tooltip="Custom retracement level as a percentage. Set 0 to disable.")
+float custom3 = input.float(0.0, "Custom Fib 3 (%)", minval=0.0, maxval=500.0, step=0.5, group=gFib, inline="custfib2")
+float custom4 = input.float(0.0, "Custom Fib 4 (%)", minval=0.0, maxval=500.0, step=0.5, group=gFib, inline="custfib2")
+
+// ── Extension Statistics ──────────────────────────
+bool   enableExtensionStats = input.bool(true, "Enable Extension Statistics", group=gCnt,
+    tooltip="When ON, shows probability of price continuing to extension levels after a retracement. Adds '→' with reached furthest extension (till trend reversal confirmed) to the retracement label.")
+string extensionBasis = input.string("Primary Swing Extension", "Extension Basis", options=["Primary Swing Extension", "Retracement Swing Projection"], group=gCnt, active=enableExtensionStats,
+    tooltip="'Primary Swing Extension' - Base the extension measurement on the primary swing range like Fib extension tool (swing start → swing end → retracement end).\n'Retracement Swing Projection' - Base the extension on retracement range like Fib retracement tool (swing end → retracement end).")
+string retraceConditioning = input.string("Deepest reached level only", "Retracement Conditioning", options=["Deepest reached level only", "Every reached level"], group=gCnt, active=enableExtensionStats,
+    tooltip="'Deepest reached level only' - count extensions only for the deepest reached level. Adds a new column to the table 'Deepest' (shows for how many retracements it was the deepest level), the fib extensions use it as the base.\n'Every reached level' - count extensions for every reached retracement level that was reached (cumulative).")
+bool ext236 = input.bool(false, "23.6 %",  group=gCnt, inline="ext1", active=enableExtensionStats)
+bool ext382 = input.bool(true,  "38.2 %",  group=gCnt, inline="ext1", active=enableExtensionStats)
+bool ext500 = input.bool(true,  "50.0 %",  group=gCnt, inline="ext1", active=enableExtensionStats)
+bool ext618 = input.bool(true,  "61.8 %",  group=gCnt, inline="ext1", active=enableExtensionStats)
+bool ext786 = input.bool(false, "78.6 %",  group=gCnt, inline="ext2", active=enableExtensionStats)
+bool ext886 = input.bool(false, "88.6 %",  group=gCnt, inline="ext2", active=enableExtensionStats)
+bool ext100 = input.bool(true,  "100.0 %", group=gCnt, inline="ext2", active=enableExtensionStats)
+bool ext127 = input.bool(false, "127.2 %", group=gCnt, inline="ext2", active=enableExtensionStats)
+bool ext138 = input.bool(true,  "138.2 %", group=gCnt, inline="ext3", active=enableExtensionStats)
+bool ext150 = input.bool(false, "150.0 %", group=gCnt, inline="ext3", active=enableExtensionStats)
+bool ext161 = input.bool(true,  "161.8 %", group=gCnt, inline="ext3", active=enableExtensionStats)
+bool ext261 = input.bool(false, "261.8 %", group=gCnt, inline="ext3", active=enableExtensionStats)
+
+float extCust1 = input.float(0.0, "Custom Ext 1 (%)", minval=0.0, maxval=500.0, step=0.5, group=gCnt, inline="custext1", active=enableExtensionStats)
+float extCust2 = input.float(0.0, "Custom Ext 2 (%)", minval=0.0, maxval=500.0, step=0.5, group=gCnt, inline="custext1", active=enableExtensionStats,
+    tooltip="Custom extension level as a percentage. Set 0 to disable.")
+float extCust3 = input.float(0.0, "Custom Ext 3 (%)", minval=0.0, maxval=500.0, step=0.5, group=gCnt, inline="custext2", active=enableExtensionStats)
+float extCust4 = input.float(0.0, "Custom Ext 4 (%)", minval=0.0, maxval=500.0, step=0.5, group=gCnt, inline="custext2", active=enableExtensionStats)
+
+// ── Table ─────────────────────────────────────────────
+string tblPos  = input.string("top_right", "Table Position",
+     options=["top_left","top_right","bottom_left","bottom_right"], group=gTbl,
+     tooltip="Screen corner where the statistics table is placed.")
+string tblFont = input.string("Small", "Font Size",
+     options=["Tiny","Small","Normal","Large"], group=gTbl,
+     tooltip="Font size for the statistics table.")
+string tblStatsDisplay = input.string("Count + Percent", "Stats Display",
+     options=["Count", "Percent", "Count + Percent"], group=gTbl,
+     tooltip="Choose how statistics are displayed: Count only, Percentage only, or both combined (e.g. '40 (50.0 %)').")
+
+// ── VISUALS ──────────────────────────────────────────
+
+// ── Boxes ──
+bool   showBoxes            = input.bool(true,  "Show Trend Boxes",        group=gBox,
+    tooltip="Draw coloured boxes behind each completed trend leg.")
+color  bullColor            = input.color(color.teal,   "Bullish Trend Color", group=gBox, inline="trColor")
+color  bearColor            = input.color(color.maroon, "Bearish Trend Color", group=gBox, inline="trColor")
+bool   showRetraceBoxes     = input.bool(true,  "Show Retracement Boxes",   group=gBox,
+    tooltip="Draw overlay boxes on the counter-trend (retracement) leg.")
+color  retraceBoxColor      = input.color(color.new(color.orange, 40), "Retrace Box Color", group=gBox)
+
+bool   showHTFSwings  = input.bool(false, "Show HTF Swings", group=gBox,
+    tooltip="Draw HTF major swing boxes. Blue = HTF upswing (low→high), Red = HTF downswing (high→low).")
+color  htfBullColor   = input.color(color.new(color.blue, 50), "HTF Bull Color", group=gBox, inline="htfBox",
+    active=showHTFSwings)
+color  htfBearColor   = input.color(color.new(color.red,  50), "HTF Bear Color", group=gBox, inline="htfBox",
+    active=showHTFSwings)
+
+bool   showTimeWindowBox  = input.bool(false, "Show Time Window Box", group=gBox, active=useTimeWindow,
+    tooltip="Draws a shaded box over bars that belong to the selected intraday time window, for visual validation.")
+color  timeWindowBoxBgColor = input.color(color.new(color.silver, 88), "Window BG", inline="twBox", group=gBox, active=useTimeWindow and showTimeWindowBox)
+color  timeWindowBoxBdColor = input.color(color.new(color.silver, 35), "Border",    inline="twBox", group=gBox, active=useTimeWindow and showTimeWindowBox)
+
+int    boxBorderWidth       = input.int(1,       "Box Border Width",        minval=0, maxval=5, group=gBox)
+
+// ── Retracements ──
+bool   showFibLines         = input.bool(true,  "Show Fib Retracement Lines", group=gRt,
+    tooltip="Draw horizontal Fibonacci retracement lines on each swing.")
+int    fibLineWidth         = input.int(1,       "Line Width",          minval=1, maxval=5, group=gRt, inline="fibl")
+string fibLineStyle         = input.string("Dashed", "Style",
+     options=["Dashed","Solid","Dotted"], group=gRt, inline="fibl")
+color  fibLineColor         = input.color(color.new(color.gray, 60), "Color", group=gRt,  inline="fibl")
+
+bool   showFibLabels        = input.bool(true,  "Show Fib Reatracement Line Labels", group=gRt,
+    tooltip="Show percentage labels next to each Fibonacci line.")
+string fibLabelPosition     = input.string("Right", "Line Label Hor. Position",
+     options=["Right","Center","Left"], group=gRt, inline="fibLbl")
+string fibLabelStyle        = input.string("Center", "Vert. Position",
+     options=["Center","Above","Below"], group=gRt, inline="fibLbl")
+string fibLabelFontSize     = input.string("Small", "Line Label Font Size",
+     options=["Tiny","Small","Normal","Large"], group=gRt, inline="fibFont")
+color  fibLabelColor        = input.color(color.white, "Font Color",   group=gRt, inline="fibFont")
+
+bool   showRetraceLabels    = input.bool(true,  "Show Retracement Labels",  group=gRt,
+    tooltip="Display labels showing swing number and deepest fib level reached on each retracement.")
+string retraceLabelPosition = input.string("Center", "Label Hor. Position",
+     options=["Right","Center","Left"], group=gRt, inline="retraceLbl")
+string retraceLabelStyle    = input.string("Below", "Vert. Position",
+     options=["Above","Below"], group=gRt,  inline="retraceLbl")
+string retraceLabelFontSize = input.string("Small", "Retrace Label Font Size",
+     options=["Tiny","Small","Normal","Large"], group=gRt, inline="retraceFont")
+color  retraceLabelColor    = input.color(color.yellow, "Font Color", group=gRt,  inline="retraceFont")
+bool   showActualPct        = input.bool(false, "Show actual % instead of closest level", group=gRt,
+    tooltip="When ON, labels show the actual retracement/extension percentage (e.g. 72.0 %) instead of the closest Fib level (e.g. 61.8 %).")
+
+// ── Extensions ──
+bool   showExtLines         = input.bool(true,  "Show Extension Lines",           group=gExt,
+    tooltip="Draw horizontal Fibonacci extension lines across the retracement leg, projected from the retracement extreme.")
+int    extLineWidth         = input.int(1,       "Ext Line Width",                  minval=1, maxval=5, group=gExt, inline="extl")
+string extLineStyle         = input.string("Dashed", "Style",
+     options=["Dashed","Solid","Dotted"], group=gExt, inline="extl")
+color  extLineColor         = input.color(color.new(color.gray, 60), "Color", group=gExt, inline="extl")
+
+bool   showExtLabels        = input.bool(true,  "Show Extension Labels",           group=gExt,
+    tooltip="Show percentage labels next to each extension line.")
+string extLabelPosition     = input.string("Right", "Ext Label Hor. Position",
+     options=["Right","Center","Left"], group=gExt, inline="extLbl")
+string extLabelStyle        = input.string("Center", "Vert. Position",
+     options=["Center","Above","Below"], group=gExt, inline="extLbl")
+string extLabelFontSize     = input.string("Small", "Ext Label Font Size",
+     options=["Tiny","Small","Normal","Large"], group=gExt, inline="extFont")
+color  extLabelColor        = input.color(color.white, "Font Color", group=gExt, inline="extFont")
+
+// =====================================================
+// Helper functions
+// =====================================================
+getTablePos(string s) =>
+    switch s
+        "top_left" => position.top_left
+        "top_right" => position.top_right
+        "bottom_left" => position.bottom_left
+        "bottom_right" => position.bottom_right
+        => position.top_right
+
+getFontSz(string s) =>
+    switch s
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.small
+
+fmtStats(int cnt, float pct, string mode) =>
+    switch mode
+        "Count"           => str.tostring(cnt)
+        "Percent"         => str.tostring(pct, "#.#") + " %"
+        => str.tostring(cnt) + " (" + str.tostring(pct, "#.#") + " %)"
+
+getLineStyle(string s) =>
+    switch s
+        "Dashed" => line.style_dashed
+        "Solid" => line.style_solid
+        "Dotted" => line.style_dotted
+        => line.style_dashed
+
+getLabelTime(int t0, int t1, string s) =>
+    switch s
+        "Right" => t1
+        "Center" => int(math.avg(float(t0), float(t1)))
+        "Left" => t0
+        => t1
+
+getLabelStyle(string s) =>
+    switch s
+        "Above" => label.style_label_down
+        "Below" => label.style_label_up
+        => label.style_label_center
+
+sortLevels(array<float> lv, array<string> lb) =>
+    int n = array.size(lv)
+    if n > 1
+        for i = 0 to n - 2
+            for j = 0 to n - 2 - i
+                if array.get(lv, j) > array.get(lv, j + 1)
+                    float tlv = array.get(lv, j)
+                    string tlb = array.get(lb, j)
+                    array.set(lv, j, array.get(lv, j + 1))
+                    array.set(lb, j, array.get(lb, j + 1))
+                    array.set(lv, j + 1, tlv)
+                    array.set(lb, j + 1, tlb)
+
+getFibLevels() =>
+    array<float> lv = array.new<float>()
+    array<string> lb = array.new<string>()
+    if fib236
+        lv.push(0.236), lb.push("23.6 %")
+    if fib382
+        lv.push(0.382), lb.push("38.2 %")
+    if fib500
+        lv.push(0.500), lb.push("50.0 %")
+    if fib618
+        lv.push(0.618), lb.push("61.8 %")
+    if fib786
+        lv.push(0.786), lb.push("78.6 %")
+    if fib886
+        lv.push(0.886), lb.push("88.6 %")
+    if fib100
+        lv.push(1.000), lb.push("100.0 %")
+    if fib127
+        lv.push(1.272), lb.push("127.2 %")
+    if fib138
+        lv.push(1.382), lb.push("138.2 %")
+    if fib150
+        lv.push(1.500), lb.push("150.0 %")
+    if fib161
+        lv.push(1.618), lb.push("161.8 %")
+    if fib261
+        lv.push(2.618), lb.push("261.8 %")
+    if custom1 > 0.0
+        lv.push(custom1 / 100.0), lb.push(str.tostring(custom1, "#.#") + " %")
+    if custom2 > 0.0
+        lv.push(custom2 / 100.0), lb.push(str.tostring(custom2, "#.#") + " %")
+    if custom3 > 0.0
+        lv.push(custom3 / 100.0), lb.push(str.tostring(custom3, "#.#") + " %")
+    if custom4 > 0.0
+        lv.push(custom4 / 100.0), lb.push(str.tostring(custom4, "#.#") + " %")
+    sortLevels(lv, lb)
+    lv.unshift(0.0), lb.unshift("0.0 %")
+    [lv, lb]
+
+getExtensionLevels() =>
+    array<float> lv = array.new<float>()
+    array<string> lb = array.new<string>()
+    if ext618
+        lv.push(0.618), lb.push("61.8 %")
+    if ext100
+        lv.push(1.000), lb.push("100.0 %")
+    if ext127
+        lv.push(1.272), lb.push("127.2 %")
+    if ext138
+        lv.push(1.382), lb.push("138.2 %")
+    if ext150
+        lv.push(1.500), lb.push("150.0 %")
+    if ext161
+        lv.push(1.618), lb.push("161.8 %")
+    if ext261
+        lv.push(2.618), lb.push("261.8 %")
+    if ext236
+        lv.push(0.236), lb.push("23.6 %")
+    if ext382
+        lv.push(0.382), lb.push("38.2 %")
+    if ext500
+        lv.push(0.500), lb.push("50.0 %")
+    if ext786
+        lv.push(0.786), lb.push("78.6 %")
+    if ext886
+        lv.push(0.886), lb.push("88.6 %")
+    if extCust1 > 0.0
+        lv.push(extCust1 / 100.0), lb.push(str.tostring(extCust1, "#.#") + " %")
+    if extCust2 > 0.0
+        lv.push(extCust2 / 100.0), lb.push(str.tostring(extCust2, "#.#") + " %")
+    if extCust3 > 0.0
+        lv.push(extCust3 / 100.0), lb.push(str.tostring(extCust3, "#.#") + " %")
+    if extCust4 > 0.0
+        lv.push(extCust4 / 100.0), lb.push(str.tostring(extCust4, "#.#") + " %")
+    sortLevels(lv, lb)
+    [lv, lb]
+
+deepestFibLabel(float rp, array<float> levels, array<string> labels, int startIdx = 1) =>
+    string best = ""
+    int n = array.size(levels)
+    if n > startIdx
+        for j = startIdx to n - 1
+            if rp >= array.get(levels, j)
+                best := array.get(labels, j)
+    best
+
+deepestLevelIndex(float value, array<float> levels) =>
+    int best = -1
+    int n = array.size(levels)
+    if n > 0
+        for j = 0 to n - 1
+            if value >= array.get(levels, j)
+                best := j
+    best
+
+matrixIndex(int rowIdx, int colIdx, int colCount) =>
+    rowIdx * colCount + colIdx
+
+isSpike(bool isHighPivot) =>
+    float body = math.abs(close - open)
+    if not useSpikeFilter or body <= 0.0
+        false
+    else if isHighPivot
+        (high - math.max(open, close)) >= spikeWickRatio * body
+    else
+        (math.min(open, close) - low) >= spikeWickRatio * body
+
+deleteBoxes(array<box> arr) =>
+    int n = array.size(arr)
+    if n > 0
+        for i = n - 1 to 0
+            box.delete(array.get(arr, i))
+
+deleteLines(array<line> arr) =>
+    int n = array.size(arr)
+    if n > 0
+        for i = n - 1 to 0
+            line.delete(array.get(arr, i))
+
+deleteLabels(array<label> arr) =>
+    int n = array.size(arr)
+    if n > 0
+        for i = n - 1 to 0
+            label.delete(array.get(arr, i))
+
+// Direction filter: lets through only trends matching the user's direction preference.
+trendDirFilter(bool isUptrend) =>
+    direction == "Both" or (direction == "Uptrends Only" and isUptrend) or (direction == "Downtrends Only" and not isUptrend)
+
+sessionPartToInt(string sess, int fromIdx) =>
+    int(str.tonumber(str.substring(sess, fromIdx, fromIdx + 2)))
+
+sessionStartMin(string sess) =>
+    sessionPartToInt(sess, 0) * 60 + sessionPartToInt(sess, 2)
+
+sessionEndMin(string sess) =>
+    sessionPartToInt(sess, 5) * 60 + sessionPartToInt(sess, 7)
+
+bool   timeWindowActive     = useTimeWindow and timeframe.isintraday
+string timeWindowTzResolved = timeWindowTimezone == "Exchange" ? syminfo.timezone : timeWindowTimezone
+int    timeWindowStartMin   = sessionStartMin(timeWindowSession)
+int    timeWindowEndMin     = sessionEndMin(timeWindowSession)
+
+// Time-window gate: checks whether a given timestamp falls inside the configured
+// intraday session. When the window spans midnight (start > end), the logic wraps.
+timeInWindow(int ts) =>
+    if not timeWindowActive
+        true
+    else
+        int minsTs = hour(ts, timeWindowTzResolved) * 60 + minute(ts, timeWindowTzResolved)
+        timeWindowStartMin < timeWindowEndMin ? (minsTs >= timeWindowStartMin and minsTs < timeWindowEndMin) : timeWindowStartMin > timeWindowEndMin ? (minsTs >= timeWindowStartMin or minsTs < timeWindowEndMin) : true
+
+trendTimePassed(int startTime, int endTime) =>
+    if not timeWindowActive
+        true
+    else
+        switch timeWindowMode
+            "Pivot Confirmed Inside" => timeInWindow(endTime)
+            "Full Cycle Inside" => timeInWindow(startTime) and timeInWindow(endTime)
+            => true
+
+statsTimePassed(int trStartTime, int trEndTime, int cTrStartTime, int cTrEndTime) =>
+    if not timeWindowActive
+        true
+    else
+        switch timeWindowMode
+            "Pivot Confirmed Inside" => trendTimePassed(trStartTime, trEndTime) and timeInWindow(cTrEndTime)
+            "Full Cycle Inside" => timeInWindow(trStartTime) and timeInWindow(trEndTime) and timeInWindow(cTrStartTime) and timeInWindow(cTrEndTime)
+            => true
+
+htfContainingSwingIdx(int startTime, int endTime, array<htfSwing> htfSwingsLocal) =>
+    int idx = -1
+    int nHtf = array.size(htfSwingsLocal)
+    if nHtf > 0
+        for j = nHtf - 1 to 0
+            htfSwing hs = array.get(htfSwingsLocal, j)
+            if startTime >= hs.startTime and endTime <= hs.endTime
+                idx := j
+                break
+    idx
+
+// HTF containment gate: a trend is accepted if it falls inside a completed HTF
+// swing box whose direction matches.  If no completed box contains it, the live
+// HTF leg bias is used (expectUptrend reflects the developing HTF direction).
+trendHtfPassed(bool isUptrend, int startTime, int endTime, array<htfSwing> htfSwingsLocal, bool htfTrackHighs) =>
+    if not useHTFContext
+        true
+    else
+        int nHtf = array.size(htfSwingsLocal)
+        if nHtf == 0
+            true
+        else
+            int boxIdx = htfContainingSwingIdx(startTime, endTime, htfSwingsLocal)
+            if boxIdx >= 0
+                htfSwing hs = array.get(htfSwingsLocal, boxIdx)
+                isUptrend == hs.isBullish
+            else
+                bool expectUptrend = htfTrackHighs
+                isUptrend == expectUptrend
+
+// Statistics containment gate: the counter-swing must be fully contained inside
+// the same HTF box as the primary trend.  Swings that cross HTF box boundaries
+// are excluded from Fibonacci statistics to avoid regime-mixing.
+validStatsRetrace(int trStartTime, int trEndTime, int cTrStartTime, int cTrEndTime, array<htfSwing> htfSwingsLocal) =>
+    if not useHTFContext
+        true
+    else
+        int a = htfContainingSwingIdx(trStartTime, trEndTime, htfSwingsLocal)
+        int b = htfContainingSwingIdx(cTrStartTime, cTrEndTime, htfSwingsLocal)
+        if a >= 0 and b >= 0
+            a == b
+        else if a < 0 and b < 0
+            true
+        else
+            false
+
+// =====================================================
+// Local ATR-deviation ZigZag
+// =====================================================
+float _atr   = ta.atr(atrPeriod)
+float _zzDev = _atr * zzDevMult
+
+var float _zzLastH     = high
+var float _zzLastL     = low
+var int   _zzLastHBar  = 0
+var int   _zzLastLBar  = 0
+var int   _zzLastHTime = time
+var int   _zzLastLTime = time
+var bool  _zzIsHigh    = false
+
+// Extend the current leg extreme: if tracking highs, look for a higher high;
+// if tracking lows, look for a lower low.
+if _zzIsHigh
+    if high > nz(_zzLastH, high)
+        _zzLastH := high, _zzLastHBar := bar_index, _zzLastHTime := time
+else
+    if low < nz(_zzLastL, low)
+        _zzLastL := low, _zzLastLBar := bar_index, _zzLastLTime := time
+
+// Detect a confirmed reversal: price must reverse by at least ATR × zzDevMult
+// against the current leg direction.
+bool _zzNewLow  = _zzIsHigh and low < _zzLastH - _zzDev
+bool _zzNewHigh = not _zzIsHigh and high > _zzLastL + _zzDev
+
+// Guards: minimum swing leg size filter and spike (wick/body ratio) filter.
+float _pSwing   = _zzNewLow ? math.abs(_zzLastH - low) : _zzNewHigh ? math.abs(high - _zzLastL) : 0.0
+bool  _minOk    = minSwingATR <= 0.0 or _pSwing >= _atr * minSwingATR
+bool  _spOkLow  = not isSpike(true)
+bool  _spOkHigh = not isSpike(false)
+
+// Accept the reversal pivot when all guards pass.
+if _zzNewLow and _minOk and _spOkLow
+    _zzIsHigh := false, _zzLastL := low, _zzLastLBar := bar_index, _zzLastLTime := time
+if _zzNewHigh and _minOk and _spOkHigh
+    _zzIsHigh := true, _zzLastH := high, _zzLastHBar := bar_index, _zzLastHTime := time
+
+// =====================================================
+// HTF swing context
+// =====================================================
+// Builds a synthetic higher-timeframe bar by aggregating chart bars between HTF
+// bucket boundaries (time(htfTF) changes).  The same ATR-deviation ZigZag runs
+// on these synthetic HTF bars to detect major-swing pivots.
+
+float htfATR = request.security(syminfo.tickerid, htfTF, ta.atr(atrPeriod), lookahead=barmerge.lookahead_off)
+int  _htfBucket    = time(htfTF)
+bool _htfNewBucket = not na(_htfBucket) and not na(_htfBucket[1]) and _htfBucket != _htfBucket[1]
+
+// Current synthetic HTF bar extremes, anchored to the exact chart bar that
+// produced the high/low (not the HTF close time).
+var float _htfCurH = na
+var float _htfCurL = na
+var int   _htfCurHBar = na
+var int   _htfCurLBar = na
+var int   _htfCurHTime = na
+var int   _htfCurLTime = na
+var float _htfZZLastH = na
+var float _htfZZLastL = na
+var int   _htfZZLastHTime = na
+var int   _htfZZLastLTime = na
+var int   _htfZZLastHBar = na
+var int   _htfZZLastLBar = na
+var bool  _htfZZIsHigh = false
+var bool  _htfInit = false
+var float _htfLastPivotP = na
+var int   _htfLastPivotT = na
+var int   _htfLastPivotBar = na
+var float _htfLiveBoxHigh = na
+var float _htfLiveBoxLow = na
+var int   _htfLiveBoxStart = na
+var array<htfSwing> htfSwings = array.new<htfSwing>()
+
+recordHtfSwing(int startTime, int endTime, int startBar, int endBar, float highPrice, float lowPrice, bool isBullish) =>
+    bool _spanOk = not na(startTime) and not na(endTime) and endTime > startTime and highPrice > lowPrice
+    if _spanOk
+        int _n = array.size(htfSwings)
+        if _n > 0
+            htfSwing _prev = array.get(htfSwings, _n - 1)
+            if (isBullish ? _prev.isBullish : not _prev.isBullish) and startTime <= _prev.endTime
+                _prev.endTime   := math.max(_prev.endTime,   endTime)
+                _prev.endBar    := math.max(_prev.endBar,    endBar)
+                _prev.highPrice := math.max(_prev.highPrice, highPrice)
+                _prev.lowPrice  := math.min(_prev.lowPrice,  lowPrice)
+                array.set(htfSwings, _n - 1, _prev)
+            else
+                array.push(htfSwings, htfSwing.new(startTime, endTime, startBar, endBar, highPrice, lowPrice, isBullish))
+        else
+            array.push(htfSwings, htfSwing.new(startTime, endTime, startBar, endBar, highPrice, lowPrice, isBullish))
+
+if na(_htfCurH)
+    _htfCurH := high
+    _htfCurL := low
+    _htfCurHBar := bar_index
+    _htfCurLBar := bar_index
+    _htfCurHTime := time
+    _htfCurLTime := time
+else
+    if _htfNewBucket
+        float htfBarH = _htfCurH
+        float htfBarL = _htfCurL
+        int   htfBarHBar = _htfCurHBar
+        int   htfBarLBar = _htfCurLBar
+        int   htfBarHTime = _htfCurHTime
+        int   htfBarLTime = _htfCurLTime
+        float htfDev = nz(htfATR, _atr) * htfZZDevMult
+        float htfA = nz(htfATR, _atr)
+        if not _htfInit
+            _htfZZLastH := htfBarH
+            _htfZZLastL := htfBarL
+            _htfZZLastHTime := htfBarHTime
+            _htfZZLastLTime := htfBarLTime
+            _htfZZLastHBar := htfBarHBar
+            _htfZZLastLBar := htfBarLBar
+            _htfLastPivotP := htfBarL
+            _htfLastPivotT := htfBarLTime
+            _htfLastPivotBar := htfBarLBar
+            _htfLiveBoxStart := htfBarLTime
+            _htfLiveBoxHigh := htfBarH
+            _htfLiveBoxLow := htfBarL
+            _htfInit := true
+        else
+            if _htfZZIsHigh
+                if htfBarH > _htfZZLastH
+                    _htfZZLastH := htfBarH
+                    _htfZZLastHTime := htfBarHTime
+                    _htfZZLastHBar := htfBarHBar
+            else
+                if htfBarL < _htfZZLastL
+                    _htfZZLastL := htfBarL
+                    _htfZZLastLTime := htfBarLTime
+                    _htfZZLastLBar := htfBarLBar
+            // Detect HTF pivot reversal using the same ATR-deviation logic.
+            bool htfNewLow = _htfZZIsHigh and htfBarL < _htfZZLastH - htfDev
+            bool htfNewHigh = not _htfZZIsHigh and htfBarH > _htfZZLastL + htfDev
+            float htfSz = htfNewLow ? math.abs(_htfZZLastH - htfBarL) : htfNewHigh ? math.abs(htfBarH - _htfZZLastL) : 0.0
+            bool htfOk = htfMinSwingATR <= 0.0 or htfSz >= htfA * htfMinSwingATR
+            // HTF downswing completed (tracking highs → new low confirmed).
+            // Records a bullish HTF swing (low→high) and flips to tracking lows.
+            if htfNewLow and htfOk
+                recordHtfSwing(_htfLastPivotT, _htfZZLastHTime, _htfLastPivotBar, _htfZZLastHBar, _htfZZLastH, _htfLastPivotP, true)
+                _htfLastPivotP := _htfZZLastH
+                _htfLastPivotT := _htfZZLastHTime
+                _htfLastPivotBar := _htfZZLastHBar
+                _htfLiveBoxStart := _htfZZLastHTime
+                _htfLiveBoxHigh := _htfZZLastH
+                _htfLiveBoxLow := htfBarL
+                _htfZZIsHigh := false
+                _htfZZLastL := htfBarL
+                _htfZZLastLTime := htfBarLTime
+                _htfZZLastLBar := htfBarLBar
+            // HTF upswing completed (tracking lows → new high confirmed).
+            // Records a bearish HTF swing (high→low) and flips to tracking highs.
+            else if htfNewHigh and htfOk
+                recordHtfSwing(_htfLastPivotT, _htfZZLastLTime, _htfLastPivotBar, _htfZZLastLBar, _htfLastPivotP, _htfZZLastL, false)
+                _htfLastPivotP := _htfZZLastL
+                _htfLastPivotT := _htfZZLastLTime
+                _htfLastPivotBar := _htfZZLastLBar
+                _htfLiveBoxStart := _htfZZLastLTime
+                _htfLiveBoxHigh := htfBarH
+                _htfLiveBoxLow := _htfZZLastL
+                _htfZZIsHigh := true
+                _htfZZLastH := htfBarH
+                _htfZZLastHTime := htfBarHTime
+                _htfZZLastHBar := htfBarHBar
+        // Start the next synthetic HTF bar from the current chart bar.
+        _htfCurH := high
+        _htfCurL := low
+        _htfCurHBar := bar_index
+        _htfCurLBar := bar_index
+        _htfCurHTime := time
+        _htfCurLTime := time
+    else
+        if high > _htfCurH
+            _htfCurH := high
+            _htfCurHBar := bar_index
+            _htfCurHTime := time
+        if low < _htfCurL
+            _htfCurL := low
+            _htfCurLBar := bar_index
+            _htfCurLTime := time
+
+if _htfInit and not na(_htfLiveBoxStart)
+    _htfLiveBoxHigh := na(_htfLiveBoxHigh) ? high : math.max(_htfLiveBoxHigh, high)
+    _htfLiveBoxLow := na(_htfLiveBoxLow) ? low : math.min(_htfLiveBoxLow, low)
+
+// =====================================================
+// Trend management
+// =====================================================
+var array<pivot> pivots = array.new<pivot>()
+var array<trend> trends = array.new<trend>()
+var float retraceExtreme = na
+var bool  retraceTracking = false
+var int   upSwingCounter = 0
+var int   downSwingCounter = 0
+
+// Saves the deepest retracement percentage into the current trend before starting a new one.
+finaliseRetracement() =>
+    if array.size(trends) > 0 and retraceTracking
+        trend pt = array.last(trends)
+        float rng = math.abs(pt.endPrice - pt.startPrice)
+        if rng > 0.0
+            float mr = pt.isUptrend ? (pt.endPrice - retraceExtreme) / rng : (retraceExtreme - pt.endPrice) / rng
+            pt.retracePct := math.max(pt.retracePct, mr)
+            array.set(trends, array.size(trends) - 1, pt)
+
+// A low pivot is confirmed: the ZigZag just completed a move from high to low.
+// This means an upswing leg (counter-trend retracement) has been detected.
+if _zzNewLow and _minOk and _spOkLow
+    int pCnt = array.size(pivots)
+    bool skip = pCnt > 0 and array.last(pivots).barIndex == _zzLastHBar
+    if not skip
+        if pCnt == 0
+            // First detected high pivot: store it without creating a trend yet.
+            pivots.push(pivot.new(_zzLastHBar, _zzLastH, true, _zzLastHTime))
+        else
+            pivot lastP = array.last(pivots)
+            if lastP.isHigh
+                // Same-type pivot (high → higher high): extend the current uptrend.
+                if _zzLastH > lastP.price
+                    array.pop(pivots)
+                    pivots.push(pivot.new(_zzLastHBar, _zzLastH, true, _zzLastHTime))
+                    if array.size(trends) > 0
+                        trend lt = array.last(trends)
+                        if lt.endIdx == lastP.barIndex
+                            lt.endIdx := _zzLastHBar
+                            lt.endTime := _zzLastHTime
+                            lt.endPrice := _zzLastH
+                            lt.retracePct := 0.0
+                            array.set(trends, array.size(trends) - 1, lt)
+                            retraceExtreme := _zzLastH
+                            retraceTracking := true
+            else
+                // Opposite-type pivot (low → high): finalise the retracement of the
+                // completed downswing and start a new numbered uptrend leg.
+                finaliseRetracement()
+                upSwingCounter += 1
+                trends.push(trend.new(lastP.barIndex, _zzLastHBar, lastP.time, _zzLastHTime, lastP.price, _zzLastH, true, 0.0, upSwingCounter))
+                retraceExtreme := _zzLastH
+                retraceTracking := true
+                pivots.push(pivot.new(_zzLastHBar, _zzLastH, true, _zzLastHTime))
+
+// A high pivot is confirmed: the ZigZag just completed a move from low to high.
+// This means a downswing leg (counter-trend retracement) has been detected.
+if _zzNewHigh and _minOk and _spOkHigh
+    int pCnt = array.size(pivots)
+    bool skip = pCnt > 0 and array.last(pivots).barIndex == _zzLastLBar
+    if not skip
+        if pCnt == 0
+            // First detected low pivot: store it without creating a trend yet.
+            pivots.push(pivot.new(_zzLastLBar, _zzLastL, false, _zzLastLTime))
+        else
+            pivot lastP = array.last(pivots)
+            if not lastP.isHigh
+                // Same-type pivot (low → lower low): extend the current downtrend.
+                if _zzLastL < lastP.price
+                    array.pop(pivots)
+                    pivots.push(pivot.new(_zzLastLBar, _zzLastL, false, _zzLastLTime))
+                    if array.size(trends) > 0
+                        trend lt = array.last(trends)
+                        if lt.endIdx == lastP.barIndex
+                            lt.endIdx := _zzLastLBar
+                            lt.endTime := _zzLastLTime
+                            lt.endPrice := _zzLastL
+                            lt.retracePct := 0.0
+                            array.set(trends, array.size(trends) - 1, lt)
+                            retraceExtreme := _zzLastL
+                            retraceTracking := true
+            else
+                // Opposite-type pivot (high → low): finalise the retracement of the
+                // completed uptrend and start a new numbered downtrend leg.
+                finaliseRetracement()
+                downSwingCounter += 1
+                trends.push(trend.new(lastP.barIndex, _zzLastLBar, lastP.time, _zzLastLTime, lastP.price, _zzLastL, false, 0.0, downSwingCounter))
+                retraceExtreme := _zzLastL
+                retraceTracking := true
+                pivots.push(pivot.new(_zzLastLBar, _zzLastL, false, _zzLastLTime))
+
+// Live retracement tracking: on every bar, extend the retracement extreme
+// if price moves deeper into the pullback (uptrend) or bounce (downtrend).
+if retraceTracking and array.size(trends) > 0
+    trend lt = array.last(trends)
+    if lt.isUptrend
+        if low < retraceExtreme
+            retraceExtreme := low
+    else
+        if high > retraceExtreme
+            retraceExtreme := high
+
+// ── Time Window State Tracking ──────────────────────
+// Tracks session boundaries and records completed time window intervals.
+// Drawing happens inside barstate.islast to survive the global cleanup.
+var float timeWindowBoxHigh    = na
+var float timeWindowBoxLow     = na
+var int   timeWindowBoxStart   = na
+var array<twInterval> timeWindowIntervals = array.new<twInterval>()
+
+if not (timeWindowActive and showTimeWindowBox)
+    timeWindowBoxHigh   := na
+    timeWindowBoxLow    := na
+    timeWindowBoxStart  := na
+    array.clear(timeWindowIntervals)
+
+int  timeWindowBarTs   = timeWindowActive ? time(timeframe.period, timeWindowSession, timeWindowTzResolved) : na
+bool inTimeWindowNow   = timeWindowActive and not na(timeWindowBarTs)
+bool inTimeWindowPrev  = timeWindowActive and not na(timeWindowBarTs[1])
+bool timeWindowStartBr = inTimeWindowNow and not inTimeWindowPrev
+bool timeWindowEndBr   = not inTimeWindowNow and inTimeWindowPrev
+
+if timeWindowStartBr
+    timeWindowBoxHigh  := high
+    timeWindowBoxLow   := low
+    timeWindowBoxStart := time
+
+if inTimeWindowNow
+    timeWindowBoxHigh := na(timeWindowBoxHigh) ? high : math.max(timeWindowBoxHigh, high)
+    timeWindowBoxLow  := na(timeWindowBoxLow)  ? low  : math.min(timeWindowBoxLow, low)
+
+if timeWindowEndBr
+    if not na(timeWindowBoxStart) and not na(timeWindowBoxHigh) and not na(timeWindowBoxLow)
+        array.push(timeWindowIntervals, twInterval.new(timeWindowBoxStart, time[1], timeWindowBoxHigh, timeWindowBoxLow))
+    timeWindowBoxHigh  := na
+    timeWindowBoxLow   := na
+    timeWindowBoxStart := na
+
+// =====================================================
+// Last bar logic
+// =====================================================
+var table tbl = table.new(position.top_right, 1, 1)
+var array<box>   drawTrendBoxes    = array.new<box>()
+var array<line>  drawFibLines      = array.new<line>()
+var array<label> drawFibLabels     = array.new<label>()
+var array<box>   drawRetraceBoxes  = array.new<box>()
+var array<line>  drawRetraceLines  = array.new<line>()
+var array<label> drawRetraceLabels = array.new<label>()
+var array<box>   drawHTFBoxes      = array.new<box>()
+var array<box>   drawHTFLiveBoxes  = array.new<box>()
+var array<line>  drawExtLines      = array.new<line>()
+var array<label> drawExtLabels     = array.new<label>()
+var array<box>   drawTWBoxes       = array.new<box>()
+
+if barstate.islast
+    // Global cleanup: delete ALL shapes from any previous script run
+    // Uses box.all/line.all/label.all which survive var resets on recalculation.
+    while array.size(box.all) > 0
+        box.delete(array.get(box.all, 0))
+    while array.size(line.all) > 0
+        line.delete(array.get(line.all, 0))
+    while array.size(label.all) > 0
+        label.delete(array.get(label.all, 0))
+
+    deleteBoxes(drawTrendBoxes)
+    drawTrendBoxes    := array.new<box>()
+    deleteBoxes(drawRetraceBoxes)
+    drawRetraceBoxes  := array.new<box>()
+    deleteBoxes(drawHTFBoxes)
+    drawHTFBoxes      := array.new<box>()
+    deleteBoxes(drawHTFLiveBoxes)
+    drawHTFLiveBoxes  := array.new<box>()
+    deleteLines(drawFibLines)
+    drawFibLines      := array.new<line>()
+    deleteLines(drawRetraceLines)
+    drawRetraceLines  := array.new<line>()
+    deleteLabels(drawFibLabels)
+    drawFibLabels     := array.new<label>()
+    deleteLabels(drawRetraceLabels)
+    drawRetraceLabels := array.new<label>()
+    deleteLines(drawExtLines)
+    drawExtLines      := array.new<line>()
+    deleteLabels(drawExtLabels)
+    drawExtLabels     := array.new<label>()
+    deleteBoxes(drawTWBoxes)
+    drawTWBoxes       := array.new<box>()
+
+    if retraceTracking and array.size(trends) > 0
+        trend lt = array.last(trends)
+        float rng = math.abs(lt.endPrice - lt.startPrice)
+        if rng > 0.0
+            float mr = lt.isUptrend ? (lt.endPrice - retraceExtreme) / rng : (retraceExtreme - lt.endPrice) / rng
+            lt.retracePct := math.max(lt.retracePct, mr)
+            array.set(trends, array.size(trends) - 1, lt)
+
+    [levels, labels] = getFibLevels()
+    [extLevels, extLabels] = getExtensionLevels()
+    int numLevels = array.size(levels)
+    int numExtLevels = array.size(extLevels)
+    int trendCount = array.size(trends)
+
+    array<int> upCounts = array.new<int>(numLevels, 0)
+    array<int> downCounts = array.new<int>(numLevels, 0)
+    array<int> counterIdx = array.new<int>(trendCount, -1)
+    array<bool> passGateCache = array.new<bool>(trendCount, false)
+    array<bool> statsRetraceOkCache = array.new<bool>(trendCount, false)
+    array<bool> drawRetraceOkCache = array.new<bool>(trendCount, false)
+    array<int> filteredSwingNumCache = array.new<int>(trendCount, 0)
+    int totalUp = 0
+    int totalDown = 0
+
+    // Build a lookup that pairs each trend with its opposite-direction counter-trend.
+    // Used later to measure the retracement leg size.
+    if trendCount > 1
+        for i = 0 to trendCount - 2
+            trend tr = array.get(trends, i)
+            for k = i + 1 to trendCount - 1
+                trend candidate = array.get(trends, k)
+                if candidate.isUptrend != tr.isUptrend
+                    array.set(counterIdx, i, k)
+                    break
+
+    // Pre-cache gate results (HTF, direction, time window) for every trend.
+    // Also cache retracement draw/statistics validity per trend.
+    if trendCount > 0
+        for i = 0 to trendCount - 1
+            trend tr = array.get(trends, i)
+            int cIdx = array.get(counterIdx, i)
+            bool pGate = trendHtfPassed(tr.isUptrend, tr.startTime, tr.endTime, htfSwings, _htfZZIsHigh) and trendDirFilter(tr.isUptrend) and trendTimePassed(tr.startTime, tr.endTime)
+            array.set(passGateCache, i, pGate)
+            if cIdx >= 0
+                trend cTr = array.get(trends, cIdx)
+                bool srok = validStatsRetrace(tr.startTime, tr.endTime, cTr.startTime, cTr.endTime, htfSwings)
+                array.set(statsRetraceOkCache, i, srok)
+                array.set(drawRetraceOkCache, i, srok and statsTimePassed(tr.startTime, tr.endTime, cTr.startTime, cTr.endTime))
+
+    // Statistics counting pass: for each trend that passes all gates, measure its
+    // retracement ratio and increment the count for each Fibonacci level reached.
+    // The retracement ratio uses the actual counter-swing leg size when available,
+    // otherwise falls back to the live-tracked retracePct.
+    int filteredUpCounter = 0
+    int filteredDownCounter = 0
+    if trendCount > 0
+        for i = 0 to trendCount - 1
+            trend tr = array.get(trends, i)
+            bool pGate = array.get(passGateCache, i)
+            if not pGate
+                continue
+            int cIdx = array.get(counterIdx, i)
+            bool srok = cIdx >= 0 and array.get(statsRetraceOkCache, i)
+            bool passStatsGate = pGate and cIdx >= 0 and (not retraceHTFGate or srok)
+            if cIdx >= 0
+                trend cTrGate = array.get(trends, cIdx)
+                passStatsGate := passStatsGate and statsTimePassed(tr.startTime, tr.endTime, cTrGate.startTime, cTrGate.endTime)
+            if not passStatsGate
+                continue
+            float rp = tr.retracePct
+            if cIdx >= 0
+                trend cTr = array.get(trends, cIdx)
+                float trRng = math.abs(tr.endPrice - tr.startPrice)
+                if trRng > 0.0
+                    rp := math.abs(cTr.endPrice - cTr.startPrice) / trRng
+            if tr.isUptrend
+                filteredUpCounter += 1
+                array.set(filteredSwingNumCache, i, filteredUpCounter)
+                totalUp += 1
+            else
+                filteredDownCounter += 1
+                array.set(filteredSwingNumCache, i, filteredDownCounter)
+                totalDown += 1
+            if not na(rp)
+                for j = 0 to numLevels - 1
+                    if rp >= array.get(levels, j)
+                        if tr.isUptrend
+                            array.set(upCounts, j, array.get(upCounts, j) + 1)
+                        else
+                            array.set(downCounts, j, array.get(downCounts, j) + 1)
+
+    // ── Extension Statistics (Conditional Probability Matrix) ──────────────
+    // Builds a 2D matrix indexed by (retracement-level × extension-level).
+    // For each trend that passes all gates, it finds the deepest retracement
+    // level reached and counts how many times price subsequently extended to
+    // each extension level.  The result is conditional probability:
+    //   P(extension E | retracement reached level R) = numer / denom
+    array<int> upCondDenom = array.new<int>(math.max(1, numLevels * math.max(1, numExtLevels)), 0)
+    array<int> upCondNumer = array.new<int>(math.max(1, numLevels * math.max(1, numExtLevels)), 0)
+    array<int> downCondDenom = array.new<int>(math.max(1, numLevels * math.max(1, numExtLevels)), 0)
+    array<int> downCondNumer = array.new<int>(math.max(1, numLevels * math.max(1, numExtLevels)), 0)
+
+    if enableExtensionStats and numLevels > 0 and numExtLevels > 0 and trendCount > 2
+        for i = 0 to trendCount - 1
+            trend tr = array.get(trends, i)
+            bool pGate = array.get(passGateCache, i)
+            int cIdx = array.get(counterIdx, i)
+            bool srok = cIdx >= 0 and array.get(statsRetraceOkCache, i)
+            bool passStatsGate = pGate and cIdx >= 0 and (not retraceHTFGate or srok)
+            if cIdx >= 0
+                trend cTrGate = array.get(trends, cIdx)
+                passStatsGate := passStatsGate and statsTimePassed(tr.startTime, tr.endTime, cTrGate.startTime, cTrGate.endTime)
+            if not passStatsGate
+                continue
+            if cIdx + 1 >= trendCount
+                continue
+            trend cTr = array.get(trends, cIdx)
+            trend nextSameDirTr = array.get(trends, cIdx + 1)
+            if nextSameDirTr.isUptrend != tr.isUptrend
+                continue
+            float primaryRange = math.abs(tr.endPrice - tr.startPrice)
+            float retraceRange = math.abs(cTr.endPrice - cTr.startPrice)
+            if primaryRange <= 0.0 or retraceRange <= 0.0
+                continue
+            float retrPct = retraceRange / primaryRange
+            float selectedPct = na
+            if extensionBasis == "Primary Swing Extension"
+                if tr.isUptrend
+                    selectedPct := (nextSameDirTr.endPrice - tr.startPrice) / primaryRange
+                else
+                    selectedPct := (tr.startPrice - nextSameDirTr.endPrice) / primaryRange
+            else
+                if tr.isUptrend
+                    selectedPct := (nextSameDirTr.endPrice - cTr.startPrice) / retraceRange
+                else
+                    selectedPct := (cTr.startPrice - nextSameDirTr.endPrice) / retraceRange
+            if na(selectedPct)
+                continue
+            int deepestRetrIdx = deepestLevelIndex(retrPct, levels)
+            int deepestExtIdx = deepestLevelIndex(selectedPct, extLevels)
+            if deepestRetrIdx < 0
+                continue
+            if retraceConditioning == "Every reached level"
+                for r = 0 to deepestRetrIdx
+                    for e = 0 to numExtLevels - 1
+                        int idx = matrixIndex(r, e, numExtLevels)
+                        if tr.isUptrend
+                            array.set(upCondDenom, idx, array.get(upCondDenom, idx) + 1)
+                        else
+                            array.set(downCondDenom, idx, array.get(downCondDenom, idx) + 1)
+                        if deepestExtIdx >= e
+                            if tr.isUptrend
+                                array.set(upCondNumer, idx, array.get(upCondNumer, idx) + 1)
+                            else
+                                array.set(downCondNumer, idx, array.get(downCondNumer, idx) + 1)
+            else
+                float deepExtPct = tr.isUptrend ? (nextSameDirTr.endPrice - cTr.endPrice) / (extensionBasis == "Primary Swing Extension" ? primaryRange : retraceRange)
+                     : (cTr.endPrice - nextSameDirTr.endPrice) / (extensionBasis == "Primary Swing Extension" ? primaryRange : retraceRange)
+                int deepExtIdx = deepestLevelIndex(deepExtPct, extLevels)
+                for e = 0 to numExtLevels - 1
+                    int idx = matrixIndex(deepestRetrIdx, e, numExtLevels)
+                    if tr.isUptrend
+                        array.set(upCondDenom, idx, array.get(upCondDenom, idx) + 1)
+                    else
+                        array.set(downCondDenom, idx, array.get(downCondDenom, idx) + 1)
+                    if deepExtIdx >= e
+                        if tr.isUptrend
+                            array.set(upCondNumer, idx, array.get(upCondNumer, idx) + 1)
+                        else
+                            array.set(downCondNumer, idx, array.get(downCondNumer, idx) + 1)
+
+    fSzLbl = getFontSz(fibLabelFontSize)
+    fibLineSty = getLineStyle(fibLineStyle)
+    extLineSty = getLineStyle(extLineStyle)
+    fSzExtLbl = getFontSz(extLabelFontSize)
+
+    // ── Drawing pass ───────────────────────────────────────────────────────
+    // For each gate-passed trend, draw (when enabled):
+    //   • Trend box (coloured rectangle behind the swing)
+    //   • Fib retracement lines + labels
+    //   • Retracement box + connecting line + label (swing number, fib level, extension)
+    //   • Extension lines + labels (projected from the retracement extreme)
+    if trendCount > 0
+        int drawStart = 0
+        for i = drawStart to trendCount - 1
+            trend tr = array.get(trends, i)
+            bool pGate = array.get(passGateCache, i)
+            if not pGate
+                continue
+            int cIdx = array.get(counterIdx, i)
+            bool drawStatsRetrace = cIdx >= 0 and array.get(drawRetraceOkCache, i)
+            color trColor = tr.isUptrend ? bullColor : bearColor
+            float topP = math.max(tr.startPrice, tr.endPrice)
+            float botP = math.min(tr.startPrice, tr.endPrice)
+            // Trend box: shaded rectangle from start to end of the swing.
+            if showBoxes
+                box trendBox = box.new(tr.startTime, topP, tr.endTime, botP, border_color=color.new(trColor, 70), border_width=boxBorderWidth, bgcolor=color.new(trColor, 80), xloc=xloc.bar_time)
+                array.push(drawTrendBoxes, trendBox)
+            // Fib retracement lines at each enabled level across the swing.
+            if showFibLines
+                float trendRange = math.abs(tr.endPrice - tr.startPrice)
+                if trendRange > 0.0
+                    for j = 0 to numLevels - 1
+                        float lvl = array.get(levels, j)
+                        if lvl > 0.0
+                            float fibP = tr.isUptrend ? tr.endPrice - lvl * trendRange : tr.endPrice + lvl * trendRange
+                            line fibLn = line.new(tr.startTime, fibP, tr.endTime, fibP, xloc=xloc.bar_time, extend=extend.none, color=fibLineColor, style=fibLineSty, width=fibLineWidth)
+                            array.push(drawFibLines, fibLn)
+                            if showFibLabels
+                                int lblT = getLabelTime(tr.startTime, tr.endTime, fibLabelPosition)
+                                label fibLb = label.new(lblT, fibP, text=array.get(labels, j), xloc=xloc.bar_time, color=color.new(color.gray, 100), textcolor=fibLabelColor, style=getLabelStyle(fibLabelStyle), size=fSzLbl)
+                                array.push(drawFibLabels, fibLb)
+            // Retracement box on the counter-trend leg with a diagonal connecting line.
+            bool drawRetrace = cIdx >= 0 and (not retraceHTFGate or drawStatsRetrace)
+            if showRetraceBoxes and drawRetrace
+                trend cTr = array.get(trends, cIdx)
+                float nTopP = math.max(cTr.startPrice, cTr.endPrice)
+                float nBotP = math.min(cTr.startPrice, cTr.endPrice)
+                box retBox = box.new(cTr.startTime, nTopP, cTr.endTime, nBotP, border_color=color.new(retraceBoxColor, 50), border_width=boxBorderWidth, bgcolor=color.new(retraceBoxColor, 50), xloc=xloc.bar_time)
+                array.push(drawRetraceBoxes, retBox)
+                line retLn = line.new(tr.endTime, tr.endPrice, cTr.endTime, cTr.endPrice, xloc=xloc.bar_time, extend=extend.none, color=retraceBoxColor, style=line.style_dashed, width=1)
+                array.push(drawRetraceLines, retLn)
+            // Retracement label: swing number, deepest fib level, and extension projection.
+            if showRetraceLabels and cIdx >= 0 and (not retraceHTFGate or drawStatsRetrace)
+                trend cTr = array.get(trends, cIdx)
+                float trRange = math.abs(tr.endPrice - tr.startPrice)
+                float rp = trRange > 0.0 ? math.abs(cTr.endPrice - cTr.startPrice) / trRange : tr.retracePct
+                string fibLbl = ""
+                if showActualPct
+                    fibLbl := str.tostring(rp * 100.0, "#.#") + " %"
+                else
+                    fibLbl := deepestFibLabel(rp, levels, labels)
+                string extLbl = ""
+                if enableExtensionStats and numExtLevels > 0 and cIdx + 1 < trendCount
+                    trend nextSame = array.get(trends, cIdx + 1)
+                    if nextSame.isUptrend == tr.isUptrend and trRange > 0.0
+                        float extRange = extensionBasis == "Primary Swing Extension" ? trRange : math.abs(cTr.endPrice - cTr.startPrice)
+                        float extPct = tr.isUptrend ? (nextSame.endPrice - cTr.endPrice) / extRange : (cTr.endPrice - nextSame.endPrice) / extRange
+                        if showActualPct
+                            extLbl := str.tostring(extPct * 100.0, "#.#") + " %"
+                        else
+                            extLbl := deepestFibLabel(extPct, extLevels, extLabels, 0)
+                string arrow = tr.isUptrend ? "▲" : "▼"
+                int filtNum = array.get(filteredSwingNumCache, i)
+                string lblTxt = arrow + " #" + str.tostring(filtNum) + (fibLbl != "" ? "\n" + fibLbl : "")
+                if extLbl != ""
+                    lblTxt += " → " + extLbl
+                int lblTime = getLabelTime(cTr.startTime, cTr.endTime, retraceLabelPosition)
+                float lblPrice = retraceLabelStyle == "Above" ? math.max(cTr.startPrice, cTr.endPrice) : math.min(cTr.startPrice, cTr.endPrice)
+                label retLb = label.new(lblTime, lblPrice, text=lblTxt, xloc=xloc.bar_time, color=color.new(trColor, 70), textcolor=retraceLabelColor, style=getLabelStyle(retraceLabelStyle), size=getFontSz(retraceLabelFontSize))
+                array.push(drawRetraceLabels, retLb)
+
+            // Extension lines projected from the retracement extreme.
+            if enableExtensionStats and numExtLevels > 0 and cIdx >= 0 and (not retraceHTFGate or drawStatsRetrace)
+                trend extCtr = array.get(trends, cIdx)
+                float extTrRange = math.abs(tr.endPrice - tr.startPrice)
+                float extRetrRange = math.abs(extCtr.endPrice - extCtr.startPrice)
+                if extTrRange <= 0.0 or (extensionBasis == "Retracement Swing Projection" and extRetrRange <= 0.0)
+                    continue
+                float extProjBase = extCtr.endPrice
+                float extProjRange = extensionBasis == "Primary Swing Extension" ? extTrRange : extRetrRange
+                if extProjRange <= 0.0
+                    continue
+                for j = 0 to numExtLevels - 1
+                    float lvl = array.get(extLevels, j)
+                    float extP = tr.isUptrend ? extProjBase + lvl * extProjRange : extProjBase - lvl * extProjRange
+                    if showExtLines
+                        line extLn = line.new(extCtr.startTime, extP, extCtr.endTime, extP, xloc=xloc.bar_time, extend=extend.none, color=extLineColor, style=extLineSty, width=extLineWidth)
+                        array.push(drawExtLines, extLn)
+                    if showExtLabels
+                        int extLblT = getLabelTime(extCtr.startTime, extCtr.endTime, extLabelPosition)
+                        label extLb = label.new(extLblT, extP, text=array.get(extLabels, j), xloc=xloc.bar_time, color=color.new(color.gray, 100), textcolor=extLabelColor, style=getLabelStyle(extLabelStyle), size=fSzExtLbl)
+                        array.push(drawExtLabels, extLb)
+
+    // HTF swing boxes: completed intervals from htfSwings array, plus the current live leg.
+    if showHTFSwings and useHTFContext
+        int htfCount = array.size(htfSwings)
+        if htfCount > 0
+            for j = 0 to htfCount - 1
+                htfSwing hs = array.get(htfSwings, j)
+                color c = hs.isBullish ? htfBullColor : htfBearColor
+                if hs.startTime < hs.endTime and hs.highPrice > hs.lowPrice
+                    box htfBox = box.new(hs.startTime, hs.highPrice, hs.endTime, hs.lowPrice, border_color=color.new(c, 60), border_width=boxBorderWidth, bgcolor=color.new(c, 50), xloc=xloc.bar_time)
+                    array.push(drawHTFBoxes, htfBox)
+        if _htfInit and not na(_htfLiveBoxStart) and not na(_htfLiveBoxHigh) and not na(_htfLiveBoxLow)
+            bool liveBull = _htfZZIsHigh
+            int liveEndTime = time
+            color liveColor = liveBull ? htfBullColor : htfBearColor
+            bool liveSpanOk = liveEndTime > _htfLiveBoxStart and _htfLiveBoxHigh > _htfLiveBoxLow
+            if liveSpanOk
+                box htfLiveBox = box.new(_htfLiveBoxStart, _htfLiveBoxHigh, liveEndTime, _htfLiveBoxLow, border_color=color.new(liveColor, 60), border_width=boxBorderWidth, bgcolor=color.new(liveColor, 50), xloc=xloc.bar_time)
+                array.push(drawHTFLiveBoxes, htfLiveBox)
+
+    // Time window boxes: draw all completed intervals from the recorded list.
+    if showTimeWindowBox and timeWindowActive
+        for j = 0 to array.size(timeWindowIntervals) - 1
+            twInterval ti = array.get(timeWindowIntervals, j)
+            if ti.startTime < ti.endTime and ti.highPrice > ti.lowPrice
+                box twBox = box.new(ti.startTime, ti.highPrice, ti.endTime, ti.lowPrice,
+                     xloc=xloc.bar_time, border_color=timeWindowBoxBdColor, border_width=boxBorderWidth,
+                     bgcolor=timeWindowBoxBgColor)
+                array.push(drawTWBoxes, twBox)
+        // Live interval still in progress on the last bar.
+        if inTimeWindowNow and not na(timeWindowBoxStart) and not na(timeWindowBoxHigh) and not na(timeWindowBoxLow)
+            box twLiveBox = box.new(timeWindowBoxStart, timeWindowBoxHigh, time, timeWindowBoxLow,
+                 xloc=xloc.bar_time, border_color=timeWindowBoxBdColor, border_width=boxBorderWidth,
+                 bgcolor=timeWindowBoxBgColor)
+            array.push(drawTWBoxes, twLiveBox)
+
+    // ── Statistics table ───────────────────────────────────────────────────
+    bool showUp = direction == "Both" or direction == "Uptrends Only"
+    bool showDown = direction == "Both" or direction == "Downtrends Only"
+    bool useExtensionTable = enableExtensionStats and numExtLevels > 0
+    int totalRows = 1
+    int totalCols = useExtensionTable ? 3 + numExtLevels : 2
+    if showUp
+        totalRows += 1 + numLevels
+    if showDown
+        totalRows += 1 + numLevels
+
+    table.delete(tbl)
+    tbl := table.new(getTablePos(tblPos), totalCols, totalRows, bgcolor=color.new(chart.bg_color, 30), border_color=chart.fg_color, border_width=1)
+
+    fSz = getFontSz(tblFont)
+    int row = 0
+    if useExtensionTable
+        table.cell(tbl, 0, row, "Level", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        table.cell(tbl, 1, row, "Count", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        table.cell(tbl, 2, row, "Deepest", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        for e = 0 to numExtLevels - 1
+            table.cell(tbl, e + 3, row, array.get(extLabels, e), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        row += 1
+        if showUp
+            table.cell(tbl, 0, row, "═══ UP ═══", text_color=bullColor, text_size=fSz)
+            table.merge_cells(tbl, 0, row, totalCols - 1, row)
+            row += 1
+            for r = 0 to numLevels - 1
+                int cnt = array.get(upCounts, r)
+                float pct = totalUp > 0 ? 100.0 * cnt / totalUp : 0.0
+                int extVal = array.get(upCondDenom, matrixIndex(r, 0, numExtLevels))
+                table.cell(tbl, 0, row, array.get(labels, r), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 1, row, fmtStats(cnt, pct, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 2, row, r == 0 ? "-" : str.tostring(extVal), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                for e = 0 to numExtLevels - 1
+                    if r == 0 or extVal == 0
+                        table.cell(tbl, e + 3, row, "-", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                    else
+                        int idx = matrixIndex(r, e, numExtLevels)
+                        int numerVal = array.get(upCondNumer, idx)
+                        float pctVal = 100.0 * numerVal / extVal
+                        table.cell(tbl, e + 3, row, fmtStats(numerVal, pctVal, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                row += 1
+        if showDown
+            table.cell(tbl, 0, row, "═══ DOWN ═══", text_color=bearColor, text_size=fSz)
+            table.merge_cells(tbl, 0, row, totalCols - 1, row)
+            row += 1
+            for r = 0 to numLevels - 1
+                int cnt = array.get(downCounts, r)
+                float pct = totalDown > 0 ? 100.0 * cnt / totalDown : 0.0
+                int extVal = array.get(downCondDenom, matrixIndex(r, 0, numExtLevels))
+                table.cell(tbl, 0, row, array.get(labels, r), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 1, row, fmtStats(cnt, pct, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 2, row, r == 0 ? "-" : str.tostring(extVal), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                for e = 0 to numExtLevels - 1
+                    if r == 0 or extVal == 0
+                        table.cell(tbl, e + 3, row, "-", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                    else
+                        int idx = matrixIndex(r, e, numExtLevels)
+                        int numerVal = array.get(downCondNumer, idx)
+                        float pctVal = 100.0 * numerVal / extVal
+                        table.cell(tbl, e + 3, row, fmtStats(numerVal, pctVal, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                row += 1
+    // Standard table (Count / Percent / both) without extension columns.
+    else
+        string stdHeader2 = switch tblStatsDisplay
+            "Count"           => "Count"
+            "Percent"         => "Percent"
+            => "Count (%)"
+        table.cell(tbl, 0, row, "Level", text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        table.cell(tbl, 1, row, stdHeader2, text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+        row += 1
+        if showUp
+            table.cell(tbl, 0, row, "═══ UP ═══", text_color=bullColor, text_size=fSz)
+            table.merge_cells(tbl, 0, row, 1, row)
+            row += 1
+            for j = 0 to numLevels - 1
+                int cnt = array.get(upCounts, j)
+                float pct = totalUp > 0 ? 100.0 * cnt / totalUp : 0.0
+                table.cell(tbl, 0, row, array.get(labels, j), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 1, row, fmtStats(cnt, pct, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                row += 1
+        if showDown
+            table.cell(tbl, 0, row, "═══ DOWN ═══", text_color=bearColor, text_size=fSz)
+            table.merge_cells(tbl, 0, row, 1, row)
+            row += 1
+            for j = 0 to numLevels - 1
+                int cnt = array.get(downCounts, j)
+                float pct = totalDown > 0 ? 100.0 * cnt / totalDown : 0.0
+                table.cell(tbl, 0, row, array.get(labels, j), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                table.cell(tbl, 1, row, fmtStats(cnt, pct, tblStatsDisplay), text_color=chart.fg_color, text_size=fSz, text_halign=text.align_center)
+                row += 1

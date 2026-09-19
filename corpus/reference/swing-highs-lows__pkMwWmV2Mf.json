@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;pkMwWmV2MfdbEumxZ10WTSG0fHwthbbg",
+ "title": "Swing Highs & Lows",
+ "author": "SatoshiYoshimura",
+ "url": "https://www.tradingview.com/script/eH0vkSBy-swing-highs-lows/",
+ "agreeCount": 595,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/swing-highs-lows__pkMwWmV2Mf.pine",
+ "our_status": "reference-only"
+}

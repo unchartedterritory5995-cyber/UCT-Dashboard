@@ -1,0 +1,19 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tradeforopp
+
+//@version=5
+indicator("Visualizing Displacement [TFO]", "Displacement [TFO]", true)
+
+require_fvg = input.bool(true, "Require FVG")
+disp_type = input.string("Open to Close", "Displacement Type", options = ['Open to Close', 'High to Low'])
+std_len = input.int(100, minval = 1, title = "Displacement Length", tooltip = "How far back the script will look to determine the candle range standard deviation")
+std_x = input.int(4, minval = 0, title = "Displacement Strength")
+disp_color = input.color(color.yellow, "Bar Color")
+
+candle_range = disp_type == "Open to Close" ? math.abs(open - close) : high - low
+std = ta.stdev(candle_range, std_len) * std_x
+fvg = close[1] > open[1] ? high[2] < low[0] : low[2] > high[0]
+
+displacement = require_fvg ? candle_range[1] > std[1] and fvg : candle_range > std
+
+barcolor(displacement ? disp_color : na, offset = require_fvg ? -1 : na)

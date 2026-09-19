@@ -26,7 +26,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine, REFUSALS } from './pine.js'
 import fs from 'node:fs'
 import path from 'node:path'
-import { TF_RESAMPLABLE, TF_LADDER } from './interpret.js'
+import { TF_RESAMPLABLE, TF_LADDER, BASE_TF } from './interpret.js'
 import { servableTimeframesText } from './pine.js'
 import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
@@ -72,7 +72,11 @@ describe('the servable set comes from the engine, not from a copy in this door',
     // accepts every string. `D` is a real Pine spelling this map now RECOGNISES on
     // purpose; recognising it and serving it are the two questions, and the engine
     // answers the second one.
-    const unservable = TF_LADDER.filter((c) => !TF_RESAMPLABLE.includes(c))
+    // ➕ ADDENDUM 2026-09-12 (ruling 3.5): the BASE period comes out of this set. A
+    // literal naming the bars already in hand folds to the IDENTITY — it is not a
+    // resample and there is nothing to serve. Still DERIVED, not hand-listed: the
+    // day `TF_RESAMPLABLE` or the base moves, this set follows.
+    const unservable = TF_LADDER.filter((c) => !TF_RESAMPLABLE.includes(c) && c !== BASE_TF)
     expect(unservable.length, 'the ladder must hold something unservable').toBeGreaterThan(0)
     for (const code of unservable) {
       const out = translatePine(htf(code))

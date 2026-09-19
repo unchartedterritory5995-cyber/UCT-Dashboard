@@ -255,3 +255,78 @@ describe('⭐⭐ the identities, MEASURED against a reference', () => {
     expect(compared).toBeGreaterThan(300)
   })
 })
+
+
+// ─── ⭐⭐⭐ RULING C — THE VENDOR READING, AND WHAT IT CONFIRMS ───────────────
+//
+// On 2026-09-10 `ta.barssince` was read off a live TradingView chart, twice, and
+// the readings SETTLE the premise this whole file rests on rather than moving it.
+//
+//   ⭐ THE ARITY. `groupb-barssince-2arg.pine` was saved and added; TradingView
+//   answered `CE10115: Too many arguments passed into the "ta.barssince()"
+//   function call. Passed 2 arguments but expected 1.` Its 1-arg pair compiled on
+//   the same symbol in the same session, 400 bars, so the failure is the arity and
+//   not the harness. Pine's `ta.barssince` takes EXACTLY ONE argument.
+//
+//   ⭐ THE NEVER-TRUE CASE. `ta.barssince` on a condition that is never true
+//   answers `na` — measured, not inferred, in
+//   `tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json::N04`.
+//   Ours answers the SENTINEL `n`. Two different answers to "it never happened".
+//
+// ⚰️⚰️ AND THE OBVIOUS CONCLUSION FROM THE FIRST READING IS WRONG. "Pine takes one
+// argument, we declare two, therefore our table is wrong and must NARROW" was
+// written down on the day of the capture and it does not survive reading the
+// engine: `barssince(condition, n)` is not a mis-transcribed `ta.barssince`, it is
+// one of the FIVE BOUNDED STATE entries, and `n` is the declared window that makes
+// its state bounded at all. Narrowing it to one argument would delete the bound
+// the budget is priced on — `tests/test_ast_bounded_state.py` owns that design.
+//
+// ⭐⭐ SO THE TWO FUNCTIONS ARE DIFFERENT ON PURPOSE, AND THE ENGINE ALREADY SAID
+// SO. `PINE_INEXPRESSIBLE.barssince` refuses the bare Pine call precisely because
+// mapping it onto ours "would silently cap the count — a different number wearing
+// the same name". The vendor readings CONFIRM that refusal instead of prompting a
+// change; the only thing that moves is that the premise is now measured.
+
+describe('⛔ RULING C — the vendor readings pin the door, and the door was right', () => {
+  it('⭐ the BARE one-argument call is still refused, and the reason names the cap', () => {
+    // ⛔ NOT "it refuses" — WHY it refuses. A member told "the engine grammar does
+    // not hold this name" would go away; one told the count would be silently
+    // capped can act, and the sentence hands them the spelling that works.
+    // ⚠️ THE BARE CALL, WITH NOTHING TO TAKE A WINDOW FROM. Measured while
+    // writing this: `ta.barssince(c) > 0` DOES rewrite — to `barssince(c, 1) > 0`
+    // — so "compared against a literal" is not the boundary; "compared against
+    // something that bounds it" is. A first draft of this test used `> 0` as the
+    // refused case and went red for that reason, which is worth the two lines.
+    const out = translate('ta.barssince(close > open)')
+    expect(out.formula, 'the unbounded call translated with nothing to bound it — '
+      + 'mapping it onto our bounded form silently caps the count, a different '
+      + 'number wearing the same name').toBeUndefined()
+    expect(String(out.message), 'the refusal no longer explains the cap, so a '
+      + 'member cannot tell which spelling would work')
+      .toMatch(/UNBOUNDED|cap|window you actually mean/i)
+  })
+
+  it('⭐⭐ …while the COMPARED form still rewrites to the bounded one', () => {
+    // The discriminator. Without it the test above passes for a door that refuses
+    // every spelling, which would be a capability lost rather than a cap avoided.
+    expect(translate('ta.barssince(close > open) < 5').formula)
+      .toBe('barssince(close > open, 5) < 5 ? 1 : 0')
+  })
+
+  it('⛔⛔ OURS SATURATES AT n WHERE THE VENDOR ANSWERS na — and that is WHY the '
+     + 'bare form is refused rather than mapped', () => {
+    // ⭐ THE MEASURED DIVERGENCE, DRIVEN. On a condition that is NEVER true the
+    // vendor returns `na` (capture N04) and ours returns the sentinel `n`. If ours
+    // ever stopped saturating, the refusal above would be arguing against a
+    // difference that no longer existed — and the rewrite's exactness argument,
+    // which depends on the cap sitting exactly on the comparison's boundary, would
+    // be false at the same moment.
+    // `close` is ~100 on every bar of this series, so `close < 0` is never true —
+    // the vendor's `na` case, asked of ours.
+    const col = run('barssince(close < 0, 10)', bars())
+    const tail = Array.from(col).slice(-1)[0]
+    expect(tail, 'our barssince stopped answering the sentinel on a never-true '
+      + 'condition; the vendor answers na, and the whole reason the bare Pine call '
+      + 'is refused is that these two are different answers').toBe(10)
+  })
+})

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;69de2e99a0794ac382673f5d3e45abc1",
+ "title": "Smoothed Gaussian Trend Filter [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/mCGycOyz-smoothed-gaussian-trend-filter-algoalpha/",
+ "agreeCount": 3131,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+ "our_status": "committed"
+}

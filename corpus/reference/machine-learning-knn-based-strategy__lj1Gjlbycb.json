@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;lj1GjlbycbjU75bYEz6Hu2hKbx3vibGs",
+ "title": "Machine Learning: kNN-based Strategy",
+ "author": "capissimo",
+ "url": "https://www.tradingview.com/script/GpcT4M6T-machine-learning-knn-based-strategy/",
+ "agreeCount": 7162,
+ "category": "machine-learning-styled",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+ "our_status": "committed"
+}

@@ -213,7 +213,8 @@ def channels(monkeypatch):
     return {"delivered": delivered, "invoked": invoked}
 
 
-def save(user_id: str, definition: dict, *, repaint: dict | None = None) -> dict:
+def save(user_id: str, definition: dict, *, repaint: dict | None = None,
+         requirements: list | None = None) -> dict:
     """Store a definition, optionally OVERRIDING the linter's stored verdict.
 
     ⛔ THE OVERRIDE IS NOT A CHEAT AND IT IS THE ONLY WAY TO REACH THE GATE.
@@ -243,6 +244,19 @@ def save(user_id: str, definition: dict, *, repaint: dict | None = None) -> dict
             c.execute("UPDATE user_definitions SET repaint=? "
                       "WHERE user_id=? AND def_id=? AND version=?",
                       (json.dumps(repaint), str(user_id), definition["id"],
+                       row["version"]))
+    # ⭐ THE SAME OVERRIDE, FOR THE SAME REASON, ONE COLUMN OVER — and here the
+    # reason is sharper than it is for `repaint`. `requirement_tags` can only
+    # stamp `window_dependent` on a script that calls `ta.cum`, and `translatePine`
+    # refuses `ta.cum` in BOTH modes today, so NO definition a member can author
+    # carries a tag. The gate exists for the build that lands `ta.cum` on the pane
+    # lane; what it READS is the stamp stored at save time, so writing that stamp
+    # is exactly the input the gate is built to refuse.
+    if requirements is not None:
+        with sqlite3.connect(str(ud._DB_PATH)) as c:
+            c.execute("UPDATE user_definitions SET requirements=? "
+                      "WHERE user_id=? AND def_id=? AND version=?",
+                      (json.dumps(requirements), str(user_id), definition["id"],
                        row["version"]))
     return row
 
@@ -723,6 +737,21 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
 
     save("user-d", defn(budget={"maxNodes": 1}))
     capture("budget", lambda: aus.admit_user_definition("user-d", DEF_ID, bars=real_bars))
+
+    # ⛔ THE TAG IS READ OFF THE MANIFEST, NEVER TYPED. A literal
+    # `["window_dependent"]` here would go stale the day the tag is renamed and
+    # this drive would fall through to a LATER gate while the roster assertion
+    # above still passed — the gate driven is then not the gate named.
+    # ⚠️ `_all_declared_tags`, not `sorted(TABLE["_requirement_tags"])`: that map
+    # carries prose keys (`_`, `_why_it_exists`) alongside the tags, and sorting
+    # it puts `"_"` first — a "tag" no consumer declares, which `consumer_refusal`
+    # refuses for a DIFFERENT reason ("the manifest does not declare it"). The
+    # gate would still fire and the drive would still look green.
+    tags = ud._all_declared_tags()
+    assert tags, "the manifest declares no requirement tag to drive the gate with"
+    save("user-e", defn(), requirements=tags[:1])
+    capture("requirements",
+            lambda: aus.admit_user_definition("user-e", DEF_ID, bars=real_bars))
 
     with lane_disagreement(monkeypatch, at_bar=200, by=1e-6):
         capture("cross-lane",

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;015bb66e648140adaaf4e00744c2c29e",
+ "title": "One indicator - multiple (max 40) checked symbols and &quot;infinite&quot; number of checked conditions. Example",
+ "author": "adolgov",
+ "url": "https://www.tradingview.com/script/MmBmCnuh-one-indicator-multiple-max-40-checked-symbols-and-infinite-n/",
+ "agreeCount": 1091,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine",
+ "cached_source": "tools/pine_survey/cache/sources/one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine",
+ "our_status": "committed"
+}

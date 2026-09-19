@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;41jwaH1ikzASSsZWoTeUs7JpItoC6jIz",
+ "title": "Trailing Take Profit Trailing Stop Loss",
+ "author": "jason5480",
+ "url": "https://www.tradingview.com/script/V7IfK3mr-trailing-take-profit-trailing-stop-loss/",
+ "agreeCount": 2256,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "strategy",
+ "licence": "MIT",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine",
+ "our_status": "committed"
+}

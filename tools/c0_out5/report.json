@@ -1,0 +1,582 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tests/fixtures/pine_multiplot",
+  "rows": [
+    {
+      "script": "01-two-plots-pane",
+      "timings_ms": {
+        "goto": 2460,
+        "open_builder": 18,
+        "new_formula": 20,
+        "import_tab": 22,
+        "paste": 54,
+        "translate": 284,
+        "apply": 13,
+        "save_click": 10,
+        "save_roundtrip": 533,
+        "instance_persist": 575,
+        "reopen": 2415,
+        "render": 219
+      },
+      "definitions_before": 0,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "01-two-plots-pane",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_a72e8360cde6",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_a72e8360cde6:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_a72e8360cde6:1",
+          "plotKey": "value",
+          "text": "01-two-plots 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a72e8360cde6:1",
+          "plotKey": "signal",
+          "text": "01-two-plots 49.47",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 1,
+      "screenshot": "tools\\c0_out5\\01-two-plots-pane.png",
+      "declared_plots": [
+        "value",
+        "signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "signal"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "02-three-plots-styles",
+      "timings_ms": {
+        "goto": 2404,
+        "open_builder": 40,
+        "new_formula": 11,
+        "import_tab": 20,
+        "paste": 19,
+        "translate": 259,
+        "apply": 11,
+        "save_click": 8,
+        "save_roundtrip": 528,
+        "instance_persist": 555,
+        "reopen": 2757,
+        "render": 361
+      },
+      "definitions_before": 1,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "stepline",
+          "histogram"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800",
+          "#2962ff"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "02-three-plots-styles",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_2e82140419e0",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "mid",
+          "slow",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_2e82140419e0:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_2e82140419e0:1",
+          "plotKey": "value",
+          "text": "02-three-plo 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_2e82140419e0:1",
+          "plotKey": "mid",
+          "text": "02-three-plo 49.47",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_2e82140419e0:1",
+          "plotKey": "slow",
+          "text": "02-three-plo 54.48",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 2,
+      "screenshot": "tools\\c0_out5\\02-three-plots-styles.png",
+      "declared_plots": [
+        "value",
+        "mid",
+        "slow"
+      ],
+      "drawn_plots": [
+        "value",
+        "mid",
+        "slow"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 3
+    },
+    {
+      "script": "03-plots-with-hlines",
+      "timings_ms": {
+        "goto": 2414,
+        "open_builder": 10,
+        "new_formula": 10,
+        "import_tab": 43,
+        "paste": 63,
+        "translate": 261,
+        "apply": 9,
+        "save_click": 6,
+        "save_roundtrip": 528,
+        "instance_persist": 551,
+        "reopen": 2462,
+        "render": 207
+      },
+      "definitions_before": 2,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "70, 30",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "03-plots-with-hlines",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_beb5b7727736",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_beb5b7727736:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_beb5b7727736:1",
+          "plotKey": "value",
+          "text": "03-plots-wit 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_beb5b7727736:1",
+          "plotKey": "signal",
+          "text": "03-plots-wit 49.47",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 3,
+      "screenshot": "tools\\c0_out5\\03-plots-with-hlines.png",
+      "declared_plots": [
+        "value",
+        "signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "signal"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "04-overlay-multi-plot",
+      "timings_ms": {
+        "goto": 2492,
+        "open_builder": 12,
+        "new_formula": 13,
+        "import_tab": 25,
+        "paste": 31,
+        "translate": 277,
+        "apply": 10,
+        "save_click": 8,
+        "save_roundtrip": 528,
+        "instance_persist": 552,
+        "reopen": 2432,
+        "render": 528
+      },
+      "definitions_before": 3,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#ff9800",
+          "#2962ff",
+          "#2962ff"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "04-overlay-multi-plot",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_fe8af73562dc",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower",
+          "upper",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_fe8af73562dc:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_fe8af73562dc:1",
+          "plotKey": "value",
+          "text": "04-overlay-m 742.24",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_fe8af73562dc:1",
+          "plotKey": "upper",
+          "text": "04-overlay-m 760.64",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_fe8af73562dc:1",
+          "plotKey": "lower",
+          "text": "04-overlay-m 723.84",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 4,
+      "screenshot": "tools\\c0_out5\\04-overlay-multi-plot.png",
+      "declared_plots": [
+        "value",
+        "upper",
+        "lower"
+      ],
+      "drawn_plots": [
+        "value",
+        "upper",
+        "lower"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 3
+    },
+    {
+      "script": "05-independent-titles",
+      "timings_ms": {
+        "goto": 2413,
+        "open_builder": 13,
+        "new_formula": 33,
+        "import_tab": 26,
+        "paste": 48,
+        "translate": 273,
+        "apply": 11,
+        "save_click": 15,
+        "save_roundtrip": 528,
+        "instance_persist": 556,
+        "reopen": 2401,
+        "render": 227
+      },
+      "definitions_before": 4,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#4caf50",
+          "#f23645",
+          "#ffeb3b"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "05-independent-titles",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_bf0b00756a19",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "momentum_slow",
+          "range",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_bf0b00756a19:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_bf0b00756a19:1",
+          "plotKey": "value",
+          "text": "05-independe 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bf0b00756a19:1",
+          "plotKey": "momentum_slow",
+          "text": "05-independe 56.04",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bf0b00756a19:1",
+          "plotKey": "range",
+          "text": "05-independe 10.30",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 5,
+      "screenshot": "tools\\c0_out5\\05-independent-titles.png",
+      "declared_plots": [
+        "value",
+        "momentum_slow",
+        "range"
+      ],
+      "drawn_plots": [
+        "value",
+        "momentum_slow",
+        "range"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 3
+    }
+  ],
+  "bars_probe": 300
+}

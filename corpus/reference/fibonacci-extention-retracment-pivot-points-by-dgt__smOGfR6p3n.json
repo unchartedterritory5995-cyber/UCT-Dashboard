@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;smOGfR6p3nRIFHGkaKqbV9wWl8bFcUmA",
+ "title": "Fibonacci Extention / Retracment / Pivot Points by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/FWYQ4vTk-fibonacci-extention-retracment-pivot-points-by-dgt/",
+ "agreeCount": 16946,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n.pine",
+ "our_status": "reference-only"
+}

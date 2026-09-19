@@ -1,0 +1,298 @@
+{
+  "_": "⭐⭐ THE FORCED-DEPTH SPY CAPTURE. `uncharted-volume-v2.pine` on AMEX:SPY 1D, read off the live rig on 2026-09-13 with the study holding 4,633 bars — comfortably past the 2,751-bar window its `HVE Trigger` declares. ⛔ IT SUPERSEDES `uncharted-volume-v2-spy-1d-2026-09-12.json`, which was taken on a chart holding ~640 bars and is now marked WINDOW_UNMEASURED.",
+  "_why_it_exists": "⚰️⚰️ THE SHALLOW CAPTURE GOT ONE COLUMN WRONG AND SAID SO CONFIDENTLY. At 640 bars `HVE Trigger` read FLAT 0 across the window, and that fixture recorded it as \"correct, and useless as a test of the condition — it is the alertcondition, not a series.\" At 4,633 bars IT FIRES 25 TIMES. The reading was an artefact of the load, which is exactly what `tools/vendor_window.py` was written to catch, and this capture is the rail being right.",
+  "supersedes": "tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json",
+  "capture": {
+    "symbol": "AMEX:SPY",
+    "interval": "1D",
+    "layout": "e3cTXatd — UCT AGENT VISIT 2026-09-10 (disposable)",
+    "captured_at_utc": "2026-09-13T04:05Z",
+    "study_bars_loaded": 4633,
+    "study_first_bar": "2008-04-14",
+    "study_last_bar": "2026-09-11",
+    "chart_bars_before_add": 4523,
+    "_gate": "gate v2.1 PASS on the DRIVING tab before every click: visible, availTop -1446 <= screenY -1287, and -1287 + 1015 = -272 <= -54"
+  },
+  "how_the_depth_was_forced": {
+    "_": "⭐ RECORDED BECAUSE THE NEXT CAPTURE NEEDS IT. A fresh load of this layout gives ~640 bars, 2,111 short of the window. Two programmatic routes were tried first and BOTH FAILED: `chartWidget.setVisibleTimeRange(...)` throws `Error: Not implemented`, and `model.loadRange(from, to)` returns without error and loads nothing. ⛔ Neither is a forcing method, and a capture that trusted either would be shallow while looking driven.",
+    "method": "The bottom-left Go to control (the icon right of the ALL range button) -> Date -> 2010-01-04 -> Go to.",
+    "result": "chart 641 -> 4,523 bars, first 2008-09-18; the study then computed over 4,633 bars from 2008-04-14 (it reaches a little further back than the chart's own series).",
+    "_do_not_use_ALL": "⚠️ The ALL range button switches the resolution to 1M — the documented trap. Go to keeps 1D."
+  },
+  "source_receipt": {
+    "_": "⛔ THE EDITOR BUFFER WAS ALREADY THE COMMITTED SCRIPT, and it was hashed rather than assumed: 34,378 chars, LF, no CRLF, sha256 equal to the fixture file's. Nothing was typed or pasted for this capture.",
+    "buffer_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "fixture_file_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "match": true,
+    "chars": 34378,
+    "crlf_count": 0
+  },
+  "monaco": {
+    "module_id": "423129",
+    "_re_derived": "⛔ RE-DERIVED THIS VISIT over 10,438 modules. It matches the id recorded on 2026-09-12 — a fact about this build, confirmed, never carried forward.",
+    "_the_needle_was_wrong_first": "⚰️ THE FIRST DERIVATION RETURNED `899463` AND IT WAS A FALSE POSITIVE. Scanning module SOURCES for `editor.getModels` + `editor.create` matches any module that MENTIONS the API, and `899463` exports only `EditorBaseLayout`. The discriminator is the EXPORT — `typeof m.editor.getModels === 'function'` — which is this repo's 'code, never prose' rule one layer up: a source-text needle answers a question about text, not about what a module IS."
+  },
+  "add_button_gate": {
+    "add_to_chart_matches": [
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 24,
+        "visible": true,
+        "disabled": false
+      },
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 0,
+        "visible": false,
+        "disabled": false
+      }
+    ],
+    "add_visible_enabled_nonzero": 1,
+    "update_on_chart_matches": 0,
+    "verdict": "SAFE TO ADD",
+    "_zero_height": "⭐ THE ZERO-HEIGHT DUPLICATE IS THERE AGAIN — 93x24 and 93x0, the same pair as 2026-09-12. A gate without the height test counts two and stops."
+  },
+  "plots": {
+    "_": "The vendor's own roster from `metaInfo().plots`. ⛔ `plot_7` is typed `alertcondition` by TradingView itself, distinct from the four `line` plots — ruling D1, confirmed by the vendor a second time.",
+    "order": [
+      {
+        "id": "plot_0",
+        "type": "line",
+        "title": "Volume"
+      },
+      {
+        "id": "plot_1",
+        "type": "colorer",
+        "target": "plot_0"
+      },
+      {
+        "id": "plot_2",
+        "type": "line",
+        "title": "Avg Vol Columns"
+      },
+      {
+        "id": "plot_3",
+        "type": "colorer",
+        "target": "plot_2"
+      },
+      {
+        "id": "plot_4",
+        "type": "line",
+        "title": "Avg Vol Line"
+      },
+      {
+        "id": "plot_5",
+        "type": "colorer",
+        "target": "plot_4"
+      },
+      {
+        "id": "plot_6",
+        "type": "line",
+        "title": "Scale Padding"
+      },
+      {
+        "id": "plot_7",
+        "type": "alertcondition",
+        "title": "HVE Trigger"
+      }
+    ],
+    "value_array_layout": "[time, plot_0, plot_1, plot_2, plot_3, plot_4, plot_5, plot_6, plot_7]",
+    "_align_on_time": "⛔⛔ ALIGN ON `time`, NEVER ON `date`. The 2026-09-12 capture carried a label a day out on bars_back 5, and a comparison keyed on it invented a 28% divergence.",
+    "rows": [
+      {
+        "bars_back": 0,
+        "date": "2026-09-11",
+        "time": 1789133400,
+        "values": [
+          45512741,
+          4283477836,
+          43318979,
+          4287003512,
+          43318979,
+          436207615,
+          56890926.25,
+          0
+        ]
+      },
+      {
+        "bars_back": 1,
+        "date": "2026-09-10",
+        "time": 1789047000,
+        "values": [
+          42740375,
+          4287003512,
+          null,
+          4287003512,
+          43350741.74,
+          436207615,
+          54188427.175000004,
+          0
+        ]
+      },
+      {
+        "bars_back": 2,
+        "date": "2026-09-09",
+        "time": 1788960600,
+        "values": [
+          32812411,
+          4287003512,
+          null,
+          4287003512,
+          43608454.94,
+          436207615,
+          54510568.675,
+          0
+        ]
+      },
+      {
+        "bars_back": 5,
+        "date": "2026-09-03",
+        "time": 1788442200,
+        "values": [
+          43531581,
+          4287003512,
+          null,
+          4287003512,
+          45040146.1,
+          436207615,
+          56300182.625,
+          0
+        ]
+      }
+    ],
+    "_identical_to_the_shallow_capture": "⭐⭐ THE FOUR DRAWN SERIES ARE BYTE-FOR-BYTE WHAT THE 640-BAR CAPTURE READ, on all four rows. That is the per-column exclusion rule vindicated: `Volume` (window 0) and the three 50-bar columns were never at risk, and only the 2,751-bar column was. A rule that voided the whole capture would have thrown away four correct series.",
+    "spread_control": {
+      "Volume": {
+        "distinct": 4,
+        "min": 32812411,
+        "max": 45512741
+      },
+      "Avg Vol Line": {
+        "distinct": 4,
+        "min": 43318979,
+        "max": 45040146.1
+      },
+      "Scale Padding": {
+        "distinct": 4,
+        "min": 54188427.175000004,
+        "max": 56890926.25
+      },
+      "Avg Vol Columns": {
+        "distinct": 2,
+        "note": "a value on the last bar, null on the three below it — the two-tone cap only draws above the average"
+      },
+      "HVE Trigger": {
+        "distinct": 1,
+        "value": 0,
+        "note": "0 on these four bars, and NOT flat across the series — see hve_trigger"
+      }
+    }
+  },
+  "hve_trigger": {
+    "_": "⭐⭐ THE COLUMN THE SHALLOW CAPTURE GOT WRONG. Over 4,633 bars it fires 25 times, on days a volume record is exactly what you would expect.",
+    "firings": 25,
+    "bars": 4633,
+    "non_null": 4633,
+    "first_twelve_dates": [
+      "2008-09-16",
+      "2008-09-17",
+      "2008-09-18",
+      "2008-10-10",
+      "2010-05-06",
+      "2011-08-04",
+      "2011-08-05",
+      "2011-08-08",
+      "2011-08-09",
+      "2013-06-20",
+      "2014-10-15",
+      "2015-08-24"
+    ],
+    "_sanity": "2010-05-06 is the Flash Crash; 2008-09-16/17/18 is the week Lehman failed; 2011-08-04/05/08/09 is the US downgrade. The firing set is not noise.",
+    "_at_640_bars": 0
+  },
+  "tables": {
+    "_": "Read as STRINGS at the draw call — `CanvasRenderingContext2D.prototype.fillText` wrapped for one redraw and restored immediately (`restored: true` asserted in the same call). A screenshot cannot recover a trailing space and one cell has one.",
+    "restored": true,
+    "fillText_calls_seen": 36,
+    "range_table": {
+      "position_input": "Top Left",
+      "cells": [
+        {
+          "text": "ATR : $6.21 (0.81%)",
+          "len": 19,
+          "trailing_space": false,
+          "x": 76,
+          "y": 22
+        },
+        {
+          "text": "| Range: 137.58%",
+          "len": 16,
+          "trailing_space": false,
+          "x": 201,
+          "y": 22
+        },
+        {
+          "text": "| ATRx: 0.92",
+          "len": 12,
+          "trailing_space": false,
+          "x": 304,
+          "y": 22
+        }
+      ]
+    },
+    "volume_table": {
+      "position_input": "Top Right",
+      "cells": [
+        {
+          "text": "Vol : 45.51M (1.05x) ",
+          "len": 21,
+          "trailing_space": true,
+          "x": 601,
+          "y": 22
+        }
+      ],
+      "_": "⭐ len 21 for 20 visible — the trailing space again, on a third capture."
+    }
+  },
+  "chart_data_settings": {
+    "dividendsAdjustment": false,
+    "backAdjustment": false,
+    "esdShowSplits": true,
+    "esdShowDividends": false,
+    "sessionId": "regular",
+    "symbolInfo_exchange": "NYSE Arca",
+    "_": "Read the same way as on the AGEN capture; adjustment is off, so nothing here is an adjusted series."
+  },
+  "window_check": {
+    "_": "⭐ FULL_WINDOW, and this time the depth is a MEASUREMENT of the study itself — `study.data().size()`, not the chart's series length. Every field but `bars_loaded` is re-derived by `tests/test_vendor_capture_window.py`.",
+    "script": "member/uncharted-volume-v2.pine",
+    "script_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "bars_loaded": 4633,
+    "largest_declared_window": 2751,
+    "declared_windows": {
+      "Avg Vol Columns": 50,
+      "Avg Vol Line": 50,
+      "HVE Trigger": 2751,
+      "Scale Padding": 50,
+      "Volume": 0
+    },
+    "verdict": "FULL_WINDOW",
+    "excluded_from_comparison": []
+  },
+  "volume_granularity": {
+    "_": "R-L: an integer series compares exactly AFTER the coarser side's granularity is applied.",
+    "comparison_unit": 100,
+    "coarser_side": "ours",
+    "ours_volume_granularity": 100,
+    "vendor_volume_granularity": 1
+  },
+  "teardown": {
+    "study_removed": true,
+    "indicators_after": 0,
+    "control_probe_saw_something": true,
+    "saved": false,
+    "_": "Nothing was saved. The chart keeps the forced history; the one authorised save of this wave was spent closing Part 0."
+  }
+}

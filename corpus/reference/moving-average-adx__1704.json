@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1704",
+ "title": "Moving Average ADX",
+ "author": "CapnOscar",
+ "url": "https://www.tradingview.com/script/owwws7dM-moving-average-adx/",
+ "agreeCount": 6843,
+ "category": "trend",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/moving-average-adx__1704.pine",
+ "our_status": "reference-only"
+}

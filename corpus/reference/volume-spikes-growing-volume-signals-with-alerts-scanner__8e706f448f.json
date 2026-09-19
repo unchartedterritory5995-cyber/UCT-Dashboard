@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8e706f448f9e412aa9696c5b8b90ee06",
+ "title": "Volume Spikes & Growing Volume Signals With Alerts & Scanner",
+ "author": "FriendOfTheTrend",
+ "url": "https://www.tradingview.com/script/MukNTOH1-volume-spikes-growing-volume-signals-with-alerts-scanner/",
+ "agreeCount": 2335,
+ "category": "screener/scanner",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine",
+ "our_status": "committed"
+}

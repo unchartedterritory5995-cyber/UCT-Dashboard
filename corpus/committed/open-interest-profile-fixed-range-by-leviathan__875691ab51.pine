@@ -1,0 +1,400 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LeviathanCapital
+
+//@version=5
+indicator("Open Interest Profile [Fixed Range] - By Leviathan", shorttitle='OI Profile [Fixed Range] - By Leviathan', overlay=true, max_boxes_count=500, max_bars_back = 500, max_lines_count = 500, max_labels_count = 500)
+
+// Tooltips
+nstip          = 'Node Size inputs controls the scaling of volume profile nodes in relation to the range size. Example: The value of 100 will proportionally extend the nodes to right max of the range.'
+rstip          = 'Resolution refers to the amount of rows in the profile. Increasing the resolution input will make the profile more granular but will also limit the script from generating profiles on longer ranges. Play around and find the higest resolution value that works on your selected range.'
+ndtytip        = 'Type 1 means that each node consists of both OI Increase and OI Decrease data. Type 2 means that the nodes of OI Increase will be on the right side of y axis and OI Decrease nodes will be on the left side of y axis.'
+prfdirtip      = 'Choose whether the nodes of the profile are facing left or right when Type 1 is selected.'
+prfpostip      = 'Choose whether the profile is positioned on the left side of the range or on the right side of the range.'
+volndtip       = 'OI+ & OI- shows the proportion of OI+ data and OI- data in a node. Total shows the net value of OI+ data. Delta shows the net difference between OI+ Data and OI- data.'
+
+// User Input Groups
+g1 = 'General Settings'
+g2 = 'Levels'
+g4 = 'Additional Settings'
+g3 = 'Data Sources'
+g5 = 'Time Parameters'
+
+// User Inputs - General Settings
+bullCol        = input.color(color.green, 'OI ▲', group=g1)
+bearCol        = input.color(color.red, 'OI ▼', group=g1)
+res            = input.int(30, 'Resolution', minval=5, tooltip=rstip, group=g1)
+volnodes       = input.string('Delta', 'Node Type', options = ['OI+ & OI-', 'Total', 'Delta'], group=g1, tooltip = volndtip)
+profiletype    = input.string('Type 2', 'Profile Type', options=['Type 1', 'Type 2'], group=g1, tooltip = ndtytip)
+nodesize       = input.float(50, 'Node Size (%)', minval=1, maxval = 600, step = 5, group=g1, tooltip = nstip)
+volval         = input.bool(true, 'Profile Values', group = g1, inline = 'volval')
+volvalcols     = input.string('Color: Max BG Contrast', '', options = ['Color: Max BG Contrast', 'Color: Custom'], group = g1, inline = 'volval')
+volvalcol      = input.color(color.black, '', group = g1, inline = 'volval')
+sr             = input.bool(false, '+Delta Levels', group=g1, inline = '+d')
+srtyp          = input.string('Line', '', options = ['Box', 'Line'], group = g1, inline = '+d')
+pdlcol         = input.color(color.rgb(33, 149, 243, 74),'', group=g1, inline = '+d')
+profilelbl     = input.bool(true, 'Profile Label', group = g1)
+
+// User Inputs - Levels
+showPoc        = input.bool(false, 'POC            ', group=g2, inline='poc')
+pocCol         = input.color(color.maroon, '', inline='poc', group=g2)
+pocStyle       = input.string('────', '', options=['────', '--------', '┈┈┈┈'], inline='poc', group = g2)
+showHL         = input.bool(false, 'Range High/Low ', inline='rm', group = g2)
+hlCol          = input.color(color.silver, '', inline='rm', group = g2)
+rangemaxStyle  = input.string('────', '', options=['────', '--------', '┈┈┈┈'], inline='rm', group = g2)
+lvl05          = input.bool(false, 'Range Half      ', inline='2', group = g2)
+lvl05Col       = input.color(color.rgb(178, 181, 190, 20), '', inline='2', group = g2)
+lvl05Style     = input.string('────', '', options=['────', '--------', '┈┈┈┈'], inline='2', group = g2)
+quarters       = input.bool(false, 'Range Quarters    ', inline='4', group = g2)
+quartersCol    = input.color(color.rgb(178, 181, 190, 70), '', inline='4', group = g2)
+quartersStyle  = input.string('────', '', options=['────', '--------', '┈┈┈┈'], inline='4', group = g2)
+showvwap       = input.bool(false, 'OIWAP          ', group = g2, inline='vwap')
+vwapCol        = input.color(color.silver, '', group = g2, inline='vwap')
+vwapStyle      = input.string('•••••••••', '', options=['•••••••••', '────'], inline='vwap', group = g2)
+labels         = input.bool(true, 'Show Labels', group = g2, inline='opt')
+extendb        = false
+extnmb         = 50
+extend         = false
+
+// User Inputs - Additional Settings
+hvolhm         = input.bool(false, 'Heatmap ', group = g4, inline = 'hhm')
+hhmcol1        = input.color(color.rgb(33, 149, 243, 100), '', group=g4, inline='hhm')
+hhmcol2        = input.color(color.rgb(20, 94, 255, 63), '', group=g4, inline='hhm')
+profilepos     = input.string('Left', 'Profile Position', options=['Left', 'Right'], group=g4, tooltip = prfpostip)
+profiledir     = input.string('Right', 'Profile Direction', options=['Left', 'Right'], group=g4, tooltip = prfdirtip)
+offs           = input.int(0, 'Profile Offset', step = 10, group= g4)
+profbuff       = input.int(10, 'Profile Node Buffer',minval = 3,maxval = 12, group= g4)
+hmbuff         = input.int(1, 'Heatmap Node Buffer', minval = 1,maxval = 10, group= g4)
+ndsize         = input.string('Auto', 'Node Text Style     ', options = ['Tiny', 'Small', 'Normal', 'Large', 'Auto'], group= g4, inline = 'nds')
+ndpos          = input.string('Center', '', options = ['Outer', 'Innter', 'Center'], group= 'Additional Settings', inline = 'nds')
+lblsize        = input.string('Small', 'Label Text Style     ', options = ['Tiny', 'Small', 'Normal', 'Large', 'Auto'], group= g4, inline = 'lbls')
+lblpos         = input.string('Right', '', options=['Right', 'Left'], group= g4, inline = 'lbls')
+netcol1        = input.color(color.blue, 'Total Volume', group=g4, inline='ttv')
+netcol2        = input.color(color.red, '', group=g4, inline='ttv')
+showRB         = input.bool(false, 'Range Box', inline='rb', group= g4)
+rangebCol      = input.color(color.rgb(178, 181, 190, 98), '', inline='rb', group= g4)
+
+// User Inputs - OI Data Sources
+binance   = input.bool(true, 'Binance USDT.P', inline = 'src')
+binance2  = input.bool(true, 'Binance USD.P',  inline = 'src')
+binance3  = input.bool(true, 'Binance BUSD.P', inline = 'src2')
+bitmex    = input.bool(true, 'BitMEX USD.P',   inline = 'src2')
+bitmex2   = input.bool(true, 'BitMEX USDT.P ', inline = 'src3')
+kraken    = input.bool(true, 'Kraken USD.P',   inline = 'src3')
+
+// Time parameters
+startTime      = input.time(defval=0, title='Start Time', confirm=true, group=g5)
+endTime        = input.time(defval=0, title='End Time', confirm=true, group=g5)
+
+endTime2 = endTime==chart.right_visible_bar_time ? chart.right_visible_bar_time : endTime
+
+// Variables, parameters, etc
+bool inZone           = time >= startTime and time <= endTime2
+bool newSession       = inZone and not inZone[1]
+bool endSession       = not inZone and inZone[1]
+var int barsInSession = 0, var int zoneStartIndex  = 0
+var int zoneEndIndex  = 0, var int zoneStart       = 0
+barsInSession        := inZone ? barsInSession + 1 : barsInSession
+
+profHigh              = ta.highest(high, barsInSession+1)[1]
+profLow               = ta.lowest(low, barsInSession+1)[1]
+resolution            = res
+
+if newSession
+    zoneStartIndex   := bar_index 
+if endSession
+    zoneEndIndex     := bar_index
+    
+int lookback          = bar_index - zoneStart
+var activeZone        = false
+
+var vpGreen           = array.new_float(resolution, 0) 
+var vpRed             = array.new_float(resolution, 0) 
+var zoneBounds        = array.new_float(resolution, 0) 
+
+var float[] ltfOpen   =  array.new_float(0)
+var float[] ltfClose  =  array.new_float(0)
+var float[] ltfHigh   =  array.new_float(0)
+var float[] ltfLow    =  array.new_float(0)
+var float[] ltfVolume =  array.new_float(0)
+
+// Getting Aggregated OI Data
+mex = syminfo.basecurrency=='BTC' ? 'XBT' : string(syminfo.basecurrency)
+[oid1, oi1] = request.security('BINANCE' + ":" + string(syminfo.basecurrency) + 'USDT.P_OI',  timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+[oid2, oi2] = request.security('BINANCE' + ":" + string(syminfo.basecurrency) + 'USD.P_OI',   timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+[oid3, oi3] = request.security('BINANCE' + ":" + string(syminfo.basecurrency) + 'BUSD.P_OI',  timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+[oid4, oi4] = request.security('BITMEX'  + ":" + mex                          + 'USD.P_OI',   timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+[oid5, oi5] = request.security('BITMEX'  + ":" + mex                          + 'USDT.P_OI',  timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+[oid6, oi6] = request.security('KRAKEN'  + ":" + string(syminfo.basecurrency) + 'USD.P_OI',   timeframe.period,  [close-close[1], close], ignore_invalid_symbol = true)
+
+deltaOI = (binance ? nz(oid1,0) : 0)   +   (binance2 ? nz(oid2,0)/close : 0)   +    (binance3 ? nz(oid3,0) : 0)    +   (bitmex ? nz(oid4,0)/close : 0)   +   (bitmex2 ? nz(oid5,0)/close : 0)   +   (kraken ? nz(oid6,0)/close : 0)
+OI      = (binance ? nz(oi1,0) : 0)   +   (binance2 ? nz(oi2,0)/close : 0)   +    (binance3 ? nz(oi3,0) : 0)    +   (bitmex ? nz(oi4,0)/close : 0)   +   (bitmex2 ? nz(oi5,0)/close : 0)   +   (kraken ? nz(oi6,0)/close : 0)
+
+// Data source
+vol() =>
+    out = deltaOI
+
+// Bar Data
+float dO = open
+float dC = close
+float dH = high
+float dL = low 
+float dV = vol()
+
+// Appearance Functions
+switchLineStyle(x) =>
+    switch x
+        '────'        => line.style_solid
+        '--------'    => line.style_dashed
+        '┈┈┈┈'        => line.style_dotted
+
+switchPos(x) =>
+    switch x
+        'Left'        => text.align_left
+        'Right'       => text.align_right
+        'Center'      => text.align_center
+
+switchPlotStyle(x) =>
+    switch x
+        '•••••••••'   => plot.style_circles
+        '────'        => plot.style_linebr
+
+switchsize(x) =>
+    switch x
+        'Tiny'   => size.tiny
+        'Small'  => size.small
+        'Normal' => size.normal
+        'Large'  => size.large
+        'Auto'   => size.auto
+
+// Reset Function
+resetProfile(enable) =>
+    if enable
+        array.fill(vpGreen, 0)
+        array.fill(vpRed, 0)
+        array.clear(ltfOpen)
+        array.clear(ltfHigh)
+        array.clear(ltfLow)
+        array.clear(ltfClose)
+        array.clear(ltfVolume)
+
+// Calculating & Adding Profile Data
+get_vol(y11, y12, y21, y22, height, vol) =>
+    nz(math.max(math.min(math.max(y11, y12), math.max(y21, y22)) - math.max(math.min(y11, y12), math.min(y21, y22)), 0) * vol / height)
+
+profileAdd(o, h, l, c, v, g, w) =>
+    for i = 0 to array.size(vpGreen) - 1
+        zoneTop  = array.get(zoneBounds, i)
+        zoneBot  = zoneTop - g
+
+        body_top = math.max(c, o)
+        body_bot = math.min(c, o)
+        itsgreen = c >= o
+
+        topwick       = h - body_top
+        bottomwick    = body_bot - l
+        body          = body_top - body_bot
+        bodyvol       = body * v / (2 * topwick + 2 * bottomwick + body)
+        topwickvol    = 2 * topwick * v / (2 * topwick + 2 * bottomwick + body)
+        bottomwickvol = 2 * bottomwick * v / (2 * topwick + 2 * bottomwick + body)
+
+        if v > 0    
+            array.set(vpGreen, i, array.get(vpGreen, i) + get_vol(zoneBot, zoneTop, body_bot, body_top, body, v))// + get_vol(zoneBot, zoneTop, body_top, h, topwick, topwickvol) / 2 + get_vol(zoneBot, zoneTop, body_bot, l, bottomwick, bottomwickvol) / 2)
+        if v < 0
+            array.set(vpRed, i, array.get(vpRed, i) + get_vol(zoneBot, zoneTop, body_bot, body_top, body, -v))// + get_vol(zoneBot, zoneTop, body_top, h, topwick, topwickvol) / 2 + get_vol(zoneBot, zoneTop, body_bot, l, bottomwick, bottomwickvol) / 2)
+
+calcSession(update) =>
+    array.fill(vpGreen, 0)
+    array.fill(vpRed, 0)
+    if bar_index > lookback and update
+        gap = (profHigh - profLow) / resolution
+
+        for i = 0 to resolution - 1
+            array.set(zoneBounds, i, profHigh - gap * i)
+
+        if array.size(ltfOpen) > 0
+            for j = 0 to array.size(ltfOpen) - 1    
+                profileAdd(array.get(ltfOpen, j), array.get(ltfHigh, j), array.get(ltfLow, j), array.get(ltfClose, j), array.get(ltfVolume, j), gap, 1)
+
+// Calculating POC Level
+pocLevel() =>
+    float maxOI = 0
+    int levelInd = 0
+    for i = 0 to array.size(vpRed) - 1
+        delta = array.get(vpGreen, i) - array.get(vpRed, i)
+        sum = array.get(vpRed, i) + array.get(vpGreen, i)
+        if (volnodes=='Delta' ? (na(maxOI) or delta > maxOI) : (sum > maxOI))
+            maxOI := volnodes=='Delta' ? delta : sum
+            levelInd := i
+    
+    float outLevel = na
+    if levelInd  != array.size(vpRed) - 1
+        outLevel := array.get(zoneBounds, levelInd) - (array.get(zoneBounds, levelInd) - array.get(zoneBounds, levelInd+1)) / 2
+    outLevel
+
+// Levels
+half = (profHigh+profLow) / 2
+l75  = (half + profHigh)  / 2
+l25  = (half + profLow)   / 2
+var pocx = 0
+
+// Functions for drawing lines, boxes, etc
+f_newLine(condition,x, y, c, w, s) =>
+    condition ? line.new(x, y,  extendb ? bar_index+extnmb : bar_index, y, color=c, width=w, style=switchLineStyle(s), extend = extend ? extend.right : extend.none) : na
+f_newLabel(condition, x, y, txt, txtcl) =>
+    condition ? label.new(extend ? x : (lblpos=='Right' ? (extendb ? bar_index+extnmb+1 : bar_index+1) : x), y, text=txt, color=color.rgb(255, 255, 255, 100), textcolor = txtcl, style = extend or lblpos=='Left' ? label.style_label_right : label.style_label_left, size=switchsize(lblsize)) : na
+f_newNode(condition, x, top, right, bott, col, txt) =>
+    condition ? box.new(x, top, right, bott, bgcolor=col, border_width=0, text= volval ? txt : na,xloc=xloc.bar_index, text_size = switchsize(ndsize), text_color = volvalcols=='Color: Custom' ? volvalcol : chart.fg_color, text_halign = switchPos(ndpos)) : na
+f_newHeatmap(condition, x, top, right, bott, col, txt) =>
+    condition ? box.new(x, top, right, bott, bgcolor=col, border_width=0, xloc=xloc.bar_index) : na
+
+// Profile Generation
+drawNewZone(update) =>
+    var box  [] profileBoxesArray  = array.new_box(0)
+    var line [] levelsLinesArray   = array.new_line(0)
+    var box  [] boxes              = array.new_box(0)
+    var line [] RangeLinesArray    = array.new_line(0)
+    var label[] levelLabels        = array.new_label(0)
+    float maxGreenVol = array.max(vpGreen)
+    float maxRedVol = array.max(vpRed)
+
+    float leftMax = zoneStartIndex
+    float rightMax = (((barstate.islast and inZone) ? bar_index : zoneEndIndex) - zoneStartIndex) * ((volnodes=='Delta' ? nodesize+20 : nodesize)/100) + zoneStartIndex
+    
+    if update and array.sum(vpGreen) + array.sum(vpRed) > 0
+        gap  = (profHigh - profLow) / resolution
+        gap2 = (profHigh - profLow) / 10
+        float rightMaxVol = array.max(vpGreen)+array.max(vpRed)
+        float buffer = gap / profbuff
+        float buffer2 = gap / hmbuff
+        size = array.size(profileBoxesArray)
+        if size > 0    
+            for j = 0 to size - 1
+                box.delete(array.get(profileBoxesArray, size - 1 - j))
+                array.remove(profileBoxesArray, size - 1 - j)
+        
+        for i = 0 to array.size(vpRed) - 1
+            vpct      = array.percentrank(vpGreen, i)/100
+            netcol    = color.from_gradient(vpct, 0, 1, netcol1, netcol2)
+            hmcol     = color.from_gradient(vpct, 0, 1, hhmcol1, hhmcol2)
+            gleft     = profilepos=='Left' ? leftMax : bar_index[0] 
+            greenEnd  = int(leftMax + (rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol))  + offs
+            greenEndD = int(gleft - (rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol))  + offs
+            greenEnd2 = int(bar_index[0] + (rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol))  + offs
+            redEnd    = int(greenEnd + (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            redEndD   = int(greenEndD - (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            redEnd2   = int(greenEnd2 + (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            redEnd3   = int(int(leftMax) - (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            redEnd4   = int(bar_index[0] - (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))   + offs
+            total     = int(leftMax + ((rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol)) + (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            totalD    = int(gleft - ((rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol)) - (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            total2    = int(bar_index[0] + ((rightMax - leftMax) * (array.get(vpGreen, i) / rightMaxVol)) + (rightMax - leftMax) * (array.get(vpRed, i) / rightMaxVol))  + offs
+            delta     = array.get(vpGreen, i)-array.get(vpRed, i)
+            deltap    = (int(gleft + (rightMax - leftMax) * (math.abs(array.get(vpGreen, i)-array.get(vpRed, i)) / rightMaxVol)))  + offs
+            deltap2   = (int(gleft - (rightMax - leftMax) * (math.abs(array.get(vpGreen, i)-array.get(vpRed, i)) / rightMaxVol)))  + offs
+            totvol    = str.tostring(array.get(vpGreen, i), format.volume)
+            hmvoloi   = str.tostring(array.get(vpGreen, i) - array.get(vpRed, i) , format.volume)
+            gvol      = str.tostring(array.get(vpGreen, i), format.volume)
+            rvol      = str.tostring(array.get(vpRed, i), format.volume)
+            dvol      = str.tostring(delta, format.volume)
+
+            if profilepos=='Left'
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-', int(leftMax) + offs, array.get(zoneBounds, i) - buffer, profiledir=='Right' ? greenEnd : greenEndD, array.get(zoneBounds, i) - gap + buffer, bullCol, gvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-' and profiletype=='Type 1', profiledir=='Right' ? greenEnd : greenEndD, array.get(zoneBounds, i) - buffer, profiledir=='Right' ? redEnd : redEndD, array.get(zoneBounds, i) - gap + buffer, bearCol, rvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-' and profiletype=='Type 2', int(leftMax) + offs, array.get(zoneBounds, i) - buffer, redEnd3, array.get(zoneBounds, i) - gap + buffer, bearCol, rvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='Total', int(leftMax) + offs, array.get(zoneBounds, i) - buffer, profiledir=='Right' ? total : totalD, array.get(zoneBounds, i) - gap + buffer, netcol, totvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='Delta' and profiletype=='Type 1', int(leftMax) + offs, array.get(zoneBounds, i) - buffer, deltap, array.get(zoneBounds, i) - gap + buffer, delta>0 ? bullCol : bearCol, dvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='Delta' and profiletype=='Type 2', int(leftMax) + offs, array.get(zoneBounds, i) - buffer, delta>0 ? deltap : deltap2, array.get(zoneBounds, i) - gap + buffer, delta>0 ? bullCol : bearCol, dvol))
+                if profilelbl
+                    label.new(int(leftMax) + offs, profHigh + gap, 'Δ OI: ' + str.tostring(array.sum(vpGreen) - array.sum(vpRed), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+                    label.new(int(leftMax) + offs, profHigh + 2 * gap, '+ OI: ' + str.tostring(array.sum(vpGreen), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+                    label.new(int(leftMax) + offs, profHigh + 3 * gap, '- OI: ' + str.tostring(array.sum(vpRed), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+
+
+            if profilepos=='Right'
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-', bar_index[0] + offs, array.get(zoneBounds, i) - buffer, profiledir=='Right' ? greenEnd2 : greenEndD, array.get(zoneBounds, i) - gap + buffer, bullCol, gvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-' and profiletype=='Type 1', profiledir=='Right' ? greenEnd2 : greenEndD , array.get(zoneBounds, i) - buffer, profiledir=='Right' ? redEnd2 : redEndD, array.get(zoneBounds, i) - gap + buffer, bearCol, rvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='OI+ & OI-' and profiletype=='Type 2', bar_index[0] + offs, array.get(zoneBounds, i) - buffer, redEnd4, array.get(zoneBounds, i) - gap + buffer, bearCol, rvol))                
+                array.push(profileBoxesArray, f_newNode(volnodes=='Total', bar_index[0] + offs, array.get(zoneBounds, i) - buffer, profiledir=='Right' ? total2 : totalD, array.get(zoneBounds, i) - gap + buffer, netcol, totvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='Delta' and profiletype=='Type 1', int(gleft) + offs, array.get(zoneBounds, i) - buffer, deltap, array.get(zoneBounds, i) - gap + buffer, delta>0 ? bullCol : bearCol, dvol))
+                array.push(profileBoxesArray, f_newNode(volnodes=='Delta' and profiletype=='Type 2', int(gleft) + offs, array.get(zoneBounds, i) - buffer, delta>0 ? deltap : deltap2, array.get(zoneBounds, i) - gap + buffer, delta>0 ? bullCol : bearCol, dvol))
+                if profilelbl
+                    label.new(bar_index[0] + offs, profHigh, 'Δ OI: ' + str.tostring(array.sum(vpGreen) - array.sum(vpRed), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+                    label.new(bar_index[0] + offs, profHigh + gap, '+ OI: ' + str.tostring(array.sum(vpGreen), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+                    label.new(bar_index[0] + offs, profHigh + 2 * gap, '- OI: ' + str.tostring(array.sum(vpRed), format.volume), color= color.rgb(255, 255, 255, 100), textcolor = color.gray, style=label.style_label_down, size = switchsize(lblsize))
+
+            if hvolhm
+                array.push(profileBoxesArray, f_newHeatmap(true, int(leftMax), array.get(zoneBounds, i) - buffer2, bar_index, array.get(zoneBounds, i) - gap + buffer2, hmcol, hmvoloi))
+            if sr
+                pdlvl = ((array.get(zoneBounds, i) - buffer) + (array.get(zoneBounds, i) - gap + buffer)) / 2
+                array.push(profileBoxesArray, f_newNode(delta>0 and srtyp=='Box', int(leftMax) , array.get(zoneBounds, i) - buffer, bar_index, array.get(zoneBounds, i) - gap + buffer,pdlcol, txt=''))
+                array.push(levelsLinesArray, delta>0 and srtyp=='Line' ? line.new(int(leftMax), pdlvl, bar_index, pdlvl, color = pdlcol) : na)
+
+        if showHL
+            line.new(int(leftMax),  profHigh, extendb ? bar_index+extnmb : bar_index, profHigh, color=hlCol, width=1, style=line.style_solid, extend = extend ? extend.right : extend.none)
+            line.new(int(leftMax),  profLow,  extendb ? bar_index+extnmb : bar_index, profLow, color=hlCol, width=1, style=line.style_solid, extend = extend ? extend.right : extend.none)
+        if lvl05 or quarters
+            f_newLine(true,int(leftMax), half, lvl05Col, 1, lvl05Style)
+        if quarters
+            f_newLine(true,int(leftMax), l75, quartersCol, 1, quartersStyle)
+            f_newLine(true,int(leftMax), l25, quartersCol, 1, quartersStyle)
+        if labels
+            f_newLabel(lvl05,    int(leftMax), half, '0.5', hlCol)
+            f_newLabel(showHL,   int(leftMax), profHigh, '1', hlCol)
+            f_newLabel(showHL,   int(leftMax), profLow, '0', hlCol)
+            f_newLabel(quarters, int(leftMax), l75, '0.75', hlCol)
+            f_newLabel(quarters, int(leftMax), l25, '0.25', hlCol)
+
+        poc = pocLevel()
+        if showPoc
+            sizel = array.size(levelsLinesArray)
+            if sizel > 0    
+                for j = 0 to sizel - 1
+                    line.delete(array.get(levelsLinesArray, sizel - 1 - j))
+                    array.remove(levelsLinesArray, sizel - 1 - j)
+        if showPoc    
+            array.push(levelsLinesArray, line.new(int(leftMax), poc, extendb ? bar_index+extnmb : bar_index, poc, color=pocCol, width=1, xloc=xloc.bar_index, extend = extend ? extend.right : extend.none, style = switchLineStyle(pocStyle)))
+
+// Updating data
+combArray(arr1, arr2) =>
+    out = array.copy(arr1)
+    if array.size(arr2) > 0
+        for i = 0 to array.size(arr2) - 1
+            array.push(out, array.get(arr2, i))
+    out
+
+updateIntra(o, h, l, c, v) =>
+    array.push(ltfOpen,  o)
+    array.push(ltfHigh, h) 
+    array.push(ltfLow, l) 
+    array.push(ltfClose, c) 
+    array.push(ltfVolume, v)
+    
+calcSession(endSession or (barstate.islast and inZone))
+drawNewZone(endSession or (barstate.islast and inZone))
+resetProfile(newSession)
+
+if inZone
+    updateIntra(dO, dH, dL, dC, dV)
+if endSession 
+    activeZone := false
+if newSession
+    zoneStart  := bar_index
+    activeZone := true
+
+// Generating and plotting OIWAP
+startCalculationDate = startTime
+posoi = deltaOI > 0 ? deltaOI : 0
+vwap_calc() =>
+    var srcVolArray  = array.new_float(na)
+    var volArray     = array.new_float(na)
+    if startCalculationDate <= time
+        array.push(srcVolArray, hlc3*posoi)
+        array.push(volArray, posoi)
+    else
+        array.clear(srcVolArray), array.clear(volArray)
+    array.sum(srcVolArray)/array.sum(volArray)
+anchoredVwap = vwap_calc()
+
+plot((extend ? true : inZone) and showvwap ? anchoredVwap : na, "VWAP", linewidth=1, color=vwapCol, style = switchPlotStyle(vwapStyle), editable=false)
+
+

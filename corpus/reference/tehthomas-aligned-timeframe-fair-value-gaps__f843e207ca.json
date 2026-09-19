@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f843e207ca86423b815e2322716e3b2b",
+ "title": "[TehThomas] - Aligned Timeframe Fair Value Gaps",
+ "author": "TehThomas",
+ "url": "https://www.tradingview.com/script/PkbHacdt-tehthomas-aligned-timeframe-fair-value-gaps/",
+ "agreeCount": 702,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine",
+ "cached_source": "tools/pine_survey/cache/sources/tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine",
+ "our_status": "committed"
+}

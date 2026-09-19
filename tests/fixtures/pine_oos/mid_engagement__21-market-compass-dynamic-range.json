@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "21-market-compass-dynamic-range.pine",
+  "title": "Market Compass - Dynamic Range Framework",
+  "author": "william_wq",
+  "source_url": "https://www.tradingview.com/script/fj357cmt/",
+  "retrieved_at": "2026-09-07T13:15:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"Updated Jul 25\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 121,
+  "complexity_bucket": "long",
+  "sha256_source": "9144691440b339bc80bb6dfe84f80fc8595d1f9d316a20e8424628a02ded797e",
+  "sha256_normalized": "18a5c7990878e90a91c686321e2db8191cbe210c2bf81708d85a9d73d8c9cee2",
+  "storage": "git"
+}

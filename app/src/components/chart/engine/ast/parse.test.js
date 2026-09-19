@@ -8,7 +8,7 @@ import path from 'node:path'
 // runs) but the order says out loud which module owns that configuration.
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
-  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK,
+  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK, SERIES_LOOKBACK,
   BAR_READS, BAR_READERS, barReadersOf,
 } from './parse.js'
 import jsep from 'jsep'
@@ -34,6 +34,11 @@ const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8
 
 const CORPUS = readJson('tests/fixtures/ast/corpus.json')
 const ESCAPES = readJson('tests/fixtures/ast/escapes.json')
+/** ⭐ THE SECOND REGRESSION NET. `corpus.json` is the EVALUATED one — eight
+ *  readers walk it and several compute a digest over bars. The bind-time text
+ *  nodes are not evaluable by construction, so they live here instead, and the
+ *  node-type claim below is asserted over the UNION so nothing is exempt. */
+const BIND_PARITY = readJson('tests/fixtures/ast/bind_fold_parity.json')
 
 /** Does the CONFIGURED parser accept this source? Measured, never declared. */
 const parses = (source) => { try { jsep(source); return true } catch { return false } }
@@ -96,8 +101,37 @@ describe('the persisted tree is the contract, and it is jsep-independent', () =>
       for (const t of typesIn(res.ast)) seen.add(t)
       for (const k of keysIn(res.ast)) keys.add(k)
     }
+    // ⭐⭐ AND THE BIND-TIME NODES COME FROM THE OTHER NET, BECAUSE THEY CANNOT
+    // COME FROM THIS ONE. `corpus.json` is the EVALUATED net: eight readers walk
+    // it and several of them compute a digest over `bars`. `str`, `symtext` and
+    // `textop` are not evaluable BY CONSTRUCTION — they must be folded before a
+    // tree is interpreted, and `interpret` refuses one that reaches it — so a row
+    // here would either be skipped by every evaluator (a case that proves
+    // nothing) or force each of them to learn an exception.
+    //
+    // ⛔ THE CLAIM IS UNCHANGED: every node type is exercised by a committed
+    // regression net. What changed is that there are TWO nets and the union is
+    // asserted, so nothing is exempt and a ninth type with no coverage anywhere
+    // still fails here BY NAME.
+    for (const c of BIND_PARITY.cases) for (const t of typesIn(c.tree)) seen.add(t)
+    for (const c of BIND_PARITY.cases) for (const k of keysIn(c.tree)) keys.add(k)
     expect([...seen].sort()).toEqual([...NODE_TYPES].sort())
     expect([...keys].sort()).toEqual(['args', 'name', 'type', 'value'])
+  })
+
+  it('⛔ …and the SECOND net really is carrying its half — not a silent no-op', () => {
+    // A `bind_fold_parity.json` that lost its text rows would make the union
+    // above identical to the corpus alone, and the assertion would then fail —
+    // but it would fail reading "the corpus is missing three types", pointing an
+    // engineer at the wrong file. This names the right one.
+    const fromParity = new Set()
+    for (const c of BIND_PARITY.cases) for (const t of typesIn(c.tree)) fromParity.add(t)
+    for (const t of ['str', 'symtext', 'textop']) {
+      expect(fromParity.has(t),
+        `bind_fold_parity.json no longer exercises \`${t}\`. It is the ONLY net that `
+        + 'can — a bind-time node is not evaluable, so it cannot live in corpus.json.')
+        .toBe(true)
+    }
   })
 
   // ⭐⭐ THE RAIL TASK 2 DECLARED ITSELF BLIND TO, AND HANDED HERE BY NAME.
@@ -415,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 64 functions and 137 scalars — 234 names, one grammar', () => {
+  it('declares 5 series, 19 clock, 15 operators, 71 functions and 137 scalars — 247 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -423,8 +457,19 @@ describe('the manifest', () => {
     // `series` node, so `NODE_TYPES` is unmoved and every stored `astHash` is
     // unmoved with it; what is new is that `interpret` has an argument it did
     // not have. See the `tableVersion` assertion at the end of this case.
-    expect(Object.keys(TABLE.clock)).toHaveLength(13)
+    // ⚰️ 13 -> 19 (owner ruling 2026-09-09): the six BARSTATE columns —
+    // `islast`, `isfirst`, `isrealtime`, `isconfirmed`, `ishistory` and
+    // `islastconfirmedhistory`. They ride the EXISTING `series` node too, so
+    // `NODE_TYPES` is again unmoved; what `interpret` gained is two more
+    // arguments it did not have — the evaluating instant and the closure set —
+    // both fail-closed exactly as `tf` is.
+    expect(Object.keys(TABLE.clock)).toHaveLength(19)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
+    // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
+    // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
+    // not on the entry — which is why a name this table spent months refusing on
+    // containment grounds could finally be declared. The scalar half is untouched
+    // at 137, which is what makes these separate assertions rather than one total.
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
     // legs, stoch, cci, williamsR, mfi, the three Donchian lines and the five
     // Ichimoku lines — became callable, every one of them BOUND to maths
@@ -472,7 +517,20 @@ describe('the manifest', () => {
     // ⚠️ It IS the first `reads: "bars"` entry that also takes a `series`, and
     // that cost neither walker a line: both already evaluate a bar reader's
     // non-`int` slots to columns before dispatch.
-    expect(Object.keys(TABLE.functions)).toHaveLength(64)
+    // ⭐ 64 -> 68 IS VENDOR PARITY TRANCHE 2, LANE B (2026-09-06): `rising`,
+    // `median`, `percentrank` and `bbw`, each resolved by a REAL TradingView
+    // capture rather than by inferred/documentation evidence alone (see
+    // `closedTable.json::_functions_vendor_parity_resolutions`, and the prior
+    // `_functions_excluded` writeups each entry replaces). No new node type,
+    // argument kind, or lookback form — all four are ordinary `arg1` windows,
+    // same shape as `sma`/`stdev` beside them. `tableVersion` is unmoved.
+    // ⭐ 68 -> 70 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06):
+    // `falling` (an ordinary `arg1` window, the structural mirror of `rising`,
+    // resolved by an INDEPENDENT real vendor capture) and `pvtN` (a bar
+    // reader, `reads: "bars"`, the structural mirror of `obvN` — its window is
+    // `arg0`, the same declaration shape `obvN` already uses). No new node
+    // type, argument kind, or lookback form. `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(71)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -558,9 +616,18 @@ describe('the manifest', () => {
     // `closedTable.json::_functions_cumulative` says why a cumulative sum can
     // exist here at all, and why Pine's `cum` still cannot. Scalar half
     // untouched at 111.
-    expect(bar.size).toBe(97)
+    // 97 -> 101 IS VENDOR PARITY TRANCHE 2, LANE B. Scalar half untouched at 137.
+    // 101 -> 103 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (`falling`, `pvtN`).
+    // Scalar half untouched at 137.
+    // ⭐⭐ 104 -> 110 IS THE SIX BARSTATE CLOCK COLUMNS (2026-09-09), and like
+    // `cumFrom` they cost the grammar nothing — no node type, no argument kind,
+    // no lookback form — because what they buy is a RULING. `closedTable.json::
+    // _barstate` says why `barstate.*` is evaluated per bar on a pane and
+    // still folded on a screen, and why the trading calendar stays in Python
+    // rather than being restated in JS. Scalar half untouched at 137.
+    expect(bar.size).toBe(110)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(234)
+    expect(declared.size).toBe(247)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
@@ -609,7 +676,10 @@ describe('the manifest', () => {
       // (W2a.3) until the day an entry carried it (W2a.4): the grammar had the
       // form and no entry used it, so the rail measured nothing.
       const shape = typeof lb === 'string' ? LOOKBACK_RE.exec(lb) : null
-      const ok = lb === SESSION_LOOKBACK
+      // ⭐ `series` NAMES NO ARGUMENT EITHER — the window IS the delivered
+      // series, which is why it cannot be an `argN`. Checked beside `session` for
+      // the same reason, and with the sentinel IMPORTED rather than typed.
+      const ok = lb === SESSION_LOOKBACK || lb === SERIES_LOOKBACK
         || (typeof lb === 'number' && lb >= 0)
         || (!!shape && Number(shape[2]) < spec.args.length)
       if (!ok) bad.push(`${name}: lookback ${JSON.stringify(lb)} is neither a constant nor a real argument`)
@@ -642,7 +712,12 @@ describe('the manifest', () => {
       // resolves to `sessionMaxBars` off the manifest, so `maxLookback` is still
       // a TREE SUM and no dataflow analysis appears. The sentinel is imported
       // from the module that owns it.
-      expect(spec.lookback === SESSION_LOOKBACK
+      // ⭐ `series` NAMES NO ARGUMENT EITHER, AND IS THE MOST STATICALLY DECIDABLE
+      // OF THE LOT: it resolves to a CONSTANT 0 in every one of the three readers.
+      // `ta.cum` answers on bar 0, so it adds no warm-up to the tree sum — what it
+      // costs is comparability, which is not a lookback question at all and is
+      // held by `_requirement_tags` instead. No dataflow analysis appears.
+      expect(spec.lookback === SESSION_LOOKBACK || spec.lookback === SERIES_LOOKBACK
         || typeof spec.lookback === 'number' || LOOKBACK_RE.test(spec.lookback),
         `lookback ${JSON.stringify(spec.lookback)} is not statically decidable`).toBe(true)
     }

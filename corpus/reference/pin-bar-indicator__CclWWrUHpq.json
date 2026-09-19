@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;CclWWrUHpqTtzpjaDe51fRPXwMGpDI5Q",
+ "title": "PIN BAR INDICATOR",
+ "author": "Shizaru",
+ "url": "https://www.tradingview.com/script/joOwLMEK-pin-bar-indicator/",
+ "agreeCount": 3807,
+ "category": "candlestick patterns",
+ "pine_version": "v2",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/pin-bar-indicator__CclWWrUHpq.pine",
+ "our_status": "reference-only"
+}

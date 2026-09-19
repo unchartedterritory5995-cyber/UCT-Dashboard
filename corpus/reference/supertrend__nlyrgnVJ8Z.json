@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;nlyrgnVJ8Zrisan2g01Sfv5x9RBKvpPL",
+ "title": "SuperTrend",
+ "author": "everget",
+ "url": "https://www.tradingview.com/script/VLWVV7tH-supertrend/",
+ "agreeCount": 13344,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "GPL-3.0",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/supertrend__nlyrgnVJ8Z.pine",
+ "our_status": "reference-only"
+}

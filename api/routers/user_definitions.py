@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import indicator_telemetry as telemetry
 from api.services import scan_definition
 from api.services import user_definitions as svc
 from api.services.entitlements import Limits, limits_dependency
@@ -55,6 +56,16 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 class DefinitionIn(BaseModel):
     definition: dict
+    # ⭐ Phase One Track C. TELEMETRY-ONLY — never merged into `definition`,
+    # never persisted by `svc.save`. Their sole purpose is letting
+    # `import_accepted` (fired below, after a successful save) carry the SAME
+    # `import_id` the client stamped at `import_submitted`/`compile_finished`
+    # time, so a full member journey is joinable across the client-observed
+    # and server-observed halves of one import attempt. `None` (the default,
+    # and what every pre-existing caller sends) means "no journey to join" —
+    # `import_accepted` still fires, just without a linkable `import_id`.
+    import_id: Optional[str] = None
+    source_dialect: Optional[str] = None
 
 
 class ProposeIn(BaseModel):
@@ -144,7 +155,9 @@ def _charge_propose(user_id: str, *, now: float | None = None) -> None:
 
 
 def _save_or_400(user_id, def_id: str, definition: dict,
-                 limits: Limits | None = None) -> dict:
+                 limits: Limits | None = None, *,
+                 import_id: Optional[str] = None,
+                 source_dialect: Optional[str] = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -155,11 +168,23 @@ def _save_or_400(user_id, def_id: str, definition: dict,
 
     ⛔ `limits` IS PASSED THROUGH, NEVER RE-DERIVED HERE. Re-deriving it would be
     a second authority over one member's plan, on the write path.
+
+    ⭐ Phase One Track C. `import_accepted` fires HERE, once, only on the
+    success path — a refusal (the `except` branch) never reaches it, matching
+    the event's own name: an accepted definition is one that passed
+    validation, not merely one that was attempted. `import_id`/`source_dialect`
+    are optional telemetry passthroughs (see `DefinitionIn`) — absent for any
+    caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
-        return svc.save(user_id, def_id, definition, limits=limits)
+        row = svc.save(user_id, def_id, definition, limits=limits)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    telemetry.log_event(
+        user_id, "import_accepted", import_id=import_id, dialect=source_dialect,
+        def_id=def_id, def_hash=row.get("ast_hash"),
+    )
+    return row
 
 
 def _stamped(row: dict) -> dict:
@@ -203,6 +228,16 @@ def _stamped(row: dict) -> dict:
     gate, never on the prose.
     """
     out = dict(row)
+    # ⭐ THE CONSUMER CONTRACT RUNS BEFORE THE SCANNABILITY CHECK, and the order is
+    # the attribution. A `window_dependent` script can be a perfectly well-formed
+    # 0/1 column — `assert_scannable` would pass it — so asking second would offer
+    # it as a filter and refuse it later at the sweep, which is the forever-chip
+    # this whole function exists to stop. Asking first means the member reads WHY.
+    why = svc.consumer_refusal("screener", row.get("requirements"))
+    if why:
+        out["scannable"] = False
+        out["scan_refusal"] = {"gate": "requirements", "detail": why}
+        return out
     try:
         scan_definition.assert_scannable(row.get("definition") or {})
     except scan_definition.ScanRefused as exc:
@@ -225,9 +260,24 @@ def _stamped(row: dict) -> dict:
     return out
 
 
+#: ⭐ C2D.7 — THE CAPABILITY QUESTION, ASKED ONCE. A caller passes `graph=1` to
+#: say "I can rebuild the forest from `compute.graph` myself"; everything else
+#: gets the materialised document it has always got. Declared here rather than
+#: repeated per route so the four surfaces below cannot drift on what the flag
+#: is called or what it defaults to.
+_GRAPH_PARAM = Query(False, description="return shared-graph documents compactly")
+
+
+def _maybe_compact(rows, graph: bool):
+    """Every row, compacted iff the caller said it can hydrate."""
+    return [svc.compact_row(r) for r in rows] if graph else list(rows)
+
+
 @router.get("")
-def list_definitions(user: dict = Depends(require_paid)):
-    return {"definitions": [_stamped(r) for r in svc.list_for_user(user["id"])]}
+def list_definitions(user: dict = Depends(require_paid),
+                     graph: bool = _GRAPH_PARAM):
+    return {"definitions": _maybe_compact(
+        [_stamped(r) for r in svc.list_for_user(user["id"])], graph)}
 
 
 @router.post("")
@@ -248,7 +298,8 @@ def create_definition(body: DefinitionIn,
     def_id = svc.new_def_id()
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition, limits)
+    return _save_or_400(user["id"], def_id, definition, limits,
+                        import_id=body.import_id, source_dialect=body.source_dialect)
 
 
 @router.post("/propose")
@@ -277,19 +328,54 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     rate limit here and not a fifth `entitlements.Limits` axis.
     """
     _charge_propose(str(user["id"]))
+    # ⭐ Phase One Track C. This door is the one place `import_submitted` and
+    # `compile_finished` both belong to the BACKEND: unlike the three paste
+    # dialects (parsed client-side), the plain-language compile happens right
+    # here in one call, so there is no separate client-observable "submit"
+    # moment to instrument. A fresh `import_id` is minted per call (this door
+    # has no earlier client-side submission to correlate with) and handed
+    # back in the response so a subsequent Save can carry it forward into
+    # `import_accepted`.
+    import uuid
+    import_id = str(uuid.uuid4())
+    telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                        dialect="plain-language")
     bars = body.bars or []
+    # 🔴 RISK-016 (Phase One Track B, 2026-09-04). This USED to raise a raw
+    # HTTPException(400) here — the one place on this route that broke its own
+    # docstring's "a refusal is a 200 with ok: False, not a 4xx" promise. A
+    # member with a long-listed symbol on the chart (SPY: 8,000 cached daily
+    # bars, unaffected by the visible zoom) got a generic "the assistant could
+    # not be reached" message that actively misrepresented the cause — a client
+    # payload-size issue, not a transport failure. The frontend now truncates to
+    # the most recent bars before ever sending (`proposeBars.js`), so this
+    # branch should be effectively unreachable in practice; it stays as the
+    # honest, in-contract answer for whatever reaches it anyway — a second
+    # caller, a future surface, a test — rather than a crash.
     if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
-                   f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
+        got = len(bars) if isinstance(bars, list) else type(bars).__name__
+        telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                            dialect="plain-language", success=False, stage="gate",
+                            gate="bars:too-large")
+        return {"ok": False, "gate": "bars:too-large", "import_id": import_id,
+                "reason": f"bars: at most {MAX_PROPOSE_BARS} bars, got {got}"}
     from api.services import definition_concierge
     #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
     #: is every caller that shipped before scans existed, and spelling
     #: `"indicator"` here would be a second declaration of the default.
     kind = body.kind if body.kind is not None else definition_concierge.INDICATOR_KIND
-    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
-                                        kind=kind)
+    result = definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
+                                          kind=kind)
+    # ⭐ Phase One Track C. `compile_finished` fires on BOTH branches — success
+    # and refusal — because "the translator finished attempting to produce a
+    # tree" is true either way; only `success` distinguishes them. Never logs
+    # `body.prompt` itself (see indicator_telemetry.py's module docstring).
+    telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                        dialect="plain-language", success=bool(result.get("ok")),
+                        stage="compile", gate=result.get("gate"))
+    result = dict(result)
+    result["import_id"] = import_id
+    return result
 
 
 @router.get("/library")
@@ -309,14 +395,15 @@ def public_library(limit: int = 24, after: Optional[int] = None,
 @router.get("/{def_id}")
 def get_definition(def_id: str,
                    version: Optional[int] = Query(None, ge=1),
-                   user: dict = Depends(require_paid)):
+                   user: dict = Depends(require_paid),
+                   graph: bool = _GRAPH_PARAM):
     try:
         row = svc.get(user["id"], def_id, version)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return row
+    return svc.compact_row(row) if graph else row
 
 
 @router.put("/{def_id}")
@@ -355,7 +442,8 @@ def save_definition(def_id: str, body: DefinitionIn,
         raise HTTPException(status_code=404, detail="Not found")
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition, limits)
+    return _save_or_400(user["id"], def_id, definition, limits,
+                        import_id=body.import_id, source_dialect=body.source_dialect)
 
 
 @router.delete("/{def_id}")
@@ -389,6 +477,8 @@ def share_definition(def_id: str, user: dict = Depends(require_paid)):
     """
     try:
         out = svc.share(user["id"], def_id)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if out is None:
@@ -420,7 +510,8 @@ def unshare_definition(def_id: str, user: dict = Depends(require_paid)):
 
 
 @router.get("/{def_id}/history")
-def definition_history(def_id: str, user: dict = Depends(require_paid)):
+def definition_history(def_id: str, user: dict = Depends(require_paid),
+                       graph: bool = _GRAPH_PARAM):
     """Every version of one of my definitions, oldest first, tombstones included.
 
     ⭐ THE STORE ALREADY KEPT THIS — every save appends a row rather than
@@ -433,13 +524,24 @@ def definition_history(def_id: str, user: dict = Depends(require_paid)):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not rows:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"def_id": def_id, "versions": rows}
+    # ⭐ C2D.8 — history is the surface where compaction pays most: EVERY
+    # version of a document that stores as a graph would otherwise arrive as a
+    # separate expanded forest, so a ten-version history of the corpus'
+    # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
+    return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 
 #: share refusal → HTTP status. ⭐ A CLOSED MAP, so a reason this module does not
 #: know becomes a 400 rather than silently reading as "not found" — the two say
 #: very different things to somebody holding a link.
-_SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410, "table-version": 409}
+#:
+#: ⚠️ `requirements` IS 409, NOT 403. 403 says *you* may not do this; this refusal
+#: says the DEFINITION may not go through this door — anybody's copy of the same
+#: script is refused identically, and a member who reads 403 goes looking for a
+#: plan upgrade that would not help. 409 is the same answer `table-version` gets
+#: and for the same shape of reason: the request conflicts with what the thing IS.
+_SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
+                 "table-version": 409, "requirements": 409}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
@@ -471,6 +573,8 @@ def publish_definition(def_id: str, user: dict = Depends(require_paid)):
     """
     try:
         out = svc.publish(user["id"], def_id)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if out is None:

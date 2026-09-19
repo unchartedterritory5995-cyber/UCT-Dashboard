@@ -1,0 +1,202 @@
+{
+ "id": "recurrent-callsite-identity-and-event-history-spy-1d-2026-09-08",
+ "shape": "seeded",
+ "script": {
+  "dialect": "pine-v6",
+  "source": "//@version=6\nindicator(\"UCT recur probe v2\")\nf(v) => ta.ema(v, 5)\na = f(close)\nb = f(close * 2)\ncond = bar_index % 7 == 0\nbs = ta.barssince(cond)\ncondna = bar_index % 97 == 0 ? bool(na) : cond\nbsna = ta.barssince(condna)\nvw0 = ta.valuewhen(cond, close, 0)\nvw1 = ta.valuewhen(cond, close, 1)\nplot(bar_index, \"A\")\nplot(a, \"B\")\nplot(b, \"C\")\nplot(bs, \"D\")\nplot(bsna, \"E\")\nplot(vw0, \"F\")\nplot(vw1, \"G\")\nplot(close, \"H\")\n"
+ },
+ "engine": {
+  "formula": null,
+  "ast": null
+ },
+ "market": {
+  "symbol": "AMEX:SPY",
+  "timeframe": "D",
+  "bars": [
+   {
+    "t": "8241",
+    "o": 676.46,
+    "h": 678.47,
+    "l": 675.65,
+    "c": 677.25,
+    "v": 74356527.0
+   },
+   {
+    "t": "8242",
+    "o": 682.73,
+    "h": 685.54,
+    "l": 682.115,
+    "c": 685.24,
+    "v": 63339790.0
+   },
+   {
+    "t": "8243",
+    "o": 687.05,
+    "h": 688.905,
+    "l": 684.83,
+    "c": 687.06,
+    "v": 61738073.0
+   },
+   {
+    "t": "8244",
+    "o": 688.72,
+    "h": 689.7,
+    "l": 682.87,
+    "c": 687.39,
+    "v": 85362207.0
+   },
+   {
+    "t": "8245",
+    "o": 683.9,
+    "h": 685.94,
+    "l": 679.83,
+    "c": 679.83,
+    "v": 76335751.0
+   },
+   {
+    "t": "8246",
+    "o": 685.04,
+    "h": 685.08,
+    "l": 679.24,
+    "c": 682.06,
+    "v": 87164122.0
+   },
+   {
+    "t": "8247",
+    "o": 685.67,
+    "h": 685.8,
+    "l": 679.94,
+    "c": 683.34,
+    "v": 57315025.0
+   },
+   {
+    "t": "8248",
+    "o": 676.11,
+    "h": 679.96,
+    "l": 674.58,
+    "c": 675.24,
+    "v": 78426969.0
+   },
+   {
+    "t": "8249",
+    "o": 674.98,
+    "h": 680.86,
+    "l": 674.17,
+    "c": 677.58,
+    "v": 74402376.0
+   }
+  ]
+ },
+ "vendor": {
+  "readDecimals": 16,
+  "rows": [
+   {
+    "bar_index": 8241,
+    "a_f_close": 671.827719618809,
+    "b_f_close_times_2": 1343.655439237618,
+    "barssince": 2.0,
+    "barssince_na_cond": 2.0,
+    "valuewhen_occ0": 667.8,
+    "valuewhen_occ1": 663.04,
+    "close": 677.25
+   },
+   {
+    "bar_index": 8242,
+    "a_f_close": 676.2984797458727,
+    "b_f_close_times_2": 1352.5969594917453,
+    "barssince": 3.0,
+    "barssince_na_cond": 3.0,
+    "valuewhen_occ0": 667.8,
+    "valuewhen_occ1": 663.04,
+    "close": 685.24
+   },
+   {
+    "bar_index": 8243,
+    "a_f_close": 679.8856531639151,
+    "b_f_close_times_2": 1359.7713063278302,
+    "barssince": 4.0,
+    "barssince_na_cond": 4.0,
+    "valuewhen_occ0": 667.8,
+    "valuewhen_occ1": 663.04,
+    "close": 687.06
+   },
+   {
+    "bar_index": 8244,
+    "a_f_close": 682.3871021092767,
+    "b_f_close_times_2": 1364.7742042185535,
+    "barssince": 5.0,
+    "barssince_na_cond": 5.0,
+    "valuewhen_occ0": 667.8,
+    "valuewhen_occ1": 663.04,
+    "close": 687.39
+   },
+   {
+    "bar_index": 8245,
+    "a_f_close": 681.5347347395178,
+    "b_f_close_times_2": 1363.0694694790357,
+    "barssince": 6.0,
+    "barssince_na_cond": 6.0,
+    "valuewhen_occ0": 667.8,
+    "valuewhen_occ1": 663.04,
+    "close": 679.83
+   },
+   {
+    "bar_index": 8246,
+    "a_f_close": 681.7098231596785,
+    "b_f_close_times_2": 1363.419646319357,
+    "barssince": 0.0,
+    "barssince_na_cond": 0.0,
+    "valuewhen_occ0": 682.06,
+    "valuewhen_occ1": 667.8,
+    "close": 682.06
+   },
+   {
+    "bar_index": 8247,
+    "a_f_close": 682.2532154397857,
+    "b_f_close_times_2": 1364.5064308795713,
+    "barssince": 1.0,
+    "barssince_na_cond": 1.0,
+    "valuewhen_occ0": 682.06,
+    "valuewhen_occ1": 667.8,
+    "close": 683.34
+   },
+   {
+    "bar_index": 8248,
+    "a_f_close": 679.9154769598571,
+    "b_f_close_times_2": 1359.8309539197141,
+    "barssince": 2.0,
+    "barssince_na_cond": 2.0,
+    "valuewhen_occ0": 682.06,
+    "valuewhen_occ1": 667.8,
+    "close": 675.24
+   },
+   {
+    "bar_index": 8249,
+    "a_f_close": 679.1369846399048,
+    "b_f_close_times_2": 1358.2739692798095,
+    "barssince": 3.0,
+    "barssince_na_cond": 3.0,
+    "valuewhen_occ0": 682.06,
+    "valuewhen_occ1": 667.8,
+    "close": 677.58
+   }
+  ]
+ },
+ "provenance": {
+  "platform": "TradingView",
+  "platformVersion": "Pine Script v6",
+  "who": "claude-opus-5 via claude-in-chrome, owner-authenticated session",
+  "when": "2026-09-08",
+  "chartUrl": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "rawArtifact": null,
+  "note": "market.bars carries bar_index in `t` -- this observation's discriminating quantity is the per-bar PLOT relationship, not the calendar timestamp. Identity proven from the model as above."
+ },
+ "expect": {
+  "explains": null,
+  "rulings": {
+   "call_site_identity": "INDEPENDENT PER CALL SITE. `f(close)` and `f(close*2)` are two call sites of ONE user function. EMA is linear, so independent state implies b == 2*a EXACTLY; shared state would interleave two inputs through one filter and admit no such identity. |b - 2a| = 0.000e+00 on every captured bar.",
+   "barssince": "0 ON the true bar itself, then +1 per bar. An `na` condition at a bar that would otherwise be FALSE behaves as FALSE -- the counter advances (bs == bsna at the na bar). NOT PINNED: what an `na` condition does at a bar that would otherwise be TRUE (no captured bar is divisible by both 7 and 97), and what barssince returns before the first true bar (the condition is true from the start of history here).",
+   "valuewhen": "The third argument is an OCCURRENCE INDEX, not a lookback bound: occurrence 0 is the most recent occurrence INCLUDING the current bar (vw0 takes the true bar's own close immediately), occurrence 1 is the one before it. This is NOT the closed table's `valuewhen(condition, source, period)`, whose third argument bounds how far back the last hit may be -- `pine.js` already refuses `ta.valuewhen` by name for exactly this reason."
+  }
+ }
+}

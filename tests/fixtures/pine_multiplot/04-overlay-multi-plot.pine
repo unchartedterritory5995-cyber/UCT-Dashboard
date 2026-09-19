@@ -1,0 +1,7 @@
+//@version=5
+indicator("Overlay Bands", overlay = true)
+basis = ta.sma(close, 20)
+dev = 2.0 * ta.stdev(close, 20)
+plot(basis, title = "Basis", color = color.orange, linewidth = 2)
+plot(basis + dev, title = "Upper", color = color.blue, linewidth = 1)
+plot(basis - dev, title = "Lower", color = color.blue, linewidth = 1)

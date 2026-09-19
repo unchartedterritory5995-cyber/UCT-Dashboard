@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;XiFnwmUCKS0TwUAqv2CsqIkG5OnLsujP",
+ "title": "Linear Regression Channel",
+ "author": "Shizaru",
+ "url": "https://www.tradingview.com/script/ZXft24Ks-linear-regression-channel/",
+ "agreeCount": 4340,
+ "category": "support/resistance",
+ "pine_version": "v2",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel__XiFnwmUCKS.pine",
+ "our_status": "reference-only"
+}

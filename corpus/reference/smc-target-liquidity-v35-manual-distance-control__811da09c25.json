@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;811da09c25bc442abc74222fdf830327",
+ "title": "SMC Target Liquidity V.35 (Manual Distance Control)",
+ "author": "wut_trader",
+ "url": "https://www.tradingview.com/script/e0Zbp2mn-smc-target-liquidity-v-35-manual-distance-control/",
+ "agreeCount": 9082,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/smc-target-liquidity-v35-manual-distance-control__811da09c25.pine",
+ "our_status": "reference-only"
+}

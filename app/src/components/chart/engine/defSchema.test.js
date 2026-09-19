@@ -346,11 +346,29 @@ describe('colorMode — compute never returns colour strings', () => {
     }
   })
 
-  it('accepts column:<key> naming a declared plot or event column', () => {
+  // ⚰️ THIS CASE USED TO ACCEPT `column:<key>` WITH NO COLOURS, and that was
+  // right while the mode was inert: nothing drew it, so nothing needed them.
+  // ⭐ C1 GAVE IT A RENDERER (`pool.columnColorsForPlot` + `binder.toPoints`),
+  // and the moment a mode draws, a mode with nothing to alternate between draws
+  // ONE FLAT COLOUR while registering happily — the exact defect the `sign`
+  // branch above already refuses. The original claim (a declared column
+  // reference is accepted) is preserved; it now states the full requirement.
+  it('accepts column:<key> naming a declared column, WITH its two colours', () => {
+    const d = rsiDef()
+    d.events = [{ key: 'overbought', label: 'Crossed above 70' }]
+    Object.assign(d.plots[0], {
+      colorMode: 'column:overbought', colorUp: '#4caf50', colorDown: '#f44336',
+    })
+    ok(d)
+  })
+
+  it('rejects column:<key> declared without colorUp/colorDown', () => {
     const d = rsiDef()
     d.events = [{ key: 'overbought', label: 'Crossed above 70' }]
     d.plots[0].colorMode = 'column:overbought'
-    ok(d)
+    const msg = errs(d).join(' ')
+    expect(msg).toMatch(/colorUp/)
+    expect(msg).toMatch(/colorDown/)
   })
 
   it('rejects column:<key> naming a column nothing declares', () => {
@@ -1209,13 +1227,22 @@ describe('schema v2 — many trees, one hash', () => {
      *  a reader and be green forever after W6 wires the real one. */
     const FIELD_READ = /\.fill\b(?!\s*\()/
 
-    it('no engine module READS the fill field today — so W6 turning it on is a visible edit, not a silent one', () => {
+    // ⚰️ THIS PROBE USED TO ASSERT **NOBODY** READ `plots[].fill`, so that the day
+    // a renderer arrived would be a visible edit rather than a silent one.
+    // ⭐⭐ THAT DAY IS C1-B, AND THE PROBE DID EXACTLY ITS JOB — it went red on the
+    // commit that wired `fillPrimitive.js` into `binder.js`, which is the whole
+    // reason it was written. The claim is not deleted: it is INVERTED, and now
+    // names the readers, so a future change that quietly stops drawing bands
+    // (or moves the reader somewhere this sweep cannot see) goes red in turn.
+    it('the fill field is READ by exactly the modules that draw it — no more, no fewer', () => {
       const readers = engineSources().filter(([, src]) => FIELD_READ.test(src)).map(([name]) => name)
-      expect(readers,
-        'a module reads plots[].fill. The field is SCHEMA-ONLY in Wave 1 (spec §6 gives the renderer ' +
-        'to W6): if a renderer now consumes it, this claim in validateFills\' header is stale and the ' +
-        'comment must move with the code.',
-      ).toEqual([])
+      expect(readers.sort(),
+        'the set of modules reading plots[].fill changed. C1-B gave the field a renderer: '
+        + '`binder.js` is the ONE reader — it resolves `fill.with` to a sibling column and '
+        + 'hands the two COLUMNS to `fillPrimitive.js`, which never sees the schema field. '
+        + 'A NEW name here is a second authority over one field; a MISSING one means the '
+        + 'band stopped being drawn and every "fills are supported" claim went stale with it.',
+      ).toEqual(['binder.js'])
       // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
       // one legitimate reader, excluded above — must MATCH, or the pattern has
       // rotted into one that reports every deletion as done; and the Array

@@ -1,0 +1,298 @@
+{
+ "id": "finite-window-na-policy-by-member-spy-1d-2026-09-08",
+ "shape": "seeded",
+ "_coverage": {
+  "_": "\u26d4 WHAT THIS FIXTURE OBSERVED, PER DIMENSION (\u00a741). A filename is not a coverage claim.",
+  "SEED": "NOT OBSERVED",
+  "WARMUP": "NOT OBSERVED",
+  "STEADY_STATE": "OBSERVED",
+  "NA_CURRENT_INPUT": "OBSERVED",
+  "NA_HISTORICAL_INPUT": "OBSERVED",
+  "SKIPPED_UDF_CALL": "NOT OBSERVED",
+  "PARAMETER_CHANGE": "NOT OBSERVED",
+  "REALTIME": "NOT OBSERVED",
+  "_members_covered": "sma, stdev, sum, median, dev, highest, lowest -- CONCLUSIVE. wma -- MEASURED BUT UNEXPLAINED. highestbars, lowestbars -- partial. rising, falling -- NOT DETERMINED (read through a ternary that cannot separate na from false)."
+ },
+ "script": {
+  "dialect": "pine-v6",
+  "sourceA": "//@version=6\nindicator(\"UCT window na probe v4\")\ng = bar_index % 3 == 0 ? float(na) : close\nplot(bar_index,\"A\")\nplot(g,\"B\")\nplot(ta.sma(g,5),\"C\")\nplot(ta.wma(g,5),\"D\")\nplot(ta.stdev(g,5),\"E\")\nplot(math.sum(g,5),\"F\")\nplot(ta.dev(g,5),\"G\")\nplot(ta.median(g,5),\"H\")\nplot(close,\"I\")\n",
+  "sourceB": "//@version=6\nindicator(\"UCT window na probe v5\")\ng = bar_index % 11 == 0 ? float(na) : close\nri = ta.rising(g,5)\nfa = ta.falling(g,5)\nplot(bar_index,\"A\")\nplot(g,\"B\")\nplot(ta.wma(g,5),\"C\")\nplot(ta.dev(g,5),\"D\")\nplot(ta.highest(g,5),\"E\")\nplot(ta.lowest(g,5),\"F\")\nplot(ta.highestbars(g,5),\"G\")\nplot(ta.lowestbars(g,5),\"H\")\nplot(ri ? 1 : 0,\"I\")\nplot(ri ? 1 : 0,\"J\")\nplot(fa ? 1 : 0,\"K\")\nplot(fa ? 1 : 0,\"L\")\n"
+ },
+ "engine": {
+  "formula": null,
+  "ast": null
+ },
+ "market": {
+  "symbol": "AMEX:SPY",
+  "timeframe": "D",
+  "bars": [
+   {
+    "t": "8126",
+    "c": 582.99
+   },
+   {
+    "t": "8127",
+    "c": 586.84
+   },
+   {
+    "t": "8128",
+    "c": 587.59
+   },
+   {
+    "t": "8129",
+    "c": null
+   },
+   {
+    "t": "8130",
+    "c": 594.2
+   },
+   {
+    "t": "8131",
+    "c": 594.85
+   },
+   {
+    "t": "8132",
+    "c": 592.85
+   },
+   {
+    "t": "8133",
+    "c": 582.86
+   },
+   {
+    "t": "8134",
+    "c": 583.09
+   }
+  ],
+  "_bars_note": "`t` carries bar_index; `c` is the GAPPY SOURCE as the vendor computed it (na where the hole is). The discriminating quantity is the relationship between twelve studies over ONE source."
+ },
+ "vendor": {
+  "readDecimals": 16,
+  "probeA_holes_every_3": {
+   "bars": 400,
+   "naBars": 133,
+   "finiteOnNaBar": {
+    "sma": 133,
+    "wma": 0,
+    "stdev": 133,
+    "sum": 133,
+    "dev": 0,
+    "median": 133
+   },
+   "lastNFiniteHypothesis": {
+    "sma": "380 ok / 0 bad",
+    "stdev": "380 ok / 0 bad",
+    "sum": "380 ok / 0 bad",
+    "median": "380 ok / 0 bad"
+   },
+   "rows": [
+    {
+     "bar_index": 8118,
+     "g": null,
+     "sma": 540.2320000000003,
+     "wma": null,
+     "stdev": 14.632174684569302,
+     "sum": 2701.1600000000017,
+     "dev": null,
+     "median": 546.69
+    },
+    {
+     "bar_index": 8119,
+     "g": 558.47,
+     "sma": 549.1500000000003,
+     "wma": 554.7320000000001,
+     "stdev": 7.887278364543424,
+     "sum": 2745.750000000002,
+     "dev": null,
+     "median": 550.85
+    },
+    {
+     "bar_index": 8120,
+     "g": 566.76,
+     "sma": 555.4180000000003,
+     "wma": 559.3420000000001,
+     "stdev": 6.873221660895764,
+     "sum": 2777.090000000002,
+     "dev": null,
+     "median": 554.32
+    },
+    {
+     "bar_index": 8121,
+     "g": null,
+     "sma": 555.4180000000003,
+     "wma": null,
+     "stdev": 6.873221660895764,
+     "sum": 2777.090000000002,
+     "dev": null,
+     "median": 554.32
+    },
+    {
+     "bar_index": 8122,
+     "g": 558.8,
+     "sma": 557.8400000000004,
+     "wma": 562.172,
+     "stdev": 5.331705168114886,
+     "sum": 2789.200000000002,
+     "dev": null,
+     "median": 558.47
+    }
+   ]
+  },
+  "probeB_holes_every_11": {
+   "bars": 400,
+   "naBars": 36,
+   "cleanWindows": 216,
+   "finiteTotal": {
+    "wma": 364,
+    "dev": 220,
+    "highest": 364,
+    "lowest": 364,
+    "highestbars": 400,
+    "lowestbars": 400
+   },
+   "finiteOnNaBar": {
+    "wma": 0,
+    "dev": 0,
+    "highest": 0,
+    "lowest": 0,
+    "highestbars": 36,
+    "lowestbars": 36
+   },
+   "hypotheses": {
+    "highest_restartAfterNa": "346 ok / 0 bad",
+    "lowest_restartAfterNa": "346 ok / 0 bad",
+    "dev_cleanWindow": "210 ok / 0 bad",
+    "wma_lastNFinite": "244 ok / 102 bad",
+    "wma_cleanWindow": "210 ok / 0 bad (but wma is finite on 364 bars, far more than the 216 clean windows)",
+    "wma_dropNaKeepOriginalWeights": "210 ok / 136 bad",
+    "wma_restartAfterNa": "210 ok / 136 bad",
+    "_wma": "\u26d4 UNRESOLVED. Five hypotheses tried, none explains it. At bar 8130 -- one bar after a hole -- wma reads 589.3866666666667 while the only finite observation since the hole is 594.2, so it is neither restarting nor reducing over the lone value."
+   },
+   "rows": [
+    {
+     "bar_index": 8126,
+     "g": 582.99,
+     "wma": 569.9060000000001,
+     "dev": 6.608799999999723,
+     "highest": 582.99,
+     "lowest": 558.8,
+     "highestbars": 0.0,
+     "lowestbars": -4.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8127,
+     "g": 586.84,
+     "wma": 576.6966666666667,
+     "dev": 10.271199999999908,
+     "highest": 586.84,
+     "lowest": 561.15,
+     "highestbars": 0.0,
+     "lowestbars": -4.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8128,
+     "g": 587.59,
+     "wma": 581.868,
+     "dev": 10.131200000000103,
+     "highest": 587.59,
+     "lowest": 564.34,
+     "highestbars": 0.0,
+     "lowestbars": -3.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8129,
+     "g": null,
+     "wma": null,
+     "dev": null,
+     "highest": null,
+     "lowest": null,
+     "highestbars": 0.0,
+     "lowestbars": 0.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8130,
+     "g": 594.2,
+     "wma": 589.3866666666667,
+     "dev": null,
+     "highest": 594.2,
+     "lowest": 594.2,
+     "highestbars": 0.0,
+     "lowestbars": 0.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8131,
+     "g": 594.85,
+     "wma": 591.7226666666667,
+     "dev": null,
+     "highest": 594.85,
+     "lowest": 594.2,
+     "highestbars": 0.0,
+     "lowestbars": -1.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8132,
+     "g": 592.85,
+     "wma": 592.6013333333334,
+     "dev": null,
+     "highest": 594.85,
+     "lowest": 592.85,
+     "highestbars": -1.0,
+     "lowestbars": 0.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8133,
+     "g": 582.86,
+     "wma": 589.7493333333334,
+     "dev": null,
+     "highest": 594.85,
+     "lowest": 582.86,
+     "highestbars": -2.0,
+     "lowestbars": 0.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    },
+    {
+     "bar_index": 8134,
+     "g": 583.09,
+     "wma": 587.2893333333334,
+     "dev": 5.27600000000009,
+     "highest": 594.85,
+     "lowest": 582.86,
+     "highestbars": -3.0,
+     "lowestbars": -1.0,
+     "rising_as_1_or_0": 0.0,
+     "falling_as_1_or_0": 0.0
+    }
+   ]
+  }
+ },
+ "provenance": {
+  "platform": "TradingView",
+  "platformVersion": "Pine Script v6",
+  "who": "claude-opus-5 via claude-in-chrome, owner-authenticated session",
+  "when": "2026-09-08",
+  "chartUrl": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "rawArtifact": null,
+  "note": "Two probes. Identity proven from the chart model for each (shortDescription + plot style titles in plot() order). \u26a0\ufe0f rising/falling were read through `x ? 1 : 0`, which CANNOT distinguish na from false -- recorded as NOT DETERMINED rather than as 'answers on every bar'."
+ },
+ "expect": {
+  "explains": null,
+  "rulings": {
+   "THREE_POLICIES": "The finite-window family does NOT share one na rule. Measured: SKIP_NA (sma, stdev, sum, median) answers on every bar over the last N FINITE observations; PROPAGATE_NA (dev) needs a clean N-bar window and is blank for exactly N-1 bars after a hole; RESTART_AFTER_NA (highest, lowest) begins the window again after a hole, so one bar later highest == lowest == the single observation.",
+   "NOT_GENERALISABLE": "Generalising sma's rule to the family would have been wrong for at least three members."
+  }
+ }
+}

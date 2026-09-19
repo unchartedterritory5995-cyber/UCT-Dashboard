@@ -1,0 +1,42 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FourC
+//Credit goes to author=@auron9000 as the bulk of this code was from their Breadth Ratio Bubbles indicator.
+//I introduced bug fixes, fixed the way the breadth is calculated to be accurate, made the plot a histogram in its own pane.
+//@version=5
+indicator("4C NYSE Market Breadth Ratio", shorttitle="4C Breadth", overlay=false)
+
+textsizing = input.string(title = 'Table Text Size', defval = 'Auto', options=['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'])
+var sizing = textsizing == 'Auto' ? size.auto : textsizing == 'Tiny' ? size.tiny : textsizing == 'Small' ? size.small : textsizing == 'Normal' ? size.normal : textsizing == 'Large' ? size.large : textsizing == 'Huge' ? size.huge : na
+
+//Up and down VOL for NYSE and NASDAQ
+UVOL = request.security("USI:UVOL","",close)
+DVOL = request.security("USI:DVOL","",close)
+UVOLQ = request.security("USI:UVOLQ","",close)
+DVOLQ = request.security("USI:DVOLQ","",close)
+
+//ADD data
+ADVDCL = request.security("USI:ADD","",close)
+
+//NYSE Breadth
+NYSEratio = UVOL >= DVOL ? UVOL/DVOL : -(DVOL/UVOL)
+//plot(NYSEratio)
+
+//NASDAQ Breadth
+NASDAQratio = UVOLQ >= DVOLQ ? UVOLQ/DVOLQ : -(DVOLQ/UVOLQ)
+//plot(NASDAQratio)
+
+//Table Creation
+var table breadthTable = table.new(position.top_right, 1, 3, border_color = color.black, border_width = 2)
+string breadthformat = '##.##'
+string addformat = ''
+
+//Plot Table
+if barstate.islast
+    table.cell(breadthTable, 0, 0, str.tostring(NYSEratio, breadthformat) + " NYSE", text_size = sizing, text_color = #000000, bgcolor = NYSEratio > 0 ? color.green : color.red)
+    table.cell(breadthTable, 0, 1, str.tostring(NASDAQratio, breadthformat) + " NASD", text_size = sizing, text_color = #000000, bgcolor = NASDAQratio > 0 ? color.green : color.red)
+    table.cell(breadthTable, 0, 2, str.tostring(ADVDCL, addformat) + " ADD", text_size = sizing, text_color = #000000, bgcolor = ADVDCL > 0 ? color.green : color.red)
+    
+//Plot NYSE Ratio
+plot(NYSEratio, title='NYSE Breadth',color = NYSEratio > 0 ? color.green : color.red, style=plot.style_columns)
+
+hline(0, '0 Line', color.white, linestyle=hline.style_solid, linewidth=1)

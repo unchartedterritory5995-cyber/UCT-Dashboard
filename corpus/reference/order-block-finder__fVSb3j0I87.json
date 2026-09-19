@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fVSb3j0I87LvTzPKrQTY5hDUEdsGdnm6",
+ "title": "Order Block Finder",
+ "author": "wugamlo",
+ "url": "https://www.tradingview.com/script/R8g2YHdg-order-block-finder/",
+ "agreeCount": 39242,
+ "category": "market structure / smart-money",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+ "cached_source": "tools/pine_survey/cache/sources/order-block-finder__fVSb3j0I87.pine",
+ "our_status": "committed"
+}

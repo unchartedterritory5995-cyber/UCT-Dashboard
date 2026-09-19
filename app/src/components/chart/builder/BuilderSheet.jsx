@@ -87,7 +87,10 @@ import { freshnessFor } from '../engine/ast/freshness'
 // ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
-import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor } from './builderInputs'
+import {
+  BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor,
+  formulaNameRoles, formulaTabWindowRefusal,
+} from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 // ⛔ THE TWO BADGE AGGREGATORS, IMPORTED FROM THE ONE MODULE THAT OWNS THEM.
 // `nativeRegistry.validateAstLane` RE-MEASURES `meta.repaint` and
@@ -103,16 +106,21 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+import { manifestFromPlacements } from './pineParamManifest'
+import ParamControls from './ParamControls'
+import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
 // forgets it the moment the draft stops evaluating or the sheet closes.
 import PreviewPane from './editor/PreviewPane'
+import MemberPane from './memberPane/MemberPane'
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import ImageBox from './ImageBox'
+import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
@@ -288,12 +296,19 @@ function isUntouchedRow(row) {
  * body reaches the SAME object for the simplest input, so the two are one
  * meaning with two spellings rather than two meanings.
  */
-function legacyDefinition({ defId, version, rev, source, ast, mode, readback, declared, trimmed, short }) {
+function legacyDefinition({ defId, version, rev, source, ast, mode, readback, declared, trimmed, short,
+  paramManifest = null }) {
   return {
     schemaVersion: SCHEMA_VERSION,
     id: defId,
     version,
-    compute: { kind: 'ast', fn: astHash(ast), rev, ast, source },
+    compute: {
+      kind: 'ast', fn: astHash(ast), rev, ast, source,
+      // ⭐ TRACK F (DEC-006) — additive, OMITTED (never a null key) for every
+      // non-Pine save, keeping every one of the "21 stored v1 documents"
+      // this function's own header guards byte-identical.
+      ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
+    },
     meta: {
       name: trimmed,
       shortName: short,
@@ -384,7 +399,8 @@ function legacyDefinition({ defId, version, rev, source, ast, mode, readback, de
  */
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
   readback = '', inputs = BUILDER_INPUTS,
-  plots = null, scanPlot = null, placement = null, levels = null }) {
+  plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null,
+  objects = null }) {
   // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
   // scope below and the document's own `inputs` are the SAME array, because a
   // member-declared name that reached one and not the other would badge a
@@ -396,7 +412,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
   if (plots === null && placement === null && levels === null) {
     return legacyDefinition({
       defId, version, rev, source, ast, mode, readback,
-      declared: declaredMember, trimmed, short,
+      declared: declaredMember, trimmed, short, paramManifest,
     })
   }
 
@@ -443,6 +459,59 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // and its column still reaches the alert seam and the scan.
       legend: { decimals: 2 },
       ...(r.hidden ? { hidden: true } : {}),
+      // ⭐⭐ C1-A: THE AUTHOR'S CONDITIONAL COLOUR, carried as the schema's own
+      // per-point mode. `colorMode: 'column:<key>'` names ANOTHER row of this
+      // same document — the hidden one holding the condition — and
+      // `binder.toPoints` colours each point by whether that column is non-zero.
+      //
+      // ⛔ ALL THREE OR NONE. `defSchema` refuses a `column:` mode without both
+      // colours (a mode with nothing to alternate between draws one flat colour
+      // while registering happily), so a half-set row must not reach it.
+      ...(r.colorMode && r.colorUp && r.colorDown
+        ? { colorMode: r.colorMode, colorUp: r.colorUp, colorDown: r.colorDown }
+        : {}),
+      // ⭐⭐ C3A — THE GLYPH THE AUTHOR ASKED FOR. `plotshape`/`plotchar` already
+      // reached this door as a 0/1 column with `style: 'markers'`; what was
+      // missing was WHICH glyph, WHERE, and WHAT IT SAYS.
+      //
+      // ⛔ ONLY ON A `markers` ROW, because that is the only combination
+      // `defSchema.validateMarker` accepts — a marker on a line plot would be
+      // two renderers over one column. A row whose style the member has since
+      // changed drops its marker rather than making the document unsaveable.
+      ...(r.marker && r.marker.shape && r.style === 'markers' ? { marker: r.marker } : {}),
+      // ⭐⭐ C1-B — the band, as `defSchema.plots[].fill` already validates it.
+      // ⛔ ONLY WHEN THE NAMED EDGE IS REALLY IN THIS DOCUMENT. `defSchema`
+      // refuses a fill naming a plot nobody declares, so a stale `with` would
+      // make the whole document unsaveable rather than merely undrawn.
+      ...(r.fill && r.fill.with && rows.some((o) => o.key === r.fill.with)
+        ? {
+          fill: {
+            with: r.fill.with,
+            // ⭐⭐ (j) j.3b(b) / R34 — THE BAND'S OWN CONDITIONAL COLOUR, in the
+            // SAME three field names a plot uses twenty lines above. That is not a
+            // convenience: `pool.columnColorsForPlot` is handed the fill verbatim,
+            // so a third spelling would be a second reader for one idea (R10).
+            //
+            // ⛔ ALL THREE OR NONE, for the same reason the plot rule says so — a
+            // `column:` mode with nothing to alternate between registers happily
+            // and then draws one flat colour.
+            // ⛔ AND ONLY WHEN THE NAMED COLUMN IS REALLY IN THIS DOCUMENT, the
+            // same guard `fill.with` already gets: a mode naming a column nobody
+            // declares makes the whole document unsaveable rather than merely
+            // uncoloured.
+            ...(r.fill.colorMode && r.fill.colorUp && r.fill.colorDown
+              && rows.some((o) => o.key === String(r.fill.colorMode).slice('column:'.length))
+              ? {
+                colorMode: r.fill.colorMode,
+                colorUp: r.fill.colorUp,
+                colorDown: r.fill.colorDown,
+              }
+              : {}),
+          },
+          ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),
+          ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
+        }
+        : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length
@@ -453,8 +522,32 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     schemaVersion: SCHEMA_VERSION,
     id: defId,
     version,
+    // ⭐⭐ C3B — THE OBJECT PROGRAM RIDES ON THE DOCUMENT, BESIDE THE COLUMNS.
+    // ⛔ AND IT IS OMITTED WHEN THERE IS NONE. 14 of the frozen 60 draw no
+    // objects at all and their saved documents must stay byte-identical — an
+    // empty `objects: {}` on every save would change every hash in the repo and
+    // buy nothing. Same additive discipline as `paramManifest` above.
+    ...(objects && Array.isArray(objects.ops) && objects.ops.length ? { objects } : {}),
     compute: {
       kind: 'ast', fn: astHash(scan.ast), rev, ast: scan.ast, source: scan.source,
+      // ⭐ TRACK F (DEC-006) — additive, OMITTED for every non-Pine save. A
+      // `treeIndex: null` locator (the only kind `legacyDefinition`'s single-
+      // tree path ever produces) resolves against `compute.ast` regardless of
+      // whether this document is single- or multi-plot, since `compute.ast`
+      // stays aliased to the CURRENT scan row's tree either way (`ast:
+      // scan.ast` above) — so a Pine import that later gains unrelated extra
+      // plot rows keeps its parameter correctly attached without this branch
+      // needing to know anything about `treeIndex` remapping.
+      // ⚠️ KNOWN, DISCLOSED V1 EDGE CASE: if the member REASSIGNS which row
+      // is the scan plot AFTER importing a parameterized Pine script into a
+      // different row, this `null` locator now points at the NEW scan row's
+      // tree, not the one the parameter was minted from — server-side
+      // reconciliation still fails safely (a mismatched position either
+      // doesn't resolve, going `detached`, or coincidentally resolves to an
+      // unrelated literal) but never something this v1 pass builds active
+      // tracking for. Not reachable from the golden-journey fixture (a
+      // single-plot import never reassigns `scanPlot`).
+      ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
       ...(multi ? {
         trees,
         treesHash: treesHash(trees),
@@ -512,13 +605,24 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
  * byte-identical document must not move. That divergence is now VISIBLE at the
  * one call site that needs it instead of being invisible in two copies.
  */
-function evaluatedDocArgs(evaluation, memberInputs) {
+function evaluatedDocArgs(evaluation, memberInputs, paramManifest) {
   return {
     source: evaluation.source,
     ast: evaluation.ast,
     mode: evaluation.verdict.mode,
     readback: evaluation.readback,
     inputs: [...BUILDER_INPUTS, ...memberInputs],
+    // ⭐⭐ TRACK F (DEC-006) — additive, `null` for every non-Pine build. The
+    // locators inside `paramManifest` were computed against PineBox's OWN
+    // translated tree, not `evaluation.ast` (the NATIVE reader's re-parse of
+    // the same printed text) — they still apply correctly because `pine.js`
+    // already verifies (`verifyRoundTrip`, called on every translation) that
+    // its printed formula reads back to a tree with the IDENTICAL `astHash`,
+    // and an identical hash over this canonical grammar means an identical
+    // structure (`assertCanonical`'s exact-key-set requirement is what makes
+    // that true) — so the astPath positions line up by construction, not by
+    // coincidence.
+    ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
   }
 }
 
@@ -689,6 +793,19 @@ export default function BuilderSheet({
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
   const [memberInputs, setMemberInputs] = useState([])
+
+  /** ⭐⭐ TRACK F (DEC-006) — the Pine import's OWN parameter manifest, when
+   *  the current formula came from a Pine script with an eligible int/float
+   *  input (`PineBox.jsx`'s `onPick`, below). `null` for every other build
+   *  mode and every hand-typed formula — mirrors `memberInputs`' own
+   *  set/clear lifecycle exactly (reset on a fresh formula, restored when
+   *  reopening a saved definition, replaced on a new Pine pick) rather than
+   *  inventing a separate one. Threaded into `evaluatedDocArgs` so both the
+   *  live preview and the real save read the SAME assembly. */
+  const [paramManifest, setParamManifest] = useState(null)
+  /** ⭐⭐ C3B — the imported script's graphical-object program, held beside
+   *  the parameter manifest and written onto the document at save. */
+  const [objectProgram, setObjectProgram] = useState(null)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -895,8 +1012,6 @@ export default function BuilderSheet({
     setTarget('pane'); setLevelsText('')
   }, [])
 
-  const inputsValid = memberInputs.every((spec, i) => inputKeyProblem(spec.key, i) === null)
-
   const addInput = useCallback(() => {
     setMemberInputs((prev) => [...prev, { key: '', type: 'int', label: '', default: 14, min: 1, max: 500 }])
   }, [])
@@ -910,6 +1025,26 @@ export default function BuilderSheet({
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
+
+  /** ⭐⭐ FORMULA-TAB WINDOW-ARGUMENT PRE-CHECK (message parity with Pine
+   *  import). A hand-typed formula can bind a member input to a WINDOW slot
+   *  (`sma(close, period)` with `period` declared below) exactly as a pasted
+   *  Pine script can — and until this check existed, `inputKeyProblem` only
+   *  verified the KEY's spelling, so Save stayed enabled, the document saved,
+   *  and the member met `resolve:window` only later, on a real chart, with no
+   *  attribution back to the input that caused it. `formulaNameRoles` is the
+   *  SAME detector the Pine-import door already uses for the identical
+   *  question (`builderInputs.js`'s own header: two readers of one fact must
+   *  not disagree) — reused here, not re-implemented, and re-run on every
+   *  settled evaluation so a member fixing the formula (moving `period` out
+   *  of the window slot) sees the message disappear on its own. */
+  const windowBoundMemberInputKeys = useMemo(
+    () => (result && result.ast ? formulaNameRoles(result.ast).literalOnly : new Set()),
+    [result],
+  )
+  const inputsValid = memberInputs.every((spec, i) =>
+    inputKeyProblem(spec.key, i) === null && !windowBoundMemberInputKeys.has(spec.key))
+
   // ⛔ NO SHEET-WIDE `acknowledged` STATE (FIX ROUND 1, IMPORTANT #3) — it lived
   // here as one flag for the whole sheet while the badge above it was already
   // the WORST row's, which a mutation could not discriminate because every
@@ -921,6 +1056,33 @@ export default function BuilderSheet({
   // gate below.
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
+  // 🔴🔴 Compatibility Remediation Tranche 1 (2026-09-06) — see
+  // `FormulaField.jsx`'s `onPendingChange` docblock for the full defect this
+  // closes. `result`/`canSave` reflect the LAST SETTLED (debounced)
+  // evaluation; `pending` is true for the up-to-250ms window after `source`
+  // changes and before that evaluation lands, so the Save button can say
+  // "still checking" instead of silently swallowing a click that landed on a
+  // stale `disabled` state — never a silent no-op, per plot 1 only (the
+  // primary, single-formula authoring path this was reproduced on).
+  const [pending, setPending] = useState(false)
+  // RISK-012 (Phase One Track B, 2026-09-04). `saving`/`canSave` are STATE —
+  // `setSaving(true)` schedules a re-render, it does not retroactively change
+  // the `canSave` a click handler already closed over. Two clicks fired before
+  // React repaints (the exact shape of a real double-click) both call the SAME
+  // memoized `save`, both read the SAME `canSave` computed from `saving=false`,
+  // and both pass `if (!canSave) return` — the state guard alone cannot see its
+  // own in-flight update. A ref mutation is synchronous and shared by every
+  // closure of `save` regardless of render, so it is checked-and-set as the
+  // very first thing inside `save()`, before the state-derived guard even runs.
+  const savingRef = useRef(false)
+  // ⭐ Phase One Track C. The correlation id + dialect from the MOST RECENT
+  // client-observed import attempt (a paste-door "Apply"), read by `save()`
+  // so `import_accepted` can join back to the `import_submitted`/
+  // `compile_finished` pair already logged for it. `null` means "no import
+  // attempt informed this save" (a manual edit, a StarterLibrary pick, a
+  // concierge/screenshot save whose door already minted its own server-side
+  // id) — `save()` simply omits the fields rather than inventing one.
+  const importTelemetryRef = useRef(null)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -971,7 +1133,7 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
+    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setResult(evaluateFormula('', inputScope)); setObjectProgram(null)
     // ⛔ NO `setAcknowledged` HERE ANY MORE — `resetPlots()` below already puts a
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
@@ -1107,6 +1269,13 @@ export default function BuilderSheet({
         .filter((spec) => spec && typeof spec.key === 'string' && !chromeKeySet.has(spec.key))
         .map((spec) => ({ ...spec })),
     )
+    // ⭐⭐ TRACK F (DEC-006) — REOPENING A SAVED PARAMETERIZED DEFINITION MUST
+    // RESTORE ITS MANIFEST, exactly the same reason the comment above restores
+    // `memberInputs`: a document that reopens without it would look
+    // permanently frozen even though it was saved adjustable.
+    setParamManifest(
+      compute?.paramManifest && typeof compute.paramManifest === 'object' ? compute.paramManifest : null,
+    )
 
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
     setName(String(def?.meta?.name || ''))
@@ -1137,7 +1306,7 @@ export default function BuilderSheet({
   }, [resetPlots])
 
   const cancelEdit = useCallback(() => {
-    setEditing(null); setSource(''); setName(''); setMemberInputs([])
+    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setObjectProgram(null)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1247,7 +1416,11 @@ export default function BuilderSheet({
   const previewDefinition = useMemo(() => (
     result && result.ok && result.ast && result.verdict && inputsValid
       ? buildDefinition({
-        ...evaluatedDocArgs(result, memberInputs),
+        ...evaluatedDocArgs(result, memberInputs, paramManifest),
+        // ⭐ THE PREVIEW DRAWS THE OBJECTS TOO. A preview that showed only the
+        // columns would tell a member their import lost its lines, right up
+        // until they saved and found it had not.
+        objects: objectProgram,
         defId: PREVIEW_DEF_ID,
         // A preview must draw before the member has named the thing; `save()`
         // requires a name and `canSave` is the one authority on that.
@@ -1276,6 +1449,10 @@ export default function BuilderSheet({
     formula: canSaveFormula(result, plot0.acknowledged),
     named: name.trim() !== '',
     idle: !saving,
+    // ⛔ NOT MERGED INTO `idle` — a member reading "Saving…" mid-debounce would
+    // be told a request is in flight when none has been sent yet, which is a
+    // wrong sentence, not a missing one. See `pending`'s own declaration.
+    settled: !pending,
     // ⛔ THE INPUT GATE BELONGS HERE, NOT BESIDE `save()`. Checking it only in the
     // handler would leave the button ENABLED while the save silently returned —
     // a dead control, and a second authority over one decision, which is the
@@ -1295,28 +1472,43 @@ export default function BuilderSheet({
       && plotRows.every((r, i) => plotKeyProblem(r.key, i + 1) === null
         && canSaveFormula(r.result, r.acknowledged))
       && !levelsProblem,
-  }), [result, plot0.acknowledged, name, saving, inputsValid,
+  }), [result, plot0.acknowledged, name, saving, pending, inputsValid,
     plotKeyProblem, plot0.key, plotRows, levelsProblem])
 
+  // ⛔ `settled` DELIBERATELY DOES NOT GATE `canSave`. Adding it would change
+  // WHEN the button is clickable — a real behavior change with its own,
+  // larger blast radius (every existing test that asserts the button's
+  // enabled state synchronously after a change) — for a finding whose
+  // reported symptom was a swallowed click, not a wrong save. It is
+  // surfaced ONLY as the `saveHint` message below: informational, additive,
+  // and reverts to exactly today's gating the moment `pending` clears.
   const canSave = saveGates.formula && saveGates.named && saveGates.idle
     && saveGates.inputs && saveGates.plots
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
   // would be a second voice for a fact the member can already see.
-  const saveHint = (saveGates.idle && saveGates.formula && !saveGates.named)
-    ? 'Give it a name to save.'
-    // An input problem already names itself on its own row, so this points at
-    // WHICH gate is shut without restating the reason a second time.
-    : (saveGates.idle && saveGates.formula && saveGates.named && !saveGates.inputs)
-      ? 'Fix the input names above to save.'
-      // Same rule as the line above it: every plot problem already names itself
-      // on its own row (a key sentence, or its own refusal chip), so this points
-      // at WHICH gate is shut without restating the reason a second time.
-      : (saveGates.idle && saveGates.formula && saveGates.named && saveGates.inputs
-        && !saveGates.plots)
-        ? 'Fix the plots above to save.'
-        : null
+  //
+  // ⛔ `settled` IS CHECKED FIRST, BEFORE `formula`. `result` is stale by
+  // definition while `pending` is true, so reading `saveGates.formula` here
+  // would show whatever the PREVIOUS formula's verdict happened to be —
+  // exactly the confusing-message failure mode this hint exists to prevent.
+  const saveHint = (saveGates.idle && !saveGates.settled)
+    ? 'Checking your formula…'
+    : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
+      ? 'Give it a name to save.'
+      // An input problem already names itself on its own row, so this points at
+      // WHICH gate is shut without restating the reason a second time.
+      : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
+        && !saveGates.inputs)
+        ? 'Fix the input names above to save.'
+        // Same rule as the line above it: every plot problem already names itself
+        // on its own row (a key sentence, or its own refusal chip), so this points
+        // at WHICH gate is shut without restating the reason a second time.
+        : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
+          && saveGates.inputs && !saveGates.plots)
+          ? 'Fix the plots above to save.'
+          : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -1354,10 +1546,15 @@ export default function BuilderSheet({
   }, [result, mode])
 
   const save = useCallback(async () => {
+    // ⛔⛔ RISK-012's ACTUAL FIX. Checked-and-set BEFORE the state-derived
+    // `canSave` guard, and synchronously — see the comment on `savingRef`'s
+    // declaration for why `canSave` alone let a real double-click through.
+    if (savingRef.current) return
     // ⛔ AN INVALID INPUT KEY BLOCKS THE SAVE. The document would otherwise
     // carry a declaration the formula cannot reference — or worse, one that
     // SHADOWS a table name and quietly computes something else.
     if (!canSave) return
+    savingRef.current = true
     setSaving(true)
     setStoreError(null)
     // ⚠️ THE DOCUMENT'S OWN `version` MOVES ON AN EDIT, AND IT HAS TO.
@@ -1388,7 +1585,8 @@ export default function BuilderSheet({
       // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
       // the ONE assembly the live preview also asks — so the two cannot drift
       // apart the day a field moves. See `evaluatedDocArgs`.
-      ...evaluatedDocArgs(result, memberInputs),
+      ...evaluatedDocArgs(result, memberInputs, paramManifest),
+      objects: objectProgram,
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
@@ -1418,6 +1616,7 @@ export default function BuilderSheet({
     const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       setStoreError(errors.join('\n') || 'The registry refused this definition.')
+      savingRef.current = false
       setSaving(false)
       return
     }
@@ -1425,9 +1624,22 @@ export default function BuilderSheet({
     // `saveUserDefinition` POSTs without it and PUTs with it — one function, one
     // set of error words, one SWR invalidation. The route it reaches then bumps
     // `compute.rev` if the maths moved and force-migrates every bound alert.
-    const res = await saveUserDefinition(doc, editing ? editing.defId : null)
+    //
+    // ⭐ Phase One Track C. The THIRD argument is telemetry-only (never part of
+    // `doc`, never persisted — see `DefinitionIn` server-side): whichever
+    // paste-door import most recently informed this draft, if any. NOT
+    // cleared on a store refusal below — a member who fixes a validation
+    // error and re-clicks Save is still finishing the SAME import attempt,
+    // and `import_accepted` should still join back to it.
+    const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)
+    savingRef.current = false
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }
+    // ⭐ Phase One Track C. Cleared only on SUCCESS: `import_accepted` has now
+    // fired server-side for this attempt, so a LATER, unrelated save (a
+    // manual tweak with no new paste) must not carry a stale `import_id`
+    // forward and misattribute itself to an import that already landed.
+    importTelemetryRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
     if (editing && row.def_id) setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1 })
@@ -1496,6 +1708,79 @@ export default function BuilderSheet({
     await deleteUserDefinition(defId)
     setPendingDelete(null)
   }, [])
+
+
+  /** ⭐⭐ T5b — THE PINE TAB'S OWN SAVE, THROUGH THE DOORS `save` ALREADY USES.
+   *
+   *  ⛔⛔ IT IS A DIFFERENT DOCUMENT FROM THE ONE `save` WRITES, and that is the
+   *  entire gap this closes. The Formula tab stores the SCAN definition — one
+   *  tree, one plot, the expression the sheet is editing. A member who pastes
+   *  `uncharted-volume-v2.pine` has FOUR drawn series and three disclosures, and
+   *  none of that survived the save: the artifact carried the scan plot's
+   *  126-character formula and nothing else. `memberPaneDefinition` builds the
+   *  document that has all of it; this is the button that keeps it.
+   *
+   *  ⛔ THE SAME FOUR DOORS, IN THE SAME ORDER, AS `save` — `validateUserDefinitions`
+   *  → `saveUserDefinition` → `installUserDefinitions` → `addInstance`. Not a
+   *  parallel path: a second way to write a definition is a second shape of
+   *  definition, and the thing that would tell us is the member's chart, by
+   *  making it disappear. The id the instance names is the STORE's (the server
+   *  mints it and overwrites `definition.id`), never the draft's.
+   *
+   *  ⚠️ ALWAYS A CREATE. There is no "editing" state for a pasted script — the
+   *  Pine tab has no way to reopen one — so this never PUTs, and a member who
+   *  attaches twice gets two definitions. That is the honest behaviour while
+   *  inputs are still folded parameters (ruling R-H): two variants of one script
+   *  ARE two definitions, and `memberPaneVariants` says so in its own header.
+   */
+  const attachPine = useCallback(async (definition) => {
+    const { defs, errors } = validateUserDefinitions([definition])
+    if (errors.length || defs.length !== 1) {
+      return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
+    }
+    const res = await saveUserDefinition(definition, null, importTelemetryRef.current)
+    if (!res.ok) return res
+    importTelemetryRef.current = null
+    const row = res.row || {}
+    const storedDoc = {
+      ...definition,
+      id: row.def_id || definition.id,
+      ...(Number.isInteger(row.version) ? { version: row.version } : {}),
+      compute: {
+        ...definition.compute,
+        ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
+      },
+    }
+    const { installed, errors: installErrors } = engineRegistry.installUserDefinitions([storedDoc])
+    if (installErrors.length || installed.length !== 1) {
+      return {
+        ok: false,
+        error: installErrors.join('\n')
+          || 'Saved, but this script could not be added to the chart.',
+      }
+    }
+    if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
+    // ⭐⭐ THE HAND-BACK `save()` HAS ALWAYS MADE, FROM THE DOOR THAT WAS SKIPPING
+    // IT (j.5, 2026-09-18). Attaching a script draws it on the chart underneath
+    // this modal, so a door that does not tell its host the act is finished
+    // leaves the sheet sitting on top of the twenty clouds it just added — which
+    // is exactly what a capture run recorded as "Save does not close the sheet".
+    //
+    // ⛔ IT HANDS BACK; IT DOES NOT CLOSE. Calling `onClose?.()` here would make
+    // this path the one place in the sheet that decides its own host's state,
+    // and the screener door's `onSaved` does strictly more than close (it
+    // refreshes the list and opens the new row). One hand-back, each host's own
+    // answer to it — the same contract `save()` already uses.
+    //
+    // ⚠️ THE PANE'S "Saved, and added to this chart." NOTE THEN RENDERS FOR ZERO
+    // FRAMES on a host that closes, which is the toast-owned-by-its-own-trigger
+    // failure this repo has paid for twice. Deliberate, and not a silence: the
+    // confirmation is the indicator drawn on the chart with its legend row —
+    // identical to ticking the same script in the indicator library. The note
+    // still renders for a host that stays open (a preview mount passes none).
+    onSaved?.(row)
+    return { ok: true }
+  }, [settings, onChange, onSaved])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -1598,7 +1883,18 @@ export default function BuilderSheet({
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
             replacedAt={replacedAt}
-            onAccept={(proposal) => setSource(proposal?.source || '')}
+            onAccept={(proposal) => {
+              setSource(proposal?.source || '')
+              // ⭐ Phase One Track C. `propose_definition` (the plain-language
+              // door) mints `import_id` SERVER-SIDE and already fired
+              // `import_submitted`/`compile_finished` for it — `proposal`
+              // here IS that same response object, passed through unchanged
+              // by `ConciergeBox`, so its `import_id` is captured for
+              // `import_accepted` to join back to on Save.
+              if (proposal?.import_id) {
+                importTelemetryRef.current = { importId: proposal.import_id, dialect: 'plain-language' }
+              }
+            }}
           />
 
           {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
@@ -1769,6 +2065,32 @@ export default function BuilderSheet({
                 const formula = typeof picked === 'string'
                   ? picked
                   : (picked && typeof picked.source === 'string' ? picked.source : '')
+                // ⭐⭐ TRACK F (DEC-006) — A THIRD, INDEPENDENT FIELD ON THE SAME
+                // OBJECT FORM, never colliding with `inputs` above. `inputs`
+                // (W1b.9's `declareInputs` mechanism) and `paramManifest`
+                // (Track F's astPath-locator mechanism) are two SEPARATE,
+                // non-overlapping answers to "which Pine inputs survive" —
+                // see `pine.paramManifest.js`'s own header for why a window-
+                // bound length can only ever reach this door via the SECOND
+                // one. Reading it here does not depend on `inputs` existing
+                // or being non-empty.
+                // ⭐⭐ C2D.1/C2D.2 — THE PARAMETER METADATA ARRIVES; THE MANIFEST
+                // IS ASSEMBLED BELOW, once every plot key exists.
+                //
+                // ⚰️ It used to arrive pre-assembled, with `treeIndex: null`
+                // locators built by `PineBox` against its OWN second
+                // translation — a tree this sheet never saves. Measured on the
+                // corpus: `…03-supertrend` and `…22-rsi-levels` disagree with
+                // the saved tree at output 0's astHash, so one of each script's
+                // two controls reached the member permanently detached, and the
+                // other located only the scan plot while the same Pine input
+                // fed nine more.
+                //
+                // The address half of a locator belongs HERE because this
+                // component is the only one that knows what a plot is called.
+                const pickedInputParams = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && Array.isArray(picked.inputParams)) ? picked.inputParams : []
+                let nextParamManifest = null
                 // ⛔ REPLACE RATHER THAN APPEND: `defSchema.validateInput`
                 // refuses a duplicate key outright, so pasting the same script
                 // twice would produce a document that cannot be saved.
@@ -1791,9 +2113,312 @@ export default function BuilderSheet({
                     ...declared.map((d) => ({ ...d })),
                   ])
                 }
+                // ⛔ THE ASSIGNMENT MOVED DOWN, NOT AWAY. A fresh Pine pick still
+                // REPLACES the prior manifest outright (never merged) — a new
+                // paste is a new script — but it can only be built after the
+                // plot keys are decided, so `setParamManifest` now fires once,
+                // near `setSource`, with whatever the branches below assembled.
+                //   (`nextParamManifest` is declared above and stays `null` for
+                //   every non-Pine door, which is the shipped behaviour.)
+                // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, APPLIED.
+                //
+                // A fourth independent field on the same object form, and like
+                // `inputs` and `paramManifest` it lands only what it was handed.
+                // Every target here is a field `defSchema` already validates and
+                // `binder.js` already draws — the loss was never in the renderer,
+                // it was that nothing carried the author's intent this far.
+                //
+                // ⛔ ABSENT MEANS ABSENT, NEVER A DEFAULT INVENTED HERE. The
+                // translator omits what the author did not write, so a script
+                // that says nothing about colour keeps the builder's own default
+                // rather than being told it asked for one.
+                const pres = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && picked.presentation && typeof picked.presentation === 'object')
+                  ? picked.presentation : null
+                if (pres) {
+                  // `overlay=true` is the author saying "on the price chart".
+                  if (pres.overlay === true) setTarget('price')
+                  else if (pres.overlay === false) setTarget('pane')
+                  // `hline(70)` / `hline(30)` — the levels this door used to drop.
+                  // ⛔ REPLACE OUTRIGHT, NEVER MERGE — the same rule `paramManifest`
+                  // two lines up already follows, and for the same reason: a new
+                  // paste is a NEW SCRIPT. Setting these only when the incoming
+                  // script HAS levels left the previous import's levels standing
+                  // in the box, so pasting an RSI with `hline(50)` and then a
+                  // script with no levels at all showed 50 as if the second script
+                  // had asked for it. Caught on the real chart, not in a unit
+                  // test — the second import is a step a fixture does not take.
+                  setLevelsText(Array.isArray(pres.levels) && pres.levels.length
+                    ? pres.levels.map((l) => l.value).join(', ')
+                    : '')
+                  const o = pres.output || {}
+                  const patch = {}
+                  if (typeof o.color === 'string') patch.color = o.color
+                  if (Number.isFinite(o.width)) patch.width = Math.max(1, Math.min(4, Math.round(o.width)))
+                  if (typeof o.style === 'string') patch.style = o.style
+                  if (Object.keys(patch).length) setPlot0((prev) => ({ ...prev, ...patch }))
+                }
+                // ⭐⭐ C0.1 — ONE INDICATOR, MANY OUTPUTS.
+                //
+                // ⚰️ A FOUR-PLOT PINE INDICATOR USED TO BECOME FOUR APPLY ACTIONS
+                // into four unrelated builder rows. `buildDefinition` has always
+                // been able to write a multi-tree document; nothing ever handed
+                // it more than one tree. The extra outputs land as PLOT ROWS on
+                // the SAME document, so the indicator keeps one identity, one
+                // placement and one set of levels.
+                //
+                // ⛔ ROW ZERO IS THE MEMBER'S CHOSEN COLUMN and stays the scan
+                // plot — `outputs[0]` is `source` by construction — so the screen
+                // this import can produce is unchanged.
+                const picked2 = (picked && !Array.isArray(picked) && typeof picked === 'object')
+                  ? picked : null
+                const extraOutputs = picked2 && Array.isArray(picked2.outputs)
+                  ? picked2.outputs.slice(1) : []
+                if (extraOutputs.length) {
+                  // ⛔ A KEY IS `[a-z][A-Za-z0-9_]*`, UNIQUE, AND NOT THE LEVELS
+                  // GUIDE. Derived from the author's own plot title where that
+                  // yields a legal key, so a member reading the saved document
+                  // sees their own names; numbered otherwise. Uniqueness is
+                  // enforced here rather than left to the save gate, which would
+                  // refuse the whole document for a duplicate the import created.
+                  const taken = new Set(['value', LEVELS_PLOT_KEY])
+                  const keyFor = (title, i) => {
+                    const base = String(title || '').toLowerCase()
+                      .replace(/[^a-z0-9_]+/g, '_').replace(/^[^a-z]+/, '').replace(/_+$/, '')
+                    let k = base && /^[a-z][a-zA-Z0-9_]*$/.test(base) ? base.slice(0, 24) : `out${i + 2}`
+                    while (taken.has(k)) k = `${k}_`
+                    taken.add(k)
+                    return k
+                  }
+                  // ⚠️ A STATED CEILING, DISCLOSED RATHER THAN SILENT. A handful
+                  // of OOS scripts declare 18+ columns, and one row per column is
+                  // one live FormulaField per column. The cap is high enough that
+                  // no ordinary indicator meets it, and when it bites the member
+                  // is told in `pickerNote` instead of quietly losing plots —
+                  // "no silent omission" is the acceptance condition here.
+                  const CARRY_MAX = 12
+                  const carried = extraOutputs.slice(0, CARRY_MAX - 1)
+                  // ⛔⛔ AND THE INPUTS EVERY CARRIED ROW NAMES, DECLARED WITH IT.
+                  // `declared` above is the SELECTED output's rows; a sibling's
+                  // formula may name an input the selected column never touches,
+                  // and until this shipped that identifier reached Save undeclared
+                  // (see PineBox's `others` for the six OOS scripts and `lv3`).
+                  //
+                  // ⛔ THE UNION IS OVER `carried`, NOT OVER EVERY OUTPUT. A row
+                  // past `CARRY_MAX` is not in the document, so declaring its
+                  // inputs would hand the member a knob that moves nothing — the
+                  // same "half-applied control" objection `memberInputTranslation`
+                  // already refuses in the other direction.
+                  //
+                  // ⛔ FIRST OCCURRENCE WINS, and the selected output's rows are
+                  // written first, so a key two outputs share keeps the spec the
+                  // member's own column produced.
+                  const carriedInputs = carried.flatMap(
+                    (o) => (o && Array.isArray(o.inputs) ? o.inputs : []))
+                  if (carriedInputs.length) {
+                    setMemberInputs((prev) => {
+                      const seen = new Set(prev.map((p) => p && p.key))
+                      const add = []
+                      for (const spec of carriedInputs) {
+                        if (!spec || !spec.key || seen.has(spec.key)) continue
+                        seen.add(spec.key)
+                        add.push({ ...spec })
+                      }
+                      return add.length ? [...prev, ...add] : prev
+                    })
+                  }
+                  // ⭐⭐ C1-A — A CONDITIONAL COLOUR BECOMES A HIDDEN COLUMN.
+                  //
+                  // `plot(x, color = up ? green : red)` is the corpus' commonest
+                  // visual idiom. The schema's answer is `colorMode:
+                  // 'column:<key>'`, which colours each point by whether ANOTHER
+                  // column of the same document is non-zero — so the condition
+                  // has to BE a column. It rides as an ordinary hidden plot row:
+                  // one evaluator, one answer, and every existing rail (the
+                  // formula field, the read-back, the save gate) applies to it
+                  // unchanged.
+                  //
+                  // ⛔ THE HIDDEN ROW IS A REAL ROW, NOT A SIDE CHANNEL. It gets
+                  // a legal unique key from the same `taken` set every visible
+                  // row uses, so a script whose plot is literally titled
+                  // "value c" cannot collide with one.
+                  const condRows = []
+                  const colourPatch = (presentation, baseKey) => {
+                    const cc = presentation && presentation.colorCondition
+                    if (!cc || !cc.formula) return null
+                    if (!presentation.colorUp || !presentation.colorDown) return null
+                    let k = `${baseKey}_c`
+                    while (taken.has(k)) k = `${k}_`
+                    taken.add(k)
+                    condRows.push({
+                      ...newPlotRow(k),
+                      source: String(cc.formula),
+                      label: `${baseKey} colour rule`,
+                      hidden: true,
+                    })
+                    return {
+                      colorMode: `column:${k}`,
+                      colorUp: presentation.colorUp,
+                      colorDown: presentation.colorDown,
+                    }
+                  }
+                  const visible = carried.map((out, i) => {
+                    const op = (out && out.presentation) || {}
+                    const key = keyFor(out && out.title, i)
+                    const row = newPlotRow(key)
+                    return {
+                      ...row,
+                      source: String((out && out.source) || ''),
+                      label: String((out && out.title) || ''),
+                      ...(typeof op.color === 'string' ? { color: op.color } : {}),
+                      ...(Number.isFinite(op.width)
+                        ? { width: Math.max(1, Math.min(4, Math.round(op.width))) } : {}),
+                      ...(typeof op.style === 'string' ? { style: op.style } : {}),
+                      // ⭐ C3A — carried verbatim; the translator has already
+                      // reduced Pine's twelve shapes to the four the renderer
+                      // draws and recorded which ones it approximated.
+                      ...(op.marker && op.marker.shape ? { marker: op.marker } : {}),
+                      ...(colourPatch(op, key) || {}),
+                    }
+                  })
+                  // Plot 1's own rule, if it has one. Its key is fixed (`value`),
+                  // and its patch reaches the row through `setPlot0`.
+                  const p0 = colourPatch((picked2.presentation || {}).output, 'value')
+                  if (p0) setPlot0((prev) => ({ ...prev, ...p0 }))
+
+                  // ⭐⭐ C1-B — `fill(plotA, plotB)` BECOMES `plots[a].fill.with`.
+                  //
+                  // The edges arrive as indexes into the handback's own output
+                  // list (PineBox re-seats them for exactly this), so index 0 is
+                  // plot 1 and index n is `visible[n - 1]`. The band is declared
+                  // on the FIRST edge and names the second, which is the shape
+                  // `defSchema.plots[].fill` already validates and
+                  // `binder`'s fill primitive already draws.
+                  //
+                  // ⛔ A BAND WHOSE EITHER EDGE WAS NOT CARRIED IS DROPPED. Past
+                  // `CARRY_MAX`, or refused, the second edge simply is not in the
+                  // document — and an area between a line and nothing is not what
+                  // the author drew.
+                  const keyAt = (i) => (i === 0 ? 'value' : (visible[i - 1] || {}).key)
+                  const fillPatches = new Map()
+                  for (const f of ((picked2.presentation || {}).fills || [])) {
+                    const from = keyAt(f.a)
+                    const to = keyAt(f.b)
+                    if (!from || !to || from === to || fillPatches.has(from)) continue
+                    fillPatches.set(from, {
+                      fill: { with: to },
+                      ...(typeof f.color === 'string' ? { fillColor: f.color } : {}),
+                      ...(Number.isFinite(f.opacity) ? { fillOpacity: f.opacity } : {}),
+                    })
+                  }
+                  const withFills = visible.map(
+                    (r) => (fillPatches.has(r.key) ? { ...r, ...fillPatches.get(r.key) } : r))
+                  if (fillPatches.has('value')) {
+                    setPlot0((prev) => ({ ...prev, ...fillPatches.get('value') }))
+                  }
+                  setPlotRows([...withFills, ...condRows])
+                  // ⭐⭐ C2D.2 — THE MANIFEST, ADDRESSED. `keyAt` is the SAME
+                  // index→key map the fill wiring above already uses, so there
+                  // is one answer to "what is output n called" rather than two
+                  // that must agree. Only CARRIED rows are addressed: a row past
+                  // `CARRY_MAX` is not in the document, and locating a parameter
+                  // in a tree nobody saves is the defect this wave is fixing.
+                  //
+                  // ⛔ EVERY LOCATOR NAMES ITS PLOT EXPLICITLY, INCLUDING PLOT 1.
+                  // `treeIndex: null` resolves against `compute.ast`, which is an
+                  // ALIAS of whichever row is currently the scan plot — so a
+                  // member who later reassigns the scan plot would silently move
+                  // every `null` locator onto a different tree. That was a
+                  // disclosed v1 edge case; naming the key closes it.
+                  if (pickedInputParams.length) {
+                    const placements = [{
+                      treeIndex: 'value',
+                      locators: (picked2.outputs[0] || {}).paramLocators || [],
+                    }]
+                    carried.forEach((out, i) => {
+                      placements.push({
+                        treeIndex: keyAt(i + 1),
+                        locators: (out && out.paramLocators) || [],
+                      })
+                    })
+                    const built = manifestFromPlacements(pickedInputParams, placements)
+                    nextParamManifest = Object.keys(built).length ? built : null
+                  }
+                  const dropped = extraOutputs.length - carried.length
+                  if (dropped > 0) {
+                    setPickerNote(`This script declares ${extraOutputs.length + 1} columns. `
+                      + `The first ${CARRY_MAX} were brought in; ${dropped} were not.`)
+                  }
+                } else if (picked2 && Array.isArray(picked2.outputs)) {
+                  // A single-output import REPLACES any rows a previous paste
+                  // left standing — same rule as levels and the param manifest.
+                  //
+                  // ⭐ …EXCEPT ITS OWN COLOUR RULE. A one-plot script can colour
+                  // conditionally too, and the condition still has to ride as a
+                  // hidden column. Without this branch, C1-A would work only for
+                  // multi-plot imports — which is exactly the kind of gap that
+                  // reads as "dynamic colour is supported" until somebody pastes
+                  // a single-plot script.
+                  const cc = ((picked2.presentation || {}).output || {})
+                  if (cc.colorCondition && cc.colorCondition.formula
+                      && cc.colorUp && cc.colorDown) {
+                    setPlotRows([{
+                      ...newPlotRow('value_c'),
+                      source: String(cc.colorCondition.formula),
+                      label: 'value colour rule',
+                      hidden: true,
+                    }])
+                    setPlot0((prev) => ({
+                      ...prev,
+                      colorMode: 'column:value_c',
+                      colorUp: cc.colorUp,
+                      colorDown: cc.colorDown,
+                    }))
+                  } else {
+                    setPlotRows([])
+                  }
+                  // ⭐ A ONE-PLOT DOCUMENT HAS NO `compute.trees`, so `treeIndex:
+                  // null` — which resolves against `compute.ast` — is the only
+                  // address there is, and it is unambiguous because there is
+                  // exactly one tree for it to name.
+                  //
+                  // ⚠️ A colour-condition row makes this document multi-tree
+                  // (`value` + `value_c`), and `null` STILL resolves correctly:
+                  // `compute.ast` stays aliased to the scan plot, which is
+                  // `value`, and a hidden condition row is never the scan plot.
+                  if (pickedInputParams.length) {
+                    const built = manifestFromPlacements(pickedInputParams, [{
+                      treeIndex: null,
+                      locators: (picked2.outputs[0] || {}).paramLocators || [],
+                    }])
+                    nextParamManifest = Object.keys(built).length ? built : null
+                  }
+                }
+                setParamManifest(nextParamManifest)
+                // ⛔ `picked2` IS NULL FOR THE STRING FORM. `onPick` still
+                // takes a bare string — the widened door did not move it — so
+                // this must be the optional read, not the confident one. The
+                // string-form rail caught it immediately, which is what that
+                // rail is for.
+                setObjectProgram((picked2 && picked2.objects) || null)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
+              }}
+              onImportTelemetry={(dialect) => {
+                // ⭐ Phase One Track C. Fires ONLY on the same "Apply" action
+                // `onPick` above fires from (see PineBox.jsx's `use()`) — a
+                // deliberate member action, never a keystroke. Because that
+                // action only runs on a USABLE translation, this is always
+                // logged as a success; a genuine parse failure never reaches
+                // here (the Apply control isn't usable against a refusal),
+                // so the failure half of `compile_finished` for THIS event
+                // is covered by the plain-language/screenshot doors instead,
+                // where the backend observes the full request/response cycle.
+                const importId = newImportId()
+                importTelemetryRef.current = { importId, dialect }
+                logIndicatorTelemetry('import_submitted', { importId, dialect })
+                logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}
             />
           )}
@@ -1850,12 +2475,68 @@ export default function BuilderSheet({
             value={source}
             onChange={setSource}
             onEvaluated={handleEvaluated}
+            onPendingChange={setPending}
             result={result}
             autoFocus
             inputs={inputScope}
           />
           {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
           <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+
+          {/* ⭐⭐ T5 — THE MEMBER'S OWN PINE, ON A PANE, BEHIND A FLAG.
+              The importer `MemberPane.jsx` was written for, and the reason its
+              flag-off rail stops being vacuous: with no consumer, "renders
+              nothing when the flag is off" was a claim about a component
+              nobody could reach.
+
+              ⛔ IT IS FED `pineText`, NOT `source`. `source` is the FORMULA the
+              sheet edits — one tree, already drawn by `PreviewPane` above.
+              `pineText` is the script the member PASTED, whose whole document
+              (four drawn series on v2, plus the disclosures the translation
+              emits) is what this pane exists to show. Handing it `source` would
+              put a second drawing of the same single tree on screen and none of
+              the document.
+
+              ⛔ NO GUARD HERE, DELIBERATELY. `memberPaneEnabled()` is read
+              INSIDE the component, before any build, so a default build
+              installs nothing, registers nothing and renders nothing. A second
+              flag read at the call site would be a second authority over one
+              value — and the one on the inside is the one the rails measure. */}
+          <MemberPane
+            sym={sym}
+            tf={tf}
+            source={pineText}
+            settings={settings}
+            onAttach={attachPine}
+          />
+
+          {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
+              `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
+              directly (never on Pine, never on a second parser — see
+              `paramEdit.js`'s own header) and hands back a new `compute.source`,
+              which then flows through EXACTLY the same `setSource` →
+              `FormulaField`'s own debounced re-translate → `result` pipeline a
+              hand-typed edit already uses. No new save path, no new state beyond
+              `paramManifest` itself. Single-tree only (v1 scope) — `result.ast`
+              is the Formula tab's own `compute.ast`; the separate multi-plot
+              editor is untouched. */}
+          {paramManifest && Object.keys(paramManifest).length > 0 && result && result.ast && (
+            <ParamControls
+              definition={{ compute: { ast: result.ast, paramManifest } }}
+              onChange={(paramId, value) => {
+                const applied = applyParamEdit({ compute: { ast: result.ast, paramManifest } }, paramId, value)
+                if (!applied.ok) {
+                  // ⛔ REJECT-NOT-CLAMP, SURFACED. A bounds/round-trip failure
+                  // here is the client-side courtesy check catching something —
+                  // the value is simply not applied; the field's own draft
+                  // already reverted itself (`ParamControls`'s own commit()).
+                  setStoreError(applied.error)
+                  return
+                }
+                setSource(applied.definition.compute.source)
+              }}
+            />
+          )}
 
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
@@ -1871,7 +2552,12 @@ export default function BuilderSheet({
               </p>
             )}
             {memberInputs.map((spec, i) => {
+              // ⭐⭐ NAME LEGALITY FIRST, THEN THE WINDOW PRE-CHECK — the most
+              // specific true sentence wins, exactly the order rule
+              // `builderInputs.js::inputsFromFolded`'s own header states for
+              // the Pine-import door's identical two-question shape.
               const problem = inputKeyProblem(spec.key, i)
+                || (windowBoundMemberInputKeys.has(spec.key) ? formulaTabWindowRefusal(spec.key) : null)
               return (
                 <div className={styles.inputRow} key={`member-input-${i}`} data-testid={`member-input-${i}`}>
                   <input
@@ -2219,9 +2905,13 @@ export default function BuilderSheet({
             />
           </div>
 
-          {storeError && (
-            <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
-          )}
+          {/* ⛔ THE STORE'S REFUSAL USED TO RENDER HERE, AND HERE IS THE
+              SCROLLING BODY. On a pasted script it sat below the whole listing —
+              9,811 characters of `uncharted-clouds.pine` between the button a
+              member pressed and the sentence saying why nothing happened. It now
+              rides the sticky footer with the control that produced it; see the
+              footer's own comment, which already made this exact argument for
+              the discard confirm. */}
           {listError && (
             <p className={styles.storeError} role="alert" data-testid="list-error">
               {listError.status === 402
@@ -2257,6 +2947,19 @@ export default function BuilderSheet({
             formula?", with its Keep-editing/Discard buttons peeking out below and
             unreachable. A sticky element must carry whatever it is answering. */}
         <div className={styles.footer}>
+          {/* ⭐⭐ THE REFUSAL TRAVELS WITH THE BUTTON. A sentence that explains a
+              control has to be reachable from that control, and in the scrolling
+              body it was not: the member presses Save, nothing appears to
+              happen, and the reason is a screenful below the paste box. This is
+              the same rule the block below already states for the discard
+              confirm — "a sticky element must carry whatever it is answering" —
+              applied to the one refusal that was left behind.
+              ⚠️ `list-error` deliberately stays in the body: it answers the
+              saved-formulas list, not this button, and two unrelated failures
+              sharing one bar make neither obviously about anything. */}
+          {storeError && (
+            <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
+          )}
           {saveHint && (
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}

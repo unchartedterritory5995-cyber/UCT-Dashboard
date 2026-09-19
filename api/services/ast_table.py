@@ -420,13 +420,271 @@ def vendor_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, s
     against is a hand-list that happens to be right today.
     """
     m = manifest if manifest is not None else TABLE
-    return {
+    out = {
         name: spec[VENDOR_NOTE]
         for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
         if isinstance(spec, Mapping)
         and isinstance(spec.get(VENDOR_NOTE), str)
         and spec[VENDOR_NOTE].strip()
     }
+    # ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+    # `barstate.*` divergence is about a group of CLOCK COLUMNS, and there is no
+    # function entry to hang it on — but a member reading one of those columns
+    # needs the sentence exactly as much as one calling `atr` does. The block
+    # that owns the family carries it, keyed by the family name.
+    # ⛔ WITHOUT THIS, `test_vendor_truth.py` IS THE ONLY READER OF AN ACCEPTED
+    # DIVERGENCE — which is the failure that rail exists to catch, arriving in the
+    # rail's own blind spot.
+    for family in ("_barstate",):
+        spec = m.get(family)
+        if (isinstance(spec, Mapping) and isinstance(spec.get(VENDOR_NOTE), str)
+                and spec[VENDOR_NOTE].strip()):
+            out[family.lstrip("_")] = spec[VENDOR_NOTE]
+    return out
+
+
+#: The block that carries the member sentence for a TRANSLATOR-LEVEL fold.
+#: ``closedTable.json::_folds``; ``parse.js::foldNotesOf`` is the same read.
+FOLDS_SECTION = "_folds"
+
+#: The key inside a ``_folds`` entry that holds that sentence.
+MEMBER_NOTE = "memberNote"
+
+
+def fold_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """Every fold DISCLOSURE CHANNEL declaring a ``memberNote`` -> that sentence.
+
+    ⭐ THE FOLD CASE OF ``vendor_notes``, AND IT EXISTS BECAUSE THE TREE CANNOT
+    CARRY IT. A fold erases the call it folded, so there is no function name left
+    for a ``vendorNote`` to hang on; what the translation leaves behind is a
+    disclosure on the OUTPUT ROW (``baseTimeframeFolds``), and the sentence for
+    that channel is declared once in the manifest and read by both lanes.
+
+    ⛔ DERIVED, NEVER LISTED — same argument as ``vendor_notes``: exactly one
+    channel declares a note today, so a reader written against that one name
+    would be indistinguishable from this until the day a second fold is accepted,
+    which is the day a member stops being told.
+    """
+    m = manifest if manifest is not None else TABLE
+    return {
+        channel: spec[MEMBER_NOTE]
+        for channel, spec in (m.get(FOLDS_SECTION) or {}).items()
+        if isinstance(spec, Mapping)
+        and isinstance(spec.get(MEMBER_NOTE), str)
+        and spec[MEMBER_NOTE].strip()
+    }
+
+
+#: The manifest section holding the ALERT-CONDITION sentence (ruling D1, option
+#: C, 2026-09-12). Unlike ``_folds`` this is ONE block, not a roster of channels:
+#: the disclosure is a property of a KIND of output, not of a fold channel.
+ALERTS_SECTION = "_alertconditions"
+
+#: The literal substring inside ``memberNote`` that the condition's own title
+#: replaces. Declared in the manifest so neither lane hard-codes ``"<name>"``.
+NAME_PLACEHOLDER = "namePlaceholder"
+
+
+def alert_notes(manifest: Optional[Mapping[str, Any]] = None) -> Optional[Mapping[str, str]]:
+    """The alert-condition disclosure: ``{"memberNote": ..., "namePlaceholder": ...}``.
+
+    ⭐ THE MIRROR OF ``parse.js::alertNotesOf``, AND IT EXISTS FOR THE REASON THE
+    FOLD NOTE'S MIRROR EXISTS: the sentence a member reads must have exactly one
+    author. Ruling D1 splits ``chooseOutput`` by lane so a PANE never selects an
+    ``alertcondition`` — an alertcondition draws nothing in Pine — and this is the
+    sentence that tells the member where the condition went instead.
+
+    ⛔ RETURNS ``None`` RATHER THAN A DEFAULT SENTENCE when the section is absent
+    or blank. A fallback written here would be a second copy of the one string,
+    and it would read as working right up until the manifest strip dropped the
+    section — which is precisely the failure ``manifestProse.KEEP`` was extended
+    to prevent.
+    """
+    m = manifest if manifest is not None else TABLE
+    spec = (m or {}).get(ALERTS_SECTION)
+    if not isinstance(spec, Mapping):
+        return None
+    note = spec.get(MEMBER_NOTE)
+    if not isinstance(note, str) or not note.strip():
+        return None
+    placeholder = spec.get(NAME_PLACEHOLDER)
+    if not isinstance(placeholder, str) or not placeholder:
+        placeholder = "<name>"
+    return {MEMBER_NOTE: note, NAME_PLACEHOLDER: placeholder}
+
+
+def alert_note_for(title: Optional[str],
+                   manifest: Optional[Mapping[str, Any]] = None) -> Optional[str]:
+    """That sentence with the condition's own title substituted, or ``None``.
+
+    ⚠️ An untitled condition becomes ``"this alert"`` rather than the string
+    ``"None"`` — a vague sentence beats one naming a Python value.
+    """
+    notes = alert_notes(manifest)
+    if notes is None:
+        return None
+    name = title.strip() if isinstance(title, str) and title.strip() else "this alert"
+    return notes[MEMBER_NOTE].replace(notes[NAME_PLACEHOLDER], name)
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ R-G — THE BIND-FOLDABLE WINDOW, AS ONE CONTRACT FOR EVERY READER
+# --------------------------------------------------------------------------- #
+
+#: The clock names that are constant for a binding, READ OFF THE MANIFEST.
+#:
+#: ⛔ NEVER A LIST TYPED HERE. ``dayofweek`` and ``isdaily`` sit in the same
+#: manifest section and are opposite kinds; only the sentence each entry carries
+#: says so. ``ast_bind.BIND_TIME_CLOCK`` re-exports this rather than re-reading
+#: the manifest, so the roster has one home.
+BIND_TIME_CLOCK = frozenset(
+    (TABLE.get("_bind_time_constants") or {}).get("clock") or ())
+
+#: The CONDITIONAL operator, DERIVED — the only operator the table declares at
+#: arity 3.
+#:
+#: ⛔⛔ NEVER SPELLED. `test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy`
+#: walks this module's own source with `ast` and refuses any table name written
+#: as a string literal, because a hand-copy that happened to be byte-correct on
+#: the day it was written would satisfy any equality against today's manifest.
+#: That rail fired on R-G's first cut, which spelled the operator, and it was
+#: right: this module must own no vocabulary.
+#:
+#: ⚠️ `Mapping`, NOT `dict`. `TABLE` is deep-frozen into `mappingproxy`, which is
+#: not a `dict` — the same trap `ast_lint._own_window` documents, where an
+#: `isinstance(spec, dict)` test was False for every real entry and every tree
+#: came back `repaints`. A first cut of this line found ZERO arity-3 operators.
+_TERNARY = next(
+    (name for name, spec in (TABLE.get(OPERATORS_SECTION) or {}).items()
+     if isinstance(spec, Mapping) and spec.get("arity") == 3),
+    None)
+
+
+#: ⭐⭐ R-J (owner ruling, 2026-09-12) — IS A MEMBER'S KNOB FOLDED INTO THE TREE?
+#:
+#: ⛔⛔ ONE VALUE, READ OFF THE MANIFEST, NAMED AFTER THE RULING IT DEPENDS ON.
+#: R-H established that a member ``input.int`` the translator folds becomes an
+#: IMMUTABLE parameter baked into the tree, so the folded value is the ONLY value
+#: that window can take and bounding a lookback by it is a promise the badge can
+#: keep. ``inputWindowsAgreement.test.js`` and ``tests/test_input_windows.py``
+#: fire BY NAME the day it flips, and ``_input_windows.whenRuntime`` already
+#: records what replaces it.
+#:
+#: ⚠️ IT FAILS CLOSED: an absent or non-``True`` declaration reads ``False``.
+INPUTS_ARE_FOLDED: bool = (
+    (TABLE.get("_input_windows") or {}).get("inputsAreFolded") is True)
+
+#: The wave-2 rule, carried as a STRING so a reader can say what it will be.
+RUNTIME_INPUT_WINDOW_RULE = (TABLE.get("_input_windows") or {}).get("whenRuntime")
+
+
+def bind_foldable_window(node: Any,
+                         allow_input_default: bool = INPUTS_ARE_FOLDED) -> tuple:
+    """Does this length settle to a number for ANY binding, and what bounds it?
+
+    Returns ``(foldable, max)`` — ``(False, None)`` when it does not.
+
+    ⛔⛔ THE MIRROR OF ``parse.js::bindFoldableWindow``, NODE KIND FOR NODE KIND.
+    ``tests/test_ast_lookback_parity.py`` walks both lanes over the same trees and
+    compares the numbers; a shape admitted on one side and not the other is a
+    script that installs on the pane and refuses in the sweep.
+
+        num                a literal
+        series (clock)     ``isweekly`` etc. — 0 or 1, so its max is 1
+        series (input)     an ``input.*`` default, fixed per DEFINITION
+        op '?:'            max over the two ARMS
+
+    Everything else answers ``(False, None)``. ⛔ NO MONOTONICITY ARGUMENT IS MADE
+    ANYWHERE HERE: admitting ``a + b`` would need "both arms non-negative" to
+    bound it, and a bound resting on an unstated premise is how an UNDER-stated
+    window gets shipped.
+
+    ⛔⛔ THE BOUND IS THE MAXIMUM, never the first arm and never the one matching
+    today's chart. An over-stated lookback costs warm-up bars; an UNDER-stated one
+    lets a formula read a bar the budget never paid for, which is the one
+    direction a budget cannot absorb.
+    """
+    if not isinstance(node, Mapping):
+        return (False, None)
+
+    kind = node.get("type")
+
+    if kind == "num":
+        v = node.get("value")
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return (False, None)
+        return (True, v) if v == v and v not in (float("inf"), float("-inf")) else (False, None)
+
+    if kind == "series":
+        name = node.get("name")
+        # ⭐ A CLOCK NAME IS A PREDICATE: 0 or 1, so 1 bounds it for every binding.
+        if name in BIND_TIME_CLOCK:
+            return (True, 1)
+        # ⛔⛔ AN INPUT DEFAULT IS **OFF** BY DEFAULT, AND THE RULING IS NOT ON FILE.
+        # `parse.js::bindFoldableWindow` bounds a knob-defaulted window by its
+        # DEFAULT; `ast_lint`'s own docstring says the opposite in writing — "a
+        # window that changed with a knob is a window the badge cannot promise
+        # anything about" — and it is right: bounding by the default promises
+        # something the member breaks the moment they raise the knob. The two lanes
+        # have disagreed about this since before R-G and no corpus tree exhibits it,
+        # which is why the agreement rail is silent on it. R-G did not rule it, so
+        # the window readers pass `allow_input_default=False` and nothing widens.
+        if allow_input_default:
+            d = node.get("inputDefault")
+            if not isinstance(d, bool) and isinstance(d, (int, float)) and d == d:
+                return (True, d)
+        return (False, None)
+
+    if kind == "op" and _TERNARY is not None and node.get("name") == _TERNARY:
+        args = node.get("args") or []
+        if len(args) != 3:
+            return (False, None)
+        # ⛔ THE SELECTOR MUST FOLD TOO, even though it contributes no VALUE. The
+        # bind stage settles the whole node, so a selector it cannot fold makes
+        # the whole length unfoldable — and no reader may defer what the stage
+        # will then refuse.
+        sel_ok, _ = bind_foldable_window(args[0], allow_input_default)
+        a_ok, a_max = bind_foldable_window(args[1], allow_input_default)
+        b_ok, b_max = bind_foldable_window(args[2], allow_input_default)
+        if not (sel_ok and a_ok and b_ok):
+            return (False, None)
+        return (True, max(a_max, b_max))
+
+    # ``offset`` (x[1]), ``tf``, ``sym``, ``call``, ``textop``, ``str``,
+    # ``symtext`` and every arithmetic ``op`` — each reads a bar, another
+    # request, a symbol, or needs a premise this function will not make.
+    return (False, None)
+
+
+def bind_foldable_window_max(node: Any,
+                             allow_input_default: bool = INPUTS_ARE_FOLDED):
+    """The largest value this length can take over every binding, or ``None``."""
+    ok, m = bind_foldable_window(node, allow_input_default)
+    return m if ok else None
+
+
+def usable_window_bound(node: Any):
+    """``bind_foldable_window_max`` narrowed to what a WINDOW may actually be.
+
+    ⭐ A window is a whole number of at least 1. A foldable length whose bound is
+    ``0.5`` or ``-3`` is not a usable window, and this returns ``None`` for it so
+    the caller falls through to its own refusal — which names the function, the
+    argument and the value, and is the sentence a member reads.
+
+    ⛔ ONE NARROWING, SHARED. Written here rather than at each of the three call
+    sites, because three copies of "integer and at least one" is exactly the
+    shape that drifts.
+    """
+    m = bind_foldable_window_max(node)
+    if m is None or isinstance(m, bool):
+        return None
+    if isinstance(m, float):
+        if not m.is_integer():
+            return None
+        m = int(m)
+    if not isinstance(m, int) or m < 1:
+        return None
+    return m
 
 
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside

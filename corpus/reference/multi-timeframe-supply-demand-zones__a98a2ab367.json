@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a98a2ab3676f4ea48b3d8c0daad94901",
+ "title": "Multi Timeframe Supply & Demand zones",
+ "author": "Lenny_Kiruthu",
+ "url": "https://www.tradingview.com/script/sWLOTs2O-multi-timeframe-supply-demand-zones/",
+ "agreeCount": 2926,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+ "our_status": "committed"
+}

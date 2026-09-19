@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;213cfb6fbb7648d5a064739e5666362f",
+ "title": "Solar System in 3D [Astro Tool w/ Zodiac] | Alien_Algorithms",
+ "author": "Alien_Algorithms",
+ "url": "https://www.tradingview.com/script/bT8hx615-solar-system-in-3d-astro-tool-w-zodiac-alien-algorithms/",
+ "agreeCount": 2650,
+ "category": "visual decoration",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/solar-system-in-3d-astro-tool-w-zodiac-alien-algorithms__213cfb6fbb.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "10-smc-engine.pine",
+  "title": "SMC Engine",
+  "author": "meganetwork",
+  "source_url": "https://www.tradingview.com/script/ZHP7rGVm-SMC-Engine/",
+  "retrieved_at": "2026-09-07T11:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"4 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 83,
+  "complexity_bucket": "medium",
+  "sha256_source": "4070c667bfbc19116a7bcd282f5845393f21cea32351db49da210c52c15e58f9",
+  "sha256_normalized": "4029b3869bea7a4c056ad81a983fdd6676e2f1c24c557f8dc0598177ae68f96d",
+  "storage": "local-only"
+}

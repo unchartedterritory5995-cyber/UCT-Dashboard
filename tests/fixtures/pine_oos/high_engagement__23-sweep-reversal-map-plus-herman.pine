@@ -1,0 +1,240 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/ MPL-2.0
+
+//@version=6
+
+// ============================================================================
+// Sweep Reversal Map+ [Herman]
+// Concept reference: ICT liquidity sweep / reversal framework
+// ============================================================================
+
+indicator("Sweep Reversal Map [Herman]", shorttitle = "Sweep Reversal Map [Herman]", overlay = true, max_boxes_count = 200, max_lines_count = 200, max_labels_count = 200, calc_bars_count = 10000)
+
+// --- Constants ---
+// Herman Trading — configuration and UI constants.
+
+const string GROUP_DETECTION = "Detection"
+const string GROUP_CONFIRMATION = "Confirmation"
+const string GROUP_STYLE = "Style"
+
+const string SWING_TOOLTIP = "Number of bars on each side required to confirm a swing. Higher values detect more important, but less frequent, liquidity levels."
+const string PENETRATION_TOOLTIP = "Minimum distance beyond a swing level, measured as a fraction of ATR, required to register a sweep. Set to 0 to accept every breach."
+const string STRUCTURE_TOOLTIP = "Number of bars preceding the sweep used to define the local structure level that price must break to confirm the reversal."
+const string CONFIRM_BARS_TOOLTIP = "Maximum number of bars allowed between the initial sweep and reversal confirmation."
+const string DISPLACEMENT_TOOLTIP = "Minimum confirmation-candle body as a fraction of ATR. Set to 0 to disable the displacement filter."
+const string DEVELOPING_TOOLTIP = "Shows a faint zone while a detected sweep is waiting for a confirmed break of local structure."
+const string EXTENSION_TOOLTIP = "Number of bars by which a confirmed reversal zone is extended to the right."
+const string HISTORY_TOOLTIP = "Maximum number of confirmed historical sweep reversals retained on the chart."
+
+const color TRANSPARENT_COLOR = #00000000
+
+// --- Inputs ---
+// Herman Trading — user controls for Sweep Reversal Map [Herman].
+
+int swingLengthInput = input.int(5, "Swing length", minval = 2, maxval = 50, tooltip = SWING_TOOLTIP, group = GROUP_DETECTION)
+int atrLengthInput = input.int(14, "ATR length", minval = 1, tooltip = "ATR period used by the sweep penetration and displacement filters.", group = GROUP_DETECTION)
+float minPenetrationInput = input.float(0.0, "Minimum sweep penetration (ATR)", minval = 0.0, step = 0.05, tooltip = PENETRATION_TOOLTIP, group = GROUP_DETECTION)
+
+int structureLengthInput = input.int(3, "Local structure length", minval = 1, maxval = 20, tooltip = STRUCTURE_TOOLTIP, group = GROUP_CONFIRMATION)
+int maxConfirmationBarsInput = input.int(12, "Maximum confirmation bars", minval = 1, maxval = 100, tooltip = CONFIRM_BARS_TOOLTIP, group = GROUP_CONFIRMATION)
+float minDisplacementInput = input.float(0.2, "Minimum displacement body (ATR)", minval = 0.0, step = 0.05, tooltip = DISPLACEMENT_TOOLTIP, group = GROUP_CONFIRMATION)
+
+bool showDevelopingInput = input.bool(true, "Show developing reversals", tooltip = DEVELOPING_TOOLTIP, group = GROUP_STYLE)
+int confirmedExtensionInput = input.int(2, "Confirmed box extension", minval = 0, maxval = 50, tooltip = EXTENSION_TOOLTIP, group = GROUP_STYLE)
+int maxHistoryInput = input.int(80, "Historical setups", minval = 1, maxval = 150, tooltip = HISTORY_TOOLTIP, group = GROUP_STYLE)
+color zoneColorInput = input.color(#ff9f43, "Reversal zone", tooltip = "Color used for developing and confirmed reversal boxes.", group = GROUP_STYLE)
+color levelColorInput = input.color(#7f1d1d, "Sweep level and marker", tooltip = "Color used for confirmed liquidity levels and sweep markers.", group = GROUP_STYLE)
+
+// --- Historical-object storage ---
+
+var array<box> historicalBoxesArray = array.new<box>()
+var array<line> historicalLinesArray = array.new<line>()
+var array<label> historicalLabelsArray = array.new<label>()
+
+trimHistory(int maximumSetups) =>
+    while array.size(historicalBoxesArray) > maximumSetups
+        box.delete(array.shift(historicalBoxesArray))
+        line.delete(array.shift(historicalLinesArray))
+        label.delete(array.shift(historicalLabelsArray))
+
+// --- Core calculations ---
+// Herman Trading — original sweep/reversal engine preserved without logic changes.
+
+float atrValue = ta.atr(atrLengthInput)
+float pivotHighValue = ta.pivothigh(high, swingLengthInput, swingLengthInput)
+float pivotLowValue = ta.pivotlow(low, swingLengthInput, swingLengthInput)
+float priorStructureLow = ta.lowest(low, structureLengthInput)[1]
+float priorStructureHigh = ta.highest(high, structureLengthInput)[1]
+float candleBody = math.abs(close - open)
+bool displacementPass = not na(atrValue) and candleBody >= atrValue * minDisplacementInput
+
+// --- Latest confirmed liquidity levels ---
+
+var float latestSwingHigh = na
+var float latestSwingLow = na
+var int latestSwingHighBar = na
+var int latestSwingLowBar = na
+var bool swingHighAvailable = false
+var bool swingLowAvailable = false
+
+if not na(pivotHighValue)
+    latestSwingHigh := pivotHighValue
+    latestSwingHighBar := bar_index - swingLengthInput
+    swingHighAvailable := true
+
+if not na(pivotLowValue)
+    latestSwingLow := pivotLowValue
+    latestSwingLowBar := bar_index - swingLengthInput
+    swingLowAvailable := true
+
+// --- Bearish reversal state ---
+
+var bool bearishActive = false
+var bool bearishReclaimed = false
+var int bearishStartBar = na
+var float bearishLevel = na
+var float bearishExtreme = na
+var float bearishConfirmationLevel = na
+var box bearishBoxId = na
+var line bearishLineId = na
+var label bearishLabelId = na
+
+// --- Bullish reversal state ---
+
+var bool bullishActive = false
+var bool bullishReclaimed = false
+var int bullishStartBar = na
+var float bullishLevel = na
+var float bullishExtreme = na
+var float bullishConfirmationLevel = na
+var box bullishBoxId = na
+var line bullishLineId = na
+var label bullishLabelId = na
+
+bool bearishConfirmedSignal = false
+bool bullishConfirmedSignal = false
+
+if barstate.isconfirmed
+    float minimumPenetration = nz(atrValue) * minPenetrationInput
+
+    // Start a bearish candidate when price sweeps a confirmed swing high.
+    bool bearishSweep = not bearishActive and swingHighAvailable and not na(latestSwingHigh) and not na(priorStructureLow) and high >= latestSwingHigh + minimumPenetration
+
+    if bearishSweep
+        bearishActive := true
+        bearishReclaimed := close < latestSwingHigh
+        bearishStartBar := bar_index
+        bearishLevel := latestSwingHigh
+        bearishExtreme := high
+        bearishConfirmationLevel := priorStructureLow
+        swingHighAvailable := false
+
+        color developingFill = showDevelopingInput ? color.new(zoneColorInput, 88) : color.new(zoneColorInput, 100)
+        color developingBorder = showDevelopingInput ? color.new(zoneColorInput, 65) : color.new(zoneColorInput, 100)
+
+        bearishBoxId := box.new(bar_index, bearishExtreme, bar_index + 1, bearishLevel, xloc = xloc.bar_index, bgcolor = developingFill, border_color = developingBorder)
+        bearishLineId := line.new(latestSwingHighBar, bearishLevel, bar_index, bearishLevel, xloc = xloc.bar_index, color = showDevelopingInput ? color.new(levelColorInput, 75) : color.new(levelColorInput, 100), style = line.style_dotted)
+        bearishLabelId := label.new(latestSwingHighBar, bearishLevel, "×", xloc = xloc.bar_index, style = label.style_label_center, color = TRANSPARENT_COLOR, textcolor = showDevelopingInput ? color.new(levelColorInput, 70) : color.new(levelColorInput, 100), size = size.small)
+
+    if bearishActive
+        bearishExtreme := math.max(bearishExtreme, high)
+        bearishReclaimed := bearishReclaimed or close < bearishLevel
+        box.set_top(bearishBoxId, bearishExtreme)
+        box.set_right(bearishBoxId, bar_index + 1)
+        line.set_x2(bearishLineId, bar_index)
+
+        bool confirmBearish = bearishReclaimed and close < bearishConfirmationLevel and displacementPass
+        bool expireBearish = bar_index - bearishStartBar > maxConfirmationBarsInput
+
+        if confirmBearish
+            bearishConfirmedSignal := true
+            box.set_right(bearishBoxId, bar_index + confirmedExtensionInput)
+            box.set_bgcolor(bearishBoxId, color.new(zoneColorInput, 35))
+            box.set_border_color(bearishBoxId, color.new(zoneColorInput, 5))
+            box.set_border_width(bearishBoxId, 1)
+            line.set_color(bearishLineId, color.new(levelColorInput, 20))
+            line.set_style(bearishLineId, line.style_solid)
+            label.set_textcolor(bearishLabelId, levelColorInput)
+
+            array.push(historicalBoxesArray, bearishBoxId)
+            array.push(historicalLinesArray, bearishLineId)
+            array.push(historicalLabelsArray, bearishLabelId)
+            trimHistory(maxHistoryInput)
+
+            bearishActive := false
+            bearishBoxId := na
+            bearishLineId := na
+            bearishLabelId := na
+
+        else if expireBearish
+            box.delete(bearishBoxId)
+            line.delete(bearishLineId)
+            label.delete(bearishLabelId)
+            bearishActive := false
+            bearishBoxId := na
+            bearishLineId := na
+            bearishLabelId := na
+
+    // Start a bullish candidate when price sweeps a confirmed swing low.
+    bool bullishSweep = not bullishActive and swingLowAvailable and not na(latestSwingLow) and not na(priorStructureHigh) and low <= latestSwingLow - minimumPenetration
+
+    if bullishSweep
+        bullishActive := true
+        bullishReclaimed := close > latestSwingLow
+        bullishStartBar := bar_index
+        bullishLevel := latestSwingLow
+        bullishExtreme := low
+        bullishConfirmationLevel := priorStructureHigh
+        swingLowAvailable := false
+
+        color developingFill = showDevelopingInput ? color.new(zoneColorInput, 88) : color.new(zoneColorInput, 100)
+        color developingBorder = showDevelopingInput ? color.new(zoneColorInput, 65) : color.new(zoneColorInput, 100)
+
+        bullishBoxId := box.new(bar_index, bullishLevel, bar_index + 1, bullishExtreme, xloc = xloc.bar_index, bgcolor = developingFill, border_color = developingBorder)
+        bullishLineId := line.new(latestSwingLowBar, bullishLevel, bar_index, bullishLevel, xloc = xloc.bar_index, color = showDevelopingInput ? color.new(levelColorInput, 75) : color.new(levelColorInput, 100), style = line.style_dotted)
+        bullishLabelId := label.new(latestSwingLowBar, bullishLevel, "×", xloc = xloc.bar_index, style = label.style_label_center, color = TRANSPARENT_COLOR, textcolor = showDevelopingInput ? color.new(levelColorInput, 70) : color.new(levelColorInput, 100), size = size.small)
+
+    if bullishActive
+        bullishExtreme := math.min(bullishExtreme, low)
+        bullishReclaimed := bullishReclaimed or close > bullishLevel
+        box.set_bottom(bullishBoxId, bullishExtreme)
+        box.set_right(bullishBoxId, bar_index + 1)
+        line.set_x2(bullishLineId, bar_index)
+
+        bool confirmBullish = bullishReclaimed and close > bullishConfirmationLevel and displacementPass
+        bool expireBullish = bar_index - bullishStartBar > maxConfirmationBarsInput
+
+        if confirmBullish
+            bullishConfirmedSignal := true
+            box.set_right(bullishBoxId, bar_index + confirmedExtensionInput)
+            box.set_bgcolor(bullishBoxId, color.new(zoneColorInput, 35))
+            box.set_border_color(bullishBoxId, color.new(zoneColorInput, 5))
+            box.set_border_width(bullishBoxId, 1)
+            line.set_color(bullishLineId, color.new(levelColorInput, 20))
+            line.set_style(bullishLineId, line.style_solid)
+            label.set_textcolor(bullishLabelId, levelColorInput)
+
+            array.push(historicalBoxesArray, bullishBoxId)
+            array.push(historicalLinesArray, bullishLineId)
+            array.push(historicalLabelsArray, bullishLabelId)
+            trimHistory(maxHistoryInput)
+
+            bullishActive := false
+            bullishBoxId := na
+            bullishLineId := na
+            bullishLabelId := na
+
+        else if expireBullish
+            box.delete(bullishBoxId)
+            line.delete(bullishLineId)
+            label.delete(bullishLabelId)
+            bullishActive := false
+            bullishBoxId := na
+            bullishLineId := na
+            bullishLabelId := na
+
+// --- Alerts ---
+// Herman Trading — Sweep Reversal Map [Herman] alert conditions.
+
+alertcondition(bearishConfirmedSignal, "Bearish sweep reversal confirmed", "Bearish liquidity sweep reversal confirmed on {{ticker}} {{interval}}.")
+alertcondition(bullishConfirmedSignal, "Bullish sweep reversal confirmed", "Bullish liquidity sweep reversal confirmed on {{ticker}} {{interval}}.")
+alertcondition(bearishConfirmedSignal or bullishConfirmedSignal, "Any sweep reversal confirmed", "Liquidity sweep reversal confirmed on {{ticker}} {{interval}}.")

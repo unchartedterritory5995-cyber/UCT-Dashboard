@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ad60b125e6b04e1f8b090a08bae151fd",
+ "title": "ATR Bands",
+ "author": "TheTrdFloor",
+ "url": "https://www.tradingview.com/script/ziTzsSfo-atr-bands/",
+ "agreeCount": 6094,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-bands__ad60b125e6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-bands__ad60b125e6.pine",
+ "our_status": "committed"
+}

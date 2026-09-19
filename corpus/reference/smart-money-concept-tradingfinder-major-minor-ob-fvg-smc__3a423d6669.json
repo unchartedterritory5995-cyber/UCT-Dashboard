@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3a423d6669cf449ebf9f9f59ab067ea3",
+ "title": "Smart Money Concept [TradingFinder] Major Minor OB + FVG (SMC)",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/7Q5CbHhr-smart-money-concept-tradingfinder-major-minor-ob-fvg-smc/",
+ "agreeCount": 23719,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+ "our_status": "committed"
+}

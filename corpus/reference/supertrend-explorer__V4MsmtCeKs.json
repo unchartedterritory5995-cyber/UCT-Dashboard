@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;V4MsmtCeKst4Jd2u5Umd2lVonBlJJH18",
+ "title": "Supertrend Explorer",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/3HnFEllx-supertrend-explorer/",
+ "agreeCount": 16304,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine",
+ "cached_source": "tools/pine_survey/cache/sources/supertrend-explorer__V4MsmtCeKs.pine",
+ "our_status": "committed"
+}

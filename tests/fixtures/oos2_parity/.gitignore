@@ -1,0 +1,12 @@
+# ⛔ THE SCRIPT TEXT IS NEVER COMMITTED FROM HERE.
+#
+# This directory is a MATERIALISED COPY of ten named members of
+# `tests/fixtures/pine_oos`, staged so the live journey harness can point at one
+# directory. Six of the ten are on `pine_oos/.gitignore`'s withhold list —
+# scripts whose recorded licence does not contemplate redistribution — and a
+# copy is still a redistribution. So the whole set is ignored here rather than
+# the six, because a per-file list in a second place is a second authority that
+# would drift the first time the parity set changed.
+#
+# `README.md` names the ten and says how to re-materialise them.
+*.pine

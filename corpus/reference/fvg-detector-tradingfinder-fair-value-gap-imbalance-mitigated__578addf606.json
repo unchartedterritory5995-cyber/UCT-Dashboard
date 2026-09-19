@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;578addf6060c467da49b261c77122e78",
+ "title": "FVG Detector [TradingFinder] Fair Value Gap-Imbalance-Mitigated",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/7RyvovXb-fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigate/",
+ "agreeCount": 4660,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine",
+ "our_status": "committed"
+}

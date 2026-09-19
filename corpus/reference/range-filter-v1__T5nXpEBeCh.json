@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;T5nXpEBeChdjcmDZHdi4MvzCXsEuVgtB",
+ "title": "Range filter v1",
+ "author": "RafaelZioni",
+ "url": "https://www.tradingview.com/script/WYuY0pzF-range-filter-v1/",
+ "agreeCount": 451,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/range-filter-v1__T5nXpEBeCh.pine",
+ "our_status": "reference-only"
+}

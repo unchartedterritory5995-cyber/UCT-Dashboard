@@ -1,0 +1,19 @@
+//@version=5
+indicator("C3B Line Identity", overlay = true, max_lines_count = 400)
+ma = ta.sma(close, 20)
+up = ta.crossover(close, ma)
+dn = ta.crossunder(close, ma)
+var line anchor = na
+var line tracker = na
+if bar_index == 60
+    anchor := line.new(bar_index, ma, bar_index, ma, color = color.blue, width = 2)
+if not na(anchor)
+    line.set_x2(anchor, bar_index)
+    line.set_y2(anchor, ma)
+if up
+    tracker := line.new(bar_index, low, bar_index, high, color = color.green, width = 3)
+if not na(tracker)
+    line.set_y2(tracker, high)
+if dn
+    line.delete(tracker)
+plot(ma, title = "MA20", color = color.blue)

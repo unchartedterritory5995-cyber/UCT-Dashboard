@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;84da7a14bfe64823a1246e4d5b0f7c80",
+ "title": "CVD - Cumulative Volume Delta (Chart)",
+ "author": "TradingView",
+ "url": "https://www.tradingview.com/script/hFcy7CIq-cvd-cumulative-volume-delta-chart/",
+ "agreeCount": 8494,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+ "our_status": "committed"
+}

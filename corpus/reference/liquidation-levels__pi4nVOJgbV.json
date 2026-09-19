@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;pi4nVOJgbVQRfvn736mECtPWtQlu0QKx",
+ "title": "Liquidation Levels",
+ "author": "mabonyi",
+ "url": "https://www.tradingview.com/script/niakxMuN-liquidation-levels/",
+ "agreeCount": 662,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidation-levels__pi4nVOJgbV.pine",
+ "our_status": "committed"
+}

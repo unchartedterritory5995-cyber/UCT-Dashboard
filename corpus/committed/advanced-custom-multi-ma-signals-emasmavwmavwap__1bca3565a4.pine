@@ -1,0 +1,374 @@
+// -----------------------------------------------------------------------------
+// ██████╗ ██╗ ██████╗ ████████╗ █████╗ ██╗  ██╗███████╗██████╗
+// ██╔══██╗██║██╔════╝ ╚══██╔══╝██╔══██╗██║ ██╔╝██╔════╝██╔══██╗
+// ██████╔╝██║██║  ███╗   ██║   ███████║█████╔╝ █████╗  ██████╔╝
+// ██╔══██╗██║██║   ██║   ██║   ██╔══██║██╔═██╗ ██╔══╝  ██╔══██╗
+// ██████╔╝██║╚██████╔╝   ██║   ██║  ██║██║  ██╗███████╗██║  ██║
+// ╚═════╝ ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+// -----------------------------------------------------------------------------
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// ©Bigtaker
+
+//@version=5
+indicator("Advanced custom multi MA signals (EMA/SMA/VWMA/VWAP)", shorttitle="Multi MA Signals", overlay=true)
+
+// -----------------------------------------------------------------------------
+// [SECTION 1] User Inputs & Configuration
+// -----------------------------------------------------------------------------
+
+// 1.1 Moving Average (MA) Settings (1-5)
+// ---------------------------------------
+GRP_MA01 = "=== MA 01 Settings ==="
+i_ma01_enabled = input.bool(true, "Show Indicator", group=GRP_MA01)
+i_ma01_type    = input.string("EMA", "MA Type", options=["EMA", "SMA", "VWMA", "VWAP"], tooltip="VWMA: Uses Length\nVWAP: Session-based (Ignores Length)", group=GRP_MA01)
+i_ma01_len     = input.int(50, "Length", minval=1, group=GRP_MA01)
+i_ma01_tf      = input.timeframe("240", "Timeframe", group=GRP_MA01)
+i_ma01_src     = input.source(close, "Source", group=GRP_MA01)
+i_ma01_color   = input.color(color.new(#00ff88, 70), "Color", group=GRP_MA01)
+
+GRP_MA02 = "=== MA 02 Settings ==="
+i_ma02_enabled = input.bool(true, "Show Indicator", group=GRP_MA02)
+i_ma02_type    = input.string("EMA", "MA Type", options=["EMA", "SMA", "VWMA", "VWAP"], group=GRP_MA02)
+i_ma02_len     = input.int(20, "Length", minval=1, group=GRP_MA02)
+i_ma02_tf      = input.timeframe("D", "Timeframe", group=GRP_MA02)
+i_ma02_src     = input.source(close, "Source", group=GRP_MA02)
+i_ma02_color   = input.color(color.new(#ffffff, 80), "Color", group=GRP_MA02)
+
+GRP_MA03 = "=== MA 03 Settings ==="
+i_ma03_enabled = input.bool(true, "Show Indicator", group=GRP_MA03)
+i_ma03_type    = input.string("EMA", "MA Type", options=["EMA", "SMA", "VWMA", "VWAP"], group=GRP_MA03)
+i_ma03_len     = input.int(50, "Length", minval=1, group=GRP_MA03)
+i_ma03_tf      = input.timeframe("D", "Timeframe", group=GRP_MA03)
+i_ma03_src     = input.source(close, "Source", group=GRP_MA03)
+i_ma03_color   = input.color(color.new(#cc00ff, 70), "Color", group=GRP_MA03)
+
+GRP_MA04 = "=== MA 04 Settings ==="
+i_ma04_enabled = input.bool(true, "Show Indicator", group=GRP_MA04)
+i_ma04_type    = input.string("EMA", "MA Type", options=["EMA", "SMA", "VWMA", "VWAP"], group=GRP_MA04)
+i_ma04_len     = input.int(50, "Length", minval=1, group=GRP_MA04)
+i_ma04_tf      = input.timeframe("W", "Timeframe", group=GRP_MA04)
+i_ma04_src     = input.source(close, "Source", group=GRP_MA04)
+i_ma04_color   = input.color(color.new(#fae634, 50), "Color", group=GRP_MA04)
+
+GRP_MA05 = "=== MA 05 Settings ==="
+i_ma05_enabled = input.bool(true, "Show Indicator", group=GRP_MA05)
+i_ma05_type    = input.string("EMA", "MA Type", options=["EMA", "SMA", "VWMA", "VWAP"], group=GRP_MA05)
+i_ma05_len     = input.int(100, "Length", minval=1, group=GRP_MA05)
+i_ma05_tf      = input.timeframe("W", "Timeframe", group=GRP_MA05)
+i_ma05_src     = input.source(close, "Source", group=GRP_MA05)
+i_ma05_color   = input.color(color.new(#1a1ef5, 50), "Color", group=GRP_MA05)
+
+// 1.2 Signal Logic Configuration
+// ---------------------------------------
+GRP_SIG01 = ">>> Signal Option 01 (Standard) <<<"
+i_sig01_enabled  = input.bool(true, "Enable Signal 1 (Plot & Alert)", group=GRP_SIG01)
+i_sig01_fast_ref = input.string("MA1", "Short MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG01)
+i_sig01_slow_ref = input.string("MA3", "Long MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG01)
+
+GRP_SIG02 = ">>> Signal Option 02 (Darker) <<<"
+i_sig02_enabled  = input.bool(false, "Enable Signal 2 (Plot & Alert)", group=GRP_SIG02)
+i_sig02_fast_ref = input.string("MA1", "Short MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG02)
+i_sig02_slow_ref = input.string("MA4", "Long MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG02)
+
+GRP_SIG03 = ">>> Signal Option 03 (Darkest) <<<"
+i_sig03_enabled  = input.bool(false, "Enable Signal 3 (Plot & Alert)", group=GRP_SIG03)
+i_sig03_fast_ref = input.string("MA2", "Short MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG03)
+i_sig03_slow_ref = input.string("MA4", "Long MA", options=["MA1", "MA2", "MA3", "MA4", "MA5", "None"], group=GRP_SIG03)
+
+// 1.3 Visual & Candle Settings
+// ---------------------------------------
+GRP_VIS_CANDLE = ">>> Candle Color Settings <<<"
+i_candle_override = input.bool(true, "Force Candle Color", tooltip="If enabled, hides original candles and paints new candles with specified colors.", group=GRP_VIS_CANDLE)
+i_candle_ref_sig  = input.string("Signal 1", "Reference Signal", options=["Signal 1", "Signal 2", "Signal 3"], group=GRP_VIS_CANDLE)
+
+// 1.4 Ribbon Settings
+// ---------------------------------------
+GRP_VIS_RIBBON = ">>> Ribbon Gradient Settings <<<"
+i_ribbon_enabled = input.bool(true, "Enable Gradient Ribbon", group=GRP_VIS_RIBBON)
+i_ribbon_ref_sig = input.string("Signal 1", "Ribbon Reference Signal", options=["Signal 1", "Signal 2", "Signal 3"], tooltip="Select which signal's MAs to fill between.", group=GRP_VIS_RIBBON)
+i_ribbon_opacity = input.int(40, "Ribbon Opacity (Transparency)", minval=0, maxval=90, tooltip="Lower values mean darker/brighter neon effect.", group=GRP_VIS_RIBBON)
+
+// 1.5 Dashboard & Misc Settings
+// ---------------------------------------
+GRP_VIS_GENERIC = ">>> Visual Settings <<<"
+i_show_status_val = input.bool(false, "Show Price in Status Line", group=GRP_VIS_GENERIC)
+
+GRP_DASHBOARD = ">>> Dashboard Settings <<<"
+i_dash_enabled = input.bool(true, "Show Dashboard", group=GRP_DASHBOARD)
+i_dash_pos     = input.string("Bottom Right", "Position", options=["Top Right", "Bottom Right", "Top Left", "Bottom Left"], group=GRP_DASHBOARD)
+i_dash_size    = input.string("Small", "Size", options=["Tiny", "Small", "Normal", "Large"], group=GRP_DASHBOARD)
+
+
+// -----------------------------------------------------------------------------
+// [SECTION 2] Color Definitions (Constants)
+// -----------------------------------------------------------------------------
+c_sig01_bull = color.rgb(0, 255, 191)
+c_sig01_bear = color.rgb(174, 0, 255)
+
+c_sig02_bull = color.new(#00ff00, 0)
+c_sig02_bear = color.new(#dc0af8, 0)
+
+c_sig03_bull = color.new(#ffd900, 0)
+c_sig03_bear = color.new(#ff009d, 0)
+
+
+// -----------------------------------------------------------------------------
+// [SECTION 3] Calculations (MTF & MA Logic)
+// -----------------------------------------------------------------------------
+
+// Function: Calculate Multi-Timeframe (MTF) MA
+f_calc_mtf_ma(_src, _len, _tf, _type) =>
+    float _ma = na
+    
+    // Determine MA Type
+    if _type == "EMA"
+        _ma := ta.ema(_src, _len)
+    else if _type == "SMA"
+        _ma := ta.sma(_src, _len)
+    else if _type == "VWMA"
+        _ma := ta.vwma(_src, _len) // Volume Weighted
+    else if _type == "VWAP"
+        _ma := ta.vwap(_src)       // Anchored VWAP
+
+    // Request MTF Data
+    request.security(syminfo.tickerid, _tf, _ma, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+// Calculate MAs (1-5)
+ma01_series = f_calc_mtf_ma(i_ma01_src, i_ma01_len, i_ma01_tf, i_ma01_type)
+ma02_series = f_calc_mtf_ma(i_ma02_src, i_ma02_len, i_ma02_tf, i_ma02_type)
+ma03_series = f_calc_mtf_ma(i_ma03_src, i_ma03_len, i_ma03_tf, i_ma03_type)
+ma04_series = f_calc_mtf_ma(i_ma04_src, i_ma04_len, i_ma04_tf, i_ma04_type)
+ma05_series = f_calc_mtf_ma(i_ma05_src, i_ma05_len, i_ma05_tf, i_ma05_type)
+
+// Function: Resolve Dropdown Selection to Series
+f_resolve_ma_series(_option_str) =>
+    float _result = na
+    if _option_str == "MA1"
+        _result := ma01_series
+    else if _option_str == "MA2"
+        _result := ma02_series
+    else if _option_str == "MA3"
+        _result := ma03_series
+    else if _option_str == "MA4"
+        _result := ma04_series
+    else if _option_str == "MA5"
+        _result := ma05_series
+    _result
+
+// Strategy Logic: Crossovers & Trend Status
+// ---------------------------------------
+
+// [Logic Update] The 'is_trend_bull' variables now calculate status regardless of the 'enabled' toggle.
+// This ensures the dashboard always displays correct data. 
+// The 'enabled' toggle is now applied only to the 'trigger' variables for plots and alerts.
+
+// Signal 1
+sig01_fast_ma = f_resolve_ma_series(i_sig01_fast_ref)
+sig01_slow_ma = f_resolve_ma_series(i_sig01_slow_ref)
+
+bool is_data_01 = not na(sig01_fast_ma) and not na(sig01_slow_ma) // Check if data exists
+is_trend_bull_01 = is_data_01 and (sig01_fast_ma > sig01_slow_ma)
+is_trend_bear_01 = is_data_01 and (sig01_fast_ma < sig01_slow_ma)
+
+trigger_buy_01  = i_sig01_enabled and is_data_01 and ta.crossover(sig01_fast_ma, sig01_slow_ma)
+trigger_sell_01 = i_sig01_enabled and is_data_01 and ta.crossunder(sig01_fast_ma, sig01_slow_ma)
+
+// Signal 2
+sig02_fast_ma = f_resolve_ma_series(i_sig02_fast_ref)
+sig02_slow_ma = f_resolve_ma_series(i_sig02_slow_ref)
+
+bool is_data_02 = not na(sig02_fast_ma) and not na(sig02_slow_ma)
+is_trend_bull_02 = is_data_02 and (sig02_fast_ma > sig02_slow_ma)
+is_trend_bear_02 = is_data_02 and (sig02_fast_ma < sig02_slow_ma)
+
+trigger_buy_02  = i_sig02_enabled and is_data_02 and ta.crossover(sig02_fast_ma, sig02_slow_ma)
+trigger_sell_02 = i_sig02_enabled and is_data_02 and ta.crossunder(sig02_fast_ma, sig02_slow_ma)
+
+// Signal 3
+sig03_fast_ma = f_resolve_ma_series(i_sig03_fast_ref)
+sig03_slow_ma = f_resolve_ma_series(i_sig03_slow_ref)
+
+bool is_data_03 = not na(sig03_fast_ma) and not na(sig03_slow_ma)
+is_trend_bull_03 = is_data_03 and (sig03_fast_ma > sig03_slow_ma)
+is_trend_bear_03 = is_data_03 and (sig03_fast_ma < sig03_slow_ma)
+
+trigger_buy_03  = i_sig03_enabled and is_data_03 and ta.crossover(sig03_fast_ma, sig03_slow_ma)
+trigger_sell_03 = i_sig03_enabled and is_data_03 and ta.crossunder(sig03_fast_ma, sig03_slow_ma)
+
+
+// -----------------------------------------------------------------------------
+// [SECTION 4] Visualization & Plotting
+// -----------------------------------------------------------------------------
+
+var display_setting = i_show_status_val ? display.all : display.pane
+
+// Plot Moving Averages
+plot(i_ma01_enabled ? ma01_series : na, title="MA 01", color=i_ma01_color, linewidth=2, display=display_setting)
+plot(i_ma02_enabled ? ma02_series : na, title="MA 02", color=i_ma02_color, linewidth=2, display=display_setting)
+plot(i_ma03_enabled ? ma03_series : na, title="MA 03", color=i_ma03_color, linewidth=2, display=display_setting)
+plot(i_ma04_enabled ? ma04_series : na, title="MA 04", color=i_ma04_color, linewidth=2, display=display_setting)
+plot(i_ma05_enabled ? ma05_series : na, title="MA 05", color=i_ma05_color, linewidth=2, display=display_setting)
+
+// Plot Signal Labels (Buy/Sell)
+plotshape(trigger_buy_01, title="Sig1 Golden", style=shape.labelup, location=location.belowbar, color=c_sig01_bull, text="BUY", textcolor=color.rgb(28, 99, 87), size=size.small)
+plotshape(trigger_sell_01, title="Sig1 Death", style=shape.labeldown, location=location.abovebar, color=c_sig01_bear, text="SELL", textcolor=color.rgb(255, 255, 255), size=size.small)
+
+plotshape(trigger_buy_02, title="Sig2 Golden", style=shape.labelup, location=location.belowbar, color=c_sig02_bull, text="BUY", textcolor=color.rgb(28, 99, 87), size=size.small)
+plotshape(trigger_sell_02, title="Sig2 Death", style=shape.labeldown, location=location.abovebar, color=c_sig02_bear, text="SELL", textcolor=color.white, size=size.small)
+
+plotshape(trigger_buy_03, title="Sig3 Golden", style=shape.labelup, location=location.belowbar, color=c_sig03_bull, text="BUY", textcolor=color.rgb(28, 99, 87), size=size.small)
+plotshape(trigger_sell_03, title="Sig3 Death", style=shape.labeldown, location=location.abovebar, color=c_sig03_bear, text="SELL", textcolor=color.white, size=size.small)
+
+// Gradient Ribbon Logic
+// ---------------------------------------
+float v_ribbon_fast = na
+float v_ribbon_slow = na
+color v_ribbon_base_color = na 
+
+if i_ribbon_ref_sig == "Signal 1"
+    v_ribbon_fast := sig01_fast_ma
+    v_ribbon_slow := sig01_slow_ma
+    v_ribbon_base_color := sig01_fast_ma > sig01_slow_ma ? c_sig01_bull : c_sig01_bear
+else if i_ribbon_ref_sig == "Signal 2"
+    v_ribbon_fast := sig02_fast_ma
+    v_ribbon_slow := sig02_slow_ma
+    v_ribbon_base_color := sig02_fast_ma > sig02_slow_ma ? c_sig02_bull : c_sig02_bear
+else if i_ribbon_ref_sig == "Signal 3"
+    v_ribbon_fast := sig03_fast_ma
+    v_ribbon_slow := sig03_slow_ma
+    v_ribbon_base_color := sig03_fast_ma > sig03_slow_ma ? c_sig03_bull : c_sig03_bear
+
+p_ribbon_fast = plot(i_ribbon_enabled ? v_ribbon_fast : na, "Ribbon Short", display=display.none, editable=false)
+p_ribbon_slow = plot(i_ribbon_enabled ? v_ribbon_slow : na, "Ribbon Long",  display=display.none, editable=false)
+
+color c_ribbon_near_fast = color.new(v_ribbon_base_color, i_ribbon_opacity)
+color c_ribbon_near_slow = color.new(v_ribbon_base_color, math.min(i_ribbon_opacity + 60, 100)) 
+
+fill(p_ribbon_fast, p_ribbon_slow, v_ribbon_fast, v_ribbon_slow, c_ribbon_near_fast, c_ribbon_near_slow, title="Neon Gradient Ribbon")
+
+// Candle Coloring Logic
+// ---------------------------------------
+bool v_is_active_bull = false
+bool v_is_active_bear = false
+color v_active_col_bull = na
+color v_active_col_bear = na
+
+if i_candle_ref_sig == "Signal 1"
+    v_is_active_bull := is_trend_bull_01
+    v_is_active_bear := is_trend_bear_01
+    v_active_col_bull := c_sig01_bull
+    v_active_col_bear := c_sig01_bear
+else if i_candle_ref_sig == "Signal 2"
+    v_is_active_bull := is_trend_bull_02
+    v_is_active_bear := is_trend_bear_02
+    v_active_col_bull := c_sig02_bull
+    v_active_col_bear := c_sig02_bear
+else if i_candle_ref_sig == "Signal 3"
+    v_is_active_bull := is_trend_bull_03
+    v_is_active_bear := is_trend_bear_03
+    v_active_col_bull := c_sig03_bull
+    v_active_col_bear := c_sig03_bear
+
+color v_final_candle_color = na
+if i_candle_override
+    if v_is_active_bull
+        v_final_candle_color := v_active_col_bull
+    else if v_is_active_bear
+        v_final_candle_color := v_active_col_bear
+    else
+        v_final_candle_color := color.gray 
+
+// Hide original candles and plot new ones
+color c_transparent = color.new(color.white, 100)
+barcolor(i_candle_override ? c_transparent : na, editable=false)
+
+plotcandle(open, high, low, close, 
+     title       = "Custom Candle", 
+     color       = v_final_candle_color, 
+     wickcolor   = v_final_candle_color, 
+     bordercolor = v_final_candle_color,
+     editable    = true) 
+
+
+// -----------------------------------------------------------------------------
+// [SECTION 5] Dashboard UI
+// -----------------------------------------------------------------------------
+
+// 1. Fetch RSI Data (MTF)
+rsi_val_240 = request.security(syminfo.tickerid, "240", ta.rsi(close, 14), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+rsi_val_d   = request.security(syminfo.tickerid, "D",   ta.rsi(close, 14), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+rsi_val_w   = request.security(syminfo.tickerid, "W",   ta.rsi(close, 14), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+// 2. Helper: RSI Background Color
+f_get_rsi_bgcolor(_val) =>
+    if na(_val)
+        color.new(color.gray, 80)
+    else if _val <= 30
+        color.new(#ff1e69, 40) // Oversold (Red)
+    else if _val >= 70
+        color.new(#0bb682, 40) // Overbought (Green)
+    else
+        color.new(color.white, 100)
+
+// 3. Render Dashboard Table
+if i_dash_enabled
+    var pos_table = i_dash_pos == "Top Right" ? position.top_right : i_dash_pos == "Bottom Right" ? position.bottom_right : i_dash_pos == "Top Left" ? position.top_left : position.bottom_left
+    var size_table = i_dash_size == "Tiny" ? size.tiny : i_dash_size == "Small" ? size.small : i_dash_size == "Normal" ? size.normal : size.large
+    
+    var table status_table = table.new(pos_table, 2, 7, bgcolor=color.new(color.black, 50), border_color=color.gray, border_width=1, frame_color=color.gray, frame_width=1)
+
+    // Table Header
+    table.cell(status_table, 0, 0, "Market Status", bgcolor=color.new(color.black, 20), text_color=color.white, text_size=size_table, width=12)
+    table.merge_cells(status_table, 0, 0, 1, 0)
+
+    // Row 1: Signal 1 Status
+    table.cell(status_table, 0, 1, "Signal 1", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    bool is_na_01 = not is_data_01 // Check if data exists (already calculated above)
+    string txt_s1 = is_na_01 ? "N/A" : (is_trend_bull_01 ? "BULL" : "BEAR")
+    color bg_s1   = is_na_01 ? color.gray : (is_trend_bull_01 ? c_sig01_bull : c_sig01_bear)
+    table.cell(status_table, 1, 1, txt_s1, bgcolor=color.new(bg_s1, 40), text_color=color.white, text_size=size_table)
+
+    // Row 2: Signal 2 Status
+    table.cell(status_table, 0, 2, "Signal 2", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    bool is_na_02 = not is_data_02
+    string txt_s2 = is_na_02 ? "N/A" : (is_trend_bull_02 ? "BULL" : "BEAR")
+    color bg_s2   = is_na_02 ? color.gray : (is_trend_bull_02 ? c_sig02_bull : c_sig02_bear)
+    table.cell(status_table, 1, 2, txt_s2, bgcolor=color.new(bg_s2, 40), text_color=color.white, text_size=size_table)
+
+    // Row 3: Signal 3 Status
+    table.cell(status_table, 0, 3, "Signal 3", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    bool is_na_03 = not is_data_03
+    string txt_s3 = is_na_03 ? "N/A" : (is_trend_bull_03 ? "BULL" : "BEAR")
+    color bg_s3   = is_na_03 ? color.gray : (is_trend_bull_03 ? c_sig03_bull : c_sig03_bear)
+    table.cell(status_table, 1, 3, txt_s3, bgcolor=color.new(bg_s3, 40), text_color=color.white, text_size=size_table)
+
+    // Row 4: RSI (4H)
+    table.cell(status_table, 0, 4, "RSI (4H)", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    color bg_rsi_240 = f_get_rsi_bgcolor(rsi_val_240)
+    string txt_rsi_240 = na(rsi_val_240) ? "N/A" : str.tostring(rsi_val_240, "#.##")
+    table.cell(status_table, 1, 4, txt_rsi_240, bgcolor=bg_rsi_240, text_color=color.white, text_size=size_table)
+
+    // Row 5: RSI (Daily)
+    table.cell(status_table, 0, 5, "RSI (1D)", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    color bg_rsi_d = f_get_rsi_bgcolor(rsi_val_d)
+    string txt_rsi_d = na(rsi_val_d) ? "N/A" : str.tostring(rsi_val_d, "#.##")
+    table.cell(status_table, 1, 5, txt_rsi_d, bgcolor=bg_rsi_d, text_color=color.white, text_size=size_table)
+
+    // Row 6: RSI (Weekly)
+    table.cell(status_table, 0, 6, "RSI (1W)", text_color=color.white, text_size=size_table, text_halign=text.align_left)
+    color bg_rsi_w = f_get_rsi_bgcolor(rsi_val_w)
+    string txt_rsi_w = na(rsi_val_w) ? "N/A" : str.tostring(rsi_val_w, "#.##")
+    table.cell(status_table, 1, 6, txt_rsi_w, bgcolor=bg_rsi_w, text_color=color.white, text_size=size_table)
+
+
+// -----------------------------------------------------------------------------
+// [SECTION 6] Alert Conditions
+// -----------------------------------------------------------------------------
+alertcondition(trigger_buy_01, title="Signal 1 Golden Cross", message="Signal1: Golden Cross")
+alertcondition(trigger_sell_01, title="Signal 1 Death Cross", message="Signal1: Death Cross")
+alertcondition(trigger_buy_02, title="Signal 2 Golden Cross", message="Signal2: Golden Cross")
+alertcondition(trigger_sell_02, title="Signal 2 Death Cross", message="Signal2: Death Cross")
+alertcondition(trigger_buy_03, title="Signal 3 Golden Cross", message="Signal3: Golden Cross")
+alertcondition(trigger_sell_03, title="Signal 3 Death Cross", message="Signal3: Death Cross")
+alertcondition(trigger_buy_01 or trigger_buy_02 or trigger_buy_03, title="Any Golden Cross", message="MA signal: Golden Cross")
+alertcondition(trigger_sell_01 or trigger_sell_02 or trigger_sell_03, title="Any Death Cross", message="MA signal: Death Cross")

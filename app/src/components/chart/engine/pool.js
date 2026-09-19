@@ -2,6 +2,13 @@
 //
 // ─── Series pooling: every decision, no lightweight-charts ───────────────────
 //
+// ⚠️⚠️ THERE IS ALSO AN `objectPool.js` IN THIS DIRECTORY AND IT IS NOT THIS. That
+// one models **Pine's drawing-object quota** — `max_lines_count` /
+// `max_labels_count` / `max_boxes_count` / `max_polylines_count` and their silent
+// oldest-first eviction. This one pools **lightweight-charts series** for reuse
+// across symbol flips, keyed on the LWC series type. Neither is the other, and a
+// grep for "pool" finds the wrong file half the time.
+//
 // This module answers three questions and touches nothing:
 //
 //   1. WHICH LWC SERIES TYPE does a plot need?              → poolKey()
@@ -446,7 +453,11 @@ export function plotAlpha(plot) {
  *  none. `withAlpha` MULTIPLIES through, so `rgba(…,0.4)` at `opacity: 'band'`
  *  dims rather than brightens — the same rule `designTokens` applies to a
  *  `token:role@step` reference. */
-function effectiveColor(plot, fallback) {
+/** ⭐ EXPORTED FOR C3A. A marker's colour is the PLOT'S colour, opacity and
+ *  all — the same answer the line would get — so the marker lane calls this
+ *  rather than re-deriving "what colour is this plot", which is the
+ *  second-authority defect this repo pays for most often. */
+export function effectiveColor(plot, fallback) {
   const raw = (typeof plot.color === 'string' && plot.color) ? plot.color : fallback
   if (raw === null || raw === undefined) return null
   const alpha = plotAlpha(plot)
@@ -633,11 +644,17 @@ export function seriesOptionsForPlot(plot, ctx) {
  * `colorUp`/`colorDown` are the two colours it needs (a mode without them is
  * unrenderable, which is why `defSchema` requires them together).
  *
- * Everything else — including `colorMode: 'column:<key>'`, which is a legal
- * schema value with no v1 consumer — returns null and draws in the series colour.
+ * ⭐ `colorMode: 'column:<key>'` is NOT handled here — it has its own resolver
+ * (`columnColorsForPlot`, below) because it needs a column name as well as two
+ * colours. Everything else returns null and draws in the series colour.
  */
 export function signColorsForPlot(plot) {
   if (!plot || plot.colorMode !== 'sign') return null
+  return twoColoursOf(plot)
+}
+
+/** The two colours a per-point mode needs, with the plot's alpha applied. */
+function twoColoursOf(plot) {
   const alpha = plotAlpha(plot)
   const dim = (raw) => {
     if (typeof raw !== 'string' || !raw) return null
@@ -647,6 +664,47 @@ export function signColorsForPlot(plot) {
   const up = dim(plot.colorUp)
   const down = dim(plot.colorDown)
   return (up && down) ? { up, down } : null
+}
+
+/**
+ * ⭐⭐ C1: THE PER-POINT COLOURS A `colorMode: 'column:<key>'` PLOT DRAWS WITH.
+ *
+ * Pine's commonest visual idiom by a distance — measured over the frozen 60,
+ * **49 of them** colour a plot from an expression rather than a literal:
+ *
+ *     up = close > ma
+ *     plot(close, color = up ? color.green : color.red)
+ *
+ * `colorMode: 'sign'` cannot say that: it colours by the sign of the plot's OWN
+ * value, and here the deciding quantity is a different series. `column:<key>` is
+ * the schema's existing answer — it has been legal, validated and reference-
+ * checked since v1 and drawn by NOBODY. This is its renderer.
+ *
+ * ⛔ THE CONDITION RIDES AS A COLUMN, NOT AS AN EXPRESSION IN THE PRESENTATION.
+ * The document already carries a compute lane with a column per plot; a colour
+ * rule that re-derived `close > ma` from a second, presentation-side expression
+ * would be a SECOND evaluator over the same data, free to disagree with the one
+ * that drew the line. So the translator emits the condition as an ordinary
+ * hidden column and this reads it — one evaluator, one answer.
+ *
+ * ⛔ AND `colorUp`/`colorDown` ARE THE SAME TWO FIELDS `sign` USES. A third
+ * spelling for "the two colours a per-point mode needs" is the second-authority
+ * defect this file already avoids once.
+ *
+ * @returns {{key: string, up: string, down: string}|null}
+ */
+/** The colour a marker falls back to when its plot declares none. Matches the
+ *  builder's own first swatch, so an imported `plotshape` with no `color=`
+ *  looks like every other freshly-imported plot rather than like an error. */
+export const DEFAULT_MARKER_COLOR = '#c9a84c'
+
+export function columnColorsForPlot(plot) {
+  if (!plot || typeof plot.colorMode !== 'string') return null
+  if (!plot.colorMode.startsWith('column:')) return null
+  const key = plot.colorMode.slice('column:'.length)
+  if (!key) return null
+  const two = twoColoursOf(plot)
+  return two ? { key, up: two.up, down: two.down } : null
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────

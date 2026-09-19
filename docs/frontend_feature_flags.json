@@ -1,0 +1,39 @@
+{
+  "_readme": [
+    "Every FRONTEND feature gate that is OFF unless something turns it on must appear here.",
+    "",
+    "Why this file exists separately from docs/feature_flags.json: that ledger's gate list is",
+    "DERIVED by AST from api/, scripts/ and tools/ (api/services/feature_flag_index.py::repo_roots),",
+    "and tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist",
+    "FAILS on an entry it cannot derive. So a VITE_* gate cannot be declared there -- it would",
+    "break the rail it was trying to satisfy. Measured 2026-09-11: 115 declared flags, zero VITE_.",
+    "",
+    "The frontend convention, read off the code rather than invented:",
+    "  default OFF -> import.meta.env.VITE_X_ENABLED === '1'",
+    "  default ON  -> (import.meta.env.VITE_X ?? '1') !== '0'",
+    "  and the read happens INSIDE a function, never at module scope, so a test can flip it",
+    "  (GlobalVideoLayer.jsx writes that reason down).",
+    "",
+    "status: armed  = set in at least one deployed build (its value is the decision)",
+    "        dark   = deliberately off; note MUST say why",
+    "        pending= built, no decision yet; note + since MUST be present"
+  ],
+  "flags": {
+    "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-11",
+      "readBy": [
+        "app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled"
+      ],
+      "note": "Item 10 (M1) -- a definition overlaid onto the volume pane gets its OWN pane and its own right-hand scale instead of the shared left axis, so a numeric read has a ladder of its own. Shipped dark because the owner's spec message (Section 6) was truncated mid-sentence at 'Feature fl...' and the tail never arrived: the NAME and the default are assumptions this session made explicit rather than guesses it hid. Renameable in one line -- the gate is read in exactly one place. Turning it on is a member-visible change, which is why it is not on."
+    },
+    "VITE_PINE_MEMBER_PANE_ENABLED": {
+      "status": "dark",
+      "since": "2026-09-11",
+      "readBy": [
+        "app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled"
+      ],
+      "note": "Whether a member's own translated Pine script may reach a chart pane. LIVE BEHIND THIS FLAG since 2026-09-13 (was 'SCAFFOLD: nothing renders one yet' -- that note described a state that has passed, and a ledger note describing a passed state is how a reader concludes a shipped feature is a stub). With it ON, a saved definition reaches the member's own chart through the shipped doors and Uncharted Volume v2 draws four plots plus both DOM tables; with it OFF -- the default, and the only state any deploy has seen -- the attach control does not render, MemberPane returns null, and nothing this wave added appears in the DOM. Flag-off is driven on the REAL route by attachedPineDisclosures.test.jsx, not asserted on a component in isolation. Declared as a build ARG in Dockerfile.web: Railway hands service variables to the build as build args and drops undeclared ones silently, so without that line the flag could never have been switched on in production."
+    }
+  }
+}

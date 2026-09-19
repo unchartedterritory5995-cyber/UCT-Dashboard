@@ -27,6 +27,7 @@ from __future__ import annotations
 import ast as pyast
 import contextlib
 import datetime
+import json
 import pathlib
 import re
 import sqlite3
@@ -128,6 +129,34 @@ def test_evaluate_one_mode_on_demand_WRITES_NOTHING_and_returns_hit_rows(store, 
     assert out["persisted"] is False
     assert out["recorded"] == 0 and out["record_refused"] == 0
     assert out["evaluated"] == out["answered"] + out["dropped"] + out["not_computable"] == 3
+
+
+def test_evaluate_one_mode_on_demand_REFUSES_an_intraday_tf(store, bars, monkeypatch):
+    """🔴 RISK-017 (Phase One Track B). `evaluate_one(..., mode='on-demand')` is
+    the ONLY entry point an on-demand run ever reaches — `run_sweep` explicitly
+    refuses to be called with `mode='on-demand'` (it is not a sweep), so there is
+    no earlier choke point the way `_run_live_cycle` gives `mode='live'`. Before
+    this fix, nothing server-side stopped an intraday `tf` from reaching this
+    function under on-demand mode; it was safe only because the frontend's
+    `RUN_TFS` picker doesn't offer one — a UI boundary, not an architectural one.
+    Every rung below the daily default must refuse, at the SAME gate live mode
+    uses, with the SAME reason text (`_wrong_tf_reason`) — two callers of one
+    rule, not two rules."""
+    _arm_writers(monkeypatch)
+
+    for tf in ("1", "5", "15", "30", "60", "W", "M"):
+        with pytest.raises(scan_evaluator.ScanRunRefused, match=r"\[gate:tf\]"):
+            scan_evaluator.evaluate_one(
+                DEFINITION, tf, universe=["NVDA"], as_of=SESSION, mode="on-demand")
+
+
+def test_evaluate_one_mode_on_demand_the_daily_default_still_scans(store, bars, monkeypatch):
+    """⛔ THE CONTROL. The gate above must not have widened to catch the case that
+    was always meant to work — the daily default is on-demand's only supported
+    timeframe today, and it must still answer, not refuse."""
+    out = scan_evaluator.evaluate_one(
+        DEFINITION, TF, universe=["NVDA"], as_of=SESSION, mode="on-demand")
+    assert out["hits"] == ["NVDA"]
     assert scan_store.coverage(DEF_HASH, TF, SESSION) is None
 
 
@@ -1392,3 +1421,94 @@ def test_the_CLIENT_pins_are_NOT_VACUOUS__a_planted_disagreement_is_CAUGHT(
     planted.write_text("export const NOTHING = 1" + crlf, encoding="utf-8", newline="")
     with pytest.raises(AssertionError, match="no longer exports"):
         _js_const("RUN_SYMBOL_CAP", r"\d+")
+
+
+# ═══ Phase One Track C — `execution_finished` on the on-demand path ═════════
+#
+# The ONE execution mode with no persisted `scan_coverage` receipt today (see
+# `evaluate_one`'s own "WRITES NOTHING" behaviour, RISK-017's test above) —
+# so this is the one mode this track adds a NEW, lightweight, OBSERVATIONAL
+# `landing_events` row for, fired from `_run_job` after a job reaches its
+# terminal state.
+
+
+@pytest.fixture
+def telemetry_db(tmp_path, monkeypatch):
+    """Isolates `auth_db`/`landing_events` — see `test_user_definitions.py`'s
+    `telemetry_store` fixture for the same pattern and why the ATTRIBUTE, not
+    just the env var, has to move."""
+    from api.services import auth_db
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth_test.db"))
+    auth_db.init_db()
+    return tmp_path
+
+
+def _execution_finished_rows_raw(user_id: str) -> list[dict]:
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        return [
+            json.loads(r[0]) if r[0] else {}
+            for r in conn.execute(
+                "SELECT props FROM landing_events WHERE visitor_id = ? AND event = 'execution_finished'"
+                " ORDER BY id", (user_id,))
+        ]
+    finally:
+        conn.close()
+
+
+def _execution_finished_rows(user_id: str, timeout: float = 2.0) -> list[dict]:
+    """⚠️ `_wait()` returns the instant `job["state"]` turns terminal, which is
+    set INSIDE `_run_job`'s lock — the telemetry write happens on the SAME
+    worker thread but AFTER that lock releases, deliberately (a slow disk
+    write must never sit inside the lock `submit_run` also takes for every
+    new submission). So a caller can observe "done" a hair before the
+    telemetry row lands — real, harmless eventual-consistency in production,
+    and exactly why this poll exists rather than a single immediate read."""
+    deadline = time.monotonic() + timeout
+    while True:
+        rows = _execution_finished_rows_raw(user_id)
+        if rows or time.monotonic() >= deadline:
+            return rows
+        time.sleep(0.005)
+
+
+def test_execution_finished_fires_once_for_a_successful_on_demand_run(
+        store, bars, defs, telemetry_db):
+    out = _run(ALICE, DEF_ID, symbols=["NVDA", "INTC"], tf=TF, as_of=SESSION)
+    assert out["state"] == "done", out
+    rows = _execution_finished_rows(ALICE)
+    assert len(rows) == 1
+    assert rows[0]["mode"] == "on-demand"
+    assert rows[0]["state"] == "done"
+    assert rows[0]["def_id"] == DEF_ID
+    assert rows[0]["tf"] == TF
+
+
+def test_execution_finished_reports_a_REFUSED_run_too_with_its_gate(
+        store, bars, defs, telemetry_db):
+    """A refused on-demand run (bad tf) still reaches a terminal state and
+    still fires `execution_finished` — the event records that execution
+    CONCLUDED, whatever the outcome, matching `compile_finished`'s own
+    both-branches design."""
+    from api.services.screener import scan_run
+    out = _wait(scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf="5"), ALICE)
+    assert out["state"] == "refused", out
+    rows = _execution_finished_rows(ALICE)
+    assert len(rows) == 1
+    assert rows[0]["state"] == "refused"
+    assert rows[0]["gate"] == "gate:tf"
+
+
+def test_execution_finished_does_not_fire_twice_for_one_job(store, bars, defs, telemetry_db):
+    """`_run_job` only ever runs once per `job_id` (the `state != "queued"`
+    guard refuses a second run of an already-terminal job) — this is the
+    control proving that guarantee also bounds the telemetry fire, without
+    this test needing to fabricate a second `_run_job` call directly."""
+    from api.services.screener import scan_run
+    job = scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA", "INTC"], tf=TF, as_of=SESSION)
+    _wait(job, ALICE)
+    # A second, direct call against the now-terminal job — exactly what the
+    # top-of-function guard exists to refuse.
+    scan_run._run_job(job)
+    assert len(_execution_finished_rows(ALICE)) == 1

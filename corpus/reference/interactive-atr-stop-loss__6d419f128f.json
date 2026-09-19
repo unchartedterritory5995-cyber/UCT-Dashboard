@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6d419f128ff64434bafcb6c1e6473ab8",
+ "title": "Interactive ATR Stop Loss",
+ "author": "TanHef",
+ "url": "https://www.tradingview.com/script/gUXnDioT-interactive-atr-stop-loss/",
+ "agreeCount": 3809,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/interactive-atr-stop-loss__6d419f128f.pine",
+ "our_status": "reference-only"
+}

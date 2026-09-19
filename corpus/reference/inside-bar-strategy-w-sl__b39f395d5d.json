@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b39f395d5da540d78e53487b6b6bb213",
+ "title": "Inside Bar Strategy w/ SL",
+ "author": "tweakerID",
+ "url": "https://www.tradingview.com/script/JeW4LqUA-inside-bar-strategy-w-sl/",
+ "agreeCount": 731,
+ "category": "candlestick patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/inside-bar-strategy-w-sl__b39f395d5d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/inside-bar-strategy-w-sl__b39f395d5d.pine",
+ "our_status": "committed"
+}

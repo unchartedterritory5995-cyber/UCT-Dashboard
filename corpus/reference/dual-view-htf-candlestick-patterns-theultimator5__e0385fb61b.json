@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e0385fb61ba6423d92ea6d69f4401bf4",
+ "title": "Dual View HTF Candlestick Patterns [theUltimator5]",
+ "author": "TheUltimator5",
+ "url": "https://www.tradingview.com/script/sevQh9oE-dual-view-htf-candlestick-patterns-theultimator5/",
+ "agreeCount": 2082,
+ "category": "candlestick patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+ "our_status": "committed"
+}

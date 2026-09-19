@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;7628c72c3d994e11aaa99bc6d30e3dc9",
+ "title": "Liquidity Heatmap (Nephew_Sam_)",
+ "author": "nephew_sam_",
+ "url": "https://www.tradingview.com/script/A4HGnlGH-liquidity-heatmap-nephew-sam/",
+ "agreeCount": 10741,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+ "our_status": "committed"
+}

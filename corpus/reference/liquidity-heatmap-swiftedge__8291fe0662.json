@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8291fe0662f04e92be78b02d3f4368e0",
+ "title": "Liquidity Heatmap SwiftEdge",
+ "author": "SwiftEdge",
+ "url": "https://www.tradingview.com/script/RNZI0QX8-liquidity-heatmap-swiftedge/",
+ "agreeCount": 2341,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-heatmap-swiftedge__8291fe0662.pine",
+ "our_status": "reference-only"
+}

@@ -23,10 +23,12 @@ intent and a stat is a claim about what happened.
 from __future__ import annotations
 
 import contextlib
+import datetime
 import itertools
 import os
 import pathlib
 import sqlite3
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -549,6 +551,40 @@ def test_prune_normalises_its_horizon_the_same_way_everything_else_does(store):
     assert scan_store.prune("2026-06-01")["hits"] == len(HITS)
     with pytest.raises(ValueError):
         scan_store.prune(1754611200)
+
+
+def test_prune_old_computes_the_horizon_from_retention_days_and_calls_prune(store):
+    """RISK-024 (Phase One Track B). `prune_old` is the scheduler's actual door —
+    unwired to anything before this fix, per the module's own comment beside
+    `SCAN_HITS_RETENTION_DAYS`. It must drop a day older than the window and keep
+    one inside it, using TODAY (ET) as the anchor, not a fixed date — otherwise
+    this test would itself go stale the way the thing it is testing did."""
+    today = datetime.datetime.now(ZoneInfo("America/New_York")).date()
+    old_day = int((today - datetime.timedelta(days=15)).strftime("%Y%m%d"))
+    recent_day = int((today - datetime.timedelta(days=1)).strftime("%Y%m%d"))
+    for day in (old_day, recent_day):
+        scan_store.record_hits(H, TF, day, HITS)
+
+    removed = scan_store.prune_old(retention_days=10)
+
+    assert removed["hits"] == len(HITS), (
+        "the 15-day-old row is outside a 10-day retention window and must go")
+    assert scan_store.hits(H, TF, old_day) == []
+    assert scan_store.hits(H, TF, recent_day) == sorted(HITS), (
+        "the 1-day-old row is inside a 10-day retention window and must survive")
+
+
+def test_prune_old_default_retention_matches_the_pattern_engine_precedent(monkeypatch):
+    """⛔ NOT RE-TYPED — read off the module the same way `_run_patterns_prune`
+    reads `pattern_engine.memory.PRUNE_RETENTION_DAYS`: a default with no env
+    override set. If this ever drifts from 120 on purpose, this test names the
+    new number instead of silently going along with it."""
+    monkeypatch.delenv("SCAN_HITS_RETENTION_DAYS", raising=False)
+    import importlib
+    from api.services.screener import scan_store as _mod
+    importlib.reload(_mod)
+    assert _mod.SCAN_HITS_RETENTION_DAYS == 120
+    importlib.reload(_mod)  # restore normal state for any test after this one
 
 
 # ═══ 7. the measurement the decision rests on ═══════════════════════════════

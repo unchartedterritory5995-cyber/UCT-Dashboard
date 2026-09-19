@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "11-vumanchu-cipher-a-vumanchu.pine",
+  "title": "VuManChu Cipher A",
+  "author": "vumanchu",
+  "source_url": "https://www.tradingview.com/script/9hWqVcG9-VuManChu-Cipher-A/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v4",
+  "license": "not stated",
+  "publish_or_update_date": "Nov 10, 2019",
+  "declared_type": "study",
+  "capture_method": null,
+  "non_comment_lines": 90,
+  "complexity_bucket": "medium",
+  "sha256_source": "29e238f38486f87ee33a987d187be572683af247dda5f6ddbdddd1998331b2c0",
+  "sha256_normalized": "dbb1396bfcad01cefb4ac98f5bccc1d0d84fa0ad557dfec2d6c57e4475bba8d1",
+  "storage": "local-only"
+}

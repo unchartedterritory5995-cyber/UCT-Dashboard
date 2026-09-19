@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f1464ad5b7524b30a9a22939ddf2ad68",
+ "title": "Pivot Trendlines with Breaks [HG]",
+ "author": "HoanGhetti",
+ "url": "https://www.tradingview.com/script/0ecaiSnU-pivot-trendlines-with-breaks-hg/",
+ "agreeCount": 6517,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
+ "our_status": "committed"
+}

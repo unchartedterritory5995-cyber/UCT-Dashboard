@@ -89,11 +89,48 @@ const REFUSES = Object.freeze({
   // moment a second lag appeared. Both are widened now and it TRANSLATES, so its
   // row moved to `pine.community.test.js`'s roster.
   '14-earnings-gap-ups.pine': ['pine:no-output', null, null],
+  // 🔴🔴 ADDED (RISK-043, 2026-09-07) — WAS MISSING FROM THIS MAP ENTIRELY,
+  // because it used to sit in `pine.community.test.js`'s TRANSLATES roster,
+  // and it should never have: `ppchk` is mutated inside a top-level `for`
+  // loop (`ppchk += 1`), then read by `if ppchk < 1 and greenday: ispp :=
+  // true`, a top-level `if` whose CONDITION depends on the loop-mutated name.
+  // The translator's closing-pass safety net for an un-foldable loop
+  // mutation used to run once, after the whole script was walked — too late
+  // for this `if` statement, which is walked earlier in program order and
+  // had already captured a stale, pre-loop `ppchk` (still `0`). The script
+  // silently computed `ppchk < 1` as always-true instead of refusing —
+  // SILENT_WRONG_RESULT, not a real pass. See
+  // `pine.forLoopReassignSilentWrongResult.test.js` for the traced mechanism
+  // and the permanent regression net; the fix forces every name a top-level
+  // `for`/`while`/switch mutates opaque the instant the walk gives up on the
+  // block, instead of deferring that correction to end-of-program.
+  '17-pocket-pivot-breakout.pine': ['pine:reassign', 24, 'for'],
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
   // in `closedTable.json` and not in `PINE_INEXPRESSIBLE` either.
-  '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 132, 'array.get'],
-  '23-higher-timeframe-ema.pine': ['pine:request', 14, 'request.security'],
+  // ➕➕ ADDED 2026-09-12 BY RULING R-F. Both were on the TRANSLATES roster and both
+  // were passing on a SILENT MISTRANSLATION: a bare monotone `max`/`min` accumulator
+  // folded to `accum(…, 250)`, a 250-bar ROLLING window standing in for an all-time
+  // one. ⛔ Both are TRAILING STOPS — UT Bot is a trailing-stop alert and Chandelier
+  // Exit is a trailing stop — so the wrong window put a member's STOP in the wrong
+  // place. They refuse now, and the refusal names the bounded form.
+  '04-ut-bot-alerts.pine': ['pine:state', 15, '['],
+  '05-chandelier-exit.pine': ['pine:state', 27, '['],
+  // ⭐⭐ MOVER, 2026-09-14 — THE GUARD ADVANCED. This was
+  // ['pine:collection', 132, 'array.get']: the script stopped at the first array
+  // READ. Wave 2 item (a) makes a sized array a plan-time vector, so that read
+  // folds and the script now runs on to a LATER, more specific refusal.
+  // ⛔ A refusal moving DEEPER into a script is a win, and it is recorded as one
+  // rather than re-baselined in silence: the member gets a sentence about what
+  // actually stops their script instead of about the first array they wrote.
+  '22-daily-weekly-monthly-highs-lows.pine': ['pine:constant-only', null, null],
+  // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE as ['pine:request', 14,
+  // 'request.security'] and it TRANSLATES now — ruling 3.5 (`29d64a2ef`, 2026-09-12):
+  // its `request.security(syminfo.tickerid, "D", …)` names the engine's own base, so it
+  // folds to the identity instead of refusing. It moved to the TRANSLATES roster in
+  // `pine.community.test.js` (18 → 19). A row removed from a refusal roster is a WIN,
+  // and it is recorded rather than deleted so the next reader can see which ruling
+  // moved it.
   '25-spy-expected-move-by-vix.pine': ['pine:function', 8, 'time'],
   // ⭐ WAS `pine:named-argument` @47 ON `source`. Two walls fell in one change —
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and

@@ -1,0 +1,20 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// created by Chris Guthrie © StonkSignaler
+// I have added an input field for uesers to determine the last n bars to consider for highest highs and lowest lows
+// July 13, 2022
+// @version=5
+//
+indicator(title = "Elliott Wave 3 Finder_v2", shorttitle="EW_3_v2")
+n_bars = input(50, "Consider how many bars?")
+math_diff = ta.ema(close, 5) - ta.ema(close, 35)
+myColor = math_diff >= 0 ? color.lime : color.red
+
+// Extremes
+theTop = ta.highest(math_diff, n_bars) == math_diff and math_diff > 0
+theBot = ta.lowest(math_diff, n_bars) == math_diff and math_diff < 0
+
+
+// Plots
+plot(math_diff, color = myColor, style = plot.style_histogram, linewidth = 3)
+bgcolor(theTop ? color.new(#87cefa, 50) : na)
+bgcolor(theBot ? color.new(#ff00ff, 50) : na)

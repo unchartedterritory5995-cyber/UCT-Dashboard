@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;M0u1uaug4QTmkzDSqTPF5auHrn6XUbbr",
+ "title": "Initial Balance (IB) and Previous Day / Week High, Low & Close",
+ "author": "Bartjs",
+ "url": "https://www.tradingview.com/script/lEITyJVI-initial-balance-ib-and-previous-day-week-high-low-close/",
+ "agreeCount": 543,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
+ "cached_source": "tools/pine_survey/cache/sources/initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
+ "our_status": "committed"
+}

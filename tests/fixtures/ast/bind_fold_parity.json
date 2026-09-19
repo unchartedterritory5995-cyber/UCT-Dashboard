@@ -1,0 +1,215 @@
+{
+  "_": "⭐⭐⭐ THE ONE ARTIFACT BOTH LANES ARE HELD TO FOR THE BIND-TIME FOLD. `api/services/ast_bind.py` and `app/src/components/chart/engine/ast/bind.js` each read this file and assert their own answer against it — so a drift in either goes red from that lane's own suite, and neither lane is the oracle for the other. This is the arrangement `tests/fixtures/ast/multi_tree_parity.json` already uses for `treesHash`.",
+  "_why_a_fixture_and_not_a_cross_call": "⛔ A TEST THAT RAN THE JS LANE FROM PYTHON AND COMPARED WOULD BE GREEN WHEN BOTH LANES ARE WRONG TOGETHER. A pinned expectation is a third party: it fails when either lane moves, including when they move in step. It also means the JS suite catches a JS regression without a node subprocess, which is the difference between a rail that runs on every push and one that runs when somebody remembers.",
+  "_the_case_this_exists_for": "`Uncharted Volume` line 233 — `ta.sma(v, isWeekly ? lenWeekly : lenDaily)`. Same saved tree, two bindings, two lengths. A fold that produced one answer for both would be a constant rather than a binding, which is why BOTH timeframe rows are pinned rather than one.",
+  "_the_text_rows": "⭐⭐⭐ THE SECOND HALF OF THIS FILE PINS A TEXT QUESTION RATHER THAN A WINDOW LENGTH, and it is the same file on purpose: the two lanes must agree about `str.contains` for exactly the reason they must agree about `sma`'s length, and splitting them would let one half be maintained while the other rotted. Two extra shapes carry it — `foldScalarTo` means *fold THIS node with `fold_scalar` and pin the number*, and `notFoldableOn` means *it must STOP, and stop on that operand*. A `symbol` block replaces `timeframe`/`inputs` where the binding is a symbol rather than a chart.",
+  "_why_the_text_answers_are_numbers": "⛔ BECAUSE TEXT NEVER LEAVES THE FOLD. `str.contains` is 1 or 0 and `str.length` is a count, so nothing textual survives into the tree — which is what let the closed table admit these without gaining a second value system in every walk that prices, lints and evaluates a tree. `parse.js::assertCanonical` enforces the same containment structurally on the PERSISTED tree, so it holds for a definition that arrived over a wire and never met the translator.",
+  "_refusal_strings_are_pinned_deliberately": "⚠️ THE `refusalContains` FRAGMENTS ARE THE MEMBER-FACING SENTENCE, and they are pinned because the owner ruled the two lanes must produce the SAME reason string, not merely the same verdict. A member who pastes a script into the builder and a sweep that evaluates the saved definition must be told the same thing about the same length. A verdict-only comparison would let one lane say `folded to 2.5 from lenDaily / 2` and the other say `bad window` and call that parity.",
+
+  "cases": [
+    {
+      "id": "volume_line_233_on_a_daily_chart",
+      "why": "The chart is daily, so the ternary takes the else-arm and the window is lenDaily.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "volume"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50, "lenWeekly": 10},
+      "foldsTo": 50,
+      "maxLookback": 50
+    },
+    {
+      "id": "volume_line_233_on_a_weekly_chart",
+      "why": "⭐ THE SAME TREE, AND THE ANSWER MUST DIFFER. This is the pair that makes it a BINDING rather than a constant.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "volume"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 0, "isweekly": 1, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50, "lenWeekly": 10},
+      "foldsTo": 10,
+      "maxLookback": 10
+    },
+    {
+      "id": "arithmetic_over_two_inputs",
+      "why": "Arithmetic and a scalar call over bind-time constants. Pins that the closed `_FOLD_CALLS` set agrees across lanes — a name in one and not the other is a script that folds on the pane and refuses in the sweep.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "call", "name": "max", "args": [
+          {"type": "op", "name": "*", "args": [
+            {"type": "series", "name": "lenDaily"}, {"type": "num", "value": 2}]},
+          {"type": "num", "value": 30}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 25},
+      "foldsTo": 50,
+      "maxLookback": 50
+    },
+    {
+      "id": "a_length_that_folds_to_a_fraction",
+      "why": "Rule (a): the fold SUCCEEDS and the answer is not a usable window. Refused by the fold pass itself, quoting the member's own text — only this pass knows what it folded FROM.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "/", "args": [
+          {"type": "series", "name": "lenDaily"}, {"type": "num", "value": 4}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50},
+      "refusalContains": [
+        "a window must be a whole-number literal",
+        "sma argument 1 folded to 12.5 for this binding",
+        "from `lenDaily / 4`",
+        "a whole number of at least 1"
+      ]
+    },
+    {
+      "id": "a_length_that_folds_to_zero",
+      "why": "Rule (a) again, the other bad value. Zero is the one a member is most likely to reach by accident.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "-", "args": [
+          {"type": "series", "name": "lenDaily"}, {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 20},
+      "refusalContains": [
+        "sma argument 1 folded to 0 for this binding",
+        "from `lenDaily - lenDaily`"
+      ]
+    },
+    {
+      "id": "a_series_operand_stops_the_fold",
+      "why": "Rule (b): anything reading a BAR leaves the slot exactly as it was — no partial fold — and the window check refuses it downstream by name.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "+", "args": [
+          {"type": "series", "name": "close"}, {"type": "num", "value": 2}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {},
+      "leavesUnfolded": true,
+      "notFoldableOperand": "close"
+    },
+    {
+      "id": "an_unfoldable_ARM_stops_it_even_when_this_binding_would_not_take_it",
+      "why": "⭐⭐ THE SUBTLE ONE. On a weekly binding the selector picks `lenWeekly` and the `close` arm is never taken — but folding it anyway would mean the same saved definition folds on one symbol and refuses on the next, which is a refusal the member cannot reproduce. Both arms fold before the selector is read.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "close"}]}]},
+      "timeframe": {"isdaily": 0, "isweekly": 1, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenWeekly": 10},
+      "leavesUnfolded": true,
+      "notFoldableOperand": "close"
+    },
+    {
+      "id": "an_already_literal_length_is_untouched",
+      "why": "The control. If the pass rewrote plain literals it would be doing something, and every other case here would pass for the wrong reason.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"}, {"type": "num", "value": 20}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {},
+      "foldsTo": 20,
+      "maxLookback": 20
+    },
+
+    {
+      "id": "volume_line_222_on_an_ordinary_symbol",
+      "why": "⭐ THE CASE THE TEXT LANE EXISTS FOR. `Uncharted Volume` line 222 asks whether the chart is a ratio/pair symbol, because volume is meaningless on one. On a plain US equity the answer is NO, and it is a CONSTANT for the binding — decided the moment a symbol is chosen, on no bar at all.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "/"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 0,
+      "maxLookback": 0
+    },
+    {
+      "id": "and_a_ratio_symbol_answers_THE_OTHER_WAY",
+      "why": "⭐⭐ THE PAIR THAT MAKES IT A BINDING RATHER THAN A CONSTANT — the same tree, a different symbol, a different answer. Without this row the case above passes for a lane that returns 0 unconditionally, which is exactly the shape of the bug a `str.contains` implementation is most likely to have.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "/"}]},
+      "symbol": {"ticker": "BTCUSD/ETHUSD"},
+      "foldScalarTo": 1,
+      "maxLookback": 0
+    },
+    {
+      "id": "text_equality_over_a_symbol_scoped_field",
+      "why": "`syminfo.ticker == \"SPY\"` is not knowable at translate time — no symbol has been chosen — and is knowable the moment one is. The door defers it into a `textop` rather than refusing `pine:text-value` for a question with a perfectly good answer one step later.",
+      "tree": {"type": "textop", "name": "eq", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "SPY"}]},
+      "symbol": {"ticker": "SPY"},
+      "foldScalarTo": 1
+    },
+    {
+      "id": "an_EMPTY_needle_is_contained_by_every_string",
+      "why": "⚠️ THE EDGE BOTH LANGUAGES HAPPEN TO AGREE ON, PINNED SO THE AGREEMENT IS NOT AN ACCIDENT. Python's `in` and JavaScript's `includes` both answer true for an empty needle. A hand-written `indexOf(...) > 0` in either lane would answer 0 here and stay green against every other row in this file.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": ""}]},
+      "symbol": {"ticker": "SPY"},
+      "foldScalarTo": 1
+    },
+    {
+      "id": "the_match_is_CASE_SENSITIVE_because_Pine_is",
+      "why": "⛔ A CASE-INSENSITIVE `contains` WOULD BE A KNOWN WRONG VALUE, not a lenient one: a member testing for a suffix would match symbols they meant to exclude. Pinned in both lanes because a `.toLowerCase()` added for convenience in one of them is invisible to every other row here.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "spy"}]},
+      "symbol": {"ticker": "SPY"},
+      "foldScalarTo": 0
+    },
+    {
+      "id": "str_length_counts_characters",
+      "why": "The one text question whose answer is not a boolean. It is here so the numeric-answer claim covers more than 0/1 — a lane that returned a boolean for everything would pass every other text row.",
+      "tree": {"type": "textop", "name": "length", "args": [
+        {"type": "symtext", "name": "ticker"}]},
+      "symbol": {"ticker": "SPY"},
+      "foldScalarTo": 3
+    },
+    {
+      "id": "startswith_and_endswith_are_ANCHORED_not_substring",
+      "why": "⛔ THE THREE PREDICATES ARE DIFFERENT QUESTIONS AND A LANE COULD IMPLEMENT ALL THREE AS `contains`. `SPY` contains `PY` but does not START with it; without this row that mistake is green.",
+      "tree": {"type": "textop", "name": "startswith", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "PY"}]},
+      "symbol": {"ticker": "SPY"},
+      "foldScalarTo": 0
+    },
+    {
+      "id": "an_UNWITNESSED_exchange_stops_the_fold_and_says_why",
+      "why": "⭐⭐ THE VENDOR GATE, AND IT IS A GATE IN THE FOLD RATHER THAN AT THE DOOR. `syminfo.tickerid` is `EXCHANGE:SYMBOL`, and the exchange half is a TradingView string this engine has not measured FOR THIS SPELLING — so it refuses PER BINDING, naming the field and the measurement gap. ⚰️ THIS CASE RODE 'NYSE Arca' UNTIL 2026-09-10, when that spelling was WITNESSED and the case stopped stopping — it went green by never refusing at all. It now rides 'NASDAQ Global Select', a real FMP-leg spelling with no witness. ⛔ IF A CAPTURE EVER WITNESSES THAT ONE, REPOINT THIS CASE AGAIN; do not delete it, or the refusal half of the gate goes unexercised in BOTH lanes at once. ⛔ THE FRAGMENTS BELOW ARE THE MEMBER-FACING SENTENCE, pinned in both lanes: a member told *\"the engine grammar does not hold this\"* would rewrite a script that will work unchanged the day a capture lands, and that is the wrong action to have caused.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "tickerid"}, {"type": "str", "value": "/"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NASDAQ Global Select"},
+      "notFoldableOn": "syminfo.tickerid",
+      "notFoldableSays": [
+        "the exchange half is a TradingView string this engine has not measured",
+        "syminfo.ticker"
+      ]
+    },
+    {
+      "id": "a_WITNESSED_exchange_FOLDS_prefix_to_the_MEASURED_string",
+      "why": "⭐⭐ THE OTHER HALF OF THE GATE, AND IT COULD NOT BE WRITTEN UNTIL 2026-09-10 because `confirmed` was empty — every refusal row here was satisfied by a serving path that did not exist. `NYSE Arca` is now witnessed (AMEX:SPY, capture `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json`), so both lanes must FOLD it, and to the SAME string. ⛔ THE ASSERTION IS THE VALUE, NOT MERELY THAT IT FOLDED: asking `prefix == \"AMEX\"` in the member's own operator means a lane that served OUR store's spelling ('NYSE Arca') answers 0 here and goes RED — which is exactly the silent per-symbol INVERSION this whole gate exists to prevent.",
+      "tree": {"type": "textop", "name": "eq", "args": [
+        {"type": "symtext", "name": "prefix"}, {"type": "str", "value": "AMEX"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 1,
+      "maxLookback": 0
+    },
+    {
+      "id": "a_WITNESSED_exchange_ASSEMBLES_tickerid_as_PREFIX_colon_TICKER",
+      "why": "⭐ `tickerid` IS ASSEMBLED, NOT STORED, so it is exactly as measured as its exchange half. `AMEX` + `:` + `SPY` is 8 characters, and 8 DISCRIMINATES — a lane that assembled 'NYSE Arca:SPY' answers 13, and one that served the bare ticker answers 3. ⭐ It also pins, as a committed number, the fact that retired N11 from the probe: `tickerid` IS `prefix + \":\" + ticker` (8 = 4 + 1 + 3), which is why asking whether the prefix is CONTAINED in the tickerid could only ever answer 1.",
+      "tree": {"type": "textop", "name": "length", "args": [
+        {"type": "symtext", "name": "tickerid"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 8,
+      "maxLookback": 0
+    },
+    {
+      "id": "and_NO_symbol_at_all_stops_it_the_same_way",
+      "why": "The builder case: a member pastes a script and no symbol has been chosen yet. It must stop on the same operand with the same shape of answer — a definition that folded differently depending on whether a symbol happened to be bound would be two products.",
+      "tree": {"type": "textop", "name": "contains", "args": [
+        {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "/"}]},
+      "notFoldableOn": "syminfo.ticker"
+    }
+  ]
+}

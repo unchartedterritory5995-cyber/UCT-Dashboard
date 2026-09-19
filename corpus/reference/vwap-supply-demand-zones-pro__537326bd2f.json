@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;537326bd2fae4e23a86f6b99e24f4cb3",
+ "title": "VWAP Supply & Demand Zones PRO",
+ "author": "Finntech1",
+ "url": "https://www.tradingview.com/script/sy6NN7eu-vwap-supply-demand-zones-pro/",
+ "agreeCount": 5111,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vwap-supply-demand-zones-pro__537326bd2f.pine",
+ "our_status": "reference-only"
+}

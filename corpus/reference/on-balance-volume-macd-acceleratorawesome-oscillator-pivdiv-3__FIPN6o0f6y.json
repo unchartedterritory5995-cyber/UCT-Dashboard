@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;FIPN6o0f6yBEmaV8gfc6KmaTJANdaKJ2",
+ "title": "[On Balance Volume] [MACD] [Accelerator/Awesome Oscillator] + PivDiv 3",
+ "author": "fikira",
+ "url": "https://www.tradingview.com/script/LuIvUYgU-on-balance-volume-macd-accelerator-awesome-oscillator-pivdiv/",
+ "agreeCount": 484,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3__FIPN6o0f6y.pine",
+ "our_status": "reference-only"
+}

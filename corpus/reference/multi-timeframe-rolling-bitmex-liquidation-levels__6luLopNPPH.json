@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6luLopNPPHa2Vw61GxUH4GaNSAfPbQrn",
+ "title": "Multi Timeframe Rolling Bitmex Liquidation Levels",
+ "author": "cubantobacco",
+ "url": "https://www.tradingview.com/script/G08eW49J-multi-timeframe-rolling-bitmex-liquidation-levels/",
+ "agreeCount": 2718,
+ "category": "market structure / smart-money",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH.pine",
+ "our_status": "reference-only"
+}

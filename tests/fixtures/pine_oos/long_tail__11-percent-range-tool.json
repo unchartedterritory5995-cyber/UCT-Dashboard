@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "11-percent-range-tool.pine",
+  "title": "Percent Range Tool",
+  "author": "graefe",
+  "source_url": "https://www.tradingview.com/script/S3fryIu2-Percent-Range-Tool/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "3 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 79,
+  "complexity_bucket": "medium",
+  "sha256_source": "37cf5765d7d79efe4498c6c1d16a26a69f39bbd9e9a2a0034ccbdbeca1ce4bbc",
+  "sha256_normalized": "a8680b05e8f6f475455aa837324896d4c2b64b7a91f082a0bc672ba958919496",
+  "storage": "git"
+}

@@ -4340,6 +4340,273 @@
           }
         ]
       }
+    },
+    {
+      "id": "rising_close_3",
+      "source": "rising(close, 3)",
+      "why": "Vendor Parity Tranche 2, Lane B -- covers `rising`, resolved by a real TradingView capture to strict monotone over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions).",
+      "ast": {
+        "type": "call",
+        "name": "rising",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "median_close_4",
+      "source": "median(close, 4)",
+      "why": "Vendor Parity Tranche 2, Lane B -- covers `median` at an EVEN length, resolved by a real TradingView capture to the mean of the two middle ranks, not the lower-middle order statistic.",
+      "ast": {
+        "type": "call",
+        "name": "median",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "percentrank_close_10",
+      "source": "percentrank(close, 10)",
+      "why": "Vendor Parity Tranche 2, Lane B -- covers `percentrank`, resolved by a real TradingView capture to divisor length with the current bar EXCLUDED from the sample.",
+      "ast": {
+        "type": "call",
+        "name": "percentrank",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "bbw_close_20_2",
+      "source": "bbw(close, 20, 2)",
+      "why": "Vendor Parity Tranche 2, Lane B -- covers `bbw`, resolved by a real TradingView capture to the PERCENT form (x100), not the bare ratio; population stdev matches this table's existing `stdev`.",
+      "ast": {
+        "type": "call",
+        "name": "bbw",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "falling_close_3",
+      "source": "falling(close, 3)",
+      "why": "Vendor-Backed Unserved Builtins, Batch 1 -- covers falling, resolved by an INDEPENDENT real TradingView capture (not assumed by symmetry with rising) to strict monotone DECREASE over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions.falling_resolution).",
+      "ast": {
+        "type": "call",
+        "name": "falling",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "pvtN_bounded_price_volume_trend_change",
+      "source": "pvtN(5)",
+      "why": "THE FOURTH `reads: \"bars\"` ENTRY, mirroring obvN exactly: _functions_excluded.pvt refuses the unbounded LEVEL for the identical unseeded-cumulative reason obv is refused; this is that level's CHANGE across a declared window, and the seed cancels. Bound to the shipped accumulator (computePVT / compute_pvt_raw, differenced 5 bars apart) so this digest is also the rail on those two staying one number. Verified against a real TradingView capture (tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json): exact match on 15 real SPY trading days, steady-state.",
+      "ast": {
+        "type": "call",
+        "name": "pvtN",
+        "args": [
+          {
+            "type": "num",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "cum_running_total",
+      "source": "cum(volume)",
+      "why": "⭐⭐ THE RUNNING TOTAL, ADMITTED UNDER OWNER RULING D (2026-09-09) WITH ITS CONTAINMENT ON THE DEFINITION RATHER THAN ON THE ENTRY. `_functions_cumulative` refused a per-consumer exception because *\"there is no per-entry flag that stops a fetch-dependent column flowing into a saved definition, a nightly sweep, an alert or a shared screen\"* — the flag now exists as `_requirement_tags.window_dependent`, stamped at SAVE time by static analysis, and those consumers refuse it BY NAME while the pane accepts it. ⛔ THIS CASE IS THE CROSS-LANE HALF AND IT IS WHY THE ENTRY LANDS ON THE BAR FLOOR: the two lanes must agree bar for bar on a column whose whole character is that it never forgets, so a one-bar disagreement anywhere in the series persists to the end rather than washing out. Nothing else in this corpus has that property. ⚠️ THE `na` RULE IS THE VENDOR'S, MEASURED ON TRADINGVIEW 2026-09-08 (SPY 1D, 8,459 bars): `na` before the first finite input, `na` ON an `na` bar, and the total HELD across it — 7330 -> na -> 7331, with the final value equal to the count of finite inputs exactly. `volume` is finite on every bar of this corpus, so this digest pins the ARITHMETIC and the hold rule is pinned by `interpret.test.js` / `test_ast_interpret.py` on a holed series. ⚠️ ITS DECLARED `lookback` IS `\"series\"`, which resolves to 0 in the budget sum: `ta.cum` answers on bar 0, so it costs no warm-up. What it costs is comparability, which is not a budget question — see `_functions_warmup`.",
+      "ast": {
+        "type": "call",
+        "name": "cum",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_islast",
+      "source": "islast + 0",
+      "why": "⭐ THE NEWEST BAR, AND IT IS NOT WINDOW-DEPENDENT. Widen the fetch and the OLDEST bar moves; the newest one is the newest one however much history was asked for. That asymmetry is why `islast` is served on both contracts with no requirement tag while `isfirst` carries one.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "islast"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isfirst",
+      "source": "isfirst + 0",
+      "why": "⭐ THE OLDEST BAR, AND IT IS WINDOW-DEPENDENT — which is a CONTAINMENT fact, not an arithmetic one. Both lanes must still agree on the column; what stops it reaching a screener or a sweep is `_requirement_tags.window_dependent`, stamped on the definition.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isfirst"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isrealtime",
+      "source": "isrealtime + 0",
+      "why": "⭐⭐ THE ONE THAT NEEDS A CLOCK. `opts.now` sits 100 seconds into the newest 5-minute bar, so that bar's period has NOT finished and it is the only bar that can be true. ⛔ `now` IS AN INPUT, NEVER A WALL-CLOCK READ: two evaluations of one fetch must agree bar for bar, which a function reading the clock cannot promise. Absent, the column is all-`na` — the same fail-closed contract `tf` has.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isrealtime"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isconfirmed",
+      "source": "isconfirmed + 0",
+      "why": "The complement of `isrealtime` on the same fetch. Pinned separately rather than derived, because a lane that computed one from the other would agree with itself while disagreeing with the vendor.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isconfirmed"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_ishistory",
+      "source": "ishistory + 0",
+      "why": "⚠️ AN ALIAS OF `isconfirmed` HERE AND NOT ONE IN PINE. TradingView distinguishes a bar the chart LOADED from one it WATCHED form; this engine evaluates a static fetch, where every closed bar arrived the same way, so the distinction has no referent. Recorded as a divergence rather than hidden — the corpus pins what WE do.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "ishistory"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_islastconfirmedhistory",
+      "source": "islastconfirmedhistory + 0",
+      "why": "The newest bar whose period has finished — the bar BEFORE the forming one here. ⛔ It is a different column from `islast` on exactly this fetch, which is the only shape that can tell the two apart: with a closed newest bar they coincide and a lane that confused them would stay green.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "islastconfirmedhistory"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

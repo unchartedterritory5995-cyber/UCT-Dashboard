@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3b9db05a48c347ffbeb571b0db5e8dbd",
+ "title": "AI SuperTrend x Pivot Percentile - Strategy [PresentTrading]",
+ "author": "PresentTrading",
+ "url": "https://www.tradingview.com/script/eC3qAYNQ-ai-supertrend-x-pivot-percentile-strategy-presenttrading/",
+ "agreeCount": 5360,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+ "our_status": "committed"
+}

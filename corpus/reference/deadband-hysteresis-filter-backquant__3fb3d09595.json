@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3fb3d09595544f2c8f385a8d2837dbc7",
+ "title": "Deadband Hysteresis Filter [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/TPvNyPwv-deadband-hysteresis-filter-backquant/",
+ "agreeCount": 761,
+ "category": "other",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+ "cached_source": "tools/pine_survey/cache/sources/deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+ "our_status": "committed"
+}

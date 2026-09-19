@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2JLLfrGRHgQMLTTCIsvhvgJ6BYqMhNou",
+ "title": "ATR Trailing Stoploss",
+ "author": "ceyhun",
+ "url": "https://www.tradingview.com/script/sLXhpDO8-atr-trailing-stoploss/",
+ "agreeCount": 5694,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-trailing-stoploss__2JLLfrGRHg.pine",
+ "our_status": "committed"
+}

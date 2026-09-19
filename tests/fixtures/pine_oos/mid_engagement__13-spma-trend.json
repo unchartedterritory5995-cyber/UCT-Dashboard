@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "13-spma-trend.pine",
+  "title": "SPMA Trend | NAL",
+  "author": "NordicAlphaLab",
+  "source_url": "https://www.tradingview.com/script/Q8RDxj5I-SPMA-Trend-NAL/",
+  "retrieved_at": "2026-09-07T11:35:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"3 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 127,
+  "complexity_bucket": "long",
+  "sha256_source": "3d11601644839555d054126a4afed8face0dcaeaa6a23176cde8738fb96f44c0",
+  "sha256_normalized": "a2ddcfcb82b25bfaa06c8cbd5ec05f3ccaa24ef913c021272003fa46d2103853",
+  "storage": "git"
+}

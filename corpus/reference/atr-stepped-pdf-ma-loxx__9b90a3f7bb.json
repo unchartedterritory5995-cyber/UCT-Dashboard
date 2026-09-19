@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9b90a3f7bbea4b00bc4b7fe9ff6514e8",
+ "title": "ATR-Stepped PDF MA [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/Z0JedxTS-atr-stepped-pdf-ma-loxx/",
+ "agreeCount": 750,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,1970 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © mcthatsme
+//@version=5
+
+indicator("MGI Levels Suite", shorttitle="MGI Levels",overlay=true, max_lines_count=100, max_labels_count=100)
+
+//////////////////////////////////////////////////
+/////////           Inputs             ///////////
+//////////////////////////////////////////////////
+//Groups
+var dailyGroup   = "Daily Levels"
+var weeklyGroup  = "Weekly Levels"
+var monthlyGroup = "Monthly Levels"
+
+rthRangeSessTT    = "Session that defines the following levels: Open, Close, High, Low, etc. This is set by default to New York RTH Session. The session range desired must be converted to New_York (UTC-5) time."
+//Input for level colors
+showDailyLevels    = input.bool  (defval=true, title="Show Daily Levels" , group=dailyGroup) and timeframe.in_seconds() <= timeframe.in_seconds("30")
+use30STimeFrame    = input.bool  (defval=false, title="Use 30 Second Timeframe for Calculations", group=dailyGroup, tooltip="Checked: Use the 30S timeframe to calculate Opening Range and Initial Balance Levels\nUnchecked: Use the 1m to support lower tiered TV plans")
+rthRangeSess       = input.session(defval="0930-1600"           , title="Trading Session", group = dailyGroup, tooltip=rthRangeSessTT)
+//Opening Range High/Low
+openRangeSess      = input.session(defval="0930-1000"           , title="Opening Range"  , group=dailyGroup, tooltip="Range must be converted to (UTC-5) New York Time")
+IBSess             = input.session(defval="0930-1030"           , title="Initial Balance", group=dailyGroup, tooltip="Range must be converted to (UTC-5) New York Time")
+openRangeHighName  = input.string (defval="Opening Range High"  , title="", group=dailyGroup, inline="12")
+openRangeHighColor = input.color  (defval=color.olive         , title="", group=dailyGroup, inline="12")
+showOpenRangeHigh  = input.bool   (defval=false                 , title="", group=dailyGroup, inline="12")
+openRangeMidName   = input.string (defval="Opening Range Mid"   , title="", group=dailyGroup, inline="13")
+openRangeMidColor  = input.color  (defval=color.olive         , title="", group=dailyGroup, inline="13")
+showOpenRangeMid   = input.bool   (defval=false                 , title="", group=dailyGroup, inline="13")
+openRangeLowName   = input.string (defval="Opening Range Low"   , title="", group=dailyGroup, inline="14")
+openRangeLowColor  = input.color  (defval=color.olive         , title="", group=dailyGroup, inline="14")
+showOpenRangeLow   = input.bool   (defval=false                 , title="", group=dailyGroup, inline="14")
+
+//Initial Balance High/Low
+IBHighName        = input.string (defval="Initial Balance High", title="", group=dailyGroup, inline="12")
+IBHighColor       = input.color  (defval=color.navy          , title="", group=dailyGroup, inline="12")
+showIBHigh        = input.bool   (defval=false                 , title="", group=dailyGroup, inline="12")
+IBMidName         = input.string (defval="Initial Balance Mid" , title="", group=dailyGroup, inline="13")
+IBMidColor        = input.color  (defval=color.navy          , title="", group=dailyGroup, inline="13")
+showIBMid         = input.bool   (defval=false                 , title="", group=dailyGroup, inline="13")
+IBLowName         = input.string (defval="Initial Balance Low" , title="", group=dailyGroup, inline="14")
+IBLowColor        = input.color  (defval=color.navy          , title="", group=dailyGroup, inline="14")
+showIBLow         = input.bool   (defval=false                 , title="", group=dailyGroup, inline="14")
+
+//Previous Day High/Low
+currHighName    = input.string(defval="Current Day High"      , title="", group=dailyGroup, inline="1")
+currHighColor   = input.color (defval=color.gray            , title="", group=dailyGroup, inline="1")
+showCurrHigh    = input.bool  (defval=false                   , title="", group=dailyGroup, inline="1")
+currLowName     = input.string(defval="Current Day Low"       , title="", group=dailyGroup, inline="1")
+currLowColor    = input.color (defval=color.gray            , title="", group=dailyGroup, inline="1")
+showCurrLow     = input.bool  (defval=false                   , title="", group=dailyGroup, inline="1")
+
+//Globex Open (9:30 AM open on stocks, globex on futures), RTH Open (when using futures)
+globexOpenName  = input.string(defval="Globex Open"            , title="", group=dailyGroup, inline="2")
+globexOpenColor = input.color (defval=color.white            , title="", group=dailyGroup, inline="2")
+showGlobexOpen  = input.bool  (defval=false                    , title="", group=dailyGroup, inline="2")
+rthOpenName     = input.string(defval="RTH Open"               , title="", group=dailyGroup, inline="2")
+rthOpenColor    = input.color (defval=color.orange           , title="", group=dailyGroup, inline="2")
+showRthOpen     = input.bool  (defval=true                     , title="", group=dailyGroup, inline="2")
+
+// Midnight Open (12:00 AM EST) and PrevDay Open
+prevOpenName    = input.string(defval="Prev Day Open"          , title="", group=dailyGroup, inline="15")
+prevOpenColor   = input.color (defval=color.rgb(255, 102, 0) , title="", group=dailyGroup, inline="15")
+showPrevOpen    = input.bool  (defval=false                    , title="", group=dailyGroup, inline="15")
+midNOpenName    = input.string(defval="Midnight Open"          , title="", group=dailyGroup, inline="15")
+midNOpenColor   = input.color (defval=color.rgb(200, 0, 255) , title="", group=dailyGroup, inline="15")
+showMidNOpen    = input.bool  (defval=false                    , title="", group=dailyGroup, inline="15")
+
+
+//London Open (3:00 AM EST) and Close (11:30 AM EST)
+londonOpenName   = input.string(defval="London Open"            , title="", group=dailyGroup, inline="3")
+londonOpenColor  = input.color (defval=color.blue             , title="", group=dailyGroup, inline="3")
+showLondonOpen   = input.bool  (defval=false                    , title="", group=dailyGroup, inline="3")
+londonCloseName  = input.string(defval="London Close"           , title="", group=dailyGroup, inline="3")
+londonCloseColor = input.color (defval=color.blue             , title="", group=dailyGroup, inline="3")
+showLondonClose  = input.bool  (defval=false                    , title="", group=dailyGroup, inline="3")
+
+//Previous Day High/Low
+prevHighName    = input.string(defval="Previous Day High"      , title="", group=dailyGroup, inline="4")
+prevHighColor   = input.color (defval=color.green            , title="", group=dailyGroup, inline="4")
+showPrevHigh    = input.bool  (defval=true                     , title="", group=dailyGroup, inline="4")
+prevLowName     = input.string(defval="Previous Day Low"       , title="", group=dailyGroup, inline="4")
+prevLowColor    = input.color (defval=color.green            , title="", group=dailyGroup, inline="4")
+showPrevLow     = input.bool  (defval=true                     , title="", group=dailyGroup, inline="4")
+
+//Previous Day H/L 50% and Previous Day O/C 50% Close
+midHLName       = input.string(defval="Prev Day 50% (HL2)"     , title="", group=dailyGroup, inline="5")
+midHLColor      = input.color (defval=color.yellow           , title="", group=dailyGroup, inline="5")
+showPrevMidHL   = input.bool  (defval=true                     , title="", group=dailyGroup, inline="5")
+midOCName       = input.string(defval="Prev Day 50% (OC2)"     , title="", group=dailyGroup, inline="5")
+midOCColor      = input.color (defval=color.fuchsia          , title="", group=dailyGroup, inline="5")
+showPrevMidOC   = input.bool  (defval=false                    , title="", group=dailyGroup, inline="5")
+
+//T2 Open/Close
+t2OpenName      = input.string(defval="T+2 Open"               , title="", group=dailyGroup, inline="6")
+t2OpenColor     = input.color (defval=color.rgb(248, 217, 44), title="", group=dailyGroup, inline="6")
+showT2Open      = input.bool  (defval=false                    , title="", group=dailyGroup, inline="6")
+t2CloseName     = input.string(defval="T+2 Close"              , title="", group=dailyGroup, inline="6")
+t2CloseColor    = input.color (defval=color.rgb(55, 248, 248), title="", group=dailyGroup, inline="6")
+showT2Close     = input.bool  (defval=false                    , title="", group=dailyGroup, inline="6")
+
+//T2 High/Low
+t2HighName      = input.string(defval="T+2 High"               , title="", group=dailyGroup, inline="7")
+t2HighColor     = input.color (defval=color.red              , title="", group=dailyGroup, inline="7")
+showT2High      = input.bool  (defval=true                     , title="", group=dailyGroup, inline="7")
+t2LowName       = input.string(defval="T+2 Low"                , title="", group=dailyGroup, inline="7")
+t2LowColor      = input.color (defval=color.red              , title="", group=dailyGroup, inline="7")
+showT2Low       = input.bool  (defval=true                     , title="", group=dailyGroup, inline="7")
+
+//Overnight High/Low
+onHighName      = input.string(defval="Overnight High"         , title="", group=dailyGroup, inline="8")
+onHighColor     = input.color (defval=color.purple           , title="", group=dailyGroup, inline="8")
+showOnHigh      = input.bool  (defval=true                     , title="", group=dailyGroup, inline="8")
+onLowName       = input.string(defval="Overnight Low"          , title="", group=dailyGroup, inline="8")
+onLowColor      = input.color (defval=color.purple           , title="", group=dailyGroup, inline="8")
+showOnLow       = input.bool  (defval=true                     , title="", group=dailyGroup, inline="8")
+
+//Session Close
+prevCloseName  = input.string(defval="RTH Close"               , title="", group=dailyGroup, inline="9")
+prevCloseColor = input.color (defval=color.aqua              , title="", group=dailyGroup, inline="9")
+showPrevClose  = input.bool  (defval=true                      , title="", group=dailyGroup, inline="9")
+
+//5PM Close
+prev5PMCloseName  = input.string(defval="5PM Close"            , title="", group=dailyGroup, inline="9")
+prev5PMCloseColor = input.color (defval=color.teal           , title="", group=dailyGroup, inline="9")
+showPrev5PMClose  = input.bool  (defval=true                   , title="", group=dailyGroup, inline="9")
+
+//Prev Day VWAP at close
+prevVWAPCloseName  = input.string(defval="Prev Day VWAP"        , title="", group=dailyGroup, inline="10")
+prevVWAPCloseColor = input.color (defval=color.maroon         , title="", group=dailyGroup, inline="10")
+showVWAPPrevClose  = input.bool  (defval=false                  , title="", group=dailyGroup, inline="10")
+//Prev Day VWAP SD1
+prevVWAPSD1Name  = input.string(defval="Prev Day VWAP SD1"       , title="", group=dailyGroup, inline="10")
+prevVWAPSD1Color = input.color (defval=color.rgb(245, 119, 186), title="", group=dailyGroup, inline="10")
+showVWAPSD1Close = input.bool  (defval=false                     , title="", group=dailyGroup, inline="10")
+
+//Prev Day VWAP SD1
+prevVWAPSD2Name  = input.string(defval="Prev Day VWAP SD2"       , title="", group=dailyGroup, inline="11")
+prevVWAPSD2Color = input.color (defval=color.rgb(144, 68, 109) , title="", group=dailyGroup, inline="11")
+showVWAPSD2Close = input.bool  (defval=false                     , title="", group=dailyGroup, inline="11")
+//Prev Day VWAP SD1
+prevVWAPSD3Name  = input.string(defval="Prev Day VWAP SD3"       , title="", group=dailyGroup, inline="11")
+prevVWAPSD3Color = input.color (defval=color.rgb(124, 36, 83)  , title="", group=dailyGroup, inline="11")
+showVWAPSD3Close = input.bool  (defval=false                     , title="", group=dailyGroup, inline="11")
+
+//Daily Settings
+numDailyPeriods       = input.int   (title="Number of Previous Days", defval=1, group = dailyGroup, minval = 1, maxval = 40)
+showUntestedHLCLevels = input.bool  (title="Keep Untested Open/High/Low/Close Levels", defval=false, group = dailyGroup)
+showInactiveHLCLevels = input.bool  (title="Show Already Tested Open/High/Low/Close Levels", defval=false, group = dailyGroup)
+includeGlobexHL       = input.bool  (title="Include Overnight High/Low in Previous Day High/Low Level", defval=false, group=dailyGroup, tooltip="This will also cause Weekly/Monthly levels to include the Overnight in their High/Low calculations")
+extendOptionDaily     = input.string(title="Extend Daily Lines"  , defval="Right", options=["Right","Both", "None"], group = dailyGroup)
+linewidthDaily        = input.int   (title="Daily Line Thickness", defval=1, group = dailyGroup)
+styleOptionDaily      = input.string(title="Daily Line Style"    , defval="solid (─)", options=["solid (─)", "dashed (╌)", "dotted (┈)"], group = dailyGroup)
+labelColorDaily       = input.color (title="", defval=color.white, group = dailyGroup, inline="labelDaily")
+showDailyLabels       = input.bool  (title="Show Daily Level Labels", defval=true, group = dailyGroup, inline="labelDaily")
+showPriceInLabelD     = input.bool  (title="Show Price in Label", defval=true, group= dailyGroup)
+labelColorMatchLineD  = input.bool  (title="Match Label Color With Line Color", defval=false, group=dailyGroup)
+labelDailyTextOption  = input.string(title="Daily Label Text Size", options=[ "Tiny", "Small", "Normal",  "Large", "Huge"], defval="Normal", group=dailyGroup)
+labeloffsetDaily      = input.int   (title="Daily Label Offset", defval=20, group = dailyGroup)
+
+///////////////////////////
+//  Weekly Levels Inputs //
+///////////////////////////
+showWeeklyLevels   = input.bool(defval=true, title="Show Weekly Levels",  group=weeklyGroup)
+prevWeekHighName   = input.string(defval="Prev Week High"      , title="", group=weeklyGroup, inline="6")
+wkHighColor        = input.color (defval=color.lime          , title="", group=weeklyGroup, inline="6")
+showPrevWeekHigh   = input.bool  (defval=true                  , title="", group=weeklyGroup, inline="6")
+prevWeekLowName    = input.string(defval="Prev Week Low"       , title="", group=weeklyGroup, inline="6")
+wkLowColor         = input.color (defval=color.lime          , title="", group=weeklyGroup, inline="6")
+showPrevWeekLow    = input.bool  (defval=true                  , title="", group=weeklyGroup, inline="6")
+
+prevWeekHalfHLName = input.string(defval="Prev Week Half (HL2)", title="", group=weeklyGroup, inline="7")
+wkHalfHLColor      = input.color (defval=color.yellow        , title="", group=weeklyGroup, inline="7")
+showPrevWeekHalfHL = input.bool  (defval=true                  , title="", group=weeklyGroup, inline="7")
+prevWeekHalfOCName = input.string(defval="Prev Week Half (OC2)", title="", group=weeklyGroup, inline="7")
+wkHalfOCColor      = input.color (defval=color.fuchsia       , title="", group=weeklyGroup, inline="7")
+showPrevWeekHalfOC = input.bool  (defval=false                 , title="", group=weeklyGroup, inline="7")
+
+wkOpenName         = input.string(defval="Current Week Open"   , title="", group=weeklyGroup, inline="8")
+wkOpenColor        = input.color (defval=color.orange        , title="", group=weeklyGroup, inline="8")
+showWeekOpen       = input.bool  (defval=true                  , title="", group=weeklyGroup, inline="8")
+wkCloseName        = input.string(defval="Prev Week Close"     , title="", group=weeklyGroup, inline="8")
+wkCloseColor       = input.color (defval=color.aqua          , title="", group=weeklyGroup, inline="8")
+showPrevWeekClose  = input.bool  (defval=true                  , title="", group=weeklyGroup, inline="8")
+
+wkVWAPName         = input.string(defval="Prev Week VWAP"      , title="", group=weeklyGroup, inline="9")
+wkVWAPColor        = input.color (defval=color.white         , title="", group=weeklyGroup, inline="9")
+showPrevWeekVWAP   = input.bool  (defval=false                 , title="", group=weeklyGroup, inline="9")
+wkVSD1Name         = input.string(defval="Prev Week VWAP SD1"  , title="", group=weeklyGroup, inline="9")
+wkVSD1Color        = input.color (defval=color.green         , title="", group=weeklyGroup, inline="9")
+showPrevWeekSD1    = input.bool  (defval=false                 , title="", group=weeklyGroup, inline="9")
+
+wkVSD2Name         = input.string(defval="Prev Week VWAP SD2"  , title="", group=weeklyGroup, inline="10")
+wkVSD2Color        = input.color(defval=color.olive          , title="", group=weeklyGroup, inline="10")
+showPrevWeekSD2    = input.bool (defval=false                  , title="", group=weeklyGroup, inline="10")
+wkVSD3Name         = input.string(defval="Prev Week VWAP SD3"  , title="", group=weeklyGroup, inline="10")
+wkVSD3Color        = input.color(defval=color.teal           , title="", group=weeklyGroup, inline="10")
+showPrevWeekSD3    = input.bool (defval=false                  , title="", group=weeklyGroup, inline="10")
+
+//Weekly Settings
+numWklyPeriods       = input.int(title="Number of Previous Weeks", defval=1, group = weeklyGroup, minval = 1, maxval = 20)
+extendOptionWeekly   = input.string(title="Extend Weekly Lines", options=["Right","Both", "None"], defval="Right", group = weeklyGroup)
+linewidthWeekly      = input.int(1, "Weekly Line Thickness", group = weeklyGroup)
+styleOptionWeekly    = input.string(title="Weekly Line Style", options=["solid (─)", "dashed (╌)", "dotted (┈)"], defval="dotted (┈)", group = weeklyGroup)
+labelColorWeekly     = input.color(title="", defval=color.white, group = weeklyGroup, inline="labelWeekly")
+showWeeklyLabels     = input.bool(title="Show Weekly Level Labels", defval=true, group = weeklyGroup, inline="labelWeekly")
+showPriceInLabelW    = input.bool (title="Show Price in Label", defval=true, group= weeklyGroup)
+labelColorMatchLineW = input.bool(title="Match Label Color With Line Color", defval=false, group=weeklyGroup)
+labelWklyTextOption  = input.string(title="Weekly Label Text Size", options=[ "Tiny", "Small", "Normal",  "Large", "Huge"], defval="Normal", group=weeklyGroup)
+labeloffsetWeekly    = input.int(title="Weekly Label Offset", defval=10, group = weeklyGroup)
+
+////////////////////////////
+//  Monthly Levels Inputs //
+////////////////////////////
+showMonthlyLevels   = input.bool(title="Show Monthly Levels", defval=true, group = monthlyGroup)
+monHighName         = input.string(defval="Prev Month High"       , title="", group=monthlyGroup, inline="9")
+monHighColor        = input.color (defval=color.rgb(1, 219, 147), title="", group=monthlyGroup, inline="9")
+showPrevMonthHigh   = input.bool  (defval=true                    , title="", group=monthlyGroup, inline="9")
+monLowName          = input.string(defval="Prev Month Low"        , title="", group=monthlyGroup, inline="9")
+monLowColor         = input.color (defval=color.rgb(1, 219, 147), title="", group=monthlyGroup, inline="9")
+showPrevMonthLow    = input.bool  (defval=true                    , title="", group=monthlyGroup, inline="9")
+
+monHalfHLName       = input.string(defval="Prev Month 50% (HL2)"  , title="", group=monthlyGroup, inline="10")
+monHalfColorHL      = input.color (defval=color.rgb(255, 230, 1), title="", group=monthlyGroup, inline="10")
+showPrevMonthHalfHL = input.bool  (defval=true                    , title="", group=monthlyGroup, inline="10")
+monHalfOCName       = input.string(defval="Prev Month 50% (OC2)"  , title="", group=monthlyGroup, inline="10")
+monHalfOCColor      = input.color (defval=color.fuchsia         , title="", group=monthlyGroup, inline="10")
+showPrevMonthHalfOC = input.bool  (defval=false                   , title="", group=monthlyGroup, inline="10")
+
+monOpenName         = input.string(defval="Month Open"           , title="", group=monthlyGroup, inline="11")
+monOpenColor        = input.color(defval=color.orange          , title="", group=monthlyGroup, inline="11")
+showMonthOpen       = input.bool (defval=true                    , title="", group=monthlyGroup, inline="11")
+monCloseName        = input.string(defval="Prev Month Close"     , title="", group=monthlyGroup, inline="11")
+monCloseColor       = input.color(defval=color.aqua            , title="", group=monthlyGroup, inline="11")
+showPrevMonthClose  = input.bool (defval=true                    , title="", group=monthlyGroup, inline="11")
+
+monVWAPName         = input.string(defval="Prev Month VWAP"      , title="", group=monthlyGroup, inline="12")
+monVWAPColor        = input.color (defval=color.white          , title="", group=monthlyGroup, inline="12")
+showPrevMonthVWAP   = input.bool  (defval=false                  , title="", group=monthlyGroup, inline="12")
+monVSD1Name         = input.string(defval="Prev Month VWAP SD1"  , title="", group=monthlyGroup, inline="12")
+monVSD1Color        = input.color (defval=color.green          , title="", group=monthlyGroup, inline="12")
+showPrevMonthSD1    = input.bool  (defval=false                  , title="", group=monthlyGroup, inline="12")
+
+monVSD2Name         = input.string(defval="Prev Month VWAP SD2"  , title="", group=monthlyGroup, inline="13")
+monVSD2Color        = input.color(defval=color.olive           , title="", group=monthlyGroup, inline="13")
+showPrevMonthSD2    = input.bool (defval=false                   , title="", group=monthlyGroup, inline="13")
+monVSD3Name         = input.string(defval="Prev Month VWAP SD3"  , title="", group=monthlyGroup, inline="13")
+monVSD3Color        = input.color(defval=color.teal            , title="", group=monthlyGroup, inline="13")
+showPrevMonthSD3    = input.bool (defval=false                   , title="", group=monthlyGroup, inline="13")
+
+//Monthly Settings
+numMonPeriods        = input.int(title="Number of Previous Months", defval=1, group = monthlyGroup, minval = 1, maxval = 12)
+extendOptionMonthly  = input.string(title="Extend Monthly Lines", options=["Right","Both", "None"], defval="Right", group = monthlyGroup)
+linewidthMonthly     = input.int(1, "Line Thickness", group = monthlyGroup)
+styleOptionMonthly   = input.string(title="Line Style", options=["solid (─)", "dashed (╌)", "dotted (┈)"], defval="dashed (╌)", group = monthlyGroup)
+labelColorMonthly    = input.color(title="", defval=color.white, group = monthlyGroup, inline="labelMonthly")
+showPriceInLabelM    = input.bool (title="Show Price in Label", defval=true, group= monthlyGroup)
+labelColorMatchLineM = input.bool(title="Match Label Color With Line Color", defval=false, group=monthlyGroup)
+showMonthlyLabels    = input.bool(title="Show Monthly Level Labels", defval=true, group = monthlyGroup, inline="labelMonthly")
+labelMonTextOption   = input.string(title="Monthly Label Text Size", options=[ "Tiny", "Small", "Normal",  "Large", "Huge"], defval="Normal", group=monthlyGroup)
+labeloffsetMonthly   = input.int(title="Monthly Label Offset", defval=10, group = monthlyGroup)
+
+//When lines are first created, the below values are used for the offset
+initialLineOffset = time + timeframe.multiplier * (timeframe.in_seconds()*1000)
+
+/////////////////////
+///     UDTs     ////
+/////////////////////
+//Label Settings UDT
+type ValueLineSettings
+    bool   showLabel    = true
+    int    labelOffset  = 0
+    color  labelColor   = color.white
+    string textSize     = size.normal
+    string labelText    = ""
+    bool   showPrice    = true
+    bool   showLine     = true
+    int    lineWidth    = 1
+    color  lineColor    = color.white
+    string extendOption = extend.none
+    string lineStyle    = line.style_solid
+
+//Creating a UDT to capture all relevant information for a given level
+type ValueLine
+    float price          = 0
+    int   barIndex       = bar_index
+    int   barTime        = time
+    label llabel         = na
+    line  level          = na
+    bool  testedInFuture = false
+
+//UDT created to calculate VWAP
+type VWAP
+    float volumePriceSum    = 0
+    float volume            = 0
+    float value             = 0
+    float priceSum          = 0
+    int   index             = 0
+    float varianceNumerator = 0 
+    float stdDev            = 0
+
+///////////////////////////////////////////////////
+////        Function Declaration        ///////////
+///////////////////////////////////////////////////
+// {
+getLineStyle(string styleOption) =>
+    lineStyleOption = switch styleOption
+        "dotted (┈)" => line.style_dotted
+        "dashed (╌)" => line.style_dashed
+        "solid (─)"  => line.style_solid
+    lineStyleOption
+        
+getLineExtend(string extendOption) =>  
+    extendLineOption = switch extendOption 
+        "Right" => extend.right
+        "Both"  => extend.both
+        "None"  => extend.none
+    extendLineOption
+
+getLabelTextSize(string labelTextSize) =>
+    switch labelTextSize
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+
+// SessionHigh() returns the highest price during the specified 
+// session, optionally corrected for the given time zone.
+// Returns "na" when the session hasn"t started or isn"t on the chart.
+SessionHigh(sessionTime, sessionTimeZone=syminfo.timezone) =>
+    var bool sessionInfo = (syminfo.session == session.regular and 
+                     (syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "dr"))
+    dayOfWeek = dayofweek(time, sessionTimeZone)
+    insideSession = not na(time(timeframe.period, sessionTime, sessionTimeZone))
+    newDayofWeek  = sessionInfo and (dayOfWeek != dayOfWeek[1])
+
+    var float sessionHighPrice = na
+    var int   sessionHighBarIndex = na
+    var int   sessionHighTime     = na
+
+    if insideSession and (not insideSession[1] or newDayofWeek)
+        sessionHighPrice := high
+        sessionHighBarIndex := bar_index
+        sessionHighTime     := time
+    else if insideSession
+        sessionHighPrice := math.max(sessionHighPrice, high)
+        if sessionHighPrice != sessionHighPrice[1]
+            sessionHighBarIndex := bar_index
+            sessionHighTime     := time
+    
+    [sessionHighPrice, sessionHighBarIndex, sessionHighTime]
+
+// SessionLow() returns the lowest price during the given session,
+// optionally corrected for the specified time zone.
+// Returns "na" when the session hasn"t started or isn"t on the chart.
+SessionLow(sessionTime, sessionTimeZone=syminfo.timezone) =>
+    var bool sessionInfo = (syminfo.session == session.regular and 
+                     (syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "dr"))
+    dayOfWeek = dayofweek(time, sessionTimeZone)
+    insideSession = not na(time(timeframe.period, sessionTime, sessionTimeZone))
+    newDayofWeek  = sessionInfo and (dayOfWeek != dayOfWeek[1])
+    
+    var float sessionLowPrice    = na
+    var int   sessionLowBarIndex = na
+    var int   sessionLowTime     = na
+
+    if insideSession and (not insideSession[1] or newDayofWeek)
+        sessionLowPrice := low
+        sessionLowBarIndex := bar_index
+        sessionLowTime     := time
+    else if insideSession
+        sessionLowPrice := math.min(sessionLowPrice, low)
+        if sessionLowPrice != sessionLowPrice[1]
+            sessionLowBarIndex := bar_index
+            sessionLowTime     := time
+
+    [sessionLowPrice, sessionLowBarIndex, sessionLowTime]
+
+// SessionOpen() returns the lowest price during the given session,
+// optionally corrected for the specified time zone.
+// Returns "na" when the session hasn"t started or isn"t on the chart.
+SessionOpen(sessionTime, sessionTimeZone=syminfo.timezone) =>
+    var bool sessionInfo = (syminfo.session == session.regular and 
+                     (syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "dr"))
+    dayOfWeek = dayofweek(time, sessionTimeZone)
+    insideSession = not na(time(timeframe.period, sessionTime, sessionTimeZone))
+    newDayofWeek  = sessionInfo and (dayOfWeek != dayOfWeek[1])
+    
+    var float sessionOpenPrice    = na
+
+    if insideSession and (not insideSession[1] or newDayofWeek)
+        sessionOpenPrice := open
+
+    sessionOpenPrice
+
+// NewMonth() returns a boolean if the next trading session is the start of a new month when using extended hours charts
+// optionally corrected for the specified time zone.
+NewMonth(int timeInput, sessionTimeZone=syminfo.timezone) =>
+    bool newMonth = na
+    dayOfWeek  = dayofweek(timeInput, sessionTimeZone)
+    dayOfMonth = dayofmonth(timeInput, sessionTimeZone)
+    monthNum   = month(timeInput, sessionTimeZone)
+    numDaysInMonth = switch monthNum
+        1 => 31
+        2 => year(timeInput, sessionTimeZone) % 4 == 0 ? 29 : 28
+        3 => 31
+        4 => 30
+        5 => 31
+        6 => 30
+        7 => 31
+        8 => 31
+        9 => 30
+        10 => 31
+        11 => 30
+        12 => 31
+
+    //Condiitonal statment to deal with friday session being the end of the month
+    if dayOfWeek == dayofweek.friday
+        //if day of week is friday and days in month is 31 and current day of month is 29
+        //then a new month at the start of next week"s session
+        if numDaysInMonth == 31 and (dayOfMonth >= 29 or (monthNum == 5 and dayOfMonth == 28))
+            newMonth := true
+        else if numDaysInMonth == 30 and dayOfMonth >= 28
+            newMonth := true
+        else if numDaysInMonth == 29 and dayOfMonth >= 27
+            newMonth := true
+        else if numDaysInMonth == 28 and dayOfMonth >= 26
+            newMonth := true
+    //On any other day (i.e. Monday - Thursday) and the days of the month is equal to the number of days in the month 
+    //then the next session will be a new month
+    else if dayOfMonth == numDaysInMonth
+        newMonth := true
+    else 
+        newMonth := false
+   
+    newMonth
+
+checkForTestedLevels(array<ValueLine> prevClose_Arr, array<ValueLine> prevOpen_Arr , array<ValueLine> prevHigh_Arr, array<ValueLine> prevLow_Arr, float sessHigh, float sessLow) =>
+    if prevClose_Arr.size() > 0 and prevOpen_Arr.size() > 2 and prevHigh_Arr.size() > 0 and prevLow_Arr.size() > 0
+        for i = 0 to prevClose_Arr.size() - 1
+            closeLine       = prevClose_Arr.get(i)
+            openLine        = prevOpen_Arr.get(i)
+            highLine        = prevHigh_Arr.get(i)
+            lowLine         = prevLow_Arr.get(i)
+            prevSessionLow  = sessLow
+            prevSessionHigh = sessHigh 
+
+            //Check if previous close lines have been traded through
+            if prevSessionLow < closeLine.price and prevSessionHigh > closeLine.price and closeLine.testedInFuture == false
+                closeLine.testedInFuture := true
+            if prevSessionLow < openLine.price and prevSessionHigh > openLine.price and openLine.testedInFuture == false
+                openLine.testedInFuture := true
+            //Check for if previous high lines have been tested by the last session"s highs
+            if prevSessionHigh > highLine.price and highLine.testedInFuture == false   
+                highLine.testedInFuture := true
+            //Check for if previous low lines have been tested by the last session"s lows
+            if prevSessionLow < lowLine.price and lowLine.testedInFuture == false
+                lowLine.testedInFuture := true 
+
+//ValueLine Methods
+method resetLine(ValueLine valueLine, _price = open, _barIndex = bar_index, _barTime = time) =>
+    valueLine.llabel.delete()
+    valueLine.level.delete()
+    valueLine.price    := _price
+    valueLine.barIndex := _barIndex
+    valueLine.barTime  := _barTime
+
+method deepCopy(ValueLine valueLine) =>
+    ValueLine.new(price    = valueLine.price, 
+                  barIndex = valueLine.barIndex, 
+                  barTime  = valueLine.barTime, 
+                  llabel   = valueLine.llabel.copy(), 
+                  level    = valueLine.level.copy())
+
+method updateIntraDayLine(ValueLine valueLine, ValueLineSettings settings) =>
+    valueLine_Name    = settings.labelText + (settings.showPrice ? ": " + str.tostring(valueLine.price, format.mintick) : "")
+    if na(valueLine.llabel)
+        valueLine.llabel := settings.showLabel ? label.new(
+                             x         = time(timeframe.period, -settings.labelOffset), 
+                             y         = valueLine.price, 
+                             text      = valueLine_Name, 
+                             xloc      = xloc.bar_time, 
+                             textcolor = settings.labelColor,  
+                             textalign = text.align_left, 
+                             style     = label.style_none, 
+                             size      = settings.textSize) : na
+    valueLine.llabel.set_x(time(timeframe.period, -settings.labelOffset))
+    valueLine.llabel.set_y(valueLine.price)
+    valueLine.llabel.set_text(valueLine_Name)
+    if na(valueLine.level)
+        valueLine.level  := settings.showLine ? line.new(
+                             x1     = valueLine.barTime, 
+                             y1     = valueLine.price, 
+                             x2     = initialLineOffset, 
+                             y2     = valueLine.price, 
+                             xloc   = xloc.bar_time, 
+                             extend = settings.extendOption, 
+                             color  = settings.lineColor,
+                             style  = settings.lineStyle, 
+                             width  = settings.lineWidth) : na
+    valueLine.level.set_x1(valueLine.barTime)
+    valueLine.level.set_x2(time(timeframe.period, -settings.labelOffset))
+    valueLine.level.set_y1(valueLine.price)
+    valueLine.level.set_y2(valueLine.price)
+
+//Value Line Array Methods
+method addValueLine(array<ValueLine> ValueLines, ValueLine valueLine, ValueLineSettings settings) =>
+    valueLine_Name    = settings.labelText + (settings.showPrice ? ": " + str.tostring(valueLine.price, format.mintick) : "")
+    valueLine.llabel.delete()
+    valueLine.level.delete()
+    valueLine.llabel  := settings.showLabel ? label.new(
+                         x         = time(timeframe.period, -settings.labelOffset),
+                         y         = valueLine.price, 
+                         text      = valueLine_Name, 
+                         xloc      = xloc.bar_time, 
+                         textcolor = settings.labelColor,  
+                         textalign = text.align_left, 
+                         style     = label.style_none, 
+                         size      = settings.textSize) : na
+    valueLine.level   := settings.showLine ? line.new(
+                         x1     = valueLine.barTime, 
+                         y1     = valueLine.price, 
+                         x2     = time(timeframe.period, -settings.labelOffset), 
+                         y2     = valueLine.price, 
+                         xloc   = xloc.bar_time,
+                         extend = settings.extendOption, 
+                         color  = settings.lineColor,
+                         style  = settings.lineStyle, 
+                         width  = settings.lineWidth) : na
+    ValueLines.push(valueLine)
+
+method updateLines(array<ValueLine> ValueLines, int numLines, bool showOlderLabels, int labelOffset, bool saveUntestedLines = false, bool showInactivePositions = false) =>
+    sizeArr           = ValueLines.size()
+
+    if sizeArr > 0
+        //Remove any line that is still stored beyond the numLines value
+        //also update label locations and lines locations of all but current line
+        for i = sizeArr - 1 to 0  
+            valueLine = ValueLines.get(i)
+
+            if saveUntestedLines == true
+                if valueLine.testedInFuture == true
+                    if showInactivePositions
+                        valueLine.level.set_extend(extend.none)
+                        valueLine.llabel.delete()
+                    else
+                        valueLine.level.delete()
+                        valueLine.llabel.delete()     
+                else if valueLine.testedInFuture == false
+                    if i < sizeArr - 1
+                        valueLine.level.set_xloc(x1=valueLine.barTime, x2=time, xloc=xloc.bar_time )
+                        valueLine.llabel.set_x(time(timeframe.period, -labelOffset))
+                        if not showOlderLabels
+                            label.delete(valueLine.llabel)
+                    else if i == sizeArr - 1
+                        valueLine.level.set_xloc(x1=valueLine.barTime, x2=time, xloc=xloc.bar_time)
+                        valueLine.llabel.set_x(time(timeframe.period, -labelOffset))
+            else if saveUntestedLines == false  
+                //if lines in array go above what user wants on screen, delete lines and labels for that valueline
+                if i < sizeArr - numLines
+                    label.delete(valueLine.llabel)
+                    line.delete(valueLine.level)
+                //Update prior line to stop at the previous bar
+                else if i == sizeArr - 2
+                    valueLine.level.set_x2(time[1])
+                    valueLine.llabel.set_x(time(timeframe.period, -labelOffset))
+                    if not showOlderLabels
+                        valueLine.level.set_extend(extend.none)
+                        label.delete(valueLine.llabel)
+                else if i == sizeArr - 1
+                    valueLine.level.set_xloc(x1=valueLine.barTime, x2=time(timeframe.period, -labelOffset), xloc=xloc.bar_time )
+                    valueLine.llabel.set_x(time(timeframe.period, -labelOffset))
+
+method deleteLines(array<ValueLine> ValueLines, int maxValueLines) =>
+    sizeArr = ValueLines.size()
+    if sizeArr > 0
+        //Check if number of values in ValueLine array is greater than the max allowed
+        if sizeArr > maxValueLines
+            //If level is not na, shift out value and then delete line
+            firstEntry = ValueLines.shift()
+
+            if not na(firstEntry.level)
+                line.delete(firstEntry.level)
+            if not na(firstEntry.llabel)
+                label.delete(firstEntry.llabel)
+
+//VWAP Methods
+method calculateVWAP(VWAP vwap, bool inSession, bool reset) =>
+    //Calculate VWAP
+    if reset
+        vwap.volumePriceSum    := 0
+        vwap.volume            := 0
+        vwap.value             := 0
+        vwap.priceSum          := 0
+        vwap.index             := 0
+        vwap.varianceNumerator := 0
+        vwap.stdDev            := 0
+
+    if inSession
+        vwap.volumePriceSum    := vwap.volumePriceSum + (hlc3 * volume)
+        vwap.volume            := vwap.volume + volume
+        vwap.value             := vwap.volumePriceSum/vwap.volume
+        vwap.priceSum          := vwap.priceSum + hlc3
+        vwap.index             := vwap.index + 1
+        vwap.varianceNumerator := nz(vwap.varianceNumerator + math.pow(hlc3 - (vwap.priceSum / vwap.index), 2))
+    
+    //Calculate these values no matter what
+    vwap.stdDev := math.sqrt(nz(vwap.varianceNumerator / (vwap.index - 1)))
+// }
+
+///////////////////////////////////////////////////////
+//////////   End Functions Section    /////////////////
+///////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////
+////        Variable Declaration        ///////////
+///////////////////////////////////////////////////
+dailyLabelTextSize   = getLabelTextSize(labelDailyTextOption)
+dailyLineStyle       = getLineStyle(styleOptionDaily)
+dailyExtendLine      = getLineExtend(extendOptionDaily)
+weeklyLabelTextSize  = getLabelTextSize(labelWklyTextOption)
+weeklyLineStyle      = getLineStyle(styleOptionWeekly)
+weeklyExtendLine     = getLineExtend(extendOptionWeekly)
+monthlyLabelTextSize = getLabelTextSize(labelMonTextOption)
+monthlyLineStyle     = getLineStyle(styleOptionMonthly)
+monthlyExtendLine    = getLineExtend(extendOptionMonthly)
+
+// { Daily Label and Line Settings
+ORHighSettings   = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showOpenRangeHigh,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? openRangeHighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = openRangeHighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showOpenRangeHigh,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = openRangeHighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+ORLowSettings    = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showOpenRangeLow,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? openRangeLowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = openRangeLowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showOpenRangeLow,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = openRangeLowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+ORMidSettings    = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showOpenRangeMid,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? openRangeMidColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = openRangeMidName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showOpenRangeMid,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = openRangeMidColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+IBHighSettings   = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showIBHigh,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? IBHighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = IBHighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showIBHigh,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = IBHighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+IBLowSettings    = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showIBLow,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? IBLowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = IBLowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showIBLow,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = IBLowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+IBMidSettings    = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showIBMid,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? IBMidColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = IBMidName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showIBMid,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = IBMidColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+currHighSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showCurrHigh,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? currHighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = currHighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showCurrHigh,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = currHighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+currLowSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showCurrLow,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? currLowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = currLowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showCurrLow,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = currLowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+globexOpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showGlobexOpen,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? globexOpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = globexOpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showGlobexOpen,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = globexOpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+rthOpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showRthOpen,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? rthOpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = rthOpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showRthOpen,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = rthOpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevOpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevOpen,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevOpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevOpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevOpen,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevOpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+                                         
+londonOpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showLondonOpen,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? londonOpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = londonOpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showLondonOpen,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = londonOpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+londonCloseSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showLondonClose,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? londonCloseColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = londonCloseName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showLondonClose,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = londonCloseColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+midnightOpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showMidNOpen,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? midNOpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = midNOpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showMidNOpen,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = midNOpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+onHighSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showOnHigh,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? onHighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = onHighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showOnHigh,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = onHighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+onLowSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showOnLow,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? onLowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = onLowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showOnLow,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = onLowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevHighSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevHigh,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevHighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevHighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevHigh,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevHighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevLowSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevLow,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevLowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevLowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevLow,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevLowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevMidHLSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevMidHL,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? midHLColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = midHLName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevMidHL,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = midHLColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevMidOCSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevMidOC,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? midOCColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = midOCName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevMidOC,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = midOCColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevCloseSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrevClose,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevCloseColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevCloseName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrevClose,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevCloseColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prev5PMCloseSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showPrev5PMClose,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prev5PMCloseColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prev5PMCloseName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showPrev5PMClose,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prev5PMCloseColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+t2OpenSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showT2Open,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? t2OpenColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = t2OpenName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showT2Open,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = t2OpenColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+t2CloseSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showT2Close,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? t2CloseColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = t2CloseName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showT2Close,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = t2CloseColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+t2HighSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showT2High,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? t2HighColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = t2HighName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showT2High,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = t2HighColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+t2LowSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showT2Low,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? t2LowColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = t2LowName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showT2Low,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = t2LowColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevDayVWAPSettings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showVWAPPrevClose,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevVWAPCloseColor : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevVWAPCloseName,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showVWAPPrevClose,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevVWAPCloseColor,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevDayVSD1Settings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showVWAPSD1Close,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevVWAPSD1Color : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevVWAPSD1Name,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showVWAPSD1Close,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevVWAPSD1Color,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevDayVSD2Settings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showVWAPSD2Close,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevVWAPSD2Color : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevVWAPSD2Name,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showVWAPSD2Close,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevVWAPSD2Color,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+
+prevDayVSD3Settings = ValueLineSettings.new(showLabel  = showDailyLevels and showDailyLabels and showVWAPSD3Close,
+                                         labelOffset  = labeloffsetDaily,
+                                         labelColor   = labelColorMatchLineD ? prevVWAPSD3Color : labelColorDaily,
+                                         textSize     = dailyLabelTextSize,
+                                         labelText    = prevVWAPSD3Name,
+                                         showPrice    = showPriceInLabelD,
+                                         showLine     = showDailyLevels and showVWAPSD3Close,
+                                         lineWidth    = linewidthDaily,
+                                         lineColor    = prevVWAPSD3Color,
+                                         extendOption = dailyExtendLine,
+                                         lineStyle    = dailyLineStyle)
+// } End of Daily Level Settings
+// { Weekly Label and Line Settings
+prevWeekHighSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekHigh,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkHighColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = prevWeekHighName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekHigh,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkHighColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+prevWeekLowSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekLow,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkLowColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = prevWeekLowName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekLow,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkLowColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+prevWeekHalfHLSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekHalfHL,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkHalfHLColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = prevWeekHalfHLName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekHalfHL,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkHalfHLColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+prevWeekHalfOCSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekHalfOC,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkHalfOCColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = prevWeekHalfOCName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekHalfOC,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkHalfOCColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklyOpenSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showWeekOpen,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkOpenColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkOpenName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showWeekOpen,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkOpenColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklyCloseSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekClose,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkCloseColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkCloseName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekClose,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkCloseColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklyVWAPSettings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekVWAP,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkVWAPColor : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkVWAPName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekVWAP,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkVWAPColor,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklySD1Settings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekSD1,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkVSD1Color : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkVSD1Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekSD1,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkVSD1Color,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklySD2Settings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekSD2,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkVSD2Color : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkVSD2Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekSD2,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkVSD2Color,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+
+weeklySD3Settings = ValueLineSettings.new(showLabel  = showWeeklyLevels and showWeeklyLabels and showPrevWeekSD3,
+                                         labelOffset  = labeloffsetWeekly,
+                                         labelColor   = labelColorMatchLineW ? wkVSD3Color : labelColorWeekly,
+                                         textSize     = weeklyLabelTextSize,
+                                         labelText    = wkVSD3Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showWeeklyLevels and showPrevWeekSD3,
+                                         lineWidth    = linewidthWeekly,
+                                         lineColor    = wkVSD3Color,
+                                         extendOption = weeklyExtendLine,
+                                         lineStyle    = weeklyLineStyle)
+// } End of Weekly Settings
+// { Monthly Label and Line Settings
+prevMonHighSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthHigh,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monHighColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monHighName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showPrevMonthHigh,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monHighColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+prevMonLowSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthLow,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monLowColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monLowName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showPrevMonthLow,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monLowColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+prevMonHalfHLSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthHalfHL,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monHalfColorHL : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monHalfHLName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showPrevMonthHalfHL,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monHalfColorHL,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+prevMonHalfOCSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthHalfOC,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monHalfOCColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monHalfOCName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showPrevMonthHalfOC,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monHalfOCColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monOpenSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showMonthOpen,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monOpenColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monOpenName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showMonthOpen,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monOpenColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monCloseSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthClose,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineM ? monCloseColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monCloseName,
+                                         showPrice    = showPriceInLabelM,
+                                         showLine     = showMonthlyLevels and showPrevMonthClose,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monCloseColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monthlyVWAPSettings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthVWAP,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineW ? monVWAPColor : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monVWAPName,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showMonthlyLevels and showPrevMonthVWAP,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monVWAPColor,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monthlySD1Settings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthSD1,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineW ? monVSD1Color : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monVSD1Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showMonthlyLevels and showPrevMonthSD1,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monVSD1Color,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monthlySD2Settings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthSD2,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineW ? monVSD2Color : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monVSD2Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showMonthlyLevels and showPrevMonthSD2,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monVSD2Color,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+
+monthlySD3Settings = ValueLineSettings.new(showLabel  = showMonthlyLevels and showMonthlyLabels and showPrevMonthSD3,
+                                         labelOffset  = labeloffsetMonthly,
+                                         labelColor   = labelColorMatchLineW ? monVSD3Color : labelColorMonthly,
+                                         textSize     = monthlyLabelTextSize,
+                                         labelText    = monVSD3Name,
+                                         showPrice    = showPriceInLabelW,
+                                         showLine     = showMonthlyLevels and showPrevMonthSD3,
+                                         lineWidth    = linewidthMonthly,
+                                         lineColor    = monVSD3Color,
+                                         extendOption = monthlyExtendLine,
+                                         lineStyle    = monthlyLineStyle)
+// } End of Monthly settings
+
+//Timeframe variables
+lastBarDayOfWeek     = dayofweek(time, "America/New_York")[1] 
+currBarDayOfWeek     = dayofweek(time, "America/New_York")
+endTimeofRTHRange    = str.substring(rthRangeSess, 0, 4) //Gets end time of rth session range
+insideOpeningRange   = not na(time(timeframe.period, openRangeSess, "America/New_York"))
+insideIBRange        = not na(time(timeframe.period, IBSess       , "America/New_York"))
+newOpenRangeSess     = insideOpeningRange    and not insideOpeningRange[1]
+endOfOpenRangeSess   = insideOpeningRange[1] and not insideOpeningRange
+newIBRangeSess       = insideIBRange         and not insideIBRange[1]
+endOfIBRangeSess     = insideIBRange[1]      and not insideIBRange
+newDay               = dayofweek(time, "America/New_York") != lastBarDayOfWeek
+ONSessionRange       = syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "dr"
+                         ? "1600-" + endTimeofRTHRange
+                         : "1800-" + endTimeofRTHRange
+insideONSession      = not na(time(timeframe.period, ONSessionRange, "America/New_York"))
+insideUSSession      = not na(time(timeframe.period, rthRangeSess, "America/New_York"))
+lonOpenSession       = not na(time(timeframe.period, "0300-0301", "America/New_York"))
+lonCloseSession      = not na(time(timeframe.period, "1130-1131", "America/New_York"))
+midnightOpenSess     = not na(time(timeframe.period, "0000-0001", "America/New_York"))
+sessClose5PM         = not na(time(timeframe.period, "1659-1700", "America/New_York"))
+newUSSession         = insideUSSession     and not insideUSSession[1]
+endOf5PMSession      = sessClose5PM[1]     and not sessClose5PM
+endOfUSSession       = insideUSSession[1]  and not insideUSSession
+newLonSession        = lonOpenSession      and not lonOpenSession[1]
+endLonSession        = lonCloseSession     and not lonCloseSession[1]
+newMidnightSession   = midnightOpenSess    and not midnightOpenSess[1]
+newONsession         = insideONSession     and not insideONSession[1]
+shortUSSession       = (newONsession and (syminfo.type == "futures" and time[1] == time(timeframe.period, "1300-1301", "America/New_York")[1]))
+                         or (session.ispostmarket and not na(time(timeframe.period, "1300-1301", "America/New_York")))
+rthOnlyChart         = syminfo.session == session.regular and (syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "dr")
+rthOpenSess          = rthOnlyChart ? newDay : newUSSession
+
+//Week Holiday Filters
+goodFridayWeek    = (lastBarDayOfWeek == dayofweek.thursday and 
+                             (currBarDayOfWeek == dayofweek.sunday or currBarDayOfWeek == dayofweek.monday)
+                             and timeframe.change("D"))
+shortenedSessWeek = (lastBarDayOfWeek == dayofweek.friday and shortUSSession)
+
+//Weekly Time Variables
+newWeekRTH           = lastBarDayOfWeek > currBarDayOfWeek
+newWeekETH           = (currBarDayOfWeek == dayofweek.friday and endOfUSSession) or
+                         shortenedSessWeek or
+                         goodFridayWeek
+newWeek              = rthOnlyChart ? newWeekRTH : newWeekETH
+
+
+//Monthly Holiday Filters
+goodFridayMonth = (lastBarDayOfWeek == dayofweek.thursday and 
+                     (currBarDayOfWeek == dayofweek.sunday or currBarDayOfWeek == dayofweek.monday)
+                     and timeframe.change("D"))
+//Monthly Time Variables
+newMonthRTH          = dayofmonth(time, "America/New_York")[1] > dayofmonth(time, "America/New_York")
+newMonthETH          = (NewMonth(time) and endOfUSSession) or goodFridayMonth
+newMonth             = rthOnlyChart ? newMonthRTH : newMonthETH
+
+//Determines RTH vs. ETH for futures charts
+//regardless of having RTH or ETH selected
+simple bool futuresRTH    = syminfo.type == "futures" and syminfo.session == "us_regular"
+
+//Value Lines to keep track of Session Open, Daily, Weekly, Monthly High/Lows
+var ValueLine rthOpen       = ValueLine.new()
+var ValueLine currDayHigh   = ValueLine.new()
+var ValueLine currDayLow    = ValueLine.new()
+var ValueLine prevWeekHigh  = ValueLine.new()
+var ValueLine prevWeekLow   = ValueLine.new()
+var ValueLine prevMonthHigh = ValueLine.new()
+var ValueLine prevMonthLow  = ValueLine.new()
+
+//Array Initialization
+var ORHigh_Arr              = array.new<ValueLine>(1, ValueLine.new())
+var ORLow_Arr               = array.new<ValueLine>(1, ValueLine.new())
+var ORMid_Arr               = array.new<ValueLine>(1, ValueLine.new())
+var IBHigh_Arr              = array.new<ValueLine>(1, ValueLine.new())
+var IBLow_Arr               = array.new<ValueLine>(1, ValueLine.new())
+var IBMid_Arr               = array.new<ValueLine>(1, ValueLine.new())
+var prevHigh_Arr            = array.new<ValueLine>(2, ValueLine.new())
+var prevLow_Arr             = array.new<ValueLine>(2, ValueLine.new())
+var prevOpen_Arr            = array.new<ValueLine>(2, ValueLine.new())
+var prev50HL_Arr            = array.new<ValueLine>(1, ValueLine.new())
+var prev50OC_Arr            = array.new<ValueLine>(1, ValueLine.new())
+var t2Open_Arr              = array.new<ValueLine>(1, ValueLine.new())
+var t2Close_Arr             = array.new<ValueLine>(1, ValueLine.new())
+var t2High_Arr              = array.new<ValueLine>(1, ValueLine.new())
+var t2Low_Arr               = array.new<ValueLine>(1, ValueLine.new())
+var prevClose_Arr           = array.new<ValueLine>(2, ValueLine.new())
+var prev5PMClose_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_Arr         = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_LBand1_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_UBand1_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_LBand2_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_UBand2_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_LBand3_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var prevDayVWAP_UBand3_Arr  = array.new<ValueLine>(1, ValueLine.new())
+var globexOpen_Arr          = array.new<ValueLine>(1, ValueLine.new())
+var londonOpen_Arr          = array.new<ValueLine>(1, ValueLine.new())
+var londonClose_Arr         = array.new<ValueLine>(1, ValueLine.new())
+var midnightOpen_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var onHigh_Arr              = array.new<ValueLine>(1, ValueLine.new())
+var onLow_Arr               = array.new<ValueLine>(1, ValueLine.new())
+
+var prevWeekHigh_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekLow_Arr         = array.new<ValueLine>(1, ValueLine.new())
+var prevWeek50HL_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevWeek50OC_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var rthWeekOpen_Arr         = array.new<ValueLine>(2, ValueLine.new())
+var prevWeekClose_Arr       = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_LBand1_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_UBand1_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_LBand2_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_UBand2_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_LBand3_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevWeekVWAP_UBand3_Arr = array.new<ValueLine>(1, ValueLine.new())
+
+var prevMonthHigh_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthLow_Arr         = array.new<ValueLine>(1, ValueLine.new())
+var prevMonth50HL_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevMonth50OC_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var rthMonthOpen_Arr         = array.new<ValueLine>(2, ValueLine.new())
+var prevMonthClose_Arr       = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_Arr        = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_LBand1_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_UBand1_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_LBand2_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_UBand2_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_LBand3_Arr = array.new<ValueLine>(1, ValueLine.new())
+var prevMonthVWAP_UBand3_Arr = array.new<ValueLine>(1, ValueLine.new())
+
+//VWAP Variables
+var VWAP vwapMonthly  = VWAP.new()
+var VWAP vwapWeekly   = VWAP.new()
+var VWAP vwapDaily    = VWAP.new()
+
+//Opening Range Calculations
+[ORsessionHighPrice, ORsessionHighBarIndex, ORsessionHighTime] = request.security_lower_tf(ticker.modify(syminfo.tickerid, session.extended), use30STimeFrame ? "30S" : "1", SessionHigh(openRangeSess, "America/New_York"))
+[ORsessionLowPrice , ORsessionLowBarIndex, ORsessionLowTime]   = request.security_lower_tf(ticker.modify(syminfo.tickerid, session.extended), use30STimeFrame ? "30S" : "1", SessionLow(openRangeSess, "America/New_York"))
+
+//IB Calculations
+[IBsessionHighPrice, IBsessionHighBarIndex, IBsessionHighTime] = request.security_lower_tf(ticker.modify(syminfo.tickerid, session.extended), use30STimeFrame ? "30S" : "1", SessionHigh(IBSess, "America/New_York") )
+[IBsessionLowPrice , IBsessionLowBarIndex, IBsessionLowTime]   = request.security_lower_tf(ticker.modify(syminfo.tickerid, session.extended), use30STimeFrame ? "30S" : "1", SessionLow(IBSess, "America/New_York"))
+
+//RTH High Calculations
+[sessionHighPrice, sessionHighBarIndex, sessionHighTime] = SessionHigh("0930-1600", "America/New_York")
+[sessionLowPrice , sessionLowBarIndex, sessionLowTime]   = SessionLow("0930-1600", "America/New_York")
+
+//Overnight Calculations
+[ONsessionHighPrice, ONsessionHighBarIndex, ONsessionHighTime] = SessionHigh(ONSessionRange, "America/New_York")
+[ONsessionLowPrice, ONsessionLowBarIndex , ONsessionLowTime]   = SessionLow(ONSessionRange, "America/New_York")
+
+//Overnight Levels when an RTH Chart is being shown need to be gathered via request secutiry function with extended hours checked
+[ONsessionHighPrice_RS, ONsessionHighBarIndex_RS, ONsessionHighTime_RS] = request.security(ticker.modify(syminfo.tickerid, session.extended), "30", SessionHigh(ONSessionRange, "America/New_York"), lookahead=barmerge.lookahead_on)
+[ONsessionLowPrice_RS, ONsessionLowBarIndex_RS, ONsessionLowTime_RS]    = request.security(ticker.modify(syminfo.tickerid, session.extended), "30", SessionLow(ONSessionRange, "America/New_York"), lookahead=barmerge.lookahead_on)
+globexOpenPrice_RS   = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+londonOpenPrice_RS   = request.security(ticker.modify(syminfo.tickerid, session.extended), "30", SessionOpen("0300-0301", "America/New_York"), lookahead=barmerge.lookahead_on)
+midnightOpenPrice_RS = request.security(ticker.modify(syminfo.tickerid, session.extended), "30", SessionOpen("0000-0001", "America/New_York"), lookahead=barmerge.lookahead_on)
+prev5PMClosePrice_RS = request.security(ticker.modify(syminfo.tickerid, session.extended), "D", barstate.isconfirmed ? close : close[1], lookahead=barmerge.lookahead_on)
+
+//Logic for plotting Opening Range
+if newOpenRangeSess
+    ORHigh_Arr.addValueLine(ValueLine.new(0, bar_index, time), ORHighSettings)
+    ORLow_Arr.addValueLine(ValueLine.new(1.0E16, bar_index, time), ORLowSettings)
+    ORMid_Arr.addValueLine(ValueLine.new(hl2, bar_index, time), ORMidSettings)
+
+    updateLines(ORHigh_Arr , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(ORLow_Arr  , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(ORMid_Arr  , numDailyPeriods, false, labeloffsetDaily)
+    deleteLines(ORHigh_Arr , numDailyPeriods)
+    deleteLines(ORLow_Arr  , numDailyPeriods)
+    deleteLines(ORMid_Arr  , numDailyPeriods)
+
+if newIBRangeSess
+    IBHigh_Arr.addValueLine(ValueLine.new(0, bar_index, time), IBHighSettings)
+    IBLow_Arr.addValueLine(ValueLine.new(1.0E16, bar_index, time), IBLowSettings)
+    IBMid_Arr.addValueLine(ValueLine.new(hl2, bar_index, time), IBMidSettings)
+
+    updateLines(IBHigh_Arr , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(IBLow_Arr  , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(IBMid_Arr  , numDailyPeriods, false, labeloffsetDaily)
+    deleteLines(IBHigh_Arr , numDailyPeriods)
+    deleteLines(IBLow_Arr  , numDailyPeriods)
+    deleteLines(IBMid_Arr  , numDailyPeriods)
+
+if insideOpeningRange and barstate.isconfirmed
+    //Use last value in OR valueline arrays and update them if a new high or low is made during the OR session
+    currORHigh = ORHigh_Arr.last()
+    currORLow  = ORLow_Arr.last()
+    currORMid  = ORMid_Arr.last()
+
+    if currORHigh.price < ORsessionHighPrice.max()
+        currORHigh.barIndex := bar_index
+        currORHigh.barTime  := time
+        currORHigh.price    := ORsessionHighPrice.max()
+    
+    if currORLow.price > ORsessionLowPrice.min()
+        currORLow.barIndex := bar_index
+        currORLow.barTime  := time
+        currORLow.price    := ORsessionLowPrice.min()
+
+    currORMid.price := (currORHigh.price + currORLow.price) / 2
+
+    updateIntraDayLine(currORHigh, ORHighSettings)
+    updateIntraDayLine(currORLow , ORLowSettings)
+    updateIntraDayLine(currORMid , ORMidSettings)
+
+
+if insideIBRange and barstate.isconfirmed
+    //Use last value in IB valueline array and update them
+    currIBHigh = IBHigh_Arr.last()
+    currIBLow  = IBLow_Arr.last()
+    currIBMid  = IBMid_Arr.last()
+
+    if currIBHigh.price < IBsessionHighPrice.max()
+        currIBHigh.barIndex := bar_index
+        currIBHigh.barTime  := time
+        currIBHigh.price    := IBsessionHighPrice.max()
+    
+    if currIBLow.price > IBsessionLowPrice.min()
+        currIBLow.barIndex := bar_index
+        currIBLow.barTime  := time
+        currIBLow.price    := IBsessionLowPrice.min()
+    
+    currIBMid.price := (currIBHigh.price + currIBLow.price) / 2
+
+    updateIntraDayLine(currIBHigh, IBHighSettings)
+    updateIntraDayLine(currIBLow , IBLowSettings)
+    updateIntraDayLine(currIBMid , IBMidSettings)
+
+//Logic for plotting Initial Balance
+if newONsession and syminfo.type == "futures"
+    globexOpen_Arr.addValueLine(ValueLine.new(globexOpenPrice_RS, bar_index, time), globexOpenSettings)
+    globexOpen_Arr.updateLines(numDailyPeriods, false, labeloffsetDaily)
+    globexOpen_Arr.deleteLines(numDailyPeriods)
+
+if newLonSession
+    londonOpen_Arr.addValueLine(ValueLine.new(open, bar_index, time), londonOpenSettings)
+    londonOpen_Arr.updateLines(numDailyPeriods, false, labeloffsetDaily)
+    londonOpen_Arr.deleteLines(numDailyPeriods)
+
+if endLonSession
+    londonClose_Arr.addValueLine(ValueLine.new(close[1], bar_index, time), londonCloseSettings)
+    londonClose_Arr.updateLines(numDailyPeriods, false, labeloffsetDaily)
+    londonClose_Arr.deleteLines(numDailyPeriods)
+
+if newMidnightSession
+    midnightOpen_Arr.addValueLine(ValueLine.new(open, bar_index, time), midnightOpenSettings)
+    midnightOpen_Arr.updateLines(numDailyPeriods, false, labeloffsetDaily)
+    midnightOpen_Arr.deleteLines(numDailyPeriods)
+
+if rthOpenSess    
+    //Reset Current Day High/Low Value Lines
+    currDayHigh.resetLine(high, bar_index, time)
+    currDayLow.resetLine(low, bar_index, time)
+    
+    //for RTH stock charts use newday to filter when to save prev day prices
+    if futuresRTH or rthOnlyChart
+        //Filter to determine if we are in RTH for either futures or stocks/funds, if we are, use the request security data from line 430, otherwise use the sessionHigh/Low function
+        onHigh_Arr.addValueLine(ValueLine.new(ONsessionHighPrice_RS, bar_index, time), onHighSettings)
+        onLow_Arr.addValueLine(ValueLine.new(ONsessionLowPrice_RS, bar_index, time), onLowSettings)
+
+        londonOpen_Arr.addValueLine(ValueLine.new(londonOpenPrice_RS, bar_index, time), londonOpenSettings)   
+        midnightOpen_Arr.addValueLine(ValueLine.new(midnightOpenPrice_RS, bar_index, time), midnightOpenSettings)
+
+        //Update previous lines in array
+        updateLines(onHigh_Arr      , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(onLow_Arr       , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(londonOpen_Arr  , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(midnightOpen_Arr, numDailyPeriods, false, labeloffsetDaily)
+
+        deleteLines(londonOpen_Arr        , numDailyPeriods)
+        deleteLines(midnightOpen_Arr      , numDailyPeriods)
+        deleteLines(onHigh_Arr            , numDailyPeriods)
+        deleteLines(onLow_Arr             , numDailyPeriods)
+
+        if syminfo.type == "futures"
+            globexOpen_Arr.addValueLine(ValueLine.new(globexOpenPrice_RS, bar_index, time), globexOpenSettings)
+            prev5PMClose_Arr.addValueLine(ValueLine.new(prev5PMClosePrice_RS, bar_index, time), prev5PMCloseSettings)
+            updateLines(globexOpen_Arr  , numDailyPeriods, false, labeloffsetDaily)
+            updateLines(prev5PMClose_Arr, numDailyPeriods, false, labeloffsetDaily)
+            deleteLines(globexOpen_Arr  , numDailyPeriods)
+            deleteLines(prev5PMClose_Arr, numDailyPeriods)
+
+    if rthOnlyChart
+        //Check to see if high,low, or close levels have been tested
+        if showUntestedHLCLevels    
+            checkForTestedLevels(prevClose_Arr, prevOpen_Arr, prevHigh_Arr, prevLow_Arr, sessionHighPrice[1], sessionLowPrice[1])      
+        
+        //Daily Level Calculations for RTH Charts (i.e. strictly 9:30AM - 4PM)
+        //Copy prev Open and T2 values for from current prevDay OHLC arrays
+        //Add new prev Open Line
+        prevOpen_Arr.addValueLine(rthOpen.deepCopy(), prevOpenSettings)
+        if prevOpen_Arr.size() > 1
+            t2Open_Arr.addValueLine(prevOpen_Arr.get(prevOpen_Arr.size() - 2).deepCopy(), t2OpenSettings)
+        if prevHigh_Arr.size() > 1
+            t2High_Arr.addValueLine(prevHigh_Arr.last().deepCopy(), t2HighSettings)
+        if prevLow_Arr.size() > 1
+            t2Low_Arr.addValueLine(prevLow_Arr.last().deepCopy(), t2LowSettings)
+        if prevClose_Arr.size() > 1
+            t2Close_Arr.addValueLine(prevClose_Arr.last().deepCopy(), t2CloseSettings)
+
+        //Copy current day high/low into prev Day High/Low arrays
+        prevHigh_Arr.addValueLine(ValueLine.new(sessionHighPrice[1], sessionHighBarIndex[1], sessionHighTime[1]), prevHighSettings)
+        prevLow_Arr.addValueLine(ValueLine.new(sessionLowPrice[1], sessionLowBarIndex[1], sessionLowTime[1]), prevLowSettings)
+        prevClose_Arr.addValueLine(ValueLine.new(close[1], bar_index[1], time[1]), prevCloseSettings)
+        prev50HL_Arr.addValueLine(ValueLine.new(math.round_to_mintick((sessionHighPrice[1] + sessionLowPrice[1]) / 2),
+                                 bar_index,
+                                 time),
+                                 prevMidHLSettings)
+        prev50OC_Arr.addValueLine(ValueLine.new(math.round_to_mintick((close[1] + rthOpen.price) / 2),
+                                 bar_index,
+                                 time),
+                                 prevMidOCSettings)
+        
+        //Add Daily VWAP values
+        prevDayVWAP_Arr.addValueLine(ValueLine.new(vwapDaily.value, bar_index, time), prevDayVWAPSettings)    
+        prevDayVWAP_LBand1_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev    , bar_index, time), prevDayVSD1Settings)
+        prevDayVWAP_UBand1_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev    , bar_index, time), prevDayVSD1Settings)
+        prevDayVWAP_LBand2_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev * 2, bar_index, time), prevDayVSD2Settings)
+        prevDayVWAP_UBand2_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev * 2, bar_index, time), prevDayVSD2Settings)
+        prevDayVWAP_LBand3_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev * 3, bar_index, time), prevDayVSD3Settings)
+        prevDayVWAP_UBand3_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev * 3, bar_index, time), prevDayVSD3Settings)
+
+        if prevWeekHigh.price < sessionHighPrice[1]
+            prevWeekHigh := ValueLine.new(sessionHighPrice[1], sessionHighBarIndex[1], sessionHighTime[1])
+        if prevWeekLow.price > sessionLowPrice[1]
+            prevWeekLow := ValueLine.new(sessionLowPrice[1], sessionLowBarIndex[1], sessionLowTime[1])
+
+        if prevMonthHigh.price < sessionHighPrice[1]
+            prevMonthHigh    := ValueLine.new(sessionHighPrice[1], sessionHighBarIndex[1], sessionHighTime[1])
+        if prevMonthLow.price > sessionLowPrice[1]
+            prevMonthLow   := ValueLine.new(sessionLowPrice[1], sessionLowBarIndex[1], sessionLowTime[1])
+
+        //Update Lines after new line has been added
+        updateLines(prevHigh_Arr          , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+        updateLines(prevOpen_Arr          , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+        updateLines(prevLow_Arr           , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+        updateLines(prev50HL_Arr          , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prev50OC_Arr          , numDailyPeriods, false, labeloffsetDaily)   
+        updateLines(prevClose_Arr         , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels) 
+        updateLines(t2Open_Arr            , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(t2Close_Arr           , numDailyPeriods, false, labeloffsetDaily)  
+        updateLines(t2High_Arr            , numDailyPeriods, false, labeloffsetDaily)  
+        updateLines(t2Low_Arr             , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_Arr       , numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_LBand1_Arr, numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_UBand1_Arr, numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_LBand2_Arr, numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_UBand2_Arr, numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_LBand3_Arr, numDailyPeriods, false, labeloffsetDaily)
+        updateLines(prevDayVWAP_UBand3_Arr, numDailyPeriods, false, labeloffsetDaily)
+
+        //Delete Lines over the max limi
+        deleteLines(prevOpen_Arr          , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+        deleteLines(prevHigh_Arr          , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+        deleteLines(prevLow_Arr           , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+        deleteLines(prev50HL_Arr          , numDailyPeriods)
+        deleteLines(prev50OC_Arr          , numDailyPeriods)
+        deleteLines(prevClose_Arr         , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+        deleteLines(t2Open_Arr            , numDailyPeriods)
+        deleteLines(t2Close_Arr           , numDailyPeriods)
+        deleteLines(t2High_Arr            , numDailyPeriods)
+        deleteLines(t2Low_Arr             , numDailyPeriods)
+        deleteLines(prevDayVWAP_Arr       , numDailyPeriods)
+        deleteLines(prevDayVWAP_LBand1_Arr, numDailyPeriods)
+        deleteLines(prevDayVWAP_UBand1_Arr, numDailyPeriods)
+        deleteLines(prevDayVWAP_LBand2_Arr, numDailyPeriods)
+        deleteLines(prevDayVWAP_UBand2_Arr, numDailyPeriods)
+        deleteLines(prevDayVWAP_LBand3_Arr, numDailyPeriods)
+        deleteLines(prevDayVWAP_UBand3_Arr, numDailyPeriods)
+
+    //Update RTH Open Daily Line
+    rthOpen.resetLine(open, bar_index, time)
+
+    //Time of last Open
+    lastSessOpenTime = prevOpen_Arr.last().barTime
+
+    //Check for new week
+    if dayofweek(time, "America/New_York") == dayofweek.monday or 
+         (dayofweek(lastSessOpenTime, "America/New_York") == dayofweek.friday and 
+             dayofweek(time, "America/New_York") == dayofweek.tuesday)
+        rthWeekOpen_Arr.addValueLine(rthOpen.deepCopy(), weeklyOpenSettings)
+        rthWeekOpen_Arr.updateLines(numWklyPeriods, false, labeloffsetWeekly)
+        rthWeekOpen_Arr.deleteLines(numWklyPeriods + 1)
+    //Check for new month
+    if dayofmonth(lastSessOpenTime, "America/New_York") >= 28 and
+         dayofmonth(time, "America/New_York") < dayofmonth(lastSessOpenTime, "America/New_York")
+        rthMonthOpen_Arr.addValueLine(rthOpen.deepCopy(), monOpenSettings)
+        rthMonthOpen_Arr.updateLines(numMonPeriods, false, labeloffsetMonthly)
+        rthMonthOpen_Arr.deleteLines(numMonPeriods + 1)
+
+//Logic for Plotting Current Daily High/Low on each new bar
+if insideUSSession and barstate.isconfirmed
+    if currDayHigh.price < sessionHighPrice
+        currDayHigh.barIndex := sessionHighBarIndex
+        currDayHigh.barTime  := sessionHighTime
+        currDayHigh.price    := sessionHighPrice
+    
+    if currDayLow.price > sessionLowPrice    
+        currDayLow.barIndex := sessionLowBarIndex
+        currDayLow.barTime  := sessionLowTime
+        currDayLow.price    := sessionLowPrice
+    
+    // updateIntraDayLine(currDayHigh, currHighSettings)
+    // updateIntraDayLine(currDayLow , currLowSettings)
+    // updateIntraDayLine(rthOpen    , rthOpenSettings)
+
+//Reset ON High/Low when new ON session starts
+if newONsession
+    //Add a new value line to the arrray for tracking of current ON High/Low
+    onHigh_Arr.addValueLine(ValueLine.new(high, bar_index, time), onHighSettings)
+    onLow_Arr.addValueLine(ValueLine.new(low, bar_index, time), onLowSettings)
+    updateLines(onHigh_Arr      , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(onLow_Arr       , numDailyPeriods, false, labeloffsetDaily)
+
+    if syminfo.type == "futures"
+        prev5PMClose_Arr.addValueLine(ValueLine.new(close[1], bar_index[1], time[1]), prev5PMCloseSettings)
+        updateLines(prev5PMClose_Arr, numDailyPeriods, false, labeloffsetDaily)
+        deleteLines(prev5PMClose_Arr, numDailyPeriods)
+
+//Monitor ON Session High/Low
+if insideONSession and barstate.isconfirmed
+    //Use last value in ON valueline arrays and update them if a new high or low is made during the ON session
+    currOnHigh = onHigh_Arr.last()
+    currOnLow  = onLow_Arr.last()
+
+    if currOnHigh.price < ONsessionHighPrice
+        currOnHigh.barIndex := ONsessionHighBarIndex
+        currOnHigh.barTime  := ONsessionHighTime
+        currOnHigh.price    := ONsessionHighPrice
+    
+    if currOnLow.price > ONsessionLowPrice
+        currOnLow.barIndex := ONsessionLowBarIndex
+        currOnLow.barTime  := ONsessionLowTime
+        currOnLow.price    := ONsessionLowPrice
+
+    currOnHigh.updateIntraDayLine(onHighSettings)
+    currOnLow.updateIntraDayLine(onLowSettings)
+
+//for ETH charts and capturing RTH close information at 4:00PM close
+if (endOfUSSession or shortUSSession) and not rthOnlyChart
+    //Check to see if high,low, or close levels have been tested
+    if showUntestedHLCLevels
+        checkForTestedLevels(prevClose_Arr, prevOpen_Arr, prevHigh_Arr, prevLow_Arr, sessionHighPrice[1], sessionLowPrice[1])   
+
+    //Copy T2 values for from current prevDay OHLC arrays
+    prevOpen_Arr.addValueLine(rthOpen.deepCopy(), prevOpenSettings)
+    if prevOpen_Arr.size() > 1
+        t2Open_Arr.addValueLine(prevOpen_Arr.get(prevOpen_Arr.size() - 2).deepCopy(), t2OpenSettings)
+    if prevHigh_Arr.size() > 1
+        t2High_Arr.addValueLine(prevHigh_Arr.last().deepCopy(), t2HighSettings)
+    if prevLow_Arr.size() > 1
+        t2Low_Arr.addValueLine(prevLow_Arr.last().deepCopy(), t2LowSettings)
+    if prevClose_Arr.size() > 1
+        t2Close_Arr.addValueLine(prevClose_Arr.last().deepCopy(), t2CloseSettings)
+
+    //Delete line and label once rth Open value has been pushed to prevOpen array to prevent overlapping
+    rthOpen.llabel.delete()
+    rthOpen.level.delete()
+
+    //Copy current day high/low into prev Day High/Low arrays
+    //If including overnight High, compare values first
+    currOnHigh = onHigh_Arr.last()
+    currOnLow  = onLow_Arr.last()
+
+    if includeGlobexHL and currOnHigh.price > currDayHigh.price
+        prevHigh_Arr.addValueLine(currOnHigh.copy(), prevHighSettings)
+    else
+        prevHigh_Arr.addValueLine(ValueLine.new(sessionHighPrice[1], sessionHighBarIndex[1], sessionHighTime[1]), prevHighSettings)
+    
+    if includeGlobexHL and currOnLow.price < currDayLow.price 
+        prevLow_Arr.addValueLine(currOnLow.copy(), prevLowSettings)
+    else
+        prevLow_Arr.addValueLine(currDayLow.copy(), prevLowSettings)
+
+    //Use PrevHigh/PrevLow Array values
+    dailyHigh = prevHigh_Arr.last()
+    dailyLow  = prevLow_Arr.last()
+
+    prevClose_Arr.addValueLine(ValueLine.new(close[1], bar_index[1], time[1]), prevCloseSettings)
+    prev50HL_Arr.addValueLine(ValueLine.new(math.round_to_mintick((dailyHigh.price + dailyLow.price) / 2),
+                             bar_index,
+                             time),
+                             prevMidHLSettings)
+    prev50OC_Arr.addValueLine(ValueLine.new(math.round_to_mintick((close[1] + rthOpen.price) / 2),
+                             bar_index,
+                             time),
+                             prevMidOCSettings)
+    
+    //Add Daily VWAP values
+    prevDayVWAP_Arr.addValueLine(ValueLine.new(vwapDaily.value, bar_index, time), prevDayVWAPSettings)    
+    prevDayVWAP_LBand1_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev    , bar_index, time), prevDayVSD1Settings)
+    prevDayVWAP_UBand1_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev    , bar_index, time), prevDayVSD1Settings)
+    prevDayVWAP_LBand2_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev * 2, bar_index, time), prevDayVSD2Settings)
+    prevDayVWAP_UBand2_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev * 2, bar_index, time), prevDayVSD2Settings)
+    prevDayVWAP_LBand3_Arr.addValueLine(ValueLine.new(vwapDaily.value - vwapDaily.stdDev * 3, bar_index, time), prevDayVSD3Settings)
+    prevDayVWAP_UBand3_Arr.addValueLine(ValueLine.new(vwapDaily.value + vwapDaily.stdDev * 3, bar_index, time), prevDayVSD3Settings)
+
+    //Update Lines after new line has been added
+    updateLines(prevHigh_Arr          , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+    updateLines(prevOpen_Arr          , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+    updateLines(prevLow_Arr           , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels)
+    updateLines(prev50HL_Arr          , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prev50OC_Arr          , numDailyPeriods, false, labeloffsetDaily)   
+    updateLines(prevClose_Arr         , numDailyPeriods, false, labeloffsetDaily, showUntestedHLCLevels, showInactiveHLCLevels) 
+    updateLines(t2Open_Arr            , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(t2Close_Arr           , numDailyPeriods, false, labeloffsetDaily)  
+    updateLines(t2High_Arr            , numDailyPeriods, false, labeloffsetDaily)  
+    updateLines(t2Low_Arr             , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_Arr       , numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_LBand1_Arr, numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_UBand1_Arr, numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_LBand2_Arr, numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_UBand2_Arr, numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_LBand3_Arr, numDailyPeriods, false, labeloffsetDaily)
+    updateLines(prevDayVWAP_UBand3_Arr, numDailyPeriods, false, labeloffsetDaily)
+
+    //Delete Lines over the max limi
+    deleteLines(prevOpen_Arr          , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+    deleteLines(prevHigh_Arr          , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+    deleteLines(prevLow_Arr           , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+    deleteLines(prev50HL_Arr          , numDailyPeriods)
+    deleteLines(prev50OC_Arr          , numDailyPeriods)
+    deleteLines(prevClose_Arr         , showUntestedHLCLevels and showDailyLevels ? 1000 : numDailyPeriods + 2)
+    deleteLines(t2Open_Arr            , numDailyPeriods)
+    deleteLines(t2Close_Arr           , numDailyPeriods)
+    deleteLines(t2High_Arr            , numDailyPeriods)
+    deleteLines(t2Low_Arr             , numDailyPeriods)
+    deleteLines(prevDayVWAP_Arr       , numDailyPeriods)
+    deleteLines(prevDayVWAP_LBand1_Arr, numDailyPeriods)
+    deleteLines(prevDayVWAP_UBand1_Arr, numDailyPeriods)
+    deleteLines(prevDayVWAP_LBand2_Arr, numDailyPeriods)
+    deleteLines(prevDayVWAP_UBand2_Arr, numDailyPeriods)
+    deleteLines(prevDayVWAP_LBand3_Arr, numDailyPeriods)
+    deleteLines(prevDayVWAP_UBand3_Arr, numDailyPeriods)
+
+    if prevWeekHigh.price < dailyHigh.price
+        prevWeekHigh := ValueLine.new(dailyHigh.price, dailyHigh.barIndex, dailyHigh.barTime)
+    if prevWeekLow.price > dailyLow.price
+        prevWeekLow := ValueLine.new(dailyLow.price, dailyLow.barIndex, dailyLow.barTime)
+
+    if prevMonthHigh.price < dailyHigh.price
+        prevMonthHigh    := ValueLine.new(dailyHigh.price, dailyHigh.barIndex, dailyHigh.barTime)
+    if prevMonthLow.price > dailyLow.price
+        prevMonthLow   := ValueLine.new(dailyLow.price, dailyLow.barIndex, dailyLow.barTime)
+
+//Weekly level Calculations
+if newWeek
+    //Get the Value Line information from last weeks RTH Open
+    lastWeekRTH = rthOnlyChart ? rthWeekOpen_Arr.get(rthWeekOpen_Arr.size() - 2) : rthWeekOpen_Arr.last()
+
+    //Add Weekly Close
+    prevWeekClose_Arr.addValueLine(prevClose_Arr.last().deepCopy(), weeklyCloseSettings)
+
+    //Get last weeks RTH value to update HL2 and OC2 barIndex/barTime
+    if rthWeekOpen_Arr.size() > 1              
+        prevWeek50HL_Arr.addValueLine(ValueLine.new((prevWeekHigh.price + prevWeekLow.price) / 2,
+                                         bar_index,
+                                         time),
+                                         prevWeekHalfHLSettings)
+        prevWeek50OC_Arr.addValueLine(ValueLine.new((prevClose_Arr.last().price + lastWeekRTH.price) / 2,
+                                         bar_index,
+                                         time),
+                                         prevWeekHalfOCSettings)
+    
+    //push values to their respective arrays
+    prevWeekHigh_Arr.addValueLine(prevWeekHigh.copy(), prevWeekHighSettings)
+    prevWeekLow_Arr.addValueLine(prevWeekLow.copy(), prevWeekLowSettings)
+
+    //Reset Value Lines used to track Weekly High/Low
+    prevWeekLow.price  := 1.0e16
+    prevWeekHigh.price := 0
+
+    //Add weekly VWAP values
+    prevWeekVWAP_Arr.addValueLine(ValueLine.new(vwapWeekly.value, bar_index, time), weeklyVWAPSettings)
+    prevWeekVWAP_UBand1_Arr.addValueLine(ValueLine.new(vwapWeekly.value + vwapWeekly.stdDev    , bar_index, time), weeklySD1Settings)
+    prevWeekVWAP_LBand1_Arr.addValueLine(ValueLine.new(vwapWeekly.value - vwapWeekly.stdDev    , bar_index, time), weeklySD1Settings)
+    prevWeekVWAP_UBand2_Arr.addValueLine(ValueLine.new(vwapWeekly.value + vwapWeekly.stdDev * 2, bar_index, time), weeklySD2Settings)
+    prevWeekVWAP_LBand2_Arr.addValueLine(ValueLine.new(vwapWeekly.value - vwapWeekly.stdDev * 2, bar_index, time), weeklySD2Settings)
+    prevWeekVWAP_UBand3_Arr.addValueLine(ValueLine.new(vwapWeekly.value + vwapWeekly.stdDev * 3, bar_index, time), weeklySD3Settings)
+    prevWeekVWAP_LBand3_Arr.addValueLine(ValueLine.new(vwapWeekly.value - vwapWeekly.stdDev * 3, bar_index, time), weeklySD3Settings)
+
+    //Update previous weekly lines in the arrays
+    updateLines(prevWeekHigh_Arr       , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekLow_Arr        , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeek50HL_Arr       , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeek50OC_Arr       , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekClose_Arr      , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_Arr       , numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_UBand1_Arr, numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_LBand1_Arr, numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_UBand2_Arr, numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_LBand2_Arr, numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_UBand3_Arr, numWklyPeriods, false, labeloffsetWeekly)
+    updateLines(prevWeekVWAP_LBand3_Arr, numWklyPeriods, false, labeloffsetWeekly)
+
+    deleteLines(prevWeekHigh_Arr       , numWklyPeriods)
+    deleteLines(prevWeekLow_Arr        , numWklyPeriods)
+    deleteLines(prevWeek50HL_Arr       , numWklyPeriods)
+    deleteLines(prevWeek50OC_Arr       , numWklyPeriods)
+    deleteLines(prevWeekClose_Arr      , numWklyPeriods)
+    deleteLines(prevWeekVWAP_Arr       , numWklyPeriods)
+    deleteLines(prevWeekVWAP_LBand1_Arr, numWklyPeriods)
+    deleteLines(prevWeekVWAP_UBand1_Arr, numWklyPeriods)
+    deleteLines(prevWeekVWAP_LBand2_Arr, numWklyPeriods)
+    deleteLines(prevWeekVWAP_UBand2_Arr, numWklyPeriods)
+    deleteLines(prevWeekVWAP_LBand3_Arr, numWklyPeriods)
+    deleteLines(prevWeekVWAP_UBand3_Arr, numWklyPeriods)
+
+//Monthly Level Calculations
+if newMonth
+
+    //Get the Value Line information from last months RTH Open
+    lastMonthRTH = rthOnlyChart ? rthMonthOpen_Arr.get(rthMonthOpen_Arr.size() - 2) : rthMonthOpen_Arr.last()
+
+    //Add monthly Close
+    prevMonthClose_Arr.addValueLine(prevClose_Arr.last().deepCopy(), monCloseSettings)
+
+    //get last months RTH value to update HL2 and OC2 barIndex/barTime
+    if rthMonthOpen_Arr.size() > 1
+        prevMonth50HL_Arr.addValueLine(ValueLine.new((prevMonthHigh.price + prevMonthLow.price) / 2,
+                                         bar_index,
+                                         time),
+                                         prevMonHalfHLSettings)
+        prevMonth50OC_Arr.addValueLine(ValueLine.new((prevClose_Arr.last().price + lastMonthRTH.price) / 2,
+                                         bar_index,
+                                         time),
+                                         prevMonHalfOCSettings)
+    //push values to their respective arrays
+    prevMonthHigh_Arr.addValueLine(prevMonthHigh.copy(), prevMonHighSettings)
+    prevMonthLow_Arr.addValueLine(prevMonthLow.copy(), prevMonLowSettings)
+
+    //Reset Value Lines used to track Weekly High/Low
+    prevMonthLow.price  := 1.0e16
+    prevMonthHigh.price := 0
+
+    //Add weekly VWAP values
+    prevMonthVWAP_Arr.addValueLine(ValueLine.new(vwapMonthly.value, bar_index, time), monthlyVWAPSettings)
+    prevMonthVWAP_UBand1_Arr.addValueLine(ValueLine.new(vwapMonthly.value + vwapMonthly.stdDev    , bar_index, time), monthlySD1Settings)
+    prevMonthVWAP_LBand1_Arr.addValueLine(ValueLine.new(vwapMonthly.value - vwapMonthly.stdDev    , bar_index, time), monthlySD1Settings)
+    prevMonthVWAP_UBand2_Arr.addValueLine(ValueLine.new(vwapMonthly.value + vwapMonthly.stdDev * 2, bar_index, time), monthlySD2Settings)
+    prevMonthVWAP_LBand2_Arr.addValueLine(ValueLine.new(vwapMonthly.value - vwapMonthly.stdDev * 2, bar_index, time), monthlySD2Settings)
+    prevMonthVWAP_UBand3_Arr.addValueLine(ValueLine.new(vwapMonthly.value + vwapMonthly.stdDev * 3, bar_index, time), monthlySD3Settings)
+    prevMonthVWAP_LBand3_Arr.addValueLine(ValueLine.new(vwapMonthly.value - vwapMonthly.stdDev * 3, bar_index, time), monthlySD3Settings)
+
+    //Monthly Line Updates
+    updateLines(prevMonthHigh_Arr       , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthLow_Arr        , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonth50HL_Arr       , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonth50OC_Arr       , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthClose_Arr      , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_Arr       , numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_UBand1_Arr, numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_LBand1_Arr, numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_UBand2_Arr, numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_LBand2_Arr, numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_UBand3_Arr, numMonPeriods, false, labeloffsetMonthly)
+    updateLines(prevMonthVWAP_LBand3_Arr, numMonPeriods, false, labeloffsetMonthly)
+
+    deleteLines(prevMonthHigh_Arr       , numMonPeriods)
+    deleteLines(prevMonthLow_Arr        , numMonPeriods)
+    deleteLines(prevMonth50HL_Arr       , numMonPeriods)
+    deleteLines(prevMonth50OC_Arr       , numMonPeriods)
+    deleteLines(prevMonthClose_Arr      , numMonPeriods)
+    deleteLines(prevMonthVWAP_Arr       , numMonPeriods)
+    deleteLines(prevMonthVWAP_UBand1_Arr, numMonPeriods)
+    deleteLines(prevMonthVWAP_LBand1_Arr, numMonPeriods)
+    deleteLines(prevMonthVWAP_UBand2_Arr, numMonPeriods)
+    deleteLines(prevMonthVWAP_LBand2_Arr, numMonPeriods)
+    deleteLines(prevMonthVWAP_UBand3_Arr, numMonPeriods)
+    deleteLines(prevMonthVWAP_LBand3_Arr, numMonPeriods) 
+    
+//VWAP Calculations (Must be after all the adding of the valuelines due to RTH tickers)
+vwapDaily.calculateVWAP(insideUSSession, rthOpenSess)
+vwapWeekly.calculateVWAP(insideUSSession, newWeekRTH)
+vwapMonthly.calculateVWAP(insideUSSession, newMonthRTH)
+log.info(syminfo.type)
+//Only update lines on last bar to reduce number of
+if barstate.islast
+    //Update current daily intraday lines
+    updateIntraDayLine(currDayHigh                  , currHighSettings)
+    updateIntraDayLine(currDayLow                   , currLowSettings)
+    updateIntraDayLine(rthOpen                      , rthOpenSettings)
+    updateIntraDayLine(ORHigh_Arr.last()            , ORHighSettings)
+    updateIntraDayLine(ORLow_Arr.last()             , ORLowSettings)
+    updateIntraDayLine(ORMid_Arr.last()             , ORMidSettings)
+    updateIntraDayLine(IBHigh_Arr.last()            , IBHighSettings)
+    updateIntraDayLine(IBLow_Arr.last()             , IBLowSettings)
+    updateIntraDayLine(IBMid_Arr.last()             , IBMidSettings)  
+    updateIntraDayLine(globexOpen_Arr.last()        , globexOpenSettings)
+    updateIntraDayLine(prevOpen_Arr.last()          , prevOpenSettings)
+    updateIntraDayLine(londonOpen_Arr.last()        , londonOpenSettings)
+    updateIntraDayLine(londonClose_Arr.last()       , londonCloseSettings)
+    updateIntraDayLine(midnightOpen_Arr.last()      , midnightOpenSettings)
+    updateIntraDayLine(onHigh_Arr.last()            , onHighSettings)
+    updateIntraDayLine(onLow_Arr.last()             , onLowSettings)
+    updateIntraDayLine(prevHigh_Arr.last()          , prevHighSettings)
+    updateIntraDayLine(prevLow_Arr.last()           , prevLowSettings)
+    updateIntraDayLine(prev50HL_Arr.last()          , prevMidHLSettings)
+    updateIntraDayLine(prev50OC_Arr.last()          , prevMidOCSettings)   
+    updateIntraDayLine(prevClose_Arr.last()         , prevCloseSettings)
+    updateIntraDayLine(prev5PMClose_Arr.last()      , prev5PMCloseSettings) 
+    updateIntraDayLine(t2Open_Arr.last()            , t2OpenSettings)
+    updateIntraDayLine(t2Close_Arr.last()           , t2CloseSettings)  
+    updateIntraDayLine(t2High_Arr.last()            , t2HighSettings)  
+    updateIntraDayLine(t2Low_Arr.last()             , t2LowSettings)
+    updateIntraDayLine(prevDayVWAP_Arr.last()       , prevDayVWAPSettings)
+    updateIntraDayLine(prevDayVWAP_LBand1_Arr.last(), prevDayVSD1Settings)
+    updateIntraDayLine(prevDayVWAP_UBand1_Arr.last(), prevDayVSD1Settings)
+    updateIntraDayLine(prevDayVWAP_LBand2_Arr.last(), prevDayVSD2Settings)
+    updateIntraDayLine(prevDayVWAP_UBand2_Arr.last(), prevDayVSD2Settings)
+    updateIntraDayLine(prevDayVWAP_LBand3_Arr.last(), prevDayVSD3Settings)
+    updateIntraDayLine(prevDayVWAP_UBand3_Arr.last(), prevDayVSD3Settings)
+
+    //Weekly Line Updates
+    updateIntraDayLine(prevWeekHigh_Arr.last()       , prevWeekHighSettings)
+    updateIntraDayLine(prevWeekLow_Arr.last()        , prevWeekLowSettings)
+    updateIntraDayLine(prevWeek50HL_Arr.last()       , prevWeekHalfHLSettings)
+    updateIntraDayLine(prevWeek50OC_Arr.last()       , prevWeekHalfOCSettings)
+    updateIntraDayLine(rthWeekOpen_Arr.last()        , weeklyOpenSettings)
+    updateIntraDayLine(prevWeekClose_Arr.last()      , weeklyCloseSettings)
+    updateIntraDayLine(prevWeekVWAP_Arr.last()       , weeklyVWAPSettings)
+    updateIntraDayLine(prevWeekVWAP_UBand1_Arr.last(), weeklySD1Settings)
+    updateIntraDayLine(prevWeekVWAP_LBand1_Arr.last(), weeklySD1Settings)
+    updateIntraDayLine(prevWeekVWAP_UBand2_Arr.last(), weeklySD2Settings)
+    updateIntraDayLine(prevWeekVWAP_LBand2_Arr.last(), weeklySD2Settings)
+    updateIntraDayLine(prevWeekVWAP_UBand3_Arr.last(), weeklySD3Settings)
+    updateIntraDayLine(prevWeekVWAP_LBand3_Arr.last(), weeklySD3Settings)
+
+    //Monthly Line Updates
+    updateIntraDayLine(prevMonthHigh_Arr.last()       , prevMonHighSettings)
+    updateIntraDayLine(prevMonthLow_Arr.last()        , prevMonLowSettings)
+    updateIntraDayLine(prevMonth50HL_Arr.last()       , prevMonHalfHLSettings)
+    updateIntraDayLine(prevMonth50OC_Arr.last()       , prevMonHalfOCSettings)
+    updateIntraDayLine(rthMonthOpen_Arr.last()        , monOpenSettings)
+    updateIntraDayLine(prevMonthClose_Arr.last()      , monCloseSettings)
+    updateIntraDayLine(prevMonthVWAP_Arr.last()       , monthlyVWAPSettings)
+    updateIntraDayLine(prevMonthVWAP_UBand1_Arr.last(), monthlySD1Settings)
+    updateIntraDayLine(prevMonthVWAP_LBand1_Arr.last(), monthlySD1Settings)
+    updateIntraDayLine(prevMonthVWAP_UBand2_Arr.last(), monthlySD2Settings)
+    updateIntraDayLine(prevMonthVWAP_LBand2_Arr.last(), monthlySD2Settings)
+    updateIntraDayLine(prevMonthVWAP_UBand3_Arr.last(), monthlySD3Settings)
+    updateIntraDayLine(prevMonthVWAP_LBand3_Arr.last(), monthlySD3Settings)

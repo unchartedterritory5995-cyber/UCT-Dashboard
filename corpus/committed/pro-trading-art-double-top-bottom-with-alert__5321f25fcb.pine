@@ -1,0 +1,150 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © protradingart
+
+//@version=5
+indicator("Pro Trading Art - Double Top & Bottom with alert", "PTA - Double Top & Bottom", overlay=true, max_lines_count=500, max_labels_count=500)
+
+//////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+method maintainPivot(array<float> srcArray, float value) =>
+    srcArray.push(value)
+    srcArray.shift()
+
+method maintainIndex(array<int> srcArray, int value) =>
+    srcArray.push(value)
+    srcArray.shift()
+
+method middleIndex(array<int> srcArray)=>
+    srcArray.get(srcArray.size()-2)
+
+method middlePrice(array<float> srcArray)=>
+    srcArray.get(srcArray.size()-2)
+
+drawLL(start, end, price, startText, endText, COLOR, style=label.style_label_down)=>
+    Line = line.new(x1=start, y1=price, x2=end, y2=price, color=COLOR, width=2)
+    A = label.new(x=start, y=price, text=startText, color=COLOR, style=style, textcolor=color.black, size=size.normal)
+    B = label.new(x=end, y=price, text=endText, color=COLOR, style=style, textcolor=color.black, size=size.normal)
+    [Line, A, B]
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+pivotLeg = input.int(10, "Pivot Length")
+extendSignal = input.bool(false, "Extend Signal")
+
+var top = array.new_float(3)
+var bottom = array.new_float(3)
+
+var topIndex = array.new_int(3)
+var bottomIndex = array.new_int(3)
+
+ph = ta.pivothigh(pivotLeg, pivotLeg)
+pl = ta.pivotlow(pivotLeg, pivotLeg)
+
+////////////// Top ///////////////////
+if not na(ph)
+    top.maintainPivot(ph)
+    topIndex.maintainIndex(bar_index-pivotLeg)
+
+////////////// Bottom ///////////////////
+if not na(pl)
+    bottom.maintainPivot(pl)
+    bottomIndex.maintainIndex(bar_index-pivotLeg)
+
+inRange = not na(top.first()) and (not na(bottom.first()))
+////////////////////////// Top Calculation //////////////////////////////////////////////////////    
+topPrice = 0.0
+isTop = false
+var line topLine = na
+var label topA = na
+var label topB = na
+
+if inRange
+    topStart = topIndex.last()
+    topPrice := top.last()
+    
+    if topPrice < top.middlePrice() and topIndex.middleIndex() > bottomIndex.first()
+        topPrice := top.middlePrice()
+        topStart := topIndex.middleIndex()
+
+    max_index = top.indexof(top.max())
+    if topPrice < top.max() and topIndex.get(max_index) > bottomIndex.first()
+        topPrice := top.max()
+        topStart := topIndex.get(max_index)
+    
+    isTop := high >= topPrice and high[1] < topPrice and low < topPrice and bottom.last() > bottom.middlePrice()
+
+    var lastStart = 0
+    var topEnd = 0
+    if isTop and topStart != lastStart
+        lastStart := topStart
+        [Line, A, B] = drawLL(topStart, bar_index, topPrice, "Top 1", "Top 2", color.lime)
+        topLine := Line
+        topA := A
+        topB := B
+        alert("Double Top In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+if  ta.crossunder(close, topLine.get_y2()) and extendSignal
+    topLine.set_x2(bar_index)
+    label.new(bar_index, high, style = label.style_label_down, color=color.red)
+    alert("Double Top Breakdown In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+if  ta.crossover(close, topLine.get_y2()) and extendSignal
+    topLine.set_x2(bar_index)
+    label.new(bar_index, low, style = label.style_label_up, color=color.green)
+    alert("Double Top Breakout In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+// ////////////////////////// Bottom Calculation //////////////////////////////////////////////////////    
+bottomPrice = 0.0
+isBottom = false
+var line bottomLine = na
+var label bottomA = na
+var label bottomB = na
+
+if inRange
+    bottomStart = bottomIndex.last()
+    bottomPrice := bottom.last()
+    
+    if bottomPrice > bottom.middlePrice() and bottomIndex.middleIndex() > topIndex.first()
+        bottomPrice := bottom.middlePrice()
+        bottomStart := bottomIndex.middleIndex()
+    
+    min_index = bottom.indexof(bottom.min())
+    if bottomPrice > bottom.min() and bottomIndex.get(min_index) > topIndex.first()
+        bottomPrice := bottom.min()
+        bottomStart := bottomIndex.get(min_index)
+        
+    isBottom := close <= bottomPrice and close[1] > bottomPrice and high > bottomPrice and top.last() < top.middlePrice()
+
+    var bottomEnd = 0
+    var lastStart = 0
+
+    if isBottom and  bottomStart != lastStart
+        lastStart := bottomStart
+        [Line, A, B] = drawLL(bottomStart, bar_index, bottomPrice, "Bottom 1", "Bottom 2", color.red, label.style_label_up)
+        bottomLine := Line
+        bottomA := A
+        bottomB := B
+        alert("Double Bottom In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+
+
+if  ta.crossunder(close, bottomLine.get_y2()) and extendSignal
+    bottomLine.set_x2(bar_index)
+    label.new(bar_index, high, style = label.style_label_down, color=color.red)
+    alert("Double Bottom Breakdown In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+if  ta.crossover(close, bottomLine.get_y2()) and extendSignal
+    bottomLine.set_x2(bar_index)
+    label.new(bar_index, low, style = label.style_label_up, color=color.green)
+    alert("Double Bottom Breakout In: "+str.tostring(syminfo.ticker), alert.freq_once_per_bar_close)
+
+
+
+
+
+
+
+
+
+
+
+

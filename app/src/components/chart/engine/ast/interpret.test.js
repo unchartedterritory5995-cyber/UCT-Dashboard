@@ -777,6 +777,18 @@ describe('the refusals', () => {
         Array.from({ length: Math.floor(MAX_RECURRENCE_STEPS / 500) + 10 },
           (_, i) => ({ o: 1, h: 2, l: 0.5, c: 1 + (i % 7) * 0.1, v: 1000 })),
         {}),
+      // ⭐⭐ R-K (2026-09-12). The shape T5 measured 18 times in the member pane:
+      // `str.contains(syminfo.tickerid, "/")`, unfolded because the chart lane
+      // hands the fold a bare ticker STRING while `symbolConstants` takes an
+      // object. It used to come out as `interpret:node — unknown node type
+      // "textop"`, in a message listing `textop` among the legal types.
+      // `interpret.bindTimeText.test.js` is where the FIELD-NAMING half is
+      // proved; this table only requires that the guard can fire at all.
+      'interpret:bind-time-text': () => interpret(
+        { type: 'textop', name: 'contains', args: [
+          { type: 'symtext', name: 'tickerid' },
+          { type: 'str', value: '/' }] },
+        BARS, {}),
     }
     expect(Object.keys(triggers).sort()).toEqual(Object.keys(REFUSALS).sort())
     for (const [guard, fire] of Object.entries(triggers)) {
@@ -1009,7 +1021,18 @@ describe('the arithmetic, against hand-computed values', () => {
         // NOT COMPUTABLE without a timeframe, by design — evaluating them with no
         // `opts` here would land every one of them in `broken` as "entirely NaN"
         // for a reason that is the fail-closed path working, not a defect.
-        const out = interpret(c.ast, BARS, {}, undefined, undefined, c.opts || {})
+        // ⭐ THE FIXTURE SPEAKS ONE LANGUAGE AND EACH LANE ADAPTS. `corpus.json`
+        // is a CROSS-LANE contract read by this file and by `tools/ast_conformance.py`,
+        // so it carries ONE spelling of each key -- the recording lane's, which is
+        // Python's `newest_bar_is_forming`. Translating here beats teaching
+        // `interpret` a second name for one value, which is the two-authorities
+        // defect this engine keeps paying for.
+        // ⚰️ THE KEY WAS `now` UNTIL 2026-09-09, when the retired seam handed an
+        // instant into the column layer instead of a tri-state.
+        const raw = c.opts || {}
+        const { newest_bar_is_forming: forming, ...rest } = raw
+        const opts = forming === undefined ? rest : { ...rest, newestBarIsForming: forming }
+        const out = interpret(c.ast, BARS, {}, undefined, undefined, opts)
         if (out.length !== BARS.length) broken.push(`${c.id}: length ${out.length}`)
         // ⛔ AN ALL-NaN COLUMN IS STILL A FAILURE *UNLESS THE CASE DECLARES IT*.
         // The domain-refusal cases (sqrt of a negative, log of zero, an overflow,
@@ -1457,7 +1480,23 @@ describe('the node budget may only discount what the interpreter actually shares
     expect(SRC).toMatch(/const \{ idOf, freeOf \} = structuralMaps\(ast\)/)
     expect(SRC).toMatch(/const id = freeOf\.get\(n\) \? idOf\.get\(n\) : undefined/)
     expect(SRC).toMatch(/if \(id !== undefined && memo\.has\(id\)\) return memo\.get\(id\)/)
-    expect(SRC).toMatch(/if \(id !== undefined\) memo\.set\(id, value\)/)
+    expect(SRC).toMatch(/if \(id !== undefined\) \{[\s\S]{0,40}?memo\.set\(id, value\)/)
+  })
+
+  it('🔴 …and so does the CROSS-COLUMN memo, off the same `id` gate', () => {
+    // C2C.11 added a second memo — one shared by every column of a document, so
+    // that two plots computing the same subtree compute it once. It widens
+    // exactly the same claim this describe block exists to protect, so it is
+    // held to exactly the same rail.
+    //
+    // ⛔⛔ THE GATE IS THE WHOLE SAFETY ARGUMENT. `id !== undefined` is
+    // `freeOf.get(n)` — SELF-FREE ONLY. A cross-column memo that skipped it
+    // would cache a subtree reading a recurrence bind and freeze that
+    // recurrence at step one: a silent wrong number on a chart that still
+    // draws, in a place no behavioural test looks, because the memo is
+    // otherwise a pure speed-up.
+    expect(SRC).toMatch(/if \(crossMemo !== null && id !== undefined && crossMemo\.has\(n\)\)/)
+    expect(SRC).toMatch(/if \(crossMemo !== null\) crossMemo\.set\(n, value\)/)
   })
 
   it('⛔ …and the walk refuses to invent an id for a child it has not keyed', () => {
@@ -1826,7 +1865,7 @@ describe('maxLookback and interpret agree about which timeframes exist', () => {
     return {
       code,
       lookback: refuses(() => maxLookback(tree)),
-      evaluate: refuses(() => interpret(tree, bars, undefined, undefined, undefined, { tf: 'D' })),
+      evaluate: refuses(() => interpret(tree, bars, undefined, undefined, undefined, { tf: 'D', newestBarIsForming: false })),
     }
   })
 

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f4cd30cd7fad4abfa434c0bea2cc431b",
+ "title": "Volume with Market Buy/Sell and Neutral Volume Split for Realtime Bars",
+ "author": "the_MarketWhisperer",
+ "url": "https://www.tradingview.com/script/vUjWu5E7-volume-with-market-buy-sell-and-neutral-volume-split-for-rea/",
+ "agreeCount": 5165,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/volume-with-market-buysell-and-neutral-volume-split-for-realtime-bars__f4cd30cd7f.pine",
+ "our_status": "reference-only"
+}

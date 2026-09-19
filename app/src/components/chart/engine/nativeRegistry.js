@@ -90,6 +90,24 @@ import {
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
 import { interpret } from './ast/interpret'
+import { ENGINE_ERROR, isRefusal } from './ast/parse'
+// ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
+// `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
+// so a timeframe-conditional length refused at the door and nothing ever folded
+// it. This is where it stops being unwired.
+// ⛔ IT BELONGS HERE AND NOT AT THE DOOR. `translatePine` runs at SAVE time, with
+// no symbol and no timeframe, so folding there would bake ONE binding's answer
+// into a shared definition — and `foldBound`'s header names the cost: the next
+// symbol folds it differently, so the second symbol of a sweep would inherit the
+// first's lengths. That shows as a WRONG NUMBER, not an error.
+import { foldBound, bindConstsFor } from './ast/bind'
+// ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
+// from here since step 6 and the IR lane now needs it too; the assembly itself
+// moved to `ast/bind.js`, beside `bindingConstants` and `symbolConstantsWith`,
+// so a THIRD lane could reach it without importing this whole registry.
+// ⛔ One authority, three callers — this line is an alias, never a second copy.
+export { bindConstsFor }
+import { timeframeFlags } from '../indicators'
 import { checkBudget } from './ast/budget'
 import { lintRepaint, declaredInputs } from './ast/lint'
 import { freshnessFor } from './ast/freshness'
@@ -1499,9 +1517,60 @@ function astTrees(def) {
  * as "computed nothing" is the wrong-door defect this phase has now found four
  * times. A refusal must reach the caller as the refusal it is.
  */
+/** The key every partial-compute result carries its reasons under.
+ *  ⛔ NON-ENUMERABLE, AND THAT IS THE WHOLE DESIGN. Every consumer of a column
+ *  map walks it with `Object.keys` (the binder's `for (const plotKey of
+ *  Object.keys(cols))` is the one that matters), and a visible extra key would
+ *  become a phantom plot on every chart. */
+const COLUMN_ERRORS = '__columnErrors'
+
+/** Attach the per-column reasons to a column map without widening its key set. */
+function withColumnErrors(out, errors) {
+  if (errors && Object.keys(errors).length) {
+    Object.defineProperty(out, COLUMN_ERRORS, { value: Object.freeze(errors), enumerable: false })
+  }
+  return out
+}
+
+/**
+ * ⭐⭐ WHY A COLUMN IS MISSING — the structured state C2A.8 asks be preserved.
+ *
+ * A column map returned by `computeFor` holds only the columns that COMPUTED.
+ * This is how a caller learns that a key is absent because it exceeded a limit
+ * rather than because the definition never declared it — which are different
+ * facts and, without this, indistinguishable.
+ *
+ * ⛔ IT IS NOT UX. No surface renders it yet, deliberately (C2A.8: "do not build
+ * broad new UX in this wave"). It exists so that the day one does, the product
+ * can say WHICH output and WHICH limit instead of re-deriving a guess — and so
+ * that "the indicator drew nothing" and "one of its seven columns is too
+ * expensive" stop being the same observation.
+ *
+ * @returns {Record<string, {guard: string, message: string}>} possibly empty
+ */
+export function columnErrors(columns) {
+  const e = columns && columns[COLUMN_ERRORS]
+  return e || {}
+}
+
 function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
+  // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
+  // into the integers THIS binding needs. `Uncharted Volume` line 233's
+  // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
+  // daily one — measured against the vendor on 2026-09-10 (job B: `fold==sma20`
+  // on 400/400 daily bars, `fold==sma5` on 400/400 weekly).
+  // ⛔ COMPUTE-SCOPED AND DISCARDED. `foldBound` returns a NEW tree and mutates
+  // nothing, and `bound` is a local — the SAVED definition stays symbolic, which
+  // is the only thing that keeps the next binding free to fold it differently.
+  // ⛔ AN UNFOLDABLE LENGTH IS LEFT EXACTLY AS IT WAS, never guessed: the window
+  // check downstream then refuses the member's own expression, naming the field
+  // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
+  // returns null rather than a default, because a guessed `isdaily` is a
+  // confident wrong length.
+  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
+  const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -1518,6 +1587,24 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // a node, blaming the formula for a document defect.
   if (trees) {
     const out = {}
+    const errors = {}
+    // ⭐⭐ C2C.11 — ONE MEMO FOR THE WHOLE DOCUMENT'S COLUMNS, CREATED HERE AND
+    // DROPPED HERE. A multi-plot import computes one consensus expression and
+    // plots several views of it (C2A: 77-84% of a real document's counted nodes
+    // are repeated subtrees), and until now every view paid for the whole thing
+    // again because `interpret`'s own memo is scoped to one tree.
+    //
+    // ⛔ ITS LIFETIME IS THIS CALL. The columns it holds were computed against
+    // THESE bars and THESE inputs; a memo that outlived the pass would serve
+    // stale numbers with nothing red anywhere. It is a local, never a module
+    // cache, and it is not keyed — so there is nothing to invalidate and no way
+    // to forget to.
+    //
+    // ⚠️ IT ONLY PAYS WHEN THE TREES ACTUALLY SHARE NODES, which is what a
+    // document stored as a shared graph gives (its expansion materialises each
+    // distinct node once). On an inlined document every lookup misses and the
+    // cost is one Map probe per self-free node.
+    const crossMemo = new Map()
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -1530,10 +1617,49 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // THE `undefined` SCALARS — see that call's comments. One budget covers
       // every tree because the budget is the DOCUMENT's (`compute.budget`), and
       // a map over `interpret` that dropped it would run every plot uncapped.
-      out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
-        undefined, { tf: ctx && ctx.tf })
+      //
+      // ⛔⛔ ONE COLUMN'S FAILURE IS ONE COLUMN'S FAILURE (C2A).
+      //
+      // ⚰️ MEASURED ON A REAL SCRIPT. `mid_engagement__14-master-line-lite`
+      // declares 7 columns. Three of them — Consensus and the two bands —
+      // compute cleanly at the 5,000 bars a chart loads (4,945 finite values
+      // each, 6-20 ms). The other four are `accum` recurrences whose
+      // `bars × warmup` exceeds `MAX_RECURRENCE_STEPS`, and they refuse.
+      //
+      // This loop had no `try`. The fourth tree threw, the loop unwound,
+      // `computeFor` threw, and the binder's `attempt(...)` caught it and
+      // `continue`d PAST THE WHOLE INSTANCE — so all seven plots drew nothing.
+      // Measured through this very function: OK at 1, 2 and 3 columns; throws
+      // from the 4th on. Three good columns were erased by a fourth.
+      //
+      // ⛔ THE BUDGET WAS NEVER SHARED. Each `interpret` call is capped on its
+      // own tree; nothing accumulates across siblings. The loss was CONTAINMENT,
+      // and the two are worth telling apart: a shared budget would mean the
+      // document is too big, and it is not — one column of it is.
+      //
+      // ⛔ A FAILED COLUMN IS ABSENT, NOT ALL-NaN. `hasAnyFinite` already reads
+      // an absent key as "no data" and gives the plot no series, so absence
+      // needs no new handling anywhere; a 5,000-long NaN array per failed column
+      // would allocate for nothing and read as a column that computed.
+      // The REASON is preserved instead — see `columnErrors`.
+      try {
+        out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
+          // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
+          // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
+          // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
+          undefined, { tf: ctx && ctx.tf,
+            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null, crossMemo })
+      } catch (err) {
+        // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
+        // exception a guard name, so a TypeError inside a walker was
+        // indistinguishable from the table declining to compute a column.
+        errors[key] = isRefusal(err)
+          ? { guard: err.guard, message: String(err.message) }
+          : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
+            message: String((err && err.message) || err) }
+      }
     }
-    return out
+    return withColumnErrors(out, errors)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -1557,13 +1683,20 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
   return {
-    [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget,
-      undefined, { tf: ctx && ctx.tf }),
+    [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
+      undefined, { tf: ctx && ctx.tf,
+        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null }),
   }
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */
-function resolveInputs(def, inputs) {
+// ⭐⭐ EXPORTED FOR THE OBJECT LANE (C3B-CLOSE item 6), NOT COPIED INTO IT.
+// `objectColumns.objectReaderFor` needs exactly this merge — declared defaults
+// under the instance's overrides — to evaluate an object's coordinate the way
+// the plot beside it is evaluated. A second copy there would be a second
+// authority over one value, and the two would disagree the first time a default
+// rule moved (`lesson_a_second_authority_over_one_value`).
+export function resolveInputs(def, inputs) {
   const out = {}
   for (const input of def?.inputs || []) {
     if (input && typeof input.key === 'string') out[input.key] = input.default

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a7xsrJkK2RpZFIR18wBX02FVlE3wpHW2",
+ "title": "Volume Profile Free Pro by RRB",
+ "author": "RagingRocketBull",
+ "url": "https://www.tradingview.com/script/wLN1VRPl-volume-profile-free-pro-by-rrb/",
+ "agreeCount": 7348,
+ "category": "order flow",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-free-pro-by-rrb__a7xsrJkK2R.pine",
+ "our_status": "reference-only"
+}

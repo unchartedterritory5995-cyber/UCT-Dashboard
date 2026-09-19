@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;427926d08fa04164bef1aef650df97ea",
+ "title": "RSI (Kernel Optimized) | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/qNDaKOxR-rsi-kernel-optimized-flux-charts/",
+ "agreeCount": 13413,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/rsi-kernel-optimized-flux-charts__427926d08f.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,625 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TFlab
+
+//@version=6
+indicator('Auto TrendLines [TradingFinder] Support Resistance Signal Alerts', 'Auto TrendLines TFlab', overlay = true, max_bars_back = 5000, max_boxes_count = 500, max_labels_count = 500, max_lines_count = 500)
+
+// Import Library
+import TFlab/AlertSenderLibrary_TradingFinder/1 as AlertSender
+
+//Input
+    //Logic
+PP = input.int(5, 'Pivot Period', group = 'Zig Zag Logic')
+
+    // Alert
+AlertName = input.string('Auto TrendLines Alerts [TradingFinder]', 'Alert Name', group = 'Alert')
+Frequncy = input.string('Once Per Bar' , 'Message Frequency' , ['All', 'Once Per Bar' , 'Per Bar Close'], 'The triggering frequency. Possible values are: All'+ 
+ ' (all function calls trigger the alert), Once Per Bar (the first function call during the bar triggers the alert), ' +  
+ ' Per Bar Close (the function call triggers the alert only when it occurs during the last script iteration of the real-time bar,' +  
+ ' when it closes). The default is alert.freq_once_per_bar.)', group = 'Alert')
+UTC = input.string('UTC' , 'Show Alert time by Time Zone', group = 'Alert')
+
+Alert_MjExUp_B = input.string('On', 'Break Major External Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MjExUp_R = input.string('On', 'React Major External Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MjExDown_B = input.string('On', 'Break Major External Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MjExDown_R = input.string('On', 'React Major External Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MjInUp_B = input.string('On', 'Break Major Internal Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MjInUp_R = input.string('On', 'React Major Internal Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MjInDown_B = input.string('On', 'Break Major Internal Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MjInDown_R = input.string('On', 'React Major Internal Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MnExUp_B = input.string('On', 'Break Minor External Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MnExUp_R = input.string('On', 'React Minor External Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MnExDown_B = input.string('On', 'Break Minor External Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MnExDown_R = input.string('On', 'React Minor External Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MnInUp_B = input.string('On', 'Break Minor Internal Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MnInUp_R = input.string('On', 'React Minor Internal Up TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+Alert_MnInDown_B = input.string('On', 'Break Minor Internal Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+Alert_MnInDown_R = input.string('On', 'React Minor Internal Down TrendLine Alert', ['On', 'Off'], 'If you turn on the Alert, you can receive alerts and notifications after setting the "Alert".', group = 'Alert')
+
+    //Display
+        //Long
+Show_MjExUp       = input.bool(true, 'Show Major External Up   TrendLine', group = 'Major External Up   TrendLine', inline = 'MjExUp')
+Delete_Pre_MjExUp = input.bool(true, 'Delete Previous Major External Up   TrendLine', group = 'Major External Up   TrendLine')
+Color_MjExUp      = input.color(#016b05, 'Color', group = 'Major External Up   TrendLine')
+Style_MjExUp      = input.string(line.style_solid, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Major External Up   TrendLine')
+Extend_MjExUp     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Major External Up   TrendLine')
+Width_MjExUp      = input.int(2, 'Width', group = 'Major External Up   TrendLine')
+
+Show_MjExDown = input.bool(true, 'Show Major External Down TrendLine', group = 'Major External Down TrendLine')
+Delete_Pre_MjExDown = input.bool(true, 'Delete Previous Major External Down   TrendLine', group = 'Major External Down TrendLine')
+Color_MjExDown      = input.color(#aa0202, 'Color', group = 'Major External Down TrendLine')
+Style_MjExDown      = input.string(line.style_solid, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Major External Down TrendLine')
+Extend_MjExDown     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Major External Down TrendLine')
+Width_MjExDown      = input.int(2, 'Width', group = 'Major External Down TrendLine')
+
+Show_MjInUp   = input.bool(true, 'Show Major Internal Up   TrendLine', group = 'Major Internal Up   TrendLine')
+Delete_Pre_MjInUp = input.bool(true, 'Delete Previous Major Internal Up   TrendLine', group = 'Major Internal Up   TrendLine')
+Color_MjInUp      = input.color(#016b05, 'Color', group = 'Major Internal Up   TrendLine')
+Style_MjInUp      = input.string(line.style_solid, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Major Internal Up   TrendLine')
+Extend_MjInUp     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Major Internal Up   TrendLine')
+Width_MjInUp      = input.int(1, 'Width', group = 'Major Internal Up   TrendLine')
+
+Show_MjInDown = input.bool(true, 'Show Major Internal Down TrendLine', group = 'Major Internal Down TrendLine')
+Delete_Pre_MjInDown = input.bool(true, 'Delete Previous Major Internal Down TrendLine', group = 'Major Internal Down TrendLine')
+Color_MjInDown      = input.color(#aa0202, 'Color', group = 'Major Internal Down TrendLine')
+Style_MjInDown      = input.string(line.style_solid, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Major Internal Down TrendLine')
+Extend_MjInDown     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Major Internal Down TrendLine')
+Width_MjInDown      = input.int(1, 'Width', group = 'Major Internal Down TrendLine')
+
+
+Show_MnExUp       = input.bool(true, 'Show Minor External Up   TrendLine', group = 'Minor External Up   TrendLine')
+Delete_Pre_MnExUp = input.bool(true, 'Delete Previous Minor External Up   TrendLine', group = 'Minor External Up   TrendLine')
+Color_MnExUp      = input.color(#016b05a6, 'Color', group = 'Minor External Up   TrendLine')
+Style_MnExUp      = input.string(line.style_dashed, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Minor External Up   TrendLine')
+Extend_MnExUp     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Minor External Up   TrendLine')
+Width_MnExUp      = input.int(1, 'Width', group = 'Minor External Up   TrendLine')
+
+
+Show_MnExDown = input.bool(true, 'Show Minor External Down TrendLine', group = 'Minor External Down TrendLine')
+Delete_Pre_MnExDown = input.bool(true, 'Delete Previous Minor External Down   TrendLine', group = 'Minor External Down TrendLine')
+Color_MnExDown      = input.color(#aa0202a6, 'Color', group = 'Minor External Down TrendLine')
+Style_MnExDown      = input.string(line.style_dashed, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Minor External Down TrendLine')
+Extend_MnExDown     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Minor External Down TrendLine')
+Width_MnExDown      = input.int(1, 'Width', group = 'Minor External Down TrendLine')
+
+
+Show_MnInUp   = input.bool(true, 'Show Minor Internal Up   TrendLine', group = 'Minor Internal Up   TrendLine')
+Delete_Pre_MnInUp = input.bool(true, 'Delete Previous Minor Internal Up   TrendLine', group = 'Minor Internal Up   TrendLine')
+Color_MnInUp      = input.color(#016b05a6, 'Color', group = 'Minor Internal Up   TrendLine')
+Style_MnInUp      = input.string(line.style_dotted, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Minor Internal Up   TrendLine')
+Extend_MnInUp     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Minor Internal Up   TrendLine')
+Width_MnInUp      = input.int(1, 'Width', group = 'Minor Internal Up   TrendLine')
+
+
+Show_MnInDown = input.bool(true, 'Show Minor Internal Down TrendLine', group = 'Minor Internal Down TrendLine')
+Delete_Pre_MnInDown = input.bool(true, 'Delete Previous Minor Internal Down TrendLine', group = 'Minor Internal Down TrendLine')
+Color_MnInDown      = input.color(#aa0202a6, 'Color', group = 'Minor Internal Down TrendLine')
+Style_MnInDown      = input.string(line.style_dotted, 'Style', [line.style_solid, line.style_dashed, line.style_dotted], group = 'Minor Internal Down TrendLine')
+Extend_MnInDown     = input.string(extend.none, 'Extend', [extend.none, extend.both, extend.right, extend.left], group = 'Minor Internal Down TrendLine')
+Width_MnInDown      = input.int(1, 'Width', group = 'Minor Internal Down TrendLine')
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+var int    x_0 = 0
+var float  y_0 = 0.0
+var string t_0 = ''
+
+ZZ(PP) =>
+    Open = open
+    High = high
+    Low = low
+    Close = close
+    Bar_Index = bar_index
+    var ArrayType = array.new_string()
+    var ArrayValue = array.new_float()
+    var ArrayIndex = array.new_int()
+    var ArrayTypeAdv = array.new_string()
+    var ArrayValueAdv = array.new_float()
+    var ArrayIndexAdv = array.new_int()
+    var line ZZLine = na
+    var line Sline = na
+    var line Rline = na
+    var label Label = na
+    PASS = 0
+    HighPivot = ta.pivothigh(PP, PP)
+    LowPivot = ta.pivotlow(PP, PP)
+    HighValue = ta.valuewhen(bool(HighPivot), High[PP], 0)
+    LowValue = ta.valuewhen(bool(LowPivot), Low[PP], 0)
+    HighIndex = ta.valuewhen(bool(HighPivot), Bar_Index[PP], 0)
+    LowIndex = ta.valuewhen(bool(LowPivot), Bar_Index[PP], 0)
+    Correct_HighPivot = 0.0
+    Correct_LowPivot = 0.0
+
+    if bool(HighPivot) and bool(LowPivot)
+        if ArrayType.size() == 0
+            PASS := 1
+            PASS
+        else if ArrayType.size() >= 1
+            if ArrayType.get(ArrayType.size() - 1) == 'L' or ArrayType.get(ArrayType.size() - 1) == 'LL'
+                if LowPivot < ArrayValue.get(ArrayType.size() - 1)
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                    Correct_LowPivot := LowValue
+                    Correct_LowPivot
+                else
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                Correct_HighPivot := HighValue
+                Correct_HighPivot
+            else if ArrayType.get(ArrayType.size() - 1) == 'H' or ArrayType.get(ArrayType.size() - 1) == 'HH'
+                if HighPivot > ArrayValue.get(ArrayType.size() - 1)
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                    Correct_HighPivot := HighValue
+                    Correct_HighPivot
+                else
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                Correct_LowPivot := LowValue
+                Correct_LowPivot
+            else if ArrayType.get(ArrayType.size() - 1) == 'LH'
+                if HighPivot < ArrayValue.get(ArrayType.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                    Correct_LowPivot := LowValue
+                    Correct_LowPivot
+                else if HighPivot > ArrayValue.get(ArrayType.size() - 1)
+                    if close < ArrayValue.get(ArrayType.size() - 1)
+                        array.remove(ArrayType, ArrayType.size() - 1)
+                        array.remove(ArrayValue, ArrayValue.size() - 1)
+                        array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                        array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                        array.push(ArrayValue, HighValue)
+                        array.push(ArrayIndex, HighIndex)
+                        Correct_HighPivot := HighValue
+                        Correct_HighPivot
+                    else if close > ArrayValue.get(ArrayType.size() - 1)
+                        array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                        array.push(ArrayValue, LowValue)
+                        array.push(ArrayIndex, LowIndex)
+                        Correct_LowPivot := LowValue
+                        Correct_LowPivot
+            else if ArrayType.get(ArrayType.size() - 1) == 'HL'
+                if LowPivot > ArrayValue.get(ArrayType.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                    Correct_HighPivot := HighValue
+                    Correct_HighPivot
+                else if LowPivot < ArrayValue.get(ArrayType.size() - 1)
+                    if close > ArrayValue.get(ArrayType.size() - 1)
+                        array.remove(ArrayType, ArrayType.size() - 1)
+                        array.remove(ArrayValue, ArrayValue.size() - 1)
+                        array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                        array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                        array.push(ArrayValue, LowValue)
+                        array.push(ArrayIndex, LowIndex)
+                        Correct_LowPivot := LowValue
+                        Correct_LowPivot
+                    else if close < ArrayValue.get(ArrayType.size() - 1)
+                        array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                        array.push(ArrayValue, HighValue)
+                        array.push(ArrayIndex, HighIndex)
+                        Correct_HighPivot := HighValue
+                        Correct_HighPivot
+    else if bool(HighPivot)
+        if ArrayType.size() == 0
+            array.insert(ArrayType, 0, 'H')
+            array.insert(ArrayValue, 0, HighValue)
+            array.insert(ArrayIndex, 0, HighIndex)
+            Correct_HighPivot := HighValue
+            Correct_HighPivot
+        else if ArrayType.size() >= 1
+            if ArrayType.get(ArrayType.size() - 1) == 'L' or ArrayType.get(ArrayType.size() - 1) == 'HL' or ArrayType.get(ArrayType.size() - 1) == 'LL'
+                if HighPivot > ArrayValue.get(ArrayType.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                    Correct_HighPivot := HighValue
+                    Correct_HighPivot
+                else if HighPivot < ArrayValue.get(ArrayType.size() - 1)
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                    Correct_LowPivot := LowValue
+                    Correct_LowPivot
+            else if ArrayType.get(ArrayType.size() - 1) == 'H' or ArrayType.get(ArrayType.size() - 1) == 'HH' or ArrayType.get(ArrayType.size() - 1) == 'LH'
+                if ArrayValue.get(ArrayValue.size() - 1) < HighValue
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                    Correct_HighPivot := HighValue
+                    Correct_HighPivot
+    else if bool(LowPivot)
+        if ArrayType.size() == 0
+            array.insert(ArrayType, 0, 'L')
+            array.insert(ArrayValue, 0, LowValue)
+            array.insert(ArrayIndex, 0, LowIndex)
+            Correct_LowPivot := LowValue
+            Correct_LowPivot
+        else if ArrayType.size() >= 1
+            if ArrayType.get(ArrayType.size() - 1) == 'H' or ArrayType.get(ArrayType.size() - 1) == 'HH' or ArrayType.get(ArrayType.size() - 1) == 'LH'
+                if LowPivot < ArrayValue.get(ArrayType.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                    Correct_LowPivot := LowValue
+                    Correct_LowPivot
+                else if LowPivot > ArrayValue.get(ArrayType.size() - 1)
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < HighValue ? 'HH' : 'LH' : 'H') ///////////////////////////////Here
+                    array.push(ArrayValue, HighValue)
+                    array.push(ArrayIndex, HighIndex)
+                    Correct_HighPivot := HighValue
+                    Correct_HighPivot
+            else if ArrayType.get(ArrayType.size() - 1) == 'L' or ArrayType.get(ArrayType.size() - 1) == 'HL' or ArrayType.get(ArrayType.size() - 1) == 'LL'
+                if ArrayValue.get(ArrayValue.size() - 1) > LowValue
+                    array.remove(ArrayType, ArrayType.size() - 1)
+                    array.remove(ArrayValue, ArrayValue.size() - 1)
+                    array.remove(ArrayIndex, ArrayIndex.size() - 1)
+                    array.push(ArrayType, ArrayType.size() > 2 ? ArrayValue.get(ArrayType.size() - 2) < LowValue ? 'HL' : 'LL' : 'L') ///////////////////////////////Here
+                    array.push(ArrayValue, LowValue)
+                    array.push(ArrayIndex, LowIndex)
+                    Correct_LowPivot := LowValue
+                    Correct_LowPivot
+
+
+
+    //Major Levels
+    var float Major_HighLevel = na
+    var float Major_LowLevel = na
+
+    var int Major_HighIndex = na
+    var int Major_LowIndex = na
+
+    var string Major_HighType = na
+    var string Major_LowType = na
+
+    //Minor Levels
+    var float Minor_HighLevel = na
+    var float Minor_LowLevel = na
+
+    var int Minor_HighIndex = na
+    var int Minor_LowIndex = na
+
+    var string Minor_HighType = na
+    var string Minor_LowType = na
+
+
+    //first Major & Minor Detector
+    if ArrayType.size() == 2
+        if ArrayType.get(0) == 'H'
+            Major_HighLevel := ArrayValue.get(0)
+            Major_LowLevel := ArrayValue.get(1)
+            Major_HighIndex := ArrayIndex.get(0)
+            Major_LowIndex := ArrayIndex.get(1)
+            Major_HighType := ArrayType.get(0)
+            Major_LowType := ArrayType.get(1)
+            Major_LowType
+        else if ArrayType.get(0) == 'L'
+            Major_HighLevel := ArrayValue.get(1)
+            Major_LowLevel := ArrayValue.get(0)
+            Major_HighIndex := ArrayIndex.get(1)
+            Major_LowIndex := ArrayIndex.get(0)
+            Major_HighType := ArrayType.get(1)
+            Major_LowType := ArrayType.get(0)
+            Major_LowType
+
+    //Making Copies of Arrays
+    var bool Lock0 = true
+    var bool Lock1 = true
+
+    if ArrayValue.size() == 1
+        if Lock0
+            array.insert(ArrayTypeAdv, 0, 'M' + ArrayType.get(0))
+            array.insert(ArrayValueAdv, 0, ArrayValue.get(0))
+            array.insert(ArrayIndexAdv, 0, ArrayIndex.get(0))
+            Lock0 := false
+            Lock0
+
+    if ArrayValue.size() == 2
+        if Lock1
+            array.insert(ArrayTypeAdv, 1, 'M' + ArrayType.get(1))
+            array.insert(ArrayValueAdv, 1, ArrayValue.get(1))
+            array.insert(ArrayIndexAdv, 1, ArrayIndex.get(1))
+            Lock1 := false
+            Lock1
+
+    if ArrayValue.size() > 1
+        if ArrayValue.get(ArrayValue.size() - 1)[1] != ArrayValue.get(ArrayValue.size() - 1)
+            if str.substring(ArrayType.get(ArrayType.size() - 1)[1], str.length(ArrayType.get(ArrayType.size() - 1)) - 1) != str.substring(ArrayType.get(ArrayType.size() - 1), str.length(ArrayType.get(ArrayType.size() - 1)) - 1)
+                array.push(ArrayTypeAdv, 'm' + ArrayType.get(ArrayType.size() - 1))
+                array.push(ArrayValueAdv, ArrayValue.get(ArrayValue.size() - 1))
+                array.push(ArrayIndexAdv, ArrayIndex.get(ArrayIndex.size() - 1))
+            else if str.substring(ArrayType.get(ArrayType.size() - 1)[1], str.length(ArrayType.get(ArrayType.size() - 1)) - 1) == str.substring(ArrayType.get(ArrayType.size() - 1), str.length(ArrayType.get(ArrayType.size() - 1)) - 1)
+                array.remove(ArrayValueAdv, ArrayValueAdv.size() - 1)
+                array.remove(ArrayIndexAdv, ArrayIndexAdv.size() - 1)
+                array.push(ArrayValueAdv, ArrayValue.get(ArrayValue.size() - 1))
+                array.push(ArrayIndexAdv, ArrayIndex.get(ArrayIndex.size() - 1))
+
+    //All Major & Minor Pivot Detector 
+
+    if ArrayValueAdv.size() > 1
+        //High Major Detector
+        if close > Major_HighLevel
+            if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('ML')
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLH' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHH' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MLH' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MHH'
+                if ArrayTypeAdv.get(ArrayTypeAdv.size() - 2) == 'mHL'
+                    ArrayTypeAdv.remove(ArrayTypeAdv.size() - 2)
+                    ArrayTypeAdv.insert(ArrayValueAdv.size() - 2, 'M' + ArrayType.get(ArrayType.size() - 2))
+                    Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 2)
+                    Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 2)
+                    Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 2)
+                    Major_LowType
+                else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 2) == 'mLL'
+                    ArrayTypeAdv.remove(ArrayTypeAdv.size() - 2)
+                    ArrayTypeAdv.insert(ArrayValueAdv.size() - 2, 'M' + ArrayType.get(ArrayType.size() - 2))
+                    Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 2)
+                    Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 2)
+                    Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 2)
+                    Major_LowType
+
+        if ArrayValueAdv.get(ArrayValueAdv.size() - 1) > Major_HighLevel
+            if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('MH')
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHH' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MHH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+
+        //Low Major Detector
+        if close < Major_LowLevel
+            if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('MH')
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHH'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_HighType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHL' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLL' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MHL' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MLL'
+                if ArrayTypeAdv.get(ArrayTypeAdv.size() - 2) == 'mLH'
+                    ArrayTypeAdv.remove(ArrayTypeAdv.size() - 2)
+                    ArrayTypeAdv.insert(ArrayValueAdv.size() - 2, 'M' + ArrayType.get(ArrayType.size() - 2))
+                    Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 2)
+                    Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 2)
+                    Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 2)
+                    Major_HighType
+                else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 2) == 'mHH'
+                    ArrayTypeAdv.remove(ArrayTypeAdv.size() - 2)
+                    ArrayTypeAdv.insert(ArrayValueAdv.size() - 2, 'M' + ArrayType.get(ArrayType.size() - 2))
+                    Major_HighLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 2)
+                    Major_HighIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 2)
+                    Major_HighType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 2)
+                    Major_HighType
+
+        if ArrayValueAdv.get(ArrayValueAdv.size() - 1) < Major_LowLevel
+            if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('ML')
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mHL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+            else if ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'mLL' or ArrayTypeAdv.get(ArrayTypeAdv.size() - 1) == 'MLL'
+                ArrayTypeAdv.remove(ArrayTypeAdv.size() - 1)
+                ArrayTypeAdv.push('M' + ArrayType.get(ArrayType.size() - 1))
+                Major_LowLevel := ArrayValueAdv.get(ArrayValueAdv.size() - 1)
+                Major_LowIndex := ArrayIndexAdv.get(ArrayIndexAdv.size() - 1)
+                Major_LowType := ArrayTypeAdv.get(ArrayTypeAdv.size() - 1)
+                Major_LowType
+    [ArrayTypeAdv, ArrayValueAdv, ArrayIndexAdv]
+
+Pointer(x_0, y_0, t_0, Type) =>
+    var int   X_0 = 0   , var int   X_1 = 0
+    var float Y_0 = 0.0 , var float Y_1 = 0.0
+    if t_0 != t_0[1]
+        if t_0 == Type 
+            if  X_0 == 0
+                X_0 := x_0
+                Y_0 := y_0
+            else
+                if  X_1 == 0
+                    X_1 := x_0
+                    Y_1 := y_0
+                else
+                    X_0 := X_1
+                    Y_0 := Y_1
+                    X_1 := x_0
+                    Y_1 := y_0
+    [X_0, Y_0, X_1, Y_1]
+
+Correction_Checker(X_0, Y_0, X_1, Y_1, TrendLine_Type, Show_Line, Delete_Pre, Color, Style, Extend, Width) =>
+    var line Line_Origin   = na
+    var line Line_Sub      = na
+    var bool Permit        = true
+    var bool Permit_set    = true
+    var bool Alert_Break   = false
+    var bool Alert_React   = false
+    if  (X_0 != 0 and X_1 != 0) and (X_0 != X_0[1])
+        if TrendLine_Type == 'Up' ? (Y_1 > Y_0) : (Y_1 < Y_0)
+            Line_Sub := line.new(X_0, Y_0, X_1, Y_1, color = na)
+        for i = 1 to (bar_index - X_0)
+            Permit := TrendLine_Type == 'Up' ? close[bar_index - X_0 - i] > line.get_price(Line_Sub, (X_0 + i)) and Permit ? true :  false :
+             close[bar_index - X_0 - i] < line.get_price(Line_Sub, (X_0 + i)) and Permit ? true :  false
+        if Permit
+            if Show_Line
+                Line_Origin := line.new(X_0, Y_0, X_1, Y_1, color = Color, style = Style, extend = Extend, width = Width)
+            line.delete(Line_Sub)
+            if Delete_Pre
+                line.delete(Line_Origin[1])
+            Permit_set := true
+        else
+            line.delete(Line_Sub)
+        if X_0 != X_0[1]
+            Permit := true
+    if  TrendLine_Type == 'Up' ? close > line.get_price(Line_Origin, bar_index) and Permit_set : close < line.get_price(Line_Origin, bar_index) and Permit_set
+        line.set_xy2(Line_Origin, bar_index + 1, line.get_price(Line_Origin, bar_index + 1))
+    else
+        Permit_set := false
+
+    Alert_Break := barstate.isconfirmed and Permit_set[1] and not Permit_set ? true : false
+    Alert_React := TrendLine_Type == 'Up' and close > line.get_price(Line_Origin, bar_index) and low < line.get_price(Line_Origin, bar_index) and barstate.isconfirmed and Permit_set  ? true : false or 
+     TrendLine_Type == 'Down' and  close < line.get_price(Line_Origin, bar_index) and high > line.get_price(Line_Origin, bar_index) and barstate.isconfirmed and Permit_set ?
+     true : false
+     
+    [Alert_Break ,Alert_React]
+
+
+
+[Type, Value, Index] = ZZ(PP)
+if Type.size() > 2 
+    x_0 := Index.get(Type.size() - 1)
+    y_0 := Value.get(Type.size() - 1)
+    t_0 := Type.get(Type.size()  - 1)
+
+[MHL_x0, MHL_y0, MHL_x1, MHL_y1] = Pointer(x_0, y_0, t_0, 'MHL')
+[MLH_x0, MLH_y0, MLH_x1, MLH_y1] = Pointer(x_0, y_0, t_0, 'MLH')
+[MHH_x0, MHH_y0, MHH_x1, MHH_y1] = Pointer(x_0, y_0, t_0, 'MHH')
+[MLL_x0, MLL_y0, MLL_x1, MLL_y1] = Pointer(x_0, y_0, t_0, 'MLL')
+[mHL_x0, mHL_y0, mHL_x1, mHL_y1] = Pointer(x_0, y_0, t_0, 'mHL')
+[mLH_x0, mLH_y0, mLH_x1, mLH_y1] = Pointer(x_0, y_0, t_0, 'mLH')
+[mHH_x0, mHH_y0, mHH_x1, mHH_y1] = Pointer(x_0, y_0, t_0, 'mHH')
+[mLL_x0, mLL_y0, mLL_x1, mLL_y1] = Pointer(x_0, y_0, t_0, 'mLL')
+
+[Alert_Break_MjExUp ,Alert_React_MjExUp]     = Correction_Checker(MLL_x0, MLL_y0, MLL_x1, MLL_y1, 'Up',Show_MjExUp, Delete_Pre_MjExUp, Color_MjExUp, Style_MjExUp, Extend_MjExUp, Width_MjExUp)
+[Alert_Break_MjExDown ,Alert_React_MjExDown] = Correction_Checker(MHH_x0, MHH_y0, MHH_x1, MHH_y1, 'Down',Show_MjExDown, Delete_Pre_MjExDown, Color_MjExDown, Style_MjExDown, Extend_MjExDown, Width_MjExDown)
+[Alert_Break_MjInUp ,Alert_React_MjInUp]     = Correction_Checker(MHL_x0, MHL_y0, MHL_x1, MHL_y1, 'Up',Show_MjInUp, Delete_Pre_MjInUp, Color_MjInUp, Style_MjInUp, Extend_MjInUp, Width_MjInUp)
+[Alert_Break_MjInDown ,Alert_React_MjInDown] = Correction_Checker(MLH_x0, MLH_y0, MLH_x1, MLH_y1, 'Down',Show_MjInDown, Delete_Pre_MjInDown, Color_MjInDown, Style_MjInDown, Extend_MjInDown, Width_MjInDown)
+
+[Alert_Break_MnExUp ,Alert_React_MnExUp]     = Correction_Checker(mLL_x0, mLL_y0, mLL_x1, mLL_y1, 'Up',Show_MnExUp, Delete_Pre_MnExUp, Color_MnExUp, Style_MnExUp, Extend_MnExUp, Width_MnExUp)
+[Alert_Break_MnExDown ,Alert_React_MnExDown] = Correction_Checker(mHH_x0, mHH_y0, mHH_x1, mHH_y1, 'Down',Show_MnExDown, Delete_Pre_MnExDown, Color_MnExDown, Style_MnExDown, Extend_MnExDown, Width_MnExDown)
+[Alert_Break_MnInUp ,Alert_React_MnInUp]     = Correction_Checker(mHL_x0, mHL_y0, mHL_x1, mHL_y1, 'Up',Show_MnInUp, Delete_Pre_MnInUp, Color_MnInUp, Style_MnInUp, Extend_MnInUp, Width_MnInUp)
+[Alert_Break_MnInDown ,Alert_React_MnInDown] = Correction_Checker(mLH_x0, mLH_y0, mLH_x1, mLH_y1, 'Down',Show_MnInDown, Delete_Pre_MnInDown, Color_MnInDown, Style_MnInDown, Extend_MnInDown, Width_MnInDown)
+
+
+AlertSender.AlertSender(Alert_Break_MjExUp  , Alert_MjExUp_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Major External Up TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MjExUp  , Alert_MjExUp_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Major External Up TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MjExDown  , Alert_MjExDown_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Major External Down TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MjExDown  , Alert_MjExDown_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Major External Down TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MjInUp  , Alert_MjInUp_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Major Internal Up TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MjInUp  , Alert_MjInUp_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Major Internal Up TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MjInDown  , Alert_MjInDown_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Major Internal Down TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MjInDown  , Alert_MjInDown_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Major Internal Down TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MnExUp  , Alert_MnExUp_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Minor External Up TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MnExUp  , Alert_MnExUp_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Minor External Up TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MnExDown  , Alert_MnExDown_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Minor External Down TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MnExDown  , Alert_MnExDown_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Minor External Down TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MnInUp  , Alert_MnInUp_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Minor Internal Up TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MnInUp  , Alert_MnInUp_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Minor Internal Up TrendLine', open, high, low, close,0,0,0,0,0)
+
+AlertSender.AlertSender(Alert_Break_MnInDown  , Alert_MnInDown_B, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'Break Minor Internal Down TrendLine', open, high, low, close,0,0,0,0,0)
+AlertSender.AlertSender(Alert_React_MnInDown  , Alert_MnInDown_R, AlertName , 'Analysis', '', 'Basic' ,Frequncy, UTC, 'Off', 'React Minor Internal Down TrendLine', open, high, low, close,0,0,0,0,0)
+
+
+plotshape(Alert_Break_MjExUp  , 'Break Major External Up TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+plotshape(Alert_React_MjExUp  , 'React Major External Up TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+
+plotshape(Alert_Break_MjExDown, 'Break Major External Down TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+plotshape(Alert_React_MjExDown, 'React Major External Down TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+
+plotshape(Alert_Break_MjInUp  , 'Break Major Internal Up TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+plotshape(Alert_React_MjInUp  , 'React Major Internal Up TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+
+plotshape(Alert_Break_MjInDown, 'Break Major Internal Down TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+plotshape(Alert_React_MjInDown, 'React Major Internal Down TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+
+plotshape(Alert_Break_MnExUp  , 'Break Minor External Up TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+plotshape(Alert_React_MnExUp  , 'React Minor External Up TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+
+plotshape(Alert_Break_MnExDown, 'Break Minor External Down TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+plotshape(Alert_React_MnExDown, 'React Minor External Down TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+
+plotshape(Alert_Break_MnInUp  , 'Break Minor Internal Up TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)
+plotshape(Alert_React_MnInUp  , 'React Minor Internal Up TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+
+plotshape(Alert_Break_MnInDown, 'Break Minor Internal Down TrendLine',  shape.triangleup  , location.belowbar, color.green, size = size.tiny)
+plotshape(Alert_React_MnInDown, 'React Minor Internal Down TrendLine',  shape.triangledown, location.abovebar, color.red, size = size.tiny)

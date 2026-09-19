@@ -1,0 +1,137 @@
+{
+ "capturedAt": "2026-09-09T08:21:35.324Z",
+ "symbol": {
+  "name": "SPY",
+  "full_name": "AMEX:SPY",
+  "description": "State Street SPDR S&P 500 ETF",
+  "exchange": "NYSE Arca",
+  "type": "fund",
+  "pricescale": 100,
+  "timezone": "America/New_York",
+  "session": "0930-1600"
+ },
+ "resolution": "240",
+ "barCount": 300,
+ "barRange": {
+  "firstIndex": 0,
+  "lastIndex": 299,
+  "firstTime": 1770129000,
+  "lastTime": 1788888600
+ },
+ "layout": {
+  "url": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "title": "SPY 765.96 \u25bc \u22120.55% UCT Vendor Capture - CMF-ADL-PVT TEMP"
+ },
+ "chartTheme": {
+  "background": "rgba(255, 255, 255, 1)",
+  "vertGridColor": "rgba(46, 46, 46, 0.06)",
+  "horzGridColor": "rgba(46, 46, 46, 0.06)"
+ },
+ "mainSeriesStyle": {
+  "upColor": "#089981",
+  "downColor": "#F23645"
+ },
+ "study": {
+  "id": "Volume@tv-basicstudies",
+  "title": "Vol (false)",
+  "description": "Volume",
+  "plots": [
+   {
+    "id": "vol",
+    "type": "line",
+    "target": null
+   },
+   {
+    "id": "vol_color",
+    "type": "colorer",
+    "target": "vol"
+   },
+   {
+    "id": "vol_ma",
+    "type": "line",
+    "target": null
+   }
+  ],
+  "styles": {
+   "vol": {
+    "histogramBase": 0,
+    "title": "Volume"
+   },
+   "vol_ma": {
+    "histogramBase": 0,
+    "title": "Volume MA"
+   }
+  },
+  "properties": {
+   "inputs": {
+    "col_prev_close": false,
+    "length": 20
+   },
+   "styles": {
+    "vol": {
+     "display": 4294967295,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 5,
+     "trackPrice": false,
+     "transparency": 50,
+     "visible": true,
+     "color": "#2962ff",
+     "title": "vol"
+    },
+    "vol_ma": {
+     "color": "#2962ff",
+     "display": 0,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 0,
+     "trackPrice": false,
+     "transparency": 0,
+     "visible": false,
+     "title": "vol_ma"
+    }
+   },
+   "visible": true,
+   "showLegendValues": true,
+   "showLegendInputs": true,
+   "showLabelsOnPriceScale": true,
+   "precision": "default",
+   "intervalsVisibilities": {
+    "ticks": true,
+    "seconds": true,
+    "secondsFrom": 1,
+    "secondsTo": 59,
+    "minutes": true,
+    "minutesFrom": 1,
+    "minutesTo": 59,
+    "hours": true,
+    "hoursFrom": 1,
+    "hoursTo": 24,
+    "days": true,
+    "daysFrom": 1,
+    "daysTo": 366,
+    "weeks": true,
+    "weeksFrom": 1,
+    "weeksTo": 52,
+    "months": true,
+    "monthsFrom": 1,
+    "monthsTo": 12,
+    "ranges": true
+   },
+   "version": 55
+  }
+ },
+ "note": "vol_color is a colorer palette index: 0 = up bar (close >= open), 1 = down bar. Measured, not assumed.",
+ "transport": "staged textarea + real ctrl+c gesture, hash-verified on the shell side",
+ "barGaps": {
+  "measured": "five distinct intervals between consecutive bars in this 300-bar window",
+  "seconds": {
+   "14400": 150,
+   "72000": 118,
+   "241200": 1,
+   "244800": 24,
+   "331200": 6
+  },
+  "reading": "14400 = the 4h step within a session; 72000 = the overnight gap; 244800 = a weekend; 331200 = a long holiday weekend; 241200 = a weekend exactly one hour short of the others, i.e. a DST transition. This is why set D exists: a renderer that treats bar index as proportional to time breaks on all four of the non-step gaps."
+ }
+}

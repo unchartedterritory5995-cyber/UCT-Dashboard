@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;HmUxm6bIQCu6ebWFLqoolTU6yX7Y74S2",
+ "title": "Delta Volume Columns [LucF]",
+ "author": "LucF",
+ "url": "https://www.tradingview.com/script/YFBNr8I6-delta-volume-columns-lucf/",
+ "agreeCount": 2043,
+ "category": "order flow",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/delta-volume-columns-lucf__HmUxm6bIQC.pine",
+ "our_status": "reference-only"
+}

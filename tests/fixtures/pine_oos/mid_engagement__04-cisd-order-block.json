@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "04-cisd-order-block.pine",
+  "title": "CISD Order Block+ (M1D)",
+  "author": "mayb1dayy",
+  "source_url": "https://www.tradingview.com/script/fKX9evIH-CISD-Order-Block-M1D/",
+  "retrieved_at": "2026-09-07T09:45:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"2 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 403,
+  "complexity_bucket": "long",
+  "sha256_source": "7d7a01a9952724ec14e35735cbb8f481814fb8e9984dc123b26c0cf46623f4ea",
+  "sha256_normalized": "1815e4360c0918f3e0b531cfa43ed659890475a285b40640d96fbcecb37b26e0",
+  "storage": "local-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3LM5J3rc0Oe1e4oNoKrXfCya9tVoaca4",
+ "title": "Money Flow Index",
+ "author": "everget",
+ "url": "https://www.tradingview.com/script/hYmRLirx-money-flow-index/",
+ "agreeCount": 4062,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/money-flow-index__3LM5J3rc0O.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,1500 @@
+{
+  "schemaVersion": 1,
+  "id": "u_c2d900000004",
+  "version": 1,
+  "compute": {
+    "kind": "ast",
+    "fn": "sha256:dce8efd7442ab9927a35f53092ce5a2ce5862fcbe24e09bc6185cf6781a68f05",
+    "rev": 1,
+    "treesHash": "sha256:a8171b5b4abf7aeab8a16750b1ee5f1a3071f8159a3c0b616f53cf26178fec9c",
+    "scanPlot": "value",
+    "graph": {
+      "graphVersion": 2,
+      "nodes": [
+        {
+          "type": "series",
+          "name": "lv3"
+        },
+        {
+          "type": "num",
+          "value": 0
+        },
+        {
+          "type": "num",
+          "value": 100
+        },
+        {
+          "type": "num",
+          "value": 60
+        },
+        {
+          "type": "num",
+          "value": 14
+        },
+        {
+          "type": "series",
+          "name": "bullFloor"
+        },
+        {
+          "type": "series",
+          "name": "lv4"
+        },
+        {
+          "type": "series",
+          "name": "bearCeil"
+        },
+        {
+          "type": "series",
+          "name": "low"
+        },
+        {
+          "type": "series",
+          "name": "lv2"
+        },
+        {
+          "type": "series",
+          "name": "regTol"
+        },
+        {
+          "type": "series",
+          "name": "lv1"
+        },
+        {
+          "type": "series",
+          "name": "lv5"
+        },
+        {
+          "type": "series",
+          "name": "showTest"
+        },
+        {
+          "type": "num",
+          "value": 99
+        },
+        {
+          "type": "num",
+          "value": 1
+        },
+        {
+          "type": "series",
+          "name": "high"
+        },
+        {
+          "type": "series",
+          "name": "close"
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            14,
+            12
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            5,
+            10
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            17
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            14,
+            6
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            14,
+            0
+          ]
+        },
+        {
+          "type": "call",
+          "name": "change",
+          "args": [
+            17
+          ]
+        },
+        {
+          "type": "op",
+          "name": "u-",
+          "args": [
+            15
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            7,
+            10
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            14,
+            9
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            4,
+            15
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            14,
+            11
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            23,
+            1
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            15,
+            28
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            23,
+            1
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            15,
+            18
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            15,
+            26
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            15,
+            22
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            15,
+            21
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            33
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            32
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            30
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            35
+          ]
+        },
+        {
+          "type": "op",
+          "name": "u-",
+          "args": [
+            31
+          ]
+        },
+        {
+          "type": "call",
+          "name": "rma",
+          "args": [
+            29,
+            4
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            34
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            34,
+            42
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            35,
+            39
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            30,
+            38
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            41,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            32,
+            37
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            33,
+            36
+          ]
+        },
+        {
+          "type": "call",
+          "name": "rma",
+          "args": [
+            40,
+            4
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            43,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            45,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            45
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            48,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            47,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            49,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            47,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            44,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            48
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            44
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            45,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            43,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            44,
+            49
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            47
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            48,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            41,
+            43
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            53,
+            41
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            49,
+            66
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            49,
+            52
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            49,
+            59
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            50,
+            41
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            63,
+            41
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
+            41
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            49,
+            64
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            15,
+            60
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            51,
+            41
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            49,
+            58
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            71
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            72
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            69
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            68
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            70
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            77
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            73
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            2,
+            75
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            74
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            67
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            27,
+            76
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            84,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            62,
+            81,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            65,
+            83,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            61,
+            80,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            79,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            2,
+            85
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            78,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            54,
+            86,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            57,
+            82,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            87,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            88,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            46,
+            1,
+            94
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            95,
+            78,
+            90
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            93,
+            79,
+            97
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            89,
+            84,
+            96
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            99,
+            88,
+            92
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            98,
+            87,
+            91
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            103
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            101
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            105
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            104
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            55,
+            2,
+            100
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            102
+          ]
+        },
+        {
+          "type": "call",
+          "name": "lowest",
+          "args": [
+            110,
+            3
+          ]
+        },
+        {
+          "type": "call",
+          "name": "highest",
+          "args": [
+            110,
+            3
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<=",
+          "args": [
+            113,
+            25
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            112,
+            19
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            115
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            114
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            115,
+            117
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            114,
+            116
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            119,
+            24,
+            1
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            118,
+            15,
+            120
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            121,
+            15
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            121,
+            24
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            123,
+            111,
+            106
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            122,
+            108,
+            109
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            124
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            125
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            126
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            17,
+            127
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<=",
+          "args": [
+            8,
+            127
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            20,
+            126
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            127
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            17,
+            126
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            20,
+            127
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            16,
+            126
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            132
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            128
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            136,
+            130
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            137,
+            135
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            138,
+            129
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            139,
+            133
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            140,
+            134
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            141,
+            131
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            13,
+            143
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            13,
+            142
+          ]
+        }
+      ],
+      "outputRoots": {
+        "out10": 109,
+        "out11": 108,
+        "out12": 107,
+        "out2": 108,
+        "out3": 107,
+        "out4": 111,
+        "out5": 106,
+        "out6": 145,
+        "out7": 144,
+        "out8": 110,
+        "out9": 121,
+        "value": 109
+      },
+      "parameters": {
+        "__uct_param_1": {
+          "sourceName": "rsiLen",
+          "title": "RSI length",
+          "type": "int",
+          "default": 14,
+          "min": 2,
+          "max": 200,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "node": 4,
+              "path": [
+                "value"
+              ]
+            }
+          ]
+        },
+        "__uct_param_2": {
+          "sourceName": "regLook",
+          "title": "Regime lookback (bars)",
+          "type": "int",
+          "default": 60,
+          "min": 10,
+          "max": 500,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "node": 3,
+              "path": [
+                "value"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "meta": {
+    "name": "mid_engagement__22-rsi-levels-regime-map",
+    "shortName": "mid_engageme",
+    "category": "Custom",
+    "description": "",
+    "tags": [
+      "custom"
+    ],
+    "tier": "premium",
+    "repaint": "repaints",
+    "freshness": "unknown"
+  },
+  "placement": {
+    "target": "pane"
+  },
+  "inputs": [
+    {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Rung 2 — bull support colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Rung 2 — bull support width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Rung 3 — equilibrium colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Rung 3 — equilibrium width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out4Color",
+      "type": "color",
+      "label": "Rung 4 — bear resistance colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out4Width",
+      "type": "int",
+      "label": "Rung 4 — bear resistance width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out5Color",
+      "type": "color",
+      "label": "Rung 5 — overbought colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out5Width",
+      "type": "int",
+      "label": "Rung 5 — overbought width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out6Color",
+      "type": "color",
+      "label": "Support test colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out6Width",
+      "type": "int",
+      "label": "Support test width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out7Color",
+      "type": "color",
+      "label": "Resistance test colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out7Width",
+      "type": "int",
+      "label": "Resistance test width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out8Color",
+      "type": "color",
+      "label": "EXP_RSI colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out8Width",
+      "type": "int",
+      "label": "EXP_RSI width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out9Color",
+      "type": "color",
+      "label": "EXP_Regime colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out9Width",
+      "type": "int",
+      "label": "EXP_Regime width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out10Color",
+      "type": "color",
+      "label": "EXP_L30 colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out10Width",
+      "type": "int",
+      "label": "EXP_L30 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out11Color",
+      "type": "color",
+      "label": "EXP_L40 colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out11Width",
+      "type": "int",
+      "label": "EXP_L40 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out12Color",
+      "type": "color",
+      "label": "EXP_L50 colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out12Width",
+      "type": "int",
+      "label": "EXP_L50 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    }
+  ],
+  "plots": [
+    {
+      "key": "value",
+      "label": "Rung 1 — oversold",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out2",
+      "label": "Rung 2 — bull support",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out3",
+      "label": "Rung 3 — equilibrium",
+      "style": "line",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out4",
+      "label": "Rung 4 — bear resistance",
+      "style": "line",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out5",
+      "label": "Rung 5 — overbought",
+      "style": "line",
+      "color": "$out5Color",
+      "width": "$out5Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out6",
+      "label": "Support test",
+      "style": "line",
+      "color": "$out6Color",
+      "width": "$out6Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out7",
+      "label": "Resistance test",
+      "style": "line",
+      "color": "$out7Color",
+      "width": "$out7Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out8",
+      "label": "EXP_RSI",
+      "style": "line",
+      "color": "$out8Color",
+      "width": "$out8Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out9",
+      "label": "EXP_Regime",
+      "style": "line",
+      "color": "$out9Color",
+      "width": "$out9Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out10",
+      "label": "EXP_L30",
+      "style": "line",
+      "color": "$out10Color",
+      "width": "$out10Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out11",
+      "label": "EXP_L40",
+      "style": "line",
+      "color": "$out11Color",
+      "width": "$out11Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out12",
+      "label": "EXP_L50",
+      "style": "line",
+      "color": "$out12Color",
+      "width": "$out12Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    }
+  ]
+}

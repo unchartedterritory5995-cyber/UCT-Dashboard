@@ -994,14 +994,28 @@ def _fetch_earnings(sym: str) -> list[dict]:
     return _earnings_evidence(get_earnings_ai_evidence(sym) or {})
 
 
-# ⛔ ONE BINDING. There used to be a forward declaration ~70 lines above --
-# `_DOMAIN_FETCHERS: dict[str, tuple] = {}`, commented "populated below
-# _build_evidence to avoid import cycles" -- which this line then rebound.
-# Nothing referenced the placeholder in between, the import-cycle rationale did
-# not apply (every fetcher does its imports lazily inside its own body), and its
-# annotation said `tuple` while the real values are callables. So the file
-# carried two authorities for one name, the first of which was dead AND
-# misdescribed the second. `tests/test_no_shadowed_definitions.py` is the rail.
+#: domain -> the fetcher that composes its evidence.
+#:
+#: ⚰️ THIS NAME WAS BOUND TWICE (removed 2026-09-11). An empty
+#: ``_DOMAIN_FETCHERS: dict[str, tuple] = {}`` sat ~70 lines above, commented
+#: *"populated below _build_evidence to avoid import cycles"* — but nothing ever
+#: populated it: this line REBINDS the name outright, so the placeholder was dead
+#: from the day it was written. Python keeps the LAST binding, so the module
+#: worked; what did not work was the artifact an engineer reads.
+#:
+#: ⛔ AND IT WAS ACTIVELY MISLEADING IN TWO WAYS. Its annotation said the values
+#: are ``tuple``; they are functions. And a reader who believed the comment would
+#: add a fetcher with ``_DOMAIN_FETCHERS["x"] = ...`` ABOVE this line — where it
+#: would be silently discarded by the rebind, with the domain simply never
+#: fetching. ⭐ The cycle avoidance is real but it is done by the LOCAL imports
+#: inside each ``_fetch_*``, not by any placeholder.
+#:
+#: ⛔ THE RAIL IS ``tests/test_no_shadowed_definitions.py`` — an AST sweep for a
+#: top-level name bound twice, whole-repo. (Merge 2026-09-13: master had deleted
+#: the same binding independently and written its own note. The CODE below was
+#: byte-identical on both sides; two comments explaining one deletion would be
+#: the very second-authority defect the deletion fixed, so master's note is not
+#: kept beside this one — only the rail's name it carried, here.)
 _DOMAIN_FETCHERS = {
     "news": _fetch_news,
     "analyst": _fetch_analyst,

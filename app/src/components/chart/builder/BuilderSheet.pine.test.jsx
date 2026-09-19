@@ -23,6 +23,7 @@ import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
+import { FOLD_NOTES } from '../engine/ast/parse'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
@@ -277,13 +278,77 @@ describe('a script this engine cannot run says so, at its own token', () => {
     expect(screen.getByTestId('readback').textContent).toBe(down.readback)
   })
 
+  // ⚰⚰ BOTH CASES BELOW USED `request.security(syminfo.tickerid, "D", close)`, AND BOTH
+  // WENT GREEN-TO-RED WHEN RULING 3.5 LANDED (2026-09-12) WITHOUT ANYBODY FLIPPING THEM.
+  // 3.5 recognises a literal naming the BASE period as the base rather than as a resample
+  // of it, so on this lane's daily base that call is the IDENTITY and folds to bare
+  // `close`: it translates, Use enables, the formula box fills. The refusal these two
+  // were written around is still real on a timeframe that is not the base, so the
+  // specimen moves to `"60"` and the fold gets a case of its own below.
+  // ⛔ THE LESSON IS THE TIMING, NOT THE SCRIPT. A ruling that turns a refusal into a
+  // fold owes its red tests the same re-freeze as a corpus number, in the commit that
+  // lands it — these sat red across four commits because this file was not run.
   it('a refused script cannot reach the formula box at all', async () => {
     mount()
     await flush()
-    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "D", close))\n')
+    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "60", close))\n')
     expect(screen.getByTestId('pine-use').disabled).toBe(true)
     fireEvent.click(tab(/formula/i))
     expect(formulaField().value).toBe('')
+  })
+
+  it('⭐ the BASE period is no refusal — ruling 3.5 folds it to the chart’s own series', async () => {
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "D", close))\n')
+    // ⭐ NO REFUSAL, AND THE FORMULA IS THE CHILD UNWRAPPED — not `tf(close, 'D')`, which
+    // reads the last CLOSED day and would answer yesterday. That distinction is the whole
+    // of 3.5, asserted at the door a member actually uses rather than only in the unit.
+    expect(screen.queryByTestId('pine-refusal')).toBe(null)
+    expect(screen.getByTestId('pine-formula-0').textContent).toBe('close')
+    expect(screen.getByTestId('pine-use').disabled).toBe(false)
+
+    // ⭐⭐ AND THE MEMBER IS TOLD — owner ruling, 2026-09-12. The fold ERASES the
+    // call, so no tree walk can find it; the disclosure rides the output row and the
+    // SENTENCE is declared once in `closedTable.json::_folds`. This asserts the
+    // rendered text against that declaration rather than against a copy of it, so a
+    // reworded note cannot leave this test agreeing with itself.
+    const notes = screen.getByTestId('pine-vendor-notes').textContent
+    expect(notes).toContain(FOLD_NOTES.baseTimeframeFolds)
+  })
+
+  it('⭐⭐ a hidden helper wears the name its AUTHOR gave it, tagged hidden, never the script title', async () => {
+    // ⛔ RULING 1.2 (owner, 2026-09-12). The script is titled "Band demo"; its first
+    // plot is an untitled `fill()` edge. The row must never borrow that title — that
+    // borrowing is what turned a Supertrend import into `(open+high+low+close)/4`.
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("Band demo")\n'
+      + 'edge = plot(ohlc4, "")\n'
+      + 'band = plot(ta.sma(close, 20), "Band")\n'
+      + 'fill(edge, band)\n')
+
+    const label = screen.getByTestId('pine-hidden-label-0')
+    expect(label.textContent).toContain('edge')
+    expect(label.textContent).not.toContain('Band demo')
+    expect(screen.getByTestId('pine-hidden-tag-0').textContent.trim()).toBe('hidden')
+    // ⭐ and it is SHOWN rather than dropped — a member told nothing about a plot is
+    // the failure this row exists to prevent — with the reason in its own words.
+    expect(screen.getByTestId('pine-output-hidden-0').textContent)
+      .toMatch(/edge of a fill|scaffolding/)
+    // the real column is still the one on offer
+    expect(screen.getByTestId('pine-use').disabled).toBe(false)
+  })
+
+  it('⛔ CONTROL: a script with nothing folded gets no fold note', async () => {
+    // Without this, "the note renders" is satisfied by a component that always
+    // renders it — which would tell every member about a divergence their script
+    // never met.
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("t")\nplot(ta.sma(close, 5))\n')
+    const el = screen.queryByTestId('pine-vendor-notes')
+    expect(el === null || !el.textContent.includes(FOLD_NOTES.baseTimeframeFolds)).toBe(true)
   })
 
   it('one bad plot beside a good one offers the good one and NAMES the bad one', async () => {
@@ -291,7 +356,7 @@ describe('a script this engine cannot run says so, at its own token', () => {
     await flush()
     await paste('//@version=5\nindicator("t")\n'
       + 'plot(ta.sma(close, 5), "Good")\n'
-      + 'plot(request.security(syminfo.tickerid, "D", close), "Bad")\n')
+      + 'plot(request.security(syminfo.tickerid, "60", close), "Bad")\n')
 
     expect(screen.getByTestId('pine-formula-0').textContent).toBe('sma(close, 5)')
     expect(screen.getByTestId('pine-output-refusal-1').getAttribute('data-guard')).toBe('pine:request')

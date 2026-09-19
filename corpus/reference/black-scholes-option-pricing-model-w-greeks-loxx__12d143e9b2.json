@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;12d143e9b2d942babee332077b83ac87",
+ "title": "Black Scholes Option Pricing Model w/ Greeks [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/WobQqSxF-black-scholes-option-pricing-model-w-greeks-loxx/",
+ "agreeCount": 747,
+ "category": "other",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+ "cached_source": "tools/pine_survey/cache/sources/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+ "our_status": "committed"
+}

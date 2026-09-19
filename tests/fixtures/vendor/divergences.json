@@ -5,7 +5,9 @@
     "confirmed": "MEASURED. An observation in `observations/` exhibits this delta and its `explains` names this row. Only a `confirmed` row may explain a delta.",
     "refuted": "MEASURED, AND WE MATCH THE VENDOR AFTER ALL. Kept rather than deleted — a retired suspicion is the cheapest thing to re-suspect, and the next reader deserves to know it was checked. Carries `refutedBy`.",
     "accepted": "CONFIRMED, AND WE ARE KEEPING OUR BEHAVIOUR ON PURPOSE. Requires `decision` — who ruled, when, and why. This is the row type that MUST reach a member: an accepted divergence is a sentence the product owes whoever pasted the script.",
-    "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect."
+    "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect.",
+    "corrected": "MEASURED, WE DIFFERED, AND WE CHANGED OURS TO MATCH THE VENDOR. ⛔⛔ THIS TERM EXISTS BECAUSE THE LEDGER COULD NOT SAY THE MOST COMMON GOOD OUTCOME. It could say `accepted` (we differ and are keeping ours) and `refuted` (we thought we differed and never did) — but a divergence we CLOSED by fixing our own side had nowhere to live, so `rsi-zero-movement-reads-na` was filed `accepted` and two rails correctly refused it: an accepted row owes a member a `vendorNote`, and after a correction there is no difference left to disclose. Forcing it into `accepted` would have made the ledger assert the opposite of what happened. ⭐ KEPT RATHER THAN DELETED, for `refuted`'s reason turned around: the next reader needs to know the old behaviour existed, that it was deliberate, and what argument retired it — otherwise they re-introduce it. Requires `decision` (`ruled` — who and when; `what_changed` — the behaviour now) and `correctedIn` (the commit). ⛔ IT OWES A MEMBER NOTHING, and that is the whole difference from `accepted`: once ours matches the vendor there is no sentence the product owes anybody. A `vendorNote` here would describe a difference that no longer exists.",
+    "open": "⭐ ADDED 2026-09-12 (owner ruling). MEASURED ON BOTH SIDES, CAUSE NOT ESTABLISHED. Deliberately not `suspected` — the numbers are in hand on both sides — and not `confirmed`, which in this vocabulary means an observation EXPLAINS a delta. An `open` row explains nothing: it owes its competing hypotheses and the check that would settle them, and it is a ROUTING state, saying the work was recorded rather than chased. ⛔ Like `suspected` it may never explain a delta in `vendor_truth.py`, for the same reason: a cause nobody has established must not silence a measurement."
   },
   "_probe_rule": "⛔ EVERY ROW CARRIES A `probe` THAT DISCRIMINATES. The probe describes a case whose VALUE DIFFERS under the two conventions, with the two answers named. A row whose probe cannot distinguish the conventions is a description of nothing — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — and `test_vendor_truth.py` refuses a row that does not carry both answers.",
   "rows": [
@@ -55,6 +57,13 @@
         ],
         "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
         "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
+      },
+      "real_vendor_capture_2026_09_06": {
+        "_": "Vendor Parity Tranche 2, Lane A, first batch (RSI+ATR). Does NOT alter `measured` or `decision` above — both remain the original spec-probe-derived evidence, verbatim. This is a SEPARATE, additional confirmation using real captured TradingView data, appended rather than overwritten.",
+        "artifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_rsi_atr_capture_spy.csv (1,328 real SPY Daily bars, 2021-05-24..2026-09-04, full double-precision ta.atr(14)/ta.rsi(close,14) plot values)",
+        "what_it_confirms": "Once past this capture's own seed-convergence lag (empirically measured, last disagreeing bar at index 169 of 1328 — see the observation's `_vendor_parity_warmup_bars_note`), UCT's atr(high,low,close,14) agrees with the real vendor's ta.atr(14) to ~1e-9 relative on 1,148 real, current-market steady-state bars. This directly re-confirms `why_keep_ours`'s 'THE DELTA IS INVISIBLE WHERE IT IS READ' claim with real vendor numbers for the first time (the original 0.23%-decaying-to-4e-12 figures were spec-probe-derived, not vendor-captured).",
+        "what_it_does_not_confirm": "This capture's own window starts in 2021, decades after SPY's real ~1993 inception, so it CANNOT independently re-test the separate ALIGNMENT claim in `what_would_reopen_it` (one fewer emitted value at a symbol's true first-ever bar) — that claim is unchanged, untouched, and not retested here. Also: this capture's early bars (index 14-169) show a much LARGER (~25% relative at bar 14) delta than the adjudicated 0.23%-at-the-seed figure — measured and disclosed as a DIFFERENT effect (this capture's own window-truncation cold-start, confounding the smaller inherent bar-0/TR-definition difference), not a contradiction of the existing ruling. See `docs/superpowers/specs/universal-indicator-ecosystem/VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full decay curve.",
+        "classification": "RULING CONFIRMED (steady-state half) by real vendor runtime; ALIGNMENT half remains UNTESTED by this capture, not reopened."
       }
     },
     {
@@ -78,19 +87,24 @@
     {
       "id": "nan-restarts-the-smoother",
       "shape": "seeded",
-      "status": "suspected",
-      "confidence": "medium",
+      "status": "confirmed",
+      "confidence": "measured",
       "ours": "A non-finite input RESETS the smoother — `prev, count, total = NAN, 0, 0.0` — so the series re-seeds after a hole rather than carrying state across it. The docblock argues this: an EMA that carried state across a hole would report an average over bars it never saw.",
-      "theirs": "UNKNOWN, AND THIS IS THE HONEST ENTRY IN THIS FILE. Pine's `na` handling inside `ta.*` smoothers is not stated precisely enough in the docs to derive, and Pine's own `na`-propagation rules differ between the `ta.` builtins and hand-written recurrences.",
+      "theirs": "MEASURED 2026-09-08, AND THEY HOLD. TradingView keeps the smoother's state UNCHANGED across an `na` source bar: the output is `na` AT that bar and the very next finite bar takes ONE normal step from the pre-hole state. Verified on all four `na` holes of a 400-bar SPY 1D capture, for BOTH ta.ema(.,10) and ta.rma(.,10): the hold prediction reproduces the vendor to 0 or 1.1e-13, and the vendor emits a value on the very next bar where our reset requires a further 9 blank bars before re-seeding.",
       "why_it_matters": "It is reachable from a composed series — `ema(sma(close,20), 9)` has a 19-bar hole by construction, which is the warm-up of the inner window, so EVERY composed smoother in the product meets this rule on its left edge.",
       "code": "api/services/ast_interpret.py:678-680",
       "probe": {
         "case": "EMA(5) over a series with one `na` planted in the middle",
-        "under_ours": "the output is empty for 4 bars after the hole, then restarts from a fresh window SMA",
+        "under_ours": "the output is empty for n-1 bars after the hole, then restarts from a fresh window SMA",
         "under_carry_state": "the output continues on the next finite bar with no gap, from the pre-hole state",
-        "discriminates": "the COUNT of empty bars after the hole differs (4 vs 0), which is countable rather than compared"
+        "discriminates": "the COUNT of empty bars after the hole (9 vs 0 for n=10), which is countable rather than compared -- and then the resumed VALUE, which pins the mechanism rather than just the gap",
+        "under_theirs": "MEASURED: the output is empty for exactly ONE bar (the hole itself) and resumes immediately at the pre-hole state stepped once by the new value"
       },
-      "observation_ids": []
+      "observation_ids": [
+        "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
+      ],
+      "_we_are_wrong": "⛔⛔ THIS IS A SHIPPED-CHART DEFECT, NOT A DESIGN CHOICE. Our smoothers reset on `na`; TradingView holds. It is DELIBERATELY NOT FIXED IN 2F-2C: changing `smoothCol` changes the columnar lane's output on every chart whose source carries a mid-series hole, which is an owner ruling and not a runtime wave's to make unilaterally. The runtime therefore MATCHES THE COLUMNAR LANE (one authority, one divergence, recorded once) rather than matching the vendor while the chart does not. ⚠️ Blast radius is narrower than it looks: before the first finite value there is no state to hold, so a LEFT-EDGE hole (the warm-up of a composed inner window, e.g. `ema(sma(close,20),9)`) answers the same either way. The two rules differ only for a hole AFTER state exists.",
+      "decision_required": "Owner ruling: fix `smoothCol` to hold (vendor-faithful, changes shipped chart output at mid-series holes) or record as `accepted`."
     },
     {
       "id": "mod-takes-the-sign-of-the-dividend",
@@ -125,6 +139,447 @@
         "discriminates": "measured in `pine.windowAdvice.test.js`, with the second assertion as the control that makes the first mean something"
       },
       "observation_ids": []
+    },
+    {
+      "id": "recursive-smoother-cold-start-in-a-finite-capture",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`interpret(ast, bars)` computes a Wilder/RMA-recursive function (e.g. `rsi`, `atr`) using ONLY the bars it is handed. Its first computable value (bar `period`) is seeded from a SIMPLE mean of just the first `period` diffs/true-ranges inside that window -- it has no knowledge of any bar before the window's own start.",
+      "theirs": "TradingView's `ta.rsi`/`ta.atr` run continuously over a symbol's REAL, often decades-long chart history. The real vendor value at any given calendar bar already reflects that entire prior smoothing history, not a fresh seed at whatever date a capture happens to start.",
+      "why_it_matters": "⚠️ THIS IS A CAPTURE-METHODOLOGY ARTIFACT, NOT A FORMULA DISAGREEMENT, and it is exactly the misclassification risk `VENDOR_PARITY_TRANCHE_2_READINESS_REPORT.md` named before any capture was made: comparing UCT's freshly-cold-seeded early bars against a vendor's already-converged value at the SAME calendar date can show a LARGE relative delta (measured up to ~25% at bar 14 of a 1,328-bar real SPY capture) that has nothing to do with the two engines disagreeing about the formula -- both use Wilder recursion identically, and the delta decays as UCT's own recursion catches up. This is a DIFFERENT, larger effect than (and confounds any attempt to isolate) the small, already-adjudicated `atr-tr-starts-at-bar-1` bar-0/TR-definition difference (~0.23% at ITS seed) -- the two must not be conflated. Applies to ANY Wilder/RMA-seeded function captured over a finite real-market window, not just rsi/atr specifically.",
+      "code": "api/services/ast_interpret.py::_fn_rsi/_fn_atr via indicator_compute.compute_rsi_raw/compute_atr_raw; api/services/indicator_compute.py's Wilder seed-then-recur pattern",
+      "probe": {
+        "case": "rsi(close,14) at bar index 14 of a 1,328-bar real SPY Daily capture (2021-05-24..2026-09-04) vs. the real vendor's ta.rsi(close,14) value at that same calendar bar",
+        "under_ours": "68.78150014823609 -- seeded fresh from only the 14 diffs inside this capture window",
+        "under_theirs": "68.16309777289919 -- the real vendor's value, reflecting continuous smoothing since well before this window began",
+        "discriminates": "a ~0.9% delta at bar 14 that shrinks to ~1e-9 (float noise) by bar 180 of the SAME series as UCT's own recursion converges -- a decay curve, not a persistent formula disagreement, and reproduced with near-identical shape/magnitude on atr(high,low,close,14) over the same bars"
+      },
+      "measured": {
+        "by": "tools/vendor_parity_compare.py against tests/fixtures/vendor/observations/{rsi-close14,atr-14}-2026-09-06.json, 2026-09-06",
+        "rsi_last_disagreeing_index": 172,
+        "atr_last_disagreeing_index": 169,
+        "of_bars": 1328,
+        "note": "both converge to <1e-6 relative delta permanently by bar 180; see VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md for the full per-checkpoint decay table"
+      },
+      "observation_ids": [
+        "rsi-close14-2026-09-06",
+        "atr-14-2026-09-06"
+      ]
+    },
+    {
+      "id": "recurrent-state-does-not-step-when-its-call-site-is-skipped",
+      "shape": "seeded",
+      "status": "refuted",
+      "confidence": "measured",
+      "ours": "Before 2F-2C the runtime could not execute a recurrent builtin at all, so there was no behaviour to agree or disagree with. 2F-2C implements the measured rule directly: carried state advances INSIDE the call, so a skipped call site does not step it.",
+      "theirs": "MEASURED 2026-09-08. A recurrent builtin inside a UDF called on only some chart bars steps ONLY on the bars where the call executes. Stepping every chart bar with the held input is EXCLUDED: it would make the conditional result equal an every-bar EMA of the same source, and the vendor's two series differ on every executed bar.",
+      "why_it_matters": "It is the opposite indexing from P7.2's ruling for function-local SERIES HISTORY, which is chart-bar indexed and HOLDS across skipped bars. History holds; recurrence does not advance. Building recurrence on the end-of-bar commit phase -- the obvious reuse of the history machinery -- would silently implement the excluded model.",
+      "code": "runtime/vm.js::OP.CARRIED (steps inside the call, never from the commit phase)",
+      "probe": {
+        "case": "`f(v) => ta.ema(v, 5)` called only on even bars, beside `ta.ema(close, 5)` called every bar",
+        "under_ours": "the conditional series is an EMA of the even-bar subsequence",
+        "under_theirs_if_different": "an every-bar model would make the two series equal on executed bars",
+        "discriminates": "six consecutive executed invocations reproduce to err=0.000e+00 under invocation-stepping, and the two series differ on every one of them"
+      },
+      "observation_ids": [
+        "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
+      ],
+      "refutedBy": "Implemented to match the measured vendor rule in 2F-2C; kept as the record of which model was excluded and by what evidence."
+    },
+    {
+      "id": "finite-window-propagates-na-instead-of-skipping-it",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`rolling` emits NaN for a window containing ANY NaN, and `interpret.js`'s header states the rule out loud: \"any NaN INSIDE a window makes that window's output NaN\". So over a gappy source our `sma`/`wma`/`stdev`/`highest`/... go blank on the hole AND for the `n-1` bars that still contain it.",
+      "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero. ⛔ AND THE FAMILY DOES NOT SHARE ONE RULE — measured 2026-09-08 across all twelve members: sma/stdev/sum/median SKIP (last n FINITE observations, answering on the na bar); dev PROPAGATES (clean n-BAR window); highest/lowest RESTART (the window begins again after a hole). wma fits none of five hypotheses and is UNRESOLVED; highestbars/lowestbars answer ON the na bar, a fourth shape; rising/falling were not determined by the probe.",
+      "why_it_matters": "It is the SAME class of defect as `nan-restarts-the-smoother` but wider: it reaches all twelve `FINITE_WINDOW` members in BOTH lanes, and it is reachable from any conditional source (`cond ? x : na`), any `valuewhen`, any pivot - all ordinary Pine. ⛔ AND THE TWO FAMILIES DIFFER FROM EACH OTHER: a window SKIPS an na and still answers; a recurrence WITHHOLDS its answer for that bar but keeps its state. One rule cannot be applied to both.",
+      "code": "interpret.js::rolling + every FINITE_WINDOW reducer; api/services/ast_interpret.py::_rolling",
+      "probe": {
+        "case": "`ta.sma(bar_index % 3 == 0 ? na : close, 10)` on SPY 1D",
+        "under_ours": "blank on the na bar and on the following 9 bars - the source's 267 finite bars yield far fewer outputs",
+        "under_theirs": "a value on all 400 bars, equal to the mean of the last 10 finite source values",
+        "discriminates": "the COUNT of answered bars (133 vs 0 on na bars) before any value is compared, and then the value itself"
+      },
+      "observation_ids": [
+        "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
+        "finite-window-na-policy-by-member-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
+    },
+    {
+      "id": "recurrent-composites-book-a-zero-or-die-on-na",
+      "shape": "A hole in the source destroys the shipped composites, in three different ways.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`computeRSI` booked a non-finite diff as gain 0 / loss 0, which decays BOTH Wilder averages and leaves their RATIO unchanged -- so the printed value repeated the previous bar and read exactly like a hold while the state underneath had been scaled down. Every later bar was then wrong and never re-converged (bar 42 read 74.94 against a true 78.97; bar 79 was still off). `computeATR`, `computeMACD` and `computeADX` instead went NaN and STAYED NaN -- NaN is absorbing through their recursions -- so one hole blanked the series from that bar to the end of the chart. And in all four, an `na` inside the SEED window made the seed itself NaN and the output was empty: `finite = 0` over 300 bars. `computeADX` additionally FABRICATED directional movement, booking a confident zero for a bar whose +DM/-DM could not be computed.",
+      "theirs": "TradingView HOLDS. `ta.rsi` is an `rma` of gains and losses and `ta.macd` an `ema` difference, so both inherit the smoother rule pinned on 2026-09-08: `na` at the hole, state unchanged, one normal step on the next finite bar. `ta.rsi` loses TWO bars because `ta.change` reads the hole as its previous value; `ta.macd` loses one. 380 of 380 bars on the na SHAPE, and the values reconstruct to 1.3e-6 with the residual decaying ~2 orders per 60 bars (seed truncation, not a model gap).",
+      "why_it_matters": "These are the four most-used indicators in the product and the RSI form is the dangerous one: it left NO GAP on the chart. A member saw a continuous, plausible line that had been wrong since the last hole, with nothing to indicate it.",
+      "code": "app/src/components/chart/indicators.js::computeRSI/computeATR/computeADX/computeMACD; api/services/indicator_compute.py::compute_rsi_raw",
+      "probe": {
+        "case": "UCTPROBE_COMPOSITE_A: `ta.rsi(gc,14)`, `ta.macd(gc,12,26,9)` and `ta.ema(gc,14)` over `gc = bar_index % 11 == 0 ? na : close`, SPY 1D",
+        "under_ours": "`rsi` answers on EVERY bar including the holes, with a value that repeats the previous bar and is wrong from there on; `macd` is blank from the first hole to the end of the chart. Over 80 bars with holes every 11, `macd`/`atr`/`adx` returned finite=0 -- nothing at all -- because a hole also landed inside the seed.",
+        "under_theirs": "`rsi` is blank on the hole AND on the bar after it, then resumes from the pre-hole state; `macd` is blank on the hole only and resumes on the very next bar. 380 of 380 bars.",
+        "discriminates": "the na SHAPE alone, before any value is compared: our `rsi` never blanks and their `rsi` blanks twice per hole, and our `macd` never recovers while theirs recovers in one bar. The values then confirm it -- reconstructing from the HOLD rule matches to 1.3e-6 with the residual decaying ~2 orders per 60 bars."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "rising-and-falling-are-not-windows",
+      "shape": "`ta.rising`/`ta.falling` were implemented as finite windows and belong to the carried family.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "A strict-monotone scan over `length + 1` samples with a uniform NaN-anywhere-in-the-window rule -- the residual gap the 2026-09-06 resolution disclosed for both members.",
+      "theirs": "A COUNTER of consecutive strict steps that HOLDS across an `na`, reported as `count >= length`. 375ok/0bad on three independent sources; RESET-on-na scores 287/88; every window policy fails (skip 323/52, forward-fill 291/84, propagate 287/88).",
+      "why_it_matters": "No na policy could ever have fixed this. Two bars of the capture present STRUCTURALLY IDENTICAL windows -- an `na` followed by four strictly rising values -- and TradingView answers TRUE at one and FALSE at the other. The visible signature: the source DROPS from 7 to 1 across a hole and `ta.rising` stays true, because the hole held the count.",
+      "code": "interpret.js::monotoneStep + CARRIED; ast_interpret.py::_monotone_col",
+      "probe": {
+        "case": "UCTPROBE_RISEFALL_C: `ta.rising(vm, 4)` over `vm = bar_index % 11 == 0 ? na : bar_index % 8`, SPY 1D",
+        "under_ours": "a strict-monotone scan of the last 5 samples with NaN-anywhere-blanks: false wherever the window touches a hole, and after the sawtooth wraps.",
+        "under_theirs": "true across the hole even when the source DROPS through it -- 7 at one bar, `na`, then 1, and `rising` is still true -- because the counter was held rather than reset or re-evaluated.",
+        "discriminates": "two bars presenting STRUCTURALLY IDENTICAL windows (an `na` followed by four strictly rising values) that the vendor answers TRUE and FALSE. No window-local model of any na policy can produce both, so the discriminator is the contradiction itself rather than a count."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "argextreme-ties-resolve-to-the-newest-bar",
+      "shape": "`ta.highestbars`/`ta.lowestbars` returned the most recent tied extreme; the vendor returns the oldest.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`windowArgExtreme` walked BACKWARD from the newest bar and returned the first match -- the smallest distance back. It also used PROPAGATE for `na` and therefore blanked on a hole.",
+      "theirs": "Ties resolve to the OLDEST occurrence (380ok/0bad against 193ok/187bad for newest, 244 of the agreeing bars carrying no `na` at all). The `na` policy is RESTART, and the answer on an `na` bar is 0 rather than blank -- a restarted window has this bar as its only candidate, so the OFFSET is defined where the VALUE is not.",
+      "why_it_matters": "⚠️ RE-MEASURED 2026-09-09 ON REAL SPY OHLCV (2,031 daily bars, the `ema-close20-2026-09-06` observation): the tie-break moves **0.4%** of `high` windows at n=5 and **0.6%** at n=14/20/25, and **0.3%** of `low` windows at every length. `aroon` moves with them — 0.6% of bars at both 14 and 25, median 7.1 points on a 0-100 scale, max 14.3. ⚰️⚰️ THIS SAID \"6-10% of bars\" AND IT WAS WRONG BY AN ORDER OF MAGNITUDE, at the very lengths it named. Repeated highs in a real price series are rarer than that paragraph assumed. ⛔ THE RARITY IS THE ARGUMENT FOR THE RULE, NOT AGAINST IT: it is exactly why two lanes agreed on the wrong convention for so long and why the committed corpus could not see it — a defect that shows on 1 bar in 200 is one nobody finds by looking. `aroon` is built on these two and moves with them.",
+      "code": "interpret.js::windowArgExtreme; ast_interpret.py::_window_arg_extreme",
+      "probe": {
+        "case": "UCTPROBE_WINDOW_B: `ta.highestbars(vt, 4)` over a two-valued source `vt = ... ? 10 : 20` built so the extreme appears twice in most windows, SPY 1D",
+        "under_ours": "the offset of the MOST RECENT bar holding the extreme -- the smallest distance back; and blank on an `na` bar.",
+        "under_theirs": "the offset of the OLDEST bar holding it -- the largest distance back; and 0 on an `na` bar.",
+        "discriminates": "a single row is enough: two equal values at offsets 0 and -1 where the vendor returns -1. Across the capture, oldest-wins scores 380ok/0bad and newest-wins 193ok/187bad, with 244 of the agreeing bars carrying no `na` at all -- which separates the TIE rule from the NA rule."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "rsi-zero-movement-reads-na",
+      "shape": "RSI of a source that never moves: this engine answered `na`, TradingView answers 100. OURS NOW ANSWERS 100 TOO.",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "⚰️ WAS: `avg_loss == 0 AND avg_gain == 0` refused as not-computable, in BOTH lanes, pinned by a fixture and guarded by an AST single-authority rail. NOW: Pine's order — zero-LOSS tested first — so 0/0 reads 100.0 in both lanes, byte-identical to the vendor. The frozen-ticker exposure the `na` was introduced for is mitigated at the SCREENER instead: `screener/technicals.py::_rsi` reports NOT COMPUTABLE for a window whose closes never moved, which is narrower than 'flat' on purpose — `chg_pct_1d` still reports 0.00, because a change of zero is TRUE while an RSI of a motionless series is not.",
+      "theirs": "Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : ...` -- the zero-LOSS test fires FIRST, so 0/0 reads 100. Measured directly with `ta.rsi(k, 14)` over a constant source: 100 on every bar of the capture.",
+      "why_it_matters": "⚠⚠ THIS ONE REVERSES A DELIBERATE PRIOR DECISION AND RE-OPENS A NAMED INCIDENT. The `na` was introduced because on 2026-08-09 SIM, TMTS, CWEN-A, DRDB and OBA carried rsi14 = 100.0 with chg_pct_1d = 0.00, so an \"RSI > 70\" screen surfaced five frozen tickers as the most overbought names in the universe. The old docstring justified the refusal with \"Pine's ta.rsi yields NaN here\" -- a claim about the vendor that was never checked and is FALSE. The correction has been applied (Pine wins over an internal invention), but the exposure is real: the mitigation belongs at the SCREENER, which should not admit a zero-movement / zero-ADR ticker to a momentum screen, rather than in the definition of RSI. Owner ruling requested on where that guard goes.",
+      "code": "indicators.js::computeRSI; indicator_compute.py::rsi_from_wilder_averages",
+      "probe": {
+        "case": "UCTPROBE_COMPOSITE_A plot P17: `float k = 100.0` then `ta.rsi(k, 14)` -- a source that never moves, SPY 1D",
+        "under_ours": "`na` / None -- \"not computable\", because 0/0 is not a number.",
+        "under_theirs": "100.0 on every bar of the capture.",
+        "discriminates": "one plot on a constant source. Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : ...`, so the zero-LOSS test fires first and 0/0 reaches the 100 branch. The companion plots pin the other two corners: a monotonically rising source also reads 100 and a falling one reads 0, both of which we already matched."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false,
+      "_ruling": "RESOLVED by owner ruling 2026-09-08: MATCH TRADINGVIEW. `ta.rsi` of a zero-movement source returns 100 in both lanes (`indicators.js::computeRSI`, `indicator_compute.rsi_from_wilder_averages`), because Pine tests `down == 0` FIRST and we measured 100 directly. The frozen-ticker exposure the old `na` was protecting against is handled where it belongs -- at the SCREENER: `api/services/screener/technicals.py::_rsi` now reports NOT COMPUTABLE for a series that did not move at all across the lookback, so a dead ticker cannot top an 'RSI > 70' scan. ⭐ THE GUARD IS DELIBERATELY NARROWER THAN 'FLAT': `chg_pct_1d` of a frozen ticker stays 0.00, because a change of zero is a TRUE statement about price while an RSI of a flat series is an undefined one. ⚠️ The old rule was defended in-code by the claim *\"Pine's ta.rsi yields NaN here\"* -- a statement about the vendor that was never checked and is false. That is the failure mode this roster exists to catch.",
+      "decision": {
+        "ruled": "Owner, 2026-09-08 — 'RSI ruling: approved. Match TradingView. Move the guard to the screener.'",
+        "what_changed": "`indicator_compute.rsi_from_wilder_averages` and `indicators.js::computeRSI` both answer 100.0 when `avg_loss == 0` (whatever `avg_gain` is) and 0.0 when `avg_gain == 0` — Pine's branch ORDER, not merely its values. The zero-movement refusal moved to `screener/technicals.py::_rsi`.",
+        "why_the_old_rule_went": "It was defended in-code by *'Pine's ta.rsi yields NaN here'* — a claim about the vendor that was never checked and is false. A tested invariant can still be a UCT invention: this one was pinned by a fixture, guarded by an AST rail, mirrored across both lanes, and wrong.",
+        "what_would_reopen_it": "A TradingView capture in which `ta.rsi` over a constant source answers anything other than 100 — or evidence that a consumer other than the screener reads this value as an overbought LEVEL and has no guard of its own. ⭐ THE SECOND CONDITION WAS RAISED, MEASURED AND RULED ON 2026-09-09; see `downstream_consumers` below. It is closed, not outstanding."
+      },
+      "correctedIn": "7e0111d94 (2026-09-08) — 2F-2D: the recurrent composites were wrong on every gap",
+      "downstream_consumers": {
+        "_": "⭐⭐ WHAT THE CORRECTION TOUCHED BESIDE THE SCREENER, RECORDED HERE RATHER THAN AS A ROW OF ITS OWN. This is NOT a vendor divergence — after the correction our answer IS TradingView's — and this file's own opening line scopes it to *differences between this engine and a VENDOR*, warning that a wrong row *'launders a real defect into an expected one'*. A separate `accepted` row would also have demanded a `vendorNote` on `rsi`: a sentence telling members about a difference that no longer exists. So the finding lives on the row it is a CONSEQUENCE of.",
+        "consumer": "api/services/pattern_engine/detectors/classical/rsi_{bullish,bearish}_divergence",
+        "what_changed_for_them": "Each keeps a PRIVATE copy of the RSI calculation that calls the shared `rsi_from_wilder_averages`, so both inherited the ruling without being named in it. A window in which price never moved now reaches them as 100 where it previously reached them as `None` — and `None` is what their own guards refuse on, so the old value was rejected outright and 100 is not.",
+        "measured_2026_09_09": {
+          "bullish": "Gate is `current_rsi >= 35 -> return` (oversold zone). 100 fails it, so the detector CANNOT fire on a zero-movement window. No exposure.",
+          "bearish": "Gate is `current_rsi <= 65 -> return` (overbought zone), which 100 clears. But 100 is the TOP of the scale and a bearish divergence requires the LATER peak to be weaker than the earlier one — nothing is weaker than the maximum. A halt-then-higher-high series was built to force it (rising leg, an 18-bar perfectly flat window reading RSI 100, a pullback, then a higher high at RSI 90): ZERO detections.",
+          "residual_not_ruled_out": "⚠️ NAMED BECAUSE IT IS UNPROVEN IN BOTH DIRECTIONS. A halt on the EARLIER peak reads 100, which would exaggerate how far RSI fell between the two peaks and could inflate the confidence SCORE of an otherwise genuine signal. No case was constructed that demonstrates it; none was constructed that rules it out either."
+        },
+        "ruling": "Owner, 2026-09-09 — option (a): leave it, record the finding. The measured exposure is a possible score nudge on a real signal, not a fabricated signal, and the two alternatives both meant editing an OWNER-PAUSED workstream to fix something unproven.",
+        "backlog_when_that_workstream_unpauses": "Remove the private RSI copies; point both divergence detectors at the shared guarded helper. The duplicated implementation is the underlying smell — the ruling reached them by inheritance precisely because nobody had to name them."
+      }
+    },
+    {
+      "id": "barstate-viewer-dependent-on-vendor",
+      "shape": "stateless",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "`barstate.*` is defined from OUR clock and OUR fetch. The two EXTENT columns (`islast`, `isfirst`) are a pure function of (bar index, delivered bar count). The four REALTIME columns (`isrealtime`, `isconfirmed`, `ishistory`, `islastconfirmedhistory`) are a pure function of that plus ONE tri-state handed in per fetch: is the newest bar still forming, true / false / UNKNOWN. Only the newest bar can be realtime; `isconfirmed` and `ishistory` are both `!isrealtime`. A closed bar therefore reads the same way for every viewer and at every wall-clock time.",
+      "theirs": "TradingView's flags on a CLOSED bar depend on WHEN THE VIEWER ARRIVED. A bar that formed under your own session keeps its realtime barstate after it closes; the same bar fetched as server-side history does not. Measured on AMEX:SPY across the 2026-09-09 US open: at 09:32:47, 46 seconds after the 09:31 bar closed, it still read isconfirmed=1 islast=1 ishistory=0 for the session that watched it form, while the 09:30 bar -- which arrived as history -- read 1, 0, 1.",
+      "why_it_matters": "It is not a rounding difference, it is a REPAINT, and it sits in the flag a screener would most naturally read as 'this bar is settled'. Two members opening the same script minutes apart would get different columns for the same historical bar. A screener column has no viewer and no arrival time, so there is no vendor value to match even in principle -- which is why this is `accepted` rather than a defect to close. ⛔ AND A SCRIPT THAT BRANCHES ON `ishistory` VS `isconfirmed` HAS ONE UNREACHABLE ARM HERE, WHICH THE MEMBER CANNOT SEE FROM THE OUTPUT: `if barstate.ishistory ... else ...` runs the first arm on every bar we evaluate and the second simply never fires -- not refused, just silent, the mirror of `lesson_an_over_refusal_is_invisible`. ⭐ The direction is the safe one for a SCREEN: the arm that runs is the arm the vendor also runs on historical bars, which is every bar a scan ever reads. It is the PANE where a member could notice, and the pane's data notes say so.",
+      "ours_is_deliberate": "⭐ THIS IS NOT A BUG TO FIX, AND THE REASON IS THAT A VIEWER-DEPENDENT ANSWER CANNOT SURVIVE BEING SAVED. The vendor's flags record who was watching when the bar formed; a definition stored in our database is read by a pane, a sweep, an alert and a share link, and none of them was watching anything. Reproducing it would mean two members getting different columns from the same script on the same symbol. The vendor's behaviour makes sense for a chart somebody is watching; it does not survive being stored.",
+      "code": "`app/src/components/chart/indicators.js::computeClock` (CLOCK_EXTENT + CLOCK_REALTIME) and `api/services/indicator_compute.py::compute_clock`; the tri-state those four columns consume is produced upstream by `indicator_compute.py::bar_close_state`, which is also where the trading calendar is read -- it never crosses into JS. The Pine door maps the names via `BUILTIN_BARSTATE_ALIAS` in `ast/pine.js`. Semantics: `docs/pine/barstate.md`. Manifest: `closedTable.json::_barstate`.",
+      "probe": {
+        "case": "One intraday fetch. Read `barstate.ishistory` on a bar that closed DURING the session, from two viewers of the SAME twelve bars: one who had the chart open while that bar formed, one who opened it afterwards.",
+        "under_ours": "1 for both viewers -- the flag is a function of the bar and the handed-in tri-state, not of the viewer.",
+        "under_tradingview": "0 for the viewer who watched it form, 1 for the late arrival. Measured 2026-09-09: the 09:31 bar read ishistory=0 for the watching session 46 seconds after it closed, while the 09:30 bar (fetched as history) read 1.",
+        "discriminates": "The bar, the symbol, the timeframe and the delivered series are IDENTICAL in both readings, so nothing but the convention can produce the difference. ⛔ A probe that read only ONE chart could not tell them apart at all: on a chart opened after the fact the vendor answers exactly what we answer. A probe that compared two different fetch DEPTHS would not discriminate either -- two viewers holding different history are entitled to different answers."
+      },
+      "observation_ids": [
+        "barstate-realtime-spy-2026-09-09",
+        "barstate-daily-timeline"
+      ],
+      "measured": {
+        "by": "live TradingView chart, AMEX:SPY",
+        "on": "2026-09-09 (the open transition) and 2026-09-10 (the post-close timeline)",
+        "how": "2026-09-09, live TradingView chart, AMEX:SPY. Fixture `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json` carries the pre-open state (08:58 and 09:27), the 09:30 daily bar-open transition and the 1m transition that exposed the repaint.",
+        "bars_before_the_0930_open": 400,
+        "bars_after_the_0930_open": 401,
+        "timeline_rows": 4,
+        "timeline_rows_reading_isrealtime": 4,
+        "longest_minutes_past_the_1600_close_still_isrealtime": 65,
+        "arrival_control_gap_seconds": 84,
+        "_shape_and_numbers_fixed_2026_09_10": "⚰️ THIS FIELD WAS A BARE SENTENCE ON A ROW CLAIMING `confidence: measured`, so `test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest` could find NO number to hold the member's note against — the row named a fixture and measured nothing a reader could check. ⛔ It was RED at HEAD for exactly this, and the red is older than tonight. Every value above is DERIVED from the two captures by the script that wrote this block, never typed: the bar counts off the transition rows, the minutes off `secondsPastScheduledClose`, the control gap off the two rows it spans. The prose is preserved verbatim in `how`."
+      },
+      "decision": {
+        "ruled": "Owner, 2026-09-09",
+        "why_keep_ours": "Owner, 2026-09-09 -- ACCEPTED, KEEP OURS, and disclose. `docs/pine/barstate.md` carries the sentence 'barstate on UCT reflects UCT's clock and data; on TradingView the same flags depend on when the viewer opened the chart', and the pane shows it in its data-notes affordance whenever a script references `barstate.*`. ⭐ AND WE CLAIM THE STRONGER PROPERTY RATHER THAN MERELY A DIFFERENT ONE: `app/src/components/chart/engine/__tests__/barstateStability.test.js` asserts time-invariance and arrival-invariance on every closed bar, so 'we diverge' is backed by a guarantee instead of an excuse. ⛔ THERE IS NOTHING HERE TO PUT ON A BACKLOG -- reproducing the vendor would mean recording WHO WAS WATCHING inside a saved definition, which is not a property of the market and cannot survive being stored. ⚠️ ONE FLAG IS EXEMPT BY DEFINITION AND SAYS SO: `islastconfirmedhistory` is a POINTER to a bar rather than a state OF a bar, so it moves when the newest confirmed bar genuinely changes. The bar it moves off is unchanged.",
+        "what_would_reopen_it": "⚠️ A PRODUCT DECISION TO EVALUATE A LIVE, STREAMING SERIES rather than a static fetch. The history-vs-watched distinction would then have a referent here, and `ishistory` would have to be re-derived rather than aliased to `isconfirmed`. A capture showing the vendor's flags are NOT viewer-dependent after all -- two charts opened at different times agreeing about the same bar -- would also reopen it, and would make this an ordinary difference we should simply match.",
+        "_shape_fixed_2026_09_10": "⚰️ THIS FIELD WAS A BARE STRING and every other `accepted` row used an object, so `test_vendor_truth` died on `dec.get('ruled')` with an AttributeError instead of a named failure — a red that told you nothing about which row was wrong. The prose is preserved verbatim in `why_keep_ours`; only the shape changed."
+      },
+      "what_would_reopen_it": "⚠️ A PRODUCT DECISION TO EVALUATE A LIVE, STREAMING SERIES rather than a static fetch. The history-vs-watched distinction would then have a referent here, and `ishistory` would have to be re-derived rather than aliased to `isconfirmed`. A capture showing the vendor's flags are NOT viewer-dependent after all -- two charts opened at different times agreeing about the same bar -- would also reopen it, and would make this an ordinary difference we should simply match.",
+      "bounds": "⚠️ One symbol, one session, ~90 seconds, and no vendor recompute was observed inside that window. This establishes that a closed bar CAN carry realtime values well after closing -- not that the vendor never recomputes. The safe reading, and the one our semantics take: never assume a vendor closed-bar barstate is stable. ⭐⭐ EXTENDED 2026-09-10, AND THE NEW READING NARROWS WHERE THIS APPLIES RATHER THAN WIDENING IT. `tests/fixtures/vendor/barstate-daily-timeline.json` carries four rows on the SAME AMEX:SPY DAILY bar, 18 to 66 minutes past the scheduled 16:00 close, all reading isrealtime=1 isconfirmed=0. Two things follow. (1) THE DURATION IS NOT ~90 SECONDS: a closed bar carried realtime values for at least 66 minutes, so any downstream assumption that the vendor settles shortly after the close is wrong by orders of magnitude. (2) ⛔ THE ARRIVAL CONTROL CAME BACK NEGATIVE FOR THE DAILY BAR. Row 4 is a full page reload 84 seconds after row 3 — a document that never watched the bar form, proved real by performance.timeOrigin and by three injected globals being gone — and it read IDENTICALLY to the session that did watch it. So the viewer-dependence this row records, measured on a 1-MINUTE bar DURING the session, was NOT reproduced on a DAILY bar AFTER the close. ⚠️ THAT IS A BOUND, NOT A REFUTATION: the original measurement stands on its own case, and the two cases differ in both timeframe and session phase. What it removes is the assumption that arrival time explains every post-close realtime reading — for the daily bar it explains none of it, and the remaining candidate is simply that the vendor holds the newest daily bar realtime long past the calendar close. ⛔ STILL OPEN, and the timeline file says what would close it: a row after 20:00 ET and a row before the next 09:30 ET. The seam is UNCHANGED meanwhile."
+    },
+    {
+      "id": "barssince-unbounded-vs-bounded-state",
+      "shape": "stateless",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "`barssince(condition, n)` is one of the FIVE BOUNDED STATE entries. `n` is a DECLARED WINDOW, not an option: the count saturates at it and answers `n` for \"not true within the last n bars\". The left edge is NOT COMPUTABLE rather than a sentinel or a zero, and a NaN hole in the condition stops the backward scan so the sentinel is withheld until `n` contiguous readable bars exist. `tests/test_ast_bounded_state.py` owns that design and the budget is priced on the bound.",
+      "theirs": "`ta.barssince(condition)` takes EXACTLY ONE argument and is UNBOUNDED — it counts back as far as the condition requires. On a condition that has never been true it answers `na`, not a sentinel. Both measured on a live chart 2026-09-10: the 2-arg form returns `CE10115 Too many arguments passed into the \"ta.barssince()\" function call. Passed 2 arguments but expected 1.` at line 45, col 19-26; the 1-arg form compiled on the same symbol in the same session over 400 bars, and its never-true arm read `na`.",
+      "why_it_matters": "⛔⛔ THE OBVIOUS READING OF THE FIRST MEASUREMENT IS WRONG AND WAS WRITTEN DOWN BEFORE IT WAS CHECKED. \"Pine takes one argument, we declare two, therefore our table is wrong and must NARROW\" was committed on the day of the capture (8f1d9836c). It does not survive reading the engine: ours is not a mis-transcribed `ta.barssince`, it is a different function whose second argument is the bound its whole design rests on. Narrowing it to one argument would delete the bound the budget is priced on. ⭐ The vendor readings CONFIRM the engine's existing refusal rather than prompting a change — which is the opposite of what the capture appeared to say.",
+      "ours_is_deliberate": "⭐⭐ AND THE ENGINE ALREADY SPLIT THE TWO, MORE CAREFULLY THAN A BARE \"we diverge\". `PINE_INEXPRESSIBLE.barssince` refuses the BARE Pine call, in its own words, because mapping it onto ours \"would silently cap the count — a different number wearing the same name\". But `contextBoundedPlan` REWRITES the compared form: `ta.barssince(cond) < 5` becomes `barssince(cond, 5) < 5`, which is EXACT, because every count the cap destroys is one the comparison already answered the same way. ⚠️ Measured while pinning this: `ta.barssince(cond) > 0` also rewrites (window 1), so the boundary is \"compared against something that BOUNDS it\", not \"compared against a literal\".",
+      "code": "`app/src/components/chart/engine/ast/pine.js::PINE_INEXPRESSIBLE.barssince` (the refusal) and `contextBoundedPlan` (the rewrite); `closedTable.json::functions.barssince` declares `args: [series, int]` with `argRoles: [condition, period]` and `lookback: arg1`. Semantics and the bounded-state rulings: `tests/test_ast_bounded_state.py`. Vendor pins: `app/src/components/chart/engine/ast/pine.contextBounded.test.js`.",
+      "probe": {
+        "case": "A condition that is NEVER true, over any series. Ask `ta.barssince(cond)` at the vendor and `barssince(cond, 10)` here, on the same bars.",
+        "under_ours": "The sentinel `10` on every bar whose window is fully readable — measured: `barssince(close < 0, 10)` reads [10, 10, 10] across the tail of a series whose close is ~100 throughout.",
+        "under_tradingview": "`na`. Measured 2026-09-10, `tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json::N04` — the never-true arm of the 1-arg probe, null on every bar of the tail.",
+        "discriminates": "⭐ The two answers are different KINDS, not different numbers: a count that saturates versus an absence. Nothing but the convention can produce that. ⛔ A probe on a condition that IS sometimes true could not tell them apart — inside the window both answer the same integer, which is exactly why the never-true arm had to be built into the probe rather than hoped for."
+      },
+      "observation_ids": [
+        "groupb-barssince-arity-spy-1d-2026-09-10"
+      ],
+      "measured": {
+        "by": "live TradingView chart, AMEX:SPY 1D, layout UCT AGENT VISIT 2026-09-10 (disposable)",
+        "on": "2026-09-10",
+        "how": "Two saved probes, run as a PAIR: `groupb-barssince-2arg.pine` (Script$USER;152f9a305fa24ebab1f52fba82b433e5) whose compile FAILURE is the arity measurement, and `groupb-barssince-1arg.pine` (Script$USER;0689acf88f134f5bb8a95ec054912452) which compiled and is the CONTROL — had both failed, the finding would have been about the harness.",
+        "vendor_arg_count": 1,
+        "our_arg_count": 2,
+        "probe_window_n": 20,
+        "_numbers": "⭐ THESE ARE THE NUMBERS THE MEMBER'S SENTENCE CARRIES, and the rail exists to stop the two drifting: `functions.barssince.vendorNote` says Pine's takes 1 argument and ours takes 2, and uses a window of 20 in the worked example. A measured row whose numbers appear nowhere a member reads is a reassurance with no evidence behind it."
+      },
+      "decision": {
+        "ruled": "This session, 2026-09-10, on the readings above",
+        "why_keep_ours": "The second argument is the BOUND, and the bounded-state design is what makes this function priceable at all. Reproducing Pine's unbounded count would make the state unbounded and the budget unpayable, for a function whose whole purpose here is to be bounded. The divergence is therefore not a gap to close but two different functions that share a name — and the door already says so rather than mapping one onto the other.",
+        "what_would_reopen_it": "⭐ A bound the engine could afford on an unbounded count — a streaming or incremental state that does not have to be warmed per bar — would make Pine's semantics reproducible and this a difference we should simply match. ⚠️ So would a measurement showing `contextBoundedPlan`'s rewrite is NOT exact: its licence is that every count the cap destroys is one the comparison answers identically, and a counterexample retires the rewrite along with this row."
+      },
+      "bounds": "⚠️ ONE SYMBOL, ONE SESSION, AND THE ARITY IS THE STRONGER HALF. `CE10115` is the vendor stating its own signature, so it generalises. The `na` reading is one condition on one series: it establishes that a never-true condition CAN answer `na`, not that every unmatched case does. ⛔ And it says nothing about what Pine answers when the condition IS true beyond some horizon — the case our sentinel exists for — because an unbounded count has no such horizon to test."
+    },
+    {
+      "id": "barstate-three-axes-not-a-tristate",
+      "shape": "stateless",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "THREE COLUMNS OFF ONE TRI-STATE. `bar_close_state` answers is-the-newest-bar-still-forming as True/False/None, and `compute_clock` derives the rest from it: `isrealtime` is that boolean on the last bar, `isconfirmed` is its complement, and `ishistory` is an ALIAS of `isconfirmed` because a static fetch cannot distinguish a bar it loaded from one it watched. One axis, three readings.",
+      "theirs": "⭐⭐ THREE INDEPENDENT AXES. Measured across 2026-09-10 on AMEX:SPY 1D: `isrealtime` tracks POSITION — the last bar of a live dataset — and stayed 1 for seven and a half hours past the 16:00 close, through five separate page loads, before finally going to 0 overnight. `ishistory` is its exact complement and moved with it, 0 to 1. `isconfirmed` tracks TIME — whether the bar's closing update has happened — and flipped 0 to 1 on its own, with `isrealtime` unchanged at 1. That combination, isrealtime=1 AND isconfirmed=1 on one bar, is a state our derivation cannot spell, because ours defines the second as the negation of the first. ⭐⭐ AND THE TWO AXES MOVE AT DIFFERENT INSTANTS — `isconfirmed` flipped in (19:22, 20:55) ET and `isrealtime` in (20:55, 23:57) ET, hours apart, on the SAME bar. That is the finding: no tri-state can express two flags that flip at different times, so this is not a calibration difference, it is a different number of axes.",
+      "why_it_matters": "⛔⛔ THE EXACT COLUMN DIFF, IN THE WINDOW WHERE IT BITES. Between the vendor's confirmation and the next open — for SPY on 2026-09-10, some instant in (19:22, 20:55) ET through to 09:30 the next session — a member reading the same newest daily bar sees:\n    isrealtime / isconfirmed / ishistory\n    vendor:  1 / 1 / 0\n    ours:    0 / 1 / 1\nTwo of the three disagree. A script branching on `barstate.isrealtime` takes the OTHER arm here, and one branching on `ishistory` does too — and both engines answer confidently, which is what makes it expensive. ⭐ `isconfirmed` AGREES in this window, which is the part worth knowing: the column a screener most often means by \"this bar is settled\" is the one that matches.",
+      "ours_is_deliberate": "⭐ THE ALIAS IS DECLARED, NOT ACCIDENTAL. `closedTable.json::_barstate` says `barstate.ishistory` here means exactly `barstate.isconfirmed`, because this engine evaluates a STATIC FETCH where every closed bar arrived the same way and the vendor's loaded-vs-watched distinction has no referent. ⚠️ What was NOT deliberate is `isrealtime` disagreeing: we read it as \"the period is open\" and the vendor reads it as \"this is the newest bar of live data\". Those coincide during the session and part company the moment it closes.",
+      "code": "`api/services/indicator_compute.py::compute_clock` and its JS mirror `app/src/components/chart/indicators.js::computeClock` — both now carry a second derivation, `BARSTATE_MODE_VENDOR`, that reproduces the vendor's three axes. ⛔ IT IS OFF: the default is `calendar` and nothing member-facing selects it. Replayed against the timeline by `tests/test_barstate_vendor_mode.py` and `app/src/components/chart/engine/ast/barstateVendorMode.test.js`.",
+      "probe": {
+        "case": "Read `barstate.*` off the newest DAILY bar of a live chart, repeatedly, from before the regular close through past the extended-hours close.",
+        "under_ours": "isrealtime flips 1 to 0 AT the 16:00 scheduled close, and isconfirmed and ishistory flip 0 to 1 with it — all three move together, once, on the calendar.",
+        "under_tradingview": "isrealtime does NOT move at 16:00 and was still 1 at 20:55 ET — 295 minutes past the close. It had gone to 0 by 23:57 ET, with ishistory 0 to 1 and islastconfirmedhistory 0 to 1 alongside it. isconfirmed moved separately and EARLIER, somewhere in (19:22, 20:55) ET. Seven readings: `tests/fixtures/vendor/barstate-daily-timeline.json` rows 1-7.",
+        "discriminates": "⭐ THE SAME PAGE LOAD SAW BOTH SIDES OF IT. Rows 5 and 6 share a `performance.timeOrigin`, so the change is the vendor pushing an update into a live session rather than a difference between two sessions — which is the one alternative reading a series of separate visits could not rule out. ⛔ Five rows spanning 16:17 to 19:22 ET all read isconfirmed=0, so it is not confirming at the close; that is what makes this a divergence rather than a latency. ⭐⭐ AND THE ARRIVAL CONTROL IS WHAT MAKES ROW 7 LOAD-BEARING. Rows 4, 5 and 6 were all `late` arrivals — full page reloads on that same bar — and every one read isrealtime=1, so a reload demonstrably does NOT reset the flag. Row 7 is also a reload, and reads 0. The variable that changed is the clock, not the fetch."
+      },
+      "observation_ids": [
+        "barstate-daily-timeline",
+        "barstate-realtime-spy-2026-09-09"
+      ],
+      "measured": {
+        "by": "live TradingView chart, AMEX:SPY 1D, chart session `regular`",
+        "on": "2026-09-10 / 2026-09-11",
+        "how": "Seven appended rows from UCTPROBE_BARSTATE_FULL, each recording the instant, the chart's session setting, the arrival (watched-form or late), and all six vendor flags. Session state derived through `scheduled_close_seconds`, the same function `bar_close_state` uses, so the file and the engine cannot disagree about when the close was.",
+        "timeline_rows": 7,
+        "rows_reading_isrealtime_1": 6,
+        "rows_reading_isconfirmed_0": 5,
+        "rows_reading_isconfirmed_1": 2,
+        "rows_reading_isrealtime_0": 1,
+        "longest_minutes_past_close_still_realtime": 295,
+        "minutes_past_close_when_first_seen_not_realtime": 478,
+        "isconfirmed_transition_bracket_et": "(19:22, 20:55)",
+        "isrealtime_transition_bracket_et": "(20:55, 23:57)",
+        "axes_move_at_different_instants": true,
+        "reload_arrivals_reading_isrealtime_1": 3
+      },
+      "decision": {
+        "ruled": "This session, 2026-09-11, on the six readings",
+        "why_keep_ours": "⭐ THE HYPOTHESIS IS NOT MEASURED YET, AND SWITCHING ON ONE WOULD BE THE WRONG TRADE. Reproducing the vendor needs a CONFIRMATION INSTANT, and all six rows establish about it is a 93-minute bracket. 20:00 ET — the extended-hours close — fits, and an early-close day would then be 17:00, but neither is observed. Shipping a column that is right for a guessed reason is worse than shipping one that is wrong for a stated reason, because only the second is legible. ⛔ So the switch is BUILT and OFF: both lanes carry `vendor` mode, both replay the rows, and the flag stays `calendar` until an instant is pinned.",
+        "what_would_reopen_it": "⭐ A row taken between 19:30 and 20:30 ET, which would narrow the isconfirmed bracket to either side of 20:00 and turn the hypothesis into a measurement. ✅ THE PRE-OPEN HALF IS NOW ANSWERED: row 7 (23:57 ET) shows `isrealtime` DOES drop before the next session opens — it does not stay 1 right through — so the open question there has narrowed from whether to when, currently a three-hour bracket (20:55, 23:57) ET that rows in that window would close. ⚠️ And an early-close day is still the one that tests the derived 17:00, which remains a guess about a guess."
+      },
+      "bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE SESSION, AND A REGULAR-HOURS CHART. Every row is AMEX:SPY on 1D with the chart's session setting on `regular`; `extended` is a different question about the same symbol and was not asked. ⛔ NOTHING HERE COVERS INTRADAY: a 5-minute bar's closing update is its period ending, and this divergence is specifically about a DAILY bar outliving its session. ⛔ And neither mechanism is identified — 20:00 ET is a hypothesis that fits the isconfirmed bracket, not an observed event, and NOTHING is hypothesised for the isrealtime flip: it is bracketed across three hours of the overnight gap and no scheduled instant has been proposed for it."
+    },
+    {
+      "id": "request-security-base-period-identity-vs-lookahead-off-step-back",
+      "shape": "seeded",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "A `request.security(own symbol, <literal naming the engine's base>, expr)` folds to the IDENTITY — the child expression unwrapped, reading the bars already in hand. Ruling 3.5, 2026-09-11. Disclosed per definition on the output as `baseTimeframeFolds`, and refused outright by a guard when the base is INTRADAY and the newest bar is still forming.",
+      "theirs": "TradingView's `request.security(..., 'D', ..., lookahead_off)` reads the last CLOSED daily bar. Viewed from an intraday chart that is the PREVIOUS session while today is forming; viewed from a daily chart on a closed-bar engine it is the bar in hand.",
+      "why_it_matters": "The two coincide exactly on this engine, because it evaluates a daily base and closed bars: 'the last closed daily bar' and 'the bars in hand' are the same series. They diverge by ONE BAR only if the engine ever evaluates an intraday base with a forming newest bar — which is the case the guard refuses rather than folds, so the difference can never appear silently. ⛔ Recorded as ACCEPTED rather than left implicit because the alternative spelling is one the 2026-09-01 ruling measured and rejected: putting `D` in TF_RESAMPLABLE would make this a RESAMPLE, and `tf` reads the last closed period, so `tf(close,'D')` on a daily base answers YESTERDAY (measured then: [null,10,11,12,...] against [10,11,12,13,...]). `D` is still absent from TF_RESAMPLABLE; only the identity path changed.",
+      "decision": {
+        "ruled": "2026-09-11 — ACCEPTED (ruling 3.5): identity on a base-period literal, with the guard and the disclosure. Filed `confirmed` overnight for a schema reason and moved to `accepted` on 2026-09-12 once the roster gained a `fold` hook kind; the reasoning is in `member_hook.why`.",
+        "what_happened": "A literal naming the engine's own base period now folds to the identity instead of refusing. Measured in both lanes; eight cases and three controls in `pine.security.test.js`.",
+        "owed_to_the_member": "The fold is disclosed per definition as `baseTimeframeFolds` — line, requested timeframe, base, and what it folded to. A fold nobody is told about is a script that quietly stopped being the one they pasted.",
+        "what_would_reopen_it": "This engine ever evaluating an INTRADAY base. Then a literal 'D' is the last completed session rather than the bars in hand, and the identity would be off by a session — which is why the guard refuses that case outright rather than folding it.",
+        "prior_ruling": "⛔⛔ NOT A REVERSAL OF 2026-09-01. That ruling kept `D` OUT of `TF_RESAMPLABLE` — the RESAMPLE path — because `tf` reads the last CLOSED period, so `tf(close,'D')` on a daily base answers YESTERDAY (measured then: [null,10,11,12,...] against [10,11,12,13,...]). It was built, moved a corpus 43 → 44, and was reverted for that step-back. `D` is STILL absent from `TF_RESAMPLABLE`; only the identity path, which has no step-back, changed.",
+        "why_keep_ours": "Because on this engine ours IS their answer. We evaluate a daily base and closed bars, so \"the last closed daily bar\" and \"the bars in hand\" are the same series — the identity reproduces TradingView exactly here. The alternative is measurably worse: the RESAMPLE spelling was built on 2026-09-01, measured to answer YESTERDAY on a daily base ([null,10,11,12,...] against [10,11,12,13,...]), and reverted for that one-bar step-back. ⛔ And the one case where ours and theirs genuinely differ — an intraday base with a forming newest bar — is REFUSED rather than folded, so the difference can never reach a member as a number. Keeping ours costs a member nothing and keeping theirs would cost them a bar."
+      },
+      "code": "request.security",
+      "measured": "2026-09-11",
+      "probe": {
+        "case": "request.security(syminfo.tickerid, 'D', close) translated for a DAILY base, then for a 60-minute base",
+        "under_ours": "on a daily base it folds to the identity — plain `close`, the bars in hand, no step-back; on a 60-minute base it refuses `pine:request` naming the servable ladder",
+        "under_theirs": "TradingView answers the last CLOSED daily bar in both cases: identical to ours on a daily chart, one session behind the forming bar on an intraday chart",
+        "discriminates": "the two conventions disagree ONLY when the base is intraday and the newest bar is forming — and that is the exact case the guard refuses rather than folds, so the disagreement cannot reach a member silently"
+      },
+      "observation_ids": [],
+      "member_hook": {
+        "kind": "fold",
+        "name": "baseTimeframeFolds",
+        "why": "⛔ There is no table function to hang a `vendorNote` on: `request`, `security`, `tf` and `sym` are none of them `closedTable.json::functions` entries, and the legacy derivation `id.split('-')[0]` therefore names nothing. The member is told by the disclosure the translation emits on the definition itself — `baseTimeframeFolds`, carrying the line, the requested timeframe, the base, and what it folded to. ⭐ This row is why the `fold` kind exists: the roster's `accepted` tier had assumed every divergence was function-level."
+      }
+    },
+    {
+      "id": "running-extreme-folded-to-a-250-bar-window",
+      "shape": "recurrent-state",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "⛔ NOW: `var float m = na` plus `m := math.max(m, x)` REFUSES at `pine:state`, and the refusal names the bounded call — `highest(<that value>, <bars>)` — with the window left with the member. ⚰ BEFORE 2026-09-12 it FOLDED: `accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)`, ok:true, no disclosure and no window shown. `accum` re-seeds `PINE_STATE_WARMUP` = 250 bars back, so the column answered \"the highest of the last 250 bars\" to a member who wrote \"the highest ever\".",
+      "theirs": "Pine keeps the extreme from the first bar the script ran on, for as long as it has run — an all-time value that moves with however many bars were loaded. That is the documented behaviour of a `var` assignment plus `math.max`, stated here as such: it is not a capture, and this row does not pretend to one.",
+      "why_it_matters": "⛔⛔ IT IS THE SECOND INSTANCE OF THE CLASS THE CONVERGENCE GATE WAS BUILT FOR. That gate's own comment cites the first: \"a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line nobody would question\". The gate caught `+` and `forgetsItsSeed` admitted `min`/`max` beside it, because its admit arm asked only whether the recurrence forgets its SEED — true of a running max, where the seed stands until something exceeds it — and said nothing about the WINDOW. ⭐ And the shape is not exotic: every script that moved is a trailing stop or a Supertrend band, which is exactly what a member reaches for when they want a level that only ratchets.",
+      "code": "`app/src/components/chart/engine/ast/pine.js::forgetsItsSeed` — the removed arm is quoted at the site with the one-line narrowing a future ruling would use — and `monotoneFoldOffer`, which composes the bounded-form sentence the refusal carries. Tests: `pine.accumulatorOffer.test.js` (the refusals plus both R-F controls) and `pine.variables.test.js` (the two pinned cases, flipped).",
+      "probe": {
+        "case": "`var float m = na` then `m := math.max(m, volume)`, one plot, nothing else — the smallest script that distinguishes a running extreme from a windowed one.",
+        "under_ours": "`pine:state`, with \". THIS ENGINE DOES DECLARE A BOUNDED FORM: `highest(<that value>, <bars>)` — the highest over a window you name.\" appended. Measured 2026-09-12 in `pine.accumulatorOffer.test.js`.",
+        "under_tradingview": "⚠ NOT CAPTURED, BY RULING. R-A3 (owner, 2026-09-12) ruled the all-time-max capture moot: with ours refusing there is no number of ours to place beside it. The vendor side is the language's documented behaviour, and the row says so rather than implying a reading nobody took.",
+        "under_the_engine_before_R_F": "`accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)` with `ok: true` — reproducible by restoring the quoted arm in `forgetsItsSeed`, which is the mutation the two flipped tests now catch.",
+        "discriminates": "⭐ A SERIES LONGER THAN THE WARMUP IS THE WHOLE PROBE. Inside 250 bars the folded answer and the running one agree exactly — which is why nothing caught this for three weeks, and why a short fixture cannot. Past 250 bars they diverge whenever the all-time extreme is older than the window, and the folded column then STEPS DOWN, which a running extreme can never do."
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "this engine, both lanes, over the 266-script corpus",
+        "on": "2026-09-12",
+        "how": "Removed the `min`/`max` arm from `forgetsItsSeed`, re-derived the corpus metric, and named every script whose verdict moved.",
+        "host_before": 33,
+        "host_after": 31,
+        "screener_before": 47,
+        "screener_after": 46,
+        "movers": [
+          "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+          "supertrend-explorer__V4MsmtCeKs.pine",
+          "10-supertrend.pine",
+          "05-chandelier-exit.pine",
+          "04-ut-bot-alerts.pine"
+        ],
+        "_movers": "⭐ EVERY ONE IS A TRAILING STOP OR A SUPERTREND BAND, which is the evidence that the admit arm was not catching an edge case. They are CORRECT losses: a count that falls because a wrong answer stopped being produced got more true, not less."
+      },
+      "decision": {
+        "ruled": "R-F (owner, 2026-09-12) — fix, not route, the shipped defect: `forgetsItsSeed` admits `+` only, and a bare monotone max/min refuses with the same offer sentence.",
+        "what_changed": "A bare monotone `max`/`min` accumulator no longer folds: it refuses at `pine:state` in BOTH lanes, and the refusal names the bounded call with the window left with the member. `forgetsItsSeed` now admits `+` only, so a CONTRACTING recurrence still folds to `accum` with its window and an explicit-window call still translates untouched — both pinned as controls in `pine.accumulatorOffer.test.js`.",
+        "prior_ruling": "R-A2 (owner, 2026-09-12) authorised the hand-back that names the bounded call. Its measurement is what surfaced this: the offer was built for the `+` case, and the `max` case turned out not to refuse at all.",
+        "what_happened": "⚰ THE DEFECT HAD BEEN CODIFIED IN A TEST WHOSE TITLE NAMED THE USE CASE — `pine.variables.test.js`, \"a running maximum, which is the shape a trailing stop is built from\", asserting the 250-bar fold as correct. And the 2026-08-11 version of its companion case had been RIGHT (`ok === false`, `pine:state`, \"a trailing stop being state by construction\") until an 08-12 correction replaced it with \"IT TRANSLATES\". Both are flipped, and both histories are kept in place rather than rewritten.",
+        "what_would_reopen_it": "⚠ A DECAYING extreme — `m := math.max(m * 0.9, close)` — really does forget its seed and is refused too, which is a named, deliberate over-refusal in the safe direction. Narrowing to it is one line: swap `ok` for a `contracts` predicate in a restored arm, admitting a self operand only where its coefficient contracts over the warmup. Not done on spec, because no corpus script writes it."
+      },
+      "correctedIn": "R-F, 2026-09-12 — `forgetsItsSeed`'s `min`/`max` arm removed; corpus re-frozen at host 31/266 and screener 46/266",
+      "downstream_consumers": {
+        "_": "⭐ WHAT THE CORRECTION COST ELSEWHERE, recorded here rather than as rows of its own. After the fix this is not a vendor divergence at all — we produce no number — so an `accepted` row would owe a member a sentence about a difference that no longer exists.",
+        "frozen_counts": "`pine.corpus` 15→14 translating and 55→46 columns; `doorScorecard` OPEN 8→10; `constructCoverage` persistent-state 14→11; `pine.paramCorpusCount` 15→14, 31→29, 1208→536; `pine.community` 19→17 with two new guard rows; `tools/corpus_metric.json` 33/47 → 31/46.",
+        "builder_lane": "`high_engagement__03-supertrend-kivancozbilgic` keeps ONE of its ten columns — the author's `ohlc4` fill edge — so its save document fell from ~438KB to 1.1KB and is no longer a graph document at all. Three builder specimens moved to scripts that still translate (`paramSingleTranslation`, `builderInputs.symbolClosure`, `graphSaveDoor`), each with the move stated at the line.",
+        "compat_harness": "`tests/fixtures/compat_harness/results/public_script/05-chandelier-exit.json` regenerated: translate SUPPORTED → UNSUPPORTED at `pine:state`, screener eligibility with it."
+      },
+      "bounds": "⚠ THE VENDOR SIDE IS DOCUMENTED BEHAVIOUR, NOT A CAPTURE (R-A3). What is measured is ours, on both lanes, before and after — and the claim this row makes is about our own two behaviours, which is why it is `corrected` rather than `accepted`."
+    },
+    {
+      "id": "hve-window-depth-fires-more-on-a-shorter-series",
+      "shape": "window-depth",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "On AGEN 1D our daily store holds 6,684 bars from 2000-02-08, so `ta.highest(volD[1], 2500)` has a FULL window from 2010 onward and the HVE condition clears 8 times across the whole series — once in the last 300 sessions, on 2026-07-13.",
+      "theirs": "TradingView's AGEN series begins 2010-07-14 and the chart had 4,066 bars loaded. Its running maximum is therefore lower through roughly 2020 and the same condition clears 23 times, including 14 dates we do not fire on (2011-06-03, 2012-06-22, 2013-06-28, 2017-02-14, 2017-10-23, 2018-12-20, 2020-03-06, 2020-03-10, 2020-09-10, 2022-06-29, 2023-12-12, 2023-12-15, 2024-02-15, 2024-04-26).",
+      "why_it_matters": "⛔⛔ AN HVE FIRING IS A STATEMENT ABOUT THE LOADED WINDOW, NOT ABOUT THE SYMBOL'S LIFE, and nothing on either side says so. `ta.highest` over a window that is not yet full returns the max of what exists rather than `na`, so a short series silently reports records that a longer one would not. Measured on the rig: the study loaded 1,003 bars on add and 400 after a timeframe change — both under the declared 2,500 — and a capture taken at either depth would have carried this error with no signal at all. ⭐ Both lanes compute the declared formula CORRECTLY on the history they hold; the divergence is the history, which is why it is accepted rather than corrected.",
+      "member_hook": {
+        "kind": "requirementTag",
+        "name": "window_dependent"
+      },
+      "decision": {
+        "ruled": "Owner, 2026-09-12: accepted as a window-depth divergence, not a bug. Neither side is adjusted. The implication becomes a FIXTURE CONVENTION — every vendor capture records `bars_loaded` and asserts it against the script's largest declared window before the read; a capture below that window is marked WINDOW_TRUNCATED, not void, and its window-dependent columns are excluded from comparison.",
+        "why_keep_ours": "Ours is the deeper series and its window is full where the vendor's is not, so our firing set is the one that answers the question the script asks. ⛔ That is a statement about THIS symbol's history depth and not a general claim of correctness: on a symbol where TradingView holds more history than we do, the same arithmetic would run the other way.",
+        "what_would_reopen_it": "Any of: TradingView extending AGEN's history back before 2000-02-08 so its window is full where ours is (the arithmetic then runs the other way); the script gaining a guard that returns `na` until its declared window is full, which would make both sides silent instead of divergent; or a symbol where WE hold less history than the vendor, which would put our firing set on the over-reporting side and is the case this row's `why_keep_ours` explicitly declines to generalise over."
+      },
+      "probe": {
+        "under_ours": "6,684 daily bars from 2000-02-08; 8 firings over the series; 1 in the last 300 sessions (2026-07-13, 174,277,900 against a prior max of 9,933,500).",
+        "under_theirs": "4,066 bars from 2010-07-14; 23 firings; the record day agrees exactly (2026-07-13, 174,277,926, relative difference 1.5e-7).",
+        "discriminates": "Load the vendor chart to fewer than 2,500 bars and the firing set GROWS; force it deeper and the early firings disappear. The record day is stable under both, which is what separates a window artefact from a data disagreement.",
+        "case": "AGEN 1D, the HVE firing set over the whole series, counted on each side at its own history depth."
+      },
+      "_fetch_depth_on_our_side": "⭐ MEASURED 2026-09-12, and the answer is that the PANE is not exposed to this. The v2 pane document's largest declared window is 50 bars (`value` 0, `out2`/`out3`/`out4` 50); `FIRST_PAINT_BARS` delivers 600 on every timeframe and backfill reaches 12,500 daily. The 2,751-bar window (a tree SUM, not the literal 2,500) belongs to `HVE Trigger` ALONE — the alertcondition ruling D1 removes from the pane. So no drawn series needs the disclosure, and the obligation transfers to whatever surface eventually consumes the alert condition, where 600 bars at first paint is 2,151 short."
+    },
+    {
+      "id": "volume-provenance-two-sources-disagree-and-one-of-them-rounds",
+      "shape": "Two stores answer 'how many shares traded' with different numbers, and the size of the difference depends on the symbol and the era rather than on the market.",
+      "status": "open",
+      "confidence": "measured",
+      "ours": "Raw integer daily volumes from our store: AGEN 2013-09-17 458,066 · 2013-10-08 475,119 · 2013-12-16 487,841 · 2015-01-09 1,481,565 · 2024-07-18 9,129,600 · 2026-07-13 174,277,900.",
+      "theirs": "TradingView reports FRACTIONAL volumes on the older bars: 449,522.45 · 466,754.30 · 479,160 · 1,453,940.65 · 9,129,568 · 174,277,926. The ratio theirs/ours is ~0.9814-0.9824 before 2016 and ~1.0000 from 2024 onward.",
+      "why_it_matters": "A fractional volume means an adjustment FACTOR is being applied, and a ~1.8%% shift in historical volume moves every average, every multiplier and every record comparison computed over that history. ⭐ It does NOT move this wave's work: the T6 comparison uses the last 300 bars, where the two agree to ~1e-6 — inside float noise — and the AGEN record day agrees to 1.5e-7.",
+      "_cause": "NOT ESTABLISHED. Two hypotheses, neither eliminated: (a) a corporate-action volume adjustment — the price axis DOES show an adjustment (~$56-140 in 2011-13 against a raw ~$3-5), though a reverse split would be a large integer factor and this is ~1.018, so it would have to be some other action; (b) a consolidated-tape versus primary-exchange volume difference between providers.",
+      "_what_would_settle_it": "Read the vendor chart's data-adjustment toggles (dividend/split adjustment) on the rig and re-read one pre-2016 bar with adjustment OFF. If the value moves to ours, (a) is the cause and this row closes. If it does not, the row stays open on (b) and becomes a data-provenance item outside this wave.",
+      "probe": {
+        "under_ours": "AGEN 2015-01-09 = 1,481,565 (integer, unadjusted, not a multiple of 100). SPY 2026-09-11 = 45,477,300 (a multiple of 100, like every other SPY bar we hold).",
+        "under_theirs": "AGEN 2015-01-09 = 1,453,940.65 (fractional; ratio 0.981355). SPY 2026-09-11 = 45,512,741 (not a multiple of 100).",
+        "discriminates": "The fractional part is one tell — an unadjusted tape volume is a whole number of shares, so a non-integer value is arithmetic applied after the fact. The GRANULARITY is the second and sharper one: which side is a multiple of 100 says which source served the bar, and on AGEN it changes on a single day (2024-04-11 → 2024-04-12) that also separates the disagreeing bars from the agreeing ones.",
+        "case": "AGEN 1D volume on 2015-01-09 and SPY 1D volume on 2026-09-11, read from our store and from the vendor chart."
+      },
+      "_no_member_hook": "⛔ DELIBERATELY NONE. This row is `open`, so it owes a member nothing yet — and the hook it briefly carried (`requirementTag: window_dependent`) described the OTHER AGEN row. A volume value that disagrees before 2016 is a data-provenance property of the series, not a property of how much history the consumer loaded; stamping it on the window tag would tell a member the wrong thing in the one place they read.",
+      "_renamed_from": "⚰️ WAS `agen-historical-volume-differs-by-1-8-percent-before-2016` until 2026-09-12. ⛔ RETITLED BY RULING, because the name asserted the one thing the evidence had stopped supporting: it is NOT symbol-specific and it is NOT only pre-2016. SPY's own volume disagrees with the vendor by ~35,000 shares on 2026-09-11 and 2026-09-03 — this month, on the most liquid symbol there is. A row named after one symbol and one era collects evidence about that symbol and that era.",
+      "_owner_ruling_2026_09_12": "Route the provenance question — consolidated vs primary tape, our bars.db source, the vendor's adjustment toggles — as ONE item outside this wave. The two toggle checks owed on the rig are its first evidence.",
+      "evidence": {
+        "spy_2026": {
+          "_": "⭐ THE READING THAT BROKE THE ROW OUT OF ONE SYMBOL. Measured through the member pane against the committed SPY capture, 2026-09-12, aligned on the vendor's `time` and not its `date` label.",
+          "bars": [
+            {
+              "date": "2026-09-11",
+              "ours": 45477300,
+              "vendor": 45512741,
+              "delta": 35441,
+              "rel": 0.000779
+            },
+            {
+              "date": "2026-09-03",
+              "ours": 43494000,
+              "vendor": 43531581,
+              "delta": 37581,
+              "rel": 0.000863
+            }
+          ],
+          "_and_two_that_are_NOT_evidence": "⛔ 2026-09-10 (−25) and 2026-09-09 (+11) are ROUNDING, not divergence: our SPY series is 100% multiples of 100 and the vendor's is not. R-L makes the comparator apply that unit, so those two bars stop being counted here. Leaving them in would have inflated this row with the store's own resolution."
+        },
+        "the_quantisation_boundary": "⭐⭐ AGEN's last unrounded bar is 2024-04-11; all 606 bars since are multiples of 100, against 1.1% before. THE SAME BOUNDARY SPLITS THE AGREEMENT: ~1.8% disagreement on the old side, ~1e-6 on the new. That is a provider switch showing up twice in one series, and it is the strongest lead this row has.",
+        "spy_is_rounded_for_its_whole_history": "5,000 of 5,000 SPY daily bars are multiples of 100, every year back to 2002 — so SPY has no old/new split of its own, and yet it still disagrees by ~35k on two 2026 bars. ⛔ Whatever causes the delta is therefore NOT the rounding.",
+        "adjustment_toggles_2026_09_13": "⭐⭐ READ OFF THE RIG 2026-09-13, owed as the volume-provenance row's first evidence. ⛔ THE ADJUSTED-VOLUME HYPOTHESIS IS DEAD: dividend adjustment was ALREADY OFF when every one of these captures was taken, so the vendor's fractional pre-2024 volumes are not an adjustment we forgot to disable.",
+        "the_boundary_is_the_vendors_too": "⭐⭐ THE BOUNDARY IS SHARED, AND THAT IS THE FINDING. Our store's AGEN volumes stop being fractional-source and start being multiples of 100 on 2024-04-12. Read on the vendor's own chart the same day, with adjustment off, the vendor changes on THE SAME DATE — and the two windows are the same size, 606 bars. ⭐ BEFORE the boundary ours is the vendor's fractional value ROUNDED TO A WHOLE SHARE (1,320,809.3 → 1,320,810; 301,580.4 → 301,580). AFTER it, the vendor is integral and unrounded while ours is rounded to 100. So BOTH sides changed source on 2024-04-12, and only ours additionally quantises. ⛔ 2024-04-09 is the exception that keeps this a row and not a closed question: 805,236 against 801,640 is 0.45%, which no rounding explains.",
+        "_where": "Full readings in `uncharted-volume-v2-agen-1d-hve-2026-09-12.json::volume_source_boundary`."
+      },
+      "_T6_is_unaffected": "⭐ T6's comparison is of FLOAT series over the last 300 bars and is not touched by this row. The float columns are computed from volume, so a volume delta reaches them — but at 1e-6 on recent bars, four orders of magnitude under anything T6 measures, and the ~8e-4 deltas here are on individual bars rather than on a 50-bar average. Said plainly so nobody blocks T6 on a provenance question that does not gate it."
     }
   ]
 }

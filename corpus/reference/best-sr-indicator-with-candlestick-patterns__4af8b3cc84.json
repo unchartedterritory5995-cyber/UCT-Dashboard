@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4af8b3cc84874ae5a36401026280daa0",
+ "title": "Best S&R Indicator With Candlestick Patterns",
+ "author": "ForexBee",
+ "url": "https://www.tradingview.com/script/EaDischm-best-s-r-indicator-with-candlestick-patterns/",
+ "agreeCount": 5557,
+ "category": "candlestick patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/best-sr-indicator-with-candlestick-patterns__4af8b3cc84.pine",
+ "our_status": "reference-only"
+}

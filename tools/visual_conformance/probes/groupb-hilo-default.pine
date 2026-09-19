@@ -1,0 +1,55 @@
+//@version=6
+indicator("UCTPROBE_GB_HILO", overlay = false)
+
+// ⭐⭐ GROUP B, THE 81-SITE QUESTION: what does the 1-ARG form of `ta.highest` /
+// `ta.lowest` default its SOURCE to? `docs/pine/r11-group-b-arity.md` names the
+// risk exactly: "does `ta.highest(20)` default the source to `high` (and
+// `ta.lowest` to `low`), or to `close` for both? The asymmetry is the whole risk
+// — guessing `close` would be silently wrong on 81 sites."
+//
+// ⛔⛔ THIS PROBE IS ALONE IN ITS FILE ON PURPOSE. A Pine script that fails to
+// COMPILE produces NOTHING — the study lands on the chart carrying a one-plot
+// stub titled "Plot" with an empty `_data._items`, and a reader who checks the
+// roster instead of `isFailed` records a study that never evaluated as though it
+// answered (measured 2026-09-10, CE10272). The 1-arg form is exactly the thing
+// under test, so putting any other question in this file would stake that
+// question on this one's arity. One risky form, one file.
+//
+// ⚠️ AND A COMPILE FAILURE HERE IS ITSELF THE READING. If the vendor rejects
+// `ta.highest(20)`, then the corpus's 40 one-arg sites are not "an arity we
+// reject", they are scripts that do not compile at TradingView either — which is
+// a different finding with a different fix, and it is settled by the error text.
+
+// ── the control ──────────────────────────────────────────────────────────────
+// ⛔ NOT OPTIONAL. Every delta below can legitimately read 0, so without a
+// channel that is known-nonzero on every bar, "the forms agree" and "the study
+// never evaluated" are the same row of zeros.
+plot(bar_index, "N01_bar_index_CONTROL")                                   // N01
+
+// ── the two candidate answers, asked as DELTAS ───────────────────────────────
+// 0 means "the 1-arg form equals this explicit form". Exactly one should be 0.
+h1 = ta.highest(20)
+plot(h1 - ta.highest(high, 20),  "N02_hi1_minus_hiHIGH_0_means_HIGH")      // N02
+plot(h1 - ta.highest(close, 20), "N03_hi1_minus_hiCLOSE_0_means_CLOSE")    // N03
+
+l1 = ta.lowest(20)
+plot(l1 - ta.lowest(low, 20),    "N04_lo1_minus_loLOW_0_means_LOW")        // N04
+plot(l1 - ta.lowest(close, 20),  "N05_lo1_minus_loCLOSE_0_means_CLOSE")    // N05
+
+// ── ⭐⭐ THE DISCRIMINATOR'S OWN DISCRIMINATOR ────────────────────────────────
+// ⛔ IF `high` AND `close` HAPPEN TO AGREE OVER THE WINDOW, N02 AND N03 ARE BOTH
+// 0 AND THE PROBE HAS ANSWERED NOTHING WHILE LOOKING CONCLUSIVE. These two lines
+// are the spread between the explicit forms: they MUST be non-zero on the bars a
+// verdict is read from, and a bar where they are 0 must be discarded rather than
+// counted. This is the `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`
+// guard applied to the probe's own arithmetic instead of to a test.
+plot(ta.highest(high, 20)  - ta.highest(close, 20), "N06_SPREAD_hi_MUST_be_nonzero")  // N06
+plot(ta.lowest(close, 20)  - ta.lowest(low, 20),    "N07_SPREAD_lo_MUST_be_nonzero")  // N07
+
+// ── the raw values, so a wrong answer can be READ rather than inferred ───────
+// ⭐ A delta says "not equal"; these say WHAT it was. A capture that carries only
+// deltas cannot tell a third answer (`hl2`? `hlc3`?) from a broken read.
+plot(h1, "N08_hi1_RAW")                                                    // N08
+plot(l1, "N09_lo1_RAW")                                                    // N09
+plot(ta.highest(hl2, 20) - h1, "N10_hi1_vs_HL2_0_means_hl2")               // N10
+plot(ta.lowest(hl2, 20)  - l1, "N11_lo1_vs_HL2_0_means_hl2")               // N11

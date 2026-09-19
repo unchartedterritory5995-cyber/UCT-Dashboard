@@ -212,7 +212,8 @@ describe('the closed table`s read-back phrases', () => {
 /** The count words this manifest writes numbers as. Deliberately finite — a
  *  grammar outside this range must make the rail FAIL, never silently skip. */
 const COUNT_WORDS = Object.freeze(
-  ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN'])
+  ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+   'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN'])
 
 const countWord = (n) => COUNT_WORDS[n] ?? null
 

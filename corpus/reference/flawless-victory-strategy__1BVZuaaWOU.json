@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1BVZuaaWOUGrbnKzHCECJiO5DMdrSK36",
+ "title": "Flawless Victory Strategy",
+ "author": "Trebor_Namor",
+ "url": "https://www.tradingview.com/script/i3Uc79fF-flawless-victory-strategy/",
+ "agreeCount": 10962,
+ "category": "machine-learning-styled",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/flawless-victory-strategy__1BVZuaaWOU.pine",
+ "cached_source": "tools/pine_survey/cache/sources/flawless-victory-strategy__1BVZuaaWOU.pine",
+ "our_status": "committed"
+}

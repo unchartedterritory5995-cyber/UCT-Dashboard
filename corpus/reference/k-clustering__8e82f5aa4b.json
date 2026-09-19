@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8e82f5aa4b0f4f9da1a6d8d09dab326f",
+ "title": "K clustering",
+ "author": "ThinkLogicAI",
+ "url": "https://www.tradingview.com/script/FwB6GWPC-k-clustering/",
+ "agreeCount": 5070,
+ "category": "machine-learning-styled",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/k-clustering__8e82f5aa4b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/k-clustering__8e82f5aa4b.pine",
+ "our_status": "committed"
+}

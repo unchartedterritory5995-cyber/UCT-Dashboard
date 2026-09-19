@@ -1,0 +1,297 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Assembled by ©ClassicScott
+
+//@version=6
+indicator(title = '+ ATR Support and Resistance', shorttitle = '+ ATR S/R', overlay = true, max_lines_count = 500)
+
+//----- General inputs related to determining impulsive candles
+period = input.int(title = 'ATR Period', defval = 14, minval = 1, group = 'General Inputs')
+mult = input.float(title = 'ATR Multiple', defval = 1.55, step = 0.05, group = 'General Inputs', tooltip = 'Set this to determine the multiple by which an impulsive candle is calculated. A higher value will naturally return fewer candles')
+
+atrMult = ta.atr(period) * mult
+atr = ta.atr(period)
+
+imp = ta.tr >= atrMult and ta.tr[1] <= atr[1]
+impUp = ta.tr >= atrMult and close > open and ta.tr[1] <= atr[1]
+impDown = ta.tr >= atrMult and close < open and ta.tr[1] <= atr[1]
+
+
+//----- Line terminus for impulse close lines and RSI s/r lines
+lineTerminus = input.int(defval = 10, title = 'Line Length', group = 'General Inputs', tooltip = 'The number of bars ATR close lines and RSI S/R lines extend from their origin candles.')
+
+
+//----- Wick percentages maths - what percent of the candle does the wick take up?
+impDownWick = if impDown
+    high - open
+impUpWick = if impUp
+    open - low
+impDownWickPercent = impDownWick / ta.tr
+impUpWickPercent = impUpWick / ta.tr
+
+totalPercentInput = input.int(defval = 25, minval = 0, maxval = 100, title = 'Wick %', group = 'General Inputs', tooltip = 'Defines the maximum percentage size of the wick of an impulsive candle (as defined by its ATR multiplier) that a box will be drawn from. Sometimes candles with big ATRs have huge wicks (and sometimes result in a candle that is not impulsive at all, but is something like a doji), and you, the person who has to look at your chart, doesn\'t want a giant box drawn across it. Adjusting this number will prevent that. For example, if you set the Wick % to 25 then any wicks that take up more than 25% of that candle will not have a box drawn. Set it to 100 to draw boxes from all wicks.')
+totalPercentCalc = totalPercentInput * .01
+totalPercent = 1 - totalPercentCalc
+
+wickPercentDown = impDownWickPercent <= totalPercentCalc ? true : false
+wickPercentUp = impUpWickPercent <= totalPercentCalc ? true : false
+
+
+//----- Calculations and inputs for support and resistance zones -----\\
+//----- Impulses up
+upStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Border Style', group = 'Support Zones')
+upWidth = input.int(defval = 1, maxval = 4, title = 'Border Width', group = 'Support Zones')
+upColor = input.color(color.new(#445b84, 20), title = 'Border Color', group = 'Support Zones')
+upFill = input.color(color.new(#445b84, 70), title = 'Fill Color', group = 'Support Zones')
+
+upLeft = impUp ? bar_index : na
+upTop = impUp ? low : na
+upRight = impUp ? bar_index : na
+upBottom = impUp ? open : na
+upBorderStyle = upStyle == 'Solid' ? line.style_solid : upStyle == 'Dotted' ? line.style_dotted : upStyle == 'Dashed' ? line.style_dashed : na
+
+var upBox = array.new_box()
+var upBoxLow = array.new_float()
+
+if wickPercentUp
+    array.push(upBoxLow, upBottom)
+    array.push(upBox, box.new(upLeft, upTop, upRight, upBottom, xloc = xloc.bar_index, border_color = upColor, border_style = upBorderStyle, border_width = upWidth, bgcolor = upFill))
+
+// Extend box then check for price break to terminate box
+if (array.size(upBox) > 0)
+    for i = 0 to array.size(upBox) - 1
+        activeBox = array.get(upBox, i)
+        activeBox.set_right(bar_index)
+
+if (array.size(upBoxLow) > 0)
+    for i = array.size(upBoxLow) - 1 to 0
+        boxLowPrice = array.get(upBoxLow, i)
+        if (close < boxLowPrice)
+            brokenBox = array.get(upBox, i)
+            brokenBox.set_right(bar_index)
+            array.remove(upBoxLow, i)
+            array.remove(upBox, i)
+            
+
+//----- Impulses down
+downStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Border Style', group = 'Resistance Zones')
+downWidth = input.int(defval = 1, maxval = 4, title = 'Border Width', group = 'Resistance Zones')
+downColor = input.color(color.new(#844444, 20), title = 'Border Color', group = 'Resistance Zones')
+downFill = input.color(color.new(#844444, 70), title = 'Fill Color', group = 'Resistance Zones')
+
+downLeft = impDown ? bar_index : na
+downTop = impDown ? high : na
+downRight = impDown ? bar_index : na
+downBottom = impDown ? open : na
+downBorderStyle = downStyle == 'Solid' ? line.style_solid : downStyle == 'Dotted' ? line.style_dotted : downStyle == 'Dashed' ? line.style_dashed : na
+ 
+var downBox = array.new_box()
+var downBoxHigh = array.new_float()
+
+if wickPercentDown
+    array.push(downBoxHigh, downTop)
+    array.push(downBox, box.new(downLeft, downTop, downRight, downBottom, xloc = xloc.bar_index, border_color = downColor, border_style = downBorderStyle, border_width = downWidth, bgcolor = downFill))
+
+// Extend box then check for price break to terminate box
+if (array.size(downBox) > 0)
+    for i = 0 to array.size(downBox) - 1
+        activeBox = array.get(downBox, i)
+        activeBox.set_right(bar_index)
+
+if (array.size(downBoxHigh) > 0)
+    for i = array.size(downBoxHigh) - 1 to 0
+        boxHighPrice = array.get(downBoxHigh, i)
+        if (close > boxHighPrice)
+            brokenBox = array.get(downBox, i)
+            brokenBox.set_right(bar_index)
+            array.remove(downBoxHigh, i)
+            array.remove(downBox, i)
+
+
+//----- Mid lines
+midLineInput = input.bool(title = 'Display Lines', defval = true, group = 'Mid Lines', tooltip = 'Select this if you want to display the mid line of impulsive candles.')
+midLineMeasureInput = input.string(title = 'Mid Line Range Selection', defval = 'Wicks', options = ['Wicks', 'Body'], group = 'Mid Lines', tooltip = 'Choose the price range that you would like the mid line to be determined by in impulsive candles.')
+midStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'Mid Lines')
+midWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'Mid Lines')
+midColor = input.color(color.new(#000000, 0), title = 'Line Color', group = 'Mid Lines')
+
+//----- Determining the mid line of an impulsive candle
+wicks = midLineInput ? (high + low) / 2 : na
+bodies = midLineInput ? (open + close) / 2 : na
+midLinePrice = midLineMeasureInput == 'Wicks' ? wicks : midLineMeasureInput == 'Body' ? bodies : na
+
+//----- Drawing the lines
+//----- Impulse up candles
+midUpx1 = impUp ? bar_index : na
+midUpy1 = impUp ? midLinePrice : na
+midUpx2 = impUp ? bar_index : na
+midUpy2 = impUp ? midLinePrice : na
+midLineStyle = midStyle == 'Solid' ? line.style_solid : midStyle == 'Dotted' ? line.style_dotted : midStyle == 'Dashed' ? line.style_dashed : na
+ 
+var midUpLine = array.new_line()
+var midUpLinePriceArray = array.new_float()
+
+if midLineInput and wickPercentUp
+    array.push(midUpLinePriceArray, midLinePrice)
+    array.push(midUpLine, line.new(midUpx1, midUpy1, midUpx2, midUpy2, xloc = xloc.bar_index, color = midColor, style = midLineStyle, width = midWidth))
+
+// Extend line then check for price break to terminate line
+if (array.size(midUpLine) > 0)
+    for i = 0 to array.size(midUpLine) - 1
+        activeLine = array.get(midUpLine, i)
+        activeLine.set_x2(bar_index)
+
+if (array.size(midUpLinePriceArray) > 0)
+    for i = array.size(midUpLinePriceArray) - 1 to 0
+        upLinePrice = array.get(midUpLinePriceArray, i)
+        if (close < upLinePrice)
+            brokenUpLine = array.get(midUpLine, i)
+            brokenUpLine.set_x2(bar_index)
+            array.remove(midUpLinePriceArray, i)
+            array.remove(midUpLine, i)
+
+//----- Impulse down candles
+midDownx1 = impDown ? bar_index : na
+midDowny1 = impDown ? midLinePrice : na
+midDownx2 = impDown ? bar_index : na
+midDowny2 = impDown ? midLinePrice : na
+ 
+var midDownLine = array.new_line()
+var midDownLinePriceArray = array.new_float()
+
+if midLineInput and wickPercentDown
+    array.push(midDownLinePriceArray, midLinePrice)
+    array.push(midDownLine, line.new(midDownx1, midDowny1, midDownx2, midDowny2, xloc = xloc.bar_index, color = midColor, style = midLineStyle, width = midWidth))
+
+// Extend line then check for price break to terminate line
+if (array.size(midDownLine) > 0)
+    for i = 0 to array.size(midDownLine) - 1
+        activeLine = array.get(midDownLine, i)
+        activeLine.set_x2(bar_index)
+
+if (array.size(midDownLinePriceArray) > 0)
+    for i = array.size(midDownLinePriceArray) - 1 to 0
+        downLinePrice = array.get(midDownLinePriceArray, i)
+        if (close > downLinePrice)
+            brokenDownLine = array.get(midDownLine, i)
+            brokenDownLine.set_x2(bar_index)
+            array.remove(midDownLinePriceArray, i)
+            array.remove(midDownLine, i)
+
+
+//----- Impulse close lines
+closesInput = input.bool(defval = false, title = 'Display Lines', group = 'Close Lines')
+closesStyle = input.string(defval = 'Dotted', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'Close Lines')
+closesWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'Close Lines')
+closesColor = input.color(color.white, title = 'Line Color', group = 'Close Lines')
+
+closesx1 = imp ? bar_index : na
+closesy1 = imp ? close : na
+closesx2 = imp ? bar_index + lineTerminus : na
+closesy2 = imp ? closesy1 : na
+closesLineStyle = closesStyle == 'Solid' ? line.style_solid : closesStyle == 'Dotted' ? line.style_dotted : closesStyle == 'Dashed' ? line.style_dashed : na
+
+if closesInput
+    line.new(closesx1, closesy1, closesx2, closesy2, xloc = xloc.bar_index, color = closesColor, style = closesLineStyle, width = closesWidth)
+
+
+
+//----- Everything RSI -----\\
+//----- Inputs
+rsiPeriod = input.int(defval = 14, title = 'Period', group = 'RSI Inputs')
+rsiOB = input.int(defval = 70, title = 'Overbought Level', group = 'RSI Inputs', tooltip = 'Determines the level at which the RSI is considered "overbought." If the RSI reaches or exceeds this level shapes are plotted across the top of the price chart.')
+rsiOS = input.int(defval = 30, title = 'Oversold Level', group = 'RSI Inputs', tooltip = 'Determines the level at which the RSI is considered "oversold." If the RSI reaches or exceeds this level shapes are plotted across the top of the price chart.')
+rsiLevelTop = input.float(defval = 52, title = 'Mid Zone Top', step = 0.1, group = 'RSI Inputs', tooltip = 'Set this as the top of the zone around the mid line of the RSI. This zone, based on price behavior is what is used to determine support or resistance.')
+rsiLevelBottom = input.float(defval = 48, title = 'Mid Zone Bottom', step = 0.1, group = 'RSI Inputs', tooltip = 'Set this as the bottom of the zone around the mid line of the RSI. This zone, based on price behavior is what is used to determine support or resistance.')
+
+//----- Function
+up = ta.rma(math.max(ta.change(close), 0), rsiPeriod)
+down = ta.rma(-math.min(ta.change(close), 0), rsiPeriod)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+
+//----- Mid zone
+rsiSR = rsi >= rsiLevelBottom and rsi <= rsiLevelTop
+rsiSupport = close < open and rsiSR
+rsiResistance = close > open and rsiSR
+
+
+//----- Support
+rsiSupportInput = input.bool(defval = false, title = '', group = 'RSI Support Lines')
+rsiSupportStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'RSI Support Lines')
+rsiSupportWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'RSI Support Lines')
+rsiSupportColor = input.color(color.new(#0045ff, 0), title = 'Line Color', group = 'RSI Support Lines')
+
+rsiSupportx1 = rsiSupport ? bar_index : na
+rsiSupporty1 = rsiSupport ? close : na
+rsiSupportx2 = rsiSupport ? bar_index + lineTerminus : na
+rsiSupporty2 = rsiSupport ? rsiSupporty1 : na
+rsiSupportLineStyle = rsiSupportStyle == 'Solid' ? line.style_solid : rsiSupportStyle == 'Dotted' ? line.style_dotted : rsiSupportStyle == 'Dashed' ? line.style_dashed : na
+
+if rsiSupportInput and not rsiSR[1]
+    line.new(rsiSupportx1, rsiSupporty1, rsiSupportx2, rsiSupporty2, xloc = xloc.bar_index, color = rsiSupportColor, style = rsiSupportLineStyle, width = rsiSupportWidth)
+
+
+//----- Resistance
+rsiResistanceInput = input.bool(defval = false, title = '', group = 'RSI Resistance Lines')
+rsiResistanceStyle = input.string(defval = 'Solid', options = ['Solid', 'Dotted', 'Dashed'], title = 'Line Style', group = 'RSI Resistance Lines')
+rsiReistanceWidth = input.int(defval = 1, maxval = 4, title = 'Line Width', group = 'RSI Resistance Lines')
+rsiResistanceColor = input.color(color.new(#ff0000, 0), title = 'Line Color', group = 'RSI Resistance Lines')
+
+rsiResistancex1 = rsiResistance ? bar_index : na
+rsiResistancey1 = rsiResistance ? close : na
+rsiResistancex2 = rsiResistance ? bar_index + lineTerminus : na
+rsiResistancey2 = rsiResistance ? rsiResistancey1 : na
+rsiResistanceLineStyle = rsiResistanceStyle == 'Solid' ? line.style_solid : rsiResistanceStyle == 'Dotted' ? line.style_dotted : rsiResistanceStyle == 'Dashed' ? line.style_dashed : na
+
+if rsiResistanceInput and not rsiSR[1]
+    line.new(rsiResistancex1, rsiResistancey1, rsiResistancex2, rsiResistancey2, xloc = xloc.bar_index, color = rsiResistanceColor, style = rsiResistanceLineStyle, width = rsiReistanceWidth)
+
+
+//----- Impulse bar coloring and shapes
+barcolor(impUp ? #445b84 : impDown ? #844444 : na, title = 'Impulse Candles')
+
+plotshape(impUp, title = 'Impulse Up', style = shape.circle, location = location.belowbar, color = color.new(#445b84, 0), display = display.none)
+plotshape(impDown, title = 'Impulse Down', style = shape.circle, location = location.abovebar, color = color.new(#844444, 0), display = display.none)
+
+
+//----- RSI bar coloring and shapes
+barcolor(rsiSR and close > open ? color.new(#ff0000, 0) : rsiSR and open > close ? color.new(#0045ff, 0) : na, title = 'RSI S/R Candles', display = display.none)
+
+plotshape(rsiSR and close < open, title = 'RSI Mid Line Support', style = shape.square, location = location.belowbar, color = color.new(#0045ff, 0), display = display.none)
+plotshape(rsiSR and close > open, title = 'RSI Mid Line Resistance', style = shape.square, location = location.abovebar, color = color.new(#ff0000, 0), display = display.none)
+
+plotshape(rsi >= rsiOB, title = 'RSI Overbought', style = shape.triangledown, location = location.top, color = color.new(color.yellow, 50))
+plotshape(rsi <= rsiOS, title = 'RSI Oversold', style = shape.triangleup, location = location.top, color = color.new(color.purple, 50))
+
+
+//----- High volume bar coloring and shapes
+volumeOnOff = input.bool(title = '', defval = false, group = 'Volume Candle Color')
+volumePeriod = input.int(title = 'EMA Period', defval = 21, group = 'Volume Candle Color', tooltip = 'EMA used to determine increasing or decreasing volume. Part of the formula for determining which candles have strong volume.')
+volumeEMA = ta.ema(volume, volumePeriod)
+
+highVolume = volume > volumeEMA and volume > volume[1]
+
+barcolor(volumeOnOff and highVolume and volume > volume[1] and close < close[1] ? color.new(#ef9a9a, 0) : volumeOnOff and highVolume and volume > volume[1] and close > close[1] ? color.new(#90bff9, 0) : na, title = 'High Volume Candles')
+
+plotshape(highVolume and close < open[1] and high >= high[1], title = 'Ran Previous High', style = shape.circle, location = location.abovebar, color = color.new(#ef9a9a, 0), display = display.none)
+plotshape(highVolume and close > open[1] and low <= low[1], title = 'Ran Previous Low', style = shape.circle, location = location.belowbar, color = color.new(#90bff9, 0), display = display.none)
+
+
+//----- OBV bar coloring
+obvOnOff = input.bool(title = '', defval = false, group = 'OBV Candle Color')
+obvPeriod = input.int(title = 'EMA Period', defval = 21, minval = 1, group = 'OBV Candle Color', tooltip = 'An EMA with its source as the OBV. Determines bar color.')
+obvEMA = ta.ema(ta.obv, obvPeriod)
+
+barcolor(obvOnOff and ta.obv > obvEMA ? color.new(#448484, 0) : obvOnOff and ta.obv < obvEMA ? color.new(#5a4484, 0) : na, title = 'OBV Bar Color')
+
+
+//----- EMA + SMA + Kijun average
+showMA = input.bool(title = '', defval = false, group = 'Moving Average', tooltip = 'Blend of SMA, EMA, and Kijun moving averages.')
+maPeriod = input.int(title = 'Period', defval = 200, group = 'Moving Average' )
+
+kijun = math.avg(ta.lowest(maPeriod), ta.highest(maPeriod))
+
+maAvgs = (ta.ema(open, maPeriod) + ta.sma(open, maPeriod) + kijun) / 3
+
+maColor = maAvgs > maAvgs[1] ? color.new(#445b84, 50) : color.new(#844444, 50)
+
+plot(showMA ? maAvgs : na, color = maColor, title = 'Moving Average')

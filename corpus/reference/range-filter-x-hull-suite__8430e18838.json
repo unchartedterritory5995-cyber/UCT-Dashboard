@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8430e18838324e6d8514c8f98e5d87af",
+ "title": "Range Filter x Hull Suite",
+ "author": "PHVNTOM_TRADER",
+ "url": "https://www.tradingview.com/script/TQSL9xVn-range-filter-x-hull-suite/",
+ "agreeCount": 3019,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/range-filter-x-hull-suite__8430e18838.pine",
+ "our_status": "reference-only"
+}

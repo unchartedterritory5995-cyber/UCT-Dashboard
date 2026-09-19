@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "08-hourly-alpha-profile-terminal.pine",
+  "title": "Hourly Alpha Profile Terminal [The Quant Science]",
+  "author": "thequantscience",
+  "source_url": "https://www.tradingview.com/script/qRYFrOJy-Hourly-Alpha-Profile-Terminal-The-Quant-Science/",
+  "retrieved_at": "2026-09-07T10:30:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"3 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 181,
+  "complexity_bucket": "long",
+  "sha256_source": "53b702f3ec7d45e78bc0e833af2f02900d0a7d4b11c53908d79ad60e05410e10",
+  "sha256_normalized": "a2b7e19c9ba812bc150eff8ca910464ade43163faf7cb50e573114a0bf6e5fa7",
+  "storage": "local-only"
+}

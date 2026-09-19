@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;N16MOYK6AEJGGAoy40axs0S48GRFYcNn",
+ "title": "VWAP/MVWAP/EMA CROSSOVER",
+ "author": "derricklaflame",
+ "url": "https://www.tradingview.com/script/ZkWz3mhS-vwap-mvwap-ema-crossover/",
+ "agreeCount": 5848,
+ "category": "volume",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vwapmvwapema-crossover__N16MOYK6AE.pine",
+ "our_status": "reference-only"
+}

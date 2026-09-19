@@ -228,6 +228,52 @@ const NOT_PICKABLE = Object.freeze({
  *  maintains.)
  */
 const TYPES_NOT_PICKABLE = Object.freeze({
+  textop: {
+    guard: 'picker:no-row',
+    why: '🔴 A LIVE GAP, ON THE RECORD — and NOT the same kind of gap as the two '
+      + 'entries below it. `text_contains(...)` and `text_length(...)` answer a '
+      + 'NUMBER (1/0 and a count), so a `textop` sits wherever a number sits and '
+      + 'every existing walker already prices it as one. What it has no row for is '
+      + 'the CONDITIONS picker: "the ticker contains a slash" is a question about '
+      + 'the INSTRUMENT rather than about its series, and the picker builds rows '
+      + 'out of a series vocabulary. Giving it one is a picker DESIGN task of the '
+      + 'same class as `tf` and `sym` above — what a text row compares, and against '
+      + 'what vocabulary of fields. ⛔ The exemption is about the PICKER only: if '
+      + '`fromSource` ever stops opening a `textop` formula, that is a stale walker '
+      + 'and this entry does not excuse it.',
+  },
+  str: {
+    guard: 'picker:no-row',
+    why: '🔴 NOT A MISSING ROW — STRUCTURALLY UNPICKABLE, and that is a different '
+      + 'claim with a different lifetime. `closedTable.json` rules that `str` and '
+      + '`symtext` "may appear NOWHERE except directly under a `textop`", and '
+      + '`parse.js::astHash` THROWS on one found anywhere else: "Text is not a '
+      + 'value in this engine; a text question answers with a number and the text '
+      + 'never leaves it." A picker position for a `str` is therefore not a row '
+      + 'somebody has yet to design — it is a tree the engine refuses to hash. '
+      + '⭐ This mirrors the ruling already written on the Python side rather than '
+      + 'inventing a second one: `definition_concierge._OPERAND_ONLY` describes '
+      + '`str` as "a literal operand of a text question; it is never an expression '
+      + 'on its own", and deliberately does NOT fold it into `CONCIERGE_OMITS`, '
+      + 'because an omitted type loses its `$defs` entry and would leave '
+      + '`textop.args` pointing at a definition the schema had removed. ⛔ So this '
+      + 'entry outlives the `textop` one above: giving `textop` a picker row does '
+      + 'not give `str` one, it gives `str` an OPERAND slot inside that row.',
+  },
+  symtext: {
+    guard: 'picker:no-row',
+    why: '🔴 THE SAME STRUCTURAL CONTAINMENT, ONE SOURCE OVER. A `symtext` is text '
+      + 'supplied by the symbol (`syminfo.ticker`, `syminfo.prefix`) and carries '
+      + 'the identical rule: operand of a `textop` or nothing. The Python ruling '
+      + 'puts it best and is quoted rather than paraphrased — `syminfo.ticker` is '
+      + 'not a screen condition, `contains(syminfo.ticker, "/")` is. ⚠️ AND IT IS '
+      + 'ITS OWN ENTRY rather than sharing `str`\'s, for the reason this file '
+      + 'already states about `tf` and `sym`: one entry covering both would keep '
+      + 'excusing the second after the first stopped needing it. ⛔ Both are '
+      + 'exempt from the PICKER census only. Neither is exempt from the bind-time '
+      + 'fold that is the entire reason they exist: `uncharted-volume.pine:222` is '
+      + '`str.contains(syminfo.ticker, "/")`, and it folds.',
+  },
   tf: {
     guard: 'picker:no-row',
     why: '🔴 A LIVE GAP, ON THE RECORD, NOT A REFUSAL. `tf(close, \'W\')` parses, '

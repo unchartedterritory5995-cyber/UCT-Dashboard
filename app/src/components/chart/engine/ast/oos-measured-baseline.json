@@ -1,0 +1,780 @@
+{
+  "high_engagement__02-waddah-attar-explosion-lazybear.pine": {
+    "outputs": 3,
+    "refusals": [],
+    "flat": 1,
+    "pair": 2,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__03-supertrend-kivancozbilgic.pine": {
+    "outputs": 10,
+    "refusals": [
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:hidden-only"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__04-ttm-squeeze-greeny.pine": {
+    "outputs": 2,
+    "refusals": [],
+    "flat": 0,
+    "pair": 1,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:character"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__09-on-balance-volume-everget.pine": {
+    "outputs": 4,
+    "refusals": [],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__10-rsi-divergence-faytterro.pine": {
+    "outputs": 3,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 1,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__11-vumanchu-cipher-a-vumanchu.pine": {
+    "outputs": 23,
+    "refusals": [
+      "pine:request",
+      "pine:request"
+    ],
+    "flat": 7,
+    "pair": 0,
+    "fillFlat": 2,
+    "fillPair": 0
+  },
+  "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine": {
+    "outputs": 7,
+    "refusals": [],
+    "flat": 7,
+    "pair": 0,
+    "fillFlat": 1,
+    "fillPair": 0
+  },
+  "high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine": {
+    "outputs": 14,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine": {
+    "outputs": 8,
+    "refusals": [
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__15-linear-regression-channel-lonesometheblue.pine": {
+    "outputs": 3,
+    "refusals": [
+      "pine:tuple",
+      "pine:tuple",
+      "pine:tuple"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__16-klinger-volume-oscillator-everget.pine": {
+    "outputs": 5,
+    "refusals": [
+      "pine:state",
+      "pine:state",
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:character"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__18-cross-correlation-kioseff-trading.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:character"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__19-anchored-vwap-stuehmer.pine": {
+    "outputs": 1,
+    "refusals": [
+      "pine:function"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__20-ehlers-fisher-transform-cheatcountry.pine": {
+    "outputs": 4,
+    "refusals": [
+      "pine:offset-literal",
+      "pine:offset-literal",
+      "pine:offset-literal",
+      "pine:offset-literal"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__21-parabolic-sar-deviation-bigbeluga.pine": {
+    "outputs": 2,
+    "refusals": [
+      "pine:function",
+      "pine:hidden-only"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__22-reversal-probability-profile-algoalpha.pine": {
+    "outputs": 8,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__23-sweep-reversal-map-plus-herman.pine": {
+    "outputs": 3,
+    "refusals": [
+      "pine:state",
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "high_engagement__24-coppock-curve-multi-filter-markittick.pine": {
+    "outputs": 18,
+    "refusals": [
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block"
+    ],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__01-ny-macro-status.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__02-relative-volume-candles-narrow-ranges.pine": {
+    "outputs": 7,
+    "refusals": [
+      "pine:state",
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__03-heikin-ashi-lag-meter.pine": {
+    "outputs": 4,
+    "refusals": [
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__04-warm-up-curtain.pine": {
+    "outputs": 4,
+    "refusals": [
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__05-master-line-plus.pine": {
+    "outputs": 8,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__06-sector-rotation-leadership-persistence.pine": {
+    "outputs": 12,
+    "refusals": [
+      "pine:function-def",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__07-hurst-exponent-regime.pine": {
+    "outputs": 2,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__08-vix-term-structure.pine": {
+    "outputs": 4,
+    "refusals": [
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__09-signal-follow-through-ledger.pine": {
+    "outputs": 6,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__10-mtf-supply-demand.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__11-percent-range-tool.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__12-setup-grader.pine": {
+    "outputs": 6,
+    "refusals": [
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__13-volatility-of-returns.pine": {
+    "outputs": 2,
+    "refusals": [],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__14-vwap-z-score-oscillator.pine": {
+    "outputs": 13,
+    "refusals": [
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request",
+      "pine:request"
+    ],
+    "flat": 4,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__15-agreed-upon-dol.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:character"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__16-spy-position-helper.pine": {
+    "outputs": 16,
+    "refusals": [
+      "pine:arity",
+      "pine:arity",
+      "pine:arity",
+      "pine:arity",
+      "pine:arity",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 4,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__17-db-seasonal-by-date-range.pine": {
+    "outputs": 1,
+    "refusals": [
+      "pine:constant-only"
+    ],
+    "flat": 1,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__18-deltalabs-equal-highs-equal-lows.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__19-session-fibs-falcon-ai.pine": {
+    "outputs": 9,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "long_tail__20-cot-pulse-cloud-trend.pine": {
+    "outputs": 11,
+    "refusals": [
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__03-volatility-supply-demand-zones.pine": {
+    "outputs": 6,
+    "refusals": [
+      "pine:function-def",
+      "pine:function-def",
+      "pine:function-def",
+      "pine:function-def",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__04-cisd-order-block.pine": {
+    "outputs": 2,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__05-supertrend-fibonacci-ote.pine": {
+    "outputs": 13,
+    "refusals": [
+      "pine:tuple",
+      "pine:hidden-only"
+    ],
+    "flat": 4,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__07-3way-bollinger-trend.pine": {
+    "outputs": 5,
+    "refusals": [
+      "pine:state",
+      "pine:state"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__08-hourly-alpha-profile-terminal.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__09-relative-volume-breakout-context.pine": {
+    "outputs": 12,
+    "refusals": [
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin"
+    ],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__10-smc-engine.pine": {
+    "outputs": 4,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__12-structure-participation-matrix.pine": {
+    "outputs": 6,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__13-spma-trend.pine": {
+    "outputs": 9,
+    "refusals": [],
+    "flat": 1,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__14-master-line-lite.pine": {
+    "outputs": 7,
+    "refusals": [],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__15-multi-timeframe-ma-forecast.pine": {
+    "outputs": 2,
+    "refusals": [
+      "pine:builtin",
+      "pine:builtin"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__16-ict-smc-guide.pine": {
+    "outputs": 20,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function"
+    ],
+    "flat": 2,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__17-volume-surge-radar.pine": {
+    "outputs": 28,
+    "refusals": [
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin",
+      "pine:builtin"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__18-market-profile-tpo.pine": {
+    "outputs": 6,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__19-oliver-kell-volume-monitor.pine": {
+    "outputs": 6,
+    "refusals": [],
+    "flat": 3,
+    "pair": 3,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__20-mann-kendall-trend-significance.pine": {
+    "outputs": 2,
+    "refusals": [
+      "pine:reassign",
+      "pine:reassign"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__21-market-compass-dynamic-range.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__22-rsi-levels-regime-map.pine": {
+    "outputs": 28,
+    "refusals": [
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:function",
+      "pine:collection",
+      "pine:collection"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  },
+  "mid_engagement__23-distilled-htf-po3.pine": {
+    "outputs": 0,
+    "refusals": [
+      "pine:no-output"
+    ],
+    "flat": 0,
+    "pair": 0,
+    "fillFlat": 0,
+    "fillPair": 0
+  }
+}

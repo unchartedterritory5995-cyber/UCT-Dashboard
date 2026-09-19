@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b3240787112c477383f7bb2df1fcb0f5",
+ "title": "Order Blocks",
+ "author": "pmk07",
+ "url": "https://www.tradingview.com/script/zSDlR0YP-order-blocks/",
+ "agreeCount": 9842,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/order-blocks__b324078711.pine",
+ "cached_source": "tools/pine_survey/cache/sources/order-blocks__b324078711.pine",
+ "our_status": "committed"
+}

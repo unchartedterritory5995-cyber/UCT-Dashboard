@@ -438,13 +438,34 @@ def test_scan_store_prune_has_ZERO_CALLERS_and_the_search_CAN_SEE_ONE():
         f"is broken, not green. Saw: {dot_prune}")
     assert all("scan_store" not in rel for rel, _i, _l in dot_prune)
 
-    # ...and it sees NONE for this one.
-    assert scan_store_prune == [], (
-        "`scan_store.prune` has acquired a caller. That is not automatically "
-        "wrong — but the diff's previous session can now VANISH, and "
-        "`diff_for` reports that as `no_previous` with no error. Establish that "
-        "the horizon cannot reach session N-1 before updating this rail: "
-        f"{scan_store_prune}")
+    # ...and the one caller it does see is the one already reasoned about.
+    #
+    # RISK-024 (Phase One Track B, 2026-09-04) wired `api/main.py`'s
+    # `screener_scan_hits_prune` job onto `scan_store.prune_old()`, at its
+    # default `SCAN_HITS_RETENTION_DAYS` horizon (120 days,
+    # `api/services/screener/scan_store.py`). 120 days is two orders of
+    # magnitude past "the previous session" (~1 day), so under its default
+    # config this caller's horizon cannot reach the row `diff_for` needs —
+    # reasoned about, not merely allowed to appear.
+    #
+    # ⛔ Matched by FILE + CODE TEXT ONLY, never a line number — a line number
+    # here would be exactly the stale-citation defect this repo keeps paying
+    # for the moment `api/main.py` grows or shrinks above this call.
+    _KNOWN_CALLERS = {
+        ("api/main.py", "r = scan_evaluator.scan_store.prune_old()"),
+    }
+    unexpected = [(rel, i, line) for rel, i, line in scan_store_prune
+                  if (rel, line) not in _KNOWN_CALLERS]
+    assert unexpected == [], (
+        "`scan_store.prune` has acquired a NEW caller beyond RISK-024's known "
+        "scheduled job. That is not automatically wrong — but the diff's "
+        "previous session can now VANISH, and `diff_for` reports that as "
+        "`no_previous` with no error. Establish that the horizon cannot reach "
+        f"session N-1 before updating this rail: {unexpected}")
+    assert len(scan_store_prune) >= 1, (
+        "the known RISK-024 caller has disappeared from api/main.py — "
+        "either the search regressed or the scheduled prune job was removed "
+        "(which would resurrect RISK-024's unbounded growth)")
 
 
 def test_two_swept_sessions_give_TWO_and_one_gives_ONE(store):

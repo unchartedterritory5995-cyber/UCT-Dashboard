@@ -28,10 +28,28 @@
  *   reset: () => void,
  * }}
  */
-export function createFakeChart() {
+export function createFakeChart(coords) {
   const calls = []
   const seriesCreated = []
   let nextId = 0
+
+  // ⭐ (j) j.3 — THE TWO COORDINATE READS A SERIES PRIMITIVE NEEDS, AND THEY ARE
+  // DELIBERATELY NOT RECORDED. `createFillPrimitive.draw` asks the time scale and
+  // the series to turn a time and a price into pixels; without them no primitive
+  // can be driven at all and a fill's DRAW half is untestable.
+  //
+  // ⛔ THEY APPEND NOTHING TO `calls`. Every existing assertion in this repo is
+  // written against that log — "the draw-call list is byte-identical" among them —
+  // and a coordinate read is a QUESTION, not one of the calls whose presence or
+  // absence the binder's contract is about. Recording them would change the log
+  // for every test that ever drives a primitive, which is the opposite of what a
+  // control is for.
+  //
+  // Linear and injectable so a test can pin exact pixels: the default maps a time
+  // to its index * 10 and a price to `500 - price`, both of which are invertible
+  // by eye when an assertion fails.
+  const timeToX = (coords && coords.timeToX) || ((t) => (Number.isFinite(t) ? t * 10 : null))
+  const priceToY = (coords && coords.priceToY) || ((p) => (Number.isFinite(p) ? 500 - p : null))
 
   /** Every recorded call: `{on, id, method, args}`. `on` is the object KIND so a
    *  test can say "no series call of any kind happened"; `id` identifies which
@@ -79,6 +97,7 @@ export function createFakeChart() {
         return rec('series', id, 'removePriceLine', [handle])
       },
       setMarkers: (m) => rec('series', id, 'setMarkers', [m]),
+      priceToCoordinate: (p) => priceToY(p),
       attachPrimitive: (p) => rec('series', id, 'attachPrimitive', [p]),
       detachPrimitive: (p) => rec('series', id, 'detachPrimitive', [p]),
       options: () => series.__options,
@@ -105,6 +124,7 @@ export function createFakeChart() {
       fitContent: () => rec('chart', 'chart', 'timeScale.fitContent', []),
       getVisibleLogicalRange: () => null,
       setVisibleLogicalRange: (r) => rec('chart', 'chart', 'timeScale.setVisibleLogicalRange', [r]),
+      timeToCoordinate: (t) => timeToX(t),
     }),
     panes: () => [{ getHeight: () => 300, getHTMLElement: () => null }],
     remove: () => rec('chart', 'chart', 'remove', []),
@@ -136,6 +156,80 @@ export function createFakeChart() {
     livePriceLines: (series) => [...series.__live],
     reset: () => { calls.length = 0 },
   }
+}
+
+/**
+ * ⭐⭐ (j) j.3 — A RECORDING CANVAS, BECAUSE R30 IS A CLAIM ABOUT ORDER.
+ *
+ * "A fill is drawn as RUNS, and `ctx.fillStyle` is set once per run" cannot be
+ * checked by looking at state after the fact: one `fillStyle` assignment and
+ * three leave the canvas in the SAME final state. Only the ORDERED sequence
+ * distinguishes "three runs, three colours" from "three polygons in one colour",
+ * and those are exactly the two things R30 separates.
+ *
+ * So `fillStyle` is an accessor that records every ASSIGNMENT, and every path
+ * call appends to the same ordered log — the same one-log-in-order discipline
+ * `createFakeChart` states for itself, for the same reason.
+ *
+ * ⛔ A SETTER THAT RECORDS ONLY CHANGES WOULD BEG THE QUESTION. Recording an
+ * assignment only when the value differs would make "set once per run" true by
+ * construction for two adjacent runs that resolve to the SAME colour — which is
+ * precisely the na-gap case (`up, down, GAP, down, up`), where two separate runs
+ * legitimately share a colour. Every assignment is recorded; the test decides
+ * what the sequence should be.
+ */
+export function createRecordingCtx() {
+  const ops = []
+  let fillStyleValue = null
+  const ctx = {
+    get fillStyle() { return fillStyleValue },
+    set fillStyle(v) { fillStyleValue = v; ops.push({ op: 'fillStyle', value: v }) },
+    save: () => ops.push({ op: 'save' }),
+    restore: () => ops.push({ op: 'restore' }),
+    beginPath: () => ops.push({ op: 'beginPath' }),
+    moveTo: (x, y) => ops.push({ op: 'moveTo', x, y }),
+    lineTo: (x, y) => ops.push({ op: 'lineTo', x, y }),
+    closePath: () => ops.push({ op: 'closePath' }),
+    fill: () => ops.push({ op: 'fill' }),
+  }
+  /** What lightweight-charts hands a renderer's `draw`. */
+  const target = { useMediaCoordinateSpace: (fn) => fn({ context: ctx }) }
+  return {
+    ctx,
+    target,
+    ops,
+    /** Every `fillStyle` assignment, in order — the R30 sequence. */
+    fillStyles: () => ops.filter((o) => o.op === 'fillStyle').map((o) => o.value),
+    /** One entry per `beginPath`…`fill`, each the vertices in draw order. */
+    polygons: () => {
+      const out = []
+      let cur = null
+      for (const o of ops) {
+        if (o.op === 'beginPath') { cur = []; continue }
+        if (cur && (o.op === 'moveTo' || o.op === 'lineTo')) cur.push({ x: o.x, y: o.y })
+        if (o.op === 'fill' && cur) { out.push(cur); cur = null }
+      }
+      return out
+    },
+    /** The `fillStyle` in force when each polygon was filled, in order. */
+    polygonColours: () => {
+      const out = []
+      let style = null
+      for (const o of ops) {
+        if (o.op === 'fillStyle') style = o.value
+        if (o.op === 'fill') out.push(style)
+      }
+      return out
+    },
+    reset: () => { ops.length = 0; fillStyleValue = null },
+  }
+}
+
+/** Drive a primitive's one pane view against a recording canvas. */
+export function drawPrimitive(primitive, { chart, series, recorder }) {
+  primitive.attached({ chart, series, requestUpdate: () => {} })
+  primitive.paneViews()[0].renderer().draw(recorder.target)
+  return recorder
 }
 
 /** Bars shaped the way `indicators.js` and `computeFor` expect. Enough of them

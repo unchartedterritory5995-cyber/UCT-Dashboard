@@ -55,10 +55,18 @@
 - Author/repo: github.com/f13end/tradingview-custom-indicators (channels collection)
 - Donchian Channel upper/lower/mid bands with optional fill and breakout `alertcondition` signals.
 
-## 12-ichimoku-clouds.pine
-- URL: https://raw.githubusercontent.com/f13end/tradingview-custom-indicators/master/indicators/Ichimoku%20Clouds%20%5BYield%5D
-- Author/repo: created by Yield, CC BY-NC-ND 4.0 — via github.com/f13end/tradingview-custom-indicators
-- Full Ichimoku Kinko Hyo (Tenkan, Kijun, Senkou A/B cloud, Chikou) with configurable periods and cross alerts.
+## 12-ichimoku-kinko-hyo.pine
+- URL: none — this file is ours.
+- Author: Uncharted Territory, MPL-2.0. **Clean-room**: written from the published
+  definition of Ichimoku Kinko Hyo (the 9/26/52 window midpoints, the 26-bar
+  forward and backward displacement, the cloud between the leading spans). No
+  third-party source was consulted or adapted.
+- Replaces a third-party Ichimoku that had been committed here under
+  **CC BY-NC-ND 4.0** — a licence that forbids both commercial use and
+  derivatives, so it could not stay in this repository. Owner ruling 2026-09-09.
+- Tenkan/Kijun/Senkou A/B cloud/Chikou with configurable lengths and displacement.
+  The displacement convention matches TradingView's built-in Ichimoku so a vendor
+  parity measurement compares like with like.
 
 ## 13-average-true-range.pine
 - URL: https://raw.githubusercontent.com/f13end/tradingview-custom-indicators/master/strategies/Highlight%20ATR.pine

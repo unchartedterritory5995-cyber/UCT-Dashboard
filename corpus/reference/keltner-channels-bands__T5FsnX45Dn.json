@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;T5FsnX45DnHzQdik76N6S5qud9z3YTgq",
+ "title": "Keltner Channels Bands ",
+ "author": "ceyhun",
+ "url": "https://www.tradingview.com/script/NKx793Vo-keltner-channels-bands/",
+ "agreeCount": 666,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
+ "cached_source": "tools/pine_survey/cache/sources/keltner-channels-bands__T5FsnX45Dn.pine",
+ "our_status": "committed"
+}

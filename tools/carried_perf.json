@@ -1,0 +1,115 @@
+{
+  "runs": [
+    {
+      "sites": 1,
+      "len": 14,
+      "bars": 300,
+      "ms": 0.49710000000004584,
+      "steps": 300,
+      "cells": 3,
+      "instances": 1,
+      "rings": 0
+    },
+    {
+      "sites": 1,
+      "len": 14,
+      "bars": 5000,
+      "ms": 6.939000000000078,
+      "steps": 5000,
+      "cells": 3,
+      "instances": 1,
+      "rings": 0
+    },
+    {
+      "sites": 10,
+      "len": 14,
+      "bars": 300,
+      "ms": 2.670900000000074,
+      "steps": 3000,
+      "cells": 30,
+      "instances": 10,
+      "rings": 0
+    },
+    {
+      "sites": 10,
+      "len": 14,
+      "bars": 5000,
+      "ms": 43.66890000000012,
+      "steps": 50000,
+      "cells": 30,
+      "instances": 10,
+      "rings": 0
+    },
+    {
+      "sites": 100,
+      "len": 14,
+      "bars": 300,
+      "ms": 24.780500000000075,
+      "steps": 30000,
+      "cells": 300,
+      "instances": 100,
+      "rings": 0
+    },
+    {
+      "sites": 100,
+      "len": 14,
+      "bars": 5000,
+      "ms": 492.5215000000003,
+      "steps": 500000,
+      "cells": 300,
+      "instances": 100,
+      "rings": 0
+    }
+  ],
+  "length": [
+    {
+      "len": 5,
+      "ms": 6.814200000000255,
+      "steps": 5000,
+      "cells": 3,
+      "instances": 1,
+      "rings": 0
+    },
+    {
+      "len": 50,
+      "ms": 6.972600000000057,
+      "steps": 5000,
+      "cells": 3,
+      "instances": 1,
+      "rings": 0
+    },
+    {
+      "len": 500,
+      "ms": 6.521099999999933,
+      "steps": 5000,
+      "cells": 3,
+      "instances": 1,
+      "rings": 0
+    }
+  ],
+  "udf": {
+    "direct": 47.35500000000047,
+    "viaUdf": 88.4993000000004,
+    "ratio": 1.8688480625065889
+  },
+  "market": {
+    "typical": {
+      "perSymbolMs": 1.175000000000182,
+      "scanSeconds": 5.8750000000009095,
+      "steps": 1200
+    },
+    "heavy": {
+      "perSymbolMs": 97.34839999999986,
+      "scanSeconds": 486.7419999999993,
+      "steps": 100000
+    },
+    "note": "CARRIED_STEPS is per execution — it bounds a runaway SYMBOL, never the SCAN."
+  },
+  "state": {
+    "instances": 100,
+    "cellsPerInstance": 3,
+    "cells": 300,
+    "bytesPerSymbol": 2400,
+    "bytesFor5000Symbols": 12000000
+  }
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4d1deaa855b549eeb781bad058d6476a",
+ "title": "Momentum Volatility Scanner",
+ "author": "macztradez",
+ "url": "https://www.tradingview.com/script/cv5uooG7-momentum-volatility-scanner/",
+ "agreeCount": 735,
+ "category": "screener/scanner",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
+ "cached_source": "tools/pine_survey/cache/sources/momentum-volatility-scanner__4d1deaa855.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;vRWbsbkQGeHfgOUKkfXq3fXewDcmT9Um",
+ "title": "Ultimate Pivot Points",
+ "author": "Pratik_4Clover",
+ "url": "https://www.tradingview.com/script/XspBXSal-ultimate-pivot-points/",
+ "agreeCount": 688,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ultimate-pivot-points__vRWbsbkQGe.pine",
+ "our_status": "committed"
+}

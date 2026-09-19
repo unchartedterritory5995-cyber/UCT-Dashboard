@@ -1,0 +1,383 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © CandelaCharts
+
+//@version=6
+indicator("CandelaCharts - Equal Highs/Lows (EQH/EQL)", shorttitle = "CandelaCharts - Equal Highs/Lows (EQH/EQL)", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500, max_bars_back = 500, max_polylines_count = 100)
+
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Colors   |
+// # ========================================================================= #
+
+//#region
+
+colors_cyan_dark                    = #089981
+colors_red_bright                   = #f23645
+colors_gray                         = color.gray
+colors_transparent                  = color.new(color.white, 100)
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Inputs   |
+// # ========================================================================= #
+
+//#region
+
+general_font                        = input.string("Monospace", "Text Style                  ", options = ["Default", "Monospace"], inline = "5", group = "General")
+general_text                        = input.string("Tiny", "", options = ["Tiny", "Small", "Normal", "Large", "Huge", "Auto"], inline = "5", group = "General", tooltip = "Customize global text size and style")
+general_brand_show                  = input.bool(false, "Hide Brand", group = "General")
+
+eqh_eql_show                        = input.bool(true, "Show EQH/EQL    ", inline = "1", group = "Settings", tooltip = "Display EQH and EQL")
+eqh_eql_mode                        = input.string("Short Term", "", options = ["Short Term", "Intermediate Term", "Long Term"], inline = "1", group = "Settings")
+eqh_eql_line_type                   = input.string("····", "Line Style                  ", inline = "2", group = "Settings", options = ["⎯⎯⎯", "----", "····"])
+eqh_eql_line_width                  = input.int(1, "", inline = "2", group = "Settings", minval = 1, maxval = 5)
+eqh_eql_bear_css                    = input.color(colors_cyan_dark, "Bullish Color              ", inline = "3", group = "Settings")
+eqh_eql_bull_css                    = input.color(colors_red_bright, "Bearish Color             ", inline = "4", group = "Settings")
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   UDT   |
+// # ========================================================================= #
+
+//#region
+
+type UDT_Bar
+    float   o = open
+    float   c = close
+    float   h = high
+    float   l = low
+    float   v = volume
+    int     n = bar_index
+    int     t = time
+
+type UDT_EHL
+    int    x1
+    float  y1
+    int    x2
+    float  y2
+    bool   bull
+
+type UDT_Alerts
+    bool ehl = false
+
+type UDT_Store
+    line    [] ehl_ln
+    label   [] ehl_lbl
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Store   |
+// # ========================================================================= #
+
+//#region
+
+var UDT_Store bin = UDT_Store.new(
+                   ehl_ln = array.new<line>()
+                 , ehl_lbl = array.new<label>()
+                 )
+
+method clean_ehl(UDT_Store store) =>
+    for obj in store.ehl_ln
+        obj.delete()
+    for obj in store.ehl_lbl
+        obj.delete()
+
+    store.ehl_ln.clear()
+    store.ehl_lbl.clear()
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Functions   |
+// # ========================================================================= #
+
+//#region
+
+method text_size(string size) =>
+    out = switch size
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+        "Auto"   => size.auto
+    out
+
+method line_style(string line) =>
+    out = switch line
+        '⎯⎯⎯'  => line.style_solid
+        '----'   => line.style_dashed
+        '····'   => line.style_dotted
+
+method font_style(string font) =>
+    out = switch font
+        'Default'   => font.family_default
+        'Monospace' => font.family_monospace
+
+method enable_liquidity_ehl_alerts(UDT_Alerts alerts, UDT_EHL ehl) =>
+    if not na(ehl)
+        alerts.ehl := true
+    alerts
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Variables   |
+// # ========================================================================= #
+
+//#region
+
+UDT_Bar b                   = UDT_Bar.new()
+
+b_t = b.t
+
+UDT_Alerts bull_alert       = UDT_Alerts.new()
+UDT_Alerts bear_alert       = UDT_Alerts.new()
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   EQH/EQL   |
+// # ========================================================================= #
+
+//#region EQH/EQL
+
+get_ehl_threshhold() =>
+    int   position   = 2
+    float threshhold = 0.1
+    float atr = ta.atr(200)
+    
+    switch eqh_eql_mode
+        "Short Term"            => position := 2,  threshhold := 0.1
+        "Intermediate Term"     => position := 6,  threshhold := 0.25
+        "Long Term"             => position := 10, threshhold := 0.5
+        
+    [position, atr * threshhold]
+
+method detect_eh(array<UDT_EHL> ehs) =>
+    [position, threshhold] = get_ehl_threshhold()
+
+    var float high_price = 0
+    var int   ehl_t  = 0
+
+    float pivot_high = ta.pivothigh(high, position, position)
+
+    UDT_EHL ehl = na
+
+    if not na(pivot_high)
+        mx = math.max(pivot_high, high_price)
+        mn = math.min(pivot_high, high_price)
+        if mx < mn + threshhold
+            ehl := UDT_EHL.new(x1 = ehl_t, y1 = high_price, x2 = b_t[position], y2 = pivot_high, bull = true)
+            ehs.unshift(ehl)
+        high_price := pivot_high
+        ehl_t      := b_t[position]
+    ehl
+
+method detect_el(array<UDT_EHL> els) =>
+    [position, threshhold] = get_ehl_threshhold()
+
+    var float low_price = 0
+    var int   ehl_b  = 0
+
+    float ehl_pivot_low = ta.pivotlow(low, position, position)
+
+    UDT_EHL ehl = na
+
+    if not na(ehl_pivot_low)
+        mx = math.max(ehl_pivot_low, low_price)
+        mn = math.min(ehl_pivot_low, low_price)
+        if mn > mx - threshhold
+            ehl := UDT_EHL.new(x1 = ehl_b, y1 = low_price, x2 = b_t[position], y2 = ehl_pivot_low, bull = false)
+            els.unshift(ehl)
+        low_price := ehl_pivot_low
+        ehl_b     := b_t[position]
+    ehl
+
+method draw_ehl(array<UDT_EHL> ehls) => 
+    if ehls.size() > 0
+        len = math.min(10, ehls.size() - 1)
+        for i = 0 to len
+            ehl = ehls.get(i)
+            text_color  = ehl.bull ? eqh_eql_bull_css : eqh_eql_bear_css
+            label_style = ehl.bull ? label.style_label_down : label.style_label_up
+            label_text  = ehl.bull ? "EQH" : "EQL"
+            label_x     = int(math.avg(ehl.x2, ehl.x1))
+
+            bin.ehl_ln.unshift(line.new(x1 = ehl.x1, y1 = ehl.y1, x2 = ehl.x2, y2 = ehl.y2, color = text_color, style = line_style(eqh_eql_line_type), width = eqh_eql_line_width, xloc = xloc.bar_time))
+            bin.ehl_lbl.unshift(label.new(x = label_x, y = ehl.y2, color = colors_transparent, style = label_style, textcolor = text_color, text = label_text, size = text_size(general_text), text_font_family = font_style(general_font), xloc = xloc.bar_time))
+    ehls
+
+bin.clean_ehl()
+
+if eqh_eql_show
+    
+    var UDT_EHL[] bullish_equal_hl = array.new<UDT_EHL>()
+    var UDT_EHL[] bearish_equal_hl = array.new<UDT_EHL>()
+
+    eh = bullish_equal_hl.detect_eh()
+    el = bearish_equal_hl.detect_el()
+
+    if barstate.islast
+        
+        bullish_equal_hl.draw_ehl()
+        bearish_equal_hl.draw_ehl()
+
+    // alerts
+    bull_alert.enable_liquidity_ehl_alerts(eh)
+    bear_alert.enable_liquidity_ehl_alerts(el)
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Alerts   |
+// # ========================================================================= #
+
+//#region
+    
+alertcondition(bull_alert.ehl             , "Bullish EQH", "Bullish EQH")
+alertcondition(bear_alert.ehl             , "Bearish EQL", "Bearish EQL")
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// # ========================================================================= #
+// # |   Brand   |
+// # ========================================================================= #
+
+//#region
+
+if barstate.isfirst and general_brand_show == false
+    var table brand = table.new(position.bottom_right, 1, 1, bgcolor = chart.bg_color)
+    table.cell(brand, 0, 0,  "© CandelaCharts", text_color = colors_gray, text_halign = text.align_center, text_size = text_size(general_text), text_font_family = font_style(general_font))
+
+//#endregion
+
+// # ========================================================================= #
+// # |   End   |
+// # ========================================================================= #

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a1528b4d74d04fcd90e4979c87afbbd1",
+ "title": "Inside Bar Setup",
+ "author": "dixitsoham7",
+ "url": "https://www.tradingview.com/script/O4fTu7F3-inside-bar-setup/",
+ "agreeCount": 2246,
+ "category": "candlestick patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/inside-bar-setup__a1528b4d74.pine",
+ "our_status": "reference-only"
+}

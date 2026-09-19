@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f2989eaa65114a4c85a2b57d4f23e279",
+ "title": "Enhanced McClellan Summation Index",
+ "author": "EliCobra",
+ "url": "https://www.tradingview.com/script/xpnUXbpU-enhanced-mcclellan-summation-index/",
+ "agreeCount": 1709,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/enhanced-mcclellan-summation-index__f2989eaa65.pine",
+ "our_status": "reference-only"
+}

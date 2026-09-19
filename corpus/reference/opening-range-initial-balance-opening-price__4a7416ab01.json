@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4a7416ab01294c3195d51cce62fb419b",
+ "title": "Opening Range, Initial Balance, Opening Price",
+ "author": "PtGambler",
+ "url": "https://www.tradingview.com/script/0nXvk5cU-opening-range-initial-balance-opening-price/",
+ "agreeCount": 718,
+ "category": "session tools",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
+ "cached_source": "tools/pine_survey/cache/sources/opening-range-initial-balance-opening-price__4a7416ab01.pine",
+ "our_status": "committed"
+}

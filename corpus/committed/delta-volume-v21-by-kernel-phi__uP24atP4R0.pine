@@ -1,0 +1,55 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © kernel_phi
+
+//@version=4
+
+study(title="Delta Volume v2.1 by kernel_phi", shorttitle="Delta Volume", precision=0)
+size = input(title="Fragment Size (minutes)", type=input.integer, defval=5, maxval=1440, minval=1)
+// Comment: make sure you have set a large (default) fragment size before switching to a monthly chart
+res = tostring(size)
+
+periodMultiplier = security(syminfo.tickerid, timeframe.period, timeframe.multiplier)
+periodIsIntraday = security(syminfo.tickerid, timeframe.period, timeframe.isintraday)
+periodIsDaily = security(syminfo.tickerid, timeframe.period, timeframe.isdaily)
+periodIsWeekly = security(syminfo.tickerid, timeframe.period, timeframe.isweekly)
+
+conversion = periodIsIntraday ? 1 : periodIsDaily ? 24 * 60 : periodIsWeekly ? 24 * 60 * 7 : 0
+count = conversion * periodMultiplier / size
+
+signedVol1 = close > open ? volume : close < open ? -volume : 0.5 * volume
+signedVol2 = close > open ? volume : close < open ? -volume : -0.5 * volume
+
+buyVol() =>
+    buyVol = 0.0
+    temp = count == 0 ? 24 * 60 * dayofmonth(time - 24 * 60 * 1000) * periodMultiplier / size : count
+    for i = 1 to temp by 1
+        buyVol := buyVol + max(signedVol1[i], 0)
+    buyVol
+
+sellVol() =>
+    sellVol = 0.0
+    temp = count == 0 ? 24 * 60 * dayofmonth(time - 24 * 60 * 1000) * periodMultiplier / size : count
+    for i = 1 to temp by 1
+        sellVol := sellVol + min(signedVol2[i], 0)
+    sellVol
+    
+buyVolRes = security(syminfo.tickerid, res, buyVol(), lookahead=barmerge.lookahead_on)
+sellVolRes = security(syminfo.tickerid, res, sellVol(), lookahead=barmerge.lookahead_on)
+totalVol = buyVolRes - sellVolRes
+delta = buyVolRes + sellVolRes
+
+plot(totalVol, title="Total Volume", style=plot.style_columns, color=color.gray, transp=80, offset=-1)
+plot(buyVolRes, title="Buy Volume", style=plot.style_columns, color=color.green, transp=80, offset=-1)
+plot(sellVolRes, title="Sell Volume", style=plot.style_columns, color=color.red, transp=80, offset=-1)
+plot(delta, title="Delta Volume", style=plot.style_columns, color=(delta>0 ? color.green : color.red), linewidth=2, offset=-1)
+hline(0)
+
+// Comment: I don't find this part meaningful or useful so I'll make it optional
+//
+cumulative = input(title="Period of Cumulative Delta, 0 for unrestricted sum", type=input.integer, defval=100, minval=0)
+smooth = input(title="EMA Period of CD", type=input.integer, defval=3, minval=1)
+totalSum = 0.0
+totalSum := nz(totalSum[1]) + delta
+partialSum = sum(delta, max(cumulative, 1))
+cumulativeDelta = cumulative == 0 ? totalSum : partialSum
+plot(ema(cumulativeDelta, smooth), title="Cumulative Delta", style=plot.style_columns, color=(cumulativeDelta>0 ? color.green : color.red), transp=70, offset=-1)

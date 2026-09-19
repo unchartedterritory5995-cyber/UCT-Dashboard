@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5bfc8355aa774a2c8d907157b10143cb",
+ "title": "Divergence Screener [Trendoscope®]",
+ "author": "Trendoscope",
+ "url": "https://www.tradingview.com/script/zewvHAvQ-divergence-screener-trendoscope/",
+ "agreeCount": 5972,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/divergence-screener-trendoscope__5bfc8355aa.pine",
+ "our_status": "reference-only"
+}

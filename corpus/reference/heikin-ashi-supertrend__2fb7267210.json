@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2fb72672107d4b97a2ada6a7ec7d0857",
+ "title": "Heikin Ashi Supertrend",
+ "author": "jordanfray",
+ "url": "https://www.tradingview.com/script/9z16eauD-heikin-ashi-supertrend/",
+ "agreeCount": 3565,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/heikin-ashi-supertrend__2fb7267210.pine",
+ "cached_source": "tools/pine_survey/cache/sources/heikin-ashi-supertrend__2fb7267210.pine",
+ "our_status": "committed"
+}

@@ -81,7 +81,17 @@ LIVE, AS_OF_SNAPSHOT, UNKNOWN = FRESHNESS_MODES
 #: `ast_interpret.NODE_TYPES` by a test; an unlisted type is reported
 #: `unreadable`, which would make every multi-timeframe or cross-symbol
 #: definition freshness-undecidable rather than merely unhandled.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
+#: ⚰️ THE TRIO ARRIVED LATE AND THIS COPY DID NOT MOVE WITH IT (fixed
+#: 2026-09-11). ``str``/``symtext``/``textop`` were added to
+#: ``ast_interpret.NODE_TYPES`` by the Kind-4 merge and this list kept naming
+#: eight, so every tree carrying bind-time text fell to the ELSE arm below and
+#: read UNKNOWN — fail-closed, nothing red in this module, and the badge
+#: hedging about a formula the engine prices exactly.
+#: ⭐ NOTHING ELSE IN THIS MODULE NEEDS AN ARM: freshness is keyed on
+#: ``type == "series"`` plus the scalars table, so a text node is neutral by
+#: construction — it reads no bar, so it can make nothing staler.
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
+                    "str", "symtext", "textop")
 
 
 def _walk(tree: Any) -> List[Any]:

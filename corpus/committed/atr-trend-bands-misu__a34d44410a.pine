@@ -1,0 +1,64 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// ©Misu
+//@version=5
+indicator("ATR Trend Bands [Misu]", overlay = true, shorttitle="ATR TB [Misu]")//, initial_capital=50000, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+
+// import Fontiramisu/fontLib/86 as fontilab
+import Fontiramisu/fontilab/11 as fontilab
+
+// ] -------- Input  --------------- [
+src         = input.source(close, "Source", group="Settings")
+len         = input.int(5, "Length Atr", group = "Settings")
+mult        = input.float(7.6, "Multiplier Atr", step = 0.1, group = "Settings")
+
+colorbars   = input.bool(true, "Color Bars", group = "UI Settings")
+showlmidbs   = input.bool(true, "Show Label", group = "UI Settings")
+
+// ] -------- Vars  --------------- [
+// Cond Vars.
+// _bodyHi     = math.max(close, open)
+// _bodyLo     = math.min(close, open)
+// _body       = _bodyHi - _bodyLo
+// _bodyAvg    = ta.ema(_body, len)
+
+// ] -------- Logic ----------------- [
+deltaAtr                = mult * ta.atr(len)
+[midb, upperb, lowerb]  = fontilab.getTrendBands(src, deltaAtr)
+
+trendUp     = midb > nz(midb[1])
+trendDown   = midb < nz(midb[1])
+
+lastState   = 0
+lastState   := nz(lastState[1])
+lastState   := trendUp ? 1 : trendDown ? -1 : nz(lastState[1])
+
+buyCond     = trendUp and nz(lastState[1]) == -1
+sellCond    = trendDown and nz(lastState[1]) == 1
+
+// ] -------- Strategy Part ------------ [
+// if buyCond
+//     strategy.entry("L", strategy.long, alert_message="Buy Signal")
+
+// if sellCond
+//     strategy.entry("S", strategy.short, alert_message="Sell Signal")
+
+// ] -------- Plot Part --------------- [
+var color colorTrend = na
+colorTrend := midb < nz(midb[1]) ? color.red : midb > nz(midb[1]) ? color.green : nz(colorTrend[1])
+barcolor(colorbars ? colorTrend : na)
+
+plot(upperb, "Upper Band", color = colorTrend, linewidth = 2)
+plot(lowerb, "Lower Band", color = colorTrend, linewidth = 2)
+
+if showlmidbs and buyCond
+    label.new(x = bar_index, y = low - (ta.atr(30) * 0.3), xloc = xloc.bar_index, text = "L", style = label.style_label_up, color = color.green, size = size.small, textcolor = color.white, textalign = text.align_center)
+else if showlmidbs and sellCond
+    label.new(x = bar_index, y = high + (ta.atr(30) * 0.3), xloc = xloc.bar_index, text = "S", style = label.style_label_down, color = color.red, size = size.small, textcolor = color.white, textalign = text.align_center)
+
+// ] -------- Alerts ----------------- [
+alertcondition(buyCond, title = "Long", message = "ATR Trend Bands [Misu]: Long\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(sellCond, title = "Short", message = "ATR Trend Bands [Misu]: Short\nSymbol: {{ticker}}\nPrice: {{close}}")
+
+// ]
+

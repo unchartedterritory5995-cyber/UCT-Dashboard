@@ -1,0 +1,176 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FriendOfTheTrend
+
+//@version=5
+indicator("Volume Spikes & Growing Volume Signals With Alerts & Scanner", shorttitle="Volume Spike Scanner", overlay=true)
+
+//Inputs
+info = input.bool(false, title="This indicator takes a while to load because it has to pull data and calculations from 8 other tickers, so please be patient when you load it on a chart. This indicator calculates volume spikes and growing volume. The top inputs are controlling the numbers used to calculate volume spikes which is using only 1 bar of volume data to catch these spikes. The second input section has the numbers used for calculations for when volume is growing over a certain amount of bars compared to the overall average. Read the tooltips for more clarification. You will need to adjust these settings on different charts as some tickers will have larger or smaller volume spikes and medians.", confirm=true)
+spikeMultiple = input.int(3, title="Volume Spike Amount", tooltip="If volume spikes by this amount, an arrow will be shown. Ex: if set to 3, the volume will need to spike to a level that is 3 times the amount of the median of the last 100 bars or whatever amount of bars you set in the next input.", group="Volume Spike")
+barsBack = input.int(1000, title="How Many Bars Back To Calculate The Median From", tooltip="This number is the amount of bars back you want the median to be calculated from. So if it is set to 100, the indicator will calculate the median or average of the last 100 bars. The number calculated is the median and will determine what level needs to be hit to achieve a Volume Spike, multiplied by the amount set in the first input.", group="Volume Spike")
+medianLengthCurrent = input.int(5, title="Number Of Bars To Caluclate Current Volume Median", tooltip="This number is used to calculate the current median of volume for the last few bars. If you put 5 in here, then this will use the 5 most recent bars of data to calculate the current median volume which will be used to look for growing volume trends using the next two inputs.", group="Volume Growing")
+spikeMultipleCurrent = input.int(3, title="Volume Spike Amount For Current Median", tooltip="This is a multplier for the median of the current volume trend. If 5 bars were used from the previous input, then the volume median over the last 5 bars will need to be greater than the median multiplied by this number. So if the median is 300 and this input is set to 3, volume median will need to reach 900 for it to give a signal.", group="Volume Growing")
+barsBackCurrent = input.int(1000, title="Number Of Bars Back To Calculate Overall Median", tooltip="This value corresponds to the number of bars back to be used to calculate the current volume median. If you enter 1000 here, it will calculate the avergae volume over the last 1000 bars and use this as a benchmark to calculate growing volume or volume spikes.", group="Volume Growing")
+maLength = input.int(20, title="Volume Moving Average Length", tooltip="If the volume moving average is increasing for 3 bars consecutively, then the indicator will give a signal. The moving average length chosen here will detemine how long of a volume moving average you are using for this calculation.", group="Volume Growing")
+
+//Scanner Table Inputs
+tableOn = input.bool(true, title="Turn Table On/Off", group="Table Settings")
+bright = position.bottom_right
+bleft = position.bottom_left
+bcenter = position.bottom_center
+tright = position.top_right
+tleft = position.top_left
+tcenter = position.top_center
+mright = position.middle_right
+mleft = position.middle_left
+mcenter = position.middle_center
+tablePosition = input.string(bcenter, title="Table Position", options=[bright, bleft, bcenter, tright, tleft, tcenter, mright, mleft, mcenter], group="Table Settings")
+
+//DMI Input Controls
+dilength = input.int(1, title="DMI Length", group="Buy & Sell Pressure")
+smoothing = input.int(1, title="DMI Smoothing", group="Buy & Sell Pressure")
+
+//Ticker 1
+ticker1 = input.symbol("COINBASE:BTCUSD", title="Ticker #1", group="Tickers To Scan")
+ticker2 = input.symbol("COINBASE:ETHUSD", title="Ticker #2", group="Tickers To Scan")
+ticker3 = input.symbol("COINBASE:AVAXUSD", title="Ticker #3", group="Tickers To Scan")
+ticker4 = input.symbol("COINBASE:ADAUSD", title="Ticker #4", group="Tickers To Scan")
+ticker5 = input.symbol("COINBASE:SOLUSD", title="Ticker #5", group="Tickers To Scan")
+ticker6 = input.symbol("COINBASE:DOTUSD", title="Ticker #6", group="Tickers To Scan")
+ticker7 = input.symbol("COINBASE:LTCUSD", title="Ticker #7", group="Tickers To Scan")
+ticker8 = input.symbol("COINBASE:LINKUSD", title="Ticker #8", group="Tickers To Scan")
+
+//Color
+volBuildColor = #00e67610
+green = #00e67610
+red = #ff525210
+
+//DMI
+[plus, minus, adx] = ta.dmi(dilength, smoothing)
+
+if plus > minus
+    volBuildColor := green
+else
+    volBuildColor := red
+
+//Volume Spikes
+vol = ta.median(volume, barsBack)
+volCurrent = ta.median(volume, barsBackCurrent)
+upSpike = false
+downSpike = false
+
+if volume > vol*spikeMultiple and plus > minus
+    upSpike := true
+else if volume > vol*spikeMultiple and minus > plus
+    downSpike := true
+
+plotchar(upSpike, title="Volume Up Spike Marker", char="🠕", location=location.belowbar, color=color.lime, size=size.small)
+plotchar(downSpike, title="Volume Down Spike Marker", char="🠗", location=location.abovebar, color=color.red, size=size.small)
+
+//Volume Increasing
+volBuild = false
+currentMedian = ta.median(volume, medianLengthCurrent)
+volLine = ta.sma(volume, maLength)
+maUp = false
+
+if currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3]
+    volBuild := true
+
+bgcolor(volBuild ? volBuildColor : na)
+
+//Ticker #1
+ticker1upspike = request.security(ticker1, "", volume > vol*spikeMultiple and plus > minus)
+ticker1downspike = request.security(ticker1, "", volume > vol*spikeMultiple and minus > plus)
+ticker1volbuild = request.security(ticker1, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker1text = str.tostring(ticker1)
+
+ticker1bg = color.aqua
+if ticker1upspike or ticker1downspike or ticker1volbuild
+    ticker1bg := color.orange
+    
+//Ticker #2
+ticker2upspike = request.security(ticker2, "", volume > vol*spikeMultiple and plus > minus)
+ticker2downspike = request.security(ticker2, "", volume > vol*spikeMultiple and minus > plus)
+ticker2volbuild = request.security(ticker2, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker2text = str.tostring(ticker2)
+
+ticker2bg = color.aqua
+if ticker2upspike or ticker2downspike or ticker2volbuild
+    ticker2bg := color.orange
+    
+//Ticker #3
+ticker3upspike = request.security(ticker3, "", volume > vol*spikeMultiple and plus > minus)
+ticker3downspike = request.security(ticker3, "", volume > vol*spikeMultiple and minus > plus)
+ticker3volbuild = request.security(ticker3, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker3text = str.tostring(ticker3)
+
+ticker3bg = color.aqua
+if ticker3upspike or ticker3downspike or ticker3volbuild
+    ticker3bg := color.orange
+    
+//Ticker #4
+ticker4upspike = request.security(ticker4, "", volume > vol*spikeMultiple and plus > minus)
+ticker4downspike = request.security(ticker4, "", volume > vol*spikeMultiple and minus > plus)
+ticker4volbuild = request.security(ticker4, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker4text = str.tostring(ticker4)
+
+ticker4bg = color.aqua
+if ticker4upspike or ticker4downspike or ticker4volbuild
+    ticker4bg := color.orange
+    
+//Ticker #5
+ticker5upspike = request.security(ticker5, "", volume > vol*spikeMultiple and plus > minus)
+ticker5downspike = request.security(ticker5, "", volume > vol*spikeMultiple and minus > plus)
+ticker5volbuild = request.security(ticker5, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker5text = str.tostring(ticker5)
+
+ticker5bg = color.aqua
+if ticker5upspike or ticker5downspike or ticker5volbuild
+    ticker5bg := color.orange
+    
+//Ticker #6
+ticker6upspike = request.security(ticker6, "", volume > vol*spikeMultiple and plus > minus)
+ticker6downspike = request.security(ticker6, "", volume > vol*spikeMultiple and minus > plus)
+ticker6volbuild = request.security(ticker6, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker6text = str.tostring(ticker6)
+
+ticker6bg = color.aqua
+if ticker6upspike or ticker6downspike or ticker6volbuild
+    ticker6bg := color.orange
+    
+//Ticker #7
+ticker7upspike = request.security(ticker7, "", volume > vol*spikeMultiple and plus > minus)
+ticker7downspike = request.security(ticker7, "", volume > vol*spikeMultiple and minus > plus)
+ticker7volbuild = request.security(ticker7, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker7text = str.tostring(ticker7)
+
+ticker7bg = color.aqua
+if ticker7upspike or ticker7downspike or ticker7volbuild
+    ticker7bg := color.orange
+    
+//Ticker #8
+ticker8upspike = request.security(ticker8, "", volume > vol*spikeMultiple and plus > minus)
+ticker8downspike = request.security(ticker8, "", volume > vol*spikeMultiple and minus > plus)
+ticker8volbuild = request.security(ticker8, "", currentMedian > volCurrent*spikeMultipleCurrent or volLine > volLine[1] and volLine[1] > volLine[2] and volLine[2] > volLine[3])
+ticker8text = str.tostring(ticker8)
+
+ticker8bg = color.aqua
+if ticker8upspike or ticker8downspike or ticker8volbuild
+    ticker8bg := color.orange
+
+//Plot Scanner Table
+dataTable = table.new(tablePosition, columns=8, rows=1, border_color=color.white, border_width=1)
+if tableOn and barstate.islast
+    table.cell(table_id=dataTable, column=0, row=0, text=ticker1text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker1bg)
+    table.cell(table_id=dataTable, column=1, row=0, text=ticker2text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker2bg)
+    table.cell(table_id=dataTable, column=2, row=0, text=ticker3text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker3bg)
+    table.cell(table_id=dataTable, column=3, row=0, text=ticker4text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker4bg)
+    table.cell(table_id=dataTable, column=4, row=0, text=ticker5text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker5bg)
+    table.cell(table_id=dataTable, column=5, row=0, text=ticker6text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker6bg)
+    table.cell(table_id=dataTable, column=6, row=0, text=ticker7text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker7bg)
+    table.cell(table_id=dataTable, column=7, row=0, text=ticker8text, height=0, text_color=color.white, text_halign=text.align_center, text_valign= text.align_center, bgcolor=ticker8bg)
+
+//Alerts
+alertcondition(upSpike, title="Bullish Volume Spike Alert", message="Bullish Volume Spike")
+alertcondition(downSpike, title="Bearish Volume Spike Alert", message="Bearish Volume Spike")
+alertcondition(volBuild, title="Volume Growing Alert", message="Volume Is Growing")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f85b4c8956374d2db168b749c05f6b02",
+ "title": "ICT IPDA Look Back°",
+ "author": "toodegrees",
+ "url": "https://www.tradingview.com/script/rTJEJb5v-ict-ipda-look-back/",
+ "agreeCount": 4143,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ict-ipda-look-back__f85b4c8956.pine",
+ "our_status": "committed"
+}

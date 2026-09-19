@@ -1,0 +1,167 @@
+{
+  "fixture": "c3b_09_param_object",
+  "input": "off",
+  "to": 50.0,
+  "journey": "FULL_JOURNEY_PASS",
+  "def_id": "u_155800484dfc",
+  "declared_inputs": [
+    "color",
+    "lineWidth",
+    "off"
+  ],
+  "reinstated": [
+    "charts_workspace_layout"
+  ],
+  "before": [
+    {
+      "instanceId": "inst:u_155800484dfc:1",
+      "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+      "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+      "tables": 0,
+      "bbox": "{\"x0\":490,\"y0\":97,\"x1\":940,\"y1\":97}",
+      "pane": "1070x596@1",
+      "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":765.19}",
+      "ids": [
+        1
+      ],
+      "createdBars": [
+        7999
+      ],
+      "stats": {
+        "created": 1,
+        "updated": 0,
+        "deleted": 0,
+        "peakLive": {
+          "line": 1,
+          "label": 0,
+          "box": 0,
+          "table": 0,
+          "linefill": 0
+        },
+        "liveTotal": 1,
+        "status": "ok",
+        "dropped": {
+          "line": 0,
+          "label": 0,
+          "box": 0,
+          "table": 0,
+          "linefill": 0
+        }
+      },
+      "w": 1070,
+      "h": 596,
+      "attached": true,
+      "pixels": 1350,
+      "colours": [
+        "255,234,59",
+        "255,235,59",
+        "255,234,58"
+      ],
+      "selfTestPixels": 8780,
+      "styleW": "1070px",
+      "styleH": "596px",
+      "rect": [
+        1070,
+        596
+      ],
+      "dpr": 1
+    }
+  ],
+  "chips_before": [
+    {
+      "instanceId": "inst:u_155800484dfc:1",
+      "plotKey": "value",
+      "text": "c3b_09_param 741.77",
+      "hidden": false,
+      "drewNothing": false
+    }
+  ],
+  "patched": [
+    "charts_workspace_layout"
+  ],
+  "after": [
+    {
+      "instanceId": "inst:u_155800484dfc:1",
+      "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+      "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+      "tables": 0,
+      "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+      "pane": "1070x596@1",
+      "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+      "ids": [
+        1
+      ],
+      "createdBars": [
+        7999
+      ],
+      "stats": {
+        "created": 1,
+        "updated": 0,
+        "deleted": 0,
+        "peakLive": {
+          "line": 1,
+          "label": 0,
+          "box": 0,
+          "table": 0,
+          "linefill": 0
+        },
+        "liveTotal": 1,
+        "status": "ok",
+        "dropped": {
+          "line": 0,
+          "label": 0,
+          "box": 0,
+          "table": 0,
+          "linefill": 0
+        }
+      },
+      "w": 1070,
+      "h": 596,
+      "attached": true,
+      "pixels": 1800,
+      "colours": [
+        "255,236,58",
+        "255,235,58",
+        "255,234,59",
+        "255,235,59",
+        "255,234,58"
+      ],
+      "selfTestPixels": 8780,
+      "styleW": "1070px",
+      "styleH": "596px",
+      "rect": [
+        1070,
+        596
+      ],
+      "dpr": 1
+    }
+  ],
+  "chips_after": [
+    {
+      "instanceId": "inst:u_155800484dfc:1",
+      "plotKey": "value",
+      "text": "c3b_09_param 696.77",
+      "hidden": false,
+      "drewNothing": false
+    }
+  ],
+  "input_after_reload": [
+    50
+  ],
+  "y_before": 765.19,
+  "y_after": 720.19,
+  "pixels_before": [
+    1350
+  ],
+  "pixels_after": [
+    1800
+  ],
+  "layers_seen_before": [
+    "inst:u_155800484dfc:1"
+  ],
+  "layers_seen_after": [
+    "inst:u_155800484dfc:1"
+  ],
+  "object_moved": true,
+  "result": "OBJECT_MOVED"
+}

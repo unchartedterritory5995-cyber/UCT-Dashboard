@@ -35,6 +35,13 @@ VIEWPORTS = {
                            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"},
     "phone390": {"width": 390, "height": 844, "isMobile": True, "deviceScaleFactor": 3},
     "tablet": {"width": 820, "height": 1180, "isMobile": True, "deviceScaleFactor": 2},
+    # ⭐ THE TOP OF THE TOUCH TIER. `breakpoints.js` puts TOUCH at <= 1024, so
+    # 1024x768 is the widest viewport that is still a touch device — the boundary
+    # a floor set only at <= 640 leaves broken, and the one the indicator wave's
+    # item 4 audits. ⚠️ `isMobile` stays TRUE: the tier is decided by the media
+    # query, and a 1024 viewport with a desktop UA would audit a layout no member
+    # on a tablet ever sees.
+    "touch1024": {"width": 1024, "height": 768, "isMobile": True, "deviceScaleFactor": 2},
     "desktop": {"width": 1280, "height": 1000, "deviceScaleFactor": 1, "isMobile": False},
 }
 

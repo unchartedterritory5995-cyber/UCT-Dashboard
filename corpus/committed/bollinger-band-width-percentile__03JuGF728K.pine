@@ -1,0 +1,404 @@
+//
+//@version=6
+//
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// @author  = The_Caretaker
+// © The_Caretaker
+//
+// Much respect to John A Bollinger the creator of Bollinger Bands® and Bollinger Band Width indicators.
+// 
+// ───────────────────────────────────────────────────────────────────────────────
+//  BBWP Upgrade: From Pine Script® v5 to v6
+// ───────────────────────────────────────────────────────────────────────────────
+//
+// Here I present an update to the BBWP, upgraded from Pine Script® v5 to v6.
+//
+// I decided to have a little fun with this version — it’s written as both a
+// demonstration and a teaching aid for Pine Script novices, 
+// and specifically as an exercise in designing around a language limitation
+// while aiming for the best possible execution-time efficiency.
+//
+//
+// ── Background ────────────────────────────────────────────────────────────────
+//
+// The built-in `ta.percentrank()` function is both useful and efficient.
+// However, it has a limitation. It only begins producing output once the full
+// lookback period has elapsed. This means that for long lookback lengths,
+// you get no (`na`) output for an extended time after a symbol starts trading.
+//
+// Ideally, we’d like to obtain meaningful percentile rank results *immediately*
+// upon receipt of BBW values instead of waiting for the full lookback period.
+//
+//
+// ── Approach ─────────────────────────────────────────────────────────────────
+//
+// We assume that calculating the percentile of the current value against 
+// the available historical values will give sensible results.
+//
+// To achieve this, we need to dynamically adjust the effective lookback period 
+// to match the number of available historical bars,
+// up to the defined lookback period.
+//
+// Once the lookback period is fully reached, we need to produce the same
+// results as the built-in `ta.percentrank()` function.
+//
+// The simplest fundamental approach to implement this behavior is by using a
+// dynamic length summing loop — a common, simple and effective solution.
+//
+// It’s also possible to overcome the limitation of `ta.percentrank()` by
+// creating a rolling buffer array, and applying the built-in
+// `array.percentrank()` function.
+//
+// Here, however, we take a more fundamental approach to demonstrate, with 
+// this simple example, the use of low-level, piecewise array operations 
+// on a rolling buffer array optimized for maximum execution-time efficiency
+// comparable to the built-in `array.percentrank()` function,
+// and vastly more efficient than summing loop solutions.
+//
+//
+// ── Educational Purpose ───────────────────────────────────────────────────────
+//
+// This example demonstrates how to:
+//   • Overcome a standard function limitation by using dynamic array logic.
+//   • Replace inefficient iterative loops with efficient piecewise techniques.
+//   • Design readable, performant code for dynamic percentile rank calculations.
+//
+// Detailed inline comments are included to explain the logic and structure.
+// Along with some discussion about the reasoning behind specific coding choices.
+//
+// The core calculation patterns are ideal for more complex use cases that
+// lack built-in, execution-time-optimized functions, and can be most efficiently
+// computed using similar low-level, piecewise array-based techniques.
+//
+//
+// ───────────────────────────────────────────────────────────────────────────────
+//
+// Feel free to drop me a note below if you find it useful.
+//
+///////////////////////////////////////////////////////////////////////////////
+// Declare indicator
+
+indicator ( 'Bollinger Band Width Percentile', 'BBWP', overlay = false, format = format.percent, precision = 2, max_bars_back = 1000 )
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Declare global variables
+
+// Tooltips
+
+var string tip_priceSrc      = "Select the source price series for\nBollinger Band Width basis calculation."
+var string tip_basisType     = "Select the moving average type for\nBollinger Band Width basis calculation."
+var string tip_bbwpLen       = "Define the Length used for\nBollinger Band Width basis calculation."
+var string tip_bbwpLkbk      = "Define the Lookback period used for\nBollinger Band Width Percentile calculation"
+
+var string tip_bbwpOn        = "Enable Bollinger Bands Width Percentile plot with the checkbox."
+
+var string tip_lineType      = "Select fixed or spectrum type coloring,\nfor the BBWP line from the dropdown list\n"+
+                               "Define the color used when line type is set to 'Solid'.\nwith the color input box."
+
+var string tip_spectrumType  = "Select which spectrum type to use for coloring the BBWP line from the dropdown list."
+
+var string tip_lineWidth     = "Define Width of the BBWP line.\n with the numerical input box."
+
+var string tip_ma            = "Define the moving average type\n"+
+                               "   from the dropdown list.\n"+
+                               "Define the moving average length\n"+
+                               "   with the numerical input box."
+
+var string tip_maPlot        = "Enable moving average plot with the checkbox.\n"+
+                               "Define the line color with the color input box.\n"+
+                               "Define the line width with the numerical input box."
+
+var string tip_alertsOn      = "Enable BG visual alerts with the checkbox.\nSet the opacity with the numerical input box."
+
+
+var string tip_scaleHigh     = "Define color of the 100% scale horizontal line\nwith the color input box.\n"+
+                               "Define the line width with the numerical input box."
+var string tip_scaleMid      = "Define color of the 50% scale horizontal line\nwith the color input box.\n"+
+                               "Define the line width with the numerical input box."
+var string tip_scaleLow      = "Define color of the 0% scale horizontal line\nwith the color input box.\n"+
+                               "Define the line width with the numerical input box."
+
+var string tip_alertHigh     = "Define BBWP extreme high threshold\nwith the numerical input box."+
+                               "\nDefine color of the extreme high alert,\nwith the color input box."
+var string tip_alertLow      = "Define BBWP extreme low threshold\nwith the numerical input box."+
+                               "\nDefine color of the extreme low alert,\nwith the color input box."
+
+var string tip_spectrum      = "Spectrum Colors — Define gradient points:\n" +
+                               " With color input boxes:\n"+
+                               " High:    Color for the high point.\n" +
+                               " Mid-Hi: Color for mid-high point.\n" +
+                               " Mid:     Color for mid point.\n" +
+                               " Mid-Lo: Color for mid-low point.\n" +
+                               " Low:     Color for the low point."
+
+// Constant strings
+var string txt5point = 'High => Mid-Hi => Mid => Mid-Lo => Low'
+var string txt3point = 'High => Mid => Low'
+var string txt2point = 'High => Low'
+
+// Default Colors for Line Plot Settings
+var color c_defSolidLine = #FFFF00
+var color c_defHighLine  = #FF0000
+var color c_defMidHiLine = #FFFF00
+var color c_defMidLine   = #00FF00
+var color c_defMidLoLine = #00FFFF
+var color c_defLowLine   = #0000FF
+
+var color c_defMALine    = #FFFFFF
+
+// Default Scale Colors
+var color c_defScaleHigh = #FF0000
+var color c_defScaleMid  = #A6A6A6
+var color c_defScaleLow  = #0000FF
+
+// Default Visual Alert Colors
+var color c_defAlertHigh = #FF0000
+var color c_defAlertLow  = #0000FF
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Inputs
+
+// Main Properties
+i_priceSrc      = input.source ( close, 'Price Source...:',                                                 tip_priceSrc,       inline = '1',   group = 'Main BBWP Properties' )
+
+i_basisType     = input.string ( 'SMA', 'Basis MA Type..:', ['SMA', 'EMA', 'WMA', 'RMA', 'HMA', 'VWMA'],    tip_basisType,      inline = '2',   group = 'Main BBWP Properties' )
+
+i_basisLen      = input.int    ( 7,     'Basis MA Length.',         minval = 1,                  tooltip =  tip_bbwpLen,        inline = '3',   group = 'Main BBWP Properties' )
+
+i_lookback      = input.int    ( 100,   'Lookback Period',          minval = 10,                 tooltip =  tip_bbwpLkbk,       inline = '4',   group = 'Main BBWP Properties' )
+
+// BBWP Line Plot Settings
+i_bbwpOn        = input.bool   ( true,           ':Plot Bollinger Band Width Percentile',                   tip_bbwpOn,         inline = '1',   group = 'BBWP Line Plot Settings' )
+
+i_clrTypStr     = input.string ( 'Spectrum',     'Color Type', ['Spectrum', 'Solid'],                                           inline = '2',   group = 'BBWP Line Plot Settings' )
+i_c_solid       = input.color  ( c_defSolidLine, 'Solid Color',                                             tip_lineType,       inline = '2',   group = 'BBWP Line Plot Settings' )
+
+i_sptrmTypStr   = input.string ( txt5point,      'Spectrum.', [txt2point, txt3point, txt5point],            tip_spectrumType,   inline = '3',   group = 'BBWP Line Plot Settings' )
+
+i_w_bbwp        = input.int    ( 2,              'Line Width', 1, 4, 1,                                     tip_lineWidth,      inline = '4',   group = 'BBWP Line Plot Settings' )
+
+i_c_sp_hi       = input.color  ( c_defHighLine,  'Spectrum : High',                                                             inline = '5',   group = 'BBWP Line Plot Settings' )
+i_c_sp_mhi      = input.color  ( c_defMidHiLine, 'Mid-Hi',                                                                      inline = '5',   group = 'BBWP Line Plot Settings' )
+i_c_sp_mid      = input.color  ( c_defMidLine,   'Mid',                                                                         inline = '5',   group = 'BBWP Line Plot Settings' )
+i_c_sp_mlo      = input.color  ( c_defMidLoLine, 'Mid-Lo',                                                                      inline = '5',   group = 'BBWP Line Plot Settings' )
+i_c_sp_lo       = input.color  ( c_defLowLine,   'Low',                                                     tip_spectrum,       inline = '5',   group = 'BBWP Line Plot Settings' )
+
+// Moving Average Properties
+i_maType        = input.string ( 'SMA',         'MA Type :', ['SMA', 'EMA', 'WMA', 'RMA', 'HMA'],                               inline = '1',   group = 'Moving Average Properties' )
+i_maLen         = input.int    ( 5,             'Length :',             minval = 1,              tooltip =  tip_ma,             inline = '1',   group = 'Moving Average Properties' )
+
+// Moving Average Line Plot Settings
+i_maOn          = input.bool  ( true,           ':Plot',                                                                        inline = '1',   group = 'Moving Average Line Plot Settings' )
+i_c_ma          = input.color ( c_defMALine,    'Moving Average',                                                               inline = '1',   group = 'Moving Average Line Plot Settings' )
+i_w_ma          = input.int   ( 2,              'Width ', 1, 4, 1,                                          tip_maPlot,         inline = '1',   group = 'Moving Average Line Plot Settings' )
+
+// Visual Alerts
+i_alrtsOn       = input.bool  ( true,           ':Plot',                                                    tip_alertsOn,       inline = '1',   group = 'Visual Alerts' )
+i_bgTransp      = input.int   ( 30,             'Alert Opacity',        minval = 1, maxval = 100,                               inline = '1',   group = 'Visual Alerts' )
+
+i_hiAlertOn     = input.bool  ( true,           ':Plot',                                                                        inline = '2',   group = 'Visual Alerts' )
+i_hiAlert       = input.int   ( 98,             'Extreme High',         minval = 50, maxval = 100,                              inline = '2',   group = 'Visual Alerts' )
+i_w_hiAlert     = input.int   ( 1,              'Width',                minval = 1,  maxval = 4,                                inline = '2',   group = 'Visual Alerts' )
+i_c_hiAlert     = input.color ( c_defAlertHigh, '',                                                         tip_alertHigh,      inline = '2',   group = 'Visual Alerts' )
+
+i_loAlertOn     = input.bool  ( true,           ':Plot',                                                                        inline = '3',   group = 'Visual Alerts' )
+i_loAlert       = input.int   ( 2,              'Extreme Low',          minval = 0,   maxval = 50,                              inline = '3',   group = 'Visual Alerts' )
+i_w_loAlert     = input.int   ( 1,              'Width',                minval = 1,   maxval = 4,                               inline = '3',   group = 'Visual Alerts' )
+i_c_loAlert     = input.color ( c_defAlertLow,  '',                                                         tip_alertLow,       inline = '3',   group = 'Visual Alerts' )
+
+// Scale Line Settings
+i_scaleHighOn   = input.bool  ( true,           ':Plot',                                                                        inline = '1',   group = 'Scale Line Settings' )
+i_c_scaleHigh   = input.color ( c_defScaleHigh, 'High',                                                     tip_scaleHigh,      inline = '1',   group = 'Scale Line Settings' )
+i_w_scaleHigh   = input.int   ( 1,              'Width',  minval = 1,   maxval = 4,                                             inline = '1',   group = 'Scale Line Settings' )
+
+i_scaleMidOn    = input.bool  ( true,           ':Plot',                                                                        inline = '2',   group = 'Scale Line Settings' )
+i_c_scaleMid    = input.color ( c_defScaleMid,  'Mid.',                                                     tip_scaleMid,       inline = '2',   group = 'Scale Line Settings' )
+i_w_scaleMid    = input.int   ( 1,              'Width',  minval = 1,   maxval = 4,                                             inline = '2',   group = 'Scale Line Settings' )
+
+i_scaleLowOn    = input.bool  ( true,           ':Plot',                                                                        inline = '3',   group = 'Scale Line Settings' )
+i_c_scaleLow    = input.color ( c_defScaleLow,  'Low.',                                                     tip_scaleLow,       inline = '3',   group = 'Scale Line Settings' )
+i_w_scaleLow    = input.int   ( 1,              'Width',  minval = 1,   maxval = 4,                                             inline = '3',   group = 'Scale Line Settings' )
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Function declarations
+
+//@function Returns moving average of _values determined by i_basisType.
+//@param _values (float) series of values.
+//@param _len (int) series of values.
+//@returns (float) Moving average.
+f_basisMa ( float _values, int _len ) => // By using the input string 'i_basisType' directly here instead of passing it via the function call, 
+                                         // we get the behaviour we want ( user selection of averaging type, and execution of only the selected averaging function ), while avoiding a runtime warning.
+    i_basisType  == 'SMA'  ?  ta.sma ( _values, _len ) : 
+     i_basisType == 'EMA'  ?  ta.ema ( _values, _len ) : 
+     i_basisType == 'HMA'  ?  ta.hma ( _values, _len ) : 
+     i_basisType == 'RMA'  ?  ta.rma ( _values, _len ) : 
+     i_basisType == 'WMA'  ?  ta.wma ( _values, _len ) : 
+     i_basisType == 'VWMA' ? ta.vwma ( _values, _len ) : 
+     na
+
+
+//@function Returns moving average of _values determined by i_maType.
+//@param _values (float) series of values.
+//@param _len (int) series of values.
+//@returns (float) Moving average.
+f_maType ( float _values, int _len ) => // By using the input string 'i_maType' directly here instead of passing it via the function call,
+                                         // we get the behaviour we want ( user selection of averaging type, and execution of only the selected averaging function ), while avoiding a runtime warning.
+    i_maType  == 'SMA'  ?  ta.sma ( _values, _len ) : 
+     i_maType == 'EMA'  ?  ta.ema ( _values, _len ) : 
+     i_maType == 'HMA'  ?  ta.hma ( _values, _len ) : 
+     i_maType == 'RMA'  ?  ta.rma ( _values, _len ) : 
+     i_maType == 'WMA'  ?  ta.wma ( _values, _len ) : 
+     i_maType == 'VWMA' ? ta.vwma ( _values, _len ) : 
+     na
+
+
+//@function Efficiently computes the Percentile rank of the current Bollinger Band Width (BBW) over a rolling lookback window.
+//@param _price (float) Input price series.
+//@param _bbwLen (int) Length of the Bollinger Band Width calculation.
+//@param _bbwpLen (int) Lookback period for computing the BBW percentile rank.
+//@returns (float) Percentile rank of the current BBW value ( 0 – 100 ).
+f_bbwp ( float _price, int _bbwLen, int _bbwpLen ) =>
+
+    // Initialise arrays to store raw and sorted BBW values
+    var array<float> a_rawValues    = array.new_float()         // Stores raw BBW values for rolling window.
+    var array<float> a_sortedValues = array.new_float()         // Stores sorted BBW values for percentile rank calculation.
+
+    // Compute Bollinger Band Width (BBW)
+    float _basis = f_basisMa ( _price, _bbwLen )                // Calculate the moving average basis for Bollinger Bands.
+    float _bbw   = 2 * ta.stdev ( _price, _bbwLen ) / _basis    // Calculate the Bollinger Bands Width ( BBW = ( UpperBand - LowerBand ) / Basis )
+
+    // Compute Percentile rank of current BBW value against previous values ( BBWP ).
+    float BBWP = na
+
+    if bar_index >= _bbwLen                                                                             // Once enough bars have passed for the BBW to produce valid output.
+        int totalCount = array.binary_search_rightmost ( a_sortedValues, _bbw )                         // Get index value of current '_bbw' value in 'a_sortedValues' using binary search.
+                                                                                                        // This index value equates to the total count of values <= current '_bbw' value.
+        BBWP := totalCount * 100.0 / array.size ( a_sortedValues )                                      // Calculate and update current 'BBWP' ( totalCount * 100 / samples )
+        // Update arrays
+        array.push ( a_rawValues, _bbw )                                                                // We append '_bbw' values to 'a_rawValues' to create and maintain a FIFO rolling buffer array.
+        array.insert ( a_sortedValues, array.binary_search_rightmost ( a_sortedValues, _bbw ), _bbw )   // We insert '_bbw' values "piecewise" into 'a_sortedValues' using binary search.
+                                                                                                        // This efficiently creates and maintains 'a_sortedValues' as a sorted array arranged in ascending order.
+        // Maintain rolling window
+        if array.size ( a_rawValues ) > _bbwpLen                                                        // When the array size of 'a_rawValues' > '_bbwpLen'
+            float oldValue = array.shift ( a_rawValues )                                                // We remove the oldest value from 'a_rawValues' and record it as 'oldValue'.
+                                                                                                        // This efficiently maintains 'a_rawValues' as a FIFO rolling buffer array,
+                                                                                                        // with a lookback period ( max size ) of '_bbwpLen'.
+            array.remove ( a_sortedValues, array.binary_search_rightmost ( a_sortedValues, oldValue ))  // We remove the oldest value 'oldValue' from 'a_sortedValues' using binary search.                                                                                                // from a_sortedValues in a sorted state
+                                                                                                        // This efficiently maintains 'a_sortedValues' as a sorted array arranged in ascending order,
+                                                                                                        // with a lookback period ( max size ) of '_bbwpLen'.
+
+    BBWP // Return BBWP
+
+
+//@function Maps a numeric value to a color using a three-point gradient (low → mid → high).
+//@param _val  (float) Value to map onto the color gradient.
+//@param _lowV (int)   Lower bound of the value range.
+//@param _midV (int)   Midpoint value separating low and high segments.
+//@param _hiV  (int)   Upper bound of the value range.
+//@param _lowC (color) Color at the lower bound.
+//@param _midC (color) Color at the midpoint.
+//@param _hiC  (color) Color at the upper bound.
+//@returns (color) Interpolated color along the two gradient segments (low→mid or mid→high).
+f_3Col ( float _val, int _lowV, int _midV, int _hiV, color _lowC, color _midC, color _hiC ) =>
+    _val <= _midV ? color.from_gradient ( _val, _lowV, _midV, _lowC, _midC ) : 
+     color.from_gradient ( _val, _midV, _hiV, _midC, _hiC )
+
+// Returns a double spectrum color determined by '_val' from high to mid to low
+
+
+//@function Maps a numeric value to a color using a five-point gradient (low → low-mid → mid → high-mid → high).
+//@param _val  (float) Value to map onto the color gradient.
+//@param _lowV (int)   Lower bound of the value range.
+//@param _lmV  (int)   Low-mid transition value.
+//@param _midV (int)   Midpoint value.
+//@param _hmV  (int)   High-mid transition value.
+//@param _hiV  (int)   Upper bound of the value range.
+//@param _lowC (color) Color at the lower bound.
+//@param _lmC  (color) Color at the low-mid point.
+//@param _midC (color) Color at the midpoint.
+//@param _mhC  (color) Color at the high-mid point.
+//@param _hiC  (color) Color at the upper bound.
+//@returns (color) Interpolated color along one of four gradient segments depending on _val.
+f_5Col ( float _val, int _lowV, int _lmV, int _midV, int _hmV, int _hiV, color _lowC, color _lmC, color _midC, color _mhC, color _hiC ) =>
+    _val  <= _lmV  ? color.from_gradient ( _val, _lowV, _lmV, _lowC, _lmC ) : 
+     _val <= _midV ? color.from_gradient ( _val, _lmV, _midV, _lmC, _midC ) : 
+     _val <= _hmV  ? color.from_gradient ( _val, _midV, _hmV, _midC, _mhC ) : 
+     color.from_gradient( _val, _hmV, _hiV, _mhC, _hiC )
+
+// Returns a quadruple spectrum color determined by '_val' from high to mid-high to mid to mid-low to low
+
+
+//@function Selects a color mapping mode based on user input: solid color or gradient spectrum.
+//@param _val   (float) Value to map to a color. ( 0 - 100 )
+//@param _type  (string) Color mode. Accepts 'Solid' or 'Gradient' modes.
+//@param _solid (color)  Solid color to use when _type == 'Solid'.
+//@param _colorMap (color array) precomputed gradient color array.
+//@returns (color) Computed color based on user selection:
+//          – Spectrum: Gradient color from colorMap array.
+//          – Solid: fixed color.
+f_clrSlct ( float _val, string _type, color _solid, array <color> _colorMap ) =>
+    _type  == 'Spectrum' ? array.get ( _colorMap, math.round ( _val ) ) :
+     _solid 
+
+
+// Returns a color determined by '_val' from user settings of...
+// a spectrum color from the '_colorMap' array
+// or the color '_solid'
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Initialize variables
+
+var color c_hiAlert = i_alrtsOn ? color.new ( i_c_hiAlert, i_bgTransp ) : na // We initialize this color conditionally here one time instead of recomputing the condition every time we call it.
+var color c_loAlert = i_alrtsOn ? color.new ( i_c_loAlert, i_bgTransp ) : na // We initialize this color conditionally here one time instead of recomputing the condition every time we call it.
+ 
+var array <color> colorMap = array.new_color()
+
+// If the input color type string 'i_clrTypStr' is 'Spectrum' we compute the user defined gradient color map and store it in an array one time on the first bar
+// for faster execution time while maintaining acceptable color scale gradient granularity.
+// we achieve this with 101 colors arranged in a spectrum from 0 to 100 that can be accesed with a simple "array.get()" call with a rounded value within the scale ( 0 - 100 )
+// instead of recalculating the color each time with nested conditional "color.from_gradient()" calls.
+if barstate.isfirst and i_clrTypStr  == 'Spectrum'
+    if i_sptrmTypStr == txt2point
+        for i = 0 to 100
+            array.push ( colorMap, color.from_gradient ( i, 0, 100, i_c_sp_lo, i_c_sp_hi ) )
+    else if i_sptrmTypStr == txt3point
+        for i = 0 to 100
+            array.push ( colorMap, f_3Col ( i, 0, 50, 100, i_c_sp_lo, i_c_sp_mid, i_c_sp_hi ) )
+    else 
+        for i = 0 to 100
+            array.push ( colorMap, f_5Col ( i, 0, 25, 50, 75, 100, i_c_sp_lo, i_c_sp_mlo, i_c_sp_mid, i_c_sp_mhi, i_c_sp_hi ) )
+
+
+/////////////////////////////////////////////////////////////////////////////// 
+// Calculations
+
+float bbwp = f_bbwp ( i_priceSrc, i_basisLen, i_lookback )
+float ma   = f_maType ( bbwp, i_maLen )
+
+color c_bbwp    = f_clrSlct ( bbwp, i_clrTypStr, i_c_solid, colorMap )
+color c_BGalert = bbwp <= i_loAlert ? c_loAlert : bbwp >= i_hiAlert ? c_hiAlert : na
+
+
+/////////////////////////////////////////////////////////////////////////////// 
+// Plots
+
+hline ( 100, 'Scale High', i_c_scaleHigh, hline.style_solid,  i_w_scaleHigh, display = i_scaleHighOn  ? display.all : display.none )
+hline ( 50,  'Mid-Line',   i_c_scaleMid,  hline.style_dashed, i_w_scaleMid,  display = i_scaleMidOn   ? display.all : display.none )
+hline ( 0,   'Scale Low',  i_c_scaleLow,  hline.style_solid,  i_w_scaleLow,  display = i_scaleLowOn   ? display.all : display.none )
+
+bgcolor ( c_BGalert )
+
+// Here, by using the display variable to control whether plots are shown or hidden on the chart, we ensure the values remain accessible for use in alerts or by other scripts via the Data Window.
+plot ( bbwp,      'BBWP',                     c_bbwp,       i_w_bbwp,    plot.style_line, display = i_bbwpOn    ? display.all : display.data_window ) 
+plot ( ma,        'MA',                       i_c_ma,       i_w_ma,      plot.style_line, display = i_maOn      ? display.all : display.data_window ) 
+
+plot ( i_hiAlert, 'Extreme High Alert Level', i_c_hiAlert,  i_w_hiAlert, plot.style_line, display = i_hiAlertOn ? display.all - display.status_line : display.data_window ) 
+plot ( i_loAlert, 'Extreme Low Alert Level',  i_c_loAlert,  i_w_loAlert, plot.style_line, display = i_loAlertOn ? display.all - display.status_line : display.data_window ) 
+
+
+/////////////////////////////
+// end

@@ -1,0 +1,445 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Jos-ProTrader
+
+//@version=6
+indicator("ICT & SMC Guide [JPT]", shorttitle="ICT & SMC Guide", overlay=true,
+     max_boxes_count=200, max_lines_count=200, max_labels_count=200)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INPUTS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+groupGeneral = "01 • General"
+groupSession = "02 • Session Sweep"
+group2022    = "03 • 2022 Model"
+groupFVG     = "04 • FVG + $$$ Model"
+groupRisk    = "05 • Trade Framework"
+groupVisual  = "06 • Visuals"
+
+// General
+showDashboard = input.bool(true, "Show ICT & SMC Dashboard", group=groupGeneral)
+showGuide     = input.bool(true, "Show Model Guide", group=groupGeneral)
+
+// Sessions
+asiaSession   = input.session("0000-0800", "Asia Session", group=groupSession)
+londonSession = input.session("0800-1300", "London Session", group=groupSession)
+nySession     = input.session("1300-1700", "New York Session", group=groupSession)
+
+showAsia      = input.bool(true, "Show Asia Range", group=groupSession)
+showLondon    = input.bool(true, "Show London Range", group=groupSession)
+showNY        = input.bool(true, "Show New York Range", group=groupSession)
+showSweeps    = input.bool(true, "Show Liquidity Sweeps", group=groupSession)
+
+// 2022 model
+swingLen      = input.int(3, "Structure Swing Length", minval=1, group=group2022)
+useSweep      = input.bool(true, "Require Liquidity Sweep", group=group2022)
+useDisplace   = input.bool(true, "Require Displacement", group=group2022)
+atrLength     = input.int(14, "ATR Length", minval=1, group=group2022)
+dispFactor    = input.float(1.2, "Displacement Factor", minval=0.1, step=0.1, group=group2022)
+
+// FVG
+showFVG       = input.bool(true, "Show Fair Value Gaps", group=groupFVG)
+fvgExtend     = input.int(20, "FVG Extension", minval=1, maxval=200, group=groupFVG)
+minFvgATR     = input.float(0.05, "Minimum FVG Size / ATR", minval=0.0, step=0.01, group=groupFVG)
+
+// Risk
+showTrade     = input.bool(true, "Show Entry / SL / TP", group=groupRisk)
+rrTarget      = input.float(2.0, "Target R:R", minval=0.5, step=0.5, group=groupRisk)
+slBuffer      = input.float(0.0, "SL Buffer", minval=0.0, step=0.1, group=groupRisk)
+
+// Visuals
+showEMA       = input.bool(false, "Show EMA 50 / 200", group=groupVisual)
+showLabels    = input.bool(true, "Show Signal Labels", group=groupVisual)
+showStructure = input.bool(false, "Show Structure Labels", group=groupVisual)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EMA TREND
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ema50  = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+
+bullTrend = ema50 > ema200
+bearTrend = ema50 < ema200
+
+plot(showEMA ? ema50 : na, "EMA 50", color=color.new(color.green, 0), linewidth=2)
+plot(showEMA ? ema200 : na, "EMA 200", color=color.new(color.red, 0), linewidth=2)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SESSION DETECTION
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+inAsia   = not na(time(timeframe.period, asiaSession))
+inLondon = not na(time(timeframe.period, londonSession))
+inNY     = not na(time(timeframe.period, nySession))
+
+newAsia   = inAsia and not inAsia[1]
+newLondon = inLondon and not inLondon[1]
+newNY     = inNY and not inNY[1]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SESSION RANGES
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+var float asiaHigh = na
+var float asiaLow  = na
+
+var float londonHigh = na
+var float londonLow  = na
+
+var float nyHigh = na
+var float nyLow  = na
+
+if newAsia
+    asiaHigh := high
+    asiaLow  := low
+else if inAsia
+    asiaHigh := math.max(nz(asiaHigh, high), high)
+    asiaLow  := math.min(nz(asiaLow, low), low)
+
+if newLondon
+    londonHigh := high
+    londonLow  := low
+else if inLondon
+    londonHigh := math.max(nz(londonHigh, high), high)
+    londonLow  := math.min(nz(londonLow, low), low)
+
+if newNY
+    nyHigh := high
+    nyLow  := low
+else if inNY
+    nyHigh := math.max(nz(nyHigh, high), high)
+    nyLow  := math.min(nz(nyLow, low), low)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SESSION VISUALS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+asiaHighPlot = showAsia ? asiaHigh : na
+asiaLowPlot  = showAsia ? asiaLow : na
+
+londonHighPlot = showLondon ? londonHigh : na
+londonLowPlot  = showLondon ? londonLow : na
+
+nyHighPlot = showNY ? nyHigh : na
+nyLowPlot  = showNY ? nyLow : na
+
+plot(asiaHighPlot, "Asia High", color=color.new(color.blue, 25), linewidth=1, style=plot.style_linebr)
+plot(asiaLowPlot, "Asia Low", color=color.new(color.blue, 25), linewidth=1, style=plot.style_linebr)
+
+plot(londonHighPlot, "London High", color=color.new(color.yellow, 20), linewidth=1, style=plot.style_linebr)
+plot(londonLowPlot, "London Low", color=color.new(color.yellow, 20), linewidth=1, style=plot.style_linebr)
+
+plot(nyHighPlot, "NY High", color=color.new(color.red, 20), linewidth=1, style=plot.style_linebr)
+plot(nyLowPlot, "NY Low", color=color.new(color.red, 20), linewidth=1, style=plot.style_linebr)
+
+// Background session guide
+bgcolor(inAsia and showAsia ? color.new(color.aqua, 93) : na)
+bgcolor(inLondon and showLondon ? color.new(color.yellow, 94) : na)
+bgcolor(inNY and showNY ? color.new(color.red, 94) : na)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LIQUIDITY SWEEP ENGINE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// London can sweep Asia
+londonSweepHigh = inLondon and not na(asiaHigh) and high > asiaHigh and close < asiaHigh
+londonSweepLow  = inLondon and not na(asiaLow) and low < asiaLow and close > asiaLow
+
+// NY can sweep London
+nySweepHigh = inNY and not na(londonHigh) and high > londonHigh and close < londonHigh
+nySweepLow  = inNY and not na(londonLow) and low < londonLow and close > londonLow
+
+bullSweep = londonSweepLow or nySweepLow
+bearSweep = londonSweepHigh or nySweepHigh
+
+plotshape(showSweeps and bullSweep, title="Sell-Side Liquidity Sweep",
+     style=shape.triangleup, location=location.belowbar,
+     color=color.lime, size=size.small, text="SSL")
+
+plotshape(showSweeps and bearSweep, title="Buy-Side Liquidity Sweep",
+     style=shape.triangledown, location=location.abovebar,
+     color=color.red, size=size.small, text="BSL")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SWING STRUCTURE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+pivotHigh = ta.pivothigh(high, swingLen, swingLen)
+pivotLow  = ta.pivotlow(low, swingLen, swingLen)
+
+var float lastSwingHigh = na
+var float lastSwingLow  = na
+
+if not na(pivotHigh)
+    lastSwingHigh := pivotHigh
+
+if not na(pivotLow)
+    lastSwingLow := pivotLow
+
+bullMSS = not na(lastSwingHigh) and close > lastSwingHigh
+bearMSS = not na(lastSwingLow) and close < lastSwingLow
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DISPLACEMENT ENGINE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+atr = ta.atr(atrLength)
+
+bullDisplacement = close > open and (close - open) >= atr * dispFactor
+bearDisplacement = close < open and (open - close) >= atr * dispFactor
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FAIR VALUE GAP ENGINE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+bullFVG = low > high[2] and (low - high[2]) >= atr * minFvgATR
+bearFVG = high < low[2] and (low[2] - high) >= atr * minFvgATR
+
+var box[] bullBoxes = array.new_box()
+var box[] bearBoxes = array.new_box()
+
+if showFVG and bullFVG
+    bullBox = box.new(
+         left=bar_index - 2,
+         top=low,
+         right=bar_index + fvgExtend,
+         bottom=high[2],
+         bgcolor=color.new(color.green, 84),
+         border_color=color.new(color.green, 40))
+    array.push(bullBoxes, bullBox)
+
+if showFVG and bearFVG
+    bearBox = box.new(
+         left=bar_index - 2,
+         top=low[2],
+         right=bar_index + fvgExtend,
+         bottom=high,
+         bgcolor=color.new(color.red, 84),
+         border_color=color.new(color.red, 40))
+    array.push(bearBoxes, bearBox)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2022 MODEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Bullish:
+// Sell-side liquidity taken
+// + bullish MSS
+// + displacement
+// + optional FVG
+
+bull2022 = bullSweep and bullMSS and
+     (not useDisplace or bullDisplacement) and
+     (not useSweep or bullSweep)
+
+bear2022 = bearSweep and bearMSS and
+     (not useDisplace or bearDisplacement) and
+     (not useSweep or bearSweep)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FVG + $$$ MODEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Liquidity + displacement + FVG
+bullMoneyModel = bullSweep and bullDisplacement and bullFVG
+bearMoneyModel = bearSweep and bearDisplacement and bearFVG
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FINAL SETUPS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+bullSetup = bull2022 or bullMoneyModel
+bearSetup = bear2022 or bearMoneyModel
+
+newBullSetup = bullSetup and not bullSetup[1]
+newBearSetup = bearSetup and not bearSetup[1]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TRADE FRAMEWORK
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+var float entryPrice = na
+var float stopPrice  = na
+var float targetPrice = na
+var int tradeDirection = 0
+
+if newBullSetup
+    entryPrice := close
+    stopPrice := nz(lastSwingLow, low) - slBuffer
+    risk = entryPrice - stopPrice
+    targetPrice := entryPrice + risk * rrTarget
+    tradeDirection := 1
+
+if newBearSetup
+    entryPrice := close
+    stopPrice := nz(lastSwingHigh, high) + slBuffer
+    risk = stopPrice - entryPrice
+    targetPrice := entryPrice - risk * rrTarget
+    tradeDirection := -1
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ENTRY / SL / TP
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+plot(showTrade and tradeDirection == 1 ? entryPrice : na,
+     "Bullish Entry", color=color.lime, linewidth=2, style=plot.style_linebr)
+
+plot(showTrade and tradeDirection == 1 ? stopPrice : na,
+     "Bullish Stop", color=color.red, linewidth=2, style=plot.style_linebr)
+
+plot(showTrade and tradeDirection == 1 ? targetPrice : na,
+     "Bullish Target", color=color.aqua, linewidth=2, style=plot.style_linebr)
+
+plot(showTrade and tradeDirection == -1 ? entryPrice : na,
+     "Bearish Entry", color=color.orange, linewidth=2, style=plot.style_linebr)
+
+plot(showTrade and tradeDirection == -1 ? stopPrice : na,
+     "Bearish Stop", color=color.red, linewidth=2, style=plot.style_linebr)
+
+plot(showTrade and tradeDirection == -1 ? targetPrice : na,
+     "Bearish Target", color=color.aqua, linewidth=2, style=plot.style_linebr)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SIGNAL LABELS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if showLabels and newBullSetup
+    label.new(
+         bar_index,
+         low,
+         "BUY\n2022 + FVG",
+         style=label.style_label_up,
+         color=color.green,
+         textcolor=color.white,
+         size=size.small)
+
+if showLabels and newBearSetup
+    label.new(
+         bar_index,
+         high,
+         "SELL\n2022 + FVG",
+         style=label.style_label_down,
+         color=color.red,
+         textcolor=color.white,
+         size=size.small)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STRUCTURE LABELS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if showStructure and not na(pivotHigh)
+    label.new(
+         bar_index - swingLen,
+         pivotHigh,
+         "SH",
+         style=label.style_label_down,
+         color=color.new(color.red, 70),
+         textcolor=color.white,
+         size=size.tiny)
+
+if showStructure and not na(pivotLow)
+    label.new(
+         bar_index - swingLen,
+         pivotLow,
+         "SL",
+         style=label.style_label_up,
+         color=color.new(color.green, 70),
+         textcolor=color.white,
+         size=size.tiny)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TOP GUIDE PANEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+var table guide = table.new(position.top_center, 5, 3,
+     bgcolor=color.new(color.black, 12),
+     frame_color=color.new(color.gray, 55),
+     frame_width=1,
+     border_color=color.new(color.gray, 70),
+     border_width=1)
+
+if barstate.islast and showGuide
+    table.cell(guide, 0, 0, "ICT & SMC GUIDE",
+         text_color=color.white, bgcolor=color.new(color.black, 0),
+         text_size=size.large)
+
+    table.cell(guide, 1, 0, "1\nSESSION SWEEP",
+         text_color=color.white, bgcolor=color.new(color.blue, 20),
+         text_size=size.small)
+
+    table.cell(guide, 2, 0, "2\n2022 MODEL",
+         text_color=color.white, bgcolor=color.new(color.purple, 20),
+         text_size=size.small)
+
+    table.cell(guide, 3, 0, "3\nFVG + $$$",
+         text_color=color.white, bgcolor=color.new(color.green, 20),
+         text_size=size.small)
+
+    table.cell(guide, 4, 0, "4\nMINDSET",
+         text_color=color.white, bgcolor=color.new(color.orange, 20),
+         text_size=size.small)
+
+    table.cell(guide, 0, 1, "LIQUIDITY",
+         text_color=color.white, text_size=size.small)
+
+    table.cell(guide, 1, 1,
+         bullSweep ? "SSL TAKEN" : bearSweep ? "BSL TAKEN" : "WAIT",
+         text_color=bullSweep ? color.lime : bearSweep ? color.red : color.gray)
+
+    table.cell(guide, 2, 1,
+         bullMSS ? "BULL MSS" : bearMSS ? "BEAR MSS" : "WAIT",
+         text_color=bullMSS ? color.lime : bearMSS ? color.red : color.gray)
+
+    table.cell(guide, 3, 1,
+         bullFVG ? "BULL FVG" : bearFVG ? "BEAR FVG" : "WAIT",
+         text_color=bullFVG ? color.lime : bearFVG ? color.red : color.gray)
+
+    table.cell(guide, 4, 1,
+         bullTrend ? "BULL BIAS" : bearTrend ? "BEAR BIAS" : "NEUTRAL",
+         text_color=bullTrend ? color.lime : bearTrend ? color.red : color.gray)
+
+    table.cell(guide, 0, 2, "STATUS",
+         text_color=color.white, text_size=size.small)
+
+    table.cell(guide, 1, 2,
+         bullSetup ? "BUY" : bearSetup ? "SELL" : "NO SETUP",
+         text_color=bullSetup ? color.lime : bearSetup ? color.red : color.gray)
+
+    table.cell(guide, 2, 2,
+         bullDisplacement ? "BULL DISP" :
+         bearDisplacement ? "BEAR DISP" : "WAIT",
+         text_color=bullDisplacement ? color.lime :
+         bearDisplacement ? color.red : color.gray)
+
+    table.cell(guide, 3, 2,
+         bullMoneyModel ? "$$$ BUY" :
+         bearMoneyModel ? "$$$ SELL" : "WAIT",
+         text_color=bullMoneyModel ? color.lime :
+         bearMoneyModel ? color.red : color.gray)
+
+    table.cell(guide, 4, 2,
+         tradeDirection == 1 ? "LONG" :
+         tradeDirection == -1 ? "SHORT" : "FLAT",
+         text_color=tradeDirection == 1 ? color.lime :
+         tradeDirection == -1 ? color.red : color.gray)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ALERTS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alertcondition(newBullSetup,
+     title="ICT & SMC Bullish Setup",
+     message="ICT & SMC Guide: Bullish setup confirmed.")
+
+alertcondition(newBearSetup,
+     title="ICT & SMC Bearish Setup",
+     message="ICT & SMC Guide: Bearish setup confirmed.")
+
+alertcondition(bullSweep,
+     title="Bullish Liquidity Sweep",
+     message="Sell-side liquidity sweep detected.")
+
+alertcondition(bearSweep,
+     title="Bearish Liquidity Sweep",
+     message="Buy-side liquidity sweep detected.")

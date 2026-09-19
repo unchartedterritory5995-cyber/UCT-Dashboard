@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1375ad2640554aec8f2c1da2e21e51ff",
+ "title": "Multi Timeframe RSI Buy Sell Strategy [TradeDots]",
+ "author": "tradedots",
+ "url": "https://www.tradingview.com/script/kfj6EdjQ-multi-timeframe-rsi-buy-sell-strategy-tradedots/",
+ "agreeCount": 1892,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine",
+ "our_status": "committed"
+}

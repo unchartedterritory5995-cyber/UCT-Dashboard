@@ -164,6 +164,8 @@ import threading
 import time
 from typing import Any, Mapping, Optional
 
+from api.services import compute_graph
+
 # ─── caps ────────────────────────────────────────────────────────────────────
 
 #: One definition's canonical JSON, in bytes. 64 KiB is ~1,000 lines of formula
@@ -261,17 +263,55 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+#: Columns added after the first release, as ``(table, column, DDL type + default)``.
+#:
+#: ⛔⛔ SQLite HAS NO `ADD COLUMN IF NOT EXISTS`, so idempotence is this list plus
+#: the `PRAGMA table_info` check in `_migrate`. Running the migration twice must
+#: be a no-op — a deploy re-runs `_init_db` on every boot.
+#:
+#: ⚠️ `requirements` DEFAULTS TO `'[]'` AND THAT BACKFILL IS PROVABLE, NOT
+#: ASSUMED. The only tag that exists is `window_dependent`, set by `ta.cum`, and
+#: `translatePine` refuses `ta.cum` in BOTH modes today — so no stored definition
+#: can carry it and an empty list is the true value for every existing row. If a
+#: future tag is added whose builtin was already callable, that tag needs a
+#: BACKFILL PASS over stored rows, not a default: the safe direction here is more
+#: tags, and a default of `'[]'` would silently under-tag history.
+_ADDED_COLUMNS = (
+    ("user_definitions", "requirements", "TEXT NOT NULL DEFAULT '[]'"),
+)
+
+
+def _migrate(c: sqlite3.Connection) -> list:
+    """Add any column this build expects and an older database lacks.
+
+    Idempotent: reads `PRAGMA table_info` first, so a second run does nothing.
+    Returns the list of `"table.column"` strings it actually added.
+    """
+    added = []
+    for table, column, ddl in _ADDED_COLUMNS:
+        have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+        if not have:
+            continue                      # table not created yet; _SCHEMA makes it
+        if column in have:
+            continue
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        added.append(f"{table}.{column}")
+    return added
+
+
 def _init_db() -> None:
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        _migrate(c)
         c.commit()
 
 
 def _ensure(c: sqlite3.Connection) -> None:
     c.executescript(_SCHEMA)
+    _migrate(c)
 
 
 # ─── the hash that decides a rev bump ────────────────────────────────────────
@@ -317,8 +357,36 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # non-repainting, this is `preview-repaints`, and a flag would have had to be
     # threaded into the linter by hand.
     "tf_live": ("type", "value", "args"),
+    # ⭐⭐ THE BIND-TIME TEXT TRIO. ``textop`` is a QUESTION about text whose
+    # answer is a NUMBER (``text_contains``, ``text_startswith``,
+    # ``text_endswith``, ``text_eq``, ``text_ne``, ``text_length``); ``str`` and
+    # ``symtext`` are the only operands it takes and may appear NOWHERE else --
+    # see ``_TEXT_OPERAND_TYPES`` and the parentage check in
+    # ``assert_canonical``.
+    # ⛔ WITHOUT THESE ROWS THE STORE IS THE DOOR THAT REFUSES THE FEATURE, which
+    # is the trap ``offset`` documents four rows up and the reason it is worth
+    # documenting twice: a definition containing ``str.contains(syminfo.ticker,
+    # "/")`` would translate, fold, lint and read back correctly in both lanes
+    # and then fail to PERSIST.
+    "str": ("type", "value"),
+    # ⚠️ ``name``, NOT ``value``: this node does not hold a string, it NAMES one
+    # that a symbol will supply. ``series`` carries ``name`` for the same reason,
+    # and reading it as ``value`` is how somebody eventually ships a tree whose
+    # "ticker" is the literal text ``ticker``.
+    "symtext": ("type", "name"),
+    "textop": ("type", "name", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
+
+#: The two node types that are NOT numbers. They may appear ONLY as a direct
+#: child of a ``textop``.
+#:
+#: ⛔⛔ THE RULE IS ENFORCED HERE, ON THE PERSISTED ARTIFACT, AND NOT ONLY AT THE
+#: TRANSLATOR DOOR. A tree reaching this function arrived over a wire or came
+#: back out of a database; it never met ``convertTextOperand``. Text can be ASKED
+#: ABOUT and can never be CARRIED, and a rule that only holds for trees this
+#: process built a millisecond ago is not that claim.
+_TEXT_OPERAND_TYPES = ("str", "symtext")
 
 
 def assert_canonical(ast: Any) -> Any:
@@ -333,9 +401,13 @@ def assert_canonical(ast: Any) -> Any:
     blob that arrived over a wire or out of a database — and a deep tree must
     fail on its shape, never inside the checker.
     """
-    stack = [ast]
+    # ⭐⭐ THE PARENT TRAVELS WITH THE NODE, for one rule: TEXT IS ONLY EVER AN
+    # OPERAND. Mirrors ``parse.js::assertCanonical`` exactly, and it is enforced
+    # in BOTH lanes because they are two different doors onto the same store --
+    # the browser saves through one and a sweep reads back through the other.
+    stack = [(ast, None)]
     while stack:
-        node = stack.pop()
+        node, parent = stack.pop()
         if not isinstance(node, dict):
             raise ValueError(f"astHash: not a canonical node: {node!r}")
         expected = _CANONICAL_KEYS.get(node.get("type"))
@@ -343,6 +415,13 @@ def assert_canonical(ast: Any) -> Any:
             raise ValueError(
                 f"astHash: node type {node.get('type')!r} is not one of "
                 f"{', '.join(NODE_TYPES)}")
+        if node.get("type") in _TEXT_OPERAND_TYPES and parent != "textop":
+            raise ValueError(
+                f"astHash: a {node['type']} node may only be an operand of a "
+                f"textop — found one under "
+                f"{'the root' if parent is None else 'a ' + str(parent)}. Text is "
+                "not a value in this engine; a text question answers with a "
+                "number and the text never leaves it.")
         keys = sorted(node)
         want = sorted(expected)
         if keys != want:
@@ -352,7 +431,7 @@ def assert_canonical(ast: Any) -> Any:
         if "args" in node:
             if not isinstance(node["args"], list):
                 raise ValueError("astHash: `args` must be an array")
-            stack.extend(node["args"])
+            stack.extend((child, node["type"]) for child in node["args"])
     return ast
 
 
@@ -609,6 +688,143 @@ def trees_identity(definition: Any) -> Optional[str]:
         return UNHASHABLE_TREES
 
 
+# ─── the shared-graph document (Wave C2C) ────────────────────────────────────
+#
+# ⭐⭐ THE STORED FORM IS THE GRAPH; THE IN-MEMORY FORM IS THE FOREST. C2B
+# measured why: `compute.trees` is 84% of a 332 KB document and ~99% of that is
+# ONE consensus expression written out ten times, because a multi-plot Pine
+# script computes a thing once and plots several views of it. Storing the DAG
+# instead of its inlining takes the corpus' two DOCUMENT_SIZE_BLOCKED documents
+# from 332 KB and 181 KB to 6.9 KB and 10.5 KB — with `MAX_DEFINITION_BYTES`
+# left exactly where it is, which is the point.
+#
+# ⛔ AND NOTHING DOWNSTREAM LEARNS A NEW SHAPE. `materialize` hands every
+# existing reader — `ast_lint`, `alert_user_series`, `trees_hash`, the sweep —
+# the same `compute.ast`/`compute.trees` they were written against. The saving
+# is in the bytes at rest, which is where the cap counts them.
+#
+# ⛔⛔ NO DOCUMENT EVER STORES BOTH. A row carrying a graph AND its inlining is
+# two authorities over one program, and the ONE that a given reader happens to
+# consult would decide the maths. `normalize_graph_document` therefore VERIFIES
+# any inlining a client sent (by hash — cheap, and it catches a broken client
+# instead of masking it) and then DROPS it, so exactly one representation
+# reaches the blob.
+
+
+def _graph_scan_plot(compute: Mapping, keys: list) -> str:
+    scan = compute.get("scanPlot")
+    if not isinstance(scan, str) or scan not in keys:
+        raise ValueError(
+            f"compute.scanPlot: must name one key of compute.graph.outputRoots "
+            f"({', '.join(keys)}) — the plot whose tree IS compute.ast — got {scan!r}")
+    return scan
+
+
+def materialize(definition: dict) -> dict:
+    """A stored shared-graph document, with the forest every reader expects.
+
+    Returns `definition` unchanged when it declares no graph — the inert path
+    every V1 document takes. The expansion is bounded before it runs
+    (`compute_graph.expanded_sizes`), so a crafted graph is refused from
+    arithmetic rather than by exhausting memory.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition
+    trees = compute_graph.expand_graph(compute["graph"])
+    keys = sorted(trees)
+    if len(keys) < 2:
+        raise ValueError(
+            "compute.graph.outputRoots: a shared-graph document names at least two plots — "
+            "one tree is compute.ast, and a single-tree document is byte-identical to a "
+            "schema-1 one on purpose")
+    scan = _graph_scan_plot(compute, keys)
+    out = dict(compute)
+    out["trees"] = trees
+    out["ast"] = trees[scan]
+    d = dict(definition)
+    d["compute"] = out
+    return d
+
+
+def compact(definition: dict) -> dict:
+    """A shared-graph document with its MATERIALISATION dropped again.
+
+    ⭐⭐ C2D.7 — THE READ SIDE OF THE SAME ARGUMENT THE WRITE SIDE ALREADY WON.
+    `_row_to_dict` expands every stored graph so that the dozen server-side
+    readers written against `compute.ast`/`compute.trees` keep working without
+    learning a second shape. That is right for them and wrong for the WIRE: an
+    8 KB stored document was leaving as 362 KB of forest, which defeats the
+    representation on exactly the path that will carry C3's visual payloads.
+
+    This is the compatibility boundary, stated once: a caller that can rebuild
+    the forest from the graph asks for the compact form and gets it; everyone
+    else keeps the expansion. `graph.js::expandGraph` is that rebuild, and
+    `graphDocument.hydrateGraphDocument` is the browser's door to it.
+
+    ⛔ IT IS NOT THE DEFAULT, AND THE REASON IS A CACHED BUNDLE. A member whose
+    browser is still holding yesterday's JavaScript cannot hydrate; answering
+    them compactly would blank their chart with nothing red anywhere. The client
+    ASKS (`?graph=1`), which an old bundle never does.
+
+    Returns `definition` unchanged when it declares no graph.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition
+    out = {k: v for k, v in compute.items() if k not in ("ast", "trees", "source", "sources")}
+    d = dict(definition)
+    d["compute"] = out
+    return d
+
+
+def compact_row(row: Any) -> Any:
+    """`compact` applied to a store row's `definition`, if it has one."""
+    if not isinstance(row, dict) or not isinstance(row.get("definition"), dict):
+        return row
+    out = dict(row)
+    out["definition"] = compact(row["definition"])
+    return out
+
+
+def normalize_graph_document(definition: dict) -> tuple:
+    """``(stored, working)`` — the bytes to persist and the shape to validate.
+
+    A V1 document is returned twice, unchanged: this is inert for every
+    document that declares no graph.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition, definition
+
+    working = materialize(definition)
+    wcompute = working["compute"]
+
+    # ⛔ VERIFY, THEN DROP. A client is free to send the inlining it already had
+    # (a read-modify-write round trip does exactly that); it is not free to send
+    # one that disagrees with the graph, because then which of the two is "the
+    # definition" would depend on the reader.
+    if isinstance(compute.get("trees"), dict):
+        sent = trees_hash(compute["trees"])
+        derived = trees_hash(wcompute["trees"])
+        if sent != derived:
+            raise ValueError(
+                f"compute.trees: disagrees with compute.graph (trees hash {sent!r} vs the "
+                f"graph's {derived!r}) — a document carries the graph OR its inlining, never "
+                "two that must agree")
+    if compute.get("ast") is not None:
+        if ast_hash(compute["ast"]) != ast_hash(wcompute["ast"]):
+            raise ValueError(
+                "compute.ast: disagrees with the tree compute.graph.outputRoots names for "
+                "compute.scanPlot — a document carries the graph OR its inlining")
+
+    stored_compute = {k: v for k, v in compute.items()
+                      if k not in ("ast", "trees", "source", "sources")}
+    stored = dict(definition)
+    stored["compute"] = stored_compute
+    return stored, working
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -718,6 +934,26 @@ def validate_v2(definition: dict) -> None:
     # ── the sources ──────────────────────────────────────────────────────────
     # REQUIRED and COMPLETE, for the reason `compute.source` is required at all:
     # a tree the sheet cannot print back is a formula no author can ever reopen.
+    #
+    # ⛔ EXCEPT ON A SHARED-GRAPH DOCUMENT, AND THE EXEMPTION IS NARROW ENOUGH TO
+    # STATE IN ONE SENTENCE: the reason for the rule is "a formula no author can
+    # ever reopen", and a graph document's text is DERIVED by the one lane that
+    # can print (`printFormula` over the expansion), so there is nothing to lose
+    # by not storing it — while storing it would be ~11% of the bytes this whole
+    # representation exists to save, in a field THIS LANE HAS NEVER BEEN ABLE TO
+    # VERIFY (see the asymmetry named at the top of this file: there is one
+    # parser and it is in JS, so `sources[k]` may already disagree with
+    # `trees[k]` and be stored anyway). Dropping an unverifiable derived copy is
+    # the second-authority fix, not a weakened check.
+    if compute_graph.declares_graph(compute):
+        for k in ("sources", "source"):
+            if compute.get(k) is not None:
+                raise ValueError(
+                    f"compute.{k}: a shared-graph document derives its source text from "
+                    "compute.graph — storing it too is a second copy of the formula that "
+                    "nothing on this lane can hold to the tree")
+        return
+
     sources = compute.get("sources")
     if "sources" not in compute or sources is None:
         raise ValueError(
@@ -761,6 +997,138 @@ def lint_verdict(definition: dict) -> dict:
     return {r["plotKey"]: r["mode"] for r in rows}
 
 
+def requirement_tags(definition: dict) -> list:
+    """What this script needs from a consumer, DERIVED FROM THE MANIFEST.
+
+    ⭐⭐⭐ THE CONTAINMENT MECHANISM `_functions_cumulative` ASKED FOR. That ruling
+    refused a per-consumer exception for `ta.cum` because *"there is no per-entry
+    flag that stops a fetch-dependent column flowing into a saved definition, a
+    nightly sweep, an alert or a shared screen, and at every one of those
+    consumers the defect is INVISIBLE"*. This is that flag, and it is on the
+    DEFINITION rather than on the table entry, which is the level the leak
+    actually happens at.
+
+    ⛔ THE NAMES COME FROM `closedTable.json::_requirement_tags`, NEVER FROM A
+    LITERAL HERE. A hard-coded `if 'cum' in ...` would be a second authority over
+    which CALLS are fetch-dependent, and the next one added to the manifest would
+    silently not be tagged — the defect being guarded against, in the guard.
+
+    ⚠️ THE MANIFEST KEY IS `calls` RATHER THAN THE OBVIOUS ALTERNATIVE, AND THIS
+    NOTE CANNOT SPELL THE ALTERNATIVE. A rail under `tests/` AST-walks this module
+    — identifiers AND string constants, docstrings included — for a small closed
+    set of reserved tokens that would show the one write door special-casing a
+    library entry, and the obvious name for this key is one of them. That rail is
+    right; the collision was accidental. The full note lives on the manifest entry
+    (`_requirement_tags._`), which is JSON and not walked. `calls` is also the
+    better word: what the walk below intersects is call NAMES.
+
+    ⚠️ THE SAFE DIRECTION IS THE OPPOSITE OF `repaint`'S. A stale `repaint` that is
+    STRICTER than the linter is harmless. A stale `requirements` that is SHORTER
+    than reality ADMITS a script to a consumer that should have refused it, so a
+    walk that cannot read part of a tree must ADD the tag rather than omit it.
+
+    Returns a sorted list of tag strings, e.g. ``["window_dependent"]``.
+    """
+    from collections.abc import Mapping, Sequence
+    from api.services import ast_table
+    tags_spec = ast_table.TABLE.get("_requirement_tags") or {}
+
+    # ⛔ `Mapping`, NOT `dict`. `ast_table.TABLE` is deeply FROZEN — every nested
+    # object is a `mappingproxy` and every list a tuple — and `mappingproxy` is not
+    # a `dict` subclass. An `isinstance(spec, dict)` filter here reads the manifest,
+    # finds nothing, and returns NO TAGS: it fails OPEN, which for this function
+    # means admitting a fetch-dependent script to the screener. Measured, not
+    # reasoned: it did exactly that on the first run.
+    by_tag = {
+        name: set(spec.get("calls") or ())
+        for name, spec in tags_spec.items()
+        if isinstance(spec, Mapping) and spec.get("calls")
+    }
+    if not by_tag:
+        return []
+
+    called: set = set()
+    unreadable = False
+
+    def walk(node):
+        nonlocal unreadable
+        if isinstance(node, Mapping):
+            if node.get("type") == "call":
+                name = node.get("name")
+                if isinstance(name, str):
+                    called.add(name)
+                else:
+                    unreadable = True
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, Sequence) and not isinstance(node, (str, bytes)):
+            for v in node:
+                walk(v)
+
+    try:
+        walk(definition)
+    except RecursionError:
+        # ⛔ FAIL CLOSED. A tree too deep to walk is a tree we cannot clear.
+        unreadable = True
+
+    out = []
+    for tag, names in by_tag.items():
+        if unreadable or (called & names):
+            out.append(tag)
+    return sorted(out)
+
+
+def consumer_refusal(consumer: str, requirements) -> "str | None":
+    """Why ``consumer`` may not run a definition carrying ``requirements`` — or
+    ``None`` when it may.
+
+    ⭐⭐ ONE AUTHORITY FOR FIVE CONSUMERS. The screener, the nightly sweep, the
+    alert evaluator, a share link and a public listing all ask the same question,
+    and `_functions_cumulative`'s containment argument only holds if they answer
+    it the same way. Five copies of an `if "window_dependent" in tags` would be
+    five chances to drift, and the drift would be INVISIBLE — the consumer that
+    forgot would simply keep working.
+
+    ⛔ THE ROSTER IS THE MANIFEST'S, NOT THIS FUNCTION'S. `refused_by` /
+    `accepted_by` come from `_requirement_tags`, so adding a sixth consumer or a
+    second tag is an edit to data.
+
+    ⚠️ AN UNKNOWN CONSUMER IS REFUSED, NOT ADMITTED. A name absent from both lists
+    is a consumer nobody has ruled on, and admitting it by default is how a leak
+    re-opens quietly.
+    """
+    from collections.abc import Mapping
+    from api.services import ast_table
+    tags_spec = ast_table.TABLE.get("_requirement_tags") or {}
+    have = set(requirements or ())
+    if not have:
+        return None
+
+    for tag in sorted(have):
+        spec = tags_spec.get(tag)
+        if not isinstance(spec, Mapping):
+            # A tag the manifest does not declare. Fail closed: we cannot know
+            # which consumers it is safe for.
+            return (f"this script is tagged `{tag}`, which this engine's manifest "
+                    f"does not declare — it cannot be admitted anywhere until it is")
+        accepted = set(spec.get("accepted_by") or ())
+        refused = set(spec.get("refused_by") or ())
+        if consumer in accepted:
+            continue
+        if consumer in refused or consumer not in accepted:
+            what = spec.get("what") or tag
+            names = ", ".join(sorted(spec.get("calls") or ()))
+            # ⚠️ THE ARTICLE IS DERIVED, NOT TYPED. The consumer roster is data
+            # (`_requirement_tags.refused_by`), so a hard-coded "a" shipped
+            # "cannot be used as a alert" to a member the moment the roster grew
+            # a vowel — and a per-consumer sentence table would be a second
+            # authority over a list the manifest already owns.
+            article = "an" if consumer[:1].lower() in "aeiou" else "a"
+            return (f"this script cannot be used as {article} {consumer}: it calls "
+                    f"`{names}`, and {what[0].lower() + what[1:]}")
+    return None
+
+
 # ─── ids ─────────────────────────────────────────────────────────────────────
 
 def new_def_id() -> str:
@@ -779,15 +1147,78 @@ def _check_def_id(def_id: str) -> str:
 
 # ─── rows ────────────────────────────────────────────────────────────────────
 
+#: The tag list a row carries when this lane cannot read the stored one.
+#:
+#: ⛔⛔ FAIL CLOSED, AND IT IS THE OPPOSITE DIRECTION FROM `repaint`. A stored
+#: `requirements` SHORTER than reality admits a script to a consumer that should
+#: have refused it, so a value this module cannot parse is treated as carrying
+#: EVERY tag the manifest declares — refused by every consumer that refuses
+#: anything. Only a corrupted row can reach it, and a corrupted row is exactly
+#: the one that must not be trusted.
+def _all_declared_tags() -> list:
+    from collections.abc import Mapping as _Mapping                # noqa: PLC0415
+    from api.services import ast_table                             # noqa: PLC0415
+    spec = ast_table.TABLE.get("_requirement_tags") or {}
+    return sorted(k for k, v in spec.items()
+                  if isinstance(v, _Mapping) and v.get("calls"))
+
+
+def _requirements_of(row: sqlite3.Row) -> list:
+    """The stored tag list for one row.
+
+    ⚠️ AN ABSENT COLUMN IS `[]`, AND THAT IS NOT THE SAME DECISION AS AN
+    UNREADABLE VALUE. The column can only be absent on a database that predates
+    `_migrate` — and the build that stamps a tag IS the build that runs the
+    migration, so no row on such a file can carry one. An unparseable value is a
+    different fact: something wrote it, and we cannot tell what.
+    """
+    try:
+        raw = row["requirements"]
+    except (IndexError, KeyError):
+        return []
+    if raw is None:
+        return []
+    try:
+        tags = json.loads(raw)
+    except (TypeError, ValueError):
+        return _all_declared_tags()
+    if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+        return _all_declared_tags()
+    return sorted(tags)
+
+
 def _row_to_dict(row: sqlite3.Row) -> dict:
+    """One stored row, with a shared-graph document MATERIALISED.
+
+    ⭐⭐ THIS IS THE WHOLE COMPATIBILITY STORY FOR C2C, IN ONE LINE. Every
+    server-side reader of a definition — `ast_lint`, `alert_user_series`, the
+    sweep, `definition_record` — is written against `compute.ast` /
+    `compute.trees`, and every one of them arrives through here. Materialising
+    at the row boundary means the graph is a STORAGE fact and nothing else in
+    this codebase has to know it exists. The graph itself stays on the returned
+    document, so a caller that reads-modifies-writes hands it straight back and
+    `normalize_graph_document` re-derives the same small blob.
+
+    ⚠️ A MALFORMED STORED GRAPH IS RETURNED RAW RATHER THAN RAISING. A row that
+    cannot be expanded is one a reader must be able to SEE (to report it, to let
+    its owner delete it); raising here would make one bad row take out every
+    listing that includes it. The refusal belongs on the write path, where
+    `save` already runs `assert_graph` before anything is stored.
+    """
+    definition = json.loads(row["definition"])
+    try:
+        definition = materialize(definition)
+    except ValueError:
+        pass
     return {
         "user_id": row["user_id"],
         "def_id": row["def_id"],
         "version": row["version"],
         "rev": row["rev"],
         "ast_hash": row["ast_hash"],
-        "definition": json.loads(row["definition"]),
+        "definition": definition,
         "repaint": json.loads(row["repaint"]),
+        "requirements": _requirements_of(row),
         "deleted_at": row["deleted_at"],
         "created_at": row["created_at"],
     }
@@ -866,6 +1297,43 @@ def save(user_id: Any, def_id: str, definition: dict,
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
 
+    # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
+    # — INERT for every definition without a `compute.paramManifest` key (see
+    # that module's own `apply()` docstring). Runs BEFORE `new_hash`/`blob`
+    # below are computed from `definition`, because canonicalizing a forged
+    # manifest field AFTER hashing/serializing would hash the forged value —
+    # the whole point is that the STORED bytes reflect the server's trusted
+    # manifest, never the client's submitted one, for any parameter identity
+    # this user's OWN prior save already established. This is a deliberately
+    # EARLY, deliberately SEPARATE read of the prior row from the one `prev =
+    # _newest(...)` below performs for its own, unrelated purposes (rev/version
+    # bookkeeping) — a second cheap read chosen for isolation from this
+    # function's existing, heavily-reasoned-about lock structure, not a
+    # reordering of it; a future pass MAY fold these into one read if the two
+    # purposes are ever unified, but nothing about correctness requires it.
+    from api.services import param_manifest
+    if param_manifest.declares_parameters(compute):
+        with contextlib.closing(_connect()) as _c:
+            _ensure(_c)
+            _prev_row = _newest(_c, user_id, def_id)
+        _prev_definition = json.loads(_prev_row["definition"]) if _prev_row is not None else None
+        definition = param_manifest.apply(definition, _prev_definition)
+        compute = definition["compute"]
+
+    # ⭐ THE SHARED-GRAPH SPLIT, AND IT IS THE ONLY PLACE THE TWO SHAPES MEET
+    # (Wave C2C). `stored` is what the blob and the 64 KB cap see — the graph;
+    # `definition` from here down is the materialised forest every rule below
+    # was written against. A document that declares no graph is returned twice,
+    # unchanged, so nothing about a V1 save moves by one byte.
+    #
+    # ⛔ IT RUNS AFTER THE PARAMETER HOOK, ON PURPOSE. `param_manifest.apply`
+    # canonicalises the roster IN PLACE on whichever slot the document uses, and
+    # a shared-graph document keeps that roster INSIDE the graph — so
+    # normalising first would carry a pre-trust copy of the graph into `stored`
+    # and persist the client's submitted bounds. The hook first, then the split.
+    stored, definition = normalize_graph_document(definition)
+    compute = definition["compute"]
+
     # The hash comes off the tree BEFORE anything is written, so a tree this
     # lane cannot hash is refused rather than stored with a hash nobody can
     # reproduce. `assert_canonical` runs inside `ast_hash`.
@@ -887,7 +1355,11 @@ def save(user_id: Any, def_id: str, definition: dict,
     # why it is placed here rather than behind a `if trees` branch.
     validate_v2(definition)
 
-    blob = json.dumps(definition, sort_keys=True, separators=(",", ":"),
+    # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
+    # materialised working copy from here up; persisting it would write the
+    # inlining this representation exists to avoid — and the 64 KB cap two lines
+    # down would then refuse exactly the documents the graph was built to admit.
+    blob = json.dumps(stored, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
     if size > MAX_DEFINITION_BYTES:
@@ -898,6 +1370,11 @@ def save(user_id: Any, def_id: str, definition: dict,
 
     repaint = json.dumps(lint_verdict(definition), sort_keys=True,
                          separators=(",", ":"))
+    # ⭐ STAMPED AT SAVE TIME FOR THE REASON `repaint` IS: the contract a member
+    # saved under and the contract a consumer admits under must be ONE fact, not
+    # two derivations that agree today. `requirement_tags` reads the manifest, so
+    # adding the next fetch-dependent builtin is an edit to data.
+    requirements = json.dumps(requirement_tags(definition), separators=(",", ":"))
     now = int(time.time())
 
     # ── phase 1: decide. Short, locked, no network. ──────────────────────────
@@ -930,6 +1407,13 @@ def save(user_id: Any, def_id: str, definition: dict,
                     "rev_bumped": False, "migrated": 0, "notified": 0,
                     "bindings_on_this_tree": 0,
                     "ast_hash": prev["ast_hash"], "repaint": json.loads(prev["repaint"]),
+                    # ⚠️ THE PREDECESSOR'S TAGS, NOT THE ONES JUST DERIVED, and
+                    # that is the same trade `repaint` makes three lines up: a
+                    # byte-identical re-save appends nothing, so the row a
+                    # consumer will read is the OLD one and this must say so.
+                    # `user_definition_relint` is what heals a stale stamp, and
+                    # for this column it heals toward MORE tags.
+                    "requirements": _requirements_of(prev),
                     "appended": False,
                 }
             prev_version = prev["version"]
@@ -1018,8 +1502,9 @@ def save(user_id: Any, def_id: str, definition: dict,
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " deleted_at, created_at) VALUES (?,?,?,?,?,?,?,NULL,?)",
-            (str(user_id), def_id, version, rev, new_hash, blob, repaint, now),
+            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,NULL,?)",
+            (str(user_id), def_id, version, rev, new_hash, blob, repaint,
+             requirements, now),
         )
         c.commit()
 
@@ -1091,7 +1576,8 @@ def save(user_id: Any, def_id: str, definition: dict,
         "def_id": def_id, "version": version, "rev": rev,
         "rev_bumped": rev_bumped, "migrated": migrated, "notified": notified,
         "bindings_on_this_tree": bindings_on_this_tree,
-        "ast_hash": new_hash, "repaint": json.loads(repaint), "appended": True,
+        "ast_hash": new_hash, "repaint": json.loads(repaint),
+        "requirements": json.loads(requirements), "appended": True,
     }
 
 
@@ -1113,9 +1599,14 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (str(user_id), def_id, prev["version"] + 1, prev["rev"],
-             prev["ast_hash"], prev["definition"], prev["repaint"], now, now),
+             prev["ast_hash"], prev["definition"], prev["repaint"],
+             # ⛔ CARRIED, NEVER RE-DERIVED. A tombstone is the same document at a
+             # later version; re-deriving here would make a delete the one place
+             # the stamp could silently move.
+             json.dumps(_requirements_of(prev), separators=(",", ":")),
+             now, now),
         )
         c.commit()
     return True
@@ -1238,6 +1729,19 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
     row = get(user_id, def_id)
     if row is None:
         return None
+    # ⛔ THE CONSUMER CONTRACT, AT THE DOOR THAT MINTS THE LINK. A share is the
+    # first of the four ways a definition leaves its author's own chart, and the
+    # refusal has to land here rather than on the recipient: minting a token that
+    # `resolve_share` would then decline is a link the owner believes they sent.
+    #
+    # ⛔ THE CONSUMER NAME IS A LITERAL AT THE CALL, NOT THREADED THROUGH A
+    # HELPER. It was a helper for two lines, and `test_EVERY_consumer_the_manifest
+    # _refuses_BY_has_a_call_site_in_the_product` — which AST-walks `api/**` for
+    # the first string argument of `consumer_refusal` — could not see either door
+    # through it. A guard that cannot read the call site is not a guard.
+    why = consumer_refusal("share", row.get("requirements"))
+    if why:
+        raise ShareRefused("requirements", why)
     table_version = _current_table_version()
     with contextlib.closing(_connect()) as c:
         _ensure(c)
@@ -1455,6 +1959,16 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
     two entries.
     """
     _check_def_id(def_id)
+    # ⚠️ ASKED AS `listing`, NOT INHERITED FROM `share`. Publishing mints the link
+    # as a side effect, so a bare `share()` refusal would reach a member who
+    # pressed **List** wearing the word "share" — the wrong-door defect this repo
+    # names most often. Both consumers are declared separately in the manifest and
+    # both are asked separately here.
+    row = get(user_id, def_id)
+    if row is not None:
+        why = consumer_refusal("listing", row.get("requirements"))
+        if why:
+            raise ShareRefused("requirements", why)
     shared = share(user_id, def_id)
     if shared is None:
         return None

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;sogth7qpzsWquVKO7irgIyUySIuhNG1o",
+ "title": "Williams %R + RSI + EMA + Tendance [Silver-Wong]",
+ "author": "Silver-Wong",
+ "url": "https://www.tradingview.com/script/b7iC9J8W-williams-r-rsi-ema-tendance-silver-wong/",
+ "agreeCount": 660,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/williams-r-rsi-ema-tendance-silver-wong__sogth7qpzs.pine",
+ "our_status": "reference-only"
+}

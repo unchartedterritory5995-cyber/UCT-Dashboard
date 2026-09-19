@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0fa143447aa54045b50efcebd39ba5bc",
+ "title": "Luxy Momentum, Trend and Breakout Indicators with Multi-Timeframe Bias Table V7.1",
+ "author": "orenluxy",
+ "url": "https://www.tradingview.com/script/yu7YSQnd-luxy-momentum-trend-and-breakout-indicators-with-multi-timef/",
+ "agreeCount": 2487,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/luxy-momentum-trend-and-breakout-indicators-with-multi-timeframe-bias-__0fa143447a.pine",
+ "our_status": "reference-only"
+}

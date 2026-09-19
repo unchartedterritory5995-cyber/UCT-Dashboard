@@ -1,0 +1,83 @@
+{
+  "_": "VENDOR TRUTH — read out of TradingView's own chart model on 2026-09-08. This is the 2F-2A-CLOSE pin. It answers TWO questions the runtime-history architecture rests on: (1) is `x[1]` the PREVIOUS COMMITTED BAR or the CURRENT live slot, and (2) when a bar assigns a variable more than once, WHICH of those values does the bar contribute to history?",
+  "captured_at": "2026-09-08",
+  "method": "study model read — _exposed_chartWidgetCollection -> activeChartWidget -> model().model().dataSources() -> study.data().each(). Never a screenshot, never the Data Window, never the editor DOM.",
+  "context": {
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "timeframe": "1D",
+    "rows_returned": 400,
+    "loaded_history_bars": 8459
+  },
+  "probe_source_v5": "//@version=5\nindicator(\"UCT runtime history probe\")\nvar float x = 0.0\nx := x + 1\nvar float m = 0.0\nm := x\nm := m * 100\nplot(x, \"A\")\nplot(x[1], \"B\")\nplot(m, \"C\")\nplot(m[1], \"D\")\n",
+  "probe_source_v6": "//@version=6\nindicator(\"UCT runtime history probe v6\")\nvar float x = 0.0\nx := x + 1\nvar float m = 0.0\nm := x\nm := m * 100\nplot(x, \"A\")\nplot(x[1], \"B\")\nplot(m, \"C\")\nplot(m[1], \"D\")\n",
+  "_why_this_shape": "`x` is a bar counter, so it is BOUNDED over ~8,459 bars and every row stays discriminating — an earlier draft used `x := x * 3`, which overflows to Infinity by about bar 645 and would have made every later row read Infinity for both LIVE and PREV, i.e. a probe whose outputs are equal under several WRONG implementations. `m` is assigned TWICE on the same bar (`m := x` then `m := m * 100`), which is what makes D discriminate the commit point: a runtime that committed at the FIRST assignment would answer D = A-1, and one that committed the bar's FINAL value answers D = (A-1)*100. Those differ by a factor of 100 on every bar.",
+  "compiled_study_identity_proof": {
+    "why": "The 2E-CLOSE attempt compiled a STALE leftover script while the editor DOM showed something else. Identity is therefore proven from the MODEL before any value is accepted — and on this capture the DOM was again unreliable (a read of `.view-line` nodes returned 1 line while the editor genuinely held 11), so this gate is not ceremony.",
+    "v5": {
+      "study_id": "pTxDCO",
+      "shortDescription": "UCT runtime history probe",
+      "plot_count": 4,
+      "plot_titles": ["A", "B", "C", "D"]
+    },
+    "v6": {
+      "study_id": "pTxDCO",
+      "shortDescription": "UCT runtime history probe v6",
+      "plot_count": 4,
+      "plot_titles": ["A", "B", "C", "D"],
+      "_note": "the editor script was UPDATED in place from v5 to v6, so the study keeps its id; the shortDescription is what proves which source was compiled for each read."
+    },
+    "other_uct_studies_on_chart": 0
+  },
+  "hypotheses": {
+    "committed_previous_bar": "B = A - 1 on every row and B[i] = A[i-1]; D = C - 100 and D[i] = C[i-1]",
+    "reads_current_slot": "B = A and D = C on every row",
+    "commits_at_first_assignment": "D = A - 1 on every row (the pre-multiply value), not (A-1)*100",
+    "off_by_one_early_or_late": "B[i] != A[i-1] for some i"
+  },
+  "observations": {
+    "v5": {
+      "rows_measured": 400,
+      "first_row_time_A_B_C_D": [1738679400, 8060, 8059, 806000, 805900],
+      "last_row_time_A_B_C_D": [1788874200, 8459, 8458, 845900, 845800],
+      "distinct_A_minus_B": [1],
+      "distinct_C_over_A": [100],
+      "distinct_C_minus_D": [100],
+      "B_equals_previous_A": "399/399",
+      "D_equals_previous_C": "399/399",
+      "rows_where_B_equals_A": 0,
+      "rows_where_D_equals_A_minus_1": 0
+    },
+    "v6": {
+      "rows_measured": 400,
+      "first_row_time_A_B_C_D": [1738679400, 8060, 8059, 806000, 805900],
+      "last_row_time_A_B_C_D": [1788874200, 8459, 8458, 845900, 845800],
+      "distinct_A_minus_B": [1],
+      "distinct_C_over_A": [100],
+      "distinct_C_minus_D": [100],
+      "B_equals_previous_A": "399/399",
+      "D_equals_previous_C": "399/399",
+      "rows_where_B_equals_A": 0,
+      "rows_where_D_equals_A_minus_1": 0
+    }
+  },
+  "_absolute_values": "The counter reads ~8,060-8,459 rather than 1-400 because TradingView accumulates over its FULL loaded history, not the 400 rows it returns. The absolute value is an artefact of history depth and is NOT the evidence — exactly as in the 2E call-site pin. The RELATIONSHIPS are, and they are invariant to how far back the vendor loaded.",
+  "not_observed": {
+    "warmup_at_the_first_bar_of_history": "The returned window begins at A = 8060, so the first bar of the variable's life is outside it and `x[1] === na` on bar 0 was NOT observed. UCT answers `na` there by the same rule its columnar lane already applies to a column's history (`READ_HIST` out of range is `na`, never a clamp); that rule is covered by engine tests but is NOT vendor-pinned by this fixture.",
+    "historical_na": "A variable whose committed value on some bar IS `na` was not probed here (§17 optional). UCT distinguishes it in tests; the vendor has not been asked."
+  },
+  "conclusion": {
+    "rule_1": "`x[1]` is the PREVIOUS COMMITTED BAR, never the current live slot.",
+    "rule_2": "A bar that assigns a variable several times contributes its FINAL value to history.",
+    "verified_versions": ["v5", "v6"],
+    "versions_agree": true,
+    "uct_model": "matches — a committed history ring written by an end-of-bar phase, read by READ_HIST_SLOT; the live slot is never read as history",
+    "rejects": ["reads_current_slot", "commits_at_first_assignment", "off_by_one_early_or_late"]
+  },
+  "hygiene": {
+    "scripts_added": ["UCT runtime history probe (v5)", "UCT runtime history probe v6"],
+    "all_removed_after": true,
+    "layout_saved": false,
+    "brokerage_state_touched": false
+  }
+}

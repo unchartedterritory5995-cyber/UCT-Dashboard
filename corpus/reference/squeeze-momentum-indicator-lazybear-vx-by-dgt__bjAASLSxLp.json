@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bjAASLSxLpuhzKtaq1seF26nxU2M930z",
+ "title": "Squeeze Momentum Indicator [LazyBear] vX by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/Dsr7B2xE-squeeze-momentum-indicator-lazybear-vx-by-dgt/",
+ "agreeCount": 3819,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp.pine",
+ "our_status": "reference-only"
+}

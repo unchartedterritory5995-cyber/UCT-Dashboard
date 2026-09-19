@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;kGyXZBhXgxxtNBqwnDErxO3RfaTy4ToA",
+ "title": "Open Interest Stochastic Money Flow Index",
+ "author": "Noldo",
+ "url": "https://www.tradingview.com/script/L55eyyDh-open-interest-stochastic-money-flow-index/",
+ "agreeCount": 6220,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/open-interest-stochastic-money-flow-index__kGyXZBhXgx.pine",
+ "our_status": "reference-only"
+}

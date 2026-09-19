@@ -1,0 +1,191 @@
+// @version=5
+//
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// @author  = The_Caretaker
+// © The_Caretaker
+//
+// Much respect to Alex Orekhov (everget) for sharing the Stochastic Momentum Index script which I based this indicator on.
+// Greatly inspired by the original paper from William Blau, the inventor of the Stochastic Momentum Index 
+// and the prior works of Giorgos Siligardos, Dimitris Tsokakis and Johny Dough in reverse engineering momentum oscillators.
+// 
+// Feel free to reuse or develop this script further, please drop me a note below if you find it useful.
+//
+
+indicator ( 'Reverse Stochastic Momentum Index On Chart', 'RSMI OC', true )
+
+//////////////////////////////////////////////////////////////////////////////
+// Inputs and global variable declarations
+
+i_srcPrice      = input.source  ( close,          'Price Source',                                                                                   inline = '0',     group = 'SMI Properties')
+i_SMI_len       = input.int     ( 13,             'SMI Length',                 minval=1,                                                           inline = '1',     group = 'SMI Properties')
+i_smth1         = input.int     ( 25,             'Smooth 1',                   minval=1,                                                           inline = '2',     group = 'SMI Properties')
+i_smth2         = input.int     ( 2,              'Smooth 2',                   minval=1,                                                           inline = '3',     group = 'SMI Properties')
+
+i_SMIOn         = input.bool    ( true,           'Show SMI eq',                                                                                    inline = '0',     group = 'SMI Line Plot Settings')
+i_c_typ_line    = input.string  ( 'Dual',         'Color Type',                 options=[ 'Single', 'Dual' ],                                       inline = '1',     group = 'SMI Line Plot Settings')
+i_c_line        = input.color   ( #0000ff,      'Single Color',                                                                                   inline = '2',     group = 'SMI Line Plot Settings')
+i_c_line_rise   = input.color   ( #00ff00,      'Dual Color (Rising)',                                                                            inline = '3',     group = 'SMI Line Plot Settings')
+i_c_line_fall   = input.color   ( #ff0000,      'Dual Color (Falling)',                                                                           inline = '3',     group = 'SMI Line Plot Settings')
+i_p_width_line  = input.int     ( 2,              'Line Width',                 minval=1, maxval=4,                                                 inline = '4',     group = 'SMI Line Plot Settings')
+
+i_sigOn         = input.bool    ( true,           'Show Signal Line Crossover',                                                                     inline = '1',     group = 'Signal Line Plot Settings')
+i_sigLen        = input.int     ( 12,             'MA Length',                  minval=1,                                                           inline = '2',     group = 'Signal Line Plot Settings')
+i_c_typ_sig     = input.string  ( 'Dual',         'Color Type',                 options=[ 'Single', 'Dual' ],                                       inline = '3',     group = 'Signal Line Plot Settings')
+i_c_sig         = input.color   ( #ffffff,      'Single Color',                                                                                   inline = '3',     group = 'Signal Line Plot Settings')
+i_c_sig_rise    = input.color   ( #00ff00,      'Dual Color (Rising)',                                                                            inline = '4',     group = 'Signal Line Plot Settings')
+i_c_sig_fall    = input.color   ( #ff0000,      'Dual Color (Falling)',                                                                           inline = '4',     group = 'Signal Line Plot Settings')
+i_p_width_sig   = input.int     ( 2,              'Line Width',                 minval=1, maxval=4,                                                 inline = '5',     group = 'Signal Line Plot Settings')
+
+i_scaleHiOn     = input.bool    ( true,           '',                                                                                               inline = '1',     group = 'Scale Settings')
+i_scaleHi       = input.float   ( 100,            'Scale Hi',                   minval=100, maxval=100,                                             inline = '1',     group = 'Scale Settings')
+i_c_scale_hi    = input.color   ( #e600ff,      '',                                                                                               inline = '1',     group = 'Scale Settings')
+i_p_width_hi    = input.int     ( 2,              'Width',                      minval=1, maxval=4,                                                 inline = '1',     group = 'Scale Settings')
+i_alrtHiOn      = input.bool    ( true,           '',                                                                                               inline = '2',     group = 'Scale Settings')
+i_alrtHi        = input.float   ( 40,             'Alert Hi',                   minval=-100, maxval=100,                                            inline = '2',     group = 'Scale Settings')
+i_c_alert_hi    = input.color   ( #7d008b,      '',                                                                                               inline = '2',     group = 'Scale Settings')
+i_p_width_ahi   = input.int     ( 2,              'Width',                      minval=1, maxval=4,                                                 inline = '2',     group = 'Scale Settings')
+i_midLineOn     = input.bool    ( true,           '',                                                                                               inline = '3',     group = 'Scale Settings')
+i_midLine       = input.int     ( 0,              'Mid-line',                   minval=-100, maxval=100,                                            inline = '3',     group = 'Scale Settings')
+i_c_midline     = input.color   ( #909090,      '',                                                                                               inline = '3',     group = 'Scale Settings')
+i_p_width_mli   = input.int     ( 2,              'Width',                      minval=1, maxval=4,                                                 inline = '3',     group = 'Scale Settings')
+i_alrtLoOn      = input.bool    ( true,           '',                                                                                               inline = '4',     group = 'Scale Settings')
+i_alrtLo        = input.float   ( -40,            'Alert Lo',                   minval=-100, maxval=100,                                            inline = '4',     group = 'Scale Settings')
+i_c_alert_lo    = input.color   ( #006c87,      '',                                                                                               inline = '4',     group = 'Scale Settings')
+i_p_width_alo   = input.int     ( 2,              'Width',                      minval=1, maxval=4,                                                 inline = '4',     group = 'Scale Settings')
+i_scaleLoOn     = input.bool    ( true,           '',                                                                                               inline = '5',     group = 'Scale Settings')
+i_scaleLo       = input.float   ( -100,           'Scale Lo',                   minval=-100, maxval=-100,                                           inline = '5',     group = 'Scale Settings')
+i_c_scale_lo    = input.color   ( #00ccff,      '',                                                                                               inline = '5',     group = 'Scale Settings')
+i_p_width_lo    = input.int     ( 2,              'Width',                      minval=1, maxval=4,                                                 inline = '5',     group = 'Scale Settings')
+
+i_infoBox       = input.bool    ( true,           'Show Info Box',                                                                                  inline = '1',     group = 'Info Box Settings')
+i_alrtInfo      = input.bool    ( true,           'Show Alert Levels Info',                                                                         inline = '2',     group = 'Info Box Settings')
+i_decimalP      = input.int     ( 2,              'Decimal Places',             minval=0, maxval=10,                                                inline = '3',     group = 'Info Box Settings')
+i_boxOffSet     = input.int     ( 5,              'Info Box Offset',            minval=1, maxval=50,                                                inline = '4',     group = 'Info Box Settings')
+
+var label Infobox = na
+
+///////////////////////////////////////////////////////////////////////////////
+// Declare Functions
+
+f_truncdNum ( Val, DecPl ) =>
+    Fact = math.pow(10, DecPl)
+    int(Val * Fact) / Fact
+
+     // decimal truncation
+
+a(x) =>
+    2 / (x + 1)
+
+     // exponentially weighted multiplier
+
+f_reverse_SMI ( P, U, W, X, Y, Z ) =>
+    V = 0.5
+    H = ta.highest (W)
+    L = ta.lowest (W)
+    D = ta.ema (P - V * (H + L), X)[1]
+    E = ta.ema (a(X) * (P - V * (H + L)) + D - D * a(X), Y)[1]
+    F = ta.ema (H - L, X)[1]
+    G = ta.ema (a(X) * (H - L) + F * (1 - a(X)), Y)[1]
+    J = 100 * (a(Y) * (a(X) * (P - V * (H + L)) + D - D * a(X)) + E * (1 - a(Y))) / (V * (a(Y) * (a(X) * (H - L) + F * (1 - a(X))) + G * (1 - a(Y))))[1]
+    K = ta.ema (100 * (a(Y) * (a(X) * (P - V * (H + L)) + D - D * a(X)) + E * (1 - a(Y))) / (V * (a(Y) * (a(X) * (H - L) + F * (1 - a(X))) + G * (1 - a(Y)))), Z)[1]
+    rawReturn = (V * U * (a(Y) * a(X) * H - a(Y) * a(X) * L - a(Y) * F * a(X) + a(Y) * F - G * a(Y) + G) + 100 * (a(Y) * a(X) * V * H + a(Y) * a(X) * V * L - a(Y) * D + a(Y) * D * a(X) + E * a(Y) - E)) / (100 * a(Y) * a(X))
+    return_1 = rawReturn > 0 ? rawReturn : 0
+    return_1
+
+     // returns price where Stochastic Momentum Index is equal to input value "U"
+     // e.g. f_reverse_SMI ( close, 0, 13, 25, 2, 12 ) 
+     // would return the next closing price which would make SMI = 0
+     // the user can infer from this that.....
+     // closing above this price will cause the Stochastic Momentum Index to cross above the mid line
+     // and closing below it will cause the Stochastic Momentum Index to cross below the mid line
+     // This may also be used to give the SMI eq price (the price which would make the SMI equal to its prior value)
+     // this is done by inputing the prior value of the SMI (SMI[1]) as the "U" value
+     // e.g. f_reverse_SMI ( close, SMI[1], 13, 25, 2, 12 ) 
+     // The user can infer from this that..... 
+     // closing above this price will cause the Stochastic Momentum Index to increase
+     // and closing below it will cause the Stochastic Momentum Index to decrease
+     // has a Return filter to replace any values below zero with zero
+
+f_reverse_SMI_cross ( P, W, X, Y, Z ) =>
+    V = 0.5
+    H = ta.highest(W)
+    L = ta.lowest(W)
+    D = ta.ema(P - V * (H + L), X)[1]
+    E = ta.ema(a(X) * (P - V * (H + L)) + D - D * a(X), Y)[1]
+    F = ta.ema(H - L, X)[1]
+    G = ta.ema(a(X) * (H - L) + F * (1 - a(X)), Y)[1]
+    J = 100 * (a(Y) * (a(X) * (P - V * (H + L)) + D - D * a(X)) + E * (1 - a(Y))) / (V * (a(Y) * (a(X) * (H - L) + F * (1 - a(X))) + G * (1 - a(Y))))[1]
+    K = ta.ema(100 * (a(Y) * (a(X) * (P - V * (H + L)) + D - D * a(X)) + E * (1 - a(Y))) / (V * (a(Y) * (a(X) * (H - L) + F * (1 - a(X))) + G * (1 - a(Y)))), Z)[1]
+    rawReturn = (a(Y) * (100 * (a(Z) * (-a(X) * V * H - a(X) * V * L + D - D * a(X) - a(X) - E) + a(X) * V * H + a(X) * V * L - D + D * a(X) + E) + V * K * (a(X) * (-H * a(Z) + H + L * a(Z) - L + F * a(Z) - F) - F * a(Z) + F + G * a(Z) - G)) + 100 * (a(Z) * E - E) - V * K * G * a(Z) + V * K * G) / (100 * a(Y) * a(X) * (-a(Z) + 1))
+    return_2 = rawReturn > 0 ? rawReturn : 0
+    return_2
+
+     // returns price where Stochastic Momentum Index is equal to the signal line
+     // the user can infer from this that.....
+     // closing above this price will cause the Stochastic Momentum Index to cross above the signal line
+     // and closing below it will cause the Stochastic Momentum Index to cross below the signal line
+     // has a Return filter to replace any values below zero with zero
+
+f_delta ( P, X ) =>
+    X - P > 0
+
+f_negVal ( X, D ) =>
+    X > 0 ? str.tostring(f_truncdNum(X, D)) : 'Impossible'
+
+text_eq ( p, x, d ) =>
+    p > x ? 'Continues Rising Above (eq) : ' + str.tostring(int(x * math.pow(10, d)) / math.pow(10, d)) : 'Continues Falling Below (Eq) :' + str.tostring(int(x * math.pow(10, d)) / math.pow(10, d))
+
+f_crossText ( P, X, T, D ) =>
+    f_delta(P, X) ? 'Cross Above ' + T + ' : ' + f_negVal(X, D) + '\n' : 'Cross Below ' + T + ' : ' + f_negVal(X, D) + '\n'
+
+//////////////////////////////////////////////////////////////////////////////
+// Calculations
+
+SMINumerator    = ta.ema ( ta.ema ( i_srcPrice - 0.5 * ( ta.highest ( i_SMI_len ) + ta.lowest ( i_SMI_len )), i_smth1 ), i_smth2 )
+SMIDenominator  = 0.5 * ta.ema ( ta.ema ( ta.highest ( i_SMI_len ) - ta.lowest ( i_SMI_len ), i_smth1 ), i_smth2 )
+SMI             = 100 * SMINumerator / SMIDenominator
+SMI_eq          = f_reverse_SMI ( i_srcPrice, SMI[1], i_SMI_len, i_smth1, i_smth2, i_sigLen )
+scalHilineCross = f_reverse_SMI ( i_srcPrice, i_scaleHi, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+alrtHilineCross = f_reverse_SMI ( i_srcPrice, i_alrtHi, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+zerolineCross   = f_reverse_SMI ( i_srcPrice, 0, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+alrtLolineCross = f_reverse_SMI ( i_srcPrice, i_alrtLo, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+scalLolineCross = f_reverse_SMI ( i_srcPrice, i_scaleLo, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+signalCross     = f_reverse_SMI_cross ( i_srcPrice, i_SMI_len, i_smth1, i_smth2, i_sigLen )
+
+c_SMI_eq        = i_c_typ_line == 'Single' ? i_c_line : SMI_eq < i_srcPrice ? i_c_line_rise : i_c_line_fall
+c_signalCross   = i_c_typ_sig  == 'Single' ? i_c_sig : signalCross < i_srcPrice ? i_c_sig_rise : i_c_sig_fall
+
+///////////////////////////////////////////////////////////////////////////////
+// Compute Info Label
+
+labelXLoc       = time_close + i_boxOffSet * ( time_close - time_close[1] )
+crossSignalText = f_crossText ( i_srcPrice, signalCross, 'Signal Line', i_decimalP )
+SMIeq           = text_eq ( i_srcPrice, SMI_eq, i_decimalP )
+crossZeroText   = f_crossText ( i_srcPrice, zerolineCross, 'Zero Line', i_decimalP )
+crossAlrtHiText = f_crossText ( i_srcPrice, alrtHilineCross, 'Alert Hi', i_decimalP )
+crossAlrtLoText = f_crossText ( i_srcPrice, alrtLolineCross, 'Alert Lo', i_decimalP )
+infoBoxText     = i_alrtInfo ? 'SMI\n\n' + SMIeq + '\n\n' + crossAlrtHiText + '\n' + crossSignalText + '\n' + crossZeroText + '\n' + crossAlrtLoText : 'SMI\n\n' + SMIeq + '\n\n' + crossSignalText + '\n' + crossZeroText
+
+///////////////////////////////////////////////////////////////////////////////
+// InfoBox Plot
+
+if i_infoBox
+    Infobox := label.new ( labelXLoc, close, infoBoxText, xloc.bar_time, yloc.price, #000000ff, label.style_label_left, color.white )
+    Infobox
+
+label.delete ( Infobox[1] )
+
+///////////////////////////////////////////////////////////////////////////////
+// SMI Plots & Fills
+
+p_scaleHi  = plot ( i_scaleHiOn ? scalHilineCross : na,  'Scale High',           i_c_scale_hi,   i_p_width_hi,   plot.style_linebr )
+p_alertHi  = plot ( i_alrtHiOn ? alrtHilineCross : na,   'High Alert',           i_c_alert_hi,   i_p_width_ahi,  plot.style_linebr )
+p_alertLo  = plot ( i_alrtLoOn ? alrtLolineCross : na,   'Low Alert',            i_c_alert_lo,   i_p_width_alo,  plot.style_linebr )
+p_scaleLo  = plot ( i_scaleLoOn ? scalLolineCross : na,  'Scale Low',            i_c_scale_lo,   i_p_width_lo,   plot.style_linebr )
+p_SMI_eq   = plot ( i_SMIOn ? SMI_eq : na,               'SMI EQ Price',         c_SMI_eq,       i_p_width_line, plot.style_linebr )
+p_sigCrs   = plot ( i_sigOn ? signalCross : na,          'Signal Line Cross',    c_signalCross,  i_p_width_sig,  plot.style_linebr )
+p_midLine  = plot ( i_midLineOn ? zerolineCross : na,    'Zero Line Cross',      i_c_midline,    i_p_width_mli,  plot.style_linebr )
+
+///////////////////////////////////////////////////////////////////////////////
+// End
+

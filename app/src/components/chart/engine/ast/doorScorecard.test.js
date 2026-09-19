@@ -120,6 +120,27 @@ const RULED = {
     'it screens twenty BINANCE crypto pairs — instruments this product carries no bars '
     + 'for — so no symbol in it is nameable and no column it offers could ever answer. '
     + 'Carrying those instruments would change this; nothing in the engine would',
+
+  // 🔴🔴 ADDED (RISK-043, 2026-09-07) — moved here FROM `pine.community.test.js`'s
+  // TRANSLATES roster, where it had been counted as a real pass. `ppchk` is
+  // mutated inside a top-level `for` loop (`ppchk += 1`), then read by
+  // `if ppchk < 1 and greenday: ispp := true`. Before the fix, the loop's
+  // un-foldable mutation was only caught by a closing-pass safety net that
+  // runs once, after the whole script has already been walked — too late for
+  // this `if`, walked earlier in program order, which had already captured a
+  // stale, pre-loop `ppchk` (still `0`) and silently baked "always true" into
+  // `ppchk < 1`. That was a SILENT_WRONG_RESULT, not a translating script.
+  // The fixed behavior — refusing `pine:reassign` — is the SAME decidability
+  // line `27-support-resistance-channels.pine` is ruled on two entries above:
+  // a loop-carried mutable accumulator cannot fold into one expression over a
+  // fixed vocabulary, whether the accumulator is an array slot or a bare
+  // scalar. See `pine.forLoopReassignSilentWrongResult.test.js` for the
+  // traced mechanism and the permanent regression net.
+  '17-pocket-pivot-breakout.pine':
+    'decides `ispp` from `ppchk`, a scalar accumulated inside a top-level `for` loop '
+    + 'via `ppchk += 1`; a loop-carried mutable accumulator cannot fold into one '
+    + 'expression over a fixed vocabulary — the same decidability line the '
+    + 'array-walking rulings above are drawn on',
 }
 
 /** ⭐ REFUSED, WITH THE FIX WRITTEN OUT. thinkorswim publishes no default for these
@@ -141,9 +162,18 @@ const OFFERED = {
   // ⭐⭐ TWO MORE EARNED IT on 2026-08-30, and both hand back a rewrite VERIFIED to
   // translate before the offer was written — `pine.requestOffer.test.js` applies
   // each one to the real published script and asserts it comes back `ok`.
-  '23-higher-timeframe-ema.pine': 'it asks for a literal daily rung and this engine '
-    + 'resamples only weekly and monthly from the daily bars it holds — the door hands '
-    + 'back `timeframe.period`, and SAYS that it is not the same request',
+  // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE AS **OFFERED** and it TRANSLATES now, so
+  // it belongs on neither roster: a script that works needs no offer. Removed
+  // 2026-09-12 by ruling 3.5 (`29d64a2ef`) — it asked for a literal daily rung, and a
+  // literal naming the engine's own BASE now folds to the identity instead of
+  // refusing. It moved to the TRANSLATES roster in `pine.community.test.js` (18 → 19).
+  // ⭐⭐ AND THIS FILE IS WHAT CAUGHT IT. Both its rails fired inside a minute of the
+  // change: "no ruling names a script that translates — a stale ruling hides a win",
+  // and "every OFFERED script actually OFFERS something — the label is a claim". The
+  // second one is the sharper of the two: once the script translated, the door said
+  // nothing, so an OFFERED label with no offer behind it became a false claim the
+  // moment the win landed. That is exactly the staleness this scorecard exists for,
+  // and it is why the entry is recorded-and-removed rather than quietly deleted.
   '26-spy-to-es-qqq-to-nq.pine': 'it asks for the ETF\'s EXTENDED session and this engine '
     + 'serves the regular one — the door hands back `session.regular` rather than '
     + 'answering a real but different number on every bar',
@@ -363,7 +393,16 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
     // is why the bucketing assertion above demands a written reason for every
     // entry and why those two reasons name a decidability line rather than a
     // difficulty. Read them before trusting this number.
-    expect(open.length).toBeLessThanOrEqual(8)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(open.length).toBeLessThanOrEqual(10)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {
@@ -375,7 +414,22 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   })
 
   it('the doors that translate at all may not translate fewer', () => {
-    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(43)
+    // ⭐ 43 → 42 ON 2026-09-07 (RISK-043), AND NOT A REGRESSION: like the RULED
+    // note above, a ruling is the other way this number can fall without a
+    // loss. `17-pocket-pivot-breakout.pine` moved from "translates" to RULED
+    // because it was never a real pass — it silently folded a for-loop-mutated
+    // scalar to its pre-loop value instead of refusing (SILENT_WRONG_RESULT).
+    // See its RULED entry above and `pine.forLoopReassignSilentWrongResult.test.js`.
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(41)
   })
 })
 
@@ -455,8 +509,19 @@ describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets'
   it('⛔ …and evaluating is not skipped on the way — the middle door is real', () => {
     // Without this, a `saveable` count that happened to equal `translate` could be
     // produced by a gate that never ran.
+    // ⭐ 43 → 42 ON 2026-09-07 — the same RISK-043 correction as `ALL.filter`'s
+    // ratchet above, tracked one-for-one since this total derives from it.
     expect(total.evaluate).toBe(total.translate)
-    expect(total.evaluate).toBeGreaterThanOrEqual(43)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(total.evaluate).toBeGreaterThanOrEqual(41)
   })
 })
 
@@ -581,8 +646,22 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     // ratchet is only a rail at the value it actually measures; below that it is
     // a comment. ⭐ 43 of 43 is also a CEILING, so this now says something
     // stronger: every script that translates can reach the screener.
+    // ⭐ 43 → 42 ON 2026-09-07 (RISK-043) — tracks `scriptsTranslating` one-for-one:
+    // `17-pocket-pivot-breakout.pine` moved from translating to RULED, a
+    // correctness fix (see its RULED entry above), not a capability loss. The
+    // ceiling identity below (`reachable.size === scriptsTranslating.size`)
+    // still holds — both sides dropped together.
     expect(reachable.size).toBeGreaterThanOrEqual(scriptsScannable.size)
-    expect(reachable.size).toBeGreaterThanOrEqual(43)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(reachable.size).toBeGreaterThanOrEqual(41)
     expect(reachable.size).toBe(scriptsTranslating.size)
   })
 
@@ -692,6 +771,27 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     // worse; the two are told apart by naming the scripts, which is why they are
     // named. If this climbs back past 18 without a named script, suspect the
     // constant columns came back rather than that a door opened.
-    expect(scriptsScannable.size).toBeGreaterThanOrEqual(18)
+    //
+    // 🔴🔴 18 → 17 ON 2026-09-07 (RISK-043), FOR THE SAME REASON AS THE 19 → 18
+    // MOVE ABOVE: `17-pocket-pivot-breakout.pine` was never a real scan. It was
+    // counted scannable because it translated at all — but the column it
+    // offered was built from `ppchk`, a for-loop-mutated scalar silently
+    // folded to its pre-loop value (SILENT_WRONG_RESULT), so the "scan" it
+    // offered would have matched on a confidently wrong constant, on every
+    // symbol, forever — the same failure shape the 2026-08-30 note above warns
+    // about, just reached through a different mechanism (loop-mutation folding
+    // rather than a literal `0`). It now correctly refuses (RULED, above) and
+    // offers no column at all. If this climbs back past 17 without a named
+    // script, suspect the same class of false constant returned.
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(scriptsScannable.size).toBeGreaterThanOrEqual(14)
   })
 })

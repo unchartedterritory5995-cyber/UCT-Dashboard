@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;A4zY3dRcsEyDvzyMzHuGfIAToi8Jt9se",
+ "title": "Fib Pivot Points Alerts",
+ "author": "QuantNomad",
+ "url": "https://www.tradingview.com/script/X6MMLa9E-fib-pivot-points-alerts/",
+ "agreeCount": 3384,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+ "our_status": "reference-only"
+}

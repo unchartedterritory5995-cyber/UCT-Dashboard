@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;29f470a0899242e4a038188dcf6c3c13",
+ "title": "MTF Key Levels - Support and Resistance",
+ "author": "Frien_dd-DisDev",
+ "url": "https://www.tradingview.com/script/81nW6FSk-mtf-key-levels-support-and-resistance/",
+ "agreeCount": 3562,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+ "cached_source": "tools/pine_survey/cache/sources/mtf-key-levels-support-and-resistance__29f470a089.pine",
+ "our_status": "committed"
+}

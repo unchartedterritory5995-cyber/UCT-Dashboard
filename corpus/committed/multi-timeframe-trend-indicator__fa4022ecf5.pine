@@ -1,0 +1,398 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Ox_kali
+// ________________________________________________________________________________________________________________________________       
+
+//  ██████╗ ██╗  ██╗        ██╗  ██╗ █████╗ ██╗     ██╗     █████╗ ██╗      ██████╗  ██████╗ ██████╗ ██╗████████╗██╗  ██╗███╗   ███╗
+// ██╔═══██╗╚██╗██╔╝        ██║ ██╔╝██╔══██╗██║     ██║    ██╔══██╗██║     ██╔════╝ ██╔═══██╗██╔══██╗██║╚══██╔══╝██║  ██║████╗ ████║
+// ██║   ██║ ╚███╔╝         █████╔╝ ███████║██║     ██║    ███████║██║     ██║  ███╗██║   ██║██████╔╝██║   ██║   ███████║██╔████╔██║
+// ██║   ██║ ██╔██╗         ██╔═██╗ ██╔══██║██║     ██║    ██╔══██║██║     ██║   ██║██║   ██║██╔══██╗██║   ██║   ██╔══██║██║╚██╔╝██║
+// ╚██████╔╝██╔╝ ██╗███████╗██║  ██╗██║  ██║███████╗██║    ██║  ██║███████╗╚██████╔╝╚██████╔╝██║  ██║██║   ██║   ██║  ██║██║ ╚═╝ ██║
+//  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝    ╚═╝  ██║╚══════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝
+// ________________________________________________________________________________________________________________________________       
+
+//@version=6
+// Indicator title and short title
+// ________________________________________________________________________________________________________________________________           
+indicator('Multi-Timeframe Trend Indicator', shorttitle = 'MTFTI', overlay = true)
+
+// Option to enable/disable candlestick colouring (default = false)
+// ________________________________________________________________________________________________________________________________    
+useCandleColoring = input.bool(false, title = 'Enable candlestick coloring?')
+
+// Added option to select moving average type
+// ________________________________________________________________________________________________________________________________     
+maType = input.string(title = 'Moving Average Type', defval = 'EMA', options = ['SMA', 'EMA', 'WMA', 'AMA'])
+
+// Table position input
+// ________________________________________________________________________________________________________________________________     
+tablePosition = input.string(title = 'Table Position', defval = 'bottom_right', options = ['top_left', 'top_right', 'middle_left', 'middle_right', 'bottom_left', 'bottom_right'])
+
+// Vertical or horizontal orientation input settings
+// ________________________________________________________________________________________________________________________________     
+orientation = input.string("Vertical", "Table orientation", options = ["Vertical","Horizontal"])
+
+// Table / text size input
+// ________________________________________________________________________________________________________________________________     
+tblSize = input.string("Normal","Table / Text size", options = ["Tiny","Small","Normal","Large","Huge"])
+
+// Map text size input to size.* enum
+// ________________________________________________________________________________________________________________________________     
+sz = tblSize == "Tiny"   ? size.tiny  :
+     tblSize == "Small"  ? size.small :
+     tblSize == "Large"  ? size.large :
+     tblSize == "Huge"   ? size.huge  : size.normal   // « Normal »
+
+
+// Select the timeframes to be displayed in the table
+// ________________________________________________________________________________________________________________________________    
+showTf1 = input(false, title = 'Show 1min')
+showTf2 = input(false, title = 'Show 2min')
+showTf3 = input(false, title = 'Show 3min')
+showTf4 = input(true, title = 'Show 5min')
+showTf5 = input(false, title = 'Show 10min')
+showTf6 = input(true, title = 'Show 15min')
+showTf7 = input(true, title = 'Show 30min')
+showTf8 = input(true, title = 'Show 1H')
+showTf9 = input(true, title = 'Show 2H')
+showTf10 = input(true, title = 'Show 4H')
+showTf11 = input(true, title = 'Show 6H')
+showTf12 = input(true, title = 'Show 12H')
+showTf13 = input(true, title = 'Show 1 Day')
+showTf14 = input(true, title = 'Show 1 week')
+showTf15 = input(true, title = 'Show AVG')
+
+// Function to convert user input to position type
+// ________________________________________________________________________________________________________________________________    
+get_position(value) =>
+    pos = position.middle_right
+    if value == 'top_left'
+        pos := position.top_left
+        pos
+    else if value == 'top_right'
+        pos := position.top_right
+        pos
+    else if value == 'middle_left'
+        pos := position.middle_left
+        pos
+    else if value == 'middle_right'
+        pos := position.middle_right
+        pos
+    else if value == 'bottom_left'
+        pos := position.bottom_left
+        pos
+    else if value == 'bottom_right'
+        pos := position.bottom_right
+        pos
+    pos
+
+// Input for timeframes
+// ________________________________________________________________________________________________________________________________    
+tf1 = '1'
+tf2 = '2'
+tf3 = '3'
+tf4 = '5'
+tf5 = '10'
+tf6 = '15'
+tf7 = '30'
+tf8 = '60'
+tf9 = '120'
+tf10 = '240'
+tf11 = '360'
+tf12 = '720'
+tf13 = '1440'
+tf14 = '1W'
+
+// Input for EMA lengths
+// ________________________________________________________________________________________________________________________________       
+shortTerm = input(50, title = 'Short Term EMA Length')
+longTerm = input(200, title = 'Long Term EMA Length')
+showShortTerm = input(true, title = 'Show Short Term EMA')
+showLongTerm = input(true, title = 'Show Long Term EMA')
+
+// Function to calculate the moving average according to the user's choice
+// ________________________________________________________________________________________________________________________________     
+calcMa(price, length) =>
+    float ma = na
+    if maType == 'SMA'
+        ma := ta.sma(price, length)
+        ma
+    else if maType == 'EMA'
+        ma := ta.ema(price, length)
+        ma
+    else if maType == 'WMA'
+        ma := ta.wma(price, length)
+        ma
+    else if maType == 'AMA'
+        ma := ta.hma(price, length)
+        ma
+    ma
+
+// Modify the EMA calculation part to use calcMa instead
+// ________________________________________________________________________________________________________________________________     
+trendCalc(timeframe) =>
+    float maShortTf = request.security(syminfo.tickerid, timeframe, calcMa(close, shortTerm))
+    float maLongTf = request.security(syminfo.tickerid, timeframe, calcMa(close, longTerm))
+    trend = maShortTf > maLongTf ? 1 : -1
+    trend
+
+// Initial declarations to avoid errors due to undeclared identifiers
+// ________________________________________________________________________________________________________________________________     
+float trend1 = na
+float trend2 = na
+float trend3 = na
+float trend4 = na
+float trend5 = na
+float trend6 = na
+float trend7 = na
+float trend8 = na
+float trend9 = na
+float trend10 = na
+float trend11 = na
+float trend12 = na
+float trend13 = na
+float trend14 = na
+
+// Initialize trendSum and activeTfs and Calculate trends for each timeframe
+// ________________________________________________________________________________________________________________________________  
+trendSum = 0.0
+activeTfs = 0
+
+if showTf1
+    trend1 := trendCalc(tf1)
+    trendSum := trendSum + trend1
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf2
+    trend2 := trendCalc(tf2)
+    trendSum := trendSum + trend2
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf3
+    trend3 := trendCalc(tf3)
+    trendSum := trendSum + trend3
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf4
+    trend4 := trendCalc(tf4)
+    trendSum := trendSum + trend4
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf5
+    trend5 := trendCalc(tf5)
+    trendSum := trendSum + trend5
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf6
+    trend6 := trendCalc(tf6)
+    trendSum := trendSum + trend6
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf7
+    trend7 := trendCalc(tf7)
+    trendSum := trendSum + trend7
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf8
+    trend8 := trendCalc(tf8)
+    trendSum := trendSum + trend8
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf9
+    trend9 := trendCalc(tf9)
+    trendSum := trendSum + trend9
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf10
+    trend10 := trendCalc(tf10)
+    trendSum := trendSum + trend10
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf11
+    trend11 := trendCalc(tf11)
+    trendSum := trendSum + trend11
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf12
+    trend12 := trendCalc(tf12)
+    trendSum := trendSum + trend12
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf13
+    trend13 := trendCalc(tf13)
+    trendSum := trendSum + trend13
+    activeTfs := activeTfs + 1
+    activeTfs
+
+if showTf14
+    trend14 := trendCalc(tf14)
+    trendSum := trendSum + trend14
+    activeTfs := activeTfs + 1
+    activeTfs
+
+// Calculate average trend if activeTfs is not zero to avoid division by zero
+// ________________________________________________________________________________________________________________________________ 
+trendAvg = activeTfs != 0 ? trendSum / activeTfs : na
+
+// Table colour settings
+// ________________________________________________________________________________________________________________________________   
+colorStrongDown = input.color(color.rgb(172, 1, 1), title = 'colorStrongDown', group = 'color')
+colorDown = input.color(color.red, title = 'colorDown', group = 'color')
+colorStrongUp = input.color(color.rgb(1, 128, 5), title = 'colorStrongUp', group = 'color')
+colorUp = input.color(color.green, title = 'colorUp', group = 'color')
+colorNeutral = input.color(color.gray, title = 'colorNeutral', group = 'color')
+
+trendAvgText = ''
+trendAvgBgcolor = color.silver
+
+if trendAvg <= -0.8
+    trendAvgText := 'Strong Down'
+    trendAvgBgcolor := colorStrongDown
+    trendAvgBgcolor
+else if trendAvg <= -0.2
+    trendAvgText := 'Down'
+    trendAvgBgcolor := colorDown
+    trendAvgBgcolor
+else if trendAvg >= 0.8
+    trendAvgText := 'Strong Up'
+    trendAvgBgcolor := colorStrongUp
+    trendAvgBgcolor
+else if trendAvg >= 0.2
+    trendAvgText := 'Up'
+    trendAvgBgcolor := colorUp
+    trendAvgBgcolor
+else
+    trendAvgText := 'Neutral'
+    trendAvgBgcolor := color.rgb(170, 169, 169)
+    trendAvgBgcolor
+
+// Table construction
+// ________________________________________________________________________________________________________________________________     
+var table trendTable = na
+var bool  newTable   = false    
+
+makeTable(_horiz) =>_horiz ? table.new(position = get_position(tablePosition), columns = 16, rows = 2,frame_color = color.white, bgcolor = color.black) : table.new(position = get_position(tablePosition), columns = 2,  rows = 16, frame_color = color.white, bgcolor = color.black)
+
+if barstate.isfirst
+    trendTable := makeTable(orientation == "Horizontal")
+    newTable   := true
+else
+    if orientation != orientation[1]
+        table.delete(trendTable)
+        trendTable := makeTable(orientation == "Horizontal")
+        newTable   := true
+    else
+        newTable := false
+
+if not newTable
+    if orientation == "Horizontal"
+        table.clear(trendTable, 0, 0, 15, 1) 
+    else
+        table.clear(trendTable, 0, 0, 1, 15)
+
+
+// Add header cell with left alignment
+// ________________________________________________________________________________________________________________________________       
+if orientation == "Horizontal"
+    table.cell(trendTable, 0, 0, "TF",
+               bgcolor = color.black, text_color = color.white, text_size = sz)
+    table.cell(trendTable, 0, 1, "Trend",
+               bgcolor = color.black, text_color = color.white, text_size = sz)
+else
+    table.cell(trendTable, 0, 0, "Trend",
+               bgcolor = color.black, text_color = color.white, text_size = sz)
+    table.cell(trendTable, 1, 0, "TF",
+               bgcolor = color.black, text_color = color.white, text_size = sz)
+
+
+// Internal function to fill a given line
+// ________________________________________________________________________________________________________________________________   
+f_fillCell(_show, _trend, _idx, _tfLbl) =>
+    if _show
+        if orientation == "Horizontal"
+            table.cell(trendTable, _idx, 0, _tfLbl,
+                       bgcolor=color.rgb(0,0,0,70), text_color=color.white, text_size=sz)
+            table.cell(trendTable, _idx, 1, _trend>0?"Up":"Down",
+                       bgcolor=_trend>0?colorUp:colorDown, text_size=sz)
+        else
+            table.cell(trendTable, 1, _idx, _tfLbl,
+                       bgcolor=color.rgb(0,0,0,70), text_color=color.white, text_size=sz)
+            table.cell(trendTable, 0, _idx, _trend>0?"Up":"Down",
+                       bgcolor=_trend>0?colorUp:colorDown, text_size=sz)
+
+
+
+// Fill cells according to timeframes
+// ________________________________________________________________________________________________________________________________             
+f_fillCell(showTf1, trend1, 1, '1')
+f_fillCell(showTf2, trend2, 2, '2')
+f_fillCell(showTf3, trend3, 3, '3')
+f_fillCell(showTf4, trend4, 4, '5')
+f_fillCell(showTf5, trend5, 5, '10')
+f_fillCell(showTf6, trend6, 6, '15')
+f_fillCell(showTf7, trend7, 7, '30')
+f_fillCell(showTf8, trend8, 8, '1H')
+f_fillCell(showTf9, trend9, 9, '2H')
+f_fillCell(showTf10, trend10, 10, '4H')
+f_fillCell(showTf11, trend11, 11, '6H')
+f_fillCell(showTf12, trend12, 12, '12H')
+f_fillCell(showTf13, trend13, 13, '1D')
+f_fillCell(showTf14, trend14, 14, '1W')
+
+// Line for AVG
+// ________________________________________________________________________________________________________________________________             
+
+if showTf15
+    if orientation == "Horizontal"
+        table.cell(trendTable, 15, 0, "AVG",
+                   bgcolor = color.rgb(0,0,0,70),
+                   text_color = color.white, text_size = sz)
+        table.cell(trendTable, 15, 1, trendAvgText,
+                   bgcolor = trendAvgBgcolor, text_size = sz)
+    else
+        table.cell(trendTable, 1, 15, "AVG",
+                   bgcolor = color.rgb(0,0,0,70),
+                   text_color = color.white, text_size = sz)
+        table.cell(trendTable, 0, 15, trendAvgText,
+                   bgcolor = trendAvgBgcolor, text_size = sz)
+
+
+
+// Moving average plots
+// ________________________________________________________________________________________________________________________________             
+maShort = calcMa(close, shortTerm)
+maLong = calcMa(close, longTerm)
+
+// Plot table and ema
+// ________________________________________________________________________________________________________________________________      
+plot(showShortTerm ? maShort : na, title = 'Short Term MA', color = color.blue, linewidth = 2)
+plot(showLongTerm ? maLong : na, title = 'Long Term MA', color = color.orange, linewidth = 2)
+
+// Alerts conditions
+// ________________________________________________________________________________________________________________________________             
+alertcondition(trendAvg <= -0.8, title = 'Strong Down Alert', message = 'The average trend is Strong Down.')
+alertcondition(trendAvg <= -0.2 and trendAvg > -0.8, title = 'Down Alert', message = 'The average trend is Down.')
+alertcondition(trendAvg > -0.2 and trendAvg < 0.2, title = 'Neutral Alert', message = 'The average trend is Neutral.')
+alertcondition(trendAvg >= 0.2 and trendAvg < 0.8, title = 'Up Alert', message = 'The average trend is Up.')
+alertcondition(trendAvg >= 0.8, title = 'Strong Up Alert', message = 'The average trend is Strong Up.')
+
+
+// Candle colouring if this option is enabled :
+// ________________________________________________________________________________________________________________________________             
+color barColor = na
+if useCandleColoring
+    barColor := trendAvg <= -0.8 ? colorStrongDown : trendAvg <= -0.2 ? colorDown : trendAvg >= 0.8 ? colorStrongUp : trendAvg >= 0.2 ? colorUp : colorNeutral
+    barColor
+
+barcolor(barColor)

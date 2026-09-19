@@ -1,0 +1,26 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ceyhun
+
+//@version=4
+strategy("ATR Trailing Stoploss Strategy ",overlay=true)
+
+Atr=input(defval=5,title="Atr Period",minval=1,maxval=500)
+Hhv=input(defval=10,title="HHV Period",minval=1,maxval=500)
+Mult=input(defval=2.5,title="Multiplier",minval=0.1)
+Barcolor=input(true,title="Barcolor")
+
+Prev = highest(high-Mult*atr(Atr),Hhv),barssince(close>highest(high-Mult*atr(Atr),Hhv) and close>close[1])
+TS = iff(cum(1)<16 ,close,iff( close > highest(high-Mult*atr(Atr),Hhv) and close>close[1],highest(high-Mult*atr(Atr),Hhv),Prev))
+
+Color=iff(close>TS,color.green,iff(close<TS,color.red,color.black))
+barcolor(Barcolor? Color:na)
+plot(TS,color=Color,linewidth=3,title="ATR Trailing Stoploss")
+
+Buy  = crossover(close,TS)
+Sell = crossunder(close,TS)
+
+if Buy
+    strategy.entry("Buy", strategy.long, comment="Buy")
+    
+if Sell
+    strategy.entry("Sell", strategy.short, comment="Sell")

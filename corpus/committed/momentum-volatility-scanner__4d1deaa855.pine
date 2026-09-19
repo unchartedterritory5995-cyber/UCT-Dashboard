@@ -1,0 +1,190 @@
+// This Pine Script™ source code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+// © Momentum Volatility Scanner
+
+//@version=5
+indicator("Momentum Volatility Scanner", overlay=false)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Momentum Settings
+rsiPeriod = input.int(14, "RSI Period", minval=2, maxval=50, group="Momentum")
+momentumSmooth = input.int(3, "Momentum Smoothing", minval=1, maxval=10, group="Momentum")
+overboughtLevel = input.int(70, "Overbought", minval=50, maxval=95, group="Momentum")
+oversoldLevel = input.int(30, "Oversold", minval=5, maxval=50, group="Momentum")
+
+// Volatility Settings
+atrPeriod = input.int(14, "ATR Period", minval=1, maxval=50, group="Volatility")
+volatilityThreshold = input.float(1.5, "Volatility Multiplier", minval=0.5, maxval=5.0, step=0.1, group="Volatility")
+bbPeriod = input.int(20, "Bollinger Period", minval=5, maxval=50, group="Volatility")
+bbStdDev = input.float(2.0, "Bollinger StdDev", minval=0.5, maxval=4.0, step=0.5, group="Volatility")
+
+// Zone Settings
+neutralZoneUpper = input.int(60, "Neutral Zone Upper", minval=50, maxval=70, group="Zones")
+neutralZoneLower = input.int(40, "Neutral Zone Lower", minval=30, maxval=50, group="Zones")
+
+// Display Options
+displayMode = input.string("Histogram", "Display Mode", options=["Histogram", "Line", "Area"], group="Display")
+showDivergence = input.bool(true, "Highlight Divergences", group="Display")
+showVolatilityBand = input.bool(true, "Show Volatility Band", group="Display")
+showSignalDots = input.bool(true, "Show Signal Dots", group="Display")
+
+// Color Palette
+upMomentum = input.color(color.new(#00E676, 0), "Strong Up", group="Colors")
+weakUp = input.color(color.new(#81C784, 40), "Weak Up", group="Colors")
+downMomentum = input.color(color.new(#FF5252, 0), "Strong Down", group="Colors")
+weakDown = input.color(color.new(#E57373, 40), "Weak Down", group="Colors")
+neutralColor = input.color(color.new(#9E9E9E, 30), "Neutral", group="Colors")
+volatilityColor = input.color(color.new(#FFD600, 70), "Volatility Band", group="Colors")
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CORE CALCULATIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// RSI-based momentum
+rawRsi = ta.rsi(close, rsiPeriod)
+smoothedRsi = ta.sma(rawRsi, momentumSmooth)
+
+// Rate of change for momentum confirmation
+rocValue = ta.roc(close, rsiPeriod)
+rocNormalized = (rocValue - ta.lowest(rocValue, 50)) / (ta.highest(rocValue, 50) - ta.lowest(rocValue, 50)) * 100
+
+// Volatility measurement
+atrValue = ta.atr(atrPeriod)
+atrSma = ta.sma(atrValue, atrPeriod * 2)
+volatilityRatio = atrValue / atrSma
+
+// Bollinger Band width as volatility proxy
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, bbPeriod, bbStdDev)
+bbWidth = (bbUpper - bbLower) / bbMiddle * 100
+bbWidthSma = ta.sma(bbWidth, bbPeriod)
+bbExpansion = bbWidth > bbWidthSma * volatilityThreshold
+
+// Combined momentum score (-100 to +100 scale)
+momentumScore = (smoothedRsi - 50) * 2
+
+// Adjust momentum by volatility (amplify during high volatility)
+volatilityAdjustedMomentum = momentumScore * math.min(volatilityRatio, 2.0)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SIGNAL DETECTION
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Momentum state
+isStrongBullish = smoothedRsi > overboughtLevel and volatilityRatio > 1.0
+isWeakBullish = smoothedRsi > neutralZoneUpper and smoothedRsi <= overboughtLevel
+isStrongBearish = smoothedRsi < oversoldLevel and volatilityRatio > 1.0
+isWeakBearish = smoothedRsi < neutralZoneLower and smoothedRsi >= oversoldLevel
+isNeutral = smoothedRsi >= neutralZoneLower and smoothedRsi <= neutralZoneUpper
+
+// Momentum shifts
+bullishShift = ta.crossover(smoothedRsi, neutralZoneUpper)
+bearishShift = ta.crossunder(smoothedRsi, neutralZoneLower)
+extremeBullish = ta.crossover(smoothedRsi, overboughtLevel)
+extremeBearish = ta.crossunder(smoothedRsi, oversoldLevel)
+
+// Divergence detection (price vs momentum)
+priceHigher = high > ta.highest(high[1], 5)
+priceLower = low < ta.lowest(low[1], 5)
+rsiHigher = smoothedRsi > ta.highest(smoothedRsi[1], 5)
+rsiLower = smoothedRsi < ta.lowest(smoothedRsi[1], 5)
+
+bearishDivergence = priceHigher and not rsiHigher and smoothedRsi > neutralZoneUpper
+bullishDivergence = priceLower and not rsiLower and smoothedRsi < neutralZoneLower
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VISUALIZATION
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Dynamic color based on momentum state
+barColor = isStrongBullish ? upMomentum : 
+           isWeakBullish ? weakUp : 
+           isStrongBearish ? downMomentum : 
+           isWeakBearish ? weakDown : 
+           neutralColor
+
+// Main momentum display
+plotValue = volatilityAdjustedMomentum
+
+// Different display modes
+plot(displayMode == "Line" ? plotValue : na, "Momentum Line", color=barColor, linewidth=2)
+plot(displayMode == "Area" ? plotValue : na, "Momentum Area", color=barColor, style=plot.style_area)
+
+// Histogram with dynamic coloring
+plot(displayMode == "Histogram" ? plotValue : na, "Momentum Histogram", color=barColor, style=plot.style_histogram, linewidth=3)
+
+// Reference lines
+hline(0, "Zero Line", color=color.new(color.white, 50), linestyle=hline.style_solid)
+hline(40, "Upper Neutral", color=color.new(color.white, 80), linestyle=hline.style_dotted)
+hline(-40, "Lower Neutral", color=color.new(color.white, 80), linestyle=hline.style_dotted)
+hline(80, "Overbought Zone", color=color.new(upMomentum, 70), linestyle=hline.style_dashed)
+hline(-80, "Oversold Zone", color=color.new(downMomentum, 70), linestyle=hline.style_dashed)
+
+// Volatility band overlay
+upperVolBand = showVolatilityBand ? bbWidth * 2 : na
+lowerVolBand = showVolatilityBand ? -bbWidth * 2 : na
+p1 = plot(upperVolBand, "Vol Upper", color=color.new(volatilityColor, 90))
+p2 = plot(lowerVolBand, "Vol Lower", color=color.new(volatilityColor, 90))
+fill(p1, p2, color=bbExpansion ? color.new(volatilityColor, 85) : color.new(volatilityColor, 95), title="Volatility Fill")
+
+// Signal markers
+plotshape(showSignalDots and bullishShift, "Bullish Shift", shape.circle, location.bottom, upMomentum, size=size.tiny)
+plotshape(showSignalDots and bearishShift, "Bearish Shift", shape.circle, location.top, downMomentum, size=size.tiny)
+plotshape(showSignalDots and extremeBullish, "Extreme Bull", shape.diamond, location.bottom, upMomentum, size=size.small)
+plotshape(showSignalDots and extremeBearish, "Extreme Bear", shape.diamond, location.top, downMomentum, size=size.small)
+
+// Divergence markers
+plotshape(showDivergence and bullishDivergence, "Bull Divergence", shape.triangleup, location.bottom, color.new(#00BCD4, 0), size=size.small)
+plotshape(showDivergence and bearishDivergence, "Bear Divergence", shape.triangledown, location.top, color.new(#FF9800, 0), size=size.small)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════════════════
+
+var table dashboard = table.new(position.bottom_right, 2, 6, bgcolor=color.new(#1E1E1E, 10), border_width=1, border_color=color.new(color.white, 80))
+
+if barstate.islast
+    // Title
+    table.cell(dashboard, 0, 0, "📊 Scanner", text_color=color.white, text_size=size.small, bgcolor=color.new(#2196F3, 30))
+    table.merge_cells(dashboard, 0, 0, 1, 0)
+    
+    // Momentum State
+    stateText = isStrongBullish ? "🔥 STRONG UP" : isWeakBullish ? "↗ WEAK UP" : isStrongBearish ? "💀 STRONG DOWN" : isWeakBearish ? "↘ WEAK DOWN" : "➖ NEUTRAL"
+    stateColor = isStrongBullish or isWeakBullish ? upMomentum : 
+                 isStrongBearish or isWeakBearish ? downMomentum : 
+                 neutralColor
+    table.cell(dashboard, 0, 1, "State:", text_color=color.white, text_size=size.tiny)
+    table.cell(dashboard, 1, 1, stateText, text_color=stateColor, text_size=size.tiny)
+    
+    // RSI Value
+    table.cell(dashboard, 0, 2, "RSI:", text_color=color.white, text_size=size.tiny)
+    table.cell(dashboard, 1, 2, str.tostring(smoothedRsi, "#.#"), text_color=smoothedRsi > 50 ? upMomentum : downMomentum, text_size=size.tiny)
+    
+    // Volatility Status
+    volStatus = volatilityRatio > volatilityThreshold ? "⚡ HIGH" : volatilityRatio > 1.0 ? "📈 RISING" : "😴 LOW"
+    volColor = volatilityRatio > volatilityThreshold ? color.new(#FFD600, 0) : volatilityRatio > 1.0 ? weakUp : neutralColor
+    table.cell(dashboard, 0, 3, "Vol:", text_color=color.white, text_size=size.tiny)
+    table.cell(dashboard, 1, 3, volStatus, text_color=volColor, text_size=size.tiny)
+    
+    // BB Expansion
+    bbStatus = bbExpansion ? "EXPANDING" : "CONTRACTING"
+    table.cell(dashboard, 0, 4, "BB:", text_color=color.white, text_size=size.tiny)
+    table.cell(dashboard, 1, 4, bbStatus, text_color=bbExpansion ? upMomentum : neutralColor, text_size=size.tiny)
+    
+    // Score
+    table.cell(dashboard, 0, 5, "Score:", text_color=color.white, text_size=size.tiny)
+    table.cell(dashboard, 1, 5, str.tostring(volatilityAdjustedMomentum, "#.#"), text_color=volatilityAdjustedMomentum > 0 ? upMomentum : downMomentum, text_size=size.tiny)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ALERT CONDITIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+alertcondition(bullishShift, "Momentum Turns Bullish", "Momentum crossed above neutral zone")
+alertcondition(bearishShift, "Momentum Turns Bearish", "Momentum crossed below neutral zone")
+alertcondition(extremeBullish and bbExpansion, "Strong Bullish + Volatility", "Extreme bullish momentum with volatility expansion")
+alertcondition(extremeBearish and bbExpansion, "Strong Bearish + Volatility", "Extreme bearish momentum with volatility expansion")
+alertcondition(bullishDivergence, "Bullish Divergence Detected", "Price making lows but momentum holding - potential reversal")
+alertcondition(bearishDivergence, "Bearish Divergence Detected", "Price making highs but momentum weakening - potential reversal")
+alertcondition(volatilityRatio > volatilityThreshold, "High Volatility Alert", "ATR significantly above average - increased movement expected")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a42db1a6205c482f84a0b4759382fc0c",
+ "title": "Position Size Calc.",
+ "author": "chartsniping",
+ "url": "https://www.tradingview.com/script/CCYMWaBi-position-size-calc/",
+ "agreeCount": 662,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/position-size-calc__a42db1a620.pine",
+ "cached_source": "tools/pine_survey/cache/sources/position-size-calc__a42db1a620.pine",
+ "our_status": "committed"
+}

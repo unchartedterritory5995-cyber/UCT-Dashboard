@@ -1,0 +1,753 @@
+{
+ "corpus": "corpus/committed",
+ "files": 266,
+ "processed": 266,
+ "complete": true,
+ "translatedStrict": 30,
+ "translatedLenient": 45,
+ "threw": 1,
+ "refusalShapes": [
+  [
+   "guard",
+   "message",
+   "line",
+   "column",
+   "index",
+   "token",
+   "excerpt",
+   "suggest",
+   "span"
+  ],
+  [
+   "guard",
+   "message",
+   "line",
+   "column",
+   "index",
+   "token",
+   "excerpt",
+   "suggest",
+   "span"
+  ],
+  [
+   "guard",
+   "message",
+   "line",
+   "column",
+   "index",
+   "token",
+   "excerpt",
+   "suggest",
+   "span"
+  ]
+ ],
+ "guards": [
+  {
+   "guard": "pine:request",
+   "refusals": 172
+  },
+  {
+   "guard": "pine:function",
+   "refusals": 157
+  },
+  {
+   "guard": "pine:tuple",
+   "refusals": 144
+  },
+  {
+   "guard": "pine:state",
+   "refusals": 129
+  },
+  {
+   "guard": "pine:function-def",
+   "refusals": 95
+  },
+  {
+   "guard": "pine:strategy-call",
+   "refusals": 74
+  },
+  {
+   "guard": "pine:builtin",
+   "refusals": 71
+  },
+  {
+   "guard": "pine:block",
+   "refusals": 61
+  },
+  {
+   "guard": "pine:reassign",
+   "refusals": 55
+  },
+  {
+   "guard": "pine:no-output",
+   "refusals": 48
+  },
+  {
+   "guard": "pine:type",
+   "refusals": 47
+  },
+  {
+   "guard": "pine:module",
+   "refusals": 43
+  },
+  {
+   "guard": "pine:live-bar-state",
+   "refusals": 40
+  },
+  {
+   "guard": "pine:arity",
+   "refusals": 36
+  },
+  {
+   "guard": "pine:collection",
+   "refusals": 32
+  },
+  {
+   "guard": "pine:statement",
+   "refusals": 30
+  },
+  {
+   "guard": "pine:declaration-strategy",
+   "refusals": 24
+  },
+  {
+   "guard": "pine:character",
+   "refusals": 24
+  },
+  {
+   "guard": "pine:plot-offset",
+   "refusals": 21
+  },
+  {
+   "guard": "pine:text-value",
+   "refusals": 12
+  },
+  {
+   "guard": "pine:offset-literal",
+   "refusals": 10
+  },
+  {
+   "guard": "pine:cycle",
+   "refusals": 9
+  },
+  {
+   "guard": "pine:role-order",
+   "refusals": 8
+  },
+  {
+   "guard": "pine:constant-only",
+   "refusals": 5
+  },
+  {
+   "guard": "pine:na",
+   "refusals": 5
+  },
+  {
+   "guard": "pine:roundtrip",
+   "refusals": 4
+  },
+  {
+   "guard": "pine:window",
+   "refusals": 3
+  },
+  {
+   "guard": "pine:presentation-only",
+   "refusals": 1
+  }
+ ],
+ "names": {
+  "pine:reassign": [
+   {
+    "name": ":=",
+    "scripts": 11,
+    "sites": 48
+   },
+   {
+    "name": "for",
+    "scripts": 1,
+    "sites": 5
+   },
+   {
+    "name": "isWilliamsHigh",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "isWilliamsLow",
+    "scripts": 1,
+    "sites": 1
+   }
+  ],
+  "pine:function": [
+   {
+    "name": "time",
+    "scripts": 10,
+    "sites": 63
+   },
+   {
+    "name": "ta.valuewhen",
+    "scripts": 8,
+    "sites": 46
+   },
+   {
+    "name": "alma",
+    "scripts": 2,
+    "sites": 3
+   },
+   {
+    "name": "ta.nvi",
+    "scripts": 2,
+    "sites": 25
+   },
+   {
+    "name": "math.ceil",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "math.floor",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "math.pi",
+    "scripts": 1,
+    "sites": 8
+   },
+   {
+    "name": "ta.barssince",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "ta.correlation",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "ta.percentile_linear_interpolation",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "year",
+    "scripts": 1,
+    "sites": 4
+   }
+  ],
+  "pine:request": [
+   {
+    "name": "security",
+    "scripts": 12,
+    "sites": 103
+   },
+   {
+    "name": "request.security",
+    "scripts": 11,
+    "sites": 69
+   }
+  ],
+  "pine:declaration-strategy": [
+   {
+    "name": "strategy",
+    "scripts": 24,
+    "sites": 24
+   }
+  ],
+  "pine:statement": [
+   {
+    "name": ",",
+    "scripts": 4,
+    "sites": 18
+   },
+   {
+    "name": "=",
+    "scripts": 2,
+    "sites": 10
+   },
+   {
+    "name": ":=",
+    "scripts": 1,
+    "sites": 2
+   }
+  ],
+  "pine:strategy-call": [
+   {
+    "name": "strategy.position_size",
+    "scripts": 8,
+    "sites": 40
+   },
+   {
+    "name": "strategy.entry",
+    "scripts": 5,
+    "sites": 11
+   },
+   {
+    "name": "strategy.exit",
+    "scripts": 5,
+    "sites": 13
+   },
+   {
+    "name": "strategy.close",
+    "scripts": 2,
+    "sites": 6
+   },
+   {
+    "name": "strategy.position_avg_price",
+    "scripts": 2,
+    "sites": 2
+   },
+   {
+    "name": "strategy.risk.allow_entry_in",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "strategy.risk.max_drawdown",
+    "scripts": 1,
+    "sites": 1
+   }
+  ],
+  "pine:module": [
+   {
+    "name": "import",
+    "scripts": 25,
+    "sites": 43
+   }
+  ],
+  "pine:function-def": [
+   {
+    "name": "=>",
+    "scripts": 10,
+    "sites": 89
+   },
+   {
+    "name": "[",
+    "scripts": 1,
+    "sites": 4
+   },
+   {
+    "name": "Heikin Ashi",
+    "scripts": 1,
+    "sites": 2
+   }
+  ],
+  "pine:block": [
+   {
+    "name": "for",
+    "scripts": 11,
+    "sites": 46
+   },
+   {
+    "name": "if",
+    "scripts": 3,
+    "sites": 12
+   },
+   {
+    "name": "switch",
+    "scripts": 2,
+    "sites": 3
+   }
+  ],
+  "pine:live-bar-state": [
+   {
+    "name": "barstate.isconfirmed",
+    "scripts": 5,
+    "sites": 40
+   }
+  ],
+  "pine:state": [
+   {
+    "name": "[",
+    "scripts": 8,
+    "sites": 97
+   },
+   {
+    "name": "countBuy",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "countSell",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "dbhf",
+    "scripts": 1,
+    "sites": 3
+   },
+   {
+    "name": "fvgCounter",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "lastPh",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "lastPl",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "pivotCounter",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "recent_up2",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "structureHigh",
+    "scripts": 1,
+    "sites": 6
+   },
+   {
+    "name": "structureLow",
+    "scripts": 1,
+    "sites": 7
+   },
+   {
+    "name": "varip",
+    "scripts": 1,
+    "sites": 6
+   }
+  ],
+  "pine:tuple": [
+   {
+    "name": "[",
+    "scripts": 23,
+    "sites": 144
+   }
+  ],
+  "pine:builtin": [
+   {
+    "name": "timeframe.period",
+    "scripts": 3,
+    "sites": 23
+   },
+   {
+    "name": "barstate.isfirst",
+    "scripts": 2,
+    "sites": 2
+   },
+   {
+    "name": "kernels.rationalQuadratic",
+    "scripts": 2,
+    "sites": 4
+   },
+   {
+    "name": "time",
+    "scripts": 2,
+    "sites": 3
+   },
+   {
+    "name": "chart.bars",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "chart.leftBarIndex",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "chart.rightBarIndex",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "math.max",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "mymas.ema",
+    "scripts": 1,
+    "sites": 4
+   },
+   {
+    "name": "mymas.jma",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "pc.totalForTimeWhen",
+    "scripts": 1,
+    "sites": 7
+   },
+   {
+    "name": "PCvc.barIsVisible",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "syminfo.mintick",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "ta.tr",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "timeframe.in_seconds",
+    "scripts": 1,
+    "sites": 10
+   },
+   {
+    "name": "timeframe.multiplier",
+    "scripts": 1,
+    "sites": 4
+   },
+   {
+    "name": "zen.toWhole",
+    "scripts": 1,
+    "sites": 5
+   }
+  ],
+  "pine:plot-offset": [
+   {
+    "name": "offset",
+    "scripts": 5,
+    "sites": 21
+   }
+  ],
+  "pine:character": [
+   {
+    "name": ".",
+    "scripts": 20,
+    "sites": 20
+   },
+   {
+    "name": "\"",
+    "scripts": 3,
+    "sites": 3
+   },
+   {
+    "name": "'",
+    "scripts": 1,
+    "sites": 1
+   }
+  ],
+  "pine:na": [
+   {
+    "name": "fixnan",
+    "scripts": 3,
+    "sites": 5
+   }
+  ],
+  "pine:collection": [
+   {
+    "name": "array.size",
+    "scripts": 3,
+    "sites": 14
+   },
+   {
+    "name": "array.get",
+    "scripts": 2,
+    "sites": 11
+   },
+   {
+    "name": "array.binary_search_rightmost",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "array.sum",
+    "scripts": 1,
+    "sites": 5
+   }
+  ],
+  "pine:arity": [
+   {
+    "name": "vwap",
+    "scripts": 3,
+    "sites": 6
+   },
+   {
+    "name": "breakout",
+    "scripts": 2,
+    "sites": 6
+   },
+   {
+    "name": "ta.lowest",
+    "scripts": 2,
+    "sites": 5
+   },
+   {
+    "name": "barssince",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "math.max",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "math.round",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "pivothigh",
+    "scripts": 1,
+    "sites": 7
+   },
+   {
+    "name": "pivotlow",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "ta.highest",
+    "scripts": 1,
+    "sites": 7
+   }
+  ],
+  "pine:window": [
+   {
+    "name": "length",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "lower_s",
+    "scripts": 1,
+    "sites": 2
+   }
+  ],
+  "pine:type": [
+   {
+    "name": "dnVolumes.min",
+    "scripts": 2,
+    "sites": 2
+   },
+   {
+    "name": "dnVolumes.sum",
+    "scripts": 2,
+    "sites": 2
+   },
+   {
+    "name": "upVolumes.max",
+    "scripts": 2,
+    "sites": 2
+   },
+   {
+    "name": "upVolumes.sum",
+    "scripts": 2,
+    "sites": 6
+   },
+   {
+    "name": "bear_alert.ehl",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "bull_alert.ehl",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "c.score",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "c.trail",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "direction_s.neutral",
+    "scripts": 1,
+    "sites": 12
+   },
+   {
+    "name": "direction.neutral",
+    "scripts": 1,
+    "sites": 5
+   },
+   {
+    "name": "mtfResult.alignmentLabel",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "phData.lines.startline.get_y1",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "plData.lines.startline.get_y1",
+    "scripts": 1,
+    "sites": 1
+   },
+   {
+    "name": "settings.useDynamicExits",
+    "scripts": 1,
+    "sites": 5
+   },
+   {
+    "name": "st.signal",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "upVolumes.size",
+    "scripts": 1,
+    "sites": 3
+   }
+  ],
+  "pine:cycle": [
+   {
+    "name": "ma1",
+    "scripts": 1,
+    "sites": 9
+   }
+  ],
+  "pine:offset-literal": [
+   {
+    "name": "mb",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "ob_period",
+    "scripts": 1,
+    "sites": 8
+   }
+  ],
+  "pine:text-value": [
+   {
+    "name": "Cumulate from Beginning of TF to Current Bar",
+    "scripts": 1,
+    "sites": 4
+   },
+   {
+    "name": "Current Volume Columns",
+    "scripts": 1,
+    "sites": 4
+   },
+   {
+    "name": "Off",
+    "scripts": 1,
+    "sites": 4
+   }
+  ],
+  "pine:role-order": [
+   {
+    "name": "valuewhen",
+    "scripts": 3,
+    "sites": 8
+   }
+  ]
+ }
+}

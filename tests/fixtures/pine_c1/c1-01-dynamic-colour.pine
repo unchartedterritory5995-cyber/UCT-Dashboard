@@ -1,0 +1,8 @@
+//@version=5
+// C1-A: a plot coloured by a CONDITION, not a literal. 49 of the frozen 60
+// scripts do this; before C1 the colour was reported as demanded-and-uncarried
+// and the line drew in the builder's default.
+indicator("C1 Dynamic Colour", overlay = false)
+r = ta.rsi(close, 14)
+up = r > 50
+plot(r, title = "RSI", color = up ? color.green : color.red, linewidth = 2)

@@ -1,0 +1,40 @@
+{
+  "id": "public_script/27-support-resistance-channels-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "category": "visual_heavy_script",
+  "source": {
+    "dialect": "pine",
+    "version_declared": "6",
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#27-support-resistance-channels",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview_clipboard",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "selection_rationale": "193 lines, the most visually rich script in the sample: multiple plots (2 MAs), colors, dynamically-colored boxes (support/resistance channels), pivot-point shape markers, conditional styling (get_color()), overlay behavior, and the deepest control-flow nesting tested (3 levels: for -> if -> if). Chosen to maximize new information (already known Layer A UNSUPPORTED) and as the hardest stress test yet for the hardened paste mechanism.",
+  "source_entry_hardening": {
+    "non_vacuity_check": "clipboard verified byte-for-byte identical to source (9478 chars, case-sensitive match) before pasting; after pasting, Ctrl+End landed at Line 193 matching the source's exact line count; a zoomed screenshot of the deepest 3-level nested region (lines 169-184, for-loop -> if -> if) confirmed indentation matches the source exactly."
+  },
+  "steps": {
+    "parse": { "status": "SUPPORTED", "note": "compiled cleanly in TradingView's real v6 engine, zero errors, despite extensive array/box/loop usage" },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v6_explicit" },
+    "translate": { "status": "SUPPORTED", "guard": null },
+    "canonical_ast": { "status": "SUPPORTED" },
+    "execution_requirements": { "status": "SUPPORTED", "lookback": 300 },
+    "visual_requirements": { "status": "SUPPORTED", "plot_count": 2, "needs": ["boxes", "colors", "pivot_shapes", "conditional_styling"] },
+    "chart_render": {
+      "status": "SUPPORTED",
+      "note": "added to chart with NO compile errors. Object-tree legend resolved with real values including a STRING-typed input: 'SRchannel (10, High/Low, 5, 1, 6, 290, 50, SMA, 200, SMA)' -- exactly matching the script's declared defaults (prd=10, ppsrc='High/Low', ChannelW=5, minstrength=1, maxnumsr=6, loopback=290, showthema1len=50/'SMA', showthema2len=200/'SMA'). Confirms input.string(...,options=[...]) resolves correctly, not only numeric/bool inputs."
+    },
+    "persistence_save": { "status": "PARTIAL", "note": "not exercised this pass" },
+    "persistence_reload": { "status": "PARTIAL", "note": "not exercised this pass" },
+    "screener_eligibility": { "status": "PARTIAL", "eligible": false, "reason": "draws boxes/shapes and 2 numeric MA plots (na by default); no boolean condition exposed" },
+    "refusal_behavior": { "status": "SUPPORTED", "guard": null, "note": "no refusal -- clean success" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "cross_reference_note": "UCT's own Layer A result for this SAME script (tests/fixtures/compat_harness/results/public_script/27-support-resistance-channels.json) is UNSUPPORTED with guard `pine:reassign` ('a name that is reassigned later cannot be folded into one expression -- `resistancebroken`') -- NOT specifically about array/box builtins as might be assumed from the script's heavy array usage. This is a MORE PRECISE and more fundamental finding than 'arrays aren't supported': UCT's expression-folding translator cannot handle a variable that is assigned once and later REASSIGNED across control flow (`resistancebroken = false` ... later `resistancebroken := true` inside a loop) -- a structural limitation of the translation approach itself, not a narrower missing-builtin gap. This correction is recorded here because an earlier informal characterization of this script's failure (in this session's own prior discussion) had assumed the array/box builtins were the blocking reason, which the actual recorded guard does not support.",
+  "evidence_artifact_paths": ["tests/fixtures/compat_harness/results/public_script/27-support-resistance-channels.json"],
+  "harness_version": "compat-harness-v1"
+}

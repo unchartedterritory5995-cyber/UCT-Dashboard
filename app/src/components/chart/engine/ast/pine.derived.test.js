@@ -7,7 +7,7 @@
 // to a neighbour that would parse, lint, save, scan and be wrong.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool } from './pine.js'
+import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool, hostAdmissible } from './pine.js'
 import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
 import { lintRepaint } from './lint.js'
@@ -251,6 +251,36 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     bop: 'ta.bop is not a Pine builtin (TradingView ships BOP as an indicator, not a ta.* fn)'
       + ' — and UNLIKE the two above, the formulas would NOT agree if it became one:'
       + ' theirs is the unsmoothed per-bar ratio, ours is its n-bar mean (equal only at n=1)',
+    // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — vetted against a REAL
+    // vendor CAPTURE, not merely documentation, which is exactly why all four
+    // sat in `_functions_excluded` until now: TradingView's own published
+    // text was genuinely ambiguous or silent on each of these (see
+    // `closedTable.json::_functions_vendor_parity_resolutions` for the full
+    // evidence chain each carries). Argument order is (source, length[, mult])
+    // in both, matching Pine's own signature — no sign flip, no index shift,
+    // no offset convention to disagree about (none of these four return a bar
+    // OFFSET or an EXTREME's location the way `highestbars`/`pivothigh` do;
+    // they return the value/boolean itself, computed to agree with the
+    // measured real-runtime output).
+    rising: 'ta.rising — resolved by real TradingView capture: STRICT MONOTONE over'
+      + ' length+1 samples, not the running-maximum the v5/v6 RETURNS clause suggested',
+    median: 'ta.median — resolved by real TradingView capture: MEAN of the two middle'
+      + ' ranks for even length (the int->int overload had circumstantially suggested'
+      + ' lower-middle; real output disagreed)',
+    percentrank: 'ta.percentrank — resolved by real TradingView capture: divisor is'
+      + ' length with the CURRENT bar EXCLUDED from the sample, not length+1',
+    bbw: 'ta.bbw — resolved by real TradingView capture: the PERCENT form (x100),'
+      + ' not the bare ratio; population stdev matches this table\'s existing stdev',
+    // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06).
+    falling: 'ta.falling — resolved by an INDEPENDENT real TradingView capture (not'
+      + ' assumed by symmetry with rising): STRICT MONOTONE DECREASE over length+1'
+      + ' samples, the mirror of rising with < in place of >. Argument order'
+      + ' (source, length) matches Pine\'s own signature exactly.',
+    // — OURS ALONE, mirroring obvN's own entry immediately above for the
+    //   identical reason: `pvtN` is not a Pine name (`ta.pvt` bare is the real,
+    //   unbounded builtin, and it stays refused — see `_functions_excluded.pvt`),
+    //   so nothing can be mistranslated onto it.
+    pvtN: 'no Pine name collides — ta.pvt is the unbounded one and stays refused',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {
@@ -401,6 +431,22 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
       + 'if that is deliberate, delete this rail rather than letting it pass '
       + 'vacuously').toContain('barssince')
 
+    // ⭐⭐ THERE ARE TWO KINDS OF COLLISION AND THEY ARE NOT THE SAME CLAIM.
+    //
+    //  (a) THE ARITY KIND — `barssince`. Pine's is unbounded; the table declares a
+    //      DIFFERENT, bounded function under the same spelling. The refusal must
+    //      name that alternative, because the member has something else to write.
+    //
+    //  (b) THE LANE KIND — `cum`, from 2026-09-09. The table declares the SAME
+    //      function; what differs is WHERE it may run. A pane is one symbol and
+    //      one fetch, so a running total is honest there; a screen compares across
+    //      symbols and runs, so it is not. Arity is not the discriminator and
+    //      there is no bounded alternative to name, so (a)'s two assertions do not
+    //      apply — asking for them would force a message that lies.
+    //
+    // ⛔ THE POPULATION IS SPLIT BY `hostAdmissible`, WHICH IS THE MANIFEST'S OWN
+    // ANSWER, so a third collision of either kind classifies itself.
+    const laneOnly = hostAdmissible(TABLE)
     for (const name of collisions) {
       const spec = TABLE.functions[name]
       // The PINE spelling, with PINE's arity — one argument for `ta.barssince`.
@@ -409,6 +455,26 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
       expect(r.guard, `ta.${name} refused at the wrong door`).toBe('pine:function')
       expect(r.message, `ta.${name}'s refusal lost its REASON and reports arity`)
         .not.toMatch(/different signature/i)
+
+      if (laneOnly.has(name)) {
+        // ⛔ THE LANE CLAIM, AND IT IS THE STRONGER OF THE TWO because it is the
+        // one a spelling could bypass. Both spellings must refuse for a SCREEN —
+        // `09-on-balance-volume.pine` writes the BARE v3 form, and when `cum` was
+        // first declared that form translated for a screen until this was fixed.
+        expect(refusalOf(`${name}(close)`), `the BARE ${name}( ) got through`)
+          .toBeTruthy()
+        // …and the SAME script is served on the host lane, or the split is a
+        // refusal wearing a ruling's clothes.
+        expect(translatePine(
+          `//@version=6
+indicator("x")
+plot(${name}(volume))
+`,
+          { strict: true },
+        ).ok, `${name} refuses on the HOST lane too — then nothing serves it`).toBe(true)
+        continue
+      }
+
       // …and the reason names the engine's own bounded entry, so the member is
       // told what to write rather than only what not to.
       expect(r.message).toContain(`${name}(`)

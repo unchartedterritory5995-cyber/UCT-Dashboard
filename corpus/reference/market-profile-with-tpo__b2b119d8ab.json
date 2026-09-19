@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b2b119d8ab3d482d8690a865a1edb00e",
+ "title": "Market Profile with TPO",
+ "author": "drother",
+ "url": "https://www.tradingview.com/script/QhFOnhVk-market-profile-with-tpo/",
+ "agreeCount": 8507,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-profile-with-tpo__b2b119d8ab.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-profile-with-tpo__b2b119d8ab.pine",
+ "our_status": "committed"
+}

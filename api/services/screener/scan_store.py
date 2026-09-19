@@ -665,6 +665,34 @@ def prune(before_as_of: Any) -> dict:
             "coverage": max(removed_cov, 0)}
 
 
+#: RISK-024 (Phase One Track B, 2026-09-04). ⚠️ 120 IS AN UNSETTLED DEFAULT, NOT A
+#: POLICY. Borrowed from the pattern engine's `PATTERN_PRUNE_RETENTION_DAYS` for
+#: its shape (an env-overridable retention-days constant) only — verified on
+#: owner review that PATTERN_PRUNE_RETENTION_DAYS's own 120 was itself derived
+#: from something specific to pattern outcome-tracking (a 90-day resolution
+#: lookback + a 30-day aggregation margin) that has no bearing on how long a
+#: screener member needs their scan-hit history. No design doc, requirements
+#: ledger, or prior config specifies a scan_hits-specific retention window; this
+#: constant did not exist before this fix. This table's own docstring cites
+#: `pattern_detections`' 13.57 GB / 1.54M rows in six weeks only as the reason a
+#: prune must ship WIRED, not as evidence for 120 specifically. Tracked as an
+#: open owner/policy decision in `PHASE_ONE_PLAN.md` — set via env on Railway,
+#: no code change needed, once a real number is chosen.
+SCAN_HITS_RETENTION_DAYS = int(os.environ.get("SCAN_HITS_RETENTION_DAYS", "120"))
+
+
+def prune_old(retention_days: int = SCAN_HITS_RETENTION_DAYS) -> dict:
+    """The scheduler's door onto `prune()` — mirrors
+    `pattern_engine.memory.prune_old`'s shape exactly (a retention-days default,
+    the cutoff computed here rather than by the caller). `prune()` itself stays a
+    pure "delete strictly before this horizon" primitive so its existing tests
+    (an explicit horizon) are untouched by this wrapper's addition.
+    """
+    cutoff = (datetime.datetime.now(_ET).date()
+              - datetime.timedelta(days=retention_days)).isoformat()
+    return prune(cutoff)
+
+
 # --------------------------------------------------------------------------- #
 # the LIVE side tables: one writer each, and the nightly tables untouched
 # --------------------------------------------------------------------------- #

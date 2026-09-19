@@ -36,6 +36,13 @@ FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "ast" / "clock_parity.jso
 #: The four columns whose answer is the TIMEFRAME's, not the bar's.
 TF_FLAGS = ("isintraday", "isdaily", "isweekly", "ismonthly")
 
+#: ⭐⭐ THE SIX BARSTATE COLUMNS (2026-09-09). Declared `bool` for the same reason
+#: the timeframe flags are: they are 0/1 and a scan may spell them as a bare
+#: predicate. Named here rather than folded into a count so that adding a seventh
+#: is a decision somebody makes rather than a number somebody bumps.
+BARSTATE_FLAGS = ("islast", "isfirst", "isrealtime", "isconfirmed", "ishistory",
+                  "islastconfirmedhistory")
+
 
 def _doc() -> dict:
     return json.load(io.open(FIXTURE, encoding="utf-8"))
@@ -46,8 +53,19 @@ def _leaf(name: str) -> dict:
     return {"type": "series", "name": name}
 
 
-def _column(name: str, bars: list, tf=None) -> list:
-    opts = None if tf is None else {"tf": tf}
+def _column(name: str, bars: list, tf=None, forming: bool = False) -> list:
+    """⭐ THE TRI-STATE IS THREADED AND DEFAULTS TO ``False``, which is the state
+    the fixture was RECORDED at (``clock_parity.json::newest_bar_is_forming``).
+
+    ⚰️ IT USED TO BE ABSENT, because the retired seam took an evaluating instant
+    the fixture supplied as ``now``. Under the shipped seam an absent tri-state
+    means UNKNOWN, so leaving it out blanked the four realtime columns and every
+    comparison against a recorded number failed for a reason that had nothing to
+    do with the maths.
+    """
+    opts: dict = {"newest_bar_is_forming": forming}
+    if tf is not None:
+        opts["tf"] = tf
     return ai.interpret(_leaf(name), bars, opts=opts)
 
 
@@ -73,7 +91,9 @@ def test_every_clock_column_matches_the_other_lane_bar_for_bar():
         "the manifest's clock section and the recorded fixture name different "
         f"columns: manifest {declared}, fixture {sorted(doc['expected'])}")
     for name in declared:
-        _same(_column(name, doc["bars"], doc["tf"]), doc["expected"][name], name)
+        _same(_column(name, doc["bars"], doc["tf"],
+                      doc["newest_bar_is_forming"]),
+              doc["expected"][name], name)
 
 
 def test_the_fixture_actually_spans_a_DST_CHANGE_and_a_WEEKEND():
@@ -198,7 +218,12 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
     time_derived = [n for n, col in exp.items() if all(v is None for v in col)]
     assert len(time_derived) == 8, sorted(time_derived)
     for name in sorted(exp):
-        _same(_column(name, bars, "D"), exp[name], name)
+        # ⭐ `False` EXPLICITLY — the same reasoning as the JS twin. Omit it and
+        # the four realtime columns blank for want of a tri-state, which is the
+        # symptom the UNIT GATE produces on the eight time columns from a
+        # different cause. This test pins the gate, so the two causes must not
+        # wear one appearance.
+        _same(_column(name, bars, "D", False), exp[name], name)
 
 
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
@@ -325,7 +350,7 @@ def test_a_clock_leafs_REACH_is_the_manifests_own_lookback_not_a_hardcoded_zero(
     assert (got["back"], got["forward"]) == (3, 0), got
 
 
-def test_the_five_ZERO_ONE_clock_values_are_DECLARED_bool_and_a_consumer_READS_it():
+def test_every_ZERO_ONE_clock_value_is_DECLARED_bool_and_a_consumer_READS_it():
     """⛔ A `yields` NOBODY READS IS AN INERT KNOB.
 
     ``ast_table.yields_of`` hand-listed the sections it consulted and skipped the
@@ -335,13 +360,18 @@ def test_the_five_ZERO_ONE_clock_values_are_DECLARED_bool_and_a_consumer_READS_i
     shape on a scalar was accepted -- and the invisible one was that DECLARING it
     correctly would have changed nothing.
     ``lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage``.
+
+    ⚠️ THIS TEST WAS NAMED ``test_the_five_...`` AND THE FIVE BECAME ELEVEN when the
+    six barstate columns landed. A count in a test NAME is the same defect as a
+    count in prose beside the list it describes, so the name no longer carries one.
     """
     from api.services import scan_definition
 
     declared = {n: ast_table.yields_of(n) for n in sorted(ast_table.clock_names())}
     bools = sorted(n for n, y in declared.items() if y == "bool")
-    assert bools == sorted(TF_FLAGS + ("sessionfirst",)), declared
-    # ⚠️ AND THE OTHER EIGHT ARE MAGNITUDES. Both halves, so a lane that declared
+    assert bools == sorted(TF_FLAGS + BARSTATE_FLAGS + ("sessionfirst",)), declared
+    # ⚠️ AND THE REST ARE MAGNITUDES — derived as the complement rather than
+    # counted. Both halves are asserted, so a lane that declared
     # everything `bool` -- or everything `num` -- fails.
     assert sorted(n for n, y in declared.items() if y == "num") == sorted(
         set(declared) - set(bools)), declared
@@ -426,9 +456,13 @@ def test_the_wiring_guard_runs_WITHOUT_paying_for_the_lazy_seed(monkeypatch):
     seen = []
     real = compute_clock
 
-    def counted(passed, tf=None):
+    def counted(passed, tf=None, newest_bar_is_forming=None):
+        # ⛔ THE STUB'S SIGNATURE TRACKS THE REAL ONE. It shadowed a two-argument
+        # `compute_clock`; the tri-state made it three, and a stub that silently
+        # dropped the new parameter would raise TypeError from inside the very
+        # seam this test is measuring — reading as a regression in the guard.
         seen.append(len(passed))
-        return real(passed, tf)
+        return real(passed, tf, newest_bar_is_forming)
 
     monkeypatch.setattr(ai, "compute_clock", counted)
 

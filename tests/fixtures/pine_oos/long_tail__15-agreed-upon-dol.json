@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "15-agreed-upon-dol.pine",
+  "title": "Agreed Upon DOL",
+  "author": "Dipologist",
+  "source_url": "https://www.tradingview.com/script/41H9PF1K-Agreed-Upon-DOL/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "yesterday (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 367,
+  "complexity_bucket": "long",
+  "sha256_source": "3b8bb7928b24f85c283d18e10fb363bf600a2959036619d27161fbe50e19fbd7",
+  "sha256_normalized": "49f621ae62243724b53b9e4c2448682167546f964d0df405af1498d854d5f437",
+  "storage": "local-only"
+}

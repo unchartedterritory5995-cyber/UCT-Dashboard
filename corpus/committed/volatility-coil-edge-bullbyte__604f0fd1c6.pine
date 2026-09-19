@@ -1,0 +1,1053 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © BullByte
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VCE - Volatility Coil Edge
+// ─────────────────────────────────────────────────────────────────────────
+// A reversal engine for intraday futures, indices, and crypto.
+//
+// What it does
+// ────────────
+// Detects price compression (volatility coiling) at session extremes, then
+// enters on the first bar that breaks the coil in the reversal direction.
+// Compressions at session highs produce SHORT setups. Compressions at session
+// lows produce LONG setups. Targets are R-multiple based for clean,
+// comparable risk/reward across every trade.
+//
+// Why it works
+// ────────────
+// Tight ranges that form at the edges of a session range often mark
+// inflection points. The compression is the footprint, the break is the
+// trigger. Stops sit beyond the structure that invalidates the setup;
+// targets project in clean R multiples.
+//
+// Signal confirmation
+// ───────────────────
+// All signals fire only on bar close. Intrabar conditions are not used to
+// fire trades. This makes the script non-repainting on confirmed history
+// and only finalizes a live signal when the current bar closes.
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Disclaimer
+// ──────────
+// This script is published for educational and informational purposes only.
+// It does not constitute financial advice. Past signal performance does not
+// guarantee future results. Always apply your own risk management.
+
+//@version=6
+indicator(
+     title             = "Volatility Coil Edge [BullByte]",
+     shorttitle        = "VCE[BullByte]",
+     overlay           = true,
+     max_lines_count   = 300,
+     max_labels_count  = 300,
+     max_boxes_count   = 200)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 1  ·  USER INPUTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Coil Detection ────────────────────────────────────────────────────────
+i_sensitivity = input.string(
+     defval  = "Balanced",
+     title   = "Sensitivity",
+     options = ["Conservative", "Balanced", "Aggressive"],
+     group   = "Coil Detection",
+     tooltip = "Conservative: fewer signals, tight coils only.\n" +
+               "Balanced: moderate signal frequency, recommended default.\n" +
+               "Aggressive: captures looser coils and more setups.\n\n" +
+               "Tier silently overridden if 'Use Manual Overrides' below is enabled.")
+
+i_catalystMode = input.bool(
+     defval  = true,
+     title   = "Catalyst Mode",
+     group   = "Coil Detection",
+     tooltip = "When ON, also detects compressions that form immediately after a volatility " +
+               "expansion (a recent bar > 1.5x background ATR). These post-impulse coils are " +
+               "often missed by ratio-only detection.")
+
+// ── Manual Tuning (overrides preset when toggle is on) ────────────────────
+i_useOverrides = input.bool(
+     defval  = false,
+     title   = "Use Manual Overrides",
+     group   = "Manual Tuning",
+     tooltip = "When ON, the four parameters below replace the sensitivity preset values. " +
+               "When OFF, these inputs are ignored.")
+
+i_compMinBars = input.int(
+     defval  = 4,
+     title   = "Min Bars",
+     minval  = 3,
+     maxval  = 10,
+     group   = "Manual Tuning",
+     tooltip = "Minimum consecutive compression bars before the coil becomes 'qualified' " +
+               "and eligible for break-trigger detection.")
+
+i_compMaxBars = input.int(
+     defval  = 14,
+     title   = "Max Bars",
+     minval  = 5,
+     maxval  = 20,
+     group   = "Manual Tuning",
+     tooltip = "Maximum compression length before the coil is invalidated and reset. " +
+               "Prevents stale, drifting consolidations from triggering signals.")
+
+i_atrContraction = input.float(
+     defval  = 0.82,
+     title   = "Contraction Ratio",
+     minval  = 0.50,
+     maxval  = 0.98,
+     step    = 0.02,
+     group   = "Manual Tuning",
+     tooltip = "Local ATR must be below (this x background ATR) to qualify as a compression bar. " +
+               "Lower values = stricter compression requirement.")
+
+i_extremeZone = input.float(
+     defval  = 0.35,
+     title   = "Extreme Zone %",
+     minval  = 0.15,
+     maxval  = 0.50,
+     step    = 0.05,
+     group   = "Manual Tuning",
+     tooltip = "Percentage of the rolling session range defining the 'extreme zone'. " +
+               "0.35 = top 35% qualifies as session high zone, bottom 35% as session low zone.")
+
+// ── Engine Tuning ─────────────────────────────────────────────────────────
+i_bgAtrPeriod = input.int(
+     defval  = 20,
+     title   = "Background ATR Period",
+     minval  = 10,
+     maxval  = 50,
+     group   = "Engine",
+     tooltip = "Period for the background ATR used as the compression baseline. " +
+               "Higher = smoother regime detection, lower = more responsive.")
+
+i_sessionLookback = input.int(
+     defval  = 50,
+     title   = "Session Range Lookback",
+     minval  = 20,
+     maxval  = 100,
+     group   = "Engine",
+     tooltip = "Bars used to compute the rolling session high/low that defines the extreme zones. " +
+               "Use approximately one full RTH session worth of bars on intraday charts.")
+
+i_atrPeriod = input.int(
+     defval  = 14,
+     title   = "ATR Period",
+     minval  = 5,
+     maxval  = 30,
+     group   = "Engine",
+     tooltip = "ATR period used for SL buffer calculation and visual scaling.")
+
+i_postOutcomeGap = input.int(
+     defval  = 8,
+     title   = "Post-Outcome Bar Gap",
+     minval  = 0,
+     maxval  = 10,
+     group   = "Engine",
+     tooltip = "Minimum bars between a trade closing and the next signal firing. Prevents " +
+               "back-to-back signals immediately after an SL or TP3 hit.")
+
+// ── Stop and Targets ──────────────────────────────────────────────────────
+i_slBuffer = input.float(
+     defval  = 0.20,
+     title   = "SL Buffer (x ATR)",
+     minval  = 0.10,
+     maxval  = 1.50,
+     step    = 0.05,
+     group   = "Stop & Targets",
+     tooltip = "ATR multiplier added beyond the coil extreme to place the structural stop loss. " +
+               "Larger = more breathing room, smaller = tighter stop.")
+
+i_slMinDist = input.float(
+     defval  = 0.30,
+     title   = "Min SL Distance (x ATR)",
+     minval  = 0.20,
+     maxval  = 2.00,
+     step    = 0.05,
+     group   = "Stop & Targets",
+     tooltip = "Floor for the SL distance from entry. Prevents excessively tight stops on " +
+               "very small coils. The actual SL is max(structural distance, this floor).")
+
+i_slMaxDist = input.float(
+     defval  = 2.00,
+     title   = "Max SL Distance (x ATR)",
+     minval  = 1.00,
+     maxval  = 5.00,
+     step    = 0.25,
+     group   = "Stop & Targets",
+     tooltip = "Ceiling for the SL distance from entry. Prevents absurdly wide stops on " +
+               "tall coils. Keeps all TP levels proportionally realistic for the timeframe.")
+
+i_tp1R = input.float(
+     defval  = 1.0,
+     title   = "TP1 (R multiple)",
+     minval  = 0.50,
+     maxval  = 3.00,
+     step    = 0.25,
+     group   = "Stop & Targets",
+     tooltip = "First take-profit target as a multiple of the SL distance.")
+
+i_tp2R = input.float(
+     defval  = 1.5,
+     title   = "TP2 (R multiple)",
+     minval  = 1.00,
+     maxval  = 5.00,
+     step    = 0.25,
+     group   = "Stop & Targets",
+     tooltip = "Second take-profit target as a multiple of the SL distance.")
+
+i_tp3R = input.float(
+     defval  = 2.0,
+     title   = "TP3 (R multiple)",
+     minval  = 1.50,
+     maxval  = 8.00,
+     step    = 0.25,
+     group   = "Stop & Targets",
+     tooltip = "Final take-profit target as a multiple of the SL distance. Hitting TP3 closes " +
+               "the trade and removes all remaining lines and labels.")
+
+i_labelOffset = input.int(
+     defval  = 10,
+     title   = "Label Right Offset (bars)",
+     minval  = 5,
+     maxval  = 50,
+     group   = "Stop & Targets",
+     tooltip = "Number of bars to the right of the current bar where price labels float. " +
+               "Lines terminate exactly at the label position - no extension beyond.")
+
+// ── Visuals ───────────────────────────────────────────────────────────────
+i_minimalist = input.bool(
+     defval  = false,
+     title   = "Minimalist Signal Card",
+     group   = "Visuals",
+     tooltip = "When ON, the signal card shows only LONG/SHORT. When OFF, includes coil bar " +
+               "count and target R-multiple.")
+
+i_showCompBox = input.bool(
+     defval  = true,
+     title   = "Show Coil Box",
+     group   = "Visuals",
+     tooltip = "Draw the dashed orange box around the active coil while watched.")
+
+i_showBGHighlight = input.bool(
+     defval  = true,
+     title   = "Highlight Signal Bar",
+     group   = "Visuals",
+     tooltip = "Tint the background of the bar where a signal fires (green = long, red = short).")
+
+i_showRings = input.bool(
+     defval  = true,
+     title   = "Show Concentric Ring Signature",
+     group   = "Visuals",
+     tooltip = "Draw 4 nested rings centered on the signal bar. Persists for the trade " +
+               "duration, removed automatically when SL or TP3 hits.")
+
+// ── Dashboard ─────────────────────────────────────────────────────────────
+i_showDash = input.bool(
+     defval  = true,
+     title   = "Show Dashboard",
+     group   = "Dashboard")
+
+i_dashTheme = input.string(
+     defval  = "Dark",
+     title   = "Theme",
+     options = ["Dark", "Light"],
+     group   = "Dashboard",
+     tooltip = "Color theme for dashboard, signal labels, and TP/SL labels. Auto-adjusts text " +
+               "and background contrast for readability on both chart backgrounds.")
+
+i_dashPos = input.string(
+     defval  = "Top Right",
+     title   = "Position",
+     options = ["Top Right", "Top Left", "Middle Right", "Bottom Right", "Bottom Left"],
+     group   = "Dashboard")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 2  ·  PARAMETER RESOLUTION
+//  Manual overrides take priority. Otherwise the sensitivity preset applies.
+// ═══════════════════════════════════════════════════════════════════════════
+
+int    _compMinBars    = 4
+int    _compMaxBars    = 14
+float  _atrContraction = 0.82
+float  _extremeZone    = 0.35
+string _touchMode      = "Edge"
+
+if i_useOverrides
+    _compMinBars    := i_compMinBars
+    _compMaxBars    := i_compMaxBars
+    _atrContraction := i_atrContraction
+    _extremeZone    := i_extremeZone
+    _touchMode      := "Edge"
+else if i_sensitivity == "Conservative"
+    _compMinBars    := 5
+    _compMaxBars    := 12
+    _atrContraction := 0.70
+    _extremeZone    := 0.25
+    _touchMode      := "Full"
+else if i_sensitivity == "Balanced"
+    _compMinBars    := 4
+    _compMaxBars    := 14
+    _atrContraction := 0.82
+    _extremeZone    := 0.35
+    _touchMode      := "Edge"
+else
+    _compMinBars    := 3
+    _compMaxBars    := 16
+    _atrContraction := 0.92
+    _extremeZone    := 0.45
+    _touchMode      := "Mid"
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 3  ·  COLOR PALETTE
+//  Theme-aware colors. Text colors auto-pair to background for legibility.
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool isDark = i_dashTheme == "Dark"
+
+color c_long       = isDark ? #26A69A : #1A7A70
+color c_short      = isDark ? #EF5350 : #C62828
+color c_compress   = isDark ? #FFB347 : #CC6600
+color c_neutral    = isDark ? #8888AA : #666688
+color c_milestone  = isDark ? #FFEB3B : #F57F17
+
+color c_tp1Fill    = isDark ? #B2DFDB : #2E7D62
+color c_tp2Fill    = isDark ? #26A69A : #1B5E50
+color c_tp3Fill    = isDark ? #00897B : #0E3D34
+
+color c_textOnLight = #1A1A2E
+color c_textOnDark  = #FFFFFF
+color c_tp1Text     = isDark ? c_textOnLight : c_textOnDark
+color c_tp2Text     = isDark ? c_textOnDark  : c_textOnDark
+color c_tp3Text     = isDark ? c_textOnDark  : c_textOnDark
+color c_entryText   = c_textOnDark
+color c_slText      = c_textOnDark
+
+color c_dashBG      = isDark ? color.new(#0F0F1A, 5)   : color.new(#FAFBFC, 5)
+color c_dashHeader  = isDark ? color.new(#1A1A2E, 0)   : color.new(#E8ECF2, 0)
+color c_dashAccent  = isDark ? color.new(#252545, 0)   : color.new(#D8DFF0, 0)
+color c_dashText    = isDark ? #E8EAF6 : #1A1A3E
+color c_dashSub     = isDark ? #7C7CA8 : #6B7280
+color c_dashBorder  = isDark ? color.new(#2A2A45, 30) : color.new(#D0D5E0, 30)
+
+color c_bgLong      = color.new(c_long,  72)
+color c_bgShort     = color.new(c_short, 72)
+
+color c_compFill    = color.new(c_compress, 90)
+color c_compBorder  = color.new(c_compress, 30)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 4  ·  CORE MARKET METRICS
+// ═══════════════════════════════════════════════════════════════════════════
+
+float atr        = ta.atr(i_atrPeriod)
+float bgAtr      = ta.atr(i_bgAtrPeriod)
+float sessionHi  = ta.highest(high, i_sessionLookback)
+float sessionLo  = ta.lowest(low,   i_sessionLookback)
+float sessionRng = sessionHi - sessionLo
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 5  ·  COIL DETECTION
+//  Tracks consecutive compression bars with violation tolerance and an
+//  absolute drift-mode floor for low-volatility regimes.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var int   compLen        = 0
+var float compHigh       = na
+var float compLow        = na
+var int   compStartBar   = na
+var int   compViolations = 0
+
+float localAtr = ta.atr(math.max(_compMinBars, 3))
+
+bool ratioContracted = localAtr < bgAtr * _atrContraction
+
+float medianRng       = ta.percentile_linear_interpolation(high - low, 50, 50)
+bool  driftContracted = (high - low) < medianRng * 0.65
+
+bool isContracted = ratioContracted or driftContracted
+
+bool recentExpansion = false
+if i_catalystMode
+    for k = 1 to 5
+        if (high[k] - low[k]) > bgAtr[k] * 1.5
+            recentExpansion := true
+            break
+    isContracted := isContracted or (recentExpansion and localAtr < bgAtr * 1.10)
+
+int   MAX_VIOLATIONS = _touchMode == "Full" ? 1 : _touchMode == "Edge" ? 2 : 3
+float tolMult        = _touchMode == "Full" ? 0.30 : _touchMode == "Edge" ? 0.50 : 0.75
+
+if isContracted
+    if compLen == 0
+        compLen        := 1
+        compHigh       := high
+        compLow        := low
+        compStartBar   := bar_index
+        compViolations := 0
+    else
+        float tol    = bgAtr * tolMult
+        bool inRange = high <= compHigh + tol and low >= compLow - tol
+        if inRange
+            compLen  := compLen + 1
+            compHigh := math.max(compHigh, high)
+            compLow  := math.min(compLow,  low)
+        else
+            compViolations := compViolations + 1
+            if compViolations <= MAX_VIOLATIONS
+                compLen  := compLen + 1
+                compHigh := math.max(compHigh, high)
+                compLow  := math.min(compLow,  low)
+            else
+                compLen        := 1
+                compHigh       := high
+                compLow        := low
+                compStartBar   := bar_index
+                compViolations := 0
+else
+    // ── Audit fix 1.1 ─────────────────────────────────────────────────────
+    // Previously a near-qualified coil was frozen indefinitely when the bar
+    // was non-contracted. Now we only preserve it for one bar of grace (the
+    // decrement), then reset cleanly. This prevents ghost coil accumulation.
+    if compLen > 0
+        compLen := compLen - 1
+    if compLen == 0
+        compHigh       := na
+        compLow        := na
+        compStartBar   := na
+        compViolations := 0
+
+if compLen > _compMaxBars
+    compLen        := 0
+    compHigh       := na
+    compLow        := na
+    compStartBar   := na
+    compViolations := 0
+
+bool compQualified = compLen >= _compMinBars
+
+float zoneTop = sessionHi - sessionRng * _extremeZone
+float zoneBot = sessionLo + sessionRng * _extremeZone
+
+bool compAtHigh = false
+bool compAtLow  = false
+
+if compQualified and not na(compHigh) and not na(compLow)
+    float compMid = (compHigh + compLow) / 2.0
+    if _touchMode == "Full"
+        compAtHigh := compLow  >= zoneTop
+        compAtLow  := compHigh <= zoneBot
+    else if _touchMode == "Edge"
+        compAtHigh := compHigh >= zoneTop
+        compAtLow  := compLow  <= zoneBot
+    else
+        compAtHigh := compHigh >= zoneTop or compMid >= zoneTop or close >= zoneTop
+        compAtLow  := compLow  <= zoneBot or compMid <= zoneBot or close <= zoneBot
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 6  ·  WATCHED COIL STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+var bool  watchActive   = false
+var bool  watchIsShort  = false
+var float watchHigh     = na
+var float watchLow      = na
+var int   watchLen      = 0
+var int   watchEndBar   = na
+var int   watchStartBar = na
+
+int WATCH_EXPIRY = _touchMode == "Full" ? 5 : _touchMode == "Edge" ? 10 : 15
+
+if compAtHigh and not watchActive
+    watchActive   := true
+    watchIsShort  := true
+    watchHigh     := compHigh
+    watchLow      := compLow
+    watchLen      := compLen
+    watchEndBar   := na
+    watchStartBar := na(compStartBar) ? bar_index - compLen : compStartBar
+else if compAtLow and not watchActive
+    watchActive   := true
+    watchIsShort  := false
+    watchHigh     := compHigh
+    watchLow      := compLow
+    watchLen      := compLen
+    watchEndBar   := na
+    watchStartBar := na(compStartBar) ? bar_index - compLen : compStartBar
+
+if watchActive and compQualified
+    if watchIsShort and compAtHigh
+        watchHigh := math.max(watchHigh, compHigh)
+        watchLow  := math.min(watchLow,  compLow)
+        watchLen  := compLen
+    else if not watchIsShort and compAtLow
+        watchHigh := math.max(watchHigh, compHigh)
+        watchLow  := math.min(watchLow,  compLow)
+        watchLen  := compLen
+
+if watchActive and not compQualified and na(watchEndBar)
+    watchEndBar := bar_index
+
+if watchActive and not na(watchEndBar) and (bar_index - watchEndBar) > WATCH_EXPIRY
+    watchActive   := false
+    watchHigh     := na
+    watchLow      := na
+    watchLen      := 0
+    watchEndBar   := na
+    watchStartBar := na
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 7  ·  TRIGGER DETECTION
+//  Bar-close confirmed via barstate.isconfirmed gate. The break style
+//  varies by sensitivity tier.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var int lastOutcomeBar = -100
+bool gateOK = (bar_index - lastOutcomeBar) > i_postOutcomeGap
+
+// All break conditions reference confirmed bar values only. The barstate.isconfirmed
+// gate ensures high/low/close/open used below are final, settled values.
+// This script does not repaint: no lookahead, no security() calls,
+// no request.* functions, no future bar referencing.
+
+bool shortBreak = false
+bool longBreak  = false
+
+if _touchMode == "Full"
+    shortBreak := close < watchLow
+    longBreak  := close > watchHigh
+else if _touchMode == "Edge"
+    shortBreak := close < watchLow  or (low  < watchLow  and close < open and (open  - close) > (high - low) * 0.40)
+    longBreak  := close > watchHigh or (high > watchHigh and close > open and (close - open ) > (high - low) * 0.40)
+else
+    shortBreak := close < watchLow  or low  < watchLow  - bgAtr * 0.05
+    longBreak  := close > watchHigh or high > watchHigh + bgAtr * 0.05
+
+bool shortTrigger = barstate.isconfirmed and watchActive and watchIsShort     and shortBreak and gateOK
+bool longTrigger  = barstate.isconfirmed and watchActive and not watchIsShort and longBreak  and gateOK
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 8  ·  TRADE STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+var bool  tradeActive    = false
+var bool  isLong         = false
+var float entryPrice     = 0.0
+var float slPrice        = 0.0
+var float tp1Price       = 0.0
+var float tp2Price       = 0.0
+var float tp3Price       = 0.0
+var int   compLenAtEntry = 0
+var int   entryBar       = 0
+var bool  tp1Hit         = false
+var bool  tp2Hit         = false
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 9  ·  STOP AND TARGET CALCULATION
+//  SL is the larger of (structural distance from coil) or (minimum ATR floor).
+//  TP1/TP2/TP3 are pure R-multiples of the final SL distance.
+// ═══════════════════════════════════════════════════════════════════════════
+
+calcLevels(bool longTrade, float entryPx, float compHi, float compLo) =>
+    float buffer    = atr * i_slBuffer
+    float minDist   = atr * i_slMinDist
+    float maxDist   = atr * i_slMaxDist
+    float rawSL     = longTrade ? compLo - buffer : compHi + buffer
+    float rawDist   = math.abs(entryPx - rawSL)
+    float finalDist = math.max(minDist, math.min(rawDist, maxDist))
+    float sl        = longTrade ? entryPx - finalDist : entryPx + finalDist
+    float t1        = longTrade ? entryPx + finalDist * i_tp1R : entryPx - finalDist * i_tp1R
+    float t2        = longTrade ? entryPx + finalDist * i_tp2R : entryPx - finalDist * i_tp2R
+    float t3        = longTrade ? entryPx + finalDist * i_tp3R : entryPx - finalDist * i_tp3R
+    [sl, t1, t2, t3, finalDist]
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 10  ·  PERSISTENT DRAWING OBJECTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+var line  lineEntry = na
+var line  lineSL    = na
+var line  lineTP1   = na
+var line  lineTP2   = na
+var line  lineTP3   = na
+var label lblEntry  = na
+var label lblSL     = na
+var label lblTP1    = na
+var label lblTP2    = na
+var label lblTP3    = na
+var box   compBoxActive  = na
+var label compBoxTag     = na
+
+// ── Signal card history array ─────────────────────────────────────────────
+// Each fired signal appends a new label. Historical cards are never deleted,
+// so every LONG/SHORT appears permanently on the chart for review.
+var array<label> signalCardHistory = array.new<label>()
+
+var array<label> milestoneDots = array.new<label>()
+var array<box>   ringBoxes     = array.new<box>()
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 11  ·  DRAWING UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
+
+closeLineAt(line ln, int barIdx) =>
+    if not na(ln)
+        line.set_extend(ln, extend.none)
+        line.set_x2(ln, barIdx)
+
+deleteLabel(label lb) =>
+    if not na(lb)
+        label.delete(lb)
+
+clearRings() =>
+    if array.size(ringBoxes) > 0
+        for i = 0 to array.size(ringBoxes) - 1
+            box.delete(array.get(ringBoxes, i))
+        array.clear(ringBoxes)
+
+clearMilestones() =>
+    if array.size(milestoneDots) > 0
+        for i = 0 to array.size(milestoneDots) - 1
+            label.delete(array.get(milestoneDots, i))
+        array.clear(milestoneDots)
+
+createRings(bool longTrade, float pivotPx, float scaleY) =>
+    clearRings()
+    color rCol = longTrade ? c_long : c_short
+    int   numRings = 4
+    for i = 1 to numRings
+        float halfH    = scaleY * (i * 0.45)
+        int   halfW    = i
+        int   transp   = 60 + i * 8
+        int   bgTransp = 92 + i
+        box ring = box.new(
+             left         = bar_index - halfW,
+             top          = pivotPx + halfH,
+             right        = bar_index + halfW,
+             bottom       = pivotPx - halfH,
+             border_color = color.new(rCol, transp),
+             border_width = 1,
+             bgcolor      = color.new(rCol, math.min(95, bgTransp)))
+        array.push(ringBoxes, ring)
+
+drawLevels(bool longTrade, int barIdx, float entryPx, float slPx, float t1, float t2, float t3) =>
+    color  entryCol = longTrade ? c_long : c_short
+    string dir      = longTrade ? "LONG" : "SHORT"
+    float  slDist   = math.abs(entryPx - slPx)
+    int    labelX   = barIdx + i_labelOffset
+
+    line _le = line.new(barIdx, entryPx, labelX, entryPx, color = entryCol, width = 1, style = line.style_dashed)
+    line _ls = line.new(barIdx, slPx,    labelX, slPx,    color = c_short,  width = 1, style = line.style_solid)
+    line _l1 = line.new(barIdx, t1,      labelX, t1,      color = c_tp1Fill,width = 1, style = line.style_solid)
+    line _l2 = line.new(barIdx, t2,      labelX, t2,      color = c_tp2Fill,width = 1, style = line.style_solid)
+    line _l3 = line.new(barIdx, t3,      labelX, t3,      color = c_tp3Fill,width = 2, style = line.style_solid)
+
+    float rr1 = slDist > 0 ? math.round(math.abs(t1 - entryPx) / slDist, 1) : 0.0
+    float rr2 = slDist > 0 ? math.round(math.abs(t2 - entryPx) / slDist, 1) : 0.0
+    float rr3 = slDist > 0 ? math.round(math.abs(t3 - entryPx) / slDist, 1) : 0.0
+
+    label _be = label.new(labelX, entryPx,
+         text      = dir + "  " + str.tostring(entryPx, format.mintick),
+         color     = color.new(entryCol, 70),
+         textcolor = c_entryText,
+         style     = label.style_label_left,
+         size      = size.small)
+
+    label _bs = label.new(labelX, slPx,
+         text      = "SL  " + str.tostring(slPx, format.mintick),
+         color     = color.new(c_short, 75),
+         textcolor = c_slText,
+         style     = label.style_label_left,
+         size      = size.small)
+
+    label _b1 = label.new(labelX, t1,
+         text      = "TP1  " + str.tostring(t1, format.mintick) + "  ·  " + str.tostring(rr1, "#.#") + "R",
+         color     = color.new(c_tp1Fill, 25),
+         textcolor = c_tp1Text,
+         style     = label.style_label_left,
+         size      = size.small)
+
+    label _b2 = label.new(labelX, t2,
+         text      = "TP2  " + str.tostring(t2, format.mintick) + "  ·  " + str.tostring(rr2, "#.#") + "R",
+         color     = color.new(c_tp2Fill, 25),
+         textcolor = c_tp2Text,
+         style     = label.style_label_left,
+         size      = size.small)
+
+    label _b3 = label.new(labelX, t3,
+         text      = "TP3  " + str.tostring(t3, format.mintick) + "  ·  " + str.tostring(rr3, "#.#") + "R",
+         color     = color.new(c_tp3Fill, 25),
+         textcolor = c_tp3Text,
+         style     = label.style_label_left,
+         size      = size.small)
+
+    [_le, _ls, _l1, _l2, _l3, _be, _bs, _b1, _b2, _b3]
+
+// ── Signal card draw — appends to history, never deletes past cards ────────
+drawSignalCard(bool longTrade, int barIdx, float anchorY, int compBars, float rr2) =>
+    color  cardCol = longTrade ? c_long : c_short
+    string dir     = longTrade ? "LONG" : "SHORT"
+    string txt     = i_minimalist ? dir : dir + "\n────\n" + str.tostring(compBars) + "b coil\n" + str.tostring(rr2, "#.#") + "R"
+    label _card = label.new(barIdx, anchorY,
+         text             = txt,
+         color            = cardCol,
+         textcolor        = c_textOnDark,
+         style            = longTrade ? label.style_label_up : label.style_label_down,
+         size             = size.normal,
+         text_font_family = font.family_monospace)
+    // Push to history — this label is never deleted; it persists on chart
+    array.push(signalCardHistory, _card)
+    _card
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 12  ·  COIL BOX RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+
+if i_showCompBox and watchActive and not na(watchHigh) and not na(watchLow)
+    if not na(compBoxActive)
+        box.delete(compBoxActive)
+    if not na(compBoxTag)
+        label.delete(compBoxTag)
+
+    int boxStart = na(watchStartBar) ? bar_index - watchLen : watchStartBar
+    int boxEnd   = bar_index
+
+    compBoxActive := box.new(
+         left         = boxStart,
+         top          = watchHigh,
+         right        = boxEnd,
+         bottom       = watchLow,
+         border_color = c_compBorder,
+         bgcolor      = c_compFill,
+         border_width = 1,
+         border_style = line.style_dashed)
+
+    string tagTxt = (watchIsShort ? "▼ COIL " : "▲ COIL ") + str.tostring(watchLen) + "b"
+    compBoxTag := label.new(boxEnd, watchIsShort ? watchHigh : watchLow,
+         text      = tagTxt,
+         color     = color.new(c_compress, 30),
+         textcolor = c_textOnDark,
+         style     = watchIsShort ? label.style_label_down : label.style_label_up,
+         size      = size.tiny)
+
+else if not watchActive
+    if not na(compBoxActive)
+        box.delete(compBoxActive)
+        compBoxActive := na
+    if not na(compBoxTag)
+        label.delete(compBoxTag)
+        compBoxTag := na
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 13  ·  SIGNAL EXECUTION
+//  Both fire conditions are gated on barstate.isconfirmed via the trigger
+//  variables. Signal card is appended to history — prior cards are preserved.
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool fireLong  = longTrigger  and not tradeActive
+bool fireShort = shortTrigger and not tradeActive
+
+if fireLong
+    tradeActive    := true
+    isLong         := true
+    entryPrice     := close
+    entryBar       := bar_index
+    tp1Hit         := false
+    tp2Hit         := false
+    compLenAtEntry := watchLen
+
+    [_sl, _t1, _t2, _t3, _dist] = calcLevels(true, close, watchHigh, watchLow)
+    slPrice  := _sl
+    tp1Price := _t1
+    tp2Price := _t2
+    tp3Price := _t3
+
+    [_le, _ls, _l1, _l2, _l3, _be, _bs, _b1, _b2, _b3] = drawLevels(true, bar_index, entryPrice, slPrice, tp1Price, tp2Price, tp3Price)
+    lineEntry := _le
+    lineSL    := _ls
+    lineTP1   := _l1
+    lineTP2   := _l2
+    lineTP3   := _l3
+    lblEntry  := _be
+    lblSL     := _bs
+    lblTP1    := _b1
+    lblTP2    := _b2
+    lblTP3    := _b3
+
+    // Append new card to history — does not touch any prior card
+    drawSignalCard(true, bar_index, low - atr * 1.2, compLenAtEntry, i_tp2R)
+    if i_showRings
+        createRings(true, close, atr)
+    watchActive := false
+
+if fireShort
+    tradeActive    := true
+    isLong         := false
+    entryPrice     := close
+    entryBar       := bar_index
+    tp1Hit         := false
+    tp2Hit         := false
+    compLenAtEntry := watchLen
+
+    [_sl, _t1, _t2, _t3, _dist] = calcLevels(false, close, watchHigh, watchLow)
+    slPrice  := _sl
+    tp1Price := _t1
+    tp2Price := _t2
+    tp3Price := _t3
+
+    [_le, _ls, _l1, _l2, _l3, _be, _bs, _b1, _b2, _b3] = drawLevels(false, bar_index, entryPrice, slPrice, tp1Price, tp2Price, tp3Price)
+    lineEntry := _le
+    lineSL    := _ls
+    lineTP1   := _l1
+    lineTP2   := _l2
+    lineTP3   := _l3
+    lblEntry  := _be
+    lblSL     := _bs
+    lblTP1    := _b1
+    lblTP2    := _b2
+    lblTP3    := _b3
+
+    // Append new card to history — does not touch any prior card
+    drawSignalCard(false, bar_index, high + atr * 1.2, compLenAtEntry, i_tp2R)
+    if i_showRings
+        createRings(false, close, atr)
+    watchActive := false
+
+color signalBG = i_showBGHighlight ? fireLong ? c_bgLong : fireShort ? c_bgShort : na : na
+bgcolor(signalBG, title = "Signal Bar BG")
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 14  ·  LIVE TRADE LINE EXTENSION
+//  Lines and labels move forward each bar so they stay at the leading edge.
+// ═══════════════════════════════════════════════════════════════════════════
+
+if tradeActive
+    int newLabelX = bar_index + i_labelOffset
+    if not na(lineEntry)
+        line.set_x2(lineEntry, newLabelX)
+    if not na(lineSL)
+        line.set_x2(lineSL, newLabelX)
+    if not na(lineTP1)
+        line.set_x2(lineTP1, newLabelX)
+    if not na(lineTP2)
+        line.set_x2(lineTP2, newLabelX)
+    if not na(lineTP3)
+        line.set_x2(lineTP3, newLabelX)
+    if not na(lblEntry)
+        label.set_x(lblEntry, newLabelX)
+    if not na(lblSL)
+        label.set_x(lblSL, newLabelX)
+    if not na(lblTP1)
+        label.set_x(lblTP1, newLabelX)
+    if not na(lblTP2)
+        label.set_x(lblTP2, newLabelX)
+    if not na(lblTP3)
+        label.set_x(lblTP3, newLabelX)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 15  ·  OUTCOME TRACKING
+//  TP1 and TP2 are milestones — only a small dot marks the hit, the trade
+//  remains active. SL or TP3 are terminal — the trade closes and all lines
+//  truncate at the outcome bar with all labels and milestone dots removed.
+//  Outcomes are only checked on bars after entry to avoid same-bar exit.
+//  If SL and TP3 are both touched on the same bar, SL takes priority (risk
+//  management principle: worst-case outcome governs).
+// ═══════════════════════════════════════════════════════════════════════════
+
+if tradeActive and bar_index > entryBar
+    bool tp1Touched = not tp1Hit and (isLong ? high >= tp1Price : low <= tp1Price)
+    if tp1Touched
+        tp1Hit := true
+        label dot1 = label.new(bar_index, tp1Price,
+             text      = "●",
+             color     = color.new(chart.bg_color, 100),
+             textcolor = c_milestone,
+             style     = label.style_none,
+             size      = size.small)
+        array.push(milestoneDots, dot1)
+
+    bool tp2Touched = not tp2Hit and (isLong ? high >= tp2Price : low <= tp2Price)
+    if tp2Touched
+        tp2Hit := true
+        label dot2 = label.new(bar_index, tp2Price,
+             text      = "●",
+             color     = color.new(chart.bg_color, 100),
+             textcolor = c_milestone,
+             style     = label.style_none,
+             size      = size.small)
+        array.push(milestoneDots, dot2)
+
+    bool tp3Touched = isLong ? high >= tp3Price : low <= tp3Price
+    bool slTouched  = isLong ? low  <= slPrice  : high >= slPrice
+
+    if slTouched
+        tradeActive    := false
+        lastOutcomeBar := bar_index
+        closeLineAt(lineEntry, bar_index)
+        closeLineAt(lineSL,    bar_index)
+        closeLineAt(lineTP1,   bar_index)
+        closeLineAt(lineTP2,   bar_index)
+        closeLineAt(lineTP3,   bar_index)
+        deleteLabel(lblEntry)
+        deleteLabel(lblSL)
+        deleteLabel(lblTP1)
+        deleteLabel(lblTP2)
+        deleteLabel(lblTP3)
+        lblEntry := na
+        lblSL    := na
+        lblTP1   := na
+        lblTP2   := na
+        lblTP3   := na
+        clearRings()
+        clearMilestones()
+
+    else if tp3Touched
+        tradeActive    := false
+        lastOutcomeBar := bar_index
+        closeLineAt(lineEntry, bar_index)
+        closeLineAt(lineSL,    bar_index)
+        closeLineAt(lineTP1,   bar_index)
+        closeLineAt(lineTP2,   bar_index)
+        closeLineAt(lineTP3,   bar_index)
+        deleteLabel(lblEntry)
+        deleteLabel(lblSL)
+        deleteLabel(lblTP1)
+        deleteLabel(lblTP2)
+        deleteLabel(lblTP3)
+        lblEntry := na
+        lblSL    := na
+        lblTP1   := na
+        lblTP2   := na
+        lblTP3   := na
+        clearRings()
+        clearMilestones()
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 16  ·  DASHBOARD
+//  Table is created once at script load. On each last-bar update only the
+//  cell contents are refreshed — no object churn.
+//
+//  Header row: ticker + timeframe instead of hardcoded "VCE" string.
+//  This lets a trader instantly identify which instrument and resolution
+//  the panel belongs to when multiple charts are open side by side.
+// ═══════════════════════════════════════════════════════════════════════════
+
+position_lookup(string p) =>
+    p == "Top Right"     ? position.top_right    :
+     p == "Top Left"     ? position.top_left     :
+     p == "Middle Right" ? position.middle_right :
+     p == "Bottom Right" ? position.bottom_right :
+     p == "Bottom Left"  ? position.bottom_left  : position.top_right
+
+var table dash = table.new(
+     position     = position_lookup(i_dashPos),
+     columns      = 3,
+     rows         = 8,
+     border_width = 0,
+     frame_color  = c_dashBorder,
+     frame_width  = 1)
+
+string stateLabel = "IDLE"
+color  stateCol   = c_neutral
+string stateDot   = "○"
+if tradeActive
+    stateLabel := isLong ? "ACTIVE LONG" : "ACTIVE SHORT"
+    stateCol   := isLong ? c_long : c_short
+    stateDot   := "●"
+else if watchActive
+    stateLabel := watchIsShort ? "WATCH SHORT" : "WATCH LONG"
+    stateCol   := c_compress
+    stateDot   := "◉"
+else if compLen > 0
+    stateLabel := "FORMING " + str.tostring(compLen) + "b"
+    stateCol   := c_neutral
+    stateDot   := "◌"
+
+string tpDots = "○○○"
+if tradeActive
+    string d1 = tp1Hit ? "●" : "○"
+    string d2 = tp2Hit ? "●" : "○"
+    tpDots := d1 + d2 + "○"
+
+// ── Ticker + timeframe string for dashboard header ─────────────────────────
+// timeframe.period returns the raw period string ("1", "5", "D", etc.).
+// We suffix with "m" only for intraday minute-based periods so the display
+// reads naturally: "BTCUSDT  1m", "NQ1!  15m", "ETHUSDT  1D".
+string tfRaw      = timeframe.period
+bool   isMins     = timeframe.isintraday and not timeframe.isseconds
+string tfDisplay  = isMins ? tfRaw + "m" : tfRaw
+string headerText = "  VCE  [" + syminfo.ticker + "  " + tfDisplay + "]"
+
+if barstate.islast and i_showDash
+    table.cell(dash, 0, 0, headerText,  text_color = c_dashText, bgcolor = c_dashHeader, text_size = size.normal, text_halign = text.align_left)
+    table.cell(dash, 1, 0, "",           bgcolor = c_dashHeader)
+    table.cell(dash, 2, 0, stateDot + "  ", text_color = stateCol, bgcolor = c_dashHeader, text_size = size.large, text_halign = text.align_right)
+
+    table.cell(dash, 0, 1, "", bgcolor = stateCol, height = 1)
+    table.cell(dash, 1, 1, "", bgcolor = stateCol, height = 1)
+    table.cell(dash, 2, 1, "", bgcolor = stateCol, height = 1)
+
+    table.cell(dash, 0, 2, "  STATE", text_color = c_dashSub, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_left)
+    table.cell(dash, 1, 2, "",         bgcolor = c_dashBG)
+    table.cell(dash, 2, 2, stateLabel + "  ", text_color = stateCol, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_right)
+
+    float volRatio = bgAtr > 0 ? localAtr / bgAtr : 1.0
+    string coilTxt = compLen > 0 ? str.tostring(compLen) + "b · " + str.tostring(math.round(volRatio * 100, 0)) + "%" : "-"
+    table.cell(dash, 0, 3, "  COIL", text_color = c_dashSub, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_left)
+    table.cell(dash, 1, 3, "",       bgcolor = c_dashBG)
+    table.cell(dash, 2, 3, coilTxt + "  ", text_color = c_dashText, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_right)
+
+    string zoneTxt = "-"
+    if watchActive
+        zoneTxt := watchIsShort ? "session high" : "session low"
+    else if compQualified
+        zoneTxt := "mid-range"
+    table.cell(dash, 0, 4, "  ZONE", text_color = c_dashSub, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_left)
+    table.cell(dash, 1, 4, "",       bgcolor = c_dashBG)
+    table.cell(dash, 2, 4, zoneTxt + "  ", text_color = c_dashText, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_right)
+
+    table.cell(dash, 0, 5, "", bgcolor = c_dashAccent, height = 1)
+    table.cell(dash, 1, 5, "", bgcolor = c_dashAccent, height = 1)
+    table.cell(dash, 2, 5, "", bgcolor = c_dashAccent, height = 1)
+
+    string entryTxt = "-"
+    color  entryCol = c_dashSub
+    if tradeActive
+        entryTxt := (isLong ? "L @ " : "S @ ") + str.tostring(entryPrice, format.mintick)
+        entryCol := isLong ? c_long : c_short
+    table.cell(dash, 0, 6, "  ENTRY", text_color = c_dashSub, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_left)
+    table.cell(dash, 1, 6, "",         bgcolor = c_dashBG)
+    table.cell(dash, 2, 6, entryTxt + "  ", text_color = entryCol, bgcolor = c_dashBG, text_size = size.small, text_halign = text.align_right)
+
+    table.cell(dash, 0, 7, "  TARGETS", text_color = c_dashSub, bgcolor = c_dashHeader, text_size = size.small, text_halign = text.align_left)
+    table.cell(dash, 1, 7, "",           bgcolor = c_dashHeader)
+    table.cell(dash, 2, 7, tpDots + "  ", text_color = tradeActive ? c_milestone : c_dashSub, bgcolor = c_dashHeader, text_size = size.normal, text_halign = text.align_right)
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SECTION 17  ·  DATA WINDOW AND ALERTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+plot(localAtr, "Local ATR",      color = c_compress, display = display.data_window)
+plot(bgAtr,    "Background ATR", color = c_neutral,  display = display.data_window)
+plot(compLen,  "Coil Bars",      color = c_compress, display = display.data_window)
+
+alertcondition(fireLong,  "VCE Long Signal",  "VCE: LONG | session-low coil broke up")
+alertcondition(fireShort, "VCE Short Signal", "VCE: SHORT | session-high coil broke down")

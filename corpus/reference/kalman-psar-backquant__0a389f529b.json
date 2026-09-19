@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0a389f529b364343831cd494933aadff",
+ "title": "Kalman PSaR [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/2MynAzML-kalman-psar-backquant/",
+ "agreeCount": 1437,
+ "category": "other",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/kalman-psar-backquant__0a389f529b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/kalman-psar-backquant__0a389f529b.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,73 @@
+{
+  "id": "public_script/29-zigzag-plus-plus",
+  "lane": "public_script",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#29-zigzag-plus-plus",
+    "captured_at": "2026-09-07",
+    "capture_method": "local_fixture_file"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null,
+      "evidence": []
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "pine"
+    },
+    "translate": {
+      "status": "UNSUPPORTED",
+      "guard": "pine:module",
+      "message": "importing another script pulls in code this engine never sees",
+      "unsupported_constructs": []
+    },
+    "canonical_ast": {
+      "status": "UNSUPPORTED",
+      "ast_ref": null
+    },
+    "execution_requirements": {
+      "status": "PARTIAL",
+      "note": "Layer A v1 does not extract per-script lookback/timeframe/session requirements yet; deferred to a later pass, disclosed rather than guessed."
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": null,
+      "needs": []
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A is static-only; rendering is Layer B/C"
+    },
+    "persistence_save": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "persistence_reload": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "screener_eligibility": {
+      "status": "UNSUPPORTED",
+      "eligible": false,
+      "reason": "translation did not produce a formula"
+    },
+    "refusal_behavior": {
+      "status": "CORRECTLY_REFUSED",
+      "guard": "pine:module",
+      "message": "imports another script, which is code this engine never sees (doorScorecard.test.js RULED)"
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "correctly_refused"
+  ],
+  "final_classification": "CORRECTLY_REFUSED",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

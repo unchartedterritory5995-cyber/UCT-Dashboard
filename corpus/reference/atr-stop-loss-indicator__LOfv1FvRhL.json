@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;LOfv1FvRhL6dDhc4PbDwxkzQ9bVx9K9T",
+ "title": "ATR+ (Stop Loss Indicator)",
+ "author": "ZenAndTheArtOfTrading",
+ "url": "https://www.tradingview.com/script/WlZ878BW-atr-stop-loss-indicator/",
+ "agreeCount": 5894,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-stop-loss-indicator__LOfv1FvRhL.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-stop-loss-indicator__LOfv1FvRhL.pine",
+ "our_status": "committed"
+}

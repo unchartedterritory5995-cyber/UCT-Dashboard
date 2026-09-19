@@ -1,0 +1,118 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © QuantVue Team
+
+//@version=5
+indicator("Trendline Pivots [QuantVue]", overlay = true)
+
+//inputs
+dtlColor        = input.color(color.red, 'Down Trend Line Color', inline = '0')
+utlColor        = input.color(color.green, 'Up Trend Line Color', inline = '1')
+pastColor       = input.color(color.orange, 'Crossed Line Color', inline = '2')
+extendLine      = input.bool(false, 'Extend Lines Until Crossed', inline = '3')
+onlyLast        = input.bool(false, 'Most Recent Line Only', inline = '3', tooltip = 'If multiple lines share pivot points, checking this will only show the most recent line.')
+hideCrossed     = input.bool(false, 'Hide Crossed Lines', inline = '4')
+showCross       = input.bool(true, 'Show Crosses', inline ='4', tooltip = 'Hiding crossed lines will only leave trend lines on the chart that have not been breached by your selected source. Showing crosses will plot an "X" where price crosses the trendline based on your selected source.')
+crossDown       = input.color(color.red, 'Cross Below Color', inline = '5')
+crossUp         = input.color(color.lime, 'Cross Above Color', inline = '5')
+maxLines        = input.int(4, 'Max Number of Crossed Lines to Show', step = 2, minval = 0, maxval = 50)
+crossSrc        = input.string('Close', 'Cross Source', options = ['Close', 'High/Low'])
+maxLineLen      = input.int(252, 'Max Line Length', tooltip = 'Will remove line if it is not crossed after selected amount of bars')
+pivLen          = input.int(9, 'Pivot Length', step = 1, minval = 1)
+maxLines        := hideCrossed ? 0 : maxLines
+isLog           = input.bool(false, 'Log Scale', tooltip = 'Select this option if using a log chart.')
+
+type pivot
+    string pivType
+    int x1
+    float y1
+    int x2
+    float y2
+
+// arrays
+var line[] dtlArray = array.new_line()
+var line[] utlArray = array.new_line()
+
+//functions
+createLine(ptype, x1, y1, x2, y2)=>
+    piv = pivot.new(ptype, x1, y1, x2, y2)
+    trendline = line.new(x1, y1, x2, y2, extend = extendLine ? extend.right : extend.none, color = ptype == 'ph' ? dtlColor : utlColor, width = 2)
+    if ptype == 'ph'
+        dtlArray.unshift(trendline)
+    else if ptype == 'pl'
+        utlArray.unshift(trendline)
+    piv
+
+getSlope(line)=>
+    slopePh = (line.get_y2(line) - line.get_y1(line))/(line.get_x2(line) -line.get_x1(line))
+    extendedPh = line.get_y2(line) - slopePh * (line.get_x2(line) - bar_index)
+    extendedPh
+
+getSlopeLog(line)=>
+    slopePh = (math.log(line.get_y2(line)) - math.log(line.get_y1(line)))/(line.get_x2(line) -line.get_x1(line))
+    extendedPh = math.exp(math.log(line.get_y2(line)) - slopePh * (line.get_x2(line) - bar_index))
+    extendedPh
+
+// variables
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low, pivLen, pivLen)
+var int utlX1 = na, var float utlY1 = na
+var int utlX2 = na, var float utlY2 = na
+var int dtlX2 = na, var float dtlY2 = na
+var int dtlX1 = na, var float dtlY1 = na
+
+
+if pl
+    utlX1 := utlX2, utlY1 := utlY2
+    utlX2 := bar_index[pivLen], utlY2 := low[pivLen]
+    if utlY1 < utlY2
+        createLine('pl', utlX1, utlY1, utlX2, utlY2)
+ 
+if ph
+    dtlX1 := dtlX2, dtlY1 := dtlY2
+    dtlX2 := bar_index[pivLen], dtlY2 := high[pivLen]
+    if dtlY1 > dtlY2
+        createLine('ph', dtlX1, dtlY1, dtlX2, dtlY2)
+
+for l in utlArray
+    src = crossSrc == 'Close' ? close : low
+    first = l == utlArray.get(0)
+    extended = not isLog ? getSlope(l) : getSlopeLog(l)
+    l.set_xy2(bar_index, extended)
+    if l.get_x2() - l.get_x1() > maxLineLen
+        l.delete()
+    if src > line.get_price(l, bar_index) and not first and onlyLast
+        l.delete()
+    var line [] tempUtl = array.new_line(maxLines/2)
+    var label [] tempUL = array.new_label(maxLines/2)
+    if src < line.get_price(l, bar_index)
+        newLine = line.new(line.get_x1(l), line.get_y1(l), line.get_x2(l), line.get_y2(l), color = pastColor, style = line.style_dashed, width = 1)
+        crossLabel = showCross ? label.new(bar_index, low, ' ', yloc = yloc.belowbar, color = crossDown, style = label.style_xcross, size = size.tiny) : na
+        alert(str.tostring(syminfo.ticker) + ' crossing below trendline', alert.freq_once_per_bar)
+        line.delete(l)
+        tempUtl.unshift(newLine)
+        tempUL.unshift(crossLabel)
+    if tempUtl.size() > (maxLines/2)
+        line.delete(tempUtl.pop())
+        label.delete(tempUL.pop())
+
+for l in dtlArray
+    first = l == dtlArray.get(0)
+    src = crossSrc == 'Close' ? close : high
+    extended = not isLog ? getSlope(l) : getSlopeLog(l)
+    l.set_xy2(bar_index, extended)
+    if l.get_x2() - l.get_x1() > maxLineLen
+        l.delete()
+    if src < line.get_price(l, bar_index) and not first and onlyLast
+        l.delete()
+    var line [] tempDtl = array.new_line(maxLines/2)
+    var label [] tempDL = array.new_label(maxLines/2)
+    if src > line.get_price(l, bar_index)
+        newLine = line.new(line.get_x1(l), line.get_y1(l), line.get_x2(l), line.get_y2(l), color = pastColor, style = line.style_dashed, width = 1)
+        crossLabel = showCross ? label.new(bar_index, high, '', yloc = yloc.abovebar, style = label.style_xcross, color = crossUp, size = size.tiny) : na
+        alert(str.tostring(syminfo.ticker) + ' crossing above trendline', alert.freq_once_per_bar)
+        line.delete(l)
+        tempDtl.unshift(newLine)
+        tempDL.unshift(crossLabel)
+    if tempDtl.size() > (maxLines/2)
+        line.delete(tempDtl.pop())
+        label.delete(tempDL.pop())

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;jiDgL4o6Qxmpn0uOAMy46uK3NBhGDNhx",
+ "title": "Linear Regression Channel",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/efXI515C-linear-regression-channel/",
+ "agreeCount": 17120,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/linear-regression-channel__jiDgL4o6Qx.pine",
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel__jiDgL4o6Qx.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;LclqojYSOAnN2vQulYgA9VHDt2iDCwqz",
+ "title": "TradingView Alerts to MT4 MT5 Strategy example",
+ "author": "Peter_O",
+ "url": "https://www.tradingview.com/script/9MJO3AgE-tradingview-alerts-to-mt4-mt5-strategy-example/",
+ "agreeCount": 7621,
+ "category": "other",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+ "cached_source": "tools/pine_survey/cache/sources/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+ "our_status": "committed"
+}

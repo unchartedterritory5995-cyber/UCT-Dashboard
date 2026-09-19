@@ -1,0 +1,181 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ChartPrime
+
+//@version=6
+indicator("Trend Duration Forecast [ChartPrime]", overlay = true)
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙐𝙎𝙀𝙍 𝙄𝙉𝙋𝙐𝙏𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+length = input.int(
+     50,
+     title = "Smoothing Length",
+     tooltip = "Defines how many bars are used for the Hull Moving Average (HMA). A longer length smooths out short-term noise but increases lag."
+ )
+
+trendLength = input.int(
+     3,
+     title = "Trend Detection Sensitivity",
+     tooltip = "Controls how many consecutive bars are checked for rising/falling HMA slope. Lower values make trends switch faster, higher values make them more stable."
+ )
+
+samples = input.int(
+     10,
+     title = "Trend Sample Size",
+     minval = 2,
+     tooltip = "Defines how many past trend durations are stored to calculate the average probable trend length. Larger samples produce smoother probability estimates."
+ )
+
+coloUP = input.color(color.rgb(18, 228, 158), "↑ Trend", inline = "col")
+coloDN = input.color(color.rgb(236, 86, 16), "↓ Trend", inline = "col")
+
+var trend = bool(na)
+var TrendCount = 0
+
+var bullishCount = array.new<int>()
+var bearishCount = array.new<int>()
+
+var TrendUP = label(na)
+var TrendDN = label(na)
+var LengthLine = line(na)
+var LabelProbLen = label(na)
+
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙄𝙉𝘿𝙄𝘾𝘼𝙏𝙊𝙍 𝘾𝘼𝙇𝘾𝙐𝙇𝘼𝙏𝙄𝙊𝙉𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+series float hma = ta.hma(close, length)
+
+if barstate.isconfirmed
+    if ta.rising(hma, trendLength) 
+        trend := true
+    if ta.falling(hma, trendLength)
+        trend := false
+
+if trend or not trend 
+    TrendCount += 1
+
+if trend != trend[1]
+    LengthLine.delete()
+    LabelProbLen.delete()
+    TrendUP.set_tooltip("")
+    TrendDN.set_tooltip("")
+
+    if trend 
+        bearishCount.push(TrendCount)
+        TrendUP := label.new(
+             bar_index, hma,
+             "Trend ↑\nProbable Length: " + str.tostring(bullishCount.avg(), "##"),
+             color = color.new(coloUP, 100),
+             textcolor = coloUP,
+             style = label.style_label_up,
+             tooltip = "New bullish trend detected.\nShows Real length of the current bullish trend."
+         )
+        TrendDN.set_text("Trend ↓\n" + str.tostring(TrendCount) + "\n")
+        LengthLine := line.new(
+             bar_index - 1, hma[1], bar_index, hma[1],
+             color = chart.fg_color, style = line.style_arrow_right
+         )
+        LabelProbLen := label.new(
+             bar_index, hma[1], "",
+             style = label.style_label_up,
+             textcolor = chart.fg_color,
+             color = color.new(color.white, 100),
+             tooltip = "Estimated extension of the current bullish trend based on average past durations."
+         )
+    else 
+        bullishCount.push(TrendCount)
+        TrendDN := label.new(
+             bar_index, hma,
+             "Trend ↓\nProbable Length: " + str.tostring(bearishCount.avg(), "##"),
+             color = color.new(coloDN, 100),
+             textcolor = coloDN,
+             style = label.style_label_down,
+             tooltip = "New bearish trend detected.\nShows Real length of the current bearish trend."
+         )
+        TrendUP.set_text("\n" + str.tostring(TrendCount) + "\nTrend ↑")
+        LengthLine := line.new(
+             bar_index - 1, hma[1], bar_index, hma[1],
+             color = chart.fg_color, style = line.style_arrow_right
+         )
+        LabelProbLen := label.new(
+             bar_index, hma[1], "",
+             style = label.style_label_down,
+             textcolor = chart.fg_color,
+             color = color.new(color.white, 100),
+             tooltip = "Estimated extension of the current bearish trend based on average past durations."
+         )
+
+    TrendCount := 0
+
+// DYNAMIC LABEL UPDATES
+if not trend
+    TrendDN.set_text(
+         "Trend ↓\nReal Length: " + str.tostring(TrendCount) + "\n")
+    LengthLine.set_x2(LengthLine.get_x1() + bearishCount.avg() + 1)
+    LabelProbLen.set_x(int(math.avg(LengthLine.get_x1(), LengthLine.get_x2())))
+    LabelProbLen.set_text(
+         "Probable Length\n" + str.tostring(bearishCount.avg(), "##")
+     )
+else 
+    TrendUP.set_text(
+         "Trend ↑\nReal Length: " + str.tostring(TrendCount)
+     )
+    LengthLine.set_x2(LengthLine.get_x1() + bullishCount.avg() + 1)
+    LabelProbLen.set_x(int(math.avg(LengthLine.get_x1(), LengthLine.get_x2())))
+    LabelProbLen.set_text(
+         "Probable Length\n" + str.tostring(bullishCount.avg(), "##")
+     )
+
+if bullishCount.size() > samples
+    bullishCount.shift()
+if bearishCount.size() > samples
+    bearishCount.shift()
+
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙑𝙄𝙎𝙐𝘼𝙇𝙄𝙕𝘼𝙏𝙄𝙊𝙉
+// --------------------------------------------------------------------------------------------------------------------{
+// Trend Color
+TColor = trend ? coloUP : coloDN
+
+plot(hma, "HMA", TColor, linewidth = 3)
+
+// TREND LENGTH TABLE
+var tbl = table.new(position.bottom_right, 100, 100)
+if barstate.islast
+    for i = 0 to bullishCount.size() - 1
+        // Column numbers
+        tbl.cell(0, i + 1, str.tostring(i + 1), text_color = color.gray, tooltip = "Sample index (1 = most recent trend)")
+
+        // Bullish trend lengths
+        lenBull = bullishCount.get(i)
+        if i == 0
+            tbl.cell(1, i, "Trend ↑", text_color = coloUP, tooltip = "Bullish trend length samples — based on detected rising HMA periods")
+        tbl.cell(1, i + 1, str.tostring(lenBull), text_color = chart.fg_color,
+             tooltip = "Duration of bullish trend #" + str.tostring(i + 1) + " (" + str.tostring(lenBull) + " bars)")
+
+        // Bearish trend lengths
+        lenBear = bearishCount.get(i)
+        if i == 0
+            tbl.cell(2, i, "Trend ↓", text_color = coloDN, tooltip = "Bearish trend length samples — based on detected falling HMA periods")
+        tbl.cell(2, i + 1, str.tostring(lenBear), text_color = chart.fg_color,
+             tooltip = "Duration of bearish trend #" + str.tostring(i + 1) + " (" + str.tostring(lenBear) + " bars)")
+
+    // Average row at the end
+    tbl.cell(
+         1, bullishCount.size() + 1,
+         str.tostring(bullishCount.avg(), "##"),
+         text_color = coloUP,
+         tooltip = "Average duration of recent bullish trends (" + str.tostring(bullishCount.avg(), "##") + " bars)"
+     )
+    tbl.cell(
+         2, bearishCount.size() + 1,
+         str.tostring(bearishCount.avg(), "##"),
+         text_color = coloDN,
+         tooltip = "Average duration of recent bearish trends (" + str.tostring(bearishCount.avg(), "##") + " bars)"
+     )

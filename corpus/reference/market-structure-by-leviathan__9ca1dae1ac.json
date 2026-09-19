@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9ca1dae1ac6444088f98441fce6dfecc",
+ "title": "Market Structure - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/bXic0E3l-market-structure-by-leviathan/",
+ "agreeCount": 11702,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-structure-by-leviathan__9ca1dae1ac.pine",
+ "our_status": "committed"
+}

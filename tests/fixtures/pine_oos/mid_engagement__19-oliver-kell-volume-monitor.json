@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "19-oliver-kell-volume-monitor.pine",
+  "title": "Oliver Kell - Volume Monitor",
+  "author": "chardogg74",
+  "source_url": "https://www.tradingview.com/script/ACCbiDL7-Oliver-Kell-Volume-Monitor/",
+  "retrieved_at": "2026-09-07T12:35:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"Aug 26\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 34,
+  "complexity_bucket": "short",
+  "sha256_source": "e2076c0a849b4249edf06de233c7a0ef57ff1552d56e5fe98adccc666259fe2c",
+  "sha256_normalized": "1be530836ad8c8602851d03e84bf272069e689d233270ab7096bf15dc1e10529",
+  "storage": "git"
+}

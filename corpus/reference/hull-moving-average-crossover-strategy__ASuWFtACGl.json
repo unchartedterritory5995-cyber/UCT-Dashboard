@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ASuWFtACGlzLlR59eMiMsuJw55E3QvoF",
+ "title": "Hull Moving Average Crossover Strategy",
+ "author": "SeaSide420",
+ "url": "https://www.tradingview.com/script/zb7PgKWs-hull-moving-average-crossover-strategy/",
+ "agreeCount": 568,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/hull-moving-average-crossover-strategy__ASuWFtACGl.pine",
+ "our_status": "reference-only"
+}

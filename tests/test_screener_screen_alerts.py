@@ -10,12 +10,14 @@ the set difference.
 """
 import pytest
 
+from api.services import user_definitions as ud
 from api.services.screener import scan_store as ss
 from api.services.screener import screen_alerts as sa
 from api.services.screener import snapshot_db as db
 
 TF = ss.SCAN_JOIN_TF
 H = "def_hash_one"
+_REAL_UD_GET = ud.get  # captured before `store` ever monkeypatches it
 
 
 @pytest.fixture
@@ -24,6 +26,15 @@ def store(tmp_path, monkeypatch):
     db.init_db()
     ss.init_db()
     sa._done.clear()
+    # RISK-025's existence check (`ud.get(user_id, def_id)`) is not this file's
+    # subject — its own docstring says so ("Read `test_a_quiet_night...` first").
+    # Every subscription this file makes is presumed to point at a LIVE
+    # definition unless a test says otherwise; `test_screener_screen_alerts_
+    # dangling.py` exercises the existence check itself against the real store.
+    monkeypatch.setattr(
+        ud, "get",
+        lambda user_id, def_id, version=None: {
+            "definition": {"meta": {"name": None}}})
     return tmp_path
 
 
@@ -249,3 +260,89 @@ def test_a_definition_that_was_never_swept_twice_is_counted_not_sent(store):
 def test_no_subscriptions_is_a_clean_no_op(store):
     r = sa.run_nightly(deliver=_Spy())
     assert r["definitions"] == 0 and r["sent"] == 0
+
+
+# ── RISK-025: the subscription must track a REAL, LIVE definition ──────────────
+#
+# These three use the real `user_definitions` store (unpatched) rather than the
+# `store` fixture's always-exists stub, because existence itself is exactly what
+# they test.
+
+@pytest.fixture
+def real_defs(tmp_path, monkeypatch):
+    """The genuine `user_definitions` store, isolated to this test — and the
+    REAL `ud.get`, restored on top of `store`'s always-exists stub (`store` runs
+    first in the fixture graph and patches it; this undoes just that one patch,
+    on the same shared `monkeypatch` instance, without touching `store`'s other
+    setup)."""
+    monkeypatch.setattr(ud, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    monkeypatch.setattr(ud, "get", _REAL_UD_GET)
+    return tmp_path
+
+
+def _real_definition(def_id, name="Momentum Screen"):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    tree = _op(">", _series("close"), _num(100))
+    d = _definition(tree, def_id=def_id)
+    d["meta"]["name"] = name
+    return d
+
+
+def test_a_subscription_to_a_DELETED_definition_is_dropped_not_fired(store, real_defs):
+    """🔴 THE CORE OF RISK-025. Before this fix, nothing checked whether the
+    definition a subscription points at still exists — a deleted definition's
+    subscription just sat there, either firing under a stale name forever or
+    going silently quiet with no signal to the member. Neither is acceptable;
+    this asserts the specific one that matters most: it must not fire."""
+    ud.save("u1", "u_00000000000d", _real_definition("u_00000000000d"))
+    ud.soft_delete("u1", "u_00000000000d")
+    sa.subscribe("u1", H, "u_00000000000d", "Momentum Screen (old name)")
+    _sweep(20260822, ["AAA"])
+    _sweep(20260823, ["AAA", "BBB"])
+
+    spy = _Spy()
+    r = sa.run_nightly(deliver=spy)
+
+    assert spy.calls == [], "a deleted definition's subscription must not fire"
+    assert r["skipped_dangling"] == 1
+
+    # ⭐ AND IT SELF-HEALS — the dangling row is gone, not merely skipped-and-
+    # revisited every night forever.
+    with db.connect() as conn:
+        left = conn.execute(
+            "SELECT COUNT(*) FROM screen_alert_subs WHERE user_id=? AND def_hash=?",
+            ("u1", H)).fetchone()[0]
+    assert left == 0
+
+
+def test_a_subscription_to_a_RENAMED_definition_fires_under_the_NEW_name(store, real_defs):
+    """⭐ THE LIVE NAME, NOT THE SNAPSHOT. A member who renames their screen must
+    see the new name in tonight's alert, not the one it had when they first
+    turned alerts on."""
+    ud.save("u1", "u_00000000000e", _real_definition("u_00000000000e", name="Old Name"))
+    ud.save("u1", "u_00000000000e", _real_definition("u_00000000000e", name="New Name"))
+    sa.subscribe("u1", H, "u_00000000000e", "Old Name")
+    _sweep(20260822, ["AAA"])
+    _sweep(20260823, ["AAA", "BBB"])
+
+    spy = _Spy()
+    r = sa.run_nightly(deliver=spy)
+
+    assert r["sent"] == 1
+    assert spy.calls[0]["title"].startswith("New Name:"), spy.calls[0]["title"]
+
+
+def test_a_subscription_with_a_MALFORMED_def_id_is_dangling_not_a_crash(store, real_defs):
+    """⛔ A malformed reference is not a real reference either, and one bad
+    subscription must never abort every other member's nightly alerts — the
+    same rule `diff_for`'s own exception guard already follows in this file."""
+    sa.subscribe("u1", H, "not-a-real-def-id-shape", "S")
+    sa.subscribe("u2", H, "u_00000000000e", "S2")
+    ud.save("u2", "u_00000000000e", _real_definition("u_00000000000e"))
+    _sweep(20260822, ["AAA"])
+    _sweep(20260823, ["AAA", "BBB"])
+
+    r = sa.run_nightly(deliver=_Spy())
+
+    assert r["skipped_dangling"] == 1
+    assert r["sent"] == 1, "u2's well-formed subscription must still fire"

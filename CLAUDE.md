@@ -104,6 +104,14 @@ Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below
 
+**Standing precedence rule, general to this whole file, not just this table:
+current executable code, runtime behavior, and passing tests outrank any prose
+claim here, including this one, whenever the two disagree.** This file goes
+stale between edits — the Screener door-chain correction elsewhere in this file
+(RISK-015, Phase One, 2026-09-04) and everything in this table are both
+instances of the same lesson: verify against the running code before trusting
+a sentence, even the repo's own onboarding doc.
+
 **This file described these as live features. They are not.** Source: the
 2026-08-09 reachability audit (`.superpowers/sdd/audit/reachability-report.md`),
 which resolved every import form — static, `import type`, bare side-effect,
@@ -140,11 +148,15 @@ the second-authority-over-one-value defect that has caused three separate outage
 **Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
 them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
 `add_job` in `api/main.py` **both** assert *"E-4 has not wired a surface to these
-results."* **It is wired** — `/screener` → `SavedScreensPanel` → `ScanResults` →
+results."* **It is wired** — `Screener.jsx` → `ScannerShell.jsx` →
+`pages/screener/ScreensManager.jsx` → `components/screener/ScanResults.jsx` →
 `CoverageLine`, reading `GET /api/scans/definition-results`, with
 `components/screener/reachable.test.js` + `Screener.scanmount.test.jsx` as the
 standing rails. The same false sentence in two places is why it survived: each
-looked like corroboration of the other.
+looked like corroboration of the other. ⚰️ This itself said `SavedScreensPanel`
+— that component was deleted 2026-08-22 (screener wave 4) and replaced by
+`ScreensManager.jsx`; verified live against current code 2026-09-04 (Phase One,
+RISK-015) rather than re-typed from memory.
 
 ✅ **THE FILES ARE GONE NOW** — this said *"the files are still there"*, and a
 separate pass deleted them the same day (`d26cee0c` · `ed53f9b6` · `24ee463b`,
@@ -2060,6 +2072,142 @@ principle.
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
+## ⛔⛔ WORKTREE OWNERSHIP — A SESSION DELETES ONLY WHAT IT CREATED
+
+**Owner ruling, 2026-09-12, after a worktree was emptied WHILE another session
+was running tests in it.**
+
+> A session never runs `git worktree remove`, never runs `git worktree prune`,
+> and never deletes any directory under `C:\Users\Patrick\uct-worktrees\` that it
+> did not create **in that same session**. A cleanup or a prune is a
+> **stop-and-ask**, not a tidy-up.
+
+⛔ **THE OWNER FILE IS HOW YOU KNOW.** Every worktree carries
+`.uct-session-owner` at its root — gitignored, written at creation, naming the
+creating session id and the date. Before removing anything under
+`uct-worktrees\`, read it. **No owner file is not permission**; it means the
+worktree predates the rule, and that is a stop-and-ask too.
+
+```
+# at creation, always
+git worktree add <path> <branch>
+printf 'session: <id>\ncreated: <YYYY-MM-DD>\n' > <path>/.uct-session-owner
+```
+
+⚰️ **THE INCIDENT.** 2026-09-12, ~16:12: `uct-worktrees\indicator-r0r1` had every
+tracked file deleted out from under a running 12-chunk pytest lane. **Established
+from the run's own logs**, not from timestamps — the runner enumerated 1,399 test
+files at start, chunk 1 then produced **332 ×**
+`ModuleNotFoundError: spec not found for the module 'api.services.crypto_box'`
+(an `importlib.reload` of a module whose source had gone from disk), and chunk 2
+refused to start on a path that no longer existed. Something wrote a fresh
+`.pytest_cache` into the emptied directory at **16:13:16**, ~45 s after that
+session's runner was already dead.
+
+⛔ **WHAT WAS NOT ESTABLISHED, AND IS NOT GUESSED AT:** which process did it. Six
+Claude session temp directories were live on the box and four sibling worktrees
+were touched in the same minutes. The git registration was also gone —
+consistent with `worktree remove`/`prune` and not with a bare `rm -rf` — but
+`.git/worktrees` last changed 24 minutes later, when a *different* worktree was
+created, so that is not evidence about this one either way.
+
+⭐ **NOTHING WAS LOST, AND THAT IS THE ONLY REASON THIS IS A RULE RATHER THAN AN
+INCIDENT REPORT.** Every commit had been pushed; the branch was recreated from
+`origin` byte-for-byte. The next one may not be so lucky. Full forensics:
+`docs/runbooks/indicator-ecosystem-resume.md`.
+
+## ⛔⛔ A MANIFEST IS EDITED AS TEXT — NEVER ROUND-TRIPPED THROUGH A SERIALISER
+
+**Owner ruling, 2026-09-14.** To add or change one entry in `closedTable.json` —
+or any manifest under `app/src/components/chart/engine/ast/*.json` — **insert the
+text at the right place, preserving the file's own formatting.** Never
+`load → mutate → dump` to change part of a document.
+
+⚰️ **MEASURED THE DAY THE RULE WAS WRITTEN.** A script added ONE entry by
+`json.loads` → mutate → `json.dumps(indent=1)` and produced **3,272 insertions and
+3,265 deletions for an eight-line addition**. Every line of a 3,277-line manifest
+moved. Nothing was lost, and that is exactly the problem: the content was correct,
+the JSON parsed, and the damage was entirely in the artifact — an unreviewable
+diff, `git blame` attributing the whole file to one commit, and a guaranteed
+whole-file conflict for the next concurrent edit.
+
+⭐ **THE RAIL:** `app/src/components/chart/engine/ast/manifestFormatting.test.js`.
+Every manifest there is exactly `JSON.stringify(obj, null, 2)` once the handful of
+hand-made blank separator lines are ignored, so a re-serialisation at any other
+indent, with ASCII escaping, or with reordered keys fails at once instead of
+arriving as a 3,000-line diff. The set under test is **read from the directory**,
+never typed, so a manifest added next week is guarded the day it lands. It carries
+a control that re-serialises the real file and asserts the check SEES it.
+
+⚠️ It is not a style test. It exists because the failure is invisible in review.
+
+## ⛔⛔ NEVER VERIFY A RUNNER THROUGH A PIPE — THE PIPE OWNS THE EXIT CODE
+
+**Owner ruling, 2026-09-12.** A pipeline's exit status is the **last** command's.
+Piping a runner into `| tail`, `| findstr`, `| Select-Object`, `| head` or
+`| grep` throws the runner's status away and replaces it with the filter's — and
+a filter that read some text always succeeds.
+
+⛔⛔ **AND THE SAME IS TRUE OF A SEMICOLON: THE LAST ELEMENT OF A COMPOUND COMMAND
+OWNS THE STATUS. NEVER END A VERIFICATION IN `echo`.** A pipe is the famous case;
+`cmd; echo $?` is the quiet one. It PRINTS the runner's code and then EXITS with
+the echo's — `0` — so a human reading the terminal sees the truth and anything
+reading the process's exit status sees a pass.
+
+```bash
+# ⛔ WRONG — tail's status, and tail always succeeds
+python tools/pytest_chunks.py 2>&1 | tail -30        # → 0, whatever happened
+
+# ⛔ ALSO WRONG — this PRINTS the code and EXITS 0, because echo is last
+python tools/pytest_chunks.py > run.log 2>&1; echo "EXIT: $?"
+
+# ✅ RIGHT — capture it, print it, then exit with it
+python tools/pytest_chunks.py > run.log 2>&1; code=$?; echo "EXIT: $code"; exit $code
+tail -3 run.log        # the VERDICT line
+```
+
+```powershell
+# ⛔ WRONG — $LASTEXITCODE is echoed, and the compound still ends 0
+python tools/pytest_chunks.py *> run.log ; $LASTEXITCODE
+
+# ✅ RIGHT — capture BEFORE anything else runs, then exit with it
+python tools/pytest_chunks.py *> run.log
+$code = $LASTEXITCODE; Write-Output "EXIT: $code"; exit $code
+```
+
+⚠️ **`$LASTEXITCODE` IS CLOBBERED BY THE NEXT NATIVE COMMAND**, so capture it on
+the very next line — a `Get-Content run.log` in between and you are reading that
+instead.
+
+⚰️ **MEASURED, TWICE, ON THE SAME TOOL.** On 2026-09-10 three OOM-killed pytest
+runs all read as clean because each was piped to `tail`. On 2026-09-12 the same
+mistake hid a lane run that executed **one chunk of twelve** and then crashed:
+the reader saw `[exited with code 0]`. And while building the fix, the
+verification command reproduced it a third time —
+`python tools/pytest_chunks.py --out-dir . --only 1` exits **2** bare and **0**
+through `| tail -1`.
+
+⭐ **THE RUNNER NOW PRINTS A `VERDICT:` LINE AS ITS LAST LINE** so a piped run is
+still legible — but that is a **mitigation, not a fix**. The exit code is still
+gone. Read both. `tests/test_pytest_chunks_runner.py` carries a reproduction of
+BOTH maskings — the pipe and the trailing `echo` — so the next reader does not
+have to take either on trust.
+
+⚰️ **THE FOURTH TIME, 2026-09-13, AND IT WAS THE RECOMMENDED RECIPE.** The full
+12-chunk lane after the `feat/indicator-r0r1` merge ran `… > log 2>&1; echo "EXIT:
+$?"` — the form this very section used to recommend. The runner's own log said
+`VERDICT: FAIL — red chunks [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]`, and the status
+reported back to the session was **`exit code 0`**, because `echo` was last. The
+lane was read correctly only because the VERDICT line exists and was read from the
+FILE. **A rule that fixes the pipe and leaves the semicolon has fixed the example,
+not the defect.**
+
+
+## ⛔⛔ A FRESH WORKTREE, AND THE JUNCTION THAT DELETED A LIVE `node_modules`
+
+<!-- merge seam 2026-09-13: both sides inserted a worktree warning here and BOTH
+     are kept. The heading is added by the merge so master's block is not read as
+     a continuation of the pipe rule above it, which is about test runners. -->
 ⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**
 `git worktree add` copies tracked files only, and `node_modules` is gitignored, so `npx vitest`
 in a new worktree fails at config load (`Cannot find package 'vite'`) — a startup error, not a
@@ -3816,9 +3964,13 @@ timezone=_ET)` — **05:00 ET**, `max_instances=1`. Read the two constants from
 
 ### The door a member actually walks through
 
-`/screener` → `pages/Screener.jsx` → `components/screener/SavedScreensPanel.jsx` →
-`ScanResults.jsx` → `CoverageLine.jsx`, reading **`GET /api/scans/definition-results`**
-(`api/routers/scan_results.py`, mounted in `main.py`).
+`/screener` → `pages/Screener.jsx` → `pages/screener/shell/ScannerShell.jsx` →
+`pages/screener/ScreensManager.jsx` → `components/screener/ScanResults.jsx` →
+`CoverageLine.jsx`, reading **`GET /api/scans/definition-results`**
+(`api/routers/scan_results.py`, mounted in `main.py`). ⚰️ This said
+`SavedScreensPanel.jsx` — deleted 2026-08-22, replaced by `ScreensManager.jsx`;
+same stale-name incident as the "E-4 has not wired a surface" false claim two
+sections up, corrected the same day for the same reason (RISK-015, Phase One).
 
 ⭐ **`CoverageLine` is the idiom worth copying anywhere a result set can be short:**
 FOUR counts — *evaluated · answered · dropped · not computable* — because *"we could

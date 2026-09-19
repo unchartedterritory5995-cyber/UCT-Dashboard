@@ -1,0 +1,149 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Dark_Ace_Master
+
+//@version=6
+// ==============================================================================================
+//  I N S T I T U T I O N A L   S M C   &   O R D E R   F L O W   M A T R I X   P R O
+// ==============================================================================================
+
+indicator("Institutional SMC & Order Flow Matrix PRO", "SMC OrderFlow Matrix", overlay = true, max_lines_count = 500, max_boxes_count = 100, max_labels_count = 500)
+
+// 1. INPUTS & CONFIGURATION PANEL
+
+// A. Market Structure Customization
+g_struct         = "===== MARKET STRUCTURE (SWING & INTERNAL) ====="
+show_struct      = input.bool(true, "Show Market Structure (BOS / CHoCH)", group=g_struct)
+struct_len       = input.int(10, "Structure Sensitivity Period", minval=3, maxval=50, group=g_struct)
+bos_style_str    = input.string("Dashed", "BOS Line Style", options=["Solid", "Dashed", "Dotted"], group=g_struct)
+choch_style_str  = input.string("Solid", "CHoCH Line Style", options=["Solid", "Dashed", "Dotted"], group=g_struct)
+struct_width     = input.int(1, "Structure Line Thickness", minval=1, maxval=4, group=g_struct)
+c_bos            = input.color(#00e5ff, "BOS Line Color", group=g_struct)
+c_choch          = input.color(#ff6d00, "CHoCH Line Color", group=g_struct)
+
+// B. Order Block & Imbalance Zone Settings
+g_zone           = "===== ORDER BLOCK & IMBALANCE ZONES ====="
+show_zones       = input.bool(true, "Show Active Order Blocks", group=g_zone)
+zone_opacity     = input.int(85, "Zone Fill Transparency (0-100)", minval=0, maxval=100, group=g_zone)
+zone_border_w    = input.int(1, "Zone Border Thickness", minval=0, maxval=4, group=g_zone)
+c_bull_zone      = input.color(#00e676, "Bullish Zone Color", group=g_zone)
+c_bear_zone      = input.color(#ff1744, "Bearish Zone Color", group=g_zone)
+c_zone_border    = input.color(#000000, "Zone Border Color (Select Translucent if None)", group=g_zone)
+
+// Zone Text Customization
+zone_text_val    = input.string("Order Block", "Zone Display Text", group=g_zone)
+c_zone_text      = input.color(#ffffff, "Zone Text Color", group=g_zone)
+zone_txt_size    = input.string("tiny", "Zone Text Size", options=["tiny", "small", "normal"], group=g_zone)
+zone_txt_align   = input.string("Right", "Zone Text Alignment", options=["Left", "Center", "Right"], group=g_zone)
+
+// C. Major Pivot Badges (ITH / ITL)
+g_ith_itl        = "===== MAJOR SWING EXTREMES (ITH / ITL) ====="
+show_ith_itl     = input.bool(true, "Show Major ITH / ITL Badges", group=g_ith_itl)
+ith_sens         = input.int(20, "Pivot Lookback Sensitivity", minval=5, maxval=50, group=g_ith_itl)
+c_ith            = input.color(#d50000, "ITH Badge Color (Red)", group=g_ith_itl)
+c_itl            = input.color(#00c853, "ITL Badge Color (Green)", group=g_ith_itl)
+
+// D. Trend Candle Theme
+g_candle         = "===== INSTITUTIONAL CANDLE HEATMAP ====="
+show_candles     = input.bool(true, "Enable Trend Candle Heatmap", group=g_candle)
+c_bull_c         = input.color(#00e676, "Bullish Candle Color", group=g_candle)
+c_bear_c         = input.color(#ff1744, "Bearish Candle Color", group=g_candle)
+c_gold_exp       = input.color(#ffd700, "Gold Displacement Candle Color", group=g_candle)
+
+// Convert Line Styles & Enums
+line_style(s) => s == "Solid" ? line.style_solid : s == "Dashed" ? line.style_dashed : line.style_dotted
+txt_size_enum(s) => s == "tiny" ? size.tiny : s == "small" ? size.small : size.normal
+txt_align_enum(s) => s == "Left" ? text.align_left : s == "Center" ? text.align_center : text.align_right
+
+atrVal = ta.atr(14)
+
+// 2. MAJOR PIVOT DETECTOR (ITH / ITL)
+ph_m = ta.pivothigh(high, ith_sens, ith_sens)
+pl_m = ta.pivotlow(low, ith_sens, ith_sens)
+
+var int trend_state = 0 // 1 = Bullish, -1 = Bearish
+
+if not na(ph_m)
+    trend_state := -1
+if not na(pl_m)
+    trend_state := 1
+
+if show_ith_itl and not na(ph_m)
+    int idx = bar_index - ith_sens
+    label.new(idx, high[ith_sens] + (atrVal * 0.25), "ITH", color=c_ith, textcolor=color.white, style=label.style_label_down, size=size.small)
+
+if show_ith_itl and not na(pl_m)
+    int idx = bar_index - ith_sens
+    label.new(idx, low[ith_sens] - (atrVal * 0.25), "ITL", color=c_itl, textcolor=color.white, style=label.style_label_up, size=size.small)
+
+// 3. CANDLE HEATMAP & GOLD DISPLACEMENT
+bool is_bull_fvg = (low[0] > high[2]) and (close > open)
+bool is_bear_fvg = (high[0] < low[2]) and (close < open)
+bool is_displacement = is_bull_fvg or is_bear_fvg
+
+color current_candle_col = is_displacement ? c_gold_exp : (trend_state == 1 ? c_bull_c : (trend_state == -1 ? c_bear_c : (close >= open ? c_bull_c : c_bear_c)))
+
+plotcandle(show_candles ? open : na, show_candles ? high : na, show_candles ? low : na, show_candles ? close : na, title="Heatmap Candles", color=current_candle_col, wickcolor=current_candle_col, bordercolor=current_candle_col)
+
+// 4. PRECISION MARKET STRUCTURE (SWING ANCHORED & CENTERED TEXT)
+ph_s = ta.pivothigh(high, struct_len, struct_len)
+pl_s = ta.pivotlow(low, struct_len, struct_len)
+
+var float last_ph_s = na
+var int last_ph_idx = na
+var float last_pl_s = na
+var int last_pl_idx = na
+
+if not na(ph_s)
+    last_ph_s := ph_s
+    last_ph_idx := bar_index - struct_len
+
+if not na(pl_s)
+    last_pl_s := pl_s
+    last_pl_idx := bar_index - struct_len
+
+if show_struct and not na(last_ph_s) and ta.crossover(close, last_ph_s)
+    line.new(last_ph_idx, last_ph_s, bar_index, last_ph_s, color=c_bos, style=line_style(bos_style_str), width=struct_width)
+    int mid_idx = math.floor((last_ph_idx + bar_index) / 2)
+    label.new(mid_idx, last_ph_s, "BOS", color=color.new(#000000, 100), textcolor=c_bos, style=label.style_label_center, size=size.tiny)
+    last_ph_s := na
+
+if show_struct and not na(last_pl_s) and ta.crossunder(close, last_pl_s)
+    line.new(last_pl_idx, last_pl_s, bar_index, last_pl_s, color=c_choch, style=line_style(choch_style_str), width=struct_width)
+    int mid_idx = math.floor((last_pl_idx + bar_index) / 2)
+    label.new(mid_idx, last_pl_s, "CHoCH", color=color.new(#000000, 100), textcolor=c_choch, style=label.style_label_center, size=size.tiny)
+    last_pl_s := na
+
+// 5. SMART AUTO-CLEAN ORDER BLOCK ZONES
+var box[] bull_boxes = array.new_box()
+var box[] bear_boxes = array.new_box()
+
+if show_zones and is_bull_fvg
+    if array.size(bull_boxes) >= 3
+        box.delete(array.shift(bull_boxes))
+    box b = box.new(left=bar_index - 2, top=low[0], right=bar_index + 10, bottom=high[2], border_color=c_zone_border, bgcolor=color.new(c_bull_zone, zone_opacity), text=zone_text_val, text_color=c_zone_text, text_size=txt_size_enum(zone_txt_size), text_halign=txt_align_enum(zone_txt_align))
+    array.push(bull_boxes, b)
+
+if show_zones and is_bear_fvg
+    if array.size(bear_boxes) >= 3
+        box.delete(array.shift(bear_boxes))
+    box b = box.new(left=bar_index - 2, top=low[2], right=bar_index + 10, bottom=high[0], border_color=c_zone_border, bgcolor=color.new(c_bear_zone, zone_opacity), text=zone_text_val, text_color=c_zone_text, text_size=txt_size_enum(zone_txt_size), text_halign=txt_align_enum(zone_txt_align))
+    array.push(bear_boxes, b)
+
+// Auto-Clean Mitigated Zones Logic
+if show_zones and array.size(bull_boxes) > 0
+    for i = array.size(bull_boxes) - 1 to 0
+        box b = array.get(bull_boxes, i)
+        if low < box.get_bottom(b)
+            box.delete(b)
+            array.remove(bull_boxes, i)
+        else
+            box.set_right(b, bar_index + 8)
+
+if show_zones and array.size(bear_boxes) > 0
+    for i = array.size(bear_boxes) - 1 to 0
+        box b = array.get(bear_boxes, i)
+        if high > box.get_top(b)
+            box.delete(b)
+            array.remove(bear_boxes, i)
+        else
+            box.set_right(b, bar_index + 8)

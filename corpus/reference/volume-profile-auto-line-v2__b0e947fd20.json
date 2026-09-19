@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b0e947fd20674cfcaa821fb6298e88d5",
+ "title": "Volume Profile Auto [line] v2",
+ "author": "fikira",
+ "url": "https://www.tradingview.com/script/pTCl4kV6-volume-profile-auto-line-v2/",
+ "agreeCount": 5284,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-profile-auto-line-v2__b0e947fd20.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-auto-line-v2__b0e947fd20.pine",
+ "our_status": "committed"
+}

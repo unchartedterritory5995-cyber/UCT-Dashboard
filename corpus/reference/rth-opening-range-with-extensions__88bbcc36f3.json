@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;88bbcc36f36a4dc885c6e7b705ec6410",
+ "title": "RTH Opening Range with Extensions",
+ "author": "LeoTheTiger",
+ "url": "https://www.tradingview.com/script/o3bcvu5z-rth-opening-range-with-extensions/",
+ "agreeCount": 618,
+ "category": "session tools",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/rth-opening-range-with-extensions__88bbcc36f3.pine",
+ "our_status": "reference-only"
+}

@@ -44,10 +44,17 @@ const refusalOf = (body) => {
 }
 
 describe('a refusal names the authority that actually disagrees', () => {
-  it('⭐⭐ a request-dependent built-in is not called unknown — its siblings are held', () => {
-    const msg = refusalOf('plot(barstate.islast ? close : open)')
-    expect(msg).toMatch(/holds its siblings/i)
-    expect(msg).toMatch(/depends on how many bars/i)
+  it('⭐⭐ a fetch-dependent built-in is not called unknown — its siblings are held', () => {
+    // ⚰️ THE SUBJECT WAS `barstate.islast` AND IT NOW TRANSLATES — the
+    // request-dependent refusal was withdrawn on 2026-09-09 because its reasoning
+    // was wrong about which end of the series moves. `barstate.isfirst` is the end
+    // that DOES move, so it carries the same burden this file was written to
+    // check: refused, but never as an unknown name.
+    const msg = refusalOf('plot(barstate.isfirst ? close : open)')
+    expect(msg).toMatch(/depends on how much history was loaded/i)
+    // ⭐ IT NAMES THE SIBLING THAT WORKS, which is what makes the refusal
+    // actionable rather than merely correct.
+    expect(msg).toMatch(/islast/)
     // ⛔ THE CLAUSE THIS FILE EXISTS TO KEEP OUT.
     expect(msg).not.toMatch(/names something the engine grammar does not hold/i)
   })

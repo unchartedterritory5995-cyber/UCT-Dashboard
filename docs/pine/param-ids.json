@@ -1,0 +1,1244 @@
+{
+  "corpus/committed/3-level-zigzag-semafor__3078.pine": {
+    "__uct_param_1": "Show ZigZag:",
+    "__uct_param_2": "Use Alt Timeframe 1?"
+  },
+  "corpus/committed/4c-nyse-market-breadth-ratio__722410befd.pine": {},
+  "corpus/committed/72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine": {
+    "__uct_param_1": "Show Adaptive HMA+ Distance Zone",
+    "__uct_param_2": "Show MA?",
+    "__uct_param_3": "Flat Market when xHMA's slope below",
+    "__uct_param_4": "Activate 2nd order with xHMA+ exits",
+    "__uct_param_5": "Use StopLoss"
+  },
+  "corpus/committed/ad-line-of-sp-sectors__af306a4359.pine": {
+    "__uct_param_1": "Repaint"
+  },
+  "corpus/committed/adaptive-trend-following-suite-alpha-extract__d615e5a027.pine": {
+    "__uct_param_1": "Enable RSI Component",
+    "__uct_param_2": "Enable CCI Component",
+    "__uct_param_3": "RSI Analysis Period",
+    "__uct_param_4": "Z-Analysis Period",
+    "__uct_param_5": "Z-Significance Level",
+    "__uct_param_6": "Signal Confidence Threshold",
+    "__uct_param_7": "Enable Market Structure Analysis",
+    "__uct_param_8": "Structure Threshold"
+  },
+  "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine": {
+    "__uct_param_1": "Show Indicator",
+    "__uct_param_2": "Show Indicator",
+    "__uct_param_3": "Show Indicator",
+    "__uct_param_4": "Show Indicator",
+    "__uct_param_5": "Show Indicator",
+    "__uct_param_6": "Enable Signal 1 (Plot & Alert)",
+    "__uct_param_7": "Enable Signal 2 (Plot & Alert)",
+    "__uct_param_8": "Enable Signal 3 (Plot & Alert)",
+    "__uct_param_9": "Enable Gradient Ribbon"
+  },
+  "corpus/committed/adx-and-di-for-v4__932.pine": {
+    "__uct_param_1": "len"
+  },
+  "corpus/committed/ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine": {},
+  "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine": {},
+  "corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine": {
+    "__uct_param_1": "Show",
+    "__uct_param_2": "Show",
+    "__uct_param_3": "Show",
+    "__uct_param_4": "Show",
+    "__uct_param_5": "Show",
+    "__uct_param_6": "Show",
+    "__uct_param_7": "Show",
+    "__uct_param_8": "Show",
+    "__uct_param_9": "Show",
+    "__uct_param_10": "Show",
+    "__uct_param_11": "Show",
+    "__uct_param_12": "Show"
+  },
+  "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine": {
+    "__uct_param_1": "Show Volume Pressure",
+    "__uct_param_2": "Period",
+    "__uct_param_3": "Period",
+    "__uct_param_4": "Show Cross Dots",
+    "__uct_param_5": "Adaptive OB/OS Zones",
+    "__uct_param_6": "Overbought",
+    "__uct_param_7": "Oversold"
+  },
+  "corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine": {},
+  "corpus/committed/atr-bands__ad60b125e6.pine": {
+    "__uct_param_1": "Show opposite bands for take-profit zones"
+  },
+  "corpus/committed/atr-god-strategy-by-tradesmart__4369755a29.pine": {
+    "__uct_param_1": "ATR Multiplier 1",
+    "__uct_param_2": "ATR Period 1",
+    "__uct_param_3": "ATR Multiplier 2",
+    "__uct_param_4": "ATR Period 2",
+    "__uct_param_5": "ATR Multiplier 3",
+    "__uct_param_6": "ATR Period 3",
+    "__uct_param_7": "ATR Multiplier 4",
+    "__uct_param_8": "ATR Period 4",
+    "__uct_param_9": "ATR Limiter Length",
+    "__uct_param_10": "Plot Signals"
+  },
+  "corpus/committed/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine": {
+    "__uct_param_1": "Step Size",
+    "__uct_param_2": "ATR Period",
+    "__uct_param_3": "Show signals?"
+  },
+  "corpus/committed/atr-stop-loss-indicator__LOfv1FvRhL.pine": {},
+  "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine": {
+    "__uct_param_1": "ATR Period",
+    "__uct_param_2": "ATR Multiple",
+    "__uct_param_3": "Period",
+    "__uct_param_4": "Mid Zone Bottom",
+    "__uct_param_5": "Mid Zone Top",
+    "__uct_param_6": "Overbought Level",
+    "__uct_param_7": "Oversold Level",
+    "__uct_param_8": "EMA Period",
+    "__uct_param_9": "",
+    "__uct_param_10": "Period"
+  },
+  "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine": {
+    "__uct_param_1": "Fast ATR multiplier",
+    "__uct_param_2": "Fast ATR period",
+    "__uct_param_3": "Slow ATR multiplier",
+    "__uct_param_4": "Slow ATR period"
+  },
+  "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine": {
+    "__uct_param_1": "Multiplier",
+    "__uct_param_2": "Atr Period",
+    "__uct_param_3": "HHV Period"
+  },
+  "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine": {
+    "__uct_param_1": "Multiplier",
+    "__uct_param_2": "Atr Period",
+    "__uct_param_3": "HHV Period"
+  },
+  "corpus/committed/atr-trend-bands-misu__a34d44410a.pine": {},
+  "corpus/committed/auto-harmonic-patterns-open-source__ca6022754b.pine": {},
+  "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine": {},
+  "corpus/committed/auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine": {},
+  "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine": {
+    "__uct_param_1": "Historical Plot",
+    "__uct_param_2": "Offset",
+    "__uct_param_3": "",
+    "__uct_param_4": "",
+    "__uct_param_5": ""
+  },
+  "corpus/committed/banknifty-mcclellan-oscillator__A2qCyYWwcs.pine": {},
+  "corpus/committed/bigbeluga-smart-money-concepts__e41b7abd03.pine": {},
+  "corpus/committed/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine": {},
+  "corpus/committed/blackflag-fts__GdkmXaTINI.pine": {
+    "__uct_param_1": "ATR Factor",
+    "__uct_param_2": "Show Fib Entries?"
+  },
+  "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine": {
+    "__uct_param_1": "Offset",
+    "__uct_param_2": "length",
+    "__uct_param_3": "StdDev",
+    "__uct_param_4": "Show boxes break"
+  },
+  "corpus/committed/bollinger-band-width-percentile__03JuGF728K.pine": {
+    "__uct_param_1": "Basis MA Length.",
+    "__uct_param_2": "Extreme High",
+    "__uct_param_3": "Extreme Low"
+  },
+  "corpus/committed/boom-hunter-entry-point-screener-alerts__0fc5982548.pine": {},
+  "corpus/committed/breaks-and-retests-hg__ddba061af8.pine": {},
+  "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine": {
+    "__uct_param_1": "Show Both EMAs",
+    "__uct_param_2": "Fast EMA",
+    "__uct_param_3": "Slow EMA",
+    "__uct_param_4": "MA Length",
+    "__uct_param_5": "RSI Length",
+    "__uct_param_6": "Stochastic Length",
+    "__uct_param_7": "K",
+    "__uct_param_8": "D",
+    "__uct_param_9": "Middle Band"
+  },
+  "corpus/committed/bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine": {},
+  "corpus/committed/buy-monday-exit-tuesday__8f2f69cc99.pine": {},
+  "corpus/committed/camarilla-screener__UsBJPF3MkA.pine": {},
+  "corpus/committed/camarilla__jw9faob08r.pine": {
+    "__uct_param_1": "Show Golden Rope",
+    "__uct_param_2": "Show EMA",
+    "__uct_param_3": "Show Camarilla",
+    "__uct_param_4": "Hide Historial",
+    "__uct_param_5": "[GRaB] Show Wave",
+    "__uct_param_6": "[GRaB] EMA Period",
+    "__uct_param_7": "Show VWAP Line",
+    "__uct_param_8": "[Hull] Show indicator",
+    "__uct_param_9": "[Hull] Show as a Band?",
+    "__uct_param_10": "[vpt] Show bands",
+    "__uct_param_11": "[vpt] Show arrows",
+    "__uct_param_12": "[vpt] smooth Lenght",
+    "__uct_param_13": "[vpt] Window Lenght",
+    "__uct_param_14": "smooth1",
+    "__uct_param_15": "len",
+    "__uct_param_16": "Fibonacci Ratio 2",
+    "__uct_param_17": "PivotBoss Extreme Reversal Setup",
+    "__uct_param_18": "PivotBoss Outside Reversal Setup"
+  },
+  "corpus/committed/candelacharts-equal-highslows-eqheql__4485a6c447.pine": {},
+  "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine": {
+    "__uct_param_1": "Doji size",
+    "__uct_param_2": "Trend in Bars"
+  },
+  "corpus/committed/candlestick-patterns-on-backtest__c85b9d3ec6.pine": {},
+  "corpus/committed/cc-yata__bd898a1af0.pine": {
+    "__uct_param_1": "Show Stealth 9",
+    "__uct_param_2": "Show Support and Resistance",
+    "__uct_param_3": "Show 1 to 13 |",
+    "__uct_param_4": "Only 13 |"
+  },
+  "corpus/committed/cdc-btc-rainbow-road__d880789793.pine": {
+    "__uct_param_1": "MA Length",
+    "__uct_param_2": "Channel Multipler",
+    "__uct_param_3": "Level 00",
+    "__uct_param_4": "Level 06",
+    "__uct_param_5": "Level 05",
+    "__uct_param_6": "Level 04",
+    "__uct_param_7": "Level 03",
+    "__uct_param_8": "Level 02",
+    "__uct_param_9": "Level 01"
+  },
+  "corpus/committed/chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine": {
+    "__uct_param_1": "",
+    "__uct_param_2": "",
+    "__uct_param_3": "",
+    "__uct_param_4": "",
+    "__uct_param_5": "",
+    "__uct_param_6": "",
+    "__uct_param_7": "",
+    "__uct_param_8": "",
+    "__uct_param_9": ""
+  },
+  "corpus/committed/chart-vwap__804099ca2f.pine": {
+    "__uct_param_1": "Standard deviation multiplier"
+  },
+  "corpus/committed/contraction-box-doji-lines__1486658151.pine": {},
+  "corpus/committed/correlation-matrix__dzN3DMCFJL.pine": {},
+  "corpus/committed/cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine": {
+    "__uct_param_1": "Show Floor Pivots",
+    "__uct_param_2": "Show Floor Pivot Levels Dynamically",
+    "__uct_param_3": "Dynamic Pivot ATR Period",
+    "__uct_param_4": "ATR Threshold for Dynamic Floor Pivots",
+    "__uct_param_5": "Show CPR",
+    "__uct_param_6": "Moving Average 1 Offset",
+    "__uct_param_7": "Enable 1st Moving Average",
+    "__uct_param_8": "Moving Average 2 Offset",
+    "__uct_param_9": "Enable 2nd Moving Average",
+    "__uct_param_10": "Moving Average 3 Offset",
+    "__uct_param_11": "Enable 3rd Moving Average",
+    "__uct_param_12": "BB Offset",
+    "__uct_param_13": "Enable Bollinger Band",
+    "__uct_param_14": "Show Bollinger Basis",
+    "__uct_param_15": "BB Length",
+    "__uct_param_16": "BB StdDev"
+  },
+  "corpus/committed/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine": {
+    "__uct_param_1": "Plot CPR?",
+    "__uct_param_2": "Plot Daiy S1/R1?",
+    "__uct_param_3": "Plot Daiy S2/R2?",
+    "__uct_param_4": "Plot Daiy S3/R3?",
+    "__uct_param_5": "Plot Weekly Pivot?",
+    "__uct_param_6": "Plot weekly S1/R1?",
+    "__uct_param_7": "Plot weekly S2/R2?",
+    "__uct_param_8": "Plot weekly S3/R3?",
+    "__uct_param_9": "Plot Montly Pivot?",
+    "__uct_param_10": "Plot Monthly S1/R1?",
+    "__uct_param_11": "Plot Monthly S2/R2?",
+    "__uct_param_12": "Plot Montly S3/R3?",
+    "__uct_param_13": "Plot SMA?",
+    "__uct_param_14": "SMA Length",
+    "__uct_param_15": "Plot EMA?",
+    "__uct_param_16": "EMA Length",
+    "__uct_param_17": "Plot VWAP?",
+    "__uct_param_18": "Plot Super Trend?",
+    "__uct_param_19": "Factor",
+    "__uct_param_20": "Lenght"
+  },
+  "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine": {
+    "__uct_param_1": "cumulation_length"
+  },
+  "corpus/committed/cumulative-volume-delta__c772250751.pine": {},
+  "corpus/committed/cvd-cumulative-volume-delta-candles__fb6471a4d9.pine": {
+    "__uct_param_1": "CVD candles",
+    "__uct_param_2": "CVD line",
+    "__uct_param_3": "CVD MA"
+  },
+  "corpus/committed/cvd-cumulative-volume-delta-chart__84da7a14bf.pine": {},
+  "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine": {
+    "__uct_param_1": "Show Filtered Price on chart",
+    "__uct_param_2": "ATR Length",
+    "__uct_param_3": "ATR Mult",
+    "__uct_param_4": "Enter Mult"
+  },
+  "corpus/committed/delta-imbalance-map-joat__b80f337fb3.pine": {},
+  "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine": {
+    "__uct_param_1": "Exit"
+  },
+  "corpus/committed/delta-volume-candles-lucf__qADnaAfCPp.pine": {},
+  "corpus/committed/delta-volume-v21-by-kernel-phi__uP24atP4R0.pine": {
+    "__uct_param_1": "Period of Cumulative Delta, 0 for unrestricted sum"
+  },
+  "corpus/committed/deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine": {
+    "__uct_param_1": "Show signals?"
+  },
+  "corpus/committed/donchian-channels__5df15aaa23.pine": {
+    "__uct_param_1": "Display Basis?",
+    "__uct_param_2": "Period",
+    "__uct_param_3": "EMA Period",
+    "__uct_param_4": "Band Thickness",
+    "__uct_param_5": "Display Upper .786?",
+    "__uct_param_6": "Display Upper Mid Line?",
+    "__uct_param_7": "Display Upper .702?",
+    "__uct_param_8": "Display Upper .382?",
+    "__uct_param_9": "Display Lower .382?",
+    "__uct_param_10": "Display Lower .702?",
+    "__uct_param_11": "Display Lower Mid Line?",
+    "__uct_param_12": "Display Lower .786?"
+  },
+  "corpus/committed/double-topbottom-ultimate-os__bd013ff4f5.pine": {},
+  "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine": {
+    "__uct_param_1": "Show Trendline"
+  },
+  "corpus/committed/elliot-wave-detector-pro__ce1cc9553e.pine": {
+    "__uct_param_1": "Enable Trade Signals",
+    "__uct_param_2": "Primary Wave Swing Length",
+    "__uct_param_3": "Enable MTF Validation"
+  },
+  "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine": {},
+  "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine": {
+    "__uct_param_1": "EMA 9 Length",
+    "__uct_param_2": "EMA 21 Length",
+    "__uct_param_3": "EMA 50 Length",
+    "__uct_param_4": "RSI Length",
+    "__uct_param_5": "Enable Alerts",
+    "__uct_param_6": "MACD Fast Length",
+    "__uct_param_7": "MACD Slow Length",
+    "__uct_param_8": "MACD Signal Length",
+    "__uct_param_9": "RSI Oversold",
+    "__uct_param_10": "RSI Overbought"
+  },
+  "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine": {
+    "__uct_param_1": "Fast EMA",
+    "__uct_param_2": "Mid EMA",
+    "__uct_param_3": "Slow EMA",
+    "__uct_param_4": "Crossover Signals",
+    "__uct_param_5": "Squeeze Detection",
+    "__uct_param_6": "Squeeze Lookback",
+    "__uct_param_7": "Squeeze Ratio",
+    "__uct_param_8": "Moderate → Strong (%)",
+    "__uct_param_9": "Weak → Moderate (%)"
+  },
+  "corpus/committed/engulfingcandle__0df91dc775.pine": {
+    "__uct_param_1": "rsi length",
+    "__uct_param_2": "rsi over sold level",
+    "__uct_param_3": "rsi overbought level"
+  },
+  "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine": {
+    "__uct_param_1": "length",
+    "__uct_param_2": "Use Custom Source ?"
+  },
+  "corpus/committed/fair-value-gap__1048fa103a.pine": {},
+  "corpus/committed/fib-retracement__8XcLscnekw.pine": {},
+  "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine": {},
+  "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine": {},
+  "corpus/committed/fibonacci-retracement-mtflog__54a8dbfa8e.pine": {},
+  "corpus/committed/fibonacci-retracement-statistics-by-volprofex__999c924fce.pine": {},
+  "corpus/committed/flawless-victory-strategy__1BVZuaaWOU.pine": {
+    "__uct_param_1": "Version 2 - Uses SL/TP",
+    "__uct_param_2": "Version 3 - Uses SL/TP"
+  },
+  "corpus/committed/footprint-iq-pro-tradingiq__3b96428a77.pine": {},
+  "corpus/committed/fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine": {},
+  "corpus/committed/fvg-trend__21e364f2ed.pine": {},
+  "corpus/committed/fx-market-sessions__3KZoMPYziy.pine": {},
+  "corpus/committed/heat-map-seasons__53acdf3223.pine": {
+    "__uct_param_1": "Show Regression Line?"
+  },
+  "corpus/committed/heikin-ashi-supertrend__2fb7267210.pine": {
+    "__uct_param_1": "Move Stop Loss"
+  },
+  "corpus/committed/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine": {
+    "__uct_param_1": "Show TSI1",
+    "__uct_param_2": "TSI1 Channel Offset",
+    "__uct_param_3": "Show Channel 1",
+    "__uct_param_4": "Show Channel 2",
+    "__uct_param_5": "Show TSI2",
+    "__uct_param_6": "TSI2 Channel Offset",
+    "__uct_param_7": "Show MAvg",
+    "__uct_param_8": "Plot Bullish",
+    "__uct_param_9": "Pivot Lookback Right TSI1",
+    "__uct_param_10": "Plot Bearish",
+    "__uct_param_11": "Pivot Lookback Right TSI2",
+    "__uct_param_12": "Bar Heikin Ashi Length",
+    "__uct_param_13": "TSI1 Heikin Ashi Length",
+    "__uct_param_14": "Pivot Lookback Right BAR"
+  },
+  "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine": {
+    "__uct_param_1": "Day of week labels"
+  },
+  "corpus/committed/higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8.pine": {},
+  "corpus/committed/highlow-channel-swing__e3692e253c.pine": {
+    "__uct_param_1": "Length Moving averages"
+  },
+  "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine": {},
+  "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine": {},
+  "corpus/committed/ict-institutional-order-flow-fadi__25d4834579.pine": {},
+  "corpus/committed/ict-ipda-look-back__f85b4c8956.pine": {},
+  "corpus/committed/ict-killzone-index-version__28962c02dd.pine": {},
+  "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine": {},
+  "corpus/committed/ict-turtle-soup-flux-charts__053c3e6056.pine": {},
+  "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine": {},
+  "corpus/committed/initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine": {
+    "__uct_param_1": "Turn on H,L,C and IBs for daily?",
+    "__uct_param_2": "Plot previous days High, Low and Close?",
+    "__uct_param_3": "Look back two trading days?",
+    "__uct_param_4": "Plot previous weeks High and Low?"
+  },
+  "corpus/committed/inside-bar-boxes__2f747d848b.pine": {
+    "__uct_param_1": "Show boxes break"
+  },
+  "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine": {
+    "__uct_param_1": "Show Volume Threshold"
+  },
+  "corpus/committed/inside-bar-strategy-w-sl__b39f395d5d.pine": {
+    "__uct_param_1": "Use MA Trend Filter",
+    "__uct_param_2": "MA Length",
+    "__uct_param_3": "# Of Inside Bars in pattern",
+    "__uct_param_4": "Use Stop Loss and Take Profit"
+  },
+  "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine": {
+    "__uct_param_1": "Enable Trend Candle Heatmap"
+  },
+  "corpus/committed/ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine": {},
+  "corpus/committed/k-clustering__8e82f5aa4b.pine": {},
+  "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine": {
+    "__uct_param_1": "Show Filtered Price on chart?"
+  },
+  "corpus/committed/kalman-psar-backquant__0a389f529b.pine": {
+    "__uct_param_1": "Show PSaR on Chart?",
+    "__uct_param_2": "Use Smoothing?"
+  },
+  "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine": {
+    "__uct_param_1": "show extra keltner line above channel",
+    "__uct_param_2": "show both channel and supertrend modes",
+    "__uct_param_3": "Show outer zones combined with supertrend",
+    "__uct_param_4": "toggle channel mode (off) supertrend mode (on)",
+    "__uct_param_5": "automatic lookback adjustment to timeframe",
+    "__uct_param_6": "show extra keltner line below channel",
+    "__uct_param_7": "show last 20 of 40 period Hull Moving Average"
+  },
+  "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine": {
+    "__uct_param_1": "length",
+    "__uct_param_2": "Atr Length"
+  },
+  "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine": {
+    "__uct_param_1": "Show Bands"
+  },
+  "corpus/committed/linear-regression-channel-200__243d67c804.pine": {},
+  "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine": {},
+  "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine": {},
+  "corpus/committed/linear-regression-channel__jiDgL4o6Qx.pine": {},
+  "corpus/committed/liquidation-levels__pi4nVOJgbV.pine": {
+    "__uct_param_1": "Projection offset",
+    "__uct_param_2": "Nonlinear Contract (e.g. COIN-M)",
+    "__uct_param_3": "Level #1",
+    "__uct_param_4": "Maintenance Margin above Liquidation",
+    "__uct_param_5": "Level #2",
+    "__uct_param_6": "Level #3",
+    "__uct_param_7": "Level #4",
+    "__uct_param_8": "Level #5"
+  },
+  "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine": {
+    "__uct_param_1": "Apply Close Filter",
+    "__uct_param_2": "Apply Stop Hunt Wick Filter"
+  },
+  "corpus/committed/liquidity-engulfing-displacement-msf__58824c94f0.pine": {},
+  "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine": {},
+  "corpus/committed/liquidity-levels-sonarlab__bba13c46c4.pine": {},
+  "corpus/committed/liquidity-pools__fa7b28e733.pine": {
+    "__uct_param_1": "Left bar&Right bar",
+    "__uct_param_2": "Show Swing High Swing Low"
+  },
+  "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine": {
+    "__uct_param_1": "Fast Length Long",
+    "__uct_param_2": "Slow Length Long",
+    "__uct_param_3": "Signal Smoothing Long",
+    "__uct_param_4": "Fast Length Short",
+    "__uct_param_5": "Slow Length Short",
+    "__uct_param_6": "Signal Smoothing Short"
+  },
+  "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine": {
+    "__uct_param_1": "Use MA Filter",
+    "__uct_param_2": "MA Filter Length",
+    "__uct_param_3": "Enable Visual Backtest Module?",
+    "__uct_param_4": "Use ADX Filter",
+    "__uct_param_5": "ADX Filter Treshold",
+    "__uct_param_6": "Enable Alert?"
+  },
+  "corpus/committed/machine-learning-knn-based-strategy__lj1Gjlbycb.pine": {},
+  "corpus/committed/machine-learning-logistic-regression-v3__TDlqz0q9TN.pine": {
+    "__uct_param_1": "Show Loss & Prediction Curves?",
+    "__uct_param_2": "Use Price Data for Signal Generation?"
+  },
+  "corpus/committed/machine-learning-lorentzian-classification__21f5ec5277.pine": {
+    "__uct_param_1": "Enhance Kernel Smoothing"
+  },
+  "corpus/committed/machine-learning-lorentzian-classification__5c7960db26.pine": {
+    "__uct_param_1": "Show supertrend ?",
+    "__uct_param_2": "Show ema ?",
+    "__uct_param_3": "Ema length",
+    "__uct_param_4": "Draw position on chart ?",
+    "__uct_param_5": "Draw first take profit/breakeven price on chart ?",
+    "__uct_param_6": "Show stop loss ?",
+    "__uct_param_7": "Show signals on chart ?"
+  },
+  "corpus/committed/machine-learning-moving-average-backquant__4d7ff59e68.pine": {
+    "__uct_param_1": "Show ML Moving Average",
+    "__uct_param_2": "Prediction Horizon"
+  },
+  "corpus/committed/machine-learning-rsi-bullvision__50b4566edd.pine": {
+    "__uct_param_1": "Apply Additional Smoothing",
+    "__uct_param_2": "Enable KNN Machine Learning",
+    "__uct_param_3": " Overbought Level",
+    "__uct_param_4": " Oversold Level"
+  },
+  "corpus/committed/madrid-moving-average-ribbon__1025.pine": {
+    "__uct_param_1": "Expnential MA"
+  },
+  "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine": {},
+  "corpus/committed/market-profile-with-tpo__b2b119d8ab.pine": {},
+  "corpus/committed/market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine": {},
+  "corpus/committed/market-structure-break-order-block__3a1fb6197f.pine": {},
+  "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine": {},
+  "corpus/committed/market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine": {},
+  "corpus/committed/market-structure-trend-targets-chartprime__d3c06abad6.pine": {},
+  "corpus/committed/mcclellan-indicators__29fdf0235d.pine": {},
+  "corpus/committed/mgi-levels-suite__285168ddfb.pine": {},
+  "corpus/committed/momentum-based-zigzag__38d39d2d6c.pine": {
+    "__uct_param_1": "RSI Length",
+    "__uct_param_2": "RSI Smoothing"
+  },
+  "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine": {
+    "__uct_param_1": "RSI Period",
+    "__uct_param_2": "Momentum Smoothing",
+    "__uct_param_3": "ATR Period",
+    "__uct_param_4": "Show Volatility Band",
+    "__uct_param_5": "Bollinger Period",
+    "__uct_param_6": "Bollinger StdDev",
+    "__uct_param_7": "Show Signal Dots",
+    "__uct_param_8": "Neutral Zone Upper",
+    "__uct_param_9": "Neutral Zone Lower",
+    "__uct_param_10": "Overbought",
+    "__uct_param_11": "Oversold",
+    "__uct_param_12": "Highlight Divergences",
+    "__uct_param_13": "Volatility Multiplier"
+  },
+  "corpus/committed/moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine": {
+    "__uct_param_1": "Show MA"
+  },
+  "corpus/committed/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine": {
+    "__uct_param_1": "Minimum Conditions for Signal",
+    "__uct_param_2": "RSI Period",
+    "__uct_param_3": "S/R & Golden Zone Lookback (Bars)",
+    "__uct_param_4": "Volume SMA Period"
+  },
+  "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine": {},
+  "corpus/committed/mtf-watchlist-charts-anan__3453680ea1.pine": {},
+  "corpus/committed/multi-timeframe-fvg-tfo__adbed9f590.pine": {},
+  "corpus/committed/multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine": {
+    "__uct_param_1": "",
+    "__uct_param_2": "",
+    "__uct_param_3": "",
+    "__uct_param_4": "Sell Threshold",
+    "__uct_param_5": "Buy Threshold"
+  },
+  "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine": {},
+  "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine": {
+    "__uct_param_1": "Show Short Term EMA",
+    "__uct_param_2": "Short Term EMA Length",
+    "__uct_param_3": "Show Long Term EMA",
+    "__uct_param_4": "Long Term EMA Length",
+    "__uct_param_5": "Show 1 week",
+    "__uct_param_6": "Show 1 Day",
+    "__uct_param_7": "Show 12H",
+    "__uct_param_8": "Show 6H",
+    "__uct_param_9": "Show 4H",
+    "__uct_param_10": "Show 2H",
+    "__uct_param_11": "Show 1H",
+    "__uct_param_12": "Show 30min",
+    "__uct_param_13": "Show 15min",
+    "__uct_param_14": "Show 10min",
+    "__uct_param_15": "Show 5min",
+    "__uct_param_16": "Show 3min",
+    "__uct_param_17": "Show 2min",
+    "__uct_param_18": "Show 1min"
+  },
+  "corpus/committed/multicator-table__486858895c.pine": {
+    "__uct_param_1": "",
+    "__uct_param_2": "",
+    "__uct_param_3": "",
+    "__uct_param_4": "",
+    "__uct_param_5": "",
+    "__uct_param_6": "",
+    "__uct_param_7": "",
+    "__uct_param_8": "Offset",
+    "__uct_param_9": "",
+    "__uct_param_10": "",
+    "__uct_param_11": "Lagging Span",
+    "__uct_param_12": "Show VWAP",
+    "__uct_param_13": "Show Supertrend",
+    "__uct_param_14": "Show Donchian",
+    "__uct_param_15": "Show Keltner",
+    "__uct_param_16": "Show divergence",
+    "__uct_param_17": "Div pivot L/R",
+    "__uct_param_18": "RSI Period",
+    "__uct_param_19": "Macd Line",
+    "__uct_param_20": "Signal Line",
+    "__uct_param_21": "Hist Line"
+  },
+  "corpus/committed/multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine": {
+    "__uct_param_1": "Offset",
+    "__uct_param_2": "Enabled",
+    "__uct_param_3": "Hide MA from lower timeframe",
+    "__uct_param_4": "Offset",
+    "__uct_param_5": "Enabled",
+    "__uct_param_6": "Offset",
+    "__uct_param_7": "Enabled",
+    "__uct_param_8": "Offset",
+    "__uct_param_9": "Enabled",
+    "__uct_param_10": "Offset",
+    "__uct_param_11": "Enabled",
+    "__uct_param_12": "Offset",
+    "__uct_param_13": "Enabled",
+    "__uct_param_14": "Offset",
+    "__uct_param_15": "Enabled",
+    "__uct_param_16": "Offset",
+    "__uct_param_17": "Enabled",
+    "__uct_param_18": "Offset",
+    "__uct_param_19": "Enabled",
+    "__uct_param_20": "Offset",
+    "__uct_param_21": "Enabled"
+  },
+  "corpus/committed/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine": {
+    "__uct_param_1": "Smooth Colors"
+  },
+  "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine": {
+    "__uct_param_1": "Show SuperTrend Stop",
+    "__uct_param_2": "Enable Scalp Helper Signals"
+  },
+  "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine": {
+    "__uct_param_1": "Show signals"
+  },
+  "corpus/committed/nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine": {},
+  "corpus/committed/one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine": {},
+  "corpus/committed/one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine": {},
+  "corpus/committed/open-interest-profile-fixed-range-by-leviathan__875691ab51.pine": {},
+  "corpus/committed/open-interest-suite-aggregated-by-leviathan__44b150b3df.pine": {
+    "__uct_param_1": "Binance USDT.P_OI",
+    "__uct_param_2": "OI EMA",
+    "__uct_param_3": "Show Thresholds"
+  },
+  "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine": {
+    "__uct_param_1": "OP label position",
+    "__uct_param_2": "Show Mid levels",
+    "__uct_param_3": "OR label position",
+    "__uct_param_4": "IB label position"
+  },
+  "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine": {
+    "__uct_param_1": "Use Exponential MA",
+    "__uct_param_2": "length",
+    "__uct_param_3": "ATR Length",
+    "__uct_param_4": "Multiplier"
+  },
+  "corpus/committed/optimized-trend-tracker__ZhWiFvtpwE.pine": {
+    "__uct_param_1": "Show Support Line?"
+  },
+  "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine": {},
+  "corpus/committed/order-block-finder__fVSb3j0I87.pine": {
+    "__uct_param_1": "Relevant Periods to identify OB"
+  },
+  "corpus/committed/order-blocks__b324078711.pine": {},
+  "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine": {
+    "__uct_param_1": "Use Alt Timeframe?"
+  },
+  "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine": {},
+  "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine": {
+    "__uct_param_1": "Left Bars",
+    "__uct_param_2": "Right Bars"
+  },
+  "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine": {
+    "__uct_param_1": "Pivot Point Period",
+    "__uct_param_2": "Show PP Center Line",
+    "__uct_param_3": "Show Support/Resistance"
+  },
+  "corpus/committed/pivot-trendlines-with-breaks-hg__f1464ad5b7.pine": {},
+  "corpus/committed/pmax-explorer__jN9HBNhynF.pine": {
+    "__uct_param_1": "Show Moving Average?",
+    "__uct_param_2": "Moving Average Length"
+  },
+  "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine": {},
+  "corpus/committed/position-size-calc__a42db1a620.pine": {},
+  "corpus/committed/position-size-calculator__28sGm8JqI3.pine": {
+    "__uct_param_1": "Entry",
+    "__uct_param_2": "Target Price",
+    "__uct_param_3": "Stop Loss"
+  },
+  "corpus/committed/power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine": {},
+  "corpus/committed/previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine": {},
+  "corpus/committed/previous-n-daysweeksmonths-high-low__78f5b05522.pine": {
+    "__uct_param_1": "Previous N Days",
+    "__uct_param_2": "Previous N Weeks",
+    "__uct_param_3": "Previous N Months"
+  },
+  "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine": {
+    "__uct_param_1": "Pivot Detection: Right Bars",
+    "__uct_param_2": "Pivot Detection: Left Bars"
+  },
+  "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine": {},
+  "corpus/committed/qqe-signals__EhBrwQPjZ1.pine": {
+    "__uct_param_1": "RSI Length",
+    "__uct_param_2": "RSI Smoothing",
+    "__uct_param_3": "Fast QQE Factor"
+  },
+  "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine": {},
+  "corpus/committed/range-filter-dw__pshyCmQSql.pine": {
+    "__uct_param_1": "Average Filter Changes"
+  },
+  "corpus/committed/rate-of-change__5efd12f955.pine": {
+    "__uct_param_1": "Indicator Smoothing",
+    "__uct_param_2": "",
+    "__uct_param_3": "",
+    "__uct_param_4": "Display Basis",
+    "__uct_param_5": "",
+    "__uct_param_6": "Pivot Period Right",
+    "__uct_param_7": "Pivot Period Left",
+    "__uct_param_8": "Bullish",
+    "__uct_param_9": "Hidden Bullish",
+    "__uct_param_10": "Bearish",
+    "__uct_param_11": "Hidden Bearish"
+  },
+  "corpus/committed/relative-volume-at-time__gei8CBKbc5.pine": {},
+  "corpus/committed/relative-volume__LnFmPEoFXQ.pine": {
+    "__uct_param_1": "Show Entry Signals?",
+    "__uct_param_2": "Show LSMA 6 Entry Points",
+    "__uct_param_3": "Show LSMA 21 Entry Points",
+    "__uct_param_4": "LSMA Length",
+    "__uct_param_5": "Show Trend Columns",
+    "__uct_param_6": "Show Alert Signal?",
+    "__uct_param_7": "Show Anomalies",
+    "__uct_param_8": "Alert when volume reaches"
+  },
+  "corpus/committed/renderingnature-smc-reversal-engine-v71__f8734584d9.pine": {
+    "__uct_param_1": "Auto Fractal Sensitivity?",
+    "__uct_param_2": "Show Structure Levels",
+    "__uct_param_3": "Light Mode (reduces drawings only)",
+    "__uct_param_4": "Enable EMA Context Signals",
+    "__uct_param_5": "Auto EMA Lengths",
+    "__uct_param_6": "Enable Developing HL/LH Hint",
+    "__uct_param_7": "Enable Early Top Warning",
+    "__uct_param_8": "Enable Liquidity Sweeps",
+    "__uct_param_9": "Alert On First OTE Entry",
+    "__uct_param_10": "Enable OTE / Fibonacci",
+    "__uct_param_11": "Alert TP1",
+    "__uct_param_12": "Enable TP Reference Extensions",
+    "__uct_param_13": "Alert TP2",
+    "__uct_param_14": "Enable MTF Scanner",
+    "__uct_param_15": "Enable Confluence",
+    "__uct_param_16": "Weight: Structure",
+    "__uct_param_17": "Weight: Liquidity",
+    "__uct_param_18": "Enable HTF Reaction Zones",
+    "__uct_param_19": "Weight: HTF Zone",
+    "__uct_param_20": "Weight: OTE",
+    "__uct_param_21": "Enable Breaker Zones",
+    "__uct_param_22": "Weight: Breaker Retest",
+    "__uct_param_23": "Enable FVG Zones",
+    "__uct_param_24": "Weight: FVG",
+    "__uct_param_25": "Weight: Momentum / Trend",
+    "__uct_param_26": "Weight: MTF Context",
+    "__uct_param_27": "Weight: Trendline Pressure"
+  },
+  "corpus/committed/renko-candles-overlay__d76a18d49e.pine": {},
+  "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine": {
+    "__uct_param_1": "",
+    "__uct_param_2": "Scale Hi",
+    "__uct_param_3": "Smooth 2",
+    "__uct_param_4": "Smooth 1",
+    "__uct_param_5": "SMI Length",
+    "__uct_param_6": "",
+    "__uct_param_7": "Alert Hi",
+    "__uct_param_8": "",
+    "__uct_param_9": "",
+    "__uct_param_10": "Show SMI eq",
+    "__uct_param_11": "Show Signal Line Crossover",
+    "__uct_param_12": "MA Length",
+    "__uct_param_13": ""
+  },
+  "corpus/committed/rolling-vwap__043320bb57.pine": {
+    "__uct_param_1": "Bands multiplier 1",
+    "__uct_param_2": "Bands multiplier 2",
+    "__uct_param_3": "Bands multiplier 3"
+  },
+  "corpus/committed/rsi-horizontal-resistance-levels__a3f8454f81.pine": {},
+  "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine": {},
+  "corpus/committed/rsi-trendlines-with-breakouts-hg__033f4cab46.pine": {
+    "__uct_param_1": "RSI Length"
+  },
+  "corpus/committed/rsi-vwap-indicator__pTI5ZVw9n4.pine": {
+    "__uct_param_1": "RSI/VWAP Overbought",
+    "__uct_param_2": "RSI/VWAP Oversold"
+  },
+  "corpus/committed/rvol__05fcd9e160.pine": {
+    "__uct_param_1": "Smooth RVOL?",
+    "__uct_param_2": "Average Length",
+    "__uct_param_3": "Base Level"
+  },
+  "corpus/committed/scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine": {},
+  "corpus/committed/screener-mean-reversion-channel__nTK2sHWDlB.pine": {},
+  "corpus/committed/sector-rotation__0fca060bf4.pine": {},
+  "corpus/committed/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine": {},
+  "corpus/committed/session-hilo__WM2g5GtC4h.pine": {
+    "__uct_param_1": "Show Lines | "
+  },
+  "corpus/committed/session-tpo-profile__41088ef96d.pine": {},
+  "corpus/committed/sessions__2677.pine": {},
+  "corpus/committed/smart-money-breakout-channels-algoalpha__8c2d234156.pine": {},
+  "corpus/committed/smart-money-breakouts-chartprime__ea79c79a67.pine": {
+    "threw": "this Pine line is not a shape the translator reads"
+  },
+  "corpus/committed/smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine": {},
+  "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine": {
+    "__uct_param_1": "TF #2🕑",
+    "__uct_param_2": "TF #1🕑:",
+    "__uct_param_3": "EQL & EQH📐:"
+  },
+  "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine": {
+    "__uct_param_1": "High Interest Threshold"
+  },
+  "corpus/committed/smart-money-volume-activity-algoalpha__699c36ad31.pine": {},
+  "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine": {
+    "__uct_param_1": "High Interest Threshold"
+  },
+  "corpus/committed/smarter-snr__ac98ab25d5.pine": {},
+  "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine": {},
+  "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine": {
+    "__uct_param_1": "Poles",
+    "__uct_param_2": "Gaussian Length"
+  },
+  "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine": {},
+  "corpus/committed/smt-divergence-ict-killzones__c932d56665.pine": {},
+  "corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine": {},
+  "corpus/committed/std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine": {
+    "__uct_param_1": "Filter Devaitions",
+    "__uct_param_2": "Show signals?"
+  },
+  "corpus/committed/stop-loss-and-take-profit-in-example__YlblCbts4x.pine": {},
+  "corpus/committed/stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine": {},
+  "corpus/committed/strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine": {},
+  "corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine": {},
+  "corpus/committed/sub__1xYROVYMlX.pine": {
+    "__uct_param_1": "Show LINE VER",
+    "__uct_param_2": "Show TOTAL LINE"
+  },
+  "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine": {
+    "__uct_param_1": "ATR Multiplier",
+    "__uct_param_2": "Change ATR Calculation Method ?",
+    "__uct_param_3": "ATR Period"
+  },
+  "corpus/committed/supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine": {},
+  "corpus/committed/supertrend-strategy__rcRbtoBiKG.pine": {
+    "__uct_param_1": "ATR Multiplier",
+    "__uct_param_2": "Change ATR Calculation Method ?",
+    "__uct_param_3": "ATR Period"
+  },
+  "corpus/committed/supply-demand-mtf-flux-charts__7fb4bff229.pine": {},
+  "corpus/committed/support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine": {},
+  "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine": {},
+  "corpus/committed/support-and-resistance__1505.pine": {},
+  "corpus/committed/support-and-resistance__UgNPprOr8h.pine": {
+    "__uct_param_1": "left"
+  },
+  "corpus/committed/support-and-resistance__c4792aabd0.pine": {},
+  "corpus/committed/support-resistance-mtf-flux-charts__dd04862677.pine": {},
+  "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine": {},
+  "corpus/committed/swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine": {
+    "__uct_param_1": "Bars Right-Left",
+    "__uct_param_2": "",
+    "__uct_param_3": "Show Labels ",
+    "__uct_param_4": "-",
+    "__uct_param_5": "OI Δ (abs.) >",
+    "__uct_param_6": "Binance USDT.P",
+    "__uct_param_7": ""
+  },
+  "corpus/committed/take-profit-multi-timeframe__8c16588ae9.pine": {
+    "__uct_param_1": "EMA1",
+    "__uct_param_2": "EMA2"
+  },
+  "corpus/committed/tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine": {},
+  "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine": {
+    "__uct_param_1": "K",
+    "__uct_param_2": "Smooth",
+    "__uct_param_3": "D"
+  },
+  "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine": {
+    "__uct_param_1": "K",
+    "__uct_param_2": "Smooth",
+    "__uct_param_3": "D"
+  },
+  "corpus/committed/trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine": {},
+  "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine": {
+    "__uct_param_1": "Smoothing Length"
+  },
+  "corpus/committed/trend-levels-chartprime__90a5bf4ab1.pine": {
+    "__uct_param_1": "length"
+  },
+  "corpus/committed/trend-line-harrybot__vMv5yOQxcA.pine": {},
+  "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine": {},
+  "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine": {
+    "__uct_param_1": "Supertrend Factor",
+    "__uct_param_2": "Supertrend ATR Period",
+    "__uct_param_3": "Confirmation count"
+  },
+  "corpus/committed/trendline-pivots-quantvue__3dc9be8b73.pine": {},
+  "corpus/committed/trendlines__43QQg9nDN0.pine": {
+    "__uct_param_1": "Pivot Detection: Right Bars",
+    "__uct_param_2": "Pivot Detection: Left Bars"
+  },
+  "corpus/committed/trendlinesample__61d59f90bc.pine": {},
+  "corpus/committed/twin-range-filter__xF3L2PeXm7.pine": {},
+  "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine": {},
+  "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine": {},
+  "corpus/committed/visualizing-displacement-tfo__5b861441c2.pine": {},
+  "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine": {
+    "__uct_param_1": "Use Manual Overrides",
+    "__uct_param_2": "Background ATR Period"
+  },
+  "corpus/committed/volatility-stop-mtf__K5XG42uHV9.pine": {
+    "__uct_param_1": "Line thickness",
+    "__uct_param_2": "  Show chart breaches",
+    "__uct_param_3": "Detect breaches by chart bars"
+  },
+  "corpus/committed/volatility-trend-score-backquant__0794882a37.pine": {},
+  "corpus/committed/vold-market-breadth__9c5cde9557.pine": {},
+  "corpus/committed/volume-delta-hapharmonic__d5748870fd.pine": {},
+  "corpus/committed/volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine": {},
+  "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine": {
+    "__uct_param_1": "Pivot Lookback Right",
+    "__uct_param_2": "Plot Bullish",
+    "__uct_param_3": "Plot Hidden Bullish",
+    "__uct_param_4": "Plot Bearish",
+    "__uct_param_5": "Plot Hidden Bearish"
+  },
+  "corpus/committed/volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine": {},
+  "corpus/committed/volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine": {},
+  "corpus/committed/volume-profile-auto-line-v2__b0e947fd20.pine": {},
+  "corpus/committed/volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine": {
+    "__uct_param_1": "Tuning"
+  },
+  "corpus/committed/volume-profile-plus__91ff446fe0.pine": {},
+  "corpus/committed/volume-profile-v054beta__PNSKf75832.pine": {},
+  "corpus/committed/volume-profile__X0dKLxdLh4.pine": {},
+  "corpus/committed/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine": {
+    "__uct_param_1": "How Many Bars Back To Calculate The Median From",
+    "__uct_param_2": "Volume Spike Amount",
+    "__uct_param_3": "DMI Length",
+    "__uct_param_4": "DMI Smoothing",
+    "__uct_param_5": "Number Of Bars To Caluclate Current Volume Median",
+    "__uct_param_6": "Number Of Bars Back To Calculate Overall Median",
+    "__uct_param_7": "Volume Spike Amount For Current Median",
+    "__uct_param_8": "Volume Moving Average Length"
+  },
+  "corpus/committed/volume-suite-by-leviathan__48da793360.pine": {
+    "__uct_param_1": "Relative Length",
+    "__uct_param_2": "",
+    "__uct_param_3": "",
+    "__uct_param_4": "",
+    "__uct_param_5": "",
+    "__uct_param_6": ""
+  },
+  "corpus/committed/volumized-order-blocks-flux-charts__1675b2b8e3.pine": {},
+  "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine": {},
+  "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine": {
+    "__uct_param_1": "Williams Fractal Range Forwards",
+    "__uct_param_2": "Show Williams Trailing Stop"
+  },
+  "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine": {
+    "__uct_param_1": "Pivot Length",
+    "__uct_param_2": "RSI Length",
+    "__uct_param_3": "trend Sensitivity"
+  },
+  "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine": {
+    "__uct_param_1": "Length"
+  },
+  "corpus/committed/zigzag-ma-pattern-recognition__1302.pine": {
+    "__uct_param_1": "Show Channel?",
+    "__uct_param_2": "Use Alternative Timeframe?"
+  },
+  "corpus/committed/zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__02-waddah-attar-explosion-lazybear.pine": {
+    "__uct_param_1": "FastEMA Length",
+    "__uct_param_2": "SlowEMA Length",
+    "__uct_param_3": "Sensitivity",
+    "__uct_param_4": "BB Channel Length",
+    "__uct_param_5": "BB Stdev Multiplier"
+  },
+  "tests/fixtures/pine_oos/high_engagement__03-supertrend-kivancozbilgic.pine": {
+    "__uct_param_1": "ATR Multiplier",
+    "__uct_param_2": "Change ATR Calculation Method ?",
+    "__uct_param_3": "ATR Period"
+  },
+  "tests/fixtures/pine_oos/high_engagement__04-ttm-squeeze-greeny.pine": {
+    "__uct_param_1": "Length"
+  },
+  "tests/fixtures/pine_oos/high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__09-on-balance-volume-everget.pine": {
+    "__uct_param_1": "Show Signal ?",
+    "__uct_param_2": "Signal Smoothing Length",
+    "__uct_param_3": "Highlight Crossovers ?"
+  },
+  "tests/fixtures/pine_oos/high_engagement__10-rsi-divergence-faytterro.pine": {
+    "__uct_param_1": "rsi length"
+  },
+  "tests/fixtures/pine_oos/high_engagement__11-vumanchu-cipher-a-vumanchu.pine": {
+    "__uct_param_1": "EMA 1 Length",
+    "__uct_param_2": "EMA 2 Length",
+    "__uct_param_3": "EMA 3 Length",
+    "__uct_param_4": "EMA 4 Length",
+    "__uct_param_5": "EMA 5 Length",
+    "__uct_param_6": "EMA 6 Length",
+    "__uct_param_7": "EMA 7 Length",
+    "__uct_param_8": "EMA 8 Length",
+    "__uct_param_9": "WT Channel Length",
+    "__uct_param_10": "WT Average Length",
+    "__uct_param_11": "WT MA Length",
+    "__uct_param_12": "RSI Length"
+  },
+  "tests/fixtures/pine_oos/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine": {
+    "__uct_param_1": "Use Current Chart Resolution?",
+    "__uct_param_2": "Length",
+    "__uct_param_3": "Show 2nd RSI?",
+    "__uct_param_4": "Upper Line Value?",
+    "__uct_param_5": "Lower Line Value?",
+    "__uct_param_6": "Show Mid Line?",
+    "__uct_param_7": "Show 'B' and 'S' Letters When RSI Crosses High/Low Line?"
+  },
+  "tests/fixtures/pine_oos/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine": {
+    "__uct_param_1": "Limit Plotting Duration",
+    "__uct_param_2": "Show Trailing Stop"
+  },
+  "tests/fixtures/pine_oos/high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__15-linear-regression-channel-lonesometheblue.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__16-klinger-volume-oscillator-everget.pine": {
+    "__uct_param_1": "Show Histogram ?",
+    "__uct_param_2": "Show Signal ?"
+  },
+  "tests/fixtures/pine_oos/high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__18-cross-correlation-kioseff-trading.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__19-anchored-vwap-stuehmer.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__20-ehlers-fisher-transform-cheatcountry.pine": {
+    "__uct_param_1": "Allow Repainting?"
+  },
+  "tests/fixtures/pine_oos/high_engagement__21-parabolic-sar-deviation-bigbeluga.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__22-reversal-probability-profile-algoalpha.pine": {
+    "__uct_param_1": "Pivot Left Bars",
+    "__uct_param_2": "Pivot Right Bars"
+  },
+  "tests/fixtures/pine_oos/high_engagement__23-sweep-reversal-map-plus-herman.pine": {
+    "__uct_param_1": "Swing length",
+    "__uct_param_2": "Local structure length",
+    "__uct_param_3": "ATR length",
+    "__uct_param_4": "Minimum sweep penetration (ATR)"
+  },
+  "tests/fixtures/pine_oos/high_engagement__24-coppock-curve-multi-filter-markittick.pine": {
+    "__uct_param_1": "Long ROC Length",
+    "__uct_param_2": "Short ROC Length",
+    "__uct_param_3": "WMA Smoothing Length",
+    "__uct_param_4": "📈 Use ADX Filter",
+    "__uct_param_5": "ADX Length",
+    "__uct_param_6": "ADX Threshold",
+    "__uct_param_7": "🔀 Use Divergence Filter",
+    "__uct_param_8": "🌊 Use Volatility-Adjusted Zero Line",
+    "__uct_param_9": "Volatility Zero Band Length",
+    "__uct_param_10": "Volatility Zero Band Multiple",
+    "__uct_param_11": "Show Histogram",
+    "__uct_param_12": "Show Zero-Cross Markers"
+  },
+  "tests/fixtures/pine_oos/long_tail__01-ny-macro-status.pine": {},
+  "tests/fixtures/pine_oos/long_tail__02-relative-volume-candles-narrow-ranges.pine": {
+    "__uct_param_1": "ADR Length"
+  },
+  "tests/fixtures/pine_oos/long_tail__03-heikin-ashi-lag-meter.pine": {
+    "__uct_param_1": "Minimum flips before a median is shown",
+    "__uct_param_2": "Keep this many lag boxes"
+  },
+  "tests/fixtures/pine_oos/long_tail__04-warm-up-curtain.pine": {
+    "__uct_param_1": "Measure series 1",
+    "__uct_param_2": "Measure series 2",
+    "__uct_param_3": "Measure series 3",
+    "__uct_param_4": "Confirmation lag you declare, bars"
+  },
+  "tests/fixtures/pine_oos/long_tail__05-master-line-plus.pine": {
+    "__uct_param_1": "Length",
+    "__uct_param_2": "Show signal line",
+    "__uct_param_3": "Show band",
+    "__uct_param_4": "Show flip markers"
+  },
+  "tests/fixtures/pine_oos/long_tail__06-sector-rotation-leadership-persistence.pine": {},
+  "tests/fixtures/pine_oos/long_tail__07-hurst-exponent-regime.pine": {
+    "__uct_param_1": "Window Length"
+  },
+  "tests/fixtures/pine_oos/long_tail__08-vix-term-structure.pine": {},
+  "tests/fixtures/pine_oos/long_tail__09-signal-follow-through-ledger.pine": {
+    "__uct_param_1": "Mark audited signals",
+    "__uct_param_2": "Mark where each sample resolved"
+  },
+  "tests/fixtures/pine_oos/long_tail__10-mtf-supply-demand.pine": {},
+  "tests/fixtures/pine_oos/long_tail__11-percent-range-tool.pine": {},
+  "tests/fixtures/pine_oos/long_tail__12-setup-grader.pine": {
+    "__uct_param_1": "Show HIGH-grade transition markers",
+    "__uct_param_2": "Enable Trend check",
+    "__uct_param_3": "Trend EMA length",
+    "__uct_param_4": "Enable Higher-TF check",
+    "__uct_param_5": "HIGH threshold (points)",
+    "__uct_param_6": "Also show MED-grade markers (dimmer)"
+  },
+  "tests/fixtures/pine_oos/long_tail__13-volatility-of-returns.pine": {
+    "__uct_param_1": "Volatility Lookback (bars)",
+    "__uct_param_2": "Annualize",
+    "__uct_param_3": "Annualization Period",
+    "__uct_param_4": "Show Moving Average",
+    "__uct_param_5": "MA Length"
+  },
+  "tests/fixtures/pine_oos/long_tail__14-vwap-z-score-oscillator.pine": {
+    "__uct_param_1": "Band 1",
+    "__uct_param_2": "Band 2",
+    "__uct_param_3": "Σ",
+    "__uct_param_4": "Band 3"
+  },
+  "tests/fixtures/pine_oos/long_tail__15-agreed-upon-dol.pine": {},
+  "tests/fixtures/pine_oos/long_tail__16-spy-position-helper.pine": {
+    "__uct_param_1": "Show prior-day levels",
+    "__uct_param_2": "Show support/resistance zones"
+  },
+  "tests/fixtures/pine_oos/long_tail__17-db-seasonal-by-date-range.pine": {},
+  "tests/fixtures/pine_oos/long_tail__18-deltalabs-equal-highs-equal-lows.pine": {},
+  "tests/fixtures/pine_oos/long_tail__19-session-fibs-falcon-ai.pine": {
+    "__uct_param_1": "Show 127.2% / 161.8% extensions"
+  },
+  "tests/fixtures/pine_oos/long_tail__20-cot-pulse-cloud-trend.pine": {
+    "__uct_param_1": "Auto-detect market from chart symbol"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__03-volatility-supply-demand-zones.pine": {
+    "__uct_param_1": "Pivot length",
+    "__uct_param_2": "Reject zones that sit too close",
+    "__uct_param_3": "Show structure breaks",
+    "__uct_param_4": "Strict staircase",
+    "__uct_param_5": "Structure span (bars)"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__04-cisd-order-block.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__05-supertrend-fibonacci-ote.pine": {
+    "__uct_param_1": "Plot Trend Candles"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__07-3way-bollinger-trend.pine": {
+    "__uct_param_1": "Enable Trade Mode",
+    "__uct_param_2": "HMA Length (center line)",
+    "__uct_param_3": "Band Width (x StDev)",
+    "__uct_param_4": "Confirmation Bars",
+    "__uct_param_5": "RSI Length",
+    "__uct_param_6": "Bullish above (also used as trend filter)",
+    "__uct_param_7": "Bearish below (also used as trend filter)"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__08-hourly-alpha-profile-terminal.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__09-relative-volume-breakout-context.pine": {
+    "__uct_param_1": "Show prior breakout rails",
+    "__uct_param_2": "Prior price range bars",
+    "__uct_param_3": "ATR length",
+    "__uct_param_4": "Show relative-volume Z score",
+    "__uct_param_5": "Show context score"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__10-smc-engine.pine": {
+    "__uct_param_1": "Spread Baseline Bars",
+    "__uct_param_2": "Spread Anomaly Multiplier"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__12-structure-participation-matrix.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__13-spma-trend.pine": {
+    "__uct_param_1": "Baseline Length",
+    "__uct_param_2": "Percentrank Lookback",
+    "__uct_param_3": "% Gate",
+    "__uct_param_4": "Use Asymmetric Bands?",
+    "__uct_param_5": "Volatility Length",
+    "__uct_param_6": "Volatility Multiple"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__14-master-line-lite.pine": {
+    "__uct_param_1": "Length",
+    "__uct_param_2": "Show band",
+    "__uct_param_3": "Flip band (× ATR)"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__15-multi-timeframe-ma-forecast.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__16-ict-smc-guide.pine": {
+    "__uct_param_1": "Show EMA 50 / 200",
+    "__uct_param_2": "Show Asia Range",
+    "__uct_param_3": "Show London Range",
+    "__uct_param_4": "Show New York Range",
+    "__uct_param_5": "Show Liquidity Sweeps",
+    "__uct_param_6": "Show Entry / SL / TP"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__17-volume-surge-radar.pine": {
+    "__uct_param_1": "Exclude current bar from average",
+    "__uct_param_2": "Auto-size baseline to 1 week",
+    "__uct_param_3": "Session minutes per day",
+    "__uct_param_4": "Trading days per week",
+    "__uct_param_5": "Tier 4",
+    "__uct_param_6": "Window length (bars)",
+    "__uct_param_7": "Ready-made alerts: hits needed",
+    "__uct_param_8": "Hits needed inside window",
+    "__uct_param_9": "Min hits to call a trend",
+    "__uct_param_10": "Mark 8x / 16x bars",
+    "__uct_param_11": "Mark bars where the custom alert fires"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__18-market-profile-tpo.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__19-oliver-kell-volume-monitor.pine": {
+    "__uct_param_1": "Volume MA Length",
+    "__uct_param_2": "Show Weekly Change of Character (Magenta - Weekly Only)",
+    "__uct_param_3": "Show Accumulation/Distribution Arrows",
+    "__uct_param_4": "Acc/Dist Vol Multiplier"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__20-mann-kendall-trend-significance.pine": {
+    "__uct_param_1": "Smoothing Length"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__21-market-compass-dynamic-range.pine": {},
+  "tests/fixtures/pine_oos/mid_engagement__22-rsi-levels-regime-map.pine": {
+    "__uct_param_1": "RSI length",
+    "__uct_param_2": "Rung 1 (oversold)",
+    "__uct_param_3": "Rung 2 (bull support)",
+    "__uct_param_4": "Rung 3 (equilibrium)",
+    "__uct_param_5": "Rung 4 (bear resistance)",
+    "__uct_param_6": "Rung 5 (overbought)",
+    "__uct_param_7": "Mark level tests",
+    "__uct_param_8": "Regime lookback (bars)",
+    "__uct_param_9": "Bull regime: RSI floor",
+    "__uct_param_10": "Tolerance",
+    "__uct_param_11": "Bear regime: RSI ceiling",
+    "__uct_param_12": "Detect Cardwell reversals",
+    "__uct_param_13": "Reversal pivot length",
+    "__uct_param_14": "Draw entry / stop / target"
+  },
+  "tests/fixtures/pine_oos/mid_engagement__23-distilled-htf-po3.pine": {},
+  "tests/fixtures/member/uncharted-clouds.pine": {
+    "__uct_param_1": "Fast MA",
+    "__uct_param_2": "",
+    "__uct_param_3": "Slow MA",
+    "__uct_param_4": ""
+  },
+  "tests/fixtures/member/uncharted-volume-v2.pine": {
+    "__uct_param_1": "Weekly Length",
+    "__uct_param_2": "Daily Length",
+    "__uct_param_3": "HVE lookback (bars)"
+  },
+  "tests/fixtures/member/uncharted-volume.pine": {
+    "__uct_param_1": "Weekly Length",
+    "__uct_param_2": "Daily Length"
+  }
+}

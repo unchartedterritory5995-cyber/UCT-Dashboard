@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;UsBJPF3MkAYuF6M1TX6HpmFg2PIbZeZh",
+ "title": "Camarilla screener",
+ "author": "MarkBench",
+ "url": "https://www.tradingview.com/script/v4kMatSe-camarilla-screener/",
+ "agreeCount": 707,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/camarilla-screener__UsBJPF3MkA.pine",
+ "cached_source": "tools/pine_survey/cache/sources/camarilla-screener__UsBJPF3MkA.pine",
+ "our_status": "committed"
+}

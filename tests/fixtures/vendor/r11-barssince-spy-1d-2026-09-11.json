@@ -1,0 +1,57 @@
+{
+  "_": "⭐⭐ ITEM 8, NAME #7 — `ta.barssince` TAKES ONE ARGUMENT, and when the condition has never been true it returns `na`.",
+  "_capturedET": "2026-09-11T08:25:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+  "_readFrom": "the two Group-B probes already on the disposable layout — no new add was needed for this name",
+
+  "_theCollisionThisResolves": "⛔ `r11-remaining-nine.md` flagged it in writing: `ta.barssince` sits in its row #7 (1 script, 2 sites) and the bare `barssince` sits in Group B as an ARITY case (7 scripts, 12 sites), and 'the two groups disagree about what is wrong with it — \"we lack the name\" here, \"we have it with the wrong arity\" there'. It told whoever got here to resolve it ONCE, as one question, or two fixes would land on one function and the second would look like a regression of the first. This is that one resolution.",
+
+  "theArity": {
+    "verdict": "ONE argument. `ta.barssince(condition)`.",
+    "oneArg": {
+      "study": "UCTPROBE_GB_BARSSINCE_1ARG",
+      "compiles": true,
+      "statusType": 2,
+      "committedRoster": 4,
+      "vendorPlots": 4,
+      "barsRead": 405
+    },
+    "twoArg": {
+      "study": "UCTPROBE_GB_BARSSINCE_2ARG",
+      "compiles": false,
+      "committedRoster": 3,
+      "vendorPlots": 1,
+      "_": "⭐ THE ONE-PLOT FAILED STUB — the same signature `alma` produced today. 3 declared plots, 1 answered, `compiles: false`. Recorded in `tests/fixtures/vendor/saved-probe-integrity-2026-09-10.json`, where it is ALSO the deliberate non-vacuity control for that whole sweep: a sweep in which every row agreed could not be told from one that compares nothing."
+    },
+    "_soTheFixIsTheOppositeOfWhatItLooked": "⛔⛔ `closedTable.json` declares `barssince(series, int)` — TWO arguments — and all 12 corpus sites pass ONE. `r11-group-b-arity.md` put the stakes exactly: 'if the table is wrong, widening to 1 would be NARROWING TO THE TRUTH, and the 2-arg form we currently accept is a form the vendor may REJECT OUTRIGHT.' It does reject it. So this engine currently ACCEPTS a call TradingView refuses — divergence in the expensive direction, the same shape `alma` has from the other side."
+  },
+
+  "theNeverTrueCase": {
+    "verdict": "na",
+    "channel": "N04_barssince_NEVER_true_saturation",
+    "naBars": 405,
+    "totalBars": 405,
+    "_": "⭐⭐ THE ANSWER WORTH THE ADD. A condition that has NEVER been true returns `na` on every bar — not 0 (which would read as 'it just happened') and not a large sentinel (which would read as a real distance). ⛔ 0 is the dangerous one: a screen written as `barssince(cond) < 5` would fire on EVERY bar for a condition that never occurred."
+  },
+
+  "theOrdinaryCase": {
+    "channel": "N02_barssince_1arg_RAW",
+    "distinctValues": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    "min": 0,
+    "max": 8,
+    "naCount": 0,
+    "_": "0 ON THE BAR THE CONDITION IS TRUE, counting up from there. No `na` anywhere once the condition has fired at least once."
+  },
+
+  "_theVaryControl": {
+    "channel": "N03_barssince_rare_MUST_vary",
+    "distinctValues": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    "naCount": 0,
+    "_": "⭐ A rare condition's counter must actually MOVE, or the raw channel above could be reading a constant and nobody would know. It ranges 5..19 across the window and rises by 1 per bar at the tail (17, 18, 19 on the last three), which is a counter doing its job."
+  },
+
+  "_notPinned": "⛔ The table still declares `barssince(series, int)`. Correcting it is a member-visible CHANGE, not an addition — a 2-arg call that translates today would stop — so it is routed rather than taken in the same pass as a capture. ⚠️ And it is the one item-8 name whose fix REMOVES something, which puts it closest to hard stop H3 and furthest from 'just add the name'.",
+
+  "_bounds": "⚠️ One symbol, one timeframe, one day. The never-true channel is a condition constructed to be false on every bar of THIS window; nothing here reads a condition that is false for a long stretch and then true once."
+}

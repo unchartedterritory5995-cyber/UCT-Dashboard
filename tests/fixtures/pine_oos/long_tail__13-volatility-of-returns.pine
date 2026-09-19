@@ -1,0 +1,36 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Nick_Joan
+
+//@version=6
+indicator(title = "Volatility of Returns | NickJoan", format = format.percent, overlay = false)
+
+// ─── Inputs ───────────────────────────────────────────────────────────────────
+length = input.int(90, "Volatility Lookback (bars)", minval = 2, group = "CALCULATION")
+annualize = input.bool(true, "Annualize", group = "CALCULATION", tooltip = "Annualize using √period. Default: √365 for daily crypto.")
+annPeriod = input.int(365, "Annualization Period", minval = 1, group = "CALCULATION")
+
+showMa = input.bool(true, "Show Moving Average", group = "MOVING AVERAGE")
+maType = input.string('EMA', title = 'MA Type', options = ['SMA', 'EMA', 'WMA', 'RMA'], group = "MOVING AVERAGE")
+maLen = input.int(30, title = 'MA Length', minval = 1, group = "MOVING AVERAGE")
+
+// ─── Calculations ─────────────────────────────────────────────────────────────
+// Log returns
+logRet = math.log(close / close[1])
+
+// Standard deviation of log returns
+stdevLogRet = ta.stdev(logRet, length)
+
+// Annualize
+annFactor = annualize ? math.sqrt(annPeriod) : 1.0
+volatility = stdevLogRet * annFactor * 100
+
+// ─── Moving Average ───────────────────────────────────────────────────────────
+ma = switch maType
+    'SMA' => ta.sma(volatility, maLen)
+    'EMA' => ta.ema(volatility, maLen)
+    'WMA' => ta.wma(volatility, maLen)
+    'RMA' => ta.rma(volatility, maLen)
+
+// ─── Plots ────────────────────────────────────────────────────────────────────
+plot(volatility, title = "Volatility (%)", color = color.blue)
+plot(showMa ? ma : na, title = 'Moving Average', linewidth = 2, color = color.new(color.gray, 70))

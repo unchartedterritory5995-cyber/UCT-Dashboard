@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;47a601e4bcfc4ae6adab2af3d2bd9978",
+ "title": "Kalman Price Filter [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/3N2zym2w-kalman-price-filter-backquant/",
+ "agreeCount": 2137,
+ "category": "other",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine",
+ "cached_source": "tools/pine_survey/cache/sources/kalman-price-filter-backquant__47a601e4bc.pine",
+ "our_status": "committed"
+}

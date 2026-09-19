@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d0b8be94f1b042bf9f2cb20f92cefc57",
+ "title": "ICT Killzones & Pivots [TFO]",
+ "author": "tradeforopp",
+ "url": "https://www.tradingview.com/script/nW5oGfdO-ict-killzones-pivots-tfo/",
+ "agreeCount": 55290,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+ "our_status": "committed"
+}
