@@ -134,6 +134,9 @@ export default function useBreadthSeries(keys, from, to) {
     series: data?.series || null,
     missing: data?.missing || EMPTY,
     reconstructed: data?.reconstructed || EMPTY,
+    // Follow-through days as dates (the endpoint's `ftd`). A body cached before the
+    // field existed simply has none, which reads as "no markers", never an error.
+    ftd: data?.ftd || EMPTY,
     sessions: data?.sessions ?? null,
     keys: req.keys,
     dropped: req.dropped,

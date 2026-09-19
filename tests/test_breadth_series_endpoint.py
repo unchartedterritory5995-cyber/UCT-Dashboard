@@ -302,3 +302,28 @@ def test_the_response_is_private_and_short_lived(monkeypatch, stub_history):
     r = _app().get(URL, params={"keys": "breadth_score", "from": "2026-01-02", "to": "2026-01-06"})
     assert r.headers["Cache-Control"] == "private, max-age=60"
     assert json.loads(r.content)["sessions"] == 3, "the body must survive the Response wrapper"
+
+
+# ── follow-through days ride beside the columns, as dates ──────────────────────
+
+def test_follow_through_days_are_served_as_dates(monkeypatch):
+    """V2 had no way to mark FTDs: `is_ftd` is a boolean, so `series_known_keys` (correctly)
+    refuses it as a column and a request for it lands in `missing`. The event rides as a
+    list of dates instead — only `is True`, never a merely truthy value."""
+    rows = [dict(r) for r in ROWS]
+    rows[0]["is_ftd"] = False
+    rows[1]["is_ftd"] = True
+    rows[2]["is_ftd"] = "true"     # truthy, not True — must NOT count (an int would make it a column)
+    monkeypatch.setattr(svc, "get_history_deep", lambda days=90, end=None, anchor="le": [dict(r) for r in rows])
+    monkeypatch.setattr(svc, "date_bounds", lambda: {"min": "2026-01-02", "max": "2026-01-06"})
+    _on(monkeypatch)
+    body = _app().get(URL, params={"keys": "breadth_score,is_ftd", "from": "2026-01-02", "to": "2026-01-06"}).json()
+    assert body["ftd"] == ["2026-01-03"]
+    assert "is_ftd" in body["missing"]          # still not a series — unchanged
+    assert "is_ftd" not in body["series"]
+
+
+def test_no_follow_through_days_is_an_empty_list_not_absent(monkeypatch, stub_history):
+    _on(monkeypatch)
+    body = _app().get(URL, params={"keys": "breadth_score", "from": "2026-01-02", "to": "2026-01-06"}).json()
+    assert body["ftd"] == []

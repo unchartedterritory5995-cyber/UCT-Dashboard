@@ -536,3 +536,7 @@
     height: clamp(var(--v2-min-h, 360px), calc(100dvh - 260px), 760px);
   }
 }
+
+/* The shared readout aligns its text to the baseline and centres its dot; inside a
+   44px touch-tier button that put every dot below its label. Centre the whole row. */
+.readout button { align-items: center; }

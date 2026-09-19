@@ -930,6 +930,12 @@ def get_breadth_series(
             "series": {k: [_finite_or_none(r.get(k)) for r in rows] for k in present},
             "reconstructed": [r["date"] for r in rows if r.get("_reconstructed")],
             "missing": missing,
+            # Follow-through days are EVENTS, not a series: `series_known_keys` rightly
+            # refuses a boolean as a column, which left Data Charts V2 no way to mark them
+            # (V1 drew them from the monitor rows). Served as the dates `_derive_ascending`
+            # flagged — the same `is_ftd` V1 reads — and only `is True`, so a truthy
+            # non-boolean can never manufacture one.
+            "ftd": [r["date"] for r in rows if r.get("is_ftd") is True],
         }
     with breadth_timing.phase("serialise"):
         body = json.dumps(payload, separators=(",", ":"))

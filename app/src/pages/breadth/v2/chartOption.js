@@ -48,6 +48,9 @@ export const LIGHT_CHROME = Object.freeze({
   accent: '#7a5c16',
 })
 
+/** Follow-through-day rule ink — V1's violet, so the mark is recognisable across both. */
+const FTD_INK = '#a78bfa'
+
 /** Families where a log axis is ever meaningful (02-design §4, Y axes). A bounded
  *  percentage, a ratio around 1, an oscillator or a signed net is never offered one. */
 export const LOG_UNITS = new Set([UNIT.COUNT, UNIT.INDEX, UNIT.CUM])
@@ -172,6 +175,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     slider = true,          // the zoom slider (phones drop it; inside zoom stays)
     heightPx = null,        // measured chart height, for pixel-true margins
     colours = null,         // { key: colour } — `stickyColours.assignColours`
+    ftd = null,             // [{date, label}] — `ftdMarkers`, thinned for labelling
   } = opts
   const panels = panelsFor(selected)
   // Margins are percentages of the chart box; with a measured height they are derived
@@ -253,7 +257,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
     const last = lastRealIndex(values)
     const colour = colours?.[key] ?? stickyColour(key)
     const lines = firstKeyOfPanel[panelIdx] === key
-      ? panelLines(panels[panelIdx], panelIdx, { refLines, extremes, live, dates, chrome })
+      ? panelLines(panels[panelIdx], panelIdx, { refLines, extremes, live, ftd, dates, chrome })
       : []
     series.push({
       id: key,
@@ -385,7 +389,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
  * The markLine items one panel carries: metric reference levels, the MA Breadth
  * extremes (percentage panel only), and the LIVE rule.
  */
-function panelLines(panel, panelIdx, { refLines, extremes, live, dates, chrome }) {
+function panelLines(panel, panelIdx, { refLines, extremes, live, ftd, dates, chrome }) {
   const out = []
   for (const l of refLines ?? []) {
     if (l.unit !== panel.unit) continue
@@ -403,6 +407,19 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, dates, chrome }
         label: { show: true, position: 'insideEndTop', formatter: String(l.yAxis), color: l.color, fontSize: 10, fontWeight: 600 },
       })
     }
+  }
+  // Follow-through days: a dotted rule through EVERY panel (they date the market, not
+  // one metric), labelled only on the top panel and only on the first of a cluster —
+  // the same thinning V1 uses. Violet, as on V1, so the mark reads the same on both.
+  for (const m of ftd ?? []) {
+    out.push({
+      xAxis: m.date,
+      lineStyle: { color: FTD_INK, type: 'dotted', width: 1, opacity: 0.8 },
+      label: panelIdx === 0 && m.label
+        ? { show: true, formatter: 'FTD', position: 'insideEndTop', rotate: 0, align: 'left',
+            color: FTD_INK, fontSize: 10, fontWeight: 600 }
+        : { show: false },
+    })
   }
   if (live && dates[live.index] !== undefined) {
     out.push({
