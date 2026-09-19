@@ -2,7 +2,12 @@
 id: GATE-D2-CANONICAL-DATA-MODEL
 title: D2 — Canonical Data Model & Metric Address Book — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). ✅ CP2 APPROVED 2026-09-12 (NARROWED — see line 2). CP3+ need new lines.
+status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). ✅ CP2 APPROVED 2026-09-12 (NARROWED
+  — see line 2). Top-level CP3 (dual-compute flip) mechanism built (`0b8cf4c41`), STILL NEEDS A NEW
+  APPROVAL LINE — blocked on real member traffic (0 rows collected as of 2026-09-19). §4-CP4
+  (indicator axis, PRD §9.5) SIGNED AND MERGED (`404b808c5`, fingerprint `3257cc319`). §4-CP3
+  (retire the timeframe-map duplicates) SIGNED 2026-09-19, fingerprint `8c5f83ca0` — code not yet
+  committed/merged as of this doc edit.
 date: 2026-09-12
 measured_against: origin/master @ ee9c96fa1
 pairs_with: PRD-D2-CANONICAL-DATA-MODEL · SPEC-D2-CANONICAL-DATA-MODEL
@@ -104,6 +109,85 @@ the honest options are a scheduled synthetic reader or a second migrated reader 
 
 **CP3 STILL NEEDS A NEW APPROVAL LINE.** This records the mechanism and the narrowing; it does not
 authorize CP3.
+
+### ⛔⛔ "CP3" NAMES TWO DIFFERENT THINGS IN THIS FILE — READ THE PREFIX
+
+The section immediately above is the packet's TOP-LEVEL CP3 (the dual-compute sample gate for
+`ticker_returns.py`'s flip from dark to live). §4's own checkpoint table (below) separately
+declares a **§4-CP3** — "retire the timeframe duplicates onto the declared map" — which is a
+different piece of work on a different surface. The two share a bare number because they were
+numbered independently on two tracks in the same packet; every reference below spells out
+**§4-CP3** rather than bare "CP3" for exactly this reason.
+
+## ✅ APPROVAL — LINE 4 (§4-CP3). Retire the timeframe-map duplicates.
+
+**Scope, verified against source before this line was written (2026-09-19):** §4's own table names
+"three call sites, one of them frontend." Located precisely:
+
+1. `api/services/indicator_alert_evaluator.py::_LEDGER_TIMEFRAME` — an 8-entry hand-typed
+   code→label dict, plus its one reader `ledger_timeframe()`.
+2. `app/src/pages/charts/grid/GridChartCell.jsx::TF_LABELS` — the same 8 entries, hand-typed again
+   for the Multi-Chart grid's timeframe bar.
+3. Both point at `app/src/components/chart/engine/ast/timeframeLabels.json` — a NEW file, generated
+   by `tools/build_canonical_address_book.py` (extended, not a new builder) from the book's own
+   `axes.timeframe.code_to_label`, which is itself sourced from
+   `api/services/signature/ledger.py::_BARS_STORE_TF_KEYS` — already the DECLARED authority per
+   `api/services/alert_taxonomy/indicator_condition.py`'s own `timeframe_labels()` accessor
+   (pre-existing, reused rather than duplicated a second time) and its comment naming
+   `_LEDGER_TIMEFRAME` as one of PRD-D2 §9.2's three indicted copies.
+
+**⛔ FLOW-WORKER CLASSIFICATION, MEASURED, NOT ASSUMED.** `api/services/indicator_alert_evaluator.py`
+is reachable from `api/flow_worker_main.py`'s entry point but is NOT on the Railway watch list —
+confirmed via `tools.flow_worker_watch_coverage.reachable_paths()` /`.watched_paths()` directly, not
+inferred. Run in isolation against just this file, `verdict()` returns **FAIL — stranded**: a push
+touching only this file would leave flow-worker running the pre-CP3 code with every test green,
+exactly the trap the tool exists to name.
+
+⭐ **THIS IS SAFE TO MERGE ANY TIME, INCLUDING MARKET HOURS, AND NEEDS NO MARKER BUMP —** because
+the change is proved BEHAVIOUR-IDENTICAL (mutation-proved both in Python and JS below): the OLD
+`_LEDGER_TIMEFRAME` dict and the NEW book-derived `timeframe_labels()` return byte-identical values
+for every one of the eight codes. A file being "stranded" means flow-worker will keep running
+equivalent code until an unrelated future watched-file push happens to redeploy it — there is no
+member-visible difference either way, and no OPRA-tape risk from THIS push because this specific
+file's push never triggers a flow-worker restart at all (unwatched ⇒ pushing it to master changes
+nothing flow-worker does today). The marker-bump-plus-after-hours-window path
+(`api/flow_worker_deploy_marker.txt`) is reserved for a §4-CP3-shaped change that IS
+behaviour-changing; this one is not, so forcing an out-of-band redeploy would trade a real
+15–60s tape gap for zero behavioural benefit.
+
+**Mutation-proved, both lanes:**
+- Python: reintroducing a module-level `_LEDGER_TIMEFRAME` (the literal pre-CP3 shape) reds
+  `test_the_timeframe_label_comes_from_the_LEDGERS_table_not_a_second_one`'s `hasattr` guard;
+  monkeypatching `timeframe_labels` to prove `ledger_timeframe` still reads it live reds
+  `test_ledger_timeframe_reads_the_book_not_a_frozen_copy` when the read is bypassed. Both restored
+  and reverified green (byte-identical diff after restore).
+- JS: reintroducing the hand-typed `TF_LABELS` literal alongside the import reds
+  `GridChartCell.timeframeLabels.test.jsx`'s source-text check. Restored and reverified green.
+- The generated export itself: `tools/build_canonical_address_book.py --check` now also verifies
+  `timeframeLabels.json` against the book's `axes.timeframe.code_to_label`; corrupting the real
+  on-disk file and re-running `--check` returns exit 1 (`STALE`), restoring returns exit 0. Two new
+  Python tests (`test_the_frontend_export_IS_the_books_timeframe_axis_and_nothing_else`,
+  `test_the_frontend_export_rail_CAN_FAIL`) cover the same property in-process.
+- A new caller of `indicator_condition.timeframe_labels()` is a DECLARED fourth name in
+  `test_the_callers_of_the_type_module_are_exactly_the_declared_four` (renamed from `_three`),
+  per that rail's own "a fourth name is a wire nobody classified" design — classified here, not
+  discovered by that rail failing silently elsewhere.
+- Full scoped regression: 281 backend tests across the touched files, 1231 passed / 1 pre-existing
+  skip across the full alert/indicator-adjacent backend suite (named files, never repo-wide per
+  this repo's own pytest-scoping rule), 11 JS tests across the touched frontend files. Two
+  unrelated, pre-existing JS failures (`manifestProse.test.js`'s `_session` strip-safety check,
+  `pine.blindCorpus.test.js`'s accepted-floor count) were verified pre-existing via
+  `git stash push -u` against the clean tree before this work began, and are NOT this checkpoint's.
+
+**No schema change on any live store. No member-visible behaviour change** (both call sites
+already served — and still serve — the exact same eight label strings).
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  8c5f83ca0
+SCOPE APPROVED:   §4-CP3 -- Retire the timeframe-map duplicates onto the declared book. Three call sites: api/services/indicator_alert_evaluator.py's _LEDGER_TIMEFRAME dict + ledger_timeframe() (now reads api/services/alert_taxonomy/indicator_condition.py's pre-existing timeframe_labels() accessor, which reads the address book's axes.timeframe.code_to_label); app/src/pages/charts/grid/GridChartCell.jsx's hand-typed TF_LABELS (now imports the generated app/src/components/chart/engine/ast/timeframeLabels.json); and that generated file itself, a new export added to tools/build_canonical_address_book.py (extended, not a new builder), derived from the same axes.timeframe.code_to_label, never a fourth independent copy. Flow-worker classification measured directly via tools.flow_worker_watch_coverage's reachable_paths()/watched_paths(): indicator_alert_evaluator.py is reachable but unwatched, so this diff in isolation strands (verdict() returns FAIL) -- but the change is proved behaviour-identical (mutation-proved both lanes: reintroducing the old hand-typed dict/literal reds the non-regression tests; the generated export's --check catches real drift), so no marker bump and no after-hours window are needed -- merging carries zero flow-worker deploy risk at any time, since this specific unwatched file's push never triggers a flow-worker restart. No schema change on any live store. No member-visible behaviour change.
+```
 
 ### CP2.1 ⛔ THE STATED CRITERION PICKED THE STORE THAT CANNOT BE ADDRESSED
 
