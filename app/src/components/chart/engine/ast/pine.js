@@ -10544,7 +10544,72 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 }
 
+/**
+ * ⭐⭐ THE LANE SELECTOR, AND THE ONLY ONE. `opts.strict === true` is the single
+ * thing that chooses between this door's two contracts — not `opts.mode` (which
+ * does not exist, see `translatePine` below) and not `opts.host` (which belongs
+ * to `chooseOutput` and decides whether an alertcondition may be the first
+ * offer). Both readers — the contract the translation runs under, and the label
+ * it is stamped with — ask THIS function, so the two can never disagree.
+ */
+function isHostLane(opts) {
+  return !!opts && opts.strict === true
+}
+
+/**
+ * A member's Pine, translated — and STAMPED WITH THE LANE IT CAME FROM.
+ *
+ * ⭐⭐ THE LANE IS DERIVED ONCE, HERE, AND IT REACHES EVERY RETURN PATH.
+ * `paneGate` reads `t.mode` FIRST and refuses anything that is not `'host'`
+ * with "this verdict came from the <mode|unknown> lane" — the right rule,
+ * checked before every other one. So a result that forgets its lane is refused
+ * with a sentence about lanes whatever is actually wrong with the script.
+ *
+ * ⚰️ MEASURED 2026-09-19: only the NORMAL return carried `mode`. Every early
+ * return did not — the empty source, a lexer refusal, a statement-grouping
+ * refusal, and `pine:no-output`, which is what ANY table-only dashboard hits. A
+ * member who pasted a perfectly good script that simply draws no line was told
+ * "this verdict came from the unknown lane, which answers a different
+ * question", a sentence about our internals naming nothing they could act on,
+ * instead of "the pasted script offers no plot and no alert condition to filter
+ * on" — which this door had already computed and was carrying in `refusal`.
+ *
+ * ⛔ AND IT IS A WRAPPER, NOT A `mode` ADDED TO EACH EARLY RETURN. There are
+ * five of those today and the next one will be written by somebody who has not
+ * read this comment; a ternary copied into each is five authorities over one
+ * value, and the failure is SILENT — the result still looks like a translation
+ * result, and the only symptom is a refusal sentence about the wrong subject.
+ * Wrapping is the one shape in which a new early return cannot forget.
+ *
+ * ⚰️⚰️ AND `mode` IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.**
+ * The string does not appear in this function's option handling at all, so
+ * `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
+ * LENIENT lane — and so does `{ mode: 'screener' }`.
+ *
+ * ⛔ That is not hypothetical: a session took every "both lanes agree" reading
+ * for item (a) by calling those two spellings, got perfect agreement because
+ * both calls were the same lane, and reported it as cross-lane evidence. The
+ * whole round was void. **An instrument that cannot distinguish its two inputs
+ * agrees with itself**, and this field is the thing that makes the mistake look
+ * reasonable: a reader sees `mode: 'host'` come OUT of a result and passes it
+ * back IN. The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the
+ * false call verbatim rather than describing it, so the next reader who writes
+ * it again meets the test instead of the bug.
+ */
 export function translatePine(source, opts = {}) {
+  const t = translatePineResult(source, opts)
+  if (!t || typeof t !== 'object') return t
+  // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
+  // literal that nothing else holds, so there is nothing to protect from
+  // mutation — while a copy would re-key a result the callers pass around by
+  // identity, for one field.
+  t.mode = isHostLane(opts) ? 'host' : 'screener'
+  return t
+}
+
+/** The translation itself. ⛔ Call `translatePine`, never this: a result that
+ *  leaves here has no `mode`, and `paneGate` reads `mode` before anything else. */
+function translatePineResult(source, opts = {}) {
   const table = opts.table || TABLE
   const blank = {
     ok: false, version: null, declaration: null, title: null,
@@ -11989,40 +12054,24 @@ export function translatePine(source, opts = {}) {
   // constant column is this engine's judgement about SCREENING, not about
   // drawing. The strict test is therefore "did anything fail to translate",
   // which is exactly `refusals.length === 0`, not "is everything usable".
-  // ⭐⭐ THIS LINE IS THE LANE. `opts.strict === true` is the ONLY thing that
-  // chooses between the two contracts — not `opts.mode` (which does not exist),
-  // and not `opts.host` (which belongs to `chooseOutput` and decides whether an
-  // alertcondition may be the first offer). See the `mode:` field below for the
-  // round of evidence that was voided by getting this wrong.
-  const strict = opts.strict === true
+  // ⭐⭐ THIS IS THE LANE, and it is READ rather than restated: `isHostLane` is
+  // the same predicate the exported `translatePine` stamps `mode` from, so the
+  // contract a translation ran under and the label it carries cannot drift
+  // apart. See that function for the round of evidence that was voided by
+  // getting this wrong.
+  const strict = isHostLane(opts)
   const lenientOk = usable.length > 0 && !blocked
   const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
   const ok = strict ? strictOk : lenientOk
 
   return {
     ok,
-    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
-    // saved definition, a log, a test fixture) must not be ambiguous about which
-    // question it answered.
-    //
-    // ⚰️⚰️ AND IT IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.** The
-    // string does not appear in this function's option handling at all, so
-    // `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
-    // LENIENT lane — and so does `{ mode: 'screener' }`.
-    //
-    // ⛔ That is not hypothetical: a session took every "both lanes agree"
-    // reading for item (a) by calling those two spellings, got perfect agreement
-    // because both calls were the same lane, and reported it as cross-lane
-    // evidence. The whole round was void. **An instrument that cannot
-    // distinguish its two inputs agrees with itself**, and this field is the
-    // thing that makes the mistake look reasonable: a reader sees `mode: 'host'`
-    // come OUT of a result and passes it back IN.
-    //
-    // ⭐ THE LANE SELECTOR IS `opts.strict === true`, read once, ~10 lines above.
-    // The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the false
-    // call verbatim rather than describing it, so the next reader who writes it
-    // again meets the test instead of the bug.
-    mode: strict ? 'host' : 'screener',
+    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT — but the field is NOT set
+    // here. `mode` is stamped by the exported `translatePine`, on this return
+    // and on every early one alike, because this was the only path that set it
+    // and every other path reached `paneGate` as "the unknown lane". Read that
+    // function for the whole story, including why `mode` is an output and never
+    // an input.
     version,
     declaration,
     title,
