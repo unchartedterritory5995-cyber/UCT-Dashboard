@@ -1368,3 +1368,62 @@ Every content source discussed this session is now live and verified end to end:
 Main Chat + Setup Examples), and Twitter/X (all three official accounts) — with extraction
 re-armed at a budget the owner chose with real numbers in front of them, not one that crept up
 15x unnoticed.
+
+## Session 28, first real extraction (2026-09-19) — a real sizing bug found and fixed before
+## a dollar was spent, then the programme's first-ever real extraction run
+
+Owner asked to run real extraction tonight rather than wait for Monday. Investigated the "run it
+now" path fully rather than bypass anything: `registry.run_tracked()` is already public
+specifically because some work is event-triggered rather than scheduled (R70's own doc), and
+calling it directly with `force=False` and a real due_key is not a workaround of R64 ("force
+never spends") -- it is simply running the real, unforced job outside its normal cron trigger,
+with every actual spend gate (`flags.extract_enabled()`, the budget caps) fully intact. No code
+was changed; no new deploy was needed.
+
+⛔⛔ **A REAL SIZING BUG WAS FOUND AND FIXED BEFORE ANY MONEY WAS SPENT.** Re-arming extraction
+earlier tonight had changed the DOLLAR caps ($1800/$400 → $175/$28) but never correspondingly
+scaled `WISDOM_DAILY_SEGMENT_LIMIT`, left at `6000` (sized for the original $400/night budget).
+At that limit, pass 1 alone (2000 segments) cost ~$27.99 -- essentially the entire $28 cap by
+itself. Since publication requires all 3 passes to complete (`floor.MIN_RUNS = 3`), a real run at
+the old limit would have spent the whole nightly budget on pass 1 only, left passes 2 and 3
+starved, and produced **zero publishable records** -- money spent for nothing usable, the exact
+failure class Session 27's interrupted Sonnet run already taught this program to watch for.
+
+Measured directly rather than assumed, since per-segment cost varies with which segments are
+selected (priority order matters, not a flat rate): the first correction attempt
+(`WISDOM_DAILY_SEGMENT_LIMIT=1800`, 600 segments/pass) still produced the same $27.99/pass
+result, because the $28 cap -- not the segment limit -- was the binding constraint at that size
+too. Probed real cost directly with `batch.submit_pending(ctx, limit=n, ...)` at
+n=50/75/100/125/150/200 (clean linear data, ~$0.0886/segment once the limit no longer left the
+cap doing the trimming) and confirmed n=105: **105 segments/pass × 3 passes = $27.90 total**,
+safely under $28 with real headroom. Set `WISDOM_DAILY_SEGMENT_LIMIT=315` (105 × 3). Confirmed via
+a full dry-run: all three passes showed $9.30 each with zero budget-stop, versus the prior
+configuration's pass-3 stop at "$55.98 vs $28.00."
+
+⭐ **A second finding, also caught before it caused a problem:** `claim_slot`'s idempotency table
+(`wisdom_job_claims`) does not distinguish a dry-run preview from a real run when checking
+"already done" -- the natural `session_key(now)` due_key ("2026-09-18", the last real trading
+session a Saturday resolves to) turned out to already be claimed `status='ok'`, because the
+REAL scheduled `wisdom_daily_chain` already ran normally at 18:47 ET on Wed/Thu/Fri
+(2026-09-16/17/18) -- the chain itself runs on the master ingest switch regardless of
+`WISDOM_EXTRACT_ENABLED`, so those runs completed with `extract` merely skipped (the flag was off
+those days), and the slot still shows 'ok'. Used a distinct, clearly-labeled due_key
+(`manual-2026-09-19`) for this deliberate off-schedule run instead of colliding with an
+already-completed real slot.
+
+**Run for real, 2026-09-19 08:51 ET.** `registry.run_tracked('wisdom_daily_chain',
+chain.daily_job, due_key='manual-2026-09-19', force=False, dry_run=False)` — the `extract` step
+reported `status: ok` (not R64-skipped, since `force=False` this time). **Three real Anthropic
+batches submitted**: `msgbatch_01V7MPuhk5zwCqfgWQBKsrJj` (105 req, $9.72 est), `msgbatch_01T2F2mfniHYm5g3BvnuErGK`
+(105 req, $9.72 est), `msgbatch_01XBxjknyUccqcDSfF1jTeCi` (92 req, $8.51 est) — 302 requests,
+~$27.95 total, all `in_progress`. **This is the first real, non-golden-set extraction spend in
+this programme's history.** `wisdom_extract_reap` runs automatically every 30 minutes
+(`:16`/`:46`) and will pick these up and drive same-night reconciliation (R70) once Anthropic
+completes them — no further manual action needed for this run to finish on its own.
+
+**Segment sizing is the one thing to re-check before the NEXT scale-up.** $27.90 for 105
+segments × 3 passes was measured against tonight's specific priority-ordered candidate set
+(currently topped by Setups & Strategies); if the budget or priority order changes again,
+`WISDOM_DAILY_SEGMENT_LIMIT` needs re-measuring the same way -- probe real candidate costs with
+`batch.submit_pending(ctx, limit=n, ...)` at a few values, never assume a linear rate holds
+across a different-sized or differently-ordered selection.
