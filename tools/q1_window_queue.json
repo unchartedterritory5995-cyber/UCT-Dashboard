@@ -605,7 +605,7 @@
     },
     {
       "id": "p2-2.8b-marker-live-append_widget_embed",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b single cell: `append_widget_embed` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -625,11 +625,21 @@
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
       "timeout": 807,
-      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed."
+      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 82.1,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T03:03:34.234048+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T220316-p2-2.8b-marker-live-append_widget_embed",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-marker-live-append_financial_fact",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b single cell: `append_financial_fact` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -649,11 +659,21 @@
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
       "timeout": 807,
-      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed."
+      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
+      "attempts": 1,
+      "result": {
+        "exit": 0,
+        "seconds": 104.2,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T03:04:57.717118+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T220439-p2-2.8b-marker-live-append_financial_fact",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-marker-live-append_document_excerpt",
-      "status": "pending",
+      "status": "inconclusive",
       "why": "2.8b single cell: `append_document_excerpt` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -673,11 +693,21 @@
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
       "timeout": 807,
-      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed."
+      "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
+      "attempts": 3,
+      "result": {
+        "exit": 0,
+        "seconds": 178.4,
+        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260918T221237-p2-2.8b-marker-live-append_document_excerpt",
+        "evidence_ok": true
+      }
     },
     {
       "id": "p2-2.8b-marker-expired",
-      "status": "inconclusive",
+      "status": "superseded",
       "why": "2.8b chunk 4 of 6 \u2014 the `marker EXPIRED` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved.",
       "expect": "GREEN",
       "cells": 7,
@@ -718,7 +748,8 @@
         "p2-2.8b-marker-expired-append_widget_embed",
         "p2-2.8b-marker-expired-append_financial_fact",
         "p2-2.8b-marker-expired-append_document_excerpt"
-      ]
+      ],
+      "supersede_restored_why": "Re-marked superseded. The runner was mid-attempt-3 when this chunk was split into single cells, and its save_entry correctly wrote back the field it owns (status), overwriting the supersede. Not a bug - the runner owns that field - but it means a supersede applied DURING a run must be re-applied after it."
     },
     {
       "id": "p2-2.8b-slow-put",
