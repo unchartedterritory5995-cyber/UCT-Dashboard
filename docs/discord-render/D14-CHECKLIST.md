@@ -108,6 +108,35 @@
 > close-out downstream of all of the above. **R49 is no longer on this list — both rehearsal
 > halves are done.**
 >
+> ⭐ **NOBODY HAS TO REMEMBER TO CHECK THESE BY HAND ANY MORE, 2026-09-19.**
+> `docs/discord-render/instruments/d21_window_watch.py` — read-only, one-shot, registered as
+> Task Scheduler task **`UCT-D21-Window-Watch`** (`PT15M` repetition, no duration limit,
+> `MultipleInstances=IgnoreNew`, mirroring `UCT-D14-Monitor`'s own registration shape) — reads
+> the soak-24h gate's own live verdict (`flip_preconditions.check_soak_24h()`, never
+> re-implemented) plus whether R72/R62 share their regular-session precondition
+> (`massive._detect_session() == "regular"`, the SAME predicate `live_tier.run_sweep()` itself
+> gates on) and whether D-13's stated "clock-gated 10:00 ET" precondition currently holds
+> (`massive._today_et_is_a_trading_day()` AND ET time >= 10:00), every 15 minutes. It NEVER
+> attempts any of R72/R62/D-13's actual retry actions and never touches the soak process — it
+> only logs. A window OPENING (or the gate moving to MET) writes a distinctly-marked
+> `window_opened`/`gate_moved` line to
+> `docs/discord-render/evidence/d21-window-watch/window-watch-events.jsonl` (grep for
+> `"event"`); a window closing again is logged in the routine tick but never flagged as news.
+> Self-check (`--self-check`, 14 cases) mutation-proved: the closed→open vs open→closed
+> asymmetry was deliberately broken and confirmed to red exactly one case, restored.
+> ⛔⛔ **READ THIS BEFORE TRUSTING "soak-24h will eventually read MET on its own":**
+> `check_soak_24h` counts **every** `TOTALS soak_job` line ever written to the soak log, not a
+> rolling window — one non-PASS tick anywhere in the log's entire history is enough to hold the
+> row NOT MET **forever**, and the log already carries 149 real historical FAIL ticks from
+> before tonight's `soak_job.py` fixes landed (confirmed live: `481` total ticks, `149`
+> non-PASS, unchanged in count as new clean ticks accumulate on top). Unless that log is
+> rotated/archived at some point, this row cannot reach MET by waiting alone — it is a fourth,
+> gate-level instance of the same "sums across all history, one bad entry poisons it forever"
+> defect class this session already fixed twice inside `soak_job.py` and `check_smoke`,
+> this time in `check_soak_24h` itself. **Not fixed here — flagged, not owned by this task**,
+> since deciding whether/how to rotate a log outside the repo (`C:\Users\Patrick\uct-render-soak\
+> soak.log`) that other tooling also reads is a scope call, not a monitoring task.
+>
 > ✅ **R71's TWO-STEP PROOF IS NOW FULLY CLOSED, 2026-09-18.** (1) `d517e7cd7`
 > (`docs/d21-checklist-proof` branch, the master-tracked `D14-LOG.md`) came back **SKIPPED** —
 > a docs-only push produces no web deploy record, exactly as `watchPatterns` promises.
