@@ -495,7 +495,7 @@ def discover(root) -> list:
     return sorted(p.name for p in base.iterdir() if (p / RECORDS_FILE).exists())
 
 
-def score_silently(ctx, *, root=None) -> dict:
+def score_silently(ctx, *, root=None, run_ids: Optional[list] = None) -> dict:
     """Daily-chain entry point. A no-op unless enough compatible runs are persisted.
 
     ⛔ `N` comes from the number of runs actually reconciled, never from a literal — so a
@@ -503,12 +503,25 @@ def score_silently(ctx, *, root=None) -> dict:
 
     ⛔ `root=None` resolves PER CALL via `gate_runs_root()` (R56). It is not a constant default,
     because a default argument binds once at import — see the note beside `gate_runs_root`.
+
+    ⛔⛔ `run_ids=None` (BUG FOUND 2026-09-19, adversarial review session 28 part 3): without it,
+    this reconciles whichever `floor.MIN_RUNS` run directories are alphabetically LAST under the
+    ENTIRE shared root — correct for the single newest pending night (the daily chain's own
+    `reconcile_stability` step, one pending night at a time), but wrong the moment a BACKLOG of
+    2+ complete-but-unscored nights exists in one tick (`same_night.score_completed_nights`,
+    R70): every older night in that backlog would silently reconcile the SAME still-newest dirs a
+    second time, succeed (no version/segment mismatch, since they ARE a valid triple — just not
+    THIS night's), and `registry.run_tracked` would mark that OLDER night's claim `'ok'` anyway
+    (it only checks whether the callable raised) — permanently starving its own records at
+    `stability=NULL`, with no retry since `_already_scored` skips a claim already `'ok'`. A caller
+    that knows which specific night it is scoring (`same_night.score_night`, via `ctx.due_key`)
+    passes that night's own pass run ids here instead of letting `discover()` guess globally.
     """
     from api.services.wisdom.core import store
     from api.services.wisdom.publish import floor
 
     root = gate_runs_root() if root is None else root
-    ids = discover(root)
+    ids = discover(root) if run_ids is None else list(run_ids)
     if len(ids) < floor.MIN_RUNS:
         return {"skipped": f"only {len(ids)} persisted run(s); need {floor.MIN_RUNS}",
                 "runs": len(ids)}

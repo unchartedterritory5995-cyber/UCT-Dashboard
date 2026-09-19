@@ -376,7 +376,11 @@ def _build_items(client, segs: list[dict], retries: list[dict], *, extractor_ver
         items.append({"custom_id": cid, "source_id": seg["source_id"], "source_version": seg["source_version"],
                       "segment_id": seg["segment_id"], "params": params, "est_input_tokens": tokens,
                       "est_output_tokens": out_tokens, "est_cost_usd": est, "retry": row is not None,
-                      "prior_est": float(row.get("est_cost_usd") or 0.0) if row is not None else 0.0})
+                      "prior_est": float(row.get("est_cost_usd") or 0.0) if row is not None else 0.0,
+                      # ⛔ night-scoped exclusion needs to know WHICH night this retry's prior
+                      # estimate is actually counted in (see select_within_budget's
+                      # exclude_night_pending_usd) -- created_at is never refreshed on retry.
+                      "retry_created_at": (row.get("created_at") if row is not None else None)})
     return items, counts
 
 
@@ -558,9 +562,17 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
         # nothing while programme headroom sat unused. The programme total is measured
         # against programme spend; the night line against THAT NIGHT's spend.
         programme_cap = budget.budget_cap_usd()
+        # ⛔ NIGHT-SCOPED EXCLUSION IS A DIFFERENT SUM THAN THE VERSION/PROGRAMME ONE (bug found
+        # 2026-09-19). A retry's prior estimate is only actually present in tonight's night-scoped
+        # pending pool if the retry's own (never-refreshed) created_at falls on `night_date` --
+        # excluding it unconditionally, as if it always were, can only loosen the per-night cap.
+        exclude_tonight = sum(
+            it["prior_est"] for it in items
+            if it["retry"] and night_date and str(it.get("retry_created_at") or "")[:10] == night_date)
         decision = budget.select_within_budget(
             conn, version, [it["est_cost_usd"] for it in items], cap=programme_cap,
             exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]),
+            exclude_night_pending_usd=exclude_tonight,
             night_cap=night_cap_usd, night_date=night_date)
     out["budget"] = decision.as_dict()
     if all_or_nothing and decision.stopped:

@@ -310,10 +310,25 @@ def program_spent_and_pending(conn) -> tuple[float, float]:
 
 def select_within_budget(conn, extractor_version: str, estimates: list[float], *,
                          cap: Optional[float] = None, exclude_pending_usd: float = 0.0,
+                         exclude_night_pending_usd: Optional[float] = None,
                          night_cap: Optional[float] = None,
                          night_date: Optional[str] = None) -> BudgetDecision:
     """How many of `estimates` (in order) fit. exclude_pending_usd removes rows that
-    are themselves among `estimates` (retries already counted as pending)."""
+    are themselves among `estimates` (retries already counted as pending) from the
+    per-version and programme-wide pools, which carry no date filter.
+
+    ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): `exclude_pending_usd` used
+    to be subtracted from the NIGHT-scoped pool too, but `night_spent_and_pending` filters
+    strictly by `created_at`'s date, and a retry's `created_at` is never refreshed on
+    resubmission -- `same_night.py` calls cross-night retry carry-forward NORMAL ("a retry rides
+    pass 1 of a later night under its ORIGINAL run id"). So a retry from an EARLIER calendar night
+    had its prior estimate subtracted from TONIGHT's `n_pending` even though it was never counted
+    there in the first place (its `created_at` doesn't match tonight's date) -- silently loosening
+    (never tightening) the per-night cap. `exclude_night_pending_usd` is the CORRECTLY
+    night-scoped exclusion -- a caller that knows which of its retries actually fall on
+    `night_date` passes it explicitly. It defaults to 0, never to `exclude_pending_usd`, so a
+    caller that does not pass it gets the conservative (never over-excluding, never admits more
+    than it should) answer instead of silently inheriting the bug's direction."""
     cap = budget_cap_usd() if cap is None else float(cap)
     actual, pending = spent_and_pending(conn, extractor_version)
     pending = max(0.0, pending - exclude_pending_usd)
@@ -323,7 +338,8 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
     # comparisons, never a min() of the two caps against one cumulative total.
     n_on = night_cap is not None and bool(night_date)
     n_actual, n_pending = (night_spent_and_pending(conn, night_date) if n_on else (0.0, 0.0))
-    n_pending = max(0.0, n_pending - exclude_pending_usd)
+    n_exclude = 0.0 if exclude_night_pending_usd is None else float(exclude_night_pending_usd)
+    n_pending = max(0.0, n_pending - n_exclude)
     running, allowed = 0.0, 0
     reason = None
     for est in estimates:

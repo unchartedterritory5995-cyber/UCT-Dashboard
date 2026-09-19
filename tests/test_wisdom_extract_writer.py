@@ -289,6 +289,39 @@ def test_writing_twice_and_through_an_overlapping_window_stores_one_record(db):
         assert conn.execute("SELECT COUNT(*) FROM wisdom_records").fetchone()[0] == 1
 
 
+def test_the_SAME_quote_from_a_NON_adjacent_segment_is_a_distinct_occurrence(db):
+    """⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): the overlap key
+    (source, source_version, extractor_version, record_type, ticker, normalized quote) carries
+    NO segment/position information, so it could not distinguish "the same statement read through
+    two OVERLAPPING windows" (the documented intent -- module docstring) from "the identical
+    short phrase spoken again later, in a genuinely separate, non-overlapping segment" -- and
+    silently dropped the second, real, distinct occurrence with no row and no review item.
+
+    segmenter.py's windows only overlap their IMMEDIATE neighbour, so ordinal adjacency
+    (`abs(diff) <= 1`) is the correct proxy. Segment ordinal 5 here is nowhere near segment 0's
+    overlap window -- the SAME wording said again, hours later, must be written as its own record."""
+    with store.write() as conn:
+        far_seg = segmenter.Segment(ordinal=5, kind="section", text=TEXT, char_start=0, char_end=len(TEXT),
+                                    path="TSDR's Weekly Outlook & Watchlist", author_id="tsdr",
+                                    speaker_confidence="high")
+        segmenter.write_segments(conn, "src1", 1, [far_seg])
+    seg0, src = _loaded(0)
+    seg_far, _ = _loaded(5)
+    out = {"records": [make(**CLEAN)]}
+    with store.write() as conn:
+        first = writer.write_output(conn, segment=seg0, source=src, output=out, extractor_version="wx-v0-aaaaaaaa",
+                                    resolver=RESOLVER, vocab_names=VOCAB)
+        later = writer.write_output(conn, segment=seg_far, source=src, output=out, extractor_version="wx-v0-aaaaaaaa",
+                                    resolver=RESOLVER, vocab_names=VOCAB)
+    assert first["written"] == 1
+    assert later["written"] == 1, (
+        f"the non-adjacent occurrence was dropped instead of written: {later}")
+    assert later.get("dedupe_overlapping_window", 0) == 0
+    with store.read() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM wisdom_records").fetchone()[0] == 2, (
+            "both occurrences are real, distinct records and must both be stored")
+
+
 def test_a_new_extractor_version_supersedes_provisional_records_and_never_deletes(db):
     seg, src = _loaded()
     out = {"records": [make(**CLEAN), make(record_type="MENTION", quote="No thoughts on WWWT at all.",

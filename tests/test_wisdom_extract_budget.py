@@ -197,6 +197,51 @@ def test_a_retry_already_counted_as_pending_is_not_counted_twice(wisdom_db):
     assert d.allowed_count == 2
 
 
+def test_a_stale_night_retrys_exclusion_never_cannibalizes_a_DIFFERENT_nights_pending(wisdom_db):
+    """⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): `exclude_pending_usd`
+    used to be subtracted from the night-scoped pool too, but a retry's `created_at` is never
+    refreshed on resubmission and `night_spent_and_pending` filters strictly by that date --
+    `same_night.py` itself calls cross-night retry carry-forward NORMAL. So excluding a stale
+    retry's prior estimate from TONIGHT's pending -- money it was never counted in -- silently
+    freed up room that belonged to a genuinely different, same-night source, loosening the
+    per-night cap it is supposed to enforce.
+
+    Night 1 (2026-09-18): a segment failed and is still status='retry', $5 prior estimate,
+    created_at dated night 1. Night 2 (2026-09-19, "tonight"): $6 of pending ALREADY exists from
+    an unrelated submission dated tonight. Night 2's cap is $10."""
+    with store.write() as conn:
+        conn.execute("INSERT INTO wisdom_extract_requests (custom_id, source_id, source_version, "
+                     "segment_ids_json, extractor_version, status, est_cost_usd, created_at, updated_at) "
+                     "VALUES ('wx_retry', 's', 1, '[]', 'v0', 'retry', 5.0, "
+                     "'2026-09-18T20:00:00-04:00', '2026-09-18T20:00:00-04:00')")
+        conn.execute("INSERT INTO wisdom_extract_requests (custom_id, source_id, source_version, "
+                     "segment_ids_json, extractor_version, status, est_cost_usd, created_at, updated_at) "
+                     "VALUES ('wx_other', 's', 1, '[]', 'v0', 'submitted', 6.0, "
+                     "'2026-09-19T08:00:00-04:00', '2026-09-19T08:00:00-04:00')")
+    with store.read() as conn:
+        # Correct: exclude_night_pending_usd=0.0 (the retry does not belong to tonight's pool).
+        correct = budget.select_within_budget(conn, "v0", [3.0, 3.0], cap=120.0,
+                                              exclude_pending_usd=5.0, exclude_night_pending_usd=0.0,
+                                              night_cap=10.0, night_date="2026-09-19")
+        # The old bug shape: the SAME exclusion applied uniformly to the night pool too.
+        buggy_shape = budget.select_within_budget(conn, "v0", [3.0, 3.0], cap=120.0,
+                                                  exclude_pending_usd=5.0, exclude_night_pending_usd=5.0,
+                                                  night_cap=10.0, night_date="2026-09-19")
+    assert correct.allowed_count == 1, (
+        f"expected only 1 of 2 $3 items to fit tonight's real $6-pending, $10-cap night -- got "
+        f"{correct.allowed_count}")
+    assert buggy_shape.allowed_count == 2, (
+        "the buggy shape (excluding the stale retry from tonight's pool too) should admit both "
+        "items -- if it does not, this test's fixture no longer demonstrates the incident")
+    # The DEFAULT (no exclude_night_pending_usd passed at all) must be the SAFE direction: 0,
+    # never exclude_pending_usd -- a caller that forgets to pass it gets the conservative answer.
+    with store.read() as conn:
+        default = budget.select_within_budget(conn, "v0", [3.0, 3.0], cap=120.0,
+                                              exclude_pending_usd=5.0,
+                                              night_cap=10.0, night_date="2026-09-19")
+    assert default.allowed_count == correct.allowed_count == 1
+
+
 def test_calibrated_p90_output_tokens_replace_the_default(wisdom_db):
     with store.read() as conn:
         assert budget.output_token_estimate(conn, "claude-opus-5", "high") == budget.DEFAULT_OUTPUT_TOKENS

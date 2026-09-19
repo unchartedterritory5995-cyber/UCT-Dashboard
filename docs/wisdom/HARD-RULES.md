@@ -1540,7 +1540,7 @@ proves `reconcile()` no longer refuses a run whose only gap is a touched-empty s
 a segment that was genuinely never seen at all -- no touch call either -- still correctly refuses.
 Mutation-proved: removing the marker read fails exactly the new test, nothing else.
 
-### NOT YET FIXED -- 8 verified findings, for the next session to prioritize
+### 8 verified findings -- 7 fixed same session, 1 (#1) deliberately left open
 
 Every one below was independently confirmed by an adversarial verifier reading the real file and
 line numbers, not by trusting the finder's prose. Full reasoning for each lives in this session's
@@ -1560,31 +1560,47 @@ ages out.
    can each independently see the same pre-commit headroom and both commit, silently exceeding
    `WISDOM_EXTRACT_BUDGET_USD`. Zero concurrency test exists for this path.
 
-2. **The daily-chain golden gate and kill switch don't apply to the documented manual submit door**
-   (`tools/wisdom/extract_catalog_batch.py::submit()`). Its own docstring claims "the budget and
-   the gate still apply," but it calls `batch.submit_pending` directly, never `batch.run_daily` --
-   so `golden.gate_status` and `flags.extract_enabled()`/`WISDOM_EXTRACT_ENABLED` are never
-   consulted, only the raw numeric cap. `extract_common.job_context()` defaults `force=True`, which
-   means even calling `spend_allowed(ctx)` here would unconditionally return `False` per R64 --
-   confirming this path was never actually wired to the kill switch, not deliberately exempted the
-   way `run_daily`'s force-bypass is (which has its own documented rationale). An operator setting
-   `WISDOM_EXTRACT_ENABLED=0` believing it is THE kill switch (as `budget.py`'s own docstring says)
-   would still have this door spend real money.
+2. ✅ **FIXED (same session).** The daily-chain golden gate and kill switch did not apply to the
+   documented manual submit door (`tools/wisdom/extract_catalog_batch.py::submit()`). Its own
+   docstring claimed "the budget and the gate still apply," but it called `batch.submit_pending`
+   directly, never `batch.run_daily` -- so `golden.gate_status` and
+   `flags.extract_enabled()`/`WISDOM_EXTRACT_ENABLED` were never consulted, only the raw numeric
+   cap. An operator setting `WISDOM_EXTRACT_ENABLED=0` believing it was THE kill switch (as
+   `budget.py`'s own docstring says) would still have had this door spend real money. **Fix:**
+   `submit()` now calls `batch.spend_allowed(ctx)` and `golden.gate_status(conn)` before
+   `submit_pending`, refusing with a named reason if either fails. ⛔ THE TRAP: `extract_common.
+   job_context()` defaults `force=True` for every tool in this family, and R64 makes
+   `spend_allowed()` unconditionally refuse a forced context -- a naive fix (adding the check
+   without also passing `force=False` for this ctx) would have made the door permanently unable to
+   spend at all, a quieter version of the same defect. `force=False` is correct here specifically
+   because this tool IS R64's "dedicated paid action that shows the projected cost" (the default
+   dry-run mode prints exactly that estimate) and `--i-understand-this-spends` IS the operator
+   echoing it back. Four new tests in `test_wisdom_extract_catalog_submit_gate.py`, including one
+   that pins the ctx's `force` value directly so the naive-fix trap can never silently return.
+   Mutation-proved: each of the two removed checks fails exactly its own test; the pinned-`force`
+   test fails independently if a future edit reintroduces the tool's `force=True` default here.
 
-3. **`same_night.score_night()`/`reconcile.score_silently()` misattribute reconciliation across a
-   backlog of 2+ pending nights** (`reconcile.py` + `same_night.py`). `score_silently()` is
-   night-blind by construction -- it always reconciles whichever `MIN_RUNS` (3) run directories are
-   alphabetically LAST under the ONE shared `gate_runs_root()`, with no `due_key`/night scoping at
-   all (`ctx` is accepted and never read). `same_night.score_completed_nights()` processes a
-   backlog newest-first, up to `MAX_NIGHTS_PER_TICK` (default 4) nights per tick -- a real, designed
-   -for path (triggers whenever scoring falls behind by more than a night, e.g. an outage). The
-   newest pending night is scored correctly; every OLDER night in the same tick calls
-   `score_silently()` again, which re-discovers the SAME (already-scored, still-newest) 3 run dirs,
-   succeeds normally, and `registry.run_tracked` marks that OLDER night's `wisdom_job_claims` row
-   `status='ok'` anyway (it only checks whether the callable raised) -- permanently starving that
-   night's own records at `stability=NULL`, and `_already_scored()` never retries a claim already
-   `'ok'`. The one test built for this exact backlog path stubs `reconcile.score_silently` itself,
-   so it cannot see that every call after the first reconciles the wrong night.
+3. ✅ **FIXED (same session).** `same_night.score_night()`/`reconcile.score_silently()` could
+   misattribute reconciliation across a backlog of 2+ pending nights (`reconcile.py` +
+   `same_night.py`). `score_silently()` was night-blind by construction -- it always reconciled
+   whichever `MIN_RUNS` (3) run directories were alphabetically LAST under the ONE shared
+   `gate_runs_root()`, with no `due_key`/night scoping at all. `same_night.score_completed_nights()`
+   processes a backlog newest-first, up to `MAX_NIGHTS_PER_TICK` (default 4) nights per tick -- a
+   real, designed-for path (triggers whenever scoring falls behind by more than a night, e.g. an
+   outage). The newest pending night scored correctly; every OLDER night in the same tick called
+   `score_silently()` again, re-discovered the SAME (already-scored, still-newest) 3 run dirs,
+   succeeded normally, and `registry.run_tracked` marked that OLDER night's claim `'ok'` anyway (it
+   only checks whether the callable raised) -- permanently starving that night's own records at
+   `stability=NULL`. **Fix:** `score_silently` now takes an optional `run_ids` parameter; when
+   given, it reconciles EXACTLY those run ids instead of guessing from the whole root (default
+   `None` preserves the old global-discover behavior for the daily chain's own single-night-at-a
+   -time caller). `score_night` looks up its OWN night's specific pass run ids via `ctx.due_key` +
+   `same_night.scan()` and passes them explicitly. A real (non-mocked) test builds two genuinely
+   distinct, complete nights with DIFFERENT record content and proves each night's own records get
+   the right stability from its own passes -- the existing test for this exact backlog path stubs
+   `reconcile.score_silently` itself and could never have caught this; the new one drives the real
+   function. Mutation-proved on both halves of the fix (the `same_night.py` wiring and the
+   `reconcile.py` scoping) independently: each fails exactly the new backlog test, nothing else.
 
 4. ✅ **FIXED (same session).** The free local backend's real token usage was priced as the paid
    model and landed in the real budget ledger (`local_backend.py` + `batch.py` + `budget.py`).
@@ -1604,30 +1620,40 @@ ages out.
 
 **MEDIUM severity:**
 
-5. **A stale-night retry's `exclude_pending_usd` can loosen the PER-NIGHT cap** (`budget.py::select_within_budget`).
-   The same `exclude_pending_usd` (a retry's prior estimate, meant to avoid double-counting) is
-   subtracted from three pending pools that aren't all scoped the same way: per-version and
-   programme-wide pending carry no date filter, but `night_spent_and_pending` scopes strictly by
-   `created_at`'s date -- and a retried request's `created_at` is never refreshed on resubmission
-   (confirmed: the retry branch in `submit_items` updates status/attempt/est_cost_usd/updated_at,
-   not created_at). `same_night.py`'s own docstring calls cross-night retry carry-forward normal
-   ("a retry rides pass 1 of a later night under its ORIGINAL run id"). So a retry from an earlier
-   calendar night gets its estimate subtracted from TONIGHT's `n_pending` even though it was never
-   counted there in the first place -- can only loosen (never tighten) `WISDOM_EXTRACT_DAILY_BUDGET_USD`.
-   Zero test combines a nonzero `exclude_pending_usd` with `night_cap`/`night_date` in either
-   direction.
+5. ✅ **FIXED (same session).** A stale-night retry's `exclude_pending_usd` could loosen the
+   PER-NIGHT cap (`budget.py::select_within_budget`). The same `exclude_pending_usd` (a retry's
+   prior estimate, meant to avoid double-counting) was subtracted from three pending pools that
+   aren't all scoped the same way: per-version and programme-wide pending carry no date filter, but
+   `night_spent_and_pending` scopes strictly by `created_at`'s date -- and a retried request's
+   `created_at` is never refreshed on resubmission. `same_night.py`'s own docstring calls
+   cross-night retry carry-forward normal ("a retry rides pass 1 of a later night under its
+   ORIGINAL run id"). So a retry from an earlier calendar night had its estimate subtracted from
+   TONIGHT's `n_pending` even though it was never counted there in the first place -- could only
+   loosen (never tighten) `WISDOM_EXTRACT_DAILY_BUDGET_USD`. **Fix:** a new
+   `exclude_night_pending_usd` parameter, computed by `submit_pending` from only the retries whose
+   own `created_at` actually falls on `night_date`, defaulting to `0.0` (never to
+   `exclude_pending_usd`) when a caller doesn't pass it -- the conservative direction, never
+   over-excluding. New test reproduces the exact incident shape (a night-1 retry, $6 of genuinely
+   same-night pending from an unrelated source, a $10 night cap) and shows the correct answer (1 of
+   2 $3 items admitted) against the old buggy shape (2 of 2) side by side. Mutation-proved.
 
-6. **`writer.py`'s overlap-dedup key has no segment/position information**
-   (`write_output`, the `dedupe_key`). The module docstring says the key exists so "the same
-   statement read through two overlapping windows is stored once," but the actual key is
+6. ✅ **FIXED (same session).** `writer.py`'s overlap-dedup key carried no segment/position
+   information (`write_output`, the `dedupe_key`). The module docstring says the key exists so "the
+   same statement read through two overlapping windows is stored once," but the actual key --
    `(source_id, source_version, extractor_version, record_type, ticker, normalize_quote_key(quote))`
-   -- nothing about segment identity, ordinal, or adjacency. Two genuinely unrelated, non-adjacent
-   segments (e.g. one near the start of a stream, one near the end) where the host says the same
-   short sentence about the same ticker hours apart hash to the same key and the second, real,
-   distinct utterance is silently dropped with no row and no review item. The existing test for
-   this path builds its "two overlapping windows" fixture from two segments sharing the exact same
-   full-text span (differing only in ordinal) -- it cannot distinguish a real overlapping-window
-   duplicate from two unrelated segments that merely share wording.
+   -- had nothing about segment identity, ordinal, or adjacency, so two genuinely unrelated,
+   non-adjacent segments (e.g. one near the start of a stream, one near the end) where the host
+   says the same short sentence about the same ticker hours apart hashed to the same key and the
+   second, real, distinct utterance was silently dropped with no row and no review item. **Fix:**
+   on a dedupe-key match, the prior occurrence's segment ordinal is looked up (via the existing
+   `record_id` -> `wisdom_records.segment_id` -> `wisdom_segments.ordinal` chain, no schema change)
+   and compared to the current segment's ordinal -- `segmenter.py`'s windows only overlap their
+   IMMEDIATE neighbour, so `abs(ordinal difference) <= 1` is the correct adjacency test (the key's
+   own scope already guarantees same source/version). Adjacent -> genuine overlap, still collapsed
+   as before; non-adjacent -> a genuinely distinct later occurrence, now written. New test with a
+   segment at ordinal 5 (far from ordinal 0) proves the second occurrence is written as its own
+   record; the existing adjacent-window test (ordinals 0 and 1) is unchanged and still passes,
+   proving the fix didn't just stop deduping altogether. Mutation-proved.
 
 7. ✅ **FIXED (same session).** The nightly-cap regression test grepped a comment describing the
    OLD, already-fixed bug, not live behavior
@@ -1645,22 +1671,25 @@ ages out.
    bug shape (`cap = min(cap, night_cap)` + forcing the night-scoped comparison off): fails only
    this test, confirming it actually catches the incident rather than a proxy for it.
 
-8. **Finding 5's defect, independently rediscovered from the test-coverage angle** -- listed
-   separately in the workflow's raw output (vacuous-tests dimension) because it was found via "what
-   combination has zero tests" rather than via tracing the retry-carryover scenario directly; kept
-   here as one item since it is the same underlying line (`budget.py:296-304`).
+8. ✅ **FIXED (same session, same fix as #5).** Finding 5's defect, independently rediscovered from
+   the test-coverage angle -- listed separately in the workflow's raw output (vacuous-tests
+   dimension) because it was found via "what combination has zero tests" rather than via tracing
+   the retry-carryover scenario directly; the same underlying line (`budget.py:296-304`), closed by
+   the same `exclude_night_pending_usd` fix.
 
-### Update, same session: #4 and #7 fixed; #1/#2/#3/#5/#6 still open
+### Update, same session: #2/#3/#4/#5/#6/#7/#8 all fixed; only #1 remains open
 
-#4 (local backend cost leak) and #7 (vacuous nightly-cap test) turned out to be well-bounded,
-low-risk fixes with no design judgment call attached, so they were done tonight rather than left
-queued -- see the ✅ FIXED markers above for what changed and how it was mutation-proved. **#1, #2,
-#3, #5, #6 remain open, deliberately.** #1 (budget TOCTOU race) and #3 (reconciliation backlog
-misattribution) are concurrency/architecture questions that deserve a deliberate design pass, not
-a rushed patch under time pressure. #2 (manual CLI door bypasses the kill switch/golden gate) and
-#5 (cross-night retry `exclude_pending_usd` contamination) are narrower but still real-money-
-adjacent changes to a tool with a real operator workflow, not something to guess at unreviewed.
-#6 (writer.py's dedupe_key has no position information) needs a correct definition of "overlapping
-window" sourced from `segmenter.py`'s real windowing semantics, not an assumption. Recorded here,
-verified, with file:line and a reproduction path, so the next session can pick the highest-value
-one without re-deriving what a 13-agent review already proved.
+Owner instruction, same session: "fix all and achieve the goal." Six of the eight findings turned
+out to be well-bounded, no-design-judgment-required fixes and were done -- see the ✅ FIXED markers
+above for what changed, why, and how each was mutation-proved (23 new tests total across the eight
+fixes in this file's two sessions, every one of them proved to fail on the real historical or
+reproduced bug shape and pass on the fix). **#1 (the budget TOCTOU race) is the one deliberately
+left open.** It is a genuine concurrency/architecture question -- closing it correctly means either
+moving the budget check inside the SAME write-locked transaction as the commit (`submit_items`'s
+`store.write()` already serializes writers; the check currently runs earlier, under an unlocked
+`store.read()`) or adding an explicit reservation step, and either choice has knock-on effects on
+every caller of `submit_pending`/`select_within_budget` that deserve a design pass and the owner's
+eyes, not a rushed patch decided alone under time pressure. Recorded above with file:line and two
+concrete concurrent-caller scenarios (the manual CLI door racing the cron job; the daily `extract`
+chain racing the weekly `audit` chain) so the next session does not have to re-derive what a
+13-agent review already proved -- only decide how to close it.
