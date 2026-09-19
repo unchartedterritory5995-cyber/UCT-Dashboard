@@ -94,3 +94,69 @@ describe('the two lanes are two lanes', () => {
     expect(translatePine(STILL_REFUSES, { strict: true }).ok).not.toBe(a.ok)
   })
 })
+
+// ─── ⭐⭐ AND EVERY RETURN PATH HAS TO SAY WHICH LANE IT IS ───────────────
+//
+// `paneGate` reads `t.mode` FIRST and refuses anything that is not `'host'` with
+// "this verdict came from the <mode|unknown> lane". That is the right rule and
+// it is checked before every other one — so a result that forgets to carry its
+// lane is refused with a sentence about lanes no matter what is actually wrong
+// with the script.
+//
+// ⚰️ MEASURED 2026-09-19. Only the NORMAL return sets `mode`. Every early
+// return — the empty source, a lexer refusal, a statement-grouping refusal, and
+// `pine:no-output`, which is what any table-only dashboard hits — returns
+// without it. So a member who pasted a perfectly good script that simply draws
+// no line was told "this verdict came from the unknown lane, which answers a
+// different question", a sentence about our internals that names nothing they
+// could act on, instead of "the pasted script offers no plot and no alert
+// condition to filter on".
+
+/** A real shape: a table-only dashboard. Translates fine and plots nothing. */
+const NO_PLOT = [
+  '//@version=6',
+  'indicator("t", overlay = true)',
+  'var table t = table.new(position.top_right, 2, 2)',
+  'if barstate.islast',
+  '    table.cell(t, 0, 0, "x")',
+  ''].join('\n')
+
+/** An unterminated string — `lexPine` throws before a statement is ever read. */
+const LEXER_FAILURE = '//@version=6\nindicator("t")\nplot(close, "unterminated\n'
+
+const EARLY_PATHS = [
+  ['a script with no plot', NO_PLOT],
+  ['an empty source', '   \n\t\n'],
+  ['a source the lexer refuses', LEXER_FAILURE],
+]
+
+describe('every return path names the lane it came from', () => {
+  it('⛔⛔ NON-VACUITY — the three specimens take three DIFFERENT early returns', () => {
+    // Without this the three cases below could be one path measured three times
+    // — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`. Each must
+    // refuse, and by its own guard.
+    const guards = EARLY_PATHS.map(([, src]) => {
+      const t = translatePine(src, { strict: true })
+      expect(t.ok, 'a specimen meant to refuse translated cleanly').toBe(false)
+      return (t.refusal || {}).guard
+    })
+    expect(guards[0], 'the no-plot specimen grew a plot').toBe('pine:no-output')
+    expect(new Set(guards).size, 'the specimens collapse onto one return path')
+      .toBe(guards.length)
+  })
+
+  it.each(EARLY_PATHS)('⛔⛔ %s answers the HOST lane under strict', (_label, source) => {
+    const t = translatePine(source, { strict: true })
+    expect(t.mode, 'an early return dropped the lane, so `paneGate` refuses it '
+      + 'with a sentence about lanes instead of the real reason').toBe('host')
+  })
+
+  it.each(EARLY_PATHS)('⭐ %s answers the SCREENER lane by default', (_label, source) => {
+    expect(translatePine(source, {}).mode).toBe('screener')
+  })
+
+  it('⭐ …and the normal path is unchanged, which is what makes the pair a pair', () => {
+    expect(translatePine(STILL_REFUSES, { strict: true }).mode).toBe('host')
+    expect(translatePine(STILL_REFUSES, {}).mode).toBe('screener')
+  })
+})
