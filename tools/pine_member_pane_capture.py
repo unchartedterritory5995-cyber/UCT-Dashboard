@@ -105,6 +105,105 @@ def _gate(page, what: str) -> None:
     return state
 
 
+def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.Path,
+                         tag: str, slug: str, viewport: tuple[int, int] = (1440, 900)) -> dict:
+    """Attach `script_path` as a member-pane definition on `base` and screenshot it
+    at `viewport`. Returns {"ok", "shot", "plots", "fills", "hidden", "reason"}.
+    Never types a password into a page — sign-in is an API call against a local
+    sandbox account. Never reaches TradingView."""
+    from playwright.sync_api import sync_playwright
+
+    raw = script_path.read_bytes()
+    want = sha16(raw)
+    SERVED_DIR.mkdir(parents=True, exist_ok=True)
+    served = SERVED_DIR / SERVED_NAME
+    shutil.copyfile(script_path, served)
+    print(f"[capture] fixture {script_path.name}: {len(raw)} bytes, sha256 {want}...")
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            ctx = browser.new_context(
+                viewport={"width": viewport[0], "height": viewport[1]})
+            page = ctx.new_page()
+
+            # ⭐ SIGN IN THROUGH THE API, so no password is ever typed into a
+            # form, and the cookie lands in this context's own jar.
+            r = page.request.post(f"{base}/api/auth/login", data=SIGN_IN)
+            if not r.ok:
+                return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                        "reason": f"sign-in {r.status}"}
+
+            page.goto(f"{base}/charts", wait_until="domcontentloaded")
+            page.wait_for_timeout(6000)
+            _gate(page, "open-the-door")
+
+            opened = page.evaluate(OPEN_DOOR_JS)
+            if not opened.get("importTab"):
+                return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                        "reason": f"no Import tab: {opened}"}
+
+            page.wait_for_timeout(1500)
+            paste = page.evaluate(PASTE_JS, f"/assets/{SERVED_NAME}")
+            if paste.get("sha") != want:
+                return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                        "reason": f"textarea sha {paste.get('sha')} != file sha {want}"}
+
+            try:
+                page.wait_for_function(READY_JS, timeout=20000)
+            except Exception:
+                return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                        "reason": "attach door never appeared"}
+
+            attached = page.evaluate(ATTACH_JS)
+            if not attached.get("ok"):
+                return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                        "reason": f"attach failed: {attached}"}
+
+            state = _gate(page, "final screenshot")
+            if state["w"] != viewport[0]:
+                return {"ok": False, "shot": None, "plots": attached["plots"],
+                        "fills": attached["fills"], "hidden": attached["hidden"],
+                        "reason": f"asked for width {viewport[0]}, page reports {state['w']}"}
+
+            shot = out_dir / f"member-door-{slug}-{tag}.png"
+            page.screenshot(path=str(shot))
+            ctx.close()
+            browser.close()
+            return {"ok": True, "shot": shot, "plots": attached["plots"],
+                     "fills": attached["fills"], "hidden": attached["hidden"], "reason": None}
+    finally:
+        served.unlink(missing_ok=True)
+
+
+def _run_self_check(base: str) -> int:
+    """⛔ A GATE NOBODY HAS SEEN FIRE IS NOT A GATE. Drives a page into a
+    background tab and proves the refusal happens. Relocated verbatim (Task 2
+    extraction) from main()'s old --self-check branch, which used to reuse
+    main()'s own `browser` — this owns its own Playwright/browser lifecycle
+    instead, since it is no longer nested inside that call."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+        page = ctx.new_page()
+        page.goto(f"{base}/charts", wait_until="domcontentloaded")
+        page.evaluate(
+            "() => Object.defineProperty(document, 'visibilityState',"
+            " {get: () => 'hidden', configurable: true})")
+        try:
+            _gate(page, "self-check")
+        except SystemExit as exc:
+            print(f"[capture] SELF-CHECK OK — the gate fired: {exc}")
+            ctx.close()
+            browser.close()
+            return 0
+        print("[capture] SELF-CHECK FAILED — the gate did not fire")
+        return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8131")
@@ -191,29 +290,12 @@ def main() -> int:
                                 **{k: attached[k] for k in
                                    ("plots", "fills", "hidden", "closed")}})
             ctx.close()
-
-            if args.self_check:
-                # ⛔ A GATE NOBODY HAS SEEN FIRE IS NOT A GATE. This drives the
-                # page into a background tab and proves the refusal happens.
-                ctx = browser.new_context(viewport={"width": 1440, "height": 900})
-                page = ctx.new_page()
-                page.goto(f"{args.base}/charts", wait_until="domcontentloaded")
-                page.evaluate(
-                    "() => Object.defineProperty(document, 'visibilityState',"
-                    " {get: () => 'hidden', configurable: true})")
-                try:
-                    _gate(page, "self-check")
-                except SystemExit as exc:
-                    print(f"[capture] SELF-CHECK OK — the gate fired: {exc}")
-                    ctx.close()
-                    browser.close()
-                    return 0
-                print("[capture] SELF-CHECK FAILED — the gate did not fire")
-                return 1
-
             browser.close()
     finally:
         served.unlink(missing_ok=True)
+
+    if args.self_check:
+        return _run_self_check(args.base)
 
     print(json.dumps({"captured": results}, indent=1))
     return 0 if len(results) == len(TIERS) else 2

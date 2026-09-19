@@ -56,6 +56,15 @@ NOT_A_SUITE = {
         "manual smoke test against the live SnapTrade production account",
     "tools/twitterapi_io_smoke_test.py":
         "manual smoke test that spends real TwitterAPI.io credit",
+    "tools/test_pine_member_pane_capture.py":
+        "a genuine, safe unit suite (signature + constant checks, no network, no "
+        "Playwright launch) colocated with the tool it covers, matching the "
+        "tools/full_chart_diagnostic_test.py precedent — run via its own explicit "
+        "path (`python -m pytest tools/test_pine_member_pane_capture.py`), never "
+        "via a bare `pytest`. Not added to testpaths: tools/ also holds live-account "
+        "smoke tests (snaptrade_smoke_test.py, twitterapi_io_smoke_test.py) that must "
+        "never auto-collect, so widening testpaths to reach this one file would open "
+        "collection to those too.",
 }
 
 
