@@ -194,7 +194,15 @@ UNITS = [
     # yet, but a genuine new HTTP endpoint a member's authenticated client can
     # reach). #!last: moves to this checkpoint.
     ("s6-cp4-build-record", ["359190d4d"], True),           # GET /api/member/interest, MEMBER-VISIBLE (new route, paid-gated)
-    ("d3-cp3-build-record", ["21405e045"], False),          # bars-lane staleness reader + overlay-live status field, api/ only, zero callers
+    # ⛔ member_visible_files derives True here: api/routers/stream.py is under
+    # api/routers/, one of the two member-surface roots, and the bars_overlay_live
+    # field is a real (non-comment-only) code change to an EXISTING, already-live
+    # endpoint. Same "reachable, not necessarily rendered" rule that caught D5 CP7
+    # and S6 CP4 -- a field added to a live route is member-visible even though no
+    # UI reads it yet. bar_broadcaster.py's own change (a private, uncalled method)
+    # would not trip this alone; it's stream.py's field that does. #!last: moves
+    # to this checkpoint.
+    ("d3-cp3-build-record", ["21405e045"], True),           # /api/stream/status gains a field, MEMBER-VISIBLE (existing route, no UI caller yet)
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

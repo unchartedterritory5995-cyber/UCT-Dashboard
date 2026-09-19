@@ -13,7 +13,7 @@ date: 2026-09-19
 ```
 APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
 APPROVED ON:      2026-09-19
-APPROVED AT SHA:  552ca2383
+APPROVED AT SHA:  f028e4390
 SCOPE APPROVED:   CP3 ONLY -- the checkpoint(s) named here and nothing else in the packet. G3 (bars-lane staleness reader) + D3-D (overlay-live status field), exactly as scoped in d3-realtime-streaming-pre-implementation-gate.md §4's CP3 row. No change to CP1's or CP2's own approval.
 ```
 
@@ -107,11 +107,16 @@ outside the closure (measured)"*). No marker bump, no flow-worker redeploy, no t
 
 ## 5 · member_visible classification
 
-Neither changed file is under `app/src/` or a member-facing new route — `stream.py`'s
-change is an additive field on an existing admin/diagnostic-shaped status endpoint
-(`/api/stream/status` carries no auth today and is read by nobody but this pass and
-`test_stream_admission.py`'s own suite), and `bar_broadcaster.py`'s change is a private,
-uncalled method. `member_visible=False`.
+⛔ **CORRECTED — this said `False`.** `member_visible_files()` derives `True`:
+`api/routers/stream.py` is under `api/routers/`, one of the two member-surface roots
+(`app/src/`, `api/routers/`), and the `bars_overlay_live` field is a real,
+non-comment-only code change. Same "reachable, not necessarily rendered" rule that
+caught D5 CP7's `bars.py` route and S6 CP4's `member.py` route earlier this
+session — a field added to an EXISTING, already-live endpoint is member-visible
+even with zero UI callers today. `bar_broadcaster.py`'s own change (a private,
+uncalled method, not under either root) would not trip this alone.
+Registered `member_visible=True` in `merge_all.py`'s UNITS list; `#!last:` moves
+from `s6-cp4-build-record` to this checkpoint.
 
 ---
 
