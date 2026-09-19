@@ -22,16 +22,15 @@ $backendOk = $false
 $frontendOk = $false
 $exitCode = 1
 
-$backendProc = Start-Process -PassThru -NoNewWindow `
-    -FilePath "python" `
-    -ArgumentList "-m", "uvicorn", "api.main:app", "--port", "$backendPort"
-
-$frontendProc = Start-Process -PassThru -NoNewWindow `
-    -WorkingDirectory "$repoRoot\app" `
-    -FilePath "npm" `
-    -ArgumentList "run", "dev", "--", "--port", "$frontendPort"
-
 try {
+    $backendProc = Start-Process -PassThru -NoNewWindow `
+        -FilePath "python" `
+        -ArgumentList "-m", "uvicorn", "api.main:app", "--port", "$backendPort"
+
+    $frontendProc = Start-Process -PassThru -NoNewWindow `
+        -WorkingDirectory "$repoRoot\app" `
+        -FilePath "npm" `
+        -ArgumentList "run", "dev", "--", "--port", "$frontendPort"
     # Poll each server's own port rather than sleeping a fixed guess (a fixed
     # sleep is exactly the "sampling where a waiter was available" mistake this
     # repo's own CLAUDE.md warns about).
@@ -64,8 +63,8 @@ try {
         $reportPath = Join-Path $outDir "report.json"
     }
 } finally {
-    Stop-Process -Id $backendProc.Id -Force -ErrorAction SilentlyContinue
-    Stop-Process -Id $frontendProc.Id -Force -ErrorAction SilentlyContinue
+    & taskkill /PID $backendProc.Id /T /F 2>$null
+    & taskkill /PID $frontendProc.Id /T /F 2>$null
 }
 
 $backendOkStr = if ($backendOk) { "true" } else { "false" }
