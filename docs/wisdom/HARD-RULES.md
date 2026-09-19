@@ -1755,3 +1755,24 @@ held lock; only the decide-and-reserve step (N row inserts, no I/O) is now atomi
 `threading`-based concurrency test (no mocked internals), mutation-proved by reverting the fix itself
 via a backed-up file (never `git checkout`) and confirming the new test catches the exact historical
 race shape, and the full 163-test extraction-subsystem suite stays green.
+
+**A full 96-file wisdom-suite sweep (not just the scoped 9-file extraction subset) turned up two
+MORE pre-existing regressions**, neither related to the TOCTOU work, both predating it: a gate-ledger
+test that never got updated when four gates were legitimately armed earlier this session
+(`test_wisdom_skeleton.py`), and a time-bomb test whose fixture dates a badges-endpoint fixture at a
+fixed calendar day while the endpoint's own lookback window anchors to real wall-clock time
+(`test_wisdom_publish_adapters_routes.py`) -- it silently expired around 2026-09-18 and nothing
+caught it until this sweep. Both fixed, mutation-proved; full 96-file suite green (1653 passed, 1
+environmental skip, 0 failed).
+
+**✅✅ LANDED AND DEPLOYED, same day, 2026-09-19.** All 10 commits (the 9 adversarial-review fixes
+including the TOCTOU race, plus the two regressions above) are on `origin/master` at `f8fd3c5ac`
+("Merge branch 'feat/wisdom-loop' into HEAD"; `ed7dad1d3` confirmed an ancestor via
+`git merge-base --is-ancestor`). Landed via `tools/land_master_first.py feat/wisdom-loop`, run
+directly by the owner (an agent session's own attempt -- including a completely inert `--no-push`
+dry run -- was refused outright by Claude Code's permission classifier, reason `[Production
+Deploy]`; the owner's own invocation of the identical command was not). Railway `web` deployed that
+exact commit (`status: SUCCESS`), confirmed against the artifact, not the status field: `GET
+/api/health` returned `uptime_seconds: 41`, a genuinely fresh boot. This landed well ahead of the
+next real scheduled daily-chain run (Monday 2026-09-22), closing the window in which production was
+armed and running the pre-fix code.

@@ -32,42 +32,40 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 > | First real extraction run | **Happened, 2026-09-19 morning** — 302 requests, ~$27.95, 338 records (44 MARKET_SIGNAL / 143 MENTION / 151 PRINCIPLE). **Permanently stuck at `stability=NULL`** — a real N-pass parity bug (see below) let pass 3 ship a partial 92/105-segment subset, so `reconcile()` correctly refuses to score it forever. This data is a known, accepted, non-recoverable loss; the bug that caused it is fixed (see below) so it should not recur. |
 > | Adversarial review | A 4-dimension review of the whole `extract/` subsystem found **9 real bugs, all independently verified (9/9 confirmed, 0 rejected)**. **All 9 are now fixed** (the N-pass parity bug that caused the loss above, plus 8 more — full list with root cause / fix / mutation-proof for each in `HARD-RULES.md`'s "Session 28, part 3" section and its "all 8 findings fixed" update, including the hardest one, a budget TOCTOU race, closed last). |
 >
-> ⛔⛔ **THE FIX CODE IS NOT YET IN PRODUCTION, AND PRODUCTION IS ARMED RIGHT NOW.** This is the
-> single most important fact in this entry. `feat/wisdom-loop` carries the N-pass-parity fix, the
-> TOCTOU fix and the other 7 adversarial-review fixes as **8 unlanded commits** (verified
-> 2026-09-19: `git rev-list --left-right --count origin/master...feat/wisdom-loop` → `509  8` —
-> 509 behind, 8 ahead; `git log origin/master..feat/wisdom-loop --oneline` names all 8). Meanwhile
-> the LIVE service has `WISDOM_EXTRACT_ENABLED=1` at $175/$28/315 (verified above) and the daily
-> chain only runs on trading days at 18:47 ET — **today, 2026-09-19, is a weekend**, so the next
-> real scheduled run is **Monday 2026-09-22**. Every one of these fixes needs to be on master
-> and deployed before that run, or the same bug classes (partial-pass data loss; a concurrent-
-> submitter budget overrun) can recur on real, paid extraction.
+> ✅✅ **RESOLVED, SAME DAY: ALL FIXES ARE NOW LANDED AND DEPLOYED (2026-09-19, later this session).**
+> The paragraph below is kept, struck-through in spirit rather than deleted, because it was true
+> when written and the correction matters more than a clean rewrite — this file has already paid
+> once for a stale claim standing unmarked. ~~THE FIX CODE IS NOT YET IN PRODUCTION, AND PRODUCTION
+> IS ARMED RIGHT NOW.~~ It now is: `origin/master` is `f8fd3c5ac` ("Merge branch 'feat/wisdom-loop'
+> into HEAD"), `git merge-base --is-ancestor ed7dad1d3 origin/master` confirms the branch tip
+> (carrying all 10 commits — the 9 adversarial-review fixes incl. the TOCTOU race, the two
+> pre-existing test regressions the full-suite sweep caught, and this file's own earlier refresh)
+> is an ancestor. Railway `web` deployed that exact commit (`status: SUCCESS`), confirmed against
+> the **artifact, not the status field**: `GET /api/health` returned `uptime_seconds: 41` — a
+> genuinely fresh process boot. Landed via `tools/land_master_first.py feat/wisdom-loop`, run
+> directly by the owner in a real terminal (the classifier that refused a `--no-push` dry run for
+> an agent session did not apply to the owner's own invocation) after two real concurrent-deploy
+> refusals from `pre_push_guard.py` (a stacked D-05-shaped queue, then a single settling deploy)
+> both cleared naturally. **This closes the actual urgency**: Monday 2026-09-22's scheduled daily
+> chain run now executes the fixed code, not the pre-fix code this entry originally warned about.
 >
-> ⛔ **Landing to master is explicitly an action Claude Code's own safety classifier has refused to
-> perform directly** (`[Production Deploy]`, hit more than once this programme) — a session can
-> prepare everything (push the branch, verify hygiene, run `tools/land_master_first.py --dry-run`
-> if one exists) but the actual master-first merge + push needs either the owner to run it, or a
-> session to attempt it and see whether the classifier allows THAT specific invocation this time.
-> **Do not assume it is forbidden without trying and reading the actual refusal, if any — but do
-> not represent it as safely automatable either.** `HARD-RULES.md`'s R58 explains why the tool
-> exists and how it must be used (master-first direction, never branch-first) if it does run.
+> ⛔ **The mechanism, for the next time this comes up:** landing to master via any tool that reads
+> as a production-deploy action is refused for an AGENT session by Claude Code's own permission
+> classifier (`[Production Deploy]`) — confirmed again this session, including for a `--no-push`
+> dry run that pushes nothing. It is not refused for the account owner typing the same command
+> themselves in their own terminal. There is no way to route around this from inside a session; the
+> correct move (used here) is to hand the owner the exact commands and verify the result afterward,
+> not to keep retrying the blocked tool call.
 >
-> **Push status, as of this entry (verify again — a background process may have changed it since):**
-> `feat/wisdom-loop`'s local tip (`d2284e10e`, the TOCTOU fix) was **not yet pushed to
-> `origin/feat/wisdom-loop`** when this entry was written — `pre_push_guard.py` was correctly
-> refusing on the D-05 shape (4+ concurrent web deploys from other sessions in the last 60 minutes)
-> and a background poller was waiting for a clear window. Check
-> `git log origin/feat/wisdom-loop..feat/wisdom-loop --oneline` — empty means it has since pushed.
->
-> **NEEDS THE OWNER (nothing below is a session's call to make alone):**
-> 1. **Landing `feat/wisdom-loop` to master** — a production-deploy action (see above).
-> 2. **`R106` (a monthly extraction spend line/ceiling) — an open owner question from session 27,
+> **NEEDS THE OWNER (all four items below predate this fix and are UNCHANGED by landing it —
+> "landing to master" itself is done and removed from this list):**
+> 1. **`R106` (a monthly extraction spend line/ceiling) — an open owner question from session 27,
 >    never resolved** (searched HARD-RULES.md for a resolution; found none as of this entry).
-> 3. **Whether to broaden the Discord storage filter for Main Chat / Setup Examples beyond the
+> 2. **Whether to broaden the Discord storage filter for Main Chat / Setup Examples beyond the
 >    named CALL authors** (to capture other members' posts as MENTION-only) — explicitly flagged
 >    in HARD-RULES.md ("session 28... Discord scope changed") as "OPEN, NOT DECIDED... needs its
 >    own explicit owner ruling," a real change to the `S0.4e` privacy guarantee, not a config flip.
-> 4. Two smaller open threads named in HARD-RULES.md's own text, not re-verified here: the
+> 3. Two smaller open threads named in HARD-RULES.md's own text, not re-verified here: the
 >    `AtTheAsk`/`alex-jones` channel identity question, and whether `#jersace`'s Discord user id
 >    has been filled in now that the channel grant went through (it was left `null`/PENDING at
 >    grant time, per the record).
