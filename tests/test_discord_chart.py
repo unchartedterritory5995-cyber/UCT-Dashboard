@@ -11,6 +11,7 @@ import pytest
 from tests.discord_harness import UT_GUILD, _app_client, _keypair, _post, _sign
 
 from api.services import discord_chart_house as house_mod
+from api.services.discord_render.ids import corr_id
 
 
 # ── synthetic bars ────────────────────────────────────────────────────────────
@@ -1151,6 +1152,26 @@ def test_endpoint_applies_per_call_overrides_on_top_of_saved_prefs_without_savin
     assert seen["prefs"]["mas"] == "off" and seen["prefs"]["volume"] is False
     assert seen["prefs"]["tf"] == "15"                                       # saved default tf still applies
     assert p.get_prefs("9001")["mas"] == "10-20-50" and p.get_prefs("9001")["volume"] is True   # nothing saved
+
+
+def test_pre_v2_flow_endpoint_threads_a_correlation_id(monkeypatch):
+    """⛔ Found by a 2026-09-19 reliability audit: the V2 `/flow` handler
+    (`commands._handle_flow`) has always passed `cid=job.corr_id` to
+    `run_flow_card_job`, but the PRE-V2 HTTP dispatch in this router never did —
+    every render on that path logged `cid=-` at flow-worker, indistinguishable
+    from any other render. Fixed by deriving the id from the interaction's own
+    `id` field, the same source `commands.py` uses. This test exists on the
+    PRE-V2 path specifically; the V2 path already has its own equivalent
+    assertion in test_discord_render_v2_router.py."""
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    seen = {}
+    monkeypatch.setattr(rt, "run_flow_card_job", lambda *a, **k: seen.update(k) or "ok")
+    payload = dict(_interaction("DPRO", name="flow"), id="9182736450123")
+    assert _post(client, sk, payload).json() == {"type": 5}
+    assert seen["cid"] == corr_id("9182736450123")
+    assert seen["cid"], "a blank cid is exactly as unattributable as no cid at all"
 
 
 def test_chart_advertises_three_options_the_rest_live_on_the_chart_itself():

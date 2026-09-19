@@ -23,6 +23,7 @@ from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
 from api.services.discord_chart_render import compute_stats, render_chart_png
+from api.services.discord_render.ids import corr_id
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -496,7 +497,8 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         token = str(interaction.get("token") or "")
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
-        background.add_task(run_flow_card_job, app_id, token, tkr, days)
+        background.add_task(run_flow_card_job, app_id, token, tkr, days,
+                            cid=corr_id(interaction.get("id")))
         # PUBLIC defer — the "thinking…" resolves into the card, posted as the bot so
         # the 'View chart' button (app-owned message) routes back to us. The bot now
         # has post + attach rights in the channel.
