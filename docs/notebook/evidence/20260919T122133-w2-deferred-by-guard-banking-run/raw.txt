@@ -1,0 +1,51 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 5 cell(s) to run · stamp 2026-09-19T17-21-33Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ append_widget_embed  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:21:51.476659+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-19T17:21:51.476659+00:00', 'marker': None, 'ring': ['2026-09-19T17:21:51.476659+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: True · queued for this note: 0 · /embeds calls: 0
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ INCONCLUSIVE  the deferral sentence was shown but the store reported NO queued entry, so the guard deferred a note that had nothing to defer - the cell cannot tell 
+
+═══ append_widget_embed  ·  marker LIVE
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:22:27.151170+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, this tab, live', 'baseUpdatedAt': '2026-09-19T17:22:27.151170+00:00', 'marker': {'sessionId': 'this-tab', 'startedAt': 1789838567417, 'baseUpdatedAt': '2026-09-19T17:22:27.151170+00:00'}, 'ring': ['2026-09-19T17:22:27.151170+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: True · queued for this note: 0 · /embeds calls: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the deferral sentence was shown but the store reported NO queued entry, so the guard deferred a note that had nothing to defer - the cell cannot tell 
+
+═══ append_widget_embed  ·  marker EXPIRED
+      ⛔ cleanup failed (TargetClosedError) — orphans may remain
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.goto: Target page, context or browser has been closed
+
+═══ append_widget_embed  ·  slow PUT (landed, ring populated)
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+
+═══ append_widget_embed  ·  reload mid-flight (marker from a dead tab)
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+opt-out restored in-session: 'ERR: TargetClosedError' (NOT PROVEN — see the on-disk check below)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → C:\Users\Patrick\uct-worktrees\notebook-k\docs\notebook\wave-q1-f5-production-matrix.md
+(node:63872) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:48968) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

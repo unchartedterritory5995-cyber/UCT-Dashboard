@@ -5,7 +5,7 @@
   "queue": [
     {
       "id": "p3-append-door-restored-guard-unknown-only",
-      "status": "held",
+      "status": "inconclusive",
       "why": "P3 stage 2, and D3's ACTUAL PROOF. The same five orderings of `append_widget_embed` \u2014 the DISCRIMINATING cell \u2014 with `NOTEBOOK_DOOR_GUARD=unknown-only`, so the guard no longer suppresses the door and fix 6's `discardsUnsentWork` is what has to hold the member's words. These five were RED 5/5 against fix 5 (commit `9e7c67e73`), with the signature `record went CLEAN while queued: True` \u2014 which is exactly the write `persist` now guards. GREEN here is what closes D3.",
       "expect": "GREEN",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD=unknown-only, VERIFIED IN-PROCESS on the pod",
@@ -23,7 +23,7 @@
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
       ],
-      "held_why": "\u26d4\u26d4 TWO preconditions, BOTH required, neither inferable from the other. (1) P2 GREEN with raw artifacts \u2014 'P3 without P2 green' is a named STOP. (2) The flip VERIFIED IN THE RUNNING PROCESS, never from `railway variables --kv`, which reads the SERVICE config. `tools/q1_p3_guard_flip.py --to unknown-only` does both the flip and the in-process read and refuses if it cannot confirm. \u26d4 The kill switch NOTEBOOK_OFFLINE is RESERVED and is NOT this flag.",
+      "held_why": "\u26d4 HELD WHILE THE MODE IS SAFE. The runner requeued this after the RED, which is correct for an INCONCLUSIVE but wrong here: with the mode back to its safe default every cell answers DEFERRED, so a run now would measure the opposite experiment and bank nothing. It needs the narrowed mode, which is a deliberate act with a live member path and its own rollback.",
       "rollback": [
         "python",
         "tools/q1_p3_guard_flip.py",
@@ -41,15 +41,15 @@
         "reload mid-flight (marker from a dead tab)"
       ],
       "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not.",
-      "attempts": 1,
+      "attempts": 3,
       "released_why": "Re-held.",
       "result": {
         "exit": 0,
-        "seconds": 557.1,
-        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T17:11:19.514097+00:00` \u00b7 6 r",
+        "seconds": 212.3,
+        "tail": "\u21d2 INCONCLUSIVE  the cell raised TargetClosedError: Page.wait_for_timeout: Target page, context or browser has been closed",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T120305-p3-append-door-restored-guard-unknown-only",
+        "evidence": "docs/notebook/evidence/20260919T121739-p3-append-door-restored-guard-unknown-only",
         "evidence_ok": true
       },
       "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence."
@@ -919,7 +919,7 @@
     },
     {
       "id": "w2-deferred-by-guard-banking-run",
-      "status": "held",
+      "status": "pending",
       "why": "W2. ONE banking run of `append_widget_embed` with the FOURTH OUTCOME live and the guard STILL FULL, to bank the DEFERRED-BY-GUARD reading with a raw artifact. It is not trying to reproduce anything: D1 closed the loss path, so this records, once, that the door was driven to completion and the capture chokepoint stopped it WITH THE MEMBER TOLD.",
       "expect": "DEFERRED-BY-GUARD",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD unset or full",
@@ -938,15 +938,15 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
       ],
       "held_why": "HELD WHILE THE MODE IS NARROWED. This cell exists to bank the deferral reading, which only happens in the SAFE state. Running it now would measure the opposite condition and bank a reading of the wrong experiment.",
-      "attempts": 0,
-      "released_why": "Released. Its only stated blocker was that 2.8b owned the window; 2.8b is done (18/18). It needs no flag change and the mode value is back to its safe default, which is exactly the state this cell measures.",
+      "attempts": 1,
+      "released_why": "Released: the mode is back to its SAFE state, which is the condition W2 exists to record, and the toast is now LATCHED while on screen so the outcome is reachable for the first time.",
       "result": {
         "exit": 0,
-        "seconds": 231.3,
-        "tail": "\u21d2 INCONCLUSIVE  a SILENT NOTHING: no call to the door's endpoint and no deferral sentence on screen. The click may have missed, or the toast may have shipped invisibl",
+        "seconds": 110.7,
+        "tail": "\u21d2 INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T105722-w2-deferred-by-guard-banking-run",
+        "evidence": "docs/notebook/evidence/20260919T122133-w2-deferred-by-guard-banking-run",
         "evidence_ok": true
       },
       "restaged_why": "Re-staged after the toast latch. Its three prior attempts could NEVER have banked: the product clears the toast at 2200ms and the rig read it at 5000ms, so the outcome this cell exists to record was structurally unreachable. The instrument changed, so this is a different experiment."
@@ -1097,7 +1097,7 @@
     },
     {
       "id": "matrix-remainder",
-      "status": "held",
+      "status": "pending",
       "timeout": 3600,
       "why": "Running the remainder first would spend window minutes on cells the fix is about to change, and the rig window is the scarcest resource in this programme.",
       "cmd": [
@@ -1112,8 +1112,17 @@
       "blocked_on": "the fix4 re-run, which rewrites five of the cells this would otherwise re-read",
       "release_when": "fix4-production-re-run reaches a DECIDED verdict on all five cells.",
       "attempts": 0,
-      "released_why": "Released. Its blocker was \"cells the fix is about to change\" - all three fixes have since landed and P2 is green (18/18, zero RED), so the rationale is spent. --resume is correct HERE because this runs in NORMAL mode, where verdicts ARE banked; the same flag would be wrong in second-writer mode, where they are not.",
-      "held_why": "Held behind P3 so the append rows are not measured mid-flip."
+      "released_why": "Released: the mode is back to its SAFE state, which is the condition W2 exists to record, and the toast is now LATCHED while on screen so the outcome is reachable for the first time.",
+      "held_why": "Held behind P3 so the append rows are not measured mid-flip.",
+      "result": {
+        "exit": 1,
+        "seconds": 6.8,
+        "tail": "rig profile: C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent  \u00b7 marker `canary-chrome-profile-persistent` / STOP: the rig profile is locked by a running Chrome (lockfile). Close it, or kill by marker, before starting a run.",
+        "inconclusive": false,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260919T121955-matrix-remainder",
+        "evidence_ok": true
+      }
     },
     {
       "id": "fix5-production-re-run",

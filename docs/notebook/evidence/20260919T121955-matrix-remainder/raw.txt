@@ -1,0 +1,5 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 15 cell(s) to run · stamp 2026-09-19T17-19-55Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+STOP: the rig profile is locked by a running Chrome (lockfile). Close it, or kill by marker, before starting a run.

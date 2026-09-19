@@ -1,0 +1,6 @@
+
+=== WINDOW OPEN 12:21:33 · 2 staged ===
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T122133-w2-deferred-by-guard-banking-run (5141B raw)
+   ⇒ w2-deferred-by-guard-banking-run: INCONCLUSIVE (attempt 1, requeued) in 110.7s
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
