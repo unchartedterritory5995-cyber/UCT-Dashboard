@@ -35,8 +35,16 @@ def test_dedupe_corpus_is_never_vacuous_on_the_real_fixture_dirs():
             paths.extend(p.glob("*.pine"))
     assert len(paths) > 20, "fixture directories are missing or nearly empty — check paths"
     result = dedupe_corpus(paths)
-    assert 15 <= len(result) <= 30, (
-        f"expected roughly the ~23-unique-script count established in the spec, got {len(result)}"
+    # Upper bound widened 2026-09-19: the coverage matrix's own Task 5/6 work
+    # deliberately grew the corpus from the original ~23-script baseline to 31
+    # (5 fixtures closing zero-coverage gaps + 3 more meeting the spec's >=2
+    # floor) — this is the intended outcome of the program, not corpus bloat.
+    # This bound stays a coarse sanity check (catch a broken dedupe_corpus or a
+    # misconfigured FIXTURE_DIRS returning near-zero or a runaway duplicate
+    # count), not a gate on an exact fixture count.
+    assert 15 <= len(result) <= 45, (
+        f"expected a fixture corpus roughly in line with the coverage-matrix "
+        f"program's deliberate ~31-script baseline (2026-09-19), got {len(result)}"
     )
 
 

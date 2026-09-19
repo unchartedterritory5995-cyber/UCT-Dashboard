@@ -1,0 +1,6 @@
+//@version=6
+// UCT rendering-parity fixture — second `plotarrow` script (spec §4.1 floor is ≥2, not merely >0).
+// Added 2026-09-19 per controller ruling — see .superpowers/sdd/2026-09-19-pine-primitive-coverage-matrix/progress.md.
+indicator(title = "Fixture: plotarrow coverage 2", overlay = false)
+macdLine = ta.ema(close, 12) - ta.ema(close, 26)
+plotarrow(macdLine, colorup = color.lime, colordown = color.red)

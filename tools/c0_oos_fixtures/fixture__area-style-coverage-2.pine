@@ -1,0 +1,6 @@
+//@version=6
+// UCT rendering-parity fixture — second `plot.style_area` script (spec §4.1 floor is ≥2, not merely >0).
+// Added 2026-09-19 per controller ruling — see .superpowers/sdd/2026-09-19-pine-primitive-coverage-matrix/progress.md.
+indicator(title = "Fixture: area style coverage 2", overlay = false)
+cci = ta.cci(close, 20)
+plot(cci, title = "CCI", style = plot.style_area, color = color.new(color.orange, 40))

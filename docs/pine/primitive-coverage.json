@@ -1,8 +1,11 @@
 {
   "primitives": {
     "area": {
-      "count": 0,
-      "scripts": []
+      "count": 2,
+      "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__area-style-coverage-2.pine",
+        "tools\\c0_oos_fixtures\\fixture__area-style-coverage.pine"
+      ]
     },
     "band": {
       "count": 14,
@@ -33,8 +36,11 @@
       ]
     },
     "baseline": {
-      "count": 0,
-      "scripts": []
+      "count": 2,
+      "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__baseline-coverage-2.pine",
+        "tools\\c0_oos_fixtures\\fixture__baseline-coverage.pine"
+      ]
     },
     "bgcolor": {
       "count": 6,
@@ -117,8 +123,13 @@
       ]
     },
     "line": {
-      "count": 21,
+      "count": 26,
       "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__area-style-coverage-2.pine",
+        "tools\\c0_oos_fixtures\\fixture__area-style-coverage.pine",
+        "tools\\c0_oos_fixtures\\fixture__baseline-coverage-2.pine",
+        "tools\\c0_oos_fixtures\\fixture__baseline-coverage.pine",
+        "tools\\c0_oos_fixtures\\fixture__stepline-coverage.pine",
         "tools\\c0_oos_fixtures\\high_engagement__02-waddah-attar-explosion-lazybear.pine",
         "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
         "tools\\c0_oos_fixtures\\high_engagement__04-ttm-squeeze-greeny.pine",
@@ -167,12 +178,16 @@
       ]
     },
     "plotarrow": {
-      "count": 0,
-      "scripts": []
+      "count": 2,
+      "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__plotarrow-coverage-2.pine",
+        "tools\\c0_oos_fixtures\\fixture__plotarrow-coverage.pine"
+      ]
     },
     "plotbar": {
-      "count": 1,
+      "count": 2,
       "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__plotbar-coverage.pine",
         "tools\\c0_oos_fixtures\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine"
       ]
     },
@@ -209,8 +224,9 @@
       ]
     },
     "stepline": {
-      "count": 1,
+      "count": 2,
       "scripts": [
+        "tools\\c0_oos_fixtures\\fixture__stepline-coverage.pine",
         "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine"
       ]
     },
@@ -229,5 +245,5 @@
       ]
     }
   },
-  "corpus_size": 23
+  "corpus_size": 31
 }
