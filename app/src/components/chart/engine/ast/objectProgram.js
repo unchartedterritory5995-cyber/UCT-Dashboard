@@ -129,7 +129,7 @@ export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'tex
 export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.line2': 'line' })
 
 export const OBJECT_OP_KINDS = Object.freeze([
-  'create', 'update', 'delete', 'cell', 'clearcells', 'setreg',
+  'create', 'update', 'delete', 'cell', 'cellpatch', 'clearcells', 'setreg',
   'push', 'collset', 'collclear', 'collremove',
 ])
 
@@ -427,10 +427,17 @@ export function assertObjectProgram(program) {
           throw new Error(`objects.ops[${i}]: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
-    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell' || op.k === 'clearcells') {
+    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell'
+      || op.k === 'cellpatch' || op.k === 'clearcells') {
       const fam = resolveTargetFamily(op, i, regs, colls, siteFamily)
-      if (op.k === 'cell') {
-        if (fam !== 'table') throw new Error(`objects.ops[${i}]: cell targets a ${fam}, but only a table has cells`)
+      // ⭐ `cell` (Pine's PUT) and `cellpatch` (its `cell_set_*` PATCH) are two
+      // operations with one shape, so the door checks them with one rule. What
+      // separates them is not their structure — it is what the runtime does
+      // with an address that already holds something, and a validator cannot
+      // see that. Two near-identical branches here would only be two places to
+      // forget the same check.
+      if (op.k === 'cell' || op.k === 'cellpatch') {
+        if (fam !== 'table') throw new Error(`objects.ops[${i}]: ${op.k} targets a ${fam}, but only a table has cells`)
         assertValueRef(op.col, `objects.ops[${i}].col`)
         assertValueRef(op.row, `objects.ops[${i}].row`)
         assertCellProps(op, i)

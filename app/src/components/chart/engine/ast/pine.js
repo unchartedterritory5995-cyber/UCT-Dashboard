@@ -10601,6 +10601,23 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       if (badCell) { dropped('cell:text'); continue }
       ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k === 'cellpatch') {
+      const target = targetRef(op.target)
+      const col = op.col ? valueRef(op.col.value) : null
+      const row = op.row ? valueRef(op.row.value) : null
+      if (!target) { dropped('cellpatch:target'); continue }
+      if (!col || !row) { dropped('cellpatch:address'); continue }
+      const node = op.args[0] && op.args[0].value
+      const v = node ? valueRef(node, op.prop) : null
+      // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
+      // with an unreadable colour still draws, because the rest of that call is
+      // the cell's content; a `cell_set_bgcolor` whose colour cannot be read has
+      // NOTHING left to do, and emitting it with empty props would be an
+      // operation that runs every bar and means nothing. It is named twice on
+      // purpose — by property and line, so an engineer can find the expression,
+      // and by drop reason, so the op count still adds up.
+      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
       if (!target) { dropped('clear:target'); continue }

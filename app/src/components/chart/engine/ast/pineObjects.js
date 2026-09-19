@@ -88,6 +88,43 @@ export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
   'end_column', 'end_row'])
 
 /**
+ * ⭐⭐ `table.cell_set_*(table_id, column, row, value)` → the ONE cell property
+ * each one patches.
+ *
+ * ⛔⛔ IT IS A SEPARATE TABLE FROM `SETTER_PROPS` BECAUSE IT IS A SEPARATE
+ * OPERATION. A `table.set_*` writes a property of the TABLE and takes its value
+ * straight after the handle; a `cell_set_*` writes a property of ONE CELL and
+ * carries an ADDRESS in between. ⚰️ Neither shape was here at all, which is why
+ * every one of these fell through to the `SETTER_PROPS` lookup below and was
+ * filed as an unsupported method: a member's script could ask to recolour a cell
+ * on every bar and the cell never changed.
+ *
+ * ⭐ AND PINE DRAWS A LINE HERE THAT THIS TABLE EXISTS TO KEEP. The reference,
+ * quoted at `docs/pine/pine-presentation-spec.md:1630`: "**Each `table.cell()`
+ * call overwrites all previously defined properties of a cell.** … If you want,
+ * instead, to modify any of the cell's properties, use the `table.cell_set_*()`
+ * functions." The spec's own ruling follows: "Implement them as two distinct
+ * operations. Never implement `cell()` as a merge."
+ *
+ * ⛔ TEN OF PINE'S ELEVEN. `cell_set_text_font_family` is deliberately absent —
+ * `CELL_PROPS` has no `text_font_family`, for the reason given there, and an
+ * entry here would promise a patch the program model cannot carry. It stays a
+ * named refusal in `diagnostics.unsupported`.
+ */
+export const CELL_SETTER_PROPS = Object.freeze({
+  cell_set_text: 'text',
+  cell_set_text_color: 'text_color',
+  cell_set_bgcolor: 'bgcolor',
+  cell_set_text_size: 'text_size',
+  cell_set_text_halign: 'text_halign',
+  cell_set_text_valign: 'text_valign',
+  cell_set_text_formatting: 'text_formatting',
+  cell_set_tooltip: 'tooltip',
+  cell_set_width: 'width',
+  cell_set_height: 'height',
+})
+
+/**
  * A Pine setter name → the canonical properties it writes, in the order its
  * arguments arrive AFTER the object handle.
  *
@@ -443,6 +480,19 @@ export function collectObjectOps(stmts, h) {
     if (ns === 'table' && method === 'cell') {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
+        guards, locals: scope, at: toks[0], line: st.header[0].line,
+      })
+      return
+    }
+    // ⭐ A CELL SETTER SHARES `cell`'s ADDRESS SHAPE AND NOT ITS MEANING. Same
+    // `(column, row)` in the same two slots, but exactly one property follows —
+    // and the op kind stays distinct so that the day `cell` becomes the true
+    // REPLACE the reference describes, a `cell_set_text` does not start wiping
+    // the colours off the row it was only asked to relabel.
+    if (ns === 'table' && CELL_SETTER_PROPS[method]) {
+      ops.push({
+        k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
+        target, col: rest[0], row: rest[1], args: rest.slice(2),
         guards, locals: scope, at: toks[0], line: st.header[0].line,
       })
       return
