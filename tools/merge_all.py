@@ -194,6 +194,7 @@ UNITS = [
     # yet, but a genuine new HTTP endpoint a member's authenticated client can
     # reach). #!last: moves to this checkpoint.
     ("s6-cp4-build-record", ["359190d4d"], True),           # GET /api/member/interest, MEMBER-VISIBLE (new route, paid-gated)
+    ("d3-cp3-build-record", ["21405e045"], False),          # bars-lane staleness reader + overlay-live status field, api/ only, zero callers
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

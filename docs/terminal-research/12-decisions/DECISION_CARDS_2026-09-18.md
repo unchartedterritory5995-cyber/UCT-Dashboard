@@ -222,3 +222,67 @@ comparison window, or (b) an explicit owner answer to the persistence-semantics
 question first. No code or config change; `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED`
 stays in dark-comparison mode, legacy `watchlist_alerts` continues to be the one
 that actually fires.
+
+---
+
+## CARD 7 — OI-06 is CLOSED (answered 2026-09-14); the broader command-palette-UI
+## question (HY-05) is a SEPARATE, still-open bet — RULED 2026-09-19
+
+**Two different questions were carried under one name, and conflating them was the
+reason this looked like a live decision when most of it was not.**
+
+### 7a · OI-06 itself — CLOSED, not mine to re-decide
+
+**OI-06's literal, formal text** (verified against its own registration this
+session): *"Of thinkorswim, TradingView, Finviz, Market Chameleon, Unusual Whales,
+SpotGamma — which do you and the partner open by hand on a trading day, and does
+the desk run any TradingView alerts?"* This is a narrow, factual input question, not
+a strategic one. **It was already answered 2026-09-14**, five days before this
+session, in `verification/2026-09-14/OI-06-telemetry-derived-defaults.md`, via real
+production telemetry plus the owner's own stated rule for the half telemetry cannot
+reach (*"where telemetry is silent, take the shipped palette's current behaviour as
+the answer"*): external tools default to NONE, TradingView alerts default to NO,
+and the S1 surface manifest's order/membership and S2's command-grammar targets
+were derived from real session data (13 active users, 50 admin session-days).
+
+**Status: CLOSED, 2026-09-14. Nothing for this session to rule on.** What this
+session found and fixed was pure staleness: S1's and S2's own gate packets still
+said *"waits on OI-06, nothing can be signed until that is answered"* five days
+after it was answered — and, independently, both packets' own CP1 checkpoints
+turned out not to have needed the answer at all (both were built and signed the
+day the packets were written, 2026-09-14, before OI-06's own answer landed later
+that same day). Corrected in both gate packets and in `COMPLETION_AUDIT.md` §1.1.
+
+### 7b · The command-palette / grammar UI (HY-05) — RULED: HOLD, same reasoning as CARD 6
+
+**This is the question CARD 1 of this document's own predecessor research
+conflated with OI-06, and it is a genuine, unresolved product-strategy bet.**
+`hypothesis-register.md`'s HY-05 status is **"unknown"** — no keystroke or latency
+measurement exists anywhere in the competitive survey, for either side of the
+question. The evidence is genuinely split: Bloomberg's own moat is named
+explicitly as one this desk **must not** copy (*"difficulty-as-moat... UCT must
+not emulate because it has no counterparty lock to absorb the churn"*), and half
+of the comparable universe (Fiscal.ai, TradingView, SpotGamma, Benzinga) ships
+**no command grammar at all**, deliberately. The C4-01 synthesis's own three
+candidate designs (`command-grammars.md` §11) split the same way: Grammar A
+(Bloomberg-lite, noun-first) is named "weakest for members" and walks straight
+into a real, already-shipped hazard (RS/EMA/MA/GAP/PEG are real tickers); Grammar
+B (Ctrl-K palette, zero syntax) is named "the safest option for members"; Grammar
+C (context bar + scoped verbs) is the synthesis's own recommendation to test
+first but is flagged as needing a real UI gap solved first (widget headers
+currently carry no visible label, only a colour dot — "which pane am I typing
+into" has no answer today).
+
+**RULED: HOLD on building any VISIBLE palette UI** — same reasoning as CARD 6:
+this is real, unmeasured, member-facing risk (a UI surface members would need to
+learn, on a competitive argument that explicitly does not transfer to this desk's
+situation), not a spec-stated default, and not something this delegation resolves
+unilaterally. **NOT held: the low-risk infrastructure underneath it**, which
+carries none of HY-05's uncertainty because nothing is mounted or visible either
+way — S1 CP1 (the surface manifest), S2 CP1/CP2 (the chord table + collision
+rail + one adopting surface) were already built prior to this session under the
+same reasoning, and S1 CP2 / S2 CP3 (the next narrow, zero-new-surface-area
+checkpoints) are buildable now that OI-06's own narrow question is closed. Building
+the actual A/B/C palette UI is the real bet, and it stays open pending either a
+keystroke/latency measurement or an explicit owner call on which of A/B/C (if any)
+to build.

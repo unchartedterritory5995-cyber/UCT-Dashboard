@@ -2,13 +2,17 @@
 id: GATE-D3-REALTIME-STREAMING
 title: D3 — Realtime Streaming — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ NOT APPROVED. The approval block is empty. No checkpoint is authorized.
+status: ✅ CP1 APPROVED AND MERGED (`302f99e8e`, 2026-09-13) · CP2 also built and merged
+  (`d3-cp2-build-record.md`, fingerprint `f7e851d58`) · CP3 is the next open checkpoint
+  (see spec §G3 — a read-only bars-lane staleness indicator). Corrected 2026-09-19; this
+  line previously said "NOT APPROVED... empty", which was already false the day after
+  it was written.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-D3-REALTIME-STREAMING
 ---
 
-# ⛔ D3 pre-implementation gate — NOT APPROVED
+# ✅ D3 CP1/CP2 approved and merged; CP3 open
 
 ## ⛔ APPROVAL
 
@@ -25,7 +29,10 @@ SCOPE APPROVED:   CP1 - RATIFICATION ONLY, MADE CHECKABLE. A rail
                   written to match a stale doc is worse than no rail.
 ```
 
-> **NOTHING IN THIS PACKET IS AUTHORIZED.**
+> ⚰️ **This said "NOTHING IN THIS PACKET IS AUTHORIZED."** CP1 is authorized, above, and
+> merged (`302f99e8e`). CP2 is authorized and merged separately
+> (`d3-cp2-build-record.md`, fingerprint `f7e851d58`). CP3+ remains unauthorized until a
+> line names it — the rule below still holds for anything past CP2.
 
 ⛔ **An approval line must name a CHECKPOINT, never "D3".** §4 proposes five so that a
 signature has something checkable to point at. This is the same rule D2's gate applied to

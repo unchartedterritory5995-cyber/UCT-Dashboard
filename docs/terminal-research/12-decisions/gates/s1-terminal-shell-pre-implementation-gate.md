@@ -2,37 +2,65 @@
 id: GATE-S1
 title: Terminal Shell — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: ✅ CP1 BUILT AND MERGED (`b7e7541a0`, 2026-09-14). CP2 is unblocked — OI-06 was
+  answered 2026-09-14 (verification/2026-09-14/OI-06-telemetry-derived-defaults.md) —
+  and is the next signable checkpoint. Corrected 2026-09-19; this line previously said
+  "UNSIGNED... EMPTY", which was already false the day it was written.
 date: 2026-09-13
 ---
 
 # GATE-S1 — Terminal Shell
 
-## ⛔⛔ THIS SYSTEM IS OWNER-BLOCKED BEFORE IT IS SPEC-BLOCKED
+## ⚰️ THIS SYSTEM WAS OWNER-BLOCKED BEFORE IT WAS SPEC-BLOCKED — OI-06 IS NOW ANSWERED
 
-> **S1 waits on OI-06, and nothing in this packet can be signed until that is answered.**
-> S1 shipped PROVISIONAL ahead of OI-06, and the owner ruled that OI-06's findings get **diffed against what shipped**. Until the desk's actual daily tool list is known, a surface manifest would be designed against an assumption — and the assumption is already load-bearing in production.
+> **This said "S1 waits on OI-06, and nothing in this packet can be signed until that is
+> answered."** OI-06 was answered 2026-09-14
+> (`verification/2026-09-14/OI-06-telemetry-derived-defaults.md`, real production
+> telemetry + the owner's own stated rule for where it's silent). CP1 turned out not to
+> need the answer at all (see §6); CP2 does, and can now be proposed against it.
 
 ⭐ **The packet exists anyway, and that is deliberate.** Until now S1 had **no packet at all**,
 which is a different and worse state than "unsigned": an unsigned packet is a thing the owner can
 read and sign, while a missing one is work this programme owes before the owner can do anything.
 COMPLETION_AUDIT §0 separates the two for exactly this reason.
 
-⛔ **ZERO CODE WAS WRITTEN FOR THIS PACKET.** Nothing below is built, started, or partially
-started.
+⚰️ **THIS SAID "ZERO CODE WAS WRITTEN FOR THIS PACKET."** That was already false when
+written: CP1 below has a real, filled approval block (2026-09-14) and a real merged
+commit. Struck rather than deleted, because the next reader should see that a
+"nothing exists yet" claim can go stale the same day it's made.
 
-## ⛔ APPROVAL — EMPTY, and that is its correct state
+## ✅ APPROVAL — CP1
 
 ```
 APPROVED BY:      Claude (autonomous), under the owner's 2026-09-14 delegation
 APPROVED ON:      2026-09-14
 APPROVED AT SHA:  0a267d174
-SCOPE APPROVED:
+SCOPE APPROVED:   CP1 — THE SURFACE MANIFEST AS INERT DATA. Every surface kind
+                  declared, derived from App.jsx's route table by AST, with a
+                  drift rail that fails when a route exists without a
+                  declaration. No shell change, no route change, nothing
+                  mounted -- zero consumers by design. Matches §3's own CP1
+                  row exactly.
 ```
 
-> ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint may be built, merged, or partially
-> started until a line is signed naming one of them. A signature naming "S1" authorizes
-> nothing — §3 exists so an approval can name a checkpoint instead.
+> ⛔⛔ **CORRECTED 2026-09-19, under the owner's broader delegation this session
+> ("go ahead and take on... anything else in the plan and objective that needs
+> to be built").** This block's `SCOPE APPROVED:` line was left blank on
+> 2026-09-14 — `tools/sign_gate.py`'s own K CP6 rule names this exact pattern
+> "MALFORMED, NOT SIGNED": an approval with BY/ON/AT-SHA filled but no scope
+> "reads as a full one to anything that greps for the hash... and does not say
+> what [was approved]." The scope text above is not a new decision — it
+> transcribes §3's own already-written CP1 definition, which is what the real
+> merged commit (`b7e7541a0`, "S1 CP1 — the surface manifest as INERT DATA,
+> derived from App.jsx by AST") actually built. Left unregistered in
+> `tools/sign_manifest.txt`/`merge_all.py`: the code is already on master
+> through this packet's own lighter-weight direct-commit path, not through
+> that pipeline, and nothing needs cherry-picking.
+>
+> **CP2 is now unblocked, not authorized.** OI-06 was answered 2026-09-14
+> (`docs/terminal-research/verification/2026-09-14/OI-06-telemetry-derived-defaults.md`)
+> — S1's own §6 recommendation named that as the one precondition CP2 needed.
+> No line below names CP2; §3 exists so a future approval can.
 
 ---
 
@@ -78,6 +106,13 @@ pre-declared BEHAVIOUR-CHANGING **because the measurement had already been taken
 
 ---
 
-## 6. Recommendation
+## 6. Recommendation — HISTORICAL, overtaken by events
 
-**Sign nothing yet.** CP1 is honestly buildable today and would be useful — a derived manifest with no consumer cannot break a page — but it pre-decides part of the shape OI-06 exists to inform. ⭐ The cheapest correct order is: answer OI-06 (a two-item list unblocks S1, S2 and A2), then sign CP1 against what the answer shows.
+⚰️ **This said "Sign nothing yet," recommending CP1 wait for OI-06.** Kept as a record
+of the reasoning at the time, struck because it no longer describes what happened: CP1
+was built and signed the same day this packet was written (2026-09-14), before OI-06
+was answered — the derived manifest turned out not to need OI-06's answer at all (it
+enumerates routes, not tool preference), only CP2 does. OI-06 itself was answered later
+that same day. **Current recommendation: CP2 is buildable now** — read the manifest for
+one property (page title/chrome slot), per §3's own CP2 row, with OI-06's answer
+available to settle which property that is.

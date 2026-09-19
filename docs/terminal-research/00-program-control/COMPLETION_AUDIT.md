@@ -28,7 +28,7 @@ three states is marked **`⛔ NOT-YET-CLASSIFIED`** with what it would take.
 |---|---|---|
 | **DONE** | **11** | shipped and nothing outstanding against its own PRD/spec definition |
 | **BLOCKED-DATA** | **5** | waiting on a measurement; the command that produces it is named |
-| **BLOCKED-OWNER** | **8**, ⚰️ **7 as of 2026-09-18** — S6 moved to DONE (§1.1) once its rulings landed (DECISION_CARDS_2026-09-18.md) | waiting on a ruling; the OI id or the ruling is named |
+| **BLOCKED-OWNER** | **8**, ⚰️ **5 as of 2026-09-19** — S6 moved to DONE 2026-09-18 (§1.1, DECISION_CARDS_2026-09-18.md); S1 and S2 moved to DONE-with-an-open-CP 2026-09-19 once OI-06 was found already answered (2026-09-14) and their own gate packets' stale "waits on OI-06" language was corrected (§1.1) | waiting on a ruling; the OI id or the ruling is named |
 | **BLOCKED-SPEC-READ** | **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
 | **BLOCKED-DEPENDENCY** | **2** | waiting on another system, named |
 | **EXCLUDED** | **1** | E1, outside the named roster |
@@ -86,8 +86,8 @@ blocker class.
 
 | system | current | DONE means (cited) | gap | blocker |
 |---|---|---|---|---|
-| **S1** Terminal Shell | PROVISIONAL-SHIPPED, narrow slice | product-architecture §5-A.1 — a shell that hosts surface kinds from a manifest | the manifest decision is gated on OI-06's findings being diffed against what shipped | **BLOCKED-OWNER** — OI-06 |
-| **S2** Command / Search | PROVISIONAL-SHIPPED | §5-A.2 — a keyboard registry with one binding table | same OI-06 diff | **BLOCKED-OWNER** — OI-06 |
+| **S1** Terminal Shell | ✅ **CP1 BUILT AND MERGED** `b7e7541a0` (2026-09-14) | product-architecture §5-A.1 — a shell that hosts surface kinds from a manifest | ⚰️ was *"BLOCKED-OWNER — OI-06"*. OI-06 was answered 2026-09-14 (telemetry-derived-defaults.md); CP1 turned out not to need it. **CP2** (shell reads the manifest for one property) is the next open checkpoint, now unblocked. | **DONE** for CP1; CP2 buildable |
+| **S2** Command / Search | ✅ **CP1 + CP2 BUILT AND MERGED** `feb7ba1f8` / `095f27f97` | §5-A.2 — a keyboard registry with one binding table | ⚰️ was *"BLOCKED-OWNER — OI-06"*, same correction as S1. `chords.js` has exactly ONE real chord (`SHIFT_F`) — **CP3** (one more surface adopts) is the next open checkpoint, now unblocked. | **DONE** for CP1/CP2; CP3 buildable |
 | **S3** Entity Master | **SHIPPED** CP1–8 `ed6b1f041` | entity-master-spec §all | ⚠️ its gate packet is **UNSIGNED** despite the system being built — a bookkeeping gap, not a build gap | **DONE** (packet noted in §2) |
 | **S4** Context Bus | **CP1 MERGED** `76c62c494` | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP1 is the divergence DETECTOR only; the bus adoption itself is CP2+ | **BLOCKED-SPEC-READ** — CP2 line unsigned |
 | **S5** Persistence & User State | spec + gate written, **UNSIGNED** | persistence-user-state-spec — a typed store for list/preference documents | no CP1 authorized | **BLOCKED-SPEC-READ** |
@@ -105,7 +105,7 @@ blocker class.
 |---|---|---|---|---|
 | **D1** Provider Abstraction | SHIPPED, census GREEN | provider-abstraction-spec | G5 quarantine entry cleared | **DONE** |
 | **D2** Canonical Data Model | CP1 `b9783d509` · CP2 `ffa8102c7` · CP3 store `0b8cf4c41`+`40bf07c99` | canonical-data-model-spec §§1–6 | **CP3 gate needs Monday's samples**; §9.5 indicator axis unsigned | **BLOCKED-DATA** + **BLOCKED-SPEC-READ** |
-| **D3** Realtime Streaming | spec + gate written, **UNSIGNED** | realtime-streaming-spec | no CP1 authorized | **BLOCKED-SPEC-READ** |
+| **D3** Realtime Streaming | ✅ **CP1/CP2/CP3 BUILT AND MERGED** `302f99e8e`/`af9fe21a6`/`21405e045` | realtime-streaming-spec | ⚰️ was *"UNSIGNED, no CP1 authorized"* — CP1 was owner-signed 2026-09-12. CP4 (the first real consumer, S7's price-level sweep) is the next open checkpoint and is a real architectural bet (§4 marks it the first non-inert one) — not proposed this session. | **DONE** for CP1–CP3; CP4 needs its own owner read |
 | **D4** Caching & Serving | spec + gate written, **UNSIGNED** | caching-and-serving-spec | no CP1 authorized | **BLOCKED-SPEC-READ** |
 | **D5** Reference & Corp-Actions | **CP1, CP3, CP4, CP5, CP6, CP7 MERGED** — `9458ea641`/`3bf13974a`/`da2930cec`/`c7ac0b7bc`/`76fb85247`/`e38d47b55` | reference-corp-actions-spec | ⚰️ was *"CP2–CP7 unsigned."* CP3–CP5 and CP7 shipped 2026-09-18 (the adjustment-basis endpoint, member-visible). CP6 (renamed-only) shipped the same day on a re-investigation that found a real, previously-missed vendor source (`/vX/reference/tickers/{ticker}/events`) for confirmed ticker changes — verified live against production; still no vendor source exists for merger/relation_added, so that half of CP6 stays unbuilt by design. **CP2 (the inert `corp_actions.db` ledger, spec §4.1) remains unsigned/unbuilt** — its own §4 row already classifies it as read by nothing, so nothing else in D5 is waiting on it. | **DONE** for every checkpoint anyone is waiting on; CP2 is the one genuinely open proposal, un-authorized, not blocking |
 | **D8** Portfolio/risk deferral | deferred in its own block | — | owner-bound | **EXCLUDED-by-deferral** → counted under BLOCKED-OWNER |
