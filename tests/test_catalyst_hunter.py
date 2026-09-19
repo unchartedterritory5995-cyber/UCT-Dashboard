@@ -46,7 +46,12 @@ def test_run_hunt_happy_path(monkeypatch):
     ]})
     fake_msg = types.SimpleNamespace(
         content=[types.SimpleNamespace(text=payload)],
-        usage=types.SimpleNamespace(input_tokens=10, output_tokens=20),
+        # ⛔ F-CAT-2: a hit is only accepted when the model actually searched
+        # for it -- this fixture's `server_tool_use` is what makes it a
+        # genuine happy path rather than the hallucination case below.
+        usage=types.SimpleNamespace(
+            input_tokens=10, output_tokens=20,
+            server_tool_use=types.SimpleNamespace(web_search_requests=3)),
         stop_reason="end_turn",
     )
     fake_client = types.SimpleNamespace(
@@ -60,6 +65,69 @@ def test_run_hunt_happy_path(monkeypatch):
     assert hits[0]["ticker"] == "NVDA"
     assert hits[0]["catalyst_type"] == "Analyst"
     assert hits[0]["moving_yet"] is False
+
+
+def test_F_CAT_2_hits_discarded_when_the_model_never_searched(monkeypatch):
+    """⛔⛔ F-CAT-2 (LEDGER.md, registered 2026-09-11, fixed here). On
+    2026-09-11 four hunts billed ~2,000 output tokens each while showing
+    input_tokens of 14/16/18 (vs 17k-42k healthy) -- the model answered
+    without ever calling web_search, so the "hits" it returned were not
+    grounded in anything real. Same payload shape as the happy path above,
+    but `server_tool_use` is absent (zero searches) -- the hit must be
+    discarded, not delivered as a genuine finding."""
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+
+    payload = json.dumps({"hits": [
+        {"ticker": "NVDA", "catalyst_type": "Analyst", "headline": "Upgraded to Buy",
+         "source_url": "https://x", "when": "pre-market", "moving_yet": False},
+    ]})
+    fake_msg = types.SimpleNamespace(
+        content=[types.SimpleNamespace(text=payload)],
+        # No server_tool_use attribute at all -- getattr(...) falls back to
+        # None/0, same shape the real 2026-09-11 incident's low-token calls
+        # would have produced (zero search requests).
+        usage=types.SimpleNamespace(input_tokens=16, output_tokens=2000),
+        stop_reason="end_turn",
+    )
+    fake_client = types.SimpleNamespace(
+        messages=types.SimpleNamespace(create=lambda **kw: fake_msg))
+
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client", lambda: fake_client)
+
+    assert hunter.run_hunt("deep") == []
+
+
+def test_F_CAT_2_a_genuine_zero_catalyst_day_is_NOT_mislabeled(monkeypatch, caplog):
+    """⛔ THE NON-VACUITY CONTROL. The guard's condition is `hits and searches
+    == 0` -- it must fire on 'hits with no search', never merely on 'no
+    hits'. Same zero-search shape as the hallucination test above, but the
+    model genuinely found nothing ({"hits": []}) -- this must return [] via
+    the ORDINARY quiet-day path, not the discard-and-warn path, or a healthy
+    quiet pre-market would be mis-logged as an ungrounded hallucination
+    every single day."""
+    monkeypatch.setenv("CATALYST_HUNTER_ENABLED", "1")
+
+    payload = json.dumps({"hits": []})
+    fake_msg = types.SimpleNamespace(
+        content=[types.SimpleNamespace(text=payload)],
+        usage=types.SimpleNamespace(input_tokens=16, output_tokens=40),
+        stop_reason="end_turn",
+    )
+    fake_client = types.SimpleNamespace(
+        messages=types.SimpleNamespace(create=lambda **kw: fake_msg))
+
+    import api.services.engine as eng
+    import logging
+    monkeypatch.setattr(eng, "_get_anthropic_client", lambda: fake_client)
+
+    with caplog.at_level(logging.WARNING, logger="api.services.catalyst.hunter"):
+        assert hunter.run_hunt("deep") == []
+    assert not any("discarding as ungrounded" in r.message for r in caplog.records), (
+        "a genuine zero-catalyst day (searched, found nothing) was logged as "
+        "an ungrounded hallucination -- the guard's non-vacuity condition "
+        "('hits and searches == 0') is not actually discriminating the two "
+        "cases")
 
 
 # ---- cost-reduction behaviors (2026-07-02) ---------------------------------
