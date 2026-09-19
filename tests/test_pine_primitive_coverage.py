@@ -7,6 +7,7 @@ FIXTURE_DIRS = [
     "tools/c0_oos_fixtures",
     "tools/c0_parity_fixtures",
     "tools/c3a_parity_fixtures",
+    "tools/pine_coverage_synthetic_fixtures",
 ]
 
 
@@ -42,7 +43,16 @@ def test_dedupe_corpus_is_never_vacuous_on_the_real_fixture_dirs():
     # This bound stays a coarse sanity check (catch a broken dedupe_corpus or a
     # misconfigured FIXTURE_DIRS returning near-zero or a runaway duplicate
     # count), not a gate on an exact fixture count.
-    assert 15 <= len(result) <= 45, (
+    # ⛔ Ruling (controller, 2026-09-19, revised): first widened to 45, which a
+    # whole-branch review correctly flagged as collapsing this rail's actual
+    # sensitivity — a PARTIAL dedupe_corpus regression (e.g. a hashing bug that
+    # only sometimes fails to collapse a true duplicate) needs to leak nearly
+    # ALL of today's ~15 known cross-directory duplicate pairs through before
+    # 45 would ever fire, versus a much smaller majority-leak under a tighter
+    # bound. 40 restores meaningful sensitivity (catches a dedupe failure once
+    # more than ~9 of those ~15 pairs leak through) while still giving this
+    # program's own future fixture-closing rounds real headroom above 31.
+    assert 15 <= len(result) <= 40, (
         f"expected a fixture corpus roughly in line with the coverage-matrix "
         f"program's deliberate ~31-script baseline (2026-09-19), got {len(result)}"
     )

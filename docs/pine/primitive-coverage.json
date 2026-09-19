@@ -3,245 +3,245 @@
     "area": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__area-style-coverage-2.pine",
-        "tools\\c0_oos_fixtures\\fixture__area-style-coverage.pine"
+        "tools/pine_coverage_synthetic_fixtures/fixture__area-style-coverage-2.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__area-style-coverage.pine"
       ]
     },
     "band": {
       "count": 14,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__03-supertrend-kivancozbilgic.pine",
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
+        "tools/c0_oos_fixtures/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "barcolor": {
       "count": 4,
       "scripts": [
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__14-master-line-lite.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__14-master-line-lite.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "baseline": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__baseline-coverage-2.pine",
-        "tools\\c0_oos_fixtures\\fixture__baseline-coverage.pine"
+        "tools/pine_coverage_synthetic_fixtures/fixture__baseline-coverage-2.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__baseline-coverage.pine"
       ]
     },
     "bgcolor": {
       "count": 6,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__19-oliver-kell-volume-monitor.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine"
+        "tools/c0_oos_fixtures/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__19-oliver-kell-volume-monitor.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine"
       ]
     },
     "box_obj": {
       "count": 4,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__22-reversal-probability-profile-algoalpha.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine"
+        "tools/c0_oos_fixtures/high_engagement__22-reversal-probability-profile-algoalpha.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine"
       ]
     },
     "candles": {
       "count": 4,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "fill": {
       "count": 14,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__03-supertrend-kivancozbilgic.pine",
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
+        "tools/c0_oos_fixtures/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "histogram": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__19-oliver-kell-volume-monitor.pine"
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__19-oliver-kell-volume-monitor.pine"
       ]
     },
     "hline": {
       "count": 6,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__02-waddah-attar-explosion-lazybear.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine"
+        "tools/c0_oos_fixtures/high_engagement__02-waddah-attar-explosion-lazybear.pine",
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine"
       ]
     },
     "label_obj": {
       "count": 9,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__22-reversal-probability-profile-algoalpha.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__19-oliver-kell-volume-monitor.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__22-reversal-probability-profile-algoalpha.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__19-oliver-kell-volume-monitor.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "line": {
       "count": 26,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__area-style-coverage-2.pine",
-        "tools\\c0_oos_fixtures\\fixture__area-style-coverage.pine",
-        "tools\\c0_oos_fixtures\\fixture__baseline-coverage-2.pine",
-        "tools\\c0_oos_fixtures\\fixture__baseline-coverage.pine",
-        "tools\\c0_oos_fixtures\\fixture__stepline-coverage.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__02-waddah-attar-explosion-lazybear.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__04-ttm-squeeze-greeny.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\long_tail__13-volatility-of-returns.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__14-master-line-lite.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__17-volume-surge-radar.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__19-oliver-kell-volume-monitor.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__02-waddah-attar-explosion-lazybear.pine",
+        "tools/c0_oos_fixtures/high_engagement__03-supertrend-kivancozbilgic.pine",
+        "tools/c0_oos_fixtures/high_engagement__04-ttm-squeeze-greeny.pine",
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
+        "tools/c0_oos_fixtures/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/long_tail__13-volatility-of-returns.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__14-master-line-lite.pine",
+        "tools/c0_oos_fixtures/mid_engagement__17-volume-surge-radar.pine",
+        "tools/c0_oos_fixtures/mid_engagement__19-oliver-kell-volume-monitor.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__area-style-coverage-2.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__area-style-coverage.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__baseline-coverage-2.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__baseline-coverage.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__stepline-coverage.pine"
       ]
     },
     "line_obj": {
       "count": 5,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__10-rsi-divergence-faytterro.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__22-reversal-probability-profile-algoalpha.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__10-rsi-divergence-faytterro.pine",
+        "tools/c0_oos_fixtures/high_engagement__22-reversal-probability-profile-algoalpha.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "linefill_obj": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "markers": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine"
+        "tools/c0_oos_fixtures/high_engagement__03-supertrend-kivancozbilgic.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine"
       ]
     },
     "plotarrow": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__plotarrow-coverage-2.pine",
-        "tools\\c0_oos_fixtures\\fixture__plotarrow-coverage.pine"
+        "tools/pine_coverage_synthetic_fixtures/fixture__plotarrow-coverage-2.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__plotarrow-coverage.pine"
       ]
     },
     "plotbar": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__plotbar-coverage.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine"
+        "tools/c0_oos_fixtures/high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__plotbar-coverage.pine"
       ]
     },
     "plotcandle": {
       "count": 4,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__13-spma-trend.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__05-supertrend-fibonacci-ote.pine"
+        "tools/c0_oos_fixtures/high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine",
+        "tools/c0_parity_fixtures/mid_engagement__05-supertrend-fibonacci-ote.pine"
       ]
     },
     "plotchar": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__19-oliver-kell-volume-monitor.pine"
+        "tools/c0_oos_fixtures/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",
+        "tools/c0_oos_fixtures/mid_engagement__19-oliver-kell-volume-monitor.pine"
       ]
     },
     "plotshape": {
       "count": 11,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__03-supertrend-kivancozbilgic.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__14-master-line-lite.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__17-volume-surge-radar.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__16-klinger-volume-oscillator-everget.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine",
-        "tools\\c0_parity_fixtures\\mid_engagement__01-zeiierman-trend-pressure.pine"
+        "tools/c0_oos_fixtures/high_engagement__03-supertrend-kivancozbilgic.pine",
+        "tools/c0_oos_fixtures/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__14-master-line-lite.pine",
+        "tools/c0_oos_fixtures/mid_engagement__17-volume-surge-radar.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__16-klinger-volume-oscillator-everget.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine",
+        "tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine"
       ]
     },
     "stepline": {
       "count": 2,
       "scripts": [
-        "tools\\c0_oos_fixtures\\fixture__stepline-coverage.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine"
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/pine_coverage_synthetic_fixtures/fixture__stepline-coverage.pine"
       ]
     },
     "table_obj": {
       "count": 9,
       "scripts": [
-        "tools\\c0_oos_fixtures\\high_engagement__24-coppock-curve-multi-filter-markittick.pine",
-        "tools\\c0_oos_fixtures\\long_tail__16-spy-position-helper.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__07-3way-bollinger-trend.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__09-relative-volume-breakout-context.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__14-master-line-lite.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__17-volume-surge-radar.pine",
-        "tools\\c0_oos_fixtures\\mid_engagement__22-rsi-levels-regime-map.pine",
-        "tools\\c0_parity_fixtures\\high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
-        "tools\\c0_parity_fixtures\\long_tail__05-master-line-plus.pine"
+        "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+        "tools/c0_oos_fixtures/long_tail__16-spy-position-helper.pine",
+        "tools/c0_oos_fixtures/mid_engagement__07-3way-bollinger-trend.pine",
+        "tools/c0_oos_fixtures/mid_engagement__09-relative-volume-breakout-context.pine",
+        "tools/c0_oos_fixtures/mid_engagement__14-master-line-lite.pine",
+        "tools/c0_oos_fixtures/mid_engagement__17-volume-surge-radar.pine",
+        "tools/c0_oos_fixtures/mid_engagement__22-rsi-levels-regime-map.pine",
+        "tools/c0_parity_fixtures/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",
+        "tools/c0_parity_fixtures/long_tail__05-master-line-plus.pine"
       ]
     }
   },

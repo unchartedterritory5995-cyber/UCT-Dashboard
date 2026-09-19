@@ -17,6 +17,13 @@ FIXTURE_DIRS = [
     REPO_ROOT / "tools" / "c0_oos_fixtures",
     REPO_ROOT / "tools" / "c0_parity_fixtures",
     REPO_ROOT / "tools" / "c3a_parity_fixtures",
+    # Deliberately NOT inside c0_oos_fixtures: a separate, already-shipped
+    # test (app/src/components/chart/engine/__tests__/computeCost.measure.test.js)
+    # calls that directory "the FROZEN OOS CORPUS" and treats its script count
+    # as fixed via a hardcoded filename array. This directory holds the
+    # coverage-matrix program's own minimal, single-primitive synthetic
+    # fixtures (2026-09-19) so growing it never corrupts that assumption.
+    REPO_ROOT / "tools" / "pine_coverage_synthetic_fixtures",
 ]
 MANIFEST_SCRIPT = REPO_ROOT / "tools" / "pine_primitive_manifest.mjs"
 
@@ -44,6 +51,16 @@ _PRIMITIVE_PATTERNS: dict[str, list[str]] = {
     # same "precise construct, then bare style-constant fallback" shape.
     "baseline": [r"style\s*=\s*plot\.style_baseline", r"style_baseline"],
     "markers": [r"style\s*=\s*plot\.style_circles", r"style_circles"],
+    # "band" and "fill" (below) intentionally share this identical pattern —
+    # same relationship as "candles"/"plotcandle" below: `band` is
+    # defSchema.js's internal name for the render STYLE that `fill()`
+    # compiles to, while `fill` is the literal Pine SOURCE CONSTRUCT (the text
+    # `fill(...)` on the page). Per tools/pine_primitive_manifest.mjs:182-189
+    # (its own citation for `fill`), both names describe the same underlying
+    # thing on purpose — a script calling fill() correctly counts toward BOTH
+    # rows, exactly like plotcandle() counts toward both "candles" and
+    # "plotcandle". This is NOT an accidental duplicate needing a distinct
+    # regex for "band" — there is no such distinction to draw.
     "band": [r"\bfill\s*\("],
     "candles": [r"\bplotcandle\s*\("],
     "plotshape": [r"\bplotshape\s*\("],
@@ -117,10 +134,13 @@ def dedupe_corpus(paths: list[Path]) -> list[dict]:
         # of dedupe_corpus, not just collect_corpus_paths()'s absolute paths,
         # so fall back to the path as given rather than crashing. See
         # task-2-report.md for the failing-test evidence this fix is based on.
+        # .as_posix() (not str()): a Windows-native backslash path baked into
+        # the persisted JSON/MD would diff against a Linux CI regeneration of
+        # the identical corpus for reasons unrelated to real coverage change.
         try:
-            display_path = str(p.relative_to(REPO_ROOT))
+            display_path = p.relative_to(REPO_ROOT).as_posix()
         except ValueError:
-            display_path = str(p)
+            display_path = Path(p).as_posix()
         seen[content_hash] = {
             "path": display_path,
             "title": title_match.group(1) if title_match else p.stem,
@@ -163,7 +183,18 @@ def render_markdown(matrix: dict) -> str:
     ]
     for name, data in sorted(matrix["primitives"].items(), key=lambda kv: kv[1]["count"]):
         flag = " ⚠️ ZERO COVERAGE" if data["count"] == 0 else (" ⚠️ thin" if data["count"] == 1 else "")
-        examples = ", ".join(data["scripts"][:3])
+        # Real-corpus scripts sort before the coverage-matrix program's own
+        # minimal single-primitive synthetic fixtures (stable sort preserves
+        # each group's original order) so a well-populated primitive's top-3
+        # preview shows genuine illustrative examples, never a well-covered
+        # primitive's preview being silently pushed out by a synthetic
+        # fixture that only happens to ALSO trigger that primitive's pattern
+        # (e.g. a bare plot() call inside an area/baseline/stepline fixture).
+        ordered = sorted(
+            data["scripts"],
+            key=lambda s: "pine_coverage_synthetic_fixtures" in s,
+        )
+        examples = ", ".join(ordered[:3])
         lines.append(f"| `{name}` | {data['count']}{flag} | {examples} |")
     return "\n".join(lines) + "\n"
 
