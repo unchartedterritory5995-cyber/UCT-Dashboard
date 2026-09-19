@@ -63,7 +63,7 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
   const orderedEntries = useMemo(() => {
     // Shared with WeekView — see rankEntries(). The deterministic tail is what
     // keeps a pre-enrichment paint ranked instead of alphabetical.
-    if (!filters.sort || filters.sort === 'mine') return rankEntries(entries, tiers?.impBySym)
+    if (!filters.sort || filters.sort === 'mine') return rankEntries(entries, tiers?.impBySym, tiers?.weightBuckets)
     return entries
   }, [entries, tiers, filters.sort])
 

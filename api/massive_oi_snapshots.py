@@ -59,6 +59,7 @@ import asyncio
 import json as _json
 import logging
 import os
+import time
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -511,3 +512,87 @@ async def _fetch_fields_all_async(batch):
 
     results = await asyncio.gather(*tasks) if tasks else []
     return {k: v for k, v in zip(keys, results)}
+
+
+# ── R69: OI + live mark for a SPECIFIC contract set, not the whole chain ─────
+# fetch_chain_price_oi() above (a ~40-page/10,000-contract full-chain walk) was
+# built for the /flow SPY card, which only ever reads ~10-20 KNOWN contract keys
+# (the card's top-N by premium) out of that whole chain. This reuses the
+# per-contract single-endpoint mechanism above (built 2026-07-20 for
+# schwab_router.py, already production) scoped to just the requested contracts —
+# eliminating the wasteful walk without touching the live-OI-first/daily-snapshot
+# -fallback logic in live_massive_router.py (that logic exists to guard against
+# the IREN 65C incident: the daily snapshot store read 558 vs. the real 13,816
+# live, so replacing this with "OI from the daily cache" would regress it).
+_FIELDS_CACHE: dict = {}  # contract_key -> (monotonic_ts, fields_dict_or_None)
+
+# Rail: "a mark older than 60s is never served as live" (R69's own spec text).
+FIELDS_CACHE_TTL_SEC = float(os.environ.get("MASSIVE_FIELDS_CACHE_TTL", "60"))
+
+
+def _cached_fields_all(batch: list) -> dict:
+    """Per-contract fields via _fetch_fields_all_async, with a ≤60s cache so a
+    card re-rendered inside that window costs zero Massive calls. A cache miss
+    or an entry past FIELDS_CACHE_TTL_SEC is always refetched before being
+    returned — never serves a timed-out entry as live."""
+    now = time.monotonic()
+    keys = [_contract_key(sym, cp, strike, exp) for sym, cp, strike, exp in batch]
+    out: dict = {}
+    need = []
+    for entry, k in zip(batch, keys):
+        cached = _FIELDS_CACHE.get(k)
+        if cached is not None and (now - cached[0]) < FIELDS_CACHE_TTL_SEC:
+            out[k] = cached[1]
+        else:
+            need.append(entry)
+    if need:
+        fresh = asyncio.run(_fetch_fields_all_async(need))
+        ts = time.monotonic()
+        for k, v in fresh.items():
+            _FIELDS_CACHE[k] = (ts, v)
+        out.update(fresh)
+    return out
+
+
+def fetch_price_oi_for_contracts(sym: str, contracts: Iterable[dict]) -> dict:
+    """OI + live mark for a SPECIFIC set of contracts on `sym` — the R69
+    replacement for calling fetch_chain_price_oi(sym) when the caller only
+    needs a handful of known contracts, not the whole chain.
+
+    `contracts` is an iterable of dicts carrying 'cp'/'strike'/'exp' (the
+    /flow card's contract shape; 'exp' is 'M/D/YYYY', verbatim as printed).
+    Returns {(cp_letter, float_strike, 'M/D/YYYY'): {'oi': int|None,
+    'price': float|None}} — the SAME shape fetch_chain_price_oi returns, so
+    an existing _enrich()-style lookup is unchanged. {} on empty input.
+    """
+    sym = str(sym or "").upper().strip()
+    batch = []
+    for c in contracts:
+        try:
+            cp = str(c.get("cp") or "").upper()[:1]
+            strike = float(c.get("strike"))
+            exp = str(c.get("exp") or "").strip()
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if not cp or not exp:
+            continue
+        batch.append((sym, cp, strike, exp))
+
+    if not batch:
+        return {}
+
+    fmap = _cached_fields_all(batch)
+
+    out: dict = {}
+    for sym_, cp, strike, exp in batch:
+        f = fmap.get(_contract_key(sym_, cp, strike, exp))
+        if not f:
+            continue
+        exp_mdy = _canon_mdy(exp)
+        if not exp_mdy:
+            continue
+        price = f.get("mid")
+        if price is None:
+            price = f.get("last")
+        out[(cp, strike, exp_mdy)] = {"oi": f.get("oi"), "price": price}
+    return out

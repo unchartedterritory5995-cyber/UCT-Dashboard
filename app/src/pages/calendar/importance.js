@@ -71,13 +71,35 @@ export function computeImportance(entries) {
   return out
 }
 
-/** Personal boost on top of imp — mirrors the my-sets join. */
-export function impEff(imp, entry) {
+/**
+ * Personal boost on top of imp — S6 CP3: DERIVES from the resolver's own
+ * weight registry (`member_interest.SOURCE_BUCKETS`, served as
+ * `mySets.weight_buckets` on `/api/calendar/my-sets`) instead of mirroring
+ * it with an independent hardcoded copy. Decision Card 2, DEFAULTABLE
+ * (SPEC-S6-PERSONALIZATION §5.1 item 2's own stated default), applied
+ * 2026-09-18.
+ *
+ * `weightBuckets`: [{sources: [name, ...], weight: number}, ...]. A symbol
+ * touching MULTIPLE names in the SAME bucket (e.g. both 'watchlist' and
+ * 'flagged') is credited that bucket's weight exactly once — the grouping
+ * is what makes this correct; a flat per-source sum would double-count.
+ *
+ * ⛔ No hardcoded fallback registry here on purpose: before `mySets` has
+ * loaded, `entry._sources` is ALSO empty (Calendar.jsx derives `_sources`
+ * from the same `mySets` payload), so an empty `weightBuckets` never
+ * produces a WRONG boost during that window — there is nothing here that
+ * needs to "agree" with the server, because nothing scores until the
+ * server's own answer has arrived.
+ */
+export function impEff(imp, entry, weightBuckets) {
   const src = entry._sources || []
+  const buckets = weightBuckets || []
   let boost = 0
-  if (src.includes('positions')) boost += 3.0
-  if (src.includes('watchlist') || src.includes('flagged')) boost += 2.0
-  if (src.includes('uct20')) boost += 1.0
+  for (const b of buckets) {
+    if (Array.isArray(b?.sources) && b.sources.some(s => src.includes(s))) {
+      boost += (b.weight || 0)
+    }
+  }
   return imp + boost
 }
 
@@ -115,8 +137,8 @@ function byDesc(av, bv) {
  * Symbol is the LAST key, deliberately — alphabetical is now a considered final
  * tiebreak between genuinely equal rows, never an accident of fetch order.
  */
-export function rankEntries(rows, impBySym) {
-  const effOf = e => impEff(impBySym?.get?.(e.sym) ?? 0, e)
+export function rankEntries(rows, impBySym, weightBuckets) {
+  const effOf = e => impEff(impBySym?.get?.(e.sym) ?? 0, e, weightBuckets)
   const dollarVol = e => (e._avg_vol != null && e._price != null)
     ? e._avg_vol * e._price
     : null
@@ -143,10 +165,15 @@ function percentile(sorted, p) {
 }
 
 /**
- * tierWeek(days, weekDates) → { [ds]: { mainEvent, featured:Set, table:Set, compact:Set } }
+ * tierWeek(days, weekDates, weightBuckets) → { [ds]: { mainEvent, featured:Set, table:Set, compact:Set } }
  *
  * days: the tagged/merged day map from Calendar.jsx ({bmo, amc, tbd} lists,
  * entries already carrying mine/_sources/expected_move/_price/_avg_vol).
+ *
+ * weightBuckets: S6 CP3 — passed straight through to `impEff` (see its own
+ * docstring); also attached to each day's returned object so `rankEntries`
+ * callers (FeedView/WeekView, which receive `tiers[ds]` as a prop, not the
+ * raw `mySets`) can thread the SAME registry through without a second fetch.
  *
  * Rules (spec, as amended by the adversarial review):
  *   MAIN EVENT — argmax imp_eff of the day, exactly 1, only when its imp_eff
@@ -157,7 +184,7 @@ function percentile(sorted, p) {
  *     sub-$2B names this audience trades).
  *   COMPACT — genuinely zero-data names only.
  */
-export function tierWeek(days, weekDates) {
+export function tierWeek(days, weekDates, weightBuckets) {
   const allEntries = []
   for (const ds of weekDates) {
     const d = days[ds]
@@ -167,7 +194,7 @@ export function tierWeek(days, weekDates) {
     }
   }
   const impBySym = computeImportance(allEntries)
-  const effOf = e => impEff(impBySym.get(e.sym) ?? 0, e)
+  const effOf = e => impEff(impBySym.get(e.sym) ?? 0, e, weightBuckets)
 
   const weekEffSorted = allEntries.map(effOf).sort((a, b) => a - b)
   const p75 = percentile(weekEffSorted, MAIN_EVENT_PERCENTILE)
@@ -215,7 +242,7 @@ export function tierWeek(days, weekDates) {
       else compact.add(e.sym)
     }
 
-    out[ds] = { mainEvent, featured, table, compact, impBySym }
+    out[ds] = { mainEvent, featured, table, compact, impBySym, weightBuckets }
   }
   return out
 }

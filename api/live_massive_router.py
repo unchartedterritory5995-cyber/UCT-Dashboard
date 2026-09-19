@@ -4616,14 +4616,25 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             if dh.get("date"):
                 _dates.add(dh["date"])
     ds = sorted(_dates, key=_parse_mdy)
-    # Live enrichment: ONE Massive chain snapshot → CURRENT mark + LATEST OI per
-    # strike, so the OI column is current (not flow-time) and PERF = entry→now.
-    # Best-effort + flow-worker-safe (stdlib urllib); on any failure the card falls
-    # back to flow-time OI and shows no perf. Only the top-N shown contracts are read.
+    # Live enrichment: per-contract Massive snapshots (R69) → CURRENT mark +
+    # LATEST OI for exactly the `top` contracts shown, so the OI column is
+    # current (not flow-time) and PERF = entry→now. Best-effort + flow-worker
+    # -safe (stdlib urllib); on any failure the card falls back to flow-time OI
+    # and shows no perf.
+    #
+    # ⛔ R69 (D-21): this used to be ONE full-chain walk (fetch_chain_price_oi,
+    # up to 40 pages / 10,000 contracts) to read ~10-20 known contract keys out
+    # of it — measured as the wasteful "second OI walk" on this same card path.
+    # fetch_price_oi_for_contracts() reuses the per-contract single-endpoint
+    # mechanism already in production for schwab_router.py, scoped to just
+    # `top`, with a ≤60s per-contract cache. It intentionally does NOT read the
+    # R61 daily OI cache (R69's own shorthand plan text) — that would regress
+    # the IREN 65C incident this live-OI-first logic exists to guard against
+    # (daily snapshot read 558 vs. the real 13,816 live).
     _chain, _canon = {}, (lambda s: str(s or "").strip())
     try:
         from api import massive_oi_snapshots as _moi
-        _chain = _moi.fetch_chain_price_oi(sym)
+        _chain = _moi.fetch_price_oi_for_contracts(sym, top)
         _canon = _moi._canon_mdy
     except Exception:
         pass

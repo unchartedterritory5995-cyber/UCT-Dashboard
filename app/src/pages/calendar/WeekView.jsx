@@ -115,7 +115,7 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
           // comparator with a deterministic tail, so a week whose enrichment
           // overlay hasn't landed still paints ranked instead of falling
           // through to the provider's alphabetical serialization.
-          if (!filters.sort || filters.sort === 'mine') return rankEntries(rows, tiers?.impBySym)
+          if (!filters.sort || filters.sort === 'mine') return rankEntries(rows, tiers?.impBySym, tiers?.weightBuckets)
           // An explicit sort choice wins outright — matching the Feed, which
           // always honored it. Week used to re-sort by imp on top, demoting
           // "Market cap" / "Expected move" to a mere tiebreak.
