@@ -1,3 +1,8 @@
+# promotion-gate: yes — `--check` exits 1 on a genuine mismatch between the
+#   committed fixture and current maths (never on an unrelated flake), so a red
+#   run here is exactly the class of silent-drift defect DEC-style checks like
+#   vite-build-args.yml already gate on, not an advisory rail.
+#
 # Clock-parity fixture guard.
 #
 # `tests/fixtures/ast/clock_parity.json` is the clock ORACLE: 21 bars and every
