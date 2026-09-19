@@ -69,6 +69,23 @@ def test_primitives_used_finds_plot_fill_and_baseline():
     assert "baseline" not in primitives_used(zero_line_src, ["baseline"])
 
 
+def test_primitives_used_finds_plotcandle_as_its_own_distinct_primitive():
+    # ⛔ Ruling (controller, 2026-09-19): the brief's own `_PRIMITIVE_PATTERNS`
+    # dict omitted "plotcandle" entirely, distinct from "candles" — the
+    # canonical 22-name vocabulary (Task 1's manifest) lists both as SEPARATE
+    # entries, sourced from two different engine constants (presentation.js's
+    # internal render-style PLOT_STYLES vs. ast/pine.js's MULTI_OUTPUT_CALLS
+    # literal Pine call name). Without a "plotcandle" key, `primitives_used`
+    # silently skipped it for every script, always reporting 0% coverage
+    # regardless of real usage. Confirmed against real fixture usage, e.g.
+    # tools/c0_oos_fixtures/mid_engagement__13-spma-trend.pine:199
+    # (`plotcandle(open, high, low, close, "Candles", ...)`).
+    src = "//@version=6\nindicator('X')\nplotcandle(open, high, low, close)\n"
+    used = primitives_used(src, ["plotcandle", "candles", "line"])
+    assert "plotcandle" in used
+    assert "line" not in used
+
+
 def test_primitives_used_is_not_fooled_by_a_comment():
     # Regression class this repo has hit repeatedly: a literal-hunting scan must
     # strip comments first, or a mention IN A COMMENT reads as usage.

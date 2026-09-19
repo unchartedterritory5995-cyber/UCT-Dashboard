@@ -53,6 +53,17 @@ _PRIMITIVE_PATTERNS: dict[str, list[str]] = {
     "barcolor": [r"\bbarcolor\s*\("],
     "fill": [r"\bfill\s*\("],
     "hline": [r"\bhline\s*\("],
+    # ⛔ Ruling (controller, 2026-09-19): the brief's pattern dict omitted
+    # "plotcandle" entirely, distinct from "candles" above. Task 1's manifest
+    # sources these from TWO different engine constants on purpose — "candles"
+    # is presentation.js's internal PLOT_STYLES render-style name, "plotcandle"
+    # is ast/pine.js's MULTI_OUTPUT_CALLS literal Pine call name — and the
+    # canonical 22-name vocabulary lists both as separate entries. Without this
+    # key, `primitives_used()` silently skips "plotcandle" for every script
+    # (`_PRIMITIVE_PATTERNS.get("plotcandle")` -> None -> `continue`), always
+    # reporting 0% coverage regardless of real usage. Same literal construct as
+    # "candles" — both fire on `plotcandle(...)`.
+    "plotcandle": [r"\bplotcandle\s*\("],
     "plotbar": [r"\bplotbar\s*\("],
     "line_obj": [r"\bline\.new\s*\("],
     "label_obj": [r"\blabel\.new\s*\("],
