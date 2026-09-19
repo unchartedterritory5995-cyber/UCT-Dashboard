@@ -1,0 +1,64 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 157,
+    "missing": 0,
+    "baseline": 158,
+    "current": 159,
+    "current_ran": 50312,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 158 = unchanged 157 + fixed 1 + missing 0  |  current 159 = unchanged 157 + new 0 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35458072218",
+  "current_run_id": "35459926065",
+  "baseline_sha": "1c6a3d40e8a0a1ace6648dbb83c19bfbc2b81e3e",
+  "current_sha": "f8fd3c5ac9d71b55d7e8d1bb9e8a93c4ca7d8e71",
+  "commit_range": "1c6a3d40e8a0a1ace6648dbb83c19bfbc2b81e3e..f8fd3c5ac9d71b55d7e8d1bb9e8a93c4ca7d8e71",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_wisdom_publish_adapters_routes|test_admin_routes_answer_401_403_200"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_wisdom_publish_adapters_routes|test_admin_routes_answer_401_403_200": {
+      "class": "test-file-change",
+      "commits": [
+        "70590acd3"
+      ],
+      "workstreams": [
+        {
+          "commit": "70590acd3",
+          "workstream": "wisdom",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    }
+  }
+}
