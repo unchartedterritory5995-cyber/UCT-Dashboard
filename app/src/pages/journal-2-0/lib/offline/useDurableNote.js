@@ -36,6 +36,7 @@ import {
 import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
+  editorStateDiscardsUnsentWork,
 } from './recoverLocalState'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
@@ -433,7 +434,12 @@ export function useDurableNote({
       // and keep an intent carrying it. The entry then 409s and the drain runs
       // classify-then-rebase/merge/fork — the path 2.8b measured GREEN on
       // production, and the path the control case in the reproduction exercises.
-      const unsentWork = discardsUnsentWork(prev, {
+      // ⛔ THE EDITOR-PROVENANCE PREDICATE, NOT THE ACK ONE. `state` here is
+      // the editor's own content, so a member typing MORE must not read as a
+      // discard. `settleLandedSave` keeps the strict `discardsUnsentWork`
+      // because what it is handed is the SERVER'S CLAIM. Same invariant, two
+      // questions — see the note above `editorStateDiscardsUnsentWork`.
+      const unsentWork = editorStateDiscardsUnsentWork(prev, {
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,

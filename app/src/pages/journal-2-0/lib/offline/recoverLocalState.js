@@ -95,6 +95,70 @@ export function discardsUnsentWork(prev, incoming) {
   return !sameAuthoredContent(incoming, prev)
 }
 
+/** Flatten a record to the words a member would recognise as theirs. */
+const authoredText = (o) => {
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return ''
+    let out = typeof n.text === 'string' ? n.text : ''
+    if (Array.isArray(n.content)) out += n.content.map(walk).join('')
+    return out
+  }
+  return `${o?.title ?? ''} ${o?.subtitle ?? ''} ${walk(o?.bodyJson)}`
+}
+
+/**
+ * ⛔⛔ THE SAME INVARIANT, ASKED OF A WRITE WHOSE PROVENANCE IS THE EDITOR.
+ *
+ * ⚰️ WHY THERE ARE TWO OF THESE, WHICH LOOKS LIKE THE DEFECT THIS FILE EXISTS TO
+ * PREVENT AND IS NOT.
+ *
+ * Fix 6 gave `persist` and `settleLandedSave` ONE predicate, on the grounds that
+ * one invariant deserves one authority. That was right about the invariant and
+ * wrong about the question, because the two callers are handed DIFFERENT KINDS OF
+ * THING:
+ *
+ *   settleLandedSave   `incoming` is what the SERVER ACKED — a CLAIM, and a door
+ *                      passing local state as `acked` is exactly the lie fix 4
+ *                      was built to catch. Any divergence from `prev` must block.
+ *   persist            `incoming` is the EDITOR'S OWN CONTENT. A member typing
+ *                      MORE diverges from `prev` too — in the direction where
+ *                      nothing is lost.
+ *
+ * ⚰️ MEASURED 2026-09-18 (`fix6KeepsTyping.test.js`). With one symmetric
+ * predicate, `persist` computed `source = prev` on every keystroke after a note
+ * went dirty, so a member with unsent work who kept typing had their newer words
+ * written nowhere. The editor kept showing them; a reload did not.
+ *
+ * ⛔ AND THE OBVIOUS SINGLE FIX IS WRONG. Making the ONE predicate directional
+ * fixes `persist` and breaks `settleLandedSave`: a door passing local state as
+ * `acked` also carries `prev`'s words, so the queue clears and unsent work is
+ * deleted. Measured, not predicted — `selfForkDoors.test.jsx` went 11 passed to
+ * 1 failed, and running it against the parent commit proved the regression was
+ * the change's and not master's.
+ *
+ * ⭐ So the split is BY PROVENANCE, not by convenience, and the two functions are
+ * deliberately adjacent with this note between them so nobody "tidies" them back
+ * into one. `lesson_a_guard_repeated_is_a_guard_unproved` warns against two
+ * copies of ONE question; this is two DIFFERENT questions that share an invariant.
+ *
+ * ⚠️ A DELETION STILL READS AS A DISCARD, DELIBERATELY. A member who deletes text
+ * offline produces content that no longer carries `prev`'s words, and this answers
+ * true, keeping the longer copy. That is the pre-existing behaviour and the
+ * correct failure direction for a system whose charter is never to lose words.
+ * Narrowing it needs its own evidence.
+ *
+ * @param prev      the durable record as the store holds it, or null
+ * @param incoming  content from the EDITOR about to be written over it
+ * @returns true when `incoming` no longer carries what `prev` was holding
+ */
+export function editorStateDiscardsUnsentWork(prev, incoming) {
+  if (!prev || !prev.dirty) return false
+  if (sameAuthoredContent(incoming, prev)) return false
+  // ⛔ CARRIES, not EQUALS. This one word is the whole difference between the
+  // member typing more and something handing us a copy that never saw the words.
+  return !authoredText(incoming).includes(authoredText(prev))
+}
+
 /**
  * @param server    the note as the server has it: {title, subtitle, bodyJson, updatedAt}
  * @param idbRecord the durable working copy, or null:
