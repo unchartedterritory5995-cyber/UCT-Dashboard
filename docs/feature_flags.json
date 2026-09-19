@@ -1094,6 +1094,11 @@
       "where": [],
       "note": "Wisdom Discord listener + backfill for the four author channels (stream S-C, W1 §2.1). REST only, authors only, member messages dropped before any write. Internal."
     },
+    "WISDOM_TWITTER_LISTENER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom Twitter/X source (stream 'x', session 28, 2026-09-19). Reads the existing tweets.db cache read-only for the three official trader accounts only; never calls the Twitter API itself. Internal."
+    },
     "WISDOM_DOSSIER_ENABLED": {
       "status": "dark",
       "where": [],
