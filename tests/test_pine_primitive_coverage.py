@@ -93,3 +93,30 @@ def test_primitives_used_is_not_fooled_by_a_comment():
     used = primitives_used(src, ["plotarrow", "line"])
     assert "plotarrow" not in used
     assert "line" in used
+
+
+def test_build_matrix_counts_and_lists_scripts():
+    from tools.pine_primitive_coverage import build_matrix
+
+    corpus = [
+        {"path": "a.pine", "title": "A", "content_hash": "h1", "_source": "plot(close)\nfill(1,2)"},
+        {"path": "b.pine", "title": "B", "content_hash": "h2", "_source": "bgcolor(color.red)"},
+    ]
+    matrix = build_matrix(corpus, ["line", "band", "bgcolor", "plotarrow"])
+    assert matrix["primitives"]["line"]["count"] == 1
+    assert matrix["primitives"]["band"]["count"] == 1
+    assert matrix["primitives"]["bgcolor"]["count"] == 1
+    assert matrix["primitives"]["plotarrow"]["count"] == 0
+    assert matrix["primitives"]["plotarrow"]["scripts"] == []
+    assert "a.pine" in matrix["primitives"]["line"]["scripts"]
+
+
+def test_render_markdown_flags_zero_coverage():
+    from tools.pine_primitive_coverage import build_matrix, render_markdown
+
+    corpus = [{"path": "a.pine", "title": "A", "content_hash": "h1", "_source": "plot(close)"}]
+    matrix = build_matrix(corpus, ["line", "plotarrow"])
+    md = render_markdown(matrix)
+    assert "plotarrow" in md
+    assert "0" in md
+    assert "line" in md
