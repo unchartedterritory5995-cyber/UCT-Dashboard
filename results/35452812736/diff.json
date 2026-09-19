@@ -1,0 +1,69 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 153,
+    "missing": 0,
+    "baseline": 154,
+    "current": 154,
+    "current_ran": 50286,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 1,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 154 = unchanged 153 + fixed 1 + missing 0  |  current 154 = unchanged 153 + new 1 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35449928439",
+  "current_run_id": "35452812736",
+  "baseline_sha": "d478b91cdbf84d822d04f1329f548e6707f0a7d7",
+  "current_sha": "46a92741046204d2147c54e1e03a4df0ed0da565",
+  "commit_range": "d478b91cdbf84d822d04f1329f548e6707f0a7d7..46a92741046204d2147c54e1e03a4df0ed0da565",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive": {
+      "class": "test-file-change",
+      "commits": [
+        "46a927410"
+      ],
+      "workstreams": [
+        {
+          "commit": "46a927410",
+          "workstream": "author:Claude Fable 5",
+          "confidence": "author",
+          "ours": true
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d478b91cd..46a927410 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
