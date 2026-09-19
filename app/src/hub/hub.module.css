@@ -380,12 +380,64 @@
    (0,2,0) like the rule above it and comes later, so it wins for a disabled bubble — without it,
    `.fanOpen .bubble` would repaint every disabled action at full strength and lose the one signal
    that says "this needs a symbol first". */
-.fanOpen .bubbleDisabled {
-  opacity: 0.4;
+/* ⛔⛔ D-57 — THE STATE IS CARRIED BY THE ICON, THE RIM AND THE COLOUR, NOT BY THE WORD.
+   ─────────────────────────────────────────────────────────────────────────────────────────────
+   ⚰️ WAS `opacity: 0.4` ON THE WHOLE BUBBLE. Measured on the rendered pixels: in LIGHT theme a
+   disabled label fell to **2.26:1** (dark was fine at 12-15:1). WCAG 1.4.3 exempts inactive
+   components, so it was never a failure — and a member still has to READ the thing to learn
+   which action they cannot reach yet. "Not a violation" and "legible" are different bars.
+
+   ⛔ PARENT OPACITY CANNOT BE UNDONE BY A CHILD. Opacity composites multiplicatively, so
+   `.bubbleDisabled .bubbleLabel { opacity: 1 }` inside a parent at 0.4 is still 0.4 — the word
+   cannot be rescued while the container is faded. The container therefore stops fading at all.
+
+   ⭐ WHAT NOW SAYS "NOT YET": the ACCENT WASH IS REMOVED (the bubble keeps only its label plate,
+   so it reads as colourless beside its lit neighbours), the RIM drops to 45%, and the ICON —
+   the fastest-read element in a 46px circle — goes to 0.4. Three signals, none of them the text.
+   ⚠️ `aria-disabled` is unchanged and remains the real answer for assistive tech; this is the
+   sighted half only. */
+.fanOpen .bubbleDisabled,
+.bubbleDisabled {
+  background:
+    radial-gradient(circle at 50% 44%,
+      var(--hub-label-plate) 0%,
+      var(--hub-label-plate) 44%,
+      transparent 78%);
+  border-color: color-mix(in srgb, var(--hub-rim) 45%, transparent);
+  /* ⛔ THE LABEL KEEPS var(--text), AND THAT WAS MEASURED, NOT ASSUMED. The first attempt set
+     it to --text-muted, which reads as the obvious "secondary" choice. On the rendered pixels
+     it made light theme WORSE on two of three bubbles (planTrade 3.65 -> 2.85, flag 2.26 ->
+     3.00, alert 3.25 -> 3.28): --text-muted is a mid grey and the disabled plate is a light
+     grey, so the word was being muted TOWARD its own background. Three state signals already
+     carry "not yet"; spending the text's contrast on a fourth bought nothing and cost
+     legibility. */
 }
 
+/* ⛔⛔ THE ICON GOES GREY, NOT JUST FAINT — and that is the second correction this row cost.
+   ⚰️ The first attempt dimmed the icon with opacity alone and removed the accent wash. The
+   NUMBERS improved (light disabled 2.26 -> 7.5:1) and the frame showed the opposite of what was
+   wanted: the disabled bubbles read as ENABLED, and next to the faintly-tinted live ones they
+   looked MORE prominent, because in light theme every bubble is mostly light plate anyway and
+   "colourless vs faintly tinted" is not a visible difference.
+   ⭐ `grayscale(1)` is: a GREY icon beside a GOLD one is unmistakable in both themes, and it
+   costs the LABEL nothing. Paired with a flat bubble (no lift) so the control reads as inert. */
+.bubbleDisabled svg {
+  /* ⛔ `!important` IS LOAD-BEARING HERE, AND IT WAS MEASURED BEFORE IT WAS WRITTEN. UIcon paints
+     every glyph with its own gold gradient AND an inline `filter: drop-shadow(...)` glow. A plain
+     `.bubbleDisabled svg` rule loses to an inline style, so the first version of this declaration
+     did NOTHING — probed on the live page, the computed filter was still
+     `drop-shadow(rgba(201,...))` on all three disabled icons while opacity and box-shadow had
+     applied. The frame looked wrong and the reason was invisible in the stylesheet.
+     ⭐ Replacing the filter outright is also the RIGHT read: a disabled icon should not glow. */
+  filter: grayscale(1) !important;
+  opacity: 0.45;
+}
+
+/* A disabled control does not lift off the surface. Removing the shadow is a depth signal, and
+   depth is the one channel the label does not compete with. */
+.fanOpen .bubbleDisabled,
 .bubbleDisabled {
-  opacity: 0.4;
+  box-shadow: none;
 }
 
 .bubbleLabel {
