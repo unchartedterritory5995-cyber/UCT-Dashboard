@@ -3,7 +3,7 @@
 // The shell's job is to SAY things. Every assertion here reads RENDERED TEXT after the
 // action settles, never state — the owner ruling of 2026-09-09, written from two toast
 // defects that left every structural assertion green while the member saw nothing.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import BreadthChartsV2 from './BreadthChartsV2'
 import { MAX_SESSIONS } from './useBreadthSeries'
@@ -48,14 +48,16 @@ it('counts absent readings instead of rendering them as zero', async () => {
 it('reports reconstructed sessions, because their provenance is a caveat a reader needs', async () => {
   render(<BreadthChartsV2 keys={['breadth_score']} from="2026-06-01" to="2026-06-03" />)
   expect(await screen.findByTestId('v2-reconstructed'))
-    .toHaveTextContent('1 reconstructed session(s) in this range.')
+    .toHaveTextContent('1 session in this range is reconstructed from price history.')
 })
 
 it('shows the dark endpoint\'s 404 as unavailable, not as an empty range', async () => {
   stubFetch(() => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) }))
   render(<BreadthChartsV2 keys={['breadth_score']} from="2026-06-01" to="2026-06-03" />)
   const err = await screen.findByTestId('v2-error')
-  expect(err).toHaveTextContent('Series unavailable (404).')
+  // The same sentences V1 uses for a failed load (chartLoadError), with the status kept.
+  expect(err).toHaveTextContent("Breadth history didn't load.")
+  expect(err).toHaveTextContent('The server returned an error. (404)')
   expect(err).toHaveAttribute('role', 'alert')
   // ⛔ NOT an empty series list — "nothing happened" and "we could not ask" are different
   // sentences, and only one of them is true.
@@ -65,7 +67,19 @@ it('shows the dark endpoint\'s 404 as unavailable, not as an empty range', async
 it('renders with no props at all — the defaults are a real window, not a crash', async () => {
   render(<BreadthChartsV2 />)
   await waitFor(() => expect(screen.getByTestId('breadth-charts-v2')).toBeInTheDocument())
-  const url = String(vi.mocked(fetch).mock.calls[0][0])
-  expect(url).toContain('/api/breadth-monitor/series?')
+  // The uncontrolled mount also reads the member's saved view and the live row, so the
+  // series request is found among the calls rather than assumed to be the first.
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([u]) =>
+    String(u).includes('/api/breadth-monitor/series?'))).toBe(true))
+  const url = String(vi.mocked(fetch).mock.calls.find(([u]) =>
+    String(u).includes('/api/breadth-monitor/series?'))[0])
   expect(url).toContain('keys=breadth_score%2Cpct_above_50sma')
+})
+
+it('never tells a member which build they are on', async () => {
+  render(<BreadthChartsV2 keys={['breadth_score']} from="2026-06-01" to="2026-06-03" />)
+  await screen.findByTestId('v2-reconstructed')
+  // ⚰️ It rendered `<h2>Data Charts V2</h2>` to every member (2026-09-18/19).
+  expect(screen.queryByText(/V2/)).toBeNull()
+  expect(screen.getByTestId('breadth-charts-v2')).toHaveAttribute('aria-label', 'Data Charts')
 })

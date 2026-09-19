@@ -135,17 +135,34 @@ describe('⛔⛔ coverage absent ⇒ the CHART OPTION V2-3 builds is identical t
   })
 
   it('⭐ the EXTENDED-DAYS PICKER is a separate claim: visible under v23 regardless of coverage', async () => {
+    // ⛔ Mounted WITHOUT a pinned `from`: a caller that pins the window gets no range
+    // control at all (it would be a button that does nothing), so pinning here would
+    // make every assertion below vacuous.
+    const renderWith = async (flags, payload) => {
+      mockSeries(payload)
+      const { container } = render(
+        <AuthContext.Provider value={ctx(flags)}>
+          <BreadthChartsV2 keys={CLEAN.keys} />
+        </AuthContext.Provider>,
+      )
+      await waitFor(() => screen.getByTestId('echart'))
+      return { html: container.innerHTML }
+    }
     const clean = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, CLEAN)
     const dirty = await (async () => { cleanup(); return renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: true }, DIRTY) })()
+    // The LONG ranges are V2-3's; the range control itself (90D/6M/1Y/Custom) is ordinary
+    // navigation within the year V1 always offered, so it is present under V2-2 too.
+    const LONG = ['v2-days-2y', 'v2-days-5y', 'v2-days-Max']
     for (const r of [clean, dirty]) {
-      expect(r.html).toContain('data-testid="v2-extended-days"')
+      for (const id of LONG) expect(r.html).toContain(`data-testid="${id}"`)
     }
     cleanup()
     const v22Only = await renderWith(
       { breadthDcV22Enabled: true, breadthDcV23Enabled: false }, CLEAN)
-    expect(v22Only.html).not.toContain('data-testid="v2-extended-days"')
+    for (const id of LONG) expect(v22Only.html).not.toContain(`data-testid="${id}"`)
+    expect(v22Only.html).toContain('data-testid="v2-days-1y"')
   })
 
   it('the era note appears only when the universe actually moved', async () => {

@@ -80,9 +80,9 @@ export function panelsFor(selected) {
  * confusion A-05 is about, reintroduced by layout after being fixed by structure.
  *
  * @param panels  from `panelsFor`
- * @param opts    { top, bottom, gap } in percent
+ * @param opts    { top, bottom, gap } in percent; `endLabels: false` drops the label gutter
  */
-export function gridFor(panels, { top = 6, bottom = 14, gap = 4 } = {}) {
+export function gridFor(panels, { top = 6, bottom = 14, gap = 4, endLabels = true } = {}) {
   const n = panels.length
   if (!n) return []
   const totalWeight = panels.reduce((s, p) => s + p.weight, 0)
@@ -90,7 +90,8 @@ export function gridFor(panels, { top = 6, bottom = 14, gap = 4 } = {}) {
   let y = top
   return panels.map(p => {
     const h = (usable * p.weight) / totalWeight
-    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right: rightMarginFor(p) }
+    const right = endLabels ? rightMarginFor(p) : NO_LABEL_RIGHT_MARGIN_PX
+    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right }
     y += h + gap
     return rect
   })
@@ -112,6 +113,9 @@ const round = v => Math.round(v * 100) / 100
  * panel elsewhere in the same stack.
  */
 const MIN_RIGHT_MARGIN_PX = 72
+// With no end labels (phone: the readout above the plot carries identity) the plot
+// runs to the edge instead of leaving an empty label gutter.
+const NO_LABEL_RIGHT_MARGIN_PX = 16
 const CHAR_WIDTH_PX = 6.2   // ~11px sans-serif label text, measured generously
 const LABEL_PADDING_PX = 44 // endLabel's own `distance` + breathing room
 

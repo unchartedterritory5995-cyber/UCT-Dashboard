@@ -407,6 +407,19 @@ export const METRIC_REF_LINES = {
   adv_decline_cum: [FLAT],
 }
 
+// MA Breadth "Notable Extremes" — red overbought (70/80/90), green oversold
+// (20/15/10/5), drawn on whichever axis or panel holds the percentage family.
+// One list for both Data Charts versions, so the two cannot disagree on a level.
+export const MA_EXTREME_LINES = [
+  { yAxis: 90, color: '#b91c1c', opacity: 0.90 },
+  { yAxis: 80, color: '#ef4444', opacity: 0.72 },
+  { yAxis: 70, color: '#fca5a5', opacity: 0.55 },
+  { yAxis: 20, color: '#bbf7d0', opacity: 0.55 },
+  { yAxis: 15, color: '#4ade80', opacity: 0.70 },
+  { yAxis: 10, color: '#22c55e', opacity: 0.85 },
+  { yAxis: 5,  color: '#15803d', opacity: 0.95 },
+]
+
 // ── Axis framing ──────────────────────────────────────────────────────────────
 // Families whose axis frames its own data instead of including zero. The split
 // is magnitude vs level: a count of stocks or a percent above a moving average

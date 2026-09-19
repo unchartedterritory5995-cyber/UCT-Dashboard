@@ -10,7 +10,7 @@ import { expectedLatestDailySessionET } from '../utils/marketSession'
 import {
   CHART_GROUPS, LABEL_MAP, CHART_PRESETS, PRESET_GROUP_ORDER,
   UNIT, UNIT_LABEL, unitOf, resolveAxes, matchPreset, axisForUnit,
-  scaleForUnit, resolveColors, resolveLines,
+  scaleForUnit, resolveColors, resolveLines, MA_EXTREME_LINES,
 } from './breadth/chartMetrics'
 import { ftdMarkers } from './breadth/ftdMarkers'
 import PresetRow from './breadth/PresetRow'
@@ -37,17 +37,6 @@ const EXTREMES_BAND = {
   min: v => Math.min(0, v.min),
   max: v => Math.max(100, v.max),
 }
-
-// MA Breadth reference lines — red overbought (70/80/90), green oversold (20/15/10/5)
-const MA_EXTREME_LINES = [
-  { yAxis: 90, color: '#b91c1c', opacity: 0.90 },
-  { yAxis: 80, color: '#ef4444', opacity: 0.72 },
-  { yAxis: 70, color: '#fca5a5', opacity: 0.55 },
-  { yAxis: 20, color: '#bbf7d0', opacity: 0.55 },
-  { yAxis: 15, color: '#4ade80', opacity: 0.70 },
-  { yAxis: 10, color: '#22c55e', opacity: 0.85 },
-  { yAxis: 5,  color: '#15803d', opacity: 0.95 },
-]
 
 const DEFAULT_WINDOW_DAYS = 90
 // A market holiday leaves "overdue" true all day; one ask per ten minutes is enough.
