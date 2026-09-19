@@ -3471,15 +3471,35 @@ fixture. `tests/test_catalyst_spend_rail.py` pairs every assertion with a contro
 including proof the kill switch can actually fire and that a free run neither breaks nor
 extends the streak. **135 passed** across 16 named catalyst suites.
 
-### ⛔ OPEN — F-CAT-2, registered not built
+### ✅ CLOSED — F-CAT-2, fixed 2026-09-18 (`7899ae8d5`)
 
 On 2026-09-11 four `__hunter__` calls ran with **input_tokens of 14, 16 and 18** —
 against 17k–42k on healthy days — while still emitting ~2,000 output tokens and billing
-~$0.10 each. **The hunter is being paid to hallucinate from an empty prompt.** A
-sub-100-token prompt is not a query and the call should be refused. Deliberately NOT
-built in this change: it is a separate defect from the unguarded span, the kill switch
-now bounds the loss, and scope discipline beats a drive-by. Sized: one guard plus a
-control, in `sources.py`.
+~$0.10 each. **The hunter is being paid to hallucinate from an empty prompt.**
+
+⛔ **The real mechanism, traced (not the "sub-100-token prompt" framing this row
+originally carried):** `_deep_prompt()`/`_light_prompt()` are fixed-size template
+strings, independent of live data — they cannot legitimately shrink to 14-18 tokens on
+their own, so a literal "refuse a short prompt" guard would either always fire or never
+fire regardless of the day's outcome. The actual discriminator is `run_hunt()`'s own
+`searches` counter (`msg.usage.server_tool_use.web_search_requests`, already computed
+for cost-guard logging): a call that completes having performed **zero web searches**
+answered from training-data recall or invention, not from anything it actually found —
+the hunter's entire mandate, per its own module docstring, is to *go looking*.
+
+**Fix:** `run_hunt()` (`api/services/catalyst/hunter.py`) now discards any hits when
+`hits and searches == 0`, logging a warning distinct from a genuine zero-catalyst day
+(same `searches == 0`, but an empty hits list — never touched by the guard, proved by a
+dedicated non-vacuity control). Mutation-proved against the real source (guard disabled,
+new discard test confirmed RED, restored, reconfirmed green). Regression-checked across
+79 tests (hunter, hunter_pipeline, sources_v2, engine, spend_rail, cost_guard) — all
+green.
+
+⛔ **Deviates from this row's own original sizing note** ("one guard plus a control, in
+`sources.py`") after tracing the call graph: `sources.py` only receives `run_hunt()`'s
+returned hit list and has no visibility into search-request counts, while `hunter.py`'s
+`run_hunt()` is where `searches` is already computed. The guard lives where the signal
+actually is.
 
 ---
 
