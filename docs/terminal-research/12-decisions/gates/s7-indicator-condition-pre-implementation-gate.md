@@ -5,8 +5,13 @@ role: the approval packet for the type sequenced behind D2. Its gate has THREE c
 status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3 SIGNED 2026-09-12/13 and BUILT (`d31b78b75`,
   `54cb66513`). CP4 SIGNED 2026-09-19 (fingerprint `6625998e8`) — widens the rollout:s7-dark
   cohort to all production members (6 -> 29), executed via railway ssh (see the approval
-  block for before/after counts). THE FLIP still needs a new line — member-visible, owner's
-  call.
+  block for before/after counts). CP1's cadence gate SIGNED + BUILT 2026-09-19 (fingerprint
+  `12855d501`) — a correctness fix, not a checkpoint: wires D2 CP4's `close`->`ohlcv.c` rename
+  into `registration_refusal`/`cadence_for` so it agrees with CP3's own `comparability()`;
+  outcome counts unchanged (still refuses, now for the SAME reason `ohlcv.c` does — F-D2-2).
+  THE FLIP still needs a new line — member-visible, owner's call, and its true remaining size
+  is now precisely F-D2-2 alone (a per-timeframe cadence declaration for `bars_sqlite`,
+  deferred to an after-hours flow-worker-watch-list change), not "thirty more addresses."
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §2b / §1 row 3, PRD-D2 §7 / §9, GATE-D2-CANONICAL-DATA-MODEL (CP1 + CP2), GATE-S12-ROLLOUT
@@ -696,3 +701,106 @@ idempotency proof and confirming the write is stable, not a race.
 
 **Rollback, if ever needed:** `rollout.remove_from_cohort("s7-dark", <ids>)` — takes named accounts
 out; an empty `user_ids` list raises rather than silently doing nothing, by design.
+
+## ✅ APPROVAL — CP1's cadence gate, a mechanical finding CP1 recorded, now closed (a FIFTH line; all four blocks above untouched)
+
+⛔ **NOT A NEW CHECKPOINT.** No new scope, no new delivery, no new comparison
+outcome ever becomes reachable that was not reachable before this line — see
+the "and the outcome does not change" clause below, which is the point of
+recording it here rather than skipping it as noise. This is a correctness fix
+to CP1's already-approved, already-shipped `registration_refusal`/`cadence_for`
+(`indicator_condition.py`), found the same way the S9 CP1 follow-up's two
+findings were found: by reading the shipped code against what a SIBLING,
+LATER-SIGNED checkpoint of the same feature already assumes.
+
+**The finding, measured, not guessed.** GATE-S7-INDICATOR-CONDITION CP1 was
+signed and merged before GATE-D2 CP4 (`indicator_axis.py`, fingerprint
+`3257cc319`) existed. §2b of CP1's own module docstring is explicit that "at
+CP1 ... for all 31 the anchor is `REFUSAL_ADDRESS_UNRESOLVED`" — true when
+written, because no join from the legacy lane's 31 addresses into D2's book
+existed yet. **D2 CP4 later declared exactly one such join** (`RENAMES =
+{"close": "ohlcv.c"}`), and CP3's own `indicator_condition_projection.
+comparability()` already asks it — `comparability("close")` returns
+`COMPARABLE`, the ONE non-`NOT_COMPARABLE` verdict the whole checkpoint's
+non-vacuity control depends on (`test_the_one_renamed_pair_is_comparable`).
+**But `registration_refusal`/`cadence_for` never asked the same declaration.**
+Verified directly against the running tree before any edit:
+
+```
+>>> ic.registration_refusal({"indicator": "close", "condition": "above",
+...                          "threshold": 100.0, "tf": "D"}, entity_ref="AAPL")
+'uct://close@AAPL/D names no metric the canonical address book declares, ...'
+```
+
+So two checkpoints of the SAME feature disagreed about whether one address
+resolves: CP3 calls `close` comparable; CP1's own gate, asked the same
+question, said the address does not exist. **The precise defect class this
+programme already has a name for** (a comment/declaration in one place that a
+sibling consumer never actually reads).
+
+⛔⛔ **AND THE OUTCOME DOES NOT CHANGE — stated because it is the honest
+finding, not softened.** `close` now refuses `REFUSAL_CADENCE_UNDECLARED`
+instead of `REFUSAL_ADDRESS_UNRESOLVED` — the SAME reason `ohlcv.c` itself
+already refuses on, because `close` IS `ohlcv.c` and **the bars store still
+declares no cadence (F-D2-2)**. Inside `classify()`, a refused dark side was
+already `dark_fired = False` regardless of WHY it refused, so the tallied
+`legacy_only`/`agreed`/`new_only` counts in the live comparison-spans table
+are **byte-identical before and after this fix** — this closes an internal
+disagreement about the STATED reason, not a gap in the measured signal. **This
+is also the answer to what THE FLIP's real remaining size is:** not "thirty
+more addresses" (D2 CP4 already declares and can compute all thirty-one via
+`resolve()`'s `value_function`) and not "a comparison engine" (CP1-CP2-CP3
+already built and are running one) — it is exactly ONE declaration, at the ONE
+place F-D2-2 already names (a per-timeframe cadence for `bars_sqlite`), and it
+is deferred for a real scheduling reason, not a vague one: `bars_fetch.py` /
+`bars_sqlite.py` are reachable-but-unwatched by flow-worker, so declaring it
+there is BEHAVIOUR-CHANGING under `tools/flow_worker_watch_coverage.py`'s rail
+and ships after-hours with a version-marker bump — the identical reason D2 CP2
+already refused the same edit (§4.4 of this packet). Once that ONE declaration
+lands, every one of the 31 addresses whose bar class its cadence can answer
+becomes comparable with ZERO further engineering here — the harness, the
+axis's value functions and now the one real join are already built and
+running.
+
+**What changed, mechanically:** `_canonical_metric_name()` (new,
+`indicator_condition.py`) asks `indicator_axis.declarations()` for a
+`renames_to` target before `cadence_for`/`registration_refusal` look a metric
+up in the book — the SAME axis `comparability()` already asks, never a second
+table, and NOT flag-gated (mirrors `comparability()`'s own reasoning exactly:
+`declarations()` carries no flag, only `resolve()` does; gating a rename
+behind `CANONICAL_INDICATOR_AXIS_ENABLED` would make `close` disagree with CP3
+whenever an owner has not set a flag CP3 never consults). Lazy-imports
+`indicator_axis` (mirrors `indicator_condition_compare.legacy_eval_mode`) so
+the 2,630-line `indicator_alert_evaluator` strand does not enter this type
+module's import closure. Only the ONE address D2 CP4 declared a rename for can
+ever move — asserted by
+`test_canonical_metric_name_only_moves_the_ONE_declared_rename`, which
+round-trips the other thirty and every already-canonical book metric
+unchanged.
+
+**Flow-worker classification: NO CHANGE.** The edit is confined to
+`indicator_condition.py` (already an INERT STRAND per §6 of this packet) and
+adds one more lazy, defensively-guarded import inside it — the same shape
+`indicator_condition_compare.py`'s `legacy_eval_mode()` already uses, which
+this packet's §6 already accounts for. `tools/flow_worker_watch_coverage.py`
+reports no change to reachable-vs-watched status for either file.
+
+**Tests:** `tests/test_alert_taxonomy_indicator_condition_schema.py` —
+`test_close_resolves_through_D2_CP4s_own_rename_and_refuses_for_cadence_not_address`
+(the fix, and the control that `ohlcv.c` itself still refuses the same way),
+`test_canonical_metric_name_only_moves_the_ONE_declared_rename` (non-alias-map
+control — the other thirty and every book metric round-trip unchanged),
+`test_canonical_metric_name_is_not_gated_by_the_axis_flag` (mirrors
+`test_comparability_does_not_depend_on_the_axis_flag` exactly), and
+`test_every_legacy_address_refuses_today_and_the_anchor_is_the_ADDRESS_one`
+updated to exclude `close` (its own test now covers it) rather than assert a
+now-false universal. 113 tests green across
+`test_alert_taxonomy_indicator_condition_{schema,compare,projection}.py` +
+`test_canonical_indicator_axis.py`.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  12855d501
+SCOPE APPROVED:   CP1 cadence-gate correctness fix. A correctness fix to CP1's already-approved cadence gate (registration_refusal/cadence_for in indicator_condition.py), not a new checkpoint. Wires in D2 CP4's own close -> ohlcv.c rename (the same one CP3's comparability() already asks) so the two checkpoints agree on whether that one address resolves; close now refuses REFUSAL_CADENCE_UNDECLARED (matching ohlcv.c) instead of REFUSAL_ADDRESS_UNRESOLVED. The tallied comparison-spans outcome counts are unchanged (a refused dark side was already dark_fired=False either way) -- this closes an internal disagreement about the stated reason, not a gap in measured signal. No new scope, no new delivery, no flow-worker watch-coverage change (one more lazy import inside an already-inert-strand module). Precisely identifies THE FLIP's true remaining size as the single F-D2-2 bars-cadence declaration, already known and deliberately deferred to an after-hours flow-worker-watch-list change.
+```
