@@ -129,7 +129,32 @@ export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'tex
 export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.line2': 'line' })
 
 export const OBJECT_OP_KINDS = Object.freeze([
-  'create', 'update', 'delete', 'cell', 'setreg', 'push', 'collset', 'collclear', 'collremove',
+  'create', 'update', 'delete', 'cell', 'clearcells', 'setreg',
+  'push', 'collset', 'collclear', 'collremove',
+])
+
+/**
+ * ⭐⭐ EVERY FIELD ON AN OP WHOSE VALUE IS A PLAIN VALUE REFERENCE — ONE LIST,
+ * READ BY ALL FOUR WALKERS.
+ *
+ * ⛔⛔ THIS EXISTS BECAUSE FOUR FUNCTIONS IN THIS FILE USED TO SPELL THE SAME
+ * LIST OUT BY HAND. `graphNodesReferenced`, `treeRefsReferenced`,
+ * `paramsReferenced` and `bindObjectProgram` each enumerated
+ * `when, col, row, index` in their own words — four authorities over one fact,
+ * and the failure mode is not a crash. Add a field, update three of the four,
+ * and the one you missed leaves `{v:'tree', i}` in a BOUND program: the runtime
+ * reads `undefined`, `Number(undefined)` is `NaN`, the operation is rejected as
+ * out of range and does nothing at all. Every test that used a literal corner
+ * stays green; only a script with a COMPUTED one goes dark, silently, on a
+ * member's chart. `table.clear(plTable, 0, 0, cols - 1, rows - 1)` is how
+ * `smart-money-volume-activity-algoalpha.pine:244` writes it.
+ *
+ * ⚠️ REF-valued fields (`target`, `value`, `props`) are NOT here: they are
+ * object handles, not values, and the walkers treat them differently on
+ * purpose. This list is only the scalar value refs.
+ */
+export const OP_VALUE_FIELDS = Object.freeze([
+  'when', 'col', 'row', 'col2', 'row2', 'index',
 ])
 
 /**
@@ -402,13 +427,25 @@ export function assertObjectProgram(program) {
           throw new Error(`objects.ops[${i}]: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
-    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell') {
+    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell' || op.k === 'clearcells') {
       const fam = resolveTargetFamily(op, i, regs, colls, siteFamily)
       if (op.k === 'cell') {
         if (fam !== 'table') throw new Error(`objects.ops[${i}]: cell targets a ${fam}, but only a table has cells`)
         assertValueRef(op.col, `objects.ops[${i}].col`)
         assertValueRef(op.row, `objects.ops[${i}].row`)
         assertCellProps(op, i)
+      }
+      // ⭐ A RECTANGLE NEEDS ALL FOUR CORNERS PRESENT AT THE DOOR. Pine lets the
+      // AUTHOR omit `end_*`, and the translator fills them from `start_*` there
+      // — by the time a program is stored, "the end defaults to the start" has
+      // already been decided once, in one place. A door that also accepted a
+      // missing end would be a second authority over the same default, and the
+      // two would disagree the first time one of them changed.
+      if (op.k === 'clearcells') {
+        if (fam !== 'table') throw new Error(`objects.ops[${i}]: clearcells targets a ${fam}, but only a table has cells`)
+        for (const f of ['col', 'row', 'col2', 'row2']) {
+          assertValueRef(op[f], `objects.ops[${i}].${f}`)
+        }
       }
       if (op.k === 'update') assertProps(op, i, fam, regs, colls, siteFamily)
     } else if (op.k === 'setreg') {
@@ -518,9 +555,8 @@ export function graphNodesReferenced(program) {
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   for (const op of program.ops || []) {
-    walkValue(op.when)
     walkRef(op.target); walkRef(op.value)
-    walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)
       else walkValue(v)
@@ -552,8 +588,8 @@ export function treeRefsReferenced(program) {
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   for (const op of program.ops || []) {
-    walkValue(op.when); walkRef(op.target); walkRef(op.value)
-    walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    walkRef(op.target); walkRef(op.value)
+    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)
       else walkValue(v)
@@ -568,7 +604,7 @@ export function paramsReferenced(program) {
   const seen = new Set()
   const walkValue = (v) => { if (isObj(v) && v.v === 'param') seen.add(v.id) }
   for (const op of program.ops || []) {
-    walkValue(op.when); walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     if (isObj(op.target) && op.target.r === 'coll') walkValue(op.target.index)
     for (const v of Object.values(op.props || {})) if (isObj(v) && v.v) walkValue(v)
   }
@@ -622,12 +658,9 @@ export function bindObjectProgram(program, nodeOf) {
 
   const ops = (program.ops || []).map((op) => {
     const out = { ...op }
-    if (op.when != null) out.when = bindValue(op.when)
     if (op.target) out.target = bindRef(op.target)
     if (op.value && op.value.r) out.value = bindRef(op.value)
-    if (op.col) out.col = bindValue(op.col)
-    if (op.row) out.row = bindValue(op.row)
-    if (op.index) out.index = bindValue(op.index)
+    for (const f of OP_VALUE_FIELDS) if (op[f] != null) out[f] = bindValue(op[f])
     if (op.props) {
       out.props = Object.fromEntries(Object.entries(op.props)
         .map(([k, v]) => [k, (isObj(v) && v.r) ? bindRef(v) : bindValue(v)]))

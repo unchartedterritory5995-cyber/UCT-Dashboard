@@ -83,6 +83,11 @@ export function evaluateObjects(program, ctx) {
   let nextId = 1
   let created = 0; let updated = 0; let deleted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
+  /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
+   *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
+   *  this number large and `deleted` zero, and conflating them would make both
+   *  unreadable. */
+  let cellsCleared = 0
   const events = []
   let status = OBJECT_STATUS.OK
   let reason = null
@@ -301,6 +306,54 @@ export function evaluateObjects(program, ctx) {
           if (ctx.trace) events.push({ bar, k: 'cell', id: inst.id, col, row })
           break
         }
+        // ⭐⭐ `table.clear(t, c0, r0, c1, r1)` — A RECTANGLE OF CELLS REMOVED.
+        //
+        // ⚰️ FOR THE WHOLE OF C3B THIS OPERATION DID NOT EXIST, and the Pine
+        // idiom it serves is "clear the block, then write today's rows". With
+        // the clear missing, a list of eight rows yesterday and three today
+        // drew three fresh rows over five stale ones — last bar's numbers, in
+        // the same colours, with nothing saying they were old.
+        //
+        // ⛔⛔ THE WALK IS OVER THE CELLS THAT EXIST, NOT OVER THE RECTANGLE.
+        // Iterating `for (c = c0; c <= c1; c++)` reads the author's numbers as
+        // a loop bound, and `table.clear(t, 0, 0, 1e9, 1e9)` — which is legal
+        // Pine and costs its author nothing — would then hang the browser tab
+        // on a table holding four cells. A map walk is bounded by what was
+        // actually written, so the cost is the table's size and never the
+        // range's.
+        //
+        // ⛔ THE RANGE IS INCLUSIVE AT BOTH ENDS (`pine-presentation-spec.md`
+        // C117: `table.clear(t, 2, 3)` clears exactly cell (2,3)), and an
+        // INVERTED rectangle clears nothing. ⚠️ That second point is OUR ruling
+        // on something the reference does not state: it documents `start_*` as
+        // the top-left and `end_*` as the bottom-right and says nothing about
+        // an author who swaps them. `box` normalises top/bottom because Pine
+        // documents that it draws the same box either way; there is no such
+        // sentence here, so normalising would invent one. Clearing nothing is
+        // the direction that cannot destroy a cell the author still wanted.
+        case 'clearcells': {
+          const target = resolveRef(op.target)
+          const inst = target === null ? null : live.get(target)
+          if (!inst) { writesToDeleted += 1; break }
+          const c0 = Number(value(op.col))
+          const r0 = Number(value(op.row))
+          const c1 = Number(value(op.col2))
+          const r1 = Number(value(op.row2))
+          if (![c0, r0, c1, r1].every((n) => Number.isInteger(n) && n >= 0)) break
+          const map = cells.get(inst.id)
+          if (!map) break
+          for (const key of [...map.keys()]) {
+            const at = key.split(',')
+            const c = Number(at[0])
+            const r = Number(at[1])
+            if (c >= c0 && c <= c1 && r >= r0 && r <= r1) {
+              map.delete(key)
+              cellsCleared += 1
+            }
+          }
+          if (ctx.trace) events.push({ bar, k: 'clearcells', id: inst.id })
+          break
+        }
         case 'delete': {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)
@@ -378,7 +431,7 @@ export function evaluateObjects(program, ctx) {
     })),
     counts: { ...counts },
     stats: {
-      created, updated, deleted, writesToDeleted, opsExecuted, maxOpsInABar,
+      created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

@@ -105,7 +105,9 @@ import { memberNumber } from './memberValue.js'
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
 // without Pine (the Builder-future-proofing rule this wave was given).
-import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObjects.js'
+import {
+  collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
+} from './pineObjects.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
@@ -10599,6 +10601,28 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       if (badCell) { dropped('cell:text'); continue }
       ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k === 'clear') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('clear:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const col = raw.start_column ? valueRef(raw.start_column) : null
+      const row = raw.start_row ? valueRef(raw.start_row) : null
+      // ⛔ THE START IS NOT OPTIONAL AND A MISSING ONE IS NOT A ZERO. Defaulting
+      // an unreadable start to (0,0) would clear from the top-left corner of a
+      // dashboard the author never asked to touch — wiping real numbers is a
+      // strictly worse outcome than leaving stale ones, so this refuses.
+      if (!col || !row) { dropped('clear:range'); continue }
+      // ⭐⭐ PINE'S OWN DEFAULT, APPLIED ONCE, HERE. The reference
+      // (`pine-presentation-spec.md:1689`) says `end_column`/`end_row` default
+      // to "the argument used for `start_column`" / `start_row`, so
+      // `table.clear(t, 2, 3)` clears exactly cell (2,3). Re-using the SAME
+      // value reference rather than re-reading the node means a computed start
+      // is evaluated once and the rectangle cannot degenerate into two
+      // different answers for the same expression.
+      const col2 = raw.end_column ? valueRef(raw.end_column) : col
+      const row2 = raw.end_row ? valueRef(raw.end_row) : row
+      if (!col2 || !row2) { dropped('clear:range'); continue }
+      ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }

@@ -73,6 +73,21 @@ export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_c
   'text_font_family', 'text_formatting'])
 
 /**
+ * `table.clear(table_id, start_column, start_row, end_column, end_row)` — the
+ * table_id is the ADDRESS, so the four that remain are the rectangle.
+ *
+ * ⭐ `end_column` AND `end_row` ARE OPTIONAL AND DEFAULT TO THE START, which is
+ * the vendor's own wording at `docs/pine/pine-presentation-spec.md:1689`:
+ * `table.clear(t, 2, 3)` clears exactly cell (2,3). The corpus writes that
+ * two-argument form for real
+ * (`supertrend-relative-volume-kernel-optimized-flux-charts.pine:217`), so a
+ * reader that demanded five arguments would refuse a live script and leave
+ * every stale row of its dashboard on the member's chart.
+ */
+export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
+  'end_column', 'end_row'])
+
+/**
  * A Pine setter name → the canonical properties it writes, in the order its
  * arguments arrive AFTER the object handle.
  *
@@ -401,6 +416,28 @@ export function collectObjectOps(stmts, h) {
     const rest = args.slice(1)
     if (method === 'delete') {
       ops.push({ k: 'delete', family: ns, target, guards, locals: scope, at: toks[0], line: st.header[0].line })
+      return
+    }
+    // ⭐⭐ `table.clear` IS NOT A SETTER AND NEVER WAS. ⚰️ It used to fall
+    // through to the `SETTER_PROPS` lookup at the bottom of this function,
+    // which has no `clear` key, so every one of the corpus's 20 call sites was
+    // filed under `diagnostics.unsupported` and emitted NOTHING. The Pine idiom
+    // for a dashboard is "clear the block, then write today's rows"
+    // (`strong-start-rvol-dashboard.pine:179` clears rows 1..40 before writing
+    // as many rows as it has symbols) — so with the clear a no-op, a list that
+    // had eight rows yesterday and three today drew three fresh rows OVER five
+    // stale ones. The stale five are last bar's numbers in the same format,
+    // with nothing on screen saying they are old, which is the one thing worse
+    // than a missing number.
+    //
+    // ⛔ It is a RANGE, not a property write, so it gets its own op kind rather
+    // than being bent into `update` — a setter's arguments are values for named
+    // properties, and these four are an address.
+    if (ns === 'table' && method === 'clear') {
+      ops.push({
+        k: 'clear', target, args: rest,
+        guards, locals: scope, at: toks[0], line: st.header[0].line,
+      })
       return
     }
     if (ns === 'table' && method === 'cell') {
