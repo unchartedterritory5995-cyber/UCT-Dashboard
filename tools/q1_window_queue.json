@@ -930,13 +930,14 @@
       "released_why": "Re-held.",
       "result": {
         "exit": 124,
-        "seconds": 900.6,
+        "seconds": 900.5,
         "tail": "\u21d2 INCONCLUSIVE  the outbox still held this note's entry after 240.0s \u2014 the drain had not finished, so the server read would measure the clock rather than the product.",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T081701-p3-append-door-restored-guard-unknown-only",
+        "evidence": "docs/notebook/evidence/20260919T101925-p3-append-door-restored-guard-unknown-only",
         "evidence_ok": true
-      }
+      },
+      "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",

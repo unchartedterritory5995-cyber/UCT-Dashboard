@@ -2025,6 +2025,8 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # Polling the record's `dirty`/`baseUpdatedAt` alongside the queue catches
         # the transition in the act, so the cell can NAME which one happened.
         drained, waited = False, 0
+        # ⭐ The editor, not the sweep, delivers the note it has open.
+        delivered_by_editor = False
         trail = []
         # ⚰️ 48 -> 96 polls (120s -> 240s) on 2026-09-18. A `marker-expired` cell
         # died on *"the outbox still held this note's entry after 120.0s — the
@@ -2049,13 +2051,35 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             if isinstance(q2, dict) and q2.get("queuedForThisNote") == 0:
                 drained = True
                 break
+            # ⛔⛔ THE OPEN NOTE IS EXCLUDED FROM THE SWEEP BY DESIGN
+            # (NotebookTab.jsx passes `excludeNoteId`; outboxDrain.js SKIPs it),
+            # so for a cell that ends back ON the note the entry never leaves the
+            # outbox and the condition above waits forever. What this cell actually
+            # measures is whether the SERVER has the sentence — so ask that too.
+            # ⛔ This cannot manufacture a GREEN: the verdict is still computed from
+            # the server body below. It only decides when delivery has FINISHED, so
+            # the read measures the product instead of the clock.
+            if waited % 10 < 2.5:
+                got = page.evaluate("""async (a) => {
+                  try {
+                    const r = await fetch('/api/j2/notes/' + a.id, {credentials:'include'});
+                    if (!r.ok) return null;
+                    const j = await r.json();
+                    return JSON.stringify((j.note||{}).bodyJson || {}).includes(a.s);
+                  } catch (e) { return null }
+                }""", {"id": note_id, "s": sentence})
+                if got is True:
+                    delivered_by_editor = True
+                    log(f"      the SERVER has the sentence after {waited}s — the editor "
+                        f"delivered it (the open note is the sweep's excluded one)")
+                    break
         log(f"      store trail (queued, dirty, base, sentence-in-record): {trail}")
         log(f"      drain: {'emptied' if drained else 'STILL QUEUED'} after {waited}s")
         # The record going CLEAN at a newer baseline while the entry is still
         # queued is the supersede precondition, caught as it happens.
         went_clean = any(t[1] in (0, False) for t in trail[1:]) if len(trail) > 1 else False
         lost_locally = any(t[3] is False for t in trail[1:]) if len(trail) > 1 else False
-        if not drained:
+        if not drained and not delivered_by_editor:
             # ⛔ AN INCONCLUSIVE CELL STILL OWES ITS EVIDENCE. The first version
             # returned before computing the wire, so the one run that most needed
             # explaining produced the least. What is queued, what went out, and
