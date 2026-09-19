@@ -637,8 +637,31 @@ un-maximises).
   3. **NOT MEASURABLE — "S2 measured in --real mode and within SLO"** · zero admissible latency artifacts:
      1 void (open-loop mislabelled as concurrency), 12 inconclusive (ack-path only / `renderer=fallback` /
      unlabelled load model / pre-label). **S5 MET, S5b MET, S5c MET** (4,444 refusals all reached the member
-     inside 3,000 ms, read from the WIRE). Mover: the private-network harness run (R46) or, if NO-GO twice,
-     canary traffic under D2 with `source=canary`, min N=50 — an honest new SOURCE, contract updated to accept it.
+     inside 3,000 ms, read from the WIRE).
+     ⛔⛔ **R46 is NOT an open engineering task — it was already fully investigated and closed as
+     "requires an owner decision," 2026-09-14, `CANARY-RENDERER-DESIGN-2026-09-14.md`.** Re-checked
+     2026-09-19 rather than re-litigated: `load_harness.py` is byte-identical between master and this
+     branch (already deployed, already on the `web` pod at the same content analyzed here), and
+     `CHART_RENDERER_URL=http://chart-renderer.railway.internal:8080` is already set in production —
+     so mechanically, a `railway ssh -s web` run of the already-deployed harness with `--real` would
+     reach the real chart-renderer today, no upload needed. **That is exactly why it is not safe to
+     just run**: the design doc's own §1.2 traces that `chart-renderer` is the SAME shared service the
+     CURRENT live `/chart` command's house-chart path already renders through (`house_enabled() =
+     bool(CHART_RENDERER_URL)`, which is true in production right now) — a synthetic load run would
+     compete for `RENDER_MAX_CONCURRENT=2` slots with real, live member traffic, not a dark/inert
+     system. Every other path in that doc's §1.3 either spends a production pod's CPU (an explicit,
+     twice-paid-for rule against) or requires building a genuinely new canary renderer + web-canary
+     pair whose OWN documented risk ("get it wrong and a clone emails members") is larger than the
+     thing it's meant to measure. **Verified still current, 2026-09-19**: `railway status` shows only
+     the same 5 production services as that date — no `chart-renderer-canary`, no `web-canary` was
+     ever built. The doc's own 4 named alternatives (A: owner-authorized off-hours run against real
+     production chart-renderer; B: build the canary pair; C: accept `#render-smoke` itself as the S2
+     instrument; D: leave S2 permanently INCONCLUSIVE and flip without a latency number) are each a
+     real decision with real tradeoffs, not an engineering gap — the doc's author explicitly declined
+     to pick, and nothing tonight changes that calculus. **Mover, unforced:** an owner pick among
+     A/B/C/D, or the checklist's own honest fallback — canary traffic under D2 with `source=canary`,
+     min N=50 — an honest new SOURCE, contract already updated to accept it, needing only elapsed
+     real time once canary is live, not new infrastructure.
   4. ✅ **ROW MOVED 2026-09-19: "mutation NOT-APPLIED = 0" NOT MEASURABLE → MET, fixed properly
      rather than manually patched around.** The gate's own `check_mutations_applied` shelled out to
      each harness's own `--dry-check` flag — only 6 of 16 harnesses declared one, so the row could
