@@ -332,3 +332,29 @@ the owner explicitly asked this program not to do.**
    latency measurement of one workflow). Neither answer is required to keep
    building S1 CP2 / S2 CP3; both are required before any visible palette UI
    ships.
+
+### 7d · OI-06's real answer, put to Patrick directly — 2026-09-19
+
+**Asked verbatim, same session.** thinkorswim, TradingView, Finviz, and
+Unusual Whales are all opened by hand on a trading day, **plus other tools**
+("many many many others" — not itemized: Market Chameleon, SpotGamma, and
+whatever else was not named). TradingView alerts **are** part of the desk's
+workflow, alongside other unspecified workflow elements ("many many many
+things"). Patrick did not rank by time spent and did not itemize the
+"others" — asked, and declined the precision, which is itself an answer:
+the desk's real tool surface is wide, not the single narrow set OI-06's
+own registration enumerated.
+
+**This reverses the 2026-09-14 default in BOTH directions** (assume-none →
+several confirmed; assume-no-alerts → alerts confirmed in use), and it is
+now a real owner fact, not a telemetry-shaped conservative guess. It does
+**not** move HY-05 — 7b/7c's HOLD stands unchanged, because knowing that
+third-party tools are used by hand says nothing about whether a UCT command
+grammar would retain a member; that still needs the Grammar A/B/C call or a
+keystroke/latency measurement, neither of which this answers. What it DOES
+settle: the desk-tool benchmark roster (four named products confirmed live
+in the desk's actual daily use, not assumed absent) and the "no repository
+reference to thinkorswim" framing in `hypothesis-register.md`'s HY-05
+evidence column — that absence was a **code-reference** fact and remains
+literally true, but it should no longer be read as evidence the desk
+doesn't use thinkorswim; it plainly does.
