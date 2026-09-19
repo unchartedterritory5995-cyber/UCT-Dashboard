@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 1402,
+  "passed": 1399,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 349.66,
+  "failed_files": [
+    "tests/test_no_cr_in_tracked_text_blobs.py",
+    "tests/test_preference_key_validation.py",
+    "tests/test_promotion_gate.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 1399 passed, 14 warnings in 349.66s (0:05:49)",
+  "ok": true
+}
