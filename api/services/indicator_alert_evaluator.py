@@ -101,6 +101,13 @@ from api.services.alert_conditions import (  # noqa: F401  (re-exported)
 # somebody called something.
 from api.services import alert_series
 
+# D2 CP3 — the timeframe label table lives in ONE place: the address book's
+# `axes.timeframe.code_to_label`, sourced from `signature/ledger.py`. Module
+# level, not lazy: `indicator_condition.py` imports `alert_conditions`,
+# `alert_taxonomy.registry` and `canonical.address_book` — none of which
+# import this module — so there is no cycle.
+from api.services.alert_taxonomy.indicator_condition import timeframe_labels
+
 _logger = logging.getLogger(__name__)
 
 #: One address → its number on the newest bar that has one.
@@ -1689,10 +1696,12 @@ ALERT_LEDGER_VERSION = "alert-closed-v1"
 # shows, and ten rows of real history are already keyed that way with no rewrite
 # path. Passing the field we already hold is the natural mistake and it is
 # SILENT: the row lands and simply orphans itself.
-_LEDGER_TIMEFRAME: dict[str, str] = {
-    "1": "1m", "5": "5m", "15": "15m", "30": "30m", "60": "1h",
-    "D": "1D", "W": "1W", "M": "1M",
-}
+#
+# D2 CP3 — RETIRED the hand-typed copy that used to live here. The eight-entry
+# code-to-label map is `timeframe_labels()`, which reads the address book's
+# `axes.timeframe.code_to_label` (PRD-D2 §9.2 named this exact dict as one of
+# three duplicates of that map in this repo). `ledger_timeframe` below is the
+# ONE reader; nothing else in this module may retype the table.
 
 _NOT_LEDGER_GRADE = "forming-bar fires are not ledger-grade"
 
@@ -1765,12 +1774,15 @@ def ledger_timeframe(tf: str) -> str:
     create path validates nothing, so `tf` can be any string a client sent; a
     guess here writes a spelling into an append-only key column that nothing can
     correct afterwards.
+
+    ⛔ READ FROM THE BOOK (`timeframe_labels()`), never a local dict — D2 CP3.
     """
-    label = _LEDGER_TIMEFRAME.get(str(tf or "").strip().upper())
+    labels = timeframe_labels()
+    label = labels.get(str(tf or "").strip().upper())
     if label is None:
         raise LedgerAdmissionRefused(
             f"no product timeframe label for {tf!r} — the ledger keys on the "
-            f"label the surface shows ({sorted(set(_LEDGER_TIMEFRAME.values()))}), "
+            f"label the surface shows ({sorted(set(labels.values()))}), "
             f"and this lane will not invent one"
         )
     return label
