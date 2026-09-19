@@ -58,6 +58,19 @@ test('POSITIVE CONTROL: bare Shift+F still flags the open ticker', async () => {
   expect(flagSpy.toggle).toHaveBeenCalledWith('NVDA')
 })
 
+// S2 CP6 — added alongside the chord-table adoption. This file never covered
+// the auto-repeat guard even before the migration (Watchlists.flagkey.test.jsx
+// did); a held key firing 21 toggles lands wherever the release parity falls,
+// which reads to a member as "the flag doesn't stick".
+test('holding Shift+F flags ONCE, not once per auto-repeat', async () => {
+  await openModal()
+  fireEvent.keyDown(window, { key: 'F', code: 'KeyF', shiftKey: true })
+  for (let i = 0; i < 20; i++) {
+    fireEvent.keyDown(window, { key: 'F', code: 'KeyF', shiftKey: true, repeat: true })
+  }
+  expect(flagSpy.toggle).toHaveBeenCalledTimes(1)
+})
+
 test.each([
   ['Ctrl', { ctrlKey: true }],
   ['Cmd', { metaKey: true }],

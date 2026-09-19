@@ -129,3 +129,30 @@ describe('the member\'s saved view', () => {
     expect(posted).toEqual([])
   })
 })
+
+describe('follow-through days (V1 had them; V2 shipped without)', () => {
+  it('off by default; the toggle draws a rule on the FTD date and saves V1\'s own `ftd` field', async () => {
+    mockUseBreadthSeries.mockImplementation(keys => ({ ...fixture(keys), ftd: ['2026-09-15'] }))
+    stubPrefs({ breadth_charts_state: JSON.stringify({ selected: ['breadth_score'] }) })
+    mount()
+    await waitFor(() => expect(lastKeys()).toContain('breadth_score'))
+    const toggle = screen.getByTestId('v2-ftd-toggle')
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    const drawn = () => JSON.parse(screen.getByTestId('echart').getAttribute('data-option'))
+      .series.flatMap(s => s.markLine?.data ?? []).filter(d => d.xAxis === '2026-09-15')
+    expect(drawn()).toHaveLength(0)
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(drawn().length).toBeGreaterThan(0))
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0), { timeout: 2000 })
+    expect(JSON.parse(posted.at(-1).value).ftd).toBe(true)
+  })
+
+  it('opens ON for a member who saved it on in V1', async () => {
+    mockUseBreadthSeries.mockImplementation(keys => ({ ...fixture(keys), ftd: ['2026-09-15'] }))
+    stubPrefs({ breadth_charts_state: JSON.stringify({ selected: ['breadth_score'], ftd: true }) })
+    mount()
+    await waitFor(() => expect(screen.getByTestId('v2-ftd-toggle')).toHaveAttribute('aria-pressed', 'true'))
+  })
+})

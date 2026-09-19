@@ -200,6 +200,11 @@ export function createRecordingCtx() {
     beginPath: () => ops.push({ op: 'beginPath' }),
     moveTo: (x, y) => ops.push({ op: 'moveTo', x, y }),
     lineTo: (x, y) => ops.push({ op: 'lineTo', x, y }),
+    // ⭐⭐ THE SMOOTHING FIX (2026-09-19) traces multi-point edges with
+    // quadratic curves instead of straight `lineTo`s — see `tracePath` in
+    // fillPrimitive.js. `cpx,cpy` is recorded too so a test can tell a curved
+    // edge from a straight one, not just where the path ends up.
+    quadraticCurveTo: (cpx, cpy, x, y) => ops.push({ op: 'quadraticCurveTo', cpx, cpy, x, y }),
     closePath: () => ops.push({ op: 'closePath' }),
     fill: () => ops.push({ op: 'fill', compositeOp: compositeOpValue, style: fillStyleValue }),
   }
@@ -216,13 +221,17 @@ export function createRecordingCtx() {
     /** Every `fillStyle` assignment that actually painted something, in
      *  order — the R30 sequence. */
     fillStyles: () => ops.filter(isRealPaint).map((o) => o.style),
-    /** One entry per `beginPath`…`fill`, each the vertices in draw order. */
+    /** One entry per `beginPath`…`fill`, each the point the path actually
+     *  PASSES THROUGH in draw order — a `quadraticCurveTo`'s end point counts
+     *  the same as a `lineTo`'s (both are "the path reached here"); its
+     *  control point does not, since the path never touches it. */
     polygons: () => {
       const out = []
       let cur = null
       for (const o of ops) {
         if (o.op === 'beginPath') { cur = []; continue }
         if (cur && (o.op === 'moveTo' || o.op === 'lineTo')) cur.push({ x: o.x, y: o.y })
+        if (cur && o.op === 'quadraticCurveTo') cur.push({ x: o.x, y: o.y })
         if (o.op === 'fill' && cur) { out.push(cur); cur = null }
       }
       return out

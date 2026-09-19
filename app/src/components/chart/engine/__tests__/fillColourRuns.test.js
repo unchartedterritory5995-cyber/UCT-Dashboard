@@ -97,22 +97,71 @@ describe('(j) j.3 / R30 — a fill is drawn as runs', () => {
     expect(na).toEqual([UP, UP, UP, DOWN, null, DOWN, UP])
   })
 
-  it('⛔ CONTROL — a STATIC fill is ONE run and its draw calls are unchanged', () => {
-    // ⭐ THE SHIPPED BAND CANNOT MOVE. This is j.2's case with no colour array at
-    // all, and it is pinned to MEASURED pixels rather than to "some polygon".
+  it('⛔ CONTROL — a STATIC fill is ONE run, one polygon, one colour', () => {
+    // ⭐ THE SHIPPED BAND CANNOT MOVE ARBITRARILY. This is j.2's case with no
+    // colour array at all, and the SHAPE is pinned to measured pixels.
+    //
+    // ⚰️ This used to also pin the trace BYTE-IDENTICAL to a straight-segment
+    // polyline ("draw calls are unchanged"). The smoothing fix (2026-09-19,
+    // `tracePath` in fillPrimitive.js) deliberately changed that: interior
+    // points on a 3+-point edge are now curve endpoints — which, for the
+    // standard quadratic-through-midpoints technique, sit at the MIDPOINT of
+    // each pair of original points, not on the original points themselves.
+    // That is the fix working, not a regression: TradingView's own rendering
+    // of a Pine fill boundary is a smooth curve (confirmed against a real
+    // vendor capture crop), and a literal per-bar polyline read as visibly
+    // more faceted next to it. What must still hold, and is asserted below,
+    // is the run/polygon/colour count and the two REAL edges — the run's
+    // start and end — which stay exactly on the original data points, because
+    // those are genuine boundaries (the width of the first and last bar), not
+    // interior wiggle a curve is entitled to soften.
     const rec = drawWith({})
     expect(rec.fillStyles(), 'a static fill must assign fillStyle exactly once')
       .toEqual([STATIC_DRAWN])
     const polys = rec.polygons()
     expect(polys.length, 'a static fill over contiguous finite columns is ONE polygon').toBe(1)
-    expect(polys[0]).toEqual([
-      { x: 10, y: 490 }, { x: 20, y: 490 }, { x: 30, y: 490 }, { x: 40, y: 490 },
-      { x: 50, y: 490 }, { x: 60, y: 490 }, { x: 70, y: 490 },
-      { x: 70, y: 495 }, { x: 60, y: 495 }, { x: 50, y: 495 }, { x: 40, y: 495 },
-      { x: 30, y: 495 }, { x: 20, y: 495 }, { x: 10, y: 495 },
-    ])
+    const poly = polys[0]
+    expect(poly.length, 'same point COUNT as before — only interior values move').toBe(14)
+    // The four real corners — first/last bar on each edge — are exact, not curved.
+    expect(poly[0], 'top edge starts exactly on the first bar').toEqual({ x: 10, y: 490 })
+    expect(poly[6], 'top edge ends exactly on the last bar').toEqual({ x: 70, y: 490 })
+    expect(poly[7], 'the run-end wall is a straight vertical, not curved').toEqual({ x: 70, y: 495 })
+    expect(poly[13], 'bottom edge ends exactly back on the first bar').toEqual({ x: 10, y: 495 })
+    // The five interior top-edge points sit at consecutive MIDPOINTS, which is
+    // what the quadratic-through-midpoints technique produces by construction.
+    expect(poly.slice(1, 6).map((p) => p.x)).toEqual([25, 35, 45, 55, 65])
     expect(rec.ops.map((o) => o.op).filter((o) => o === 'save' || o === 'restore'))
       .toEqual(['save', 'restore'])
+  })
+
+  it('⛔⛔ NON-VACUITY — a 3+ point edge is genuinely CURVED, not a relabelled straight line', () => {
+    // Without this, `tracePath` could silently regress to plain `lineTo` calls
+    // (still landing on SOME points) and every test above would stay green,
+    // because none of them assert the OPERATION, only the endpoint it left.
+    const rec = drawWith({})
+    const curveOps = rec.ops.filter((o) => o.op === 'quadraticCurveTo')
+    // top edge (7 pts -> 6 curve segments) + bottom edge (7 pts -> 6 curve
+    // segments) = 12; the two run-boundary walls stay plain `lineTo`s.
+    expect(curveOps.length, 'both multi-point edges are drawn as curves').toBe(12)
+    // Only ONE of the run's two real walls is an explicit `lineTo` — the
+    // top-edge-end -> bottom-edge-start cap. The other (bottom-end back to
+    // top-start) is `closePath()`'s own implicit straight line, which never
+    // appears as a `lineTo` op — so 1 here means BOTH walls are straight, not
+    // that one of them went missing.
+    expect(rec.ops.filter((o) => o.op === 'lineTo').length, 'the explicit run-end wall is straight')
+      .toBe(1)
+  })
+
+  it('⛔ CONTROL — a 2-point edge (a two-bar run) stays a plain straight line', () => {
+    // The technique needs 3+ points to have an interior point to bend toward.
+    // Two points is one segment, and `tracePath` says so explicitly rather
+    // than emitting a degenerate curve that happens to look like a line.
+    const rec = drawWith({ upper: [10, 10], lower: [5, 5], times: [1, 2] })
+    const curveOps = rec.ops.filter((o) => o.op === 'quadraticCurveTo')
+    expect(curveOps.length, 'a 2-point edge has nothing to curve').toBe(0)
+    expect(rec.polygons()[0]).toEqual([
+      { x: 10, y: 490 }, { x: 20, y: 490 }, { x: 20, y: 495 }, { x: 10, y: 495 },
+    ])
   })
 
   it('⛔ CONTROL — a STATIC fill with an na HOLE never diverges colour across polygons', () => {

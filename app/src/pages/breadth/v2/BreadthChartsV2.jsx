@@ -44,6 +44,7 @@ import {
   matchPreset, resolveLines,
 } from '../chartMetrics'
 import { formatSessionTick } from '../chartTicks'
+import { ftdMarkers } from '../ftdMarkers'
 import { describeLoadError } from '../chartLoadError'
 import PresetRow from '../PresetRow'
 import MetricReadout from '../MetricReadout'
@@ -154,6 +155,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
       raw: saved,
       selected: picked.length ? picked : null,
       extremes: Boolean(saved.extremes?.['MA Breadth']),
+      ftd: saved.ftd === true,
       range: typeof saved.range === 'string' && RANGE_BY_ID[saved.range] ? saved.range : null,
     }
   }, [storedRaw])
@@ -177,6 +179,10 @@ export default function BreadthChartsV2({ keys, from, to }) {
 
   const [extremesOverride, setExtremesOverride] = useState(null)
   const showExtremes = extremesOverride ?? stored?.extremes ?? false
+  // Follow-through days — V1's own toggle and V1's own saved field, default off: an
+  // existing view must not change shape unasked.
+  const [ftdOverride, setFtdOverride] = useState(null)
+  const showFtd = ftdOverride ?? stored?.ftd ?? false
 
   // ⛔ The range is IGNORED whenever a `from` prop is given — the same override pattern
   // `selection` uses above, so every caller that pins a window keeps behaving the same.
@@ -199,7 +205,8 @@ export default function BreadthChartsV2({ keys, from, to }) {
   const saveTimer = useRef(null)
   useEffect(() => {
     if (isControlled) return undefined
-    if (pickedOverride === null && extremesOverride === null && rangeOverride === null) return undefined
+    if (pickedOverride === null && extremesOverride === null && rangeOverride === null
+        && ftdOverride === null) return undefined
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       const raw = stored?.raw ?? {}
@@ -207,12 +214,13 @@ export default function BreadthChartsV2({ keys, from, to }) {
         ...raw,
         selected: baseSelection,
         extremes: { ...(raw.extremes ?? {}), 'MA Breadth': showExtremes },
+        ftd: showFtd,
         range: rangeId === 'custom' ? (raw.range ?? DEFAULT_RANGE) : rangeId,
       })
     }, 600)
     return () => clearTimeout(saveTimer.current)
-  }, [isControlled, pickedOverride, extremesOverride, rangeOverride, baseSelection,
-      showExtremes, rangeId, stored, setPref])
+  }, [isControlled, pickedOverride, extremesOverride, rangeOverride, ftdOverride, baseSelection,
+      showExtremes, showFtd, rangeId, stored, setPref])
 
   // ⛔ PANELS ARE DERIVED FROM `selection` — WHAT THE MEMBER PICKED — NEVER FROM THE
   // REQUEST. `universe_count` is injected into the WIRE REQUEST below and must never leak
@@ -313,6 +321,22 @@ export default function BreadthChartsV2({ keys, from, to }) {
     return resolveLines(selection, extentOf)
   }, [selection, merged.series])
 
+  // FTD dates → markers thinned for labelling (V1's `ftdMarkers`, fed the same shape).
+  const ftdMarks = useMemo(() => {
+    if (!showFtd || !s.ftd?.length || !merged.dates?.length) return []
+    const on = new Set(s.ftd)
+    return ftdMarkers(merged.dates.map(date => ({ date, is_ftd: on.has(date) })))
+  }, [showFtd, s.ftd, merged.dates])
+  // A follow-through day needs recorded index closes, which reconstructed sessions do
+  // not carry — so the markers can only begin where the record does. Derived from the
+  // payload's own provenance, never a typed date.
+  const firstRecorded = useMemo(() => {
+    if (!s.dates?.length || !s.reconstructed?.length) return null
+    const recon = new Set(s.reconstructed)
+    const first = s.dates.find(d => !recon.has(d))
+    return first && first !== s.dates[0] ? first : null
+  }, [s.dates, s.reconstructed])
+
   const chrome = docTheme === 'light' ? LIGHT_CHROME : DEFAULT_CHROME
   const boxRef = useRef(null)
   const heightPx = useHeight(boxRef)
@@ -332,13 +356,14 @@ export default function BreadthChartsV2({ keys, from, to }) {
     return buildOption(merged.dates, merged.series, selection, {
       colours, logPanels, coverage, allowSampling: v23, chrome, hidden, refLines,
       extremes: showExtremes,
+      ftd: ftdMarks,
       live: merged.liveIndex >= 0 ? { index: merged.liveIndex, clock: live.clock } : null,
       endLabels: !isPhone,
       slider: !isPhone,
       heightPx,
     })
   }, [v22, v23, merged, selection, colours, logPanels, coverage, chrome, hidden, refLines,
-      showExtremes, live.clock, isPhone, heightPx])
+      showExtremes, ftdMarks, live.clock, isPhone, heightPx])
 
   // The readout's rows — the legend, with each series' latest value and its percentile
   // within the window shown.
@@ -563,6 +588,17 @@ export default function BreadthChartsV2({ keys, from, to }) {
           )}
 
           <div className={styles.toolbarEnd}>
+            {option && (
+              <button
+                type="button"
+                aria-pressed={showFtd}
+                data-testid="v2-ftd-toggle"
+                className={`${styles.chip} ${showFtd ? styles.chipOn : ''}`}
+                onClick={() => setFtdOverride(!showFtd)}
+              >
+                Follow-through days
+              </button>
+            )}
             {/* ⛔ A LOG CONTROL THAT DID NOTHING MUST SAY WHY — see the refusal below. */}
             {option && logCandidates.length > 0 && (
               <div className={styles.logGroup} data-testid="v2-log-toggles">
@@ -631,6 +667,12 @@ export default function BreadthChartsV2({ keys, from, to }) {
             {r.reason}
           </p>
         ))}
+        {option && showFtd && firstRecorded && (
+          <p role="status" className={styles.note} data-testid="v2-ftd-note">
+            Follow-through days are marked from {formatSessionTick(firstRecorded, 0, true)}, where
+            sessions are recorded rather than reconstructed.
+          </p>
+        )}
         {option && isSampled && (
           // ⛔ HONEST ABOUT THE DOWNSAMPLE, EVEN THOUGH IT SHOWS ONLY REAL POINTS.
           // ⚰️ This used to state an exact "N of M points" — impossible now that ECharts

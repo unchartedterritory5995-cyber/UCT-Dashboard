@@ -337,3 +337,24 @@ describe('⚰️ the reconstructed band is drawn once per PANEL, never once per 
     expect(withBand).toHaveLength(1)
   })
 })
+
+describe('follow-through days', () => {
+  const pct = ALL_METRICS.find(m => unitOf(m.key) === UNIT.PCT).key
+  const cnt = ALL_METRICS.find(m => unitOf(m.key) === UNIT.COUNT).key
+  const vals = { [pct]: [10, 50, 90, 60], [cnt]: [5, 50, 500, 60] }
+  const ftd = [{ date: DATES[1], label: true }, { date: DATES[2], label: false }]
+
+  it('rule through EVERY panel, labelled on the top panel only, first of a cluster only', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt], { ftd })
+    const rulesByPanel = opt.series.map(s => (s.markLine?.data ?? []).filter(d => ftd.some(f => f.date === d.xAxis)))
+    expect(rulesByPanel.map(r => r.length)).toEqual([2, 2])
+    const labelled = rulesByPanel.flat().filter(r => r.label.show)
+    expect(labelled).toHaveLength(1)
+    expect(labelled[0]).toMatchObject({ xAxis: DATES[1], label: { formatter: 'FTD' } })
+  })
+
+  it('⭐ CONTROL — no markers asked for, no rules drawn', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt])
+    expect(opt.series.every(s => s.markLine === undefined)).toBe(true)
+  })
+})
