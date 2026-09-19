@@ -551,25 +551,71 @@ un-maximises).
   Current reading: **current 5, previous 0** — zero so far, which is the direction that permits
   the clear, but 0.0 h of 24 h observed. ⛔ Reading it early and clearing on "previous is 0"
   would be exactly the absence-is-not-evidence error R29 exists to prevent.
-- [ ] **W4 — gate to 11/11** — `TODO` — snapshot `20260916T014229Z-29900cedf` = **7 MET / 2 NOT MET / 2 NOT MEASURABLE**, no gate change vs `7decb0601`. The four rows and their movers:
+- [ ] **W4 — gate to 11/11** — `TODO` — current: snapshot `20260919T042310Z-59bc103ee.json` =
+  **6 MET / 3 NOT MET / 2 NOT MEASURABLE.** ⚰️ The `20260916T014229Z-29900cedf` = "7/2/2" reading
+  below is now three days stale — the gap between it and tonight is NOT this session's own
+  regression: a `NOT MEASURABLE` reading is time-bounded by construction (the canary-scope row's
+  own 24h evidence limit), so a row that read MET on 9/16 can organically decay to NOT MEASURABLE
+  purely from elapsed time, with nobody having touched anything. That is exactly what happened to
+  canary-scope between 9/16 and tonight, and it is now re-MET (item 5, below) via a fresh read, not
+  a restored one. The five rows and their movers:
 
-  1. **NOT MET — "every forensics class closed with a commit"** · 11/14 closed; open: **C-02, C-09, C-13**.
-     Mover: C-09 is the gate merge `ccf4fbcb6` (live) — the row likely just needs its closing commit recorded.
-     C-13 closes with OI-13 step 6 + the 11x4 control (R42, Thursday+). C-02 is the loop/ack class — OI-44/OI-45 work.
-     Owner: session. Not blocked except C-13's clock.
-  2. **NOT MET — "3.5 real-Discord smoke"** · reads *"1 FAIL mark (2/15 rows marked PASS, 10 rows no mark speaks for)"*.
-     ⛔ **THE ROW IS SCORED AGAINST A STALE ARTIFACT.** The denominator is **15**; R16 struck the fifteenth and
-     `SMOKE-3.5.md` defines **14**. It also has no knowledge of 2026-09-15's run, where rows 1, 8, 9, 11, 13
-     PASSed on the gate SHA. This is the very defect SMOKE-3.5.md was written to end — a score against a list
-     nobody can re-derive. Mover: write the 2026-09-15 marks into the evidence the gate reads, run the
-     remaining rows (W1), and move the scorer to the 14-row denominator. Never relax the threshold.
+  1. ⚰️ **STALE — re-verified against `01-failure-forensics.md` 2026-09-19.** Both movers named below
+     already happened: **C-09 closed `2026-09-17`** (see the R56 correction above — this row was
+     never updated after that landed) and **C-13 closed `2026-09-18`** (OI-13 rotation, all 7 steps,
+     `D14-LOG.md` entry `2026-09-18 08:52 ET`). Current forensics-doc state, read fresh rather than
+     re-trusted: **13/14 rows read ✅ CLOSED. Only C-02 remains not fully closed**, and its own row
+     already states why: "🟡 PARTLY CLOSED — the V2-attributable half is now CLOSED ON EVIDENCE; the
+     shared-event-loop half is not this programme's (D-04, `instruments/c09_c02_probe.py`)." ⛔ **Left
+     as a judgment call, not resolved here:** whether a class whose IN-SCOPE half is closed-with-a-
+     commit and whose remaining half is EXPLICITLY declared out of this programme's scope satisfies
+     "every forensics class closed with a commit" is a call about the gate criterion's own wording,
+     not a fact this correction can settle unilaterally — that is the owner's / gate-writer's to make,
+     not mine to upgrade toward MET on my own reading. What is settled: the count is 13/14 CLOSED
+     plus one explicitly-scoped partial, not "11/14 closed; open: C-02, C-09, C-13."
+  2. ⚰️ **STALE — every mover in this row already happened; re-verified by RUNNING `check_smoke()`
+     live 2026-09-19, not by re-trusting the old writeup.** `SMOKE_ROWS_TOTAL = 14` has been set
+     since 2026-09-17 (`flip_preconditions.py:941`) — the "denominator is 15" mover is done. A real,
+     comprehensive run against the 14-row script happened 2026-09-17
+     (`evidence/smoke-2026-09-17/INDEX.md`): **10 PASS, 0 FAIL, 4 deliberately NOT RUN** (rows 2/3/5/7,
+     unreachable by construction while V2 is dark — correctly NOT scored as failures). The
+     "2026-09-15 marks" mover this row asked for is superseded by a strictly better artifact — the
+     "remaining rows (W1)" mover is done too.
+     ⛔⛔ **What is STILL genuinely NOT MET, verified by running the actual gate function just now:**
+     `check_smoke()` returns `NOT MET — 1 FAIL mark(s) (12/14 rows marked PASS, 0 row(s) no mark
+     speaks for)`. Root cause, already diagnosed and documented in the 09-17 evidence file itself
+     (§"A SCORER DEFECT FOUND WHILE DOING THIS, DELIBERATELY NOT FIXED"): `check_smoke` sums PASS/FAIL
+     marks across **every** declared 3.5 index in the tree, so `smoke-2026-09-14/INDEX.md`'s one
+     stale FAIL (a channel-gate refusal, long since fixed) **permanently** holds this row red no
+     matter how clean a later run is. ⛔ **Deliberately NOT fixed here, matching the prior session's
+     own correct call**, which is worth repeating rather than relitigating: changing a scorer's
+     semantics so a gate reads better is an owner-level decision (*"the move that needs an owner's
+     name on it"*), not a session's to make unilaterally. **Recommended fix, unchanged from the
+     09-17 writeup**: make `check_smoke` judge only the newest declared index and report older ones
+     as history. Until an owner makes that call, this row is honestly NOT MET for a three-day-old
+     superseded FAIL, not for anything wrong with the product.
   3. **NOT MEASURABLE — "S2 measured in --real mode and within SLO"** · zero admissible latency artifacts:
      1 void (open-loop mislabelled as concurrency), 12 inconclusive (ack-path only / `renderer=fallback` /
      unlabelled load model / pre-label). **S5 MET, S5b MET, S5c MET** (4,444 refusals all reached the member
      inside 3,000 ms, read from the WIRE). Mover: the private-network harness run (R46) or, if NO-GO twice,
      canary traffic under D2 with `source=canary`, min N=50 — an honest new SOURCE, contract updated to accept it.
-  4. **NOT MEASURABLE — "mutation NOT-APPLIED = 0"** · 15 harnesses, only 6 answer `--dry-check`.
-     Mover: `--run-mutations`, or read the merge row. Unblocked and cheap; do it early in W1.
+  4. **NOT MEASURABLE — "mutation NOT-APPLIED = 0"** · re-verified live 2026-09-19: **16** harnesses
+     now (was 15 — one more landed since), only 6 answer `--dry-check`. Mover unchanged:
+     `--run-mutations`, or read the merge row. Unblocked and cheap; do it early in W1.
+  5. ✅ **ROW MOVED 2026-09-19: "canary scope narrowed to the declared ids" NOT MEASURABLE → MET.**
+     Not stale documentation — a genuine live re-read. The row's own evidence had aged to 76.2h
+     (limit 24h); refreshed it exactly per the check's own documented procedure (read the RUNNING
+     process, never `railway variables --kv`), via `MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
+     railway ssh --service web` and the base64-pipe pattern (a bare `python /tmp/script.py` sets
+     `sys.path[0]` to the script's own directory, not `/app` — insert `/app` explicitly or the `api`
+     package import fails). Every field came back UNCHANGED from the 2026-09-16 reading:
+     `DISCORD_RENDER_V2_CHANNELS` still narrowed to the one declared canary id, the member channel
+     still structurally unreachable by V2 (`channel_allowed_member: false`),
+     `DISCORD_RENDER_V2_ENABLED` still genuinely absent (not `'0'`). Confirmed via the gate's own
+     diff mechanism, not asserted: `ROW MOVED canary scope narrowed to the declared ids: NOT
+     MEASURABLE -> MET`, snapshot `20260919T042310Z-59bc103ee.json` vs. `20260919T042014Z-59bc103ee.json`.
+     Tally: **MET 5→6, NOT MEASURABLE 3→2.** Overall verdict unchanged (`NOT MET — do not flip`) —
+     rows 1–4 above are still open. Fresh read written to `evidence/canary-scope.json`.
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.

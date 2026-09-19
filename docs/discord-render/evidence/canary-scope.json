@@ -1,5 +1,5 @@
 {
- "read_at": "2026-09-16T00:05:17Z",
+ "read_at": "2026-09-19T04:22:23Z",
  "source": "in-process",
  "v2_channels": [
   "1549129739048853544"
@@ -12,6 +12,6 @@
   "1546563720702853280",
   "1549129739048853544"
  ],
- "commit": "246204473d0b",
- "note": "D-12 Part 0.2 re-read, refreshing the D-11 (R23) recording before its 24h expiry; every field is UNCHANGED. DISCORD_RENDER_V2_CHANNELS is set to the single declared canary id on web -- the ONLY service that reads it (sole reader: api/services/discord_render/commands.py:75). Read back from the RUNNING process, never from `railway variables --kv`. The load-bearing consequence is channel_allowed({'channel_id': '1546563720702853280'}) == FALSE: V2 cannot reach the member channel even if the flag were flipped, which is what makes 'admin-only canary' different from the member flip (OI-35). DISCORD_RENDER_V2_ENABLED is ABSENT from the environment (not '0') -- recorded as presence, because off-and-unset must stay distinguishable. cmd_channel_id()'s primary is still the member channel, unchanged by the narrowing."
+ "commit": "bda2aa363365",
+ "note": "Re-read via the base64-pipe pattern (MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL=\"*\" railway ssh), refreshing the 2026-09-16T00:05:17Z recording before it aged past the gate's 24h limit (it had reached 76.2h). Every field is UNCHANGED from the prior read: DISCORD_RENDER_V2_CHANNELS is still set to the single declared canary id on web -- the ONLY service that reads it (sole reader: api/services/discord_render/commands.py:75). Read back from the RUNNING process, never from `railway variables --kv`. The load-bearing consequence is unchanged: channel_allowed({'channel_id': '1546563720702853280'}) == FALSE, so V2 cannot reach the member channel even if the flag were flipped -- that is what makes 'admin-only canary' different from the member flip (OI-35). DISCORD_RENDER_V2_ENABLED is still ABSENT from the environment (not '0') -- recorded as presence, because off-and-unset must stay distinguishable. commit is the pod's live commit at read time (bda2aa363365), newer than the 2026-09-16 read's 246204473d0b because of the intervening deploys -- unrelated to this row, which is about the channel scope, not the code version."
 }
