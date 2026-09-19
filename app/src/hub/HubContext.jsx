@@ -32,6 +32,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import { modesById } from './registry'
 import { validateSectionConfig } from './contracts'
 import { routeToModeId, isSectionRoute } from './hubRoutes'
+import useAppFocus from '../hooks/useAppFocus'
 
 /**
  * @typedef {Object} HubContextValue
@@ -241,7 +242,22 @@ export function HubProvider({ children }) {
   const activeModeConfig = pageModeConfig ?? modesById[mode] ?? null
 
   // ── shared cross-section values (spec §4 / Part C4) ───────────────────────
-  const [symbol, setSymbol] = useState(null)
+  // S4 CP3 (GATE-S4-CONTEXT-BUS): `symbol` is no longer this component's own
+  // state. It reads `useAppFocus()` — the authority S4-B ruled promoted
+  // (CP2, fingerprint f6df6dca1) — instead of holding a second, restated copy.
+  //
+  // ⛔ `setSymbol`'s IDENTITY MUST STAY STABLE FOREVER, same as when it was a
+  // `useState` setter — `setters` below is memoized with an EMPTY dep array
+  // on exactly that promise. `useAppFocus().setSymbol` is a `useCallback`
+  // whose identity moves with `[prefs, setPref]`, so it is captured through a
+  // ref rather than closed over directly: the exposed `setSymbol` is created
+  // ONCE and always delegates to the LATEST `useAppFocus` setter at CALL
+  // time, never a closure frozen at this component's first render.
+  const appFocus = useAppFocus()
+  const appFocusRef = useRef(appFocus)
+  appFocusRef.current = appFocus
+  const symbol = appFocus.symbol
+  const setSymbol = useCallback((next) => { appFocusRef.current.setSymbol(next) }, [])
   const [timeframe, setTimeframe] = useState(null)
   const [activeScan, setActiveScan] = useState(null)
   const [selectedPosition, setSelectedPosition] = useState(null)
