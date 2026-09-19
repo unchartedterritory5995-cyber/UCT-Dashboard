@@ -282,21 +282,55 @@ And a deploy key stored as an Actions secret is readable by any workflow, so it 
 isolation over bypassing the Actions integration — only more moving parts, a private key at
 rest, and an edit to a file another workstream is actively changing.
 
-**Ready to apply, unchanged, by anyone with the permission:**
+⚰️⚰️ **THIS PAYLOAD WAS MARKED "Ready to apply, unchanged" AND IT DOES NOT APPLY.**
+Measured 2026-09-19 by uploading it through **Settings → Rules → Rulesets →
+Import a ruleset** on this exact repo. GitHub rejected it:
+
+```
+Error importing ruleset: The ruleset you are importing contains an invalid actor
+```
+
+⛔ **`"actor_id": 15368` was never verified against this repository.** It is the
+GitHub Actions app id quoted from memory, and an app id is **per-installation**,
+not a universal constant. The import failed atomically — 0 rulesets before, 0
+after — so nothing was half-created, but anyone following this document would
+have hit the same wall and had no idea why.
+
+⭐ **THE BYPASS ACTOR MUST BE CHOSEN FROM GITHUB'S OWN LIST, NEVER TYPED.** In the
+ruleset form, *Bypass list → Add bypass* offers the actors this repo actually has;
+picking **GitHub Actions** there yields a valid id by construction. That is the
+same rule this repo applies everywhere else: **derive the identifier, do not
+retype it** — a hand-typed id beside the thing it names is the defect this file
+records over and over.
+
+**The shape, for reference only — do NOT paste the actor id:**
 
 ```jsonc
-// gh api -X POST repos/<owner>/<repo>/rulesets --input ruleset.json
+// The JSON import path works ONLY if actor_id is a real id for THIS repo.
+// Prefer the UI form, which selects the actor for you.
 {
   "name": "production is promoted, never pushed",
   "target": "branch",
   "enforcement": "disabled",          // ⛔ create DISABLED, verify, then set "active"
   "conditions": { "ref_name": { "include": ["refs/heads/production"], "exclude": [] } },
   "bypass_actors": [
-    { "actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always" }  // GitHub Actions
+    // ⛔ pick "GitHub Actions" from the UI list; the id below is NOT valid here
+    { "actor_id": "<from the UI>", "actor_type": "Integration", "bypass_mode": "always" }
   ],
   "rules": [ { "type": "deletion" }, { "type": "non_fast_forward" }, { "type": "update" } ]
 }
 ```
+
+**Equivalent, and the route that actually works — Settings → Rules → Rulesets →
+New ruleset → New branch ruleset:**
+
+| field | value |
+|---|---|
+| Ruleset Name | `production is promoted, never pushed` |
+| Enforcement status | **Disabled** ⛔ not Active — see the verification below |
+| Target branches | Add target → *Include by pattern* → `production` |
+| Bypass list | Add bypass → **GitHub Actions** (from the list; never typed) |
+| Rules | ✅ Restrict deletions · ✅ Block force pushes · ✅ Restrict updates |
 
 ⛔ **Owner/admin is deliberately NOT a bypass actor.** The entire point is that a session
 pushing with the owner's credential — which is exactly what every session on this box has —
