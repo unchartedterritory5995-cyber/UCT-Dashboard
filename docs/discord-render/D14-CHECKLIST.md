@@ -193,9 +193,14 @@
 > real field (confirmed against Railway's own docs, gitignore-style syntax). **DONE and MERGED**
 > (`5f21367b2`, fast-forward): `api/**`, `app/**`, `requirements*.txt`, `railway*.json`,
 > `Dockerfile.web`, plus the two tools this repo's own watch-coverage checker names.
-> ⏳ **R71's own two-step PROOF is not yet run**: (1) a docs-only D14-LOG.md push must produce NO
-> web deploy record — not yet attempted; (2) R72's api/ push (below) must still deploy normally —
-> pending its own push clearing the recency window.
+> ✅ **R71's own two-step PROOF is CLOSED — see line 92 above, `d517e7cd7`/`25d9e93ad`.**
+> ⚰️ This line said *"not yet run"*; the proof it describes had already landed above it in this
+> same file by the time this line was written — the second-authority-over-one-value defect this
+> file keeps paying for. **Two more independent confirmations, 2026-09-19**, both read live from
+> `railway deployment list --service web --json`: `7e3891f33` (W8's cherry-pick, `docs/`+`tests/`
+> only) and `20f196d4a` (the staleness-guard fix, same paths) both came back SKIPPED with
+> `skippedReason: "No changes to watched files"` — Railway's own worded confirmation, not
+> inferred from status alone.
 > ✅ **R72's code is BUILT and PUSHED** (`fix/r72-sqlite-instrument` → master, landing right after
 > R71's): the three named sub-timers (`_timed_touch`, `live_tier.py`) with busy-wait genuinely
 > separated from statement time — `set_busy_handler` confirmed REMOVED on this Python

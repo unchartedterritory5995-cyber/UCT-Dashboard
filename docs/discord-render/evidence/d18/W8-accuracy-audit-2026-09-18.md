@@ -278,6 +278,12 @@ TOTALS w8_accuracy_audit checked=6 matched=6 mismatched=0 not_computable=0
   [buzz ] buzz     matched
 ```
 
+The tool wrote its evidence JSON to `/app/docs/discord-render/evidence/accuracy/2026-09-19.json`
+on the pod — `/app` is NOT a Railway volume, so that copy does not survive the
+next deploy. Pulled via `railway ssh` and committed into this repo at
+`docs/discord-render/evidence/accuracy/2026-09-19.json` so the real run's raw
+artifact outlives the pod that produced it.
+
 Real, independently-agreeing numbers — e.g. NVDA `day_pct_from_bars =
 1.335825658794576` vs the live snapshot's `live_change_pct = 1.3358`. `/buzz`
 matched 140/140 tickers, 368/368 total mentions, against a raw SQL tally

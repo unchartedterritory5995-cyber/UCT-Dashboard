@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-09-19T03:22:35.368475+00:00",
+  "symbols": [
+    "NVDA",
+    "SPY",
+    "QQQ",
+    "AAPL",
+    "MSFT"
+  ],
+  "checked": 6,
+  "matched": 6,
+  "mismatched": 0,
+  "not_computable": 0,
+  "results": [
+    {
+      "ticker": "NVDA",
+      "surface": "chart",
+      "status": "matched",
+      "problems": [],
+      "as_of": "2026-09-18",
+      "day_pct_from_bars": 1.335825658794576,
+      "live_change_pct": 1.3358,
+      "bar_count": 260
+    },
+    {
+      "ticker": "SPY",
+      "surface": "chart",
+      "status": "matched",
+      "problems": [],
+      "as_of": "2026-09-18",
+      "day_pct_from_bars": -0.11932861264095651,
+      "live_change_pct": -0.1193,
+      "bar_count": 260
+    },
+    {
+      "ticker": "QQQ",
+      "surface": "chart",
+      "status": "matched",
+      "problems": [],
+      "as_of": "2026-09-18",
+      "day_pct_from_bars": 0.6318696646766764,
+      "live_change_pct": 0.6319,
+      "bar_count": 260
+    },
+    {
+      "ticker": "AAPL",
+      "surface": "chart",
+      "status": "matched",
+      "problems": [],
+      "as_of": "2026-09-18",
+      "day_pct_from_bars": -0.25816023738872707,
+      "live_change_pct": -0.2582,
+      "bar_count": 260
+    },
+    {
+      "ticker": "MSFT",
+      "surface": "chart",
+      "status": "matched",
+      "problems": [],
+      "as_of": "2026-09-18",
+      "day_pct_from_bars": -0.7975891511803224,
+      "live_change_pct": -0.7976,
+      "bar_count": 260
+    },
+    {
+      "surface": "buzz",
+      "window": "open",
+      "status": "matched",
+      "problems": [],
+      "served_tickers": 140,
+      "derived_tickers": 140,
+      "served_total": 368,
+      "derived_total": 368
+    }
+  ]
+}
