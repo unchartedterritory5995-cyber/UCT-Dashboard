@@ -777,6 +777,34 @@ un-maximises).
      then re-run `flip_preconditions.py` — the S2 row should move off NOT MEASURABLE on its own
      admission logic, no gate-code change needed.
 
+     ✅✅ **EXECUTED AND ROW MOVED, 2026-09-19, by the owner.** The classifier block held for this
+     session as documented; the owner ran the three commands directly from PowerShell, outside
+     Claude Code entirely, and pasted the result back. **The first attempt was genuinely
+     INCONCLUSIVE, and for an instructive reason, not a mistake:** every synthetic interaction
+     "fell through to the pre-V2 path" (`kinds={"fell_through_to_v1": 150}`) — traced live to
+     `api/services/discord_render/commands.py:323`'s own canary gate
+     (`if not channel_allowed(interaction): return None`), which checks the interaction's
+     `channel_id` against `DISCORD_RENDER_V2_CHANNELS` (narrowed to the real canary id, per the row
+     above) — and `load_harness.py`'s synthetic interactions default `channel_id` to `"2"`
+     (`interaction()`, `os.environ.get("HARNESS_CHANNEL_ID", "2")`), which is not that channel. **This
+     is the canary scoping working exactly as designed**, not a bug: the harness's own
+     `enable_v2()` sets `DISCORD_RENDER_V2_ENABLED=1` in its own process, but that alone was never
+     going to be sufficient once a channel-scoped canary exists — V2 correctly refused a request
+     from an unscoped channel and fell through, which is the same protection every real member
+     outside the canary gets.
+     **Re-run with `HARNESS_CHANNEL_ID=1549129739048853544`** (the real `#render-smoke` id, `env
+     VAR=val cmd` — no shell-quoting needed) drove synthetic traffic AS the canary channel, entirely
+     in-process, with `--deliver-channel` still unset (zero Discord writes) — and produced a
+     genuine V2 measurement: **`TOTALS load_harness PASS`, 274 real chart renders, 100% success,
+     zero failures, zero refusals, S2 end-to-end p50=2.7ms · p95=8.3ms · p99=2319.3ms, 128,649,851
+     bytes of real chart PNGs actually delivered.** Saved as
+     `evidence/step3/s2-real-v2-canary-2026-09-19.json`. `flip_preconditions.py`'s own diff
+     confirmed the transition without any gate-code change: **`ROW MOVED S2 measured in --real mode
+     and within SLO: NOT MEASURABLE -> MET`**. Tally **9 MET, 2 NOT MET** (soak-24h and the 3.5
+     smoke rows — both already-known, already-documented, both requiring nothing further from this
+     session: soak is a clock, and the smoke rows need V2 actually enabled for the canary, which is
+     the flip decision itself).
+
      **Net effect: Options A, B, C are each now either fully investigated-and-declined, or
      prepared-but-gated at a real boundary this session should not cross alone. D remains available
      at zero cost, as it always was.** Still an owner pick, not narrowed by tonight's work — but each

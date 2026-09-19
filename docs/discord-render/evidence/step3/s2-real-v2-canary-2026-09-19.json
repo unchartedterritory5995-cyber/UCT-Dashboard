@@ -1,0 +1,196 @@
+{
+  "meta": {
+    "model": "closed_loop",
+    "arrival_rate": null,
+    "think_time_s": 1.0,
+    "concurrency": 1,
+    "rate": null,
+    "seconds": 300.0,
+    "members": 40,
+    "handler_ms": 0.0,
+    "symbols": "real",
+    "sandbox": "/tmp/drender-load-glxga0sz",
+    "mode": "real",
+    "kind": "load",
+    "purpose": "slo",
+    "renderer": "chart-renderer",
+    "void": false,
+    "void_reason": null,
+    "superseded_by": null,
+    "organic_members_exposed": 0,
+    "burst": null,
+    "delivery": "none",
+    "elapsed_s": 300.59,
+    "queue_at_end": {
+      "interactive": 0,
+      "background": 0,
+      "active": 0,
+      "workers": 6,
+      "bg_running": 0
+    },
+    "gauge": {
+      "trigger": "every 0.5s",
+      "expected": 601,
+      "actual": 600,
+      "coverage": 0.998,
+      "seconds_between_samples": 0.5,
+      "depth_is_a_floor": true
+    },
+    "spin_check": {
+      "ok": true,
+      "reason": ""
+    },
+    "concurrency_observed": {
+      "requested": 1,
+      "think_s": 1.0,
+      "peak_inflight": 1,
+      "mean_inflight": 1.0,
+      "resolutions": {
+        "delivered": 274
+      },
+      "offer_status": {
+        "queued": 274
+      }
+    }
+  },
+  "stats": {
+    "n": 274,
+    "p50": 0.7547438144683838,
+    "p95": 1.5114285051822662,
+    "p99": 2.7896128594875336,
+    "max": 272.6108357310295,
+    "mean": 1.853400501456574,
+    "over_1s": 0,
+    "over_3s": 0
+  },
+  "kinds": {
+    "deferred": 274
+  },
+  "samples_ms": [],
+  "queue_depth": [],
+  "real": {
+    "deliver": {
+      "artifacts": 493,
+      "edits": 493,
+      "bytes": 128649851
+    },
+    "end_to_end_ms": {
+      "p50": 2.7,
+      "p95": 8.3,
+      "p99": 2319.3,
+      "over_15s": 0
+    },
+    "success_rate": 1.0,
+    "jobs": 274,
+    "acks_over_3s": 0,
+    "failures_by_class": {},
+    "stuck": 0,
+    "by_command": {
+      "chart": {
+        "p50": 2.7,
+        "p95": 8.3,
+        "p99": 2319.3,
+        "over_15s": 0
+      }
+    },
+    "cache": {
+      "hits": 0,
+      "misses": 0,
+      "hit_rate": null,
+      "l2_promotions": 0,
+      "l2_served_unpromoted": 0,
+      "refused_standin": 0
+    },
+    "breakers": {
+      "bars": {
+        "name": "bars",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 10,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      },
+      "quote": {
+        "name": "quote",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 5,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      },
+      "renderer": {
+        "name": "renderer",
+        "state": "closed",
+        "consecutive_failures": 0,
+        "recent_failures": 0,
+        "recent_calls": 5,
+        "trips": 0,
+        "short_circuits": 0,
+        "opened_for_s": null
+      }
+    },
+    "renderer": {
+      "reachable": true,
+      "status": 200,
+      "ready": true,
+      "ok": true,
+      "browser": true,
+      "browser_connected": true,
+      "allowed": [
+        "uctintelligence.com",
+        "web-production-05cb6.up.railway.app"
+      ],
+      "pool_enabled": true,
+      "renders_total": 12129,
+      "renders_since_recycle": 239,
+      "active": 0,
+      "queued": 0,
+      "rss_mb": 278.0,
+      "last_render_ms": 1765.5,
+      "p95_render_ms": 2459.6,
+      "recycles": 24,
+      "page_recycles": 0,
+      "pool_hits": 12098,
+      "pool_misses": 141,
+      "timeouts": 0,
+      "failures": 19,
+      "launch_error": null
+    },
+    "renderer_delta": {
+      "renders_total": 17,
+      "recycles": 0,
+      "timeouts": 0,
+      "failures": 0,
+      "pool_hits": 17,
+      "pool_misses": 0,
+      "rss_mb_after": 278.0,
+      "rss_mb_before": 277.1
+    },
+    "admission_split": {
+      "offers": 274,
+      "job_rows": 274,
+      "served_in_slo": 274,
+      "served_late": 0,
+      "refused_by_admission": 0,
+      "refused_before_job_row": 0,
+      "refused_with_job_row": 0,
+      "failed": 0,
+      "failed_by_class": {},
+      "unresolved": 0,
+      "closes": true,
+      "slo_p99_ms": 8000.0,
+      "admission_classes": [
+        "queue_full"
+      ]
+    },
+    "refusal_latency": {
+      "state": "NOT MEASURABLE",
+      "why": "zero refusals in this run — an empty set is not evidence that refusals are fast, and a load that refuses nobody cannot measure refusal latency",
+      "refusals": 0
+    }
+  }
+}
