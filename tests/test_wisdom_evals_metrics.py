@@ -69,7 +69,8 @@ def _rows(slice_=None, metric=None):
 
 def test_zero_over_zero_is_null_and_renders_0_over_0(db):
     rows = _rows()
-    assert set(rows) == set(metrics.SEE_RATE_METRICS.values()) | {metrics.FALSE_POSITIVE, metrics.OUTCOME_WEIGHTED}
+    assert set(rows) == (set(metrics.SEE_RATE_METRICS.values())
+                          | {metrics.FALSE_POSITIVE, metrics.OUTCOME_WEIGHTED, metrics.CALL_TRACK_RECORD})
     for row in rows.values():
         assert (row["numerator"], row["denominator"], row["value"]) == (0, 0, None)
         assert metrics.render(row) == "0/0"
@@ -160,6 +161,56 @@ def test_the_outcome_weighted_rate_sits_beside_its_raw_rate(db):
     assert row["value"] == round(1.0 / 1.5, 6)
     assert (notes["raw"], notes["raw_value"], notes["no_matured_outcome"]) == ("1/3", round(1 / 3, 6), 1)
     assert "raw 1/3" in metrics.render(row) and "weighted" in metrics.render(row)
+
+
+def test_call_track_record_scores_target_before_stop_never_a_miss_without_a_level(db):
+    with store.write() as conn:
+        hit = _record(conn)
+        missed = _record(conn)
+        no_level = _record(conn)              # no stop/target stated at all -- never scored as a miss
+        _outcome(conn, hit, horizons_json=json.dumps({"first_hit": "target", "stop_used": 90, "target_used": 110}))
+        _outcome(conn, missed, horizons_json=json.dumps({"first_hit": "stop", "stop_used": 90, "target_used": 110}))
+        _outcome(conn, no_level, horizons_json=json.dumps({"first_hit": None, "stop_used": None, "target_used": None}))
+    row = _rows()[metrics.CALL_TRACK_RECORD]
+    notes = json.loads(row["notes"])
+    assert (row["numerator"], row["denominator"], row["value"]) == (1, 2, 0.5)
+    assert (notes["hits"], notes["misses"], notes["no_level_stated"]) == (1, 1, 1)
+    assert notes["population"] == 3
+
+
+def test_call_track_record_includes_hindsight_calls_unlike_the_see_rate(db):
+    """Outcomes-v1's own population keeps hindsight (D8) -- a teaching example still has a real
+    forward outcome even though it is excluded from the UCT-see-rate populations above."""
+    with store.write() as conn:
+        rid = _record(conn, hindsight=1, stance="hindsight")
+        _outcome(conn, rid, horizons_json=json.dumps({"first_hit": "target", "stop_used": 90, "target_used": 110}))
+    assert _rows()["uct_see_rate_any"]["denominator"] == 0            # hindsight stays out of see-rate
+    row = _rows()[metrics.CALL_TRACK_RECORD]
+    assert (row["numerator"], row["denominator"]) == (1, 1)
+
+
+def test_call_track_record_counts_a_directional_negative_call_but_not_a_bare_one(db):
+    with store.write() as conn:
+        directional = _record(conn, record_type="NEGATIVE_CALL", stance="avoid", direction="short")
+        bare = _record(conn, record_type="NEGATIVE_CALL", stance="passed", direction=None)
+        _outcome(conn, directional, horizons_json=json.dumps({"first_hit": "target", "stop_used": 1, "target_used": 1}))
+        _outcome(conn, bare, horizons_json=json.dumps({"first_hit": "target", "stop_used": 1, "target_used": 1}))
+    row = _rows()[metrics.CALL_TRACK_RECORD]
+    notes = json.loads(row["notes"])
+    assert (row["numerator"], row["denominator"], notes["population"]) == (1, 1, 1)
+
+
+def test_call_track_record_averages_ret_10_and_excludes_records_with_no_outcome_row_at_all(db):
+    with store.write() as conn:
+        a, b = _record(conn), _record(conn)
+        _record(conn)                                     # extraction landed a record, outcomes hasn't run yet
+        _outcome(conn, a, ret_10=4.0, horizons_json=json.dumps({"first_hit": "target"}))
+        _outcome(conn, b, ret_10=-2.0, horizons_json=json.dumps({"first_hit": "stop"}))
+    row = _rows()[metrics.CALL_TRACK_RECORD]
+    notes = json.loads(row["notes"])
+    assert (notes["avg_ret_10"], notes["avg_ret_10_n"]) == (1.0, 2)
+    assert notes["no_matured_outcome"] == 1
+    assert notes["population"] == 3
 
 
 def test_latest_metrics_returns_only_the_newest_run_with_n_in_every_row(db):
