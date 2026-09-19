@@ -4,9 +4,11 @@ title: Command / Search — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
 status: ✅ CP1 SIGNED 2026-09-13 (`7ae6d9ca2`, real owner approval) · CP2 BUILT AND
   MERGED (`095f27f97`, 2026-09-14) but its own approval was left MALFORMED (blank
-  SCOPE) -- corrected 2026-09-19 · CP3 BUILT AND SIGNED 2026-09-19 (`60f712ab6`,
-  ChartPane.jsx adopts the table). CP4+ is unblocked: OI-06 was answered 2026-09-14
-  (verification/2026-09-14/OI-06-telemetry-derived-defaults.md).
+  SCOPE) -- corrected 2026-09-19 · CP3 SIGNED 2026-09-19 (`60f712ab6`, ChartPane.jsx
+  adopts the table) · CP4 SIGNED 2026-09-19 (Watchlists.jsx) · CP5 SIGNED 2026-09-19
+  (ThemeTrackerPage.jsx) · CP6 SIGNED 2026-09-19 (TickerPopup.jsx) -- all five
+  originally-inline Shift+F surfaces named in HY-35/F-S2-1 now read the declared
+  chord table. CP4/CP5/CP6 code not yet committed/merged as of this doc edit.
 date: 2026-09-13
 ---
 
@@ -32,7 +34,7 @@ written — CP1 below has a real, complete owner approval dated the day before. 
 rather than deleted for the same reason S1's identical claim was: the next reader
 should see that "nothing exists yet" can go stale the same day it's asserted.
 
-## ✅ APPROVAL — CP1 signed 2026-09-13 · CP2 signed 2026-09-14, corrected 2026-09-19 · CP3+ open
+## ✅ APPROVAL — CP1 signed 2026-09-13 · CP2 signed 2026-09-14, corrected 2026-09-19 · CP3/CP4/CP5/CP6 signed 2026-09-19
 
 ```
 APPROVED BY:      Patrick (owner), via Claude Chat middleman
@@ -102,6 +104,43 @@ SCOPE APPROVED:   CP3 -- A SECOND SURFACE READS THE DECLARED TABLE, per §6's ow
 > direct-commit path for this packet — the member-visible classification
 > governs a push through THAT pipeline, which this checkpoint does not use.
 
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  f8175989d
+SCOPE APPROVED:   CP4 -- Watchlists.jsx adopts the declared chord table. Same conversion shape as CP3: import chordById/matchesChord from command/chords.js, resolve SHIFT_F once at module scope, replace the inline modifier-set expression with matchesChord(e, SHIFT_F), keeping !e.repeat and the selectedSym state guard OUTSIDE the chord check. Behaviour proved identical against the file's own existing Watchlists.flagkey.test.jsx (already covered the repeat guard) -- no new test file needed for this surface. Mutation-proved on the real source: dropping the forbids modifiers reds the F-S2-1 test; dropping !e.repeat reds the repeat test; both restored and reverified green.
+```
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  66ee4e6b4
+SCOPE APPROVED:   CP5 -- ThemeTrackerPage.jsx adopts the declared chord table, same conversion shape as CP4. Closed a pre-existing test-coverage gap found via the mutation ladder: ThemeTrackerPage.flagkey.test.jsx had no auto-repeat guard test before this checkpoint (unlike Watchlists.flagkey.test.jsx) -- added one, matching Watchlists' own. Mutation-proved on the real source: dropping the forbids modifiers reds the F-S2-1 test; dropping !e.repeat reds the newly-added repeat test; both restored and reverified green.
+```
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  1e765b577
+SCOPE APPROVED:   CP6 -- TickerPopup.jsx adopts the declared chord table, same conversion shape as CP4/CP5 -- the LAST of the five original inline Shift+F implementations named in HY-35/F-S2-1 to converge onto chords.js. Closed the same pre-existing test-coverage gap as CP5: TickerPopup.flagkey.test.jsx had no auto-repeat guard test before this checkpoint -- added one. Mutation-proved on the real source: dropping the forbids modifiers reds the F-S2-1 test; dropping !e.repeat reds the newly-added repeat test; both restored and reverified green. Full S2 regression confirmed after CP4/CP5/CP6 together: 102/102 across chordCollision.test.js, all six chord-adopting surfaces' flagkey/chordAdoption suites, and their chart-mount/keyboard suites.
+```
+
+> **CP4/CP5/CP6 close S2's own §6 recommendation** ("the rest adopt") — all
+> five surfaces HY-35/F-S2-1 named as originally-inline Shift+F implementations
+> (ChartPane.jsx, GridChartCell.jsx, Watchlists.jsx, ThemeTrackerPage.jsx,
+> TickerPopup.jsx) now read `matchesChord(e, SHIFT_F)` from the single
+> `chords.js` table. `chordCollision.test.js`'s own `tableReadersOf()` scan —
+> built before any of CP3-CP6 existed — required no modification to correctly
+> track this convergence; only its docstring needed a dated note. §3's original
+> table carried these three as one bundled "CP4+" placeholder row; split into
+> CP4/CP5/CP6 to match the numbering already used in each file's own source
+> comments and to keep this packet's "one surface, one checkpoint" precedent
+> from CP1-CP3. Same `member_visible=True` mechanical-exception note as CP3
+> applies to all three (real, non-comment-only changes under `app/src/`,
+> behaviour proved byte-identical). Not registered in
+> `tools/sign_manifest.txt`/`merge_all.py`, matching CP1-CP3's established
+> direct-commit path for this packet.
+
 ---
 
 ## 1. What S2 is, per the architecture
@@ -125,7 +164,9 @@ SCOPE APPROVED:   CP3 -- A SECOND SURFACE READS THE DECLARED TABLE, per §6's ow
 | **CP1** | The binding table as **INERT DATA** plus a **collision rail**: every chord declared once, and a test that fails by name when two surfaces claim the same chord in the same context. Derived from source, never hand-listed. **No handler changed.** | measure at build | **S/M** |
 | **CP2** | ONE surface reads the table instead of its local constants, with snapshot-identity on its key handling. | measure at build | **M** |
 | **CP3** | A SECOND surface adopts the table (ChartPane.jsx), converging the duplication at its source. | measure at build | **S** |
-| **CP4+** | The rest adopt (Watchlists.jsx, ThemeTrackerPage.jsx, TickerPopup.jsx). | — | — |
+| **CP4** | Watchlists.jsx adopts the table. | measure at build | **S** |
+| **CP5** | ThemeTrackerPage.jsx adopts the table. | measure at build | **S** |
+| **CP6** | TickerPopup.jsx adopts the table — the LAST of the five original inline Shift+F implementations named in HY-35/F-S2-1. | measure at build | **S** |
 
 ---
 
