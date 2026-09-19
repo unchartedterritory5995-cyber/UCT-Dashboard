@@ -926,17 +926,18 @@
         "reload mid-flight (marker from a dead tab)"
       ],
       "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not.",
-      "attempts": 1,
+      "attempts": 3,
       "released_why": "Re-held.",
       "result": {
-        "exit": 124,
-        "seconds": 900.6,
-        "tail": "\u21d2 INCONCLUSIVE  the outbox still held this note's entry after 240.0s \u2014 the drain had not finished, so the server read would measure the clock rather than the product.",
+        "exit": 0,
+        "seconds": 245.9,
+        "tail": "\u21d2 INCONCLUSIVE  a SILENT NOTHING: no call to the door's endpoint and no deferral sentence on screen. The click may have missed, or the toast may have shipped invisibl",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T081701-p3-append-door-restored-guard-unknown-only",
+        "evidence": "docs/notebook/evidence/20260919T084013-p3-append-door-restored-guard-unknown-only",
         "evidence_ok": true
-      }
+      },
+      "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence."
     },
     {
       "id": "2.2-ring-on-the-drivable-door",
