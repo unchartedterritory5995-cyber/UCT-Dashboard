@@ -1,0 +1,123 @@
+# promotion-gate: no — REPORT-ONLY. This job runs with `continue-on-error: true` and
+# publishes a workflow artifact; it never blocks a push or a promotion. Mirrors
+# .github/workflows/full-suite-report.yml's own established precedent for a new check:
+# observe before it can block. See that file's own header for the incident this marker
+# prevents (a workflow shipped without it once froze every production promotion repo-wide).
+#
+# SCOPE: this checks chart_parity.py's existing 53-case built-in-indicator migration
+# suite (legacy vs. engine rendering). It does NOT cover the community Pine-script corpus
+# (c0_oos_fixtures/ etc.) — see the correction note in
+# docs/superpowers/plans/2026-09-19-ci-chart-parity-regression.md before assuming otherwise.
+
+name: pine chart parity (report-only)
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'app/src/components/chart/engine/**'
+      - 'tools/chart_parity.py'
+      - 'tools/chart_parity_cases.json'
+      - '.github/workflows/pine-chart-parity.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'app/src/components/chart/engine/**'
+      - 'tools/chart_parity.py'
+      - 'tools/chart_parity_cases.json'
+  workflow_dispatch:
+
+concurrency:
+  group: pine-chart-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  chart-parity:
+    name: chart_parity.py --same-build (53 cases)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: app
+        run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps (harness + Playwright)
+        run: |
+          python -m pip install --quiet -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Start vite dev server
+        working-directory: app
+        run: nohup npm run dev -- --port 5173 > ../vite.log 2>&1 &
+
+      - name: Wait for the dev server to answer
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173 > /dev/null; then
+              echo "vite dev server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::vite dev server never answered on :5173"
+          cat vite.log
+          exit 1
+
+      - name: Run chart_parity.py --same-build
+        id: parity
+        run: |
+          set +e
+          python tools/chart_parity.py --base-a http://localhost:5173 --same-build \
+            2>&1 | tee chart_parity_run.log
+          RC=${PIPESTATUS[0]}
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      # A run without its own completion line is not a run — same rule this repo
+      # applies to vitest/pytest in full-suite-report.yml, applied here to a
+      # different harness's own printed line.
+      - name: Assert the run actually completed
+        if: always()
+        run: |
+          grep -E "case\(s\), [0-9]+ failure\(s\)" chart_parity_run.log || {
+            echo "::error::chart_parity.py produced no completion line — the run was killed or never finished, this is NOT a clean result"
+            exit 1
+          }
+
+      - name: Report the verdict
+        if: always()
+        run: |
+          echo "chart_parity.py exit code: ${{ steps.parity.outputs.rc }}"
+          if [ "${{ steps.parity.outputs.rc }}" != "0" ]; then
+            echo "::error::chart_parity.py reported failures — see the uploaded report for which case(s)"
+          fi
+          {
+            echo "## pine chart parity"
+            echo
+            tail -60 chart_parity_run.log
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chart-parity-report
+          path: |
+            chart_parity_run.log
+            tools/chart_parity_out/
+          retention-days: 14
