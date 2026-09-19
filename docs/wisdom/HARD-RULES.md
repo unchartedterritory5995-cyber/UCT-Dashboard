@@ -1586,15 +1586,21 @@ ages out.
    `'ok'`. The one test built for this exact backlog path stubs `reconcile.score_silently` itself,
    so it cannot see that every call after the first reconciles the wrong night.
 
-4. **The free local backend's real token usage is priced as the paid model and lands in the real
-   budget ledger** (`local_backend.py` + `batch.py` + `budget.py`). `LocalClient.cost_usd = 0.0` and
-   `is_local_backend = True` are decorative -- `grep`-confirmed as read NOWHERE outside their own
-   test. `submit_pending`/`_build_items`/`handle_result` always price with
-   `config.configured_model()` (the paid model string), with no branch on `config.is_local()`
-   anywhere in that chain. A local ($0) run's real usage numbers from the free local server are
+4. ✅ **FIXED (same session).** The free local backend's real token usage was priced as the paid
+   model and landed in the real budget ledger (`local_backend.py` + `batch.py` + `budget.py`).
+   `LocalClient.cost_usd = 0.0` and `is_local_backend = True` were decorative -- `grep`-confirmed
+   as read NOWHERE outside their own test. `submit_pending`/`_build_items`/`handle_result` always
+   priced with `config.configured_model()` (the paid model string), with no branch on
+   `config.is_local()` anywhere in that chain, so a local ($0) run's real usage numbers were
    converted to a non-zero dollar figure and written into the SAME `wisdom_batches.cost_usd_actual`
-   that `select_within_budget` rations real paid extraction against -- so dev/testing work on the
-   local backend can silently eat into (or exhaust) the real programme budget.
+   that `select_within_budget` rations real paid extraction against. **Fix:** `budget.cost_from_usage`
+   and `budget.estimate_cost` -- the two functions where token counts become dollars, the single
+   choke point every caller shares -- now check `config.is_local()` and return `$0.0` unconditionally
+   when true, rather than relying on a decorative attribute nothing reads. Two new tests in
+   `test_wisdom_local_backend.py` prove a REAL, large usage payload prices as `$0.0` under the
+   local backend (not just that the decorative attribute says so) and prices normally (paid
+   control) otherwise. Mutation-proved: removing either guard fails exactly the new local-pricing
+   test, nothing else.
 
 **MEDIUM severity:**
 
@@ -1623,23 +1629,38 @@ ages out.
    full-text span (differing only in ordinal) -- it cannot distinguish a real overlapping-window
    duplicate from two unrelated segments that merely share wording.
 
-7. **The nightly-cap regression test greps a comment describing the OLD, already-fixed bug, not
-   live behavior** (`test_wisdom_npass_chain.py::test_the_nightly_cap_never_RAISES_the_programme_total`).
-   It asserts `"min(programme_cap" in inspect.getsource(batch.submit_pending)` -- the ONLY place
-   that substring appears today is inside the R65 comment narrating the REMOVED bug ("This used to
-   pass `min(programme_cap, night_cap)`..."); the current code two lines later explicitly does NOT
-   call `min()` (R65: "TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS"). The test would stay
-   green through a real revert to the pre-R65 shape (since nobody deletes the comment explaining
-   why the code looks the way it does) and would go red on a harmless comment rewording -- the same
-   disease that hid the calibration bug, in the same file, one test away.
+7. ✅ **FIXED (same session).** The nightly-cap regression test grepped a comment describing the
+   OLD, already-fixed bug, not live behavior
+   (`test_wisdom_npass_chain.py::test_the_nightly_cap_never_RAISES_the_programme_total`). It
+   asserted `"min(programme_cap" in inspect.getsource(batch.submit_pending)` -- the ONLY place
+   that substring appeared was inside the R65 comment narrating the REMOVED bug ("This used to pass
+   `min(programme_cap, night_cap)`..."); the current code two lines later explicitly does NOT call
+   `min()`. The test would have stayed green through a real revert to the pre-R65 shape and gone
+   red on a harmless comment rewording -- the same disease as the calibration bug, in the same
+   file, one test away. **Fix:** replaced with a real reproduction of the exact incident R65's
+   comment narrates ("$75 of night-1 actuals against a combined cap of 75.0 allowed 0 of 10 on
+   night 2, while $45 of programme headroom sat unused") -- night 1 spends its own night cap in
+   full, night 2 (a different date, plenty of unused programme headroom) must still get its own
+   fresh allowance via `budget.select_within_budget`. Mutation-proved against the real historical
+   bug shape (`cap = min(cap, night_cap)` + forcing the night-scoped comparison off): fails only
+   this test, confirming it actually catches the incident rather than a proxy for it.
 
 8. **Finding 5's defect, independently rediscovered from the test-coverage angle** -- listed
    separately in the workflow's raw output (vacuous-tests dimension) because it was found via "what
    combination has zero tests" rather than via tracing the retry-carryover scenario directly; kept
    here as one item since it is the same underlying line (`budget.py:296-304`).
 
-⛔ **None of the 8 above were fixed tonight.** #1 and #3 are concurrency/architecture questions
-that deserve a deliberate design pass, not a rushed patch under time pressure; #2 and #4 are
-narrower and probably quick, but still real-money-adjacent changes that should not go in
-unreviewed at 2am. Recorded here, verified, with file:line and a reproduction path, so the next
-session can pick the highest-value one without re-deriving what a 13-agent review already proved.
+### Update, same session: #4 and #7 fixed; #1/#2/#3/#5/#6 still open
+
+#4 (local backend cost leak) and #7 (vacuous nightly-cap test) turned out to be well-bounded,
+low-risk fixes with no design judgment call attached, so they were done tonight rather than left
+queued -- see the ✅ FIXED markers above for what changed and how it was mutation-proved. **#1, #2,
+#3, #5, #6 remain open, deliberately.** #1 (budget TOCTOU race) and #3 (reconciliation backlog
+misattribution) are concurrency/architecture questions that deserve a deliberate design pass, not
+a rushed patch under time pressure. #2 (manual CLI door bypasses the kill switch/golden gate) and
+#5 (cross-night retry `exclude_pending_usd` contamination) are narrower but still real-money-
+adjacent changes to a tool with a real operator workflow, not something to guess at unreviewed.
+#6 (writer.py's dedupe_key has no position information) needs a correct definition of "overlapping
+window" sourced from `segmenter.py`'s real windowing semantics, not an assumption. Recorded here,
+verified, with file:line and a reproduction path, so the next session can pick the highest-value
+one without re-deriving what a 13-agent review already proved.

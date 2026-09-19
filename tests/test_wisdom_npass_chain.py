@@ -27,7 +27,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from api.services.wisdom.core import store, timeutil  # noqa: E402
-from api.services.wisdom.extract import batch, run_records  # noqa: E402
+from api.services.wisdom.extract import batch, budget, run_records  # noqa: E402
 
 
 @pytest.fixture()
@@ -244,15 +244,38 @@ def test_an_unusable_nightly_budget_stops_the_night_before_any_request(env, monk
 
 
 def test_the_nightly_cap_never_RAISES_the_programme_total(env, monkeypatch):
-    """⛔⛔ THE DIRECTION THAT MATTERS. A per-night value sits INSIDE the programme total; if it
-    were passed through unconditionally, setting it to 9999 would raise a ceiling it is supposed to
-    tighten. The tightest binds — always."""
-    import inspect
+    """⛔⛔ THE DIRECTION THAT MATTERS, TESTED AS BEHAVIOR — NOT AS SOURCE TEXT. R65's own comment
+    narrates the real incident this guards: "$75 of night-1 actuals against a combined cap of 75.0
+    allowed 0 of 10 on night 2, while $45 of programme headroom sat unused." The bug was
+    `cap = min(programme_cap, night_cap)` used as THE cap, then compared against CUMULATIVE
+    PROGRAMME spend -- so a small night-1 cap, once spent, poisoned every later night's check even
+    though each night is supposed to get its OWN fresh allowance against its OWN spend.
 
-    src = inspect.getsource(batch.submit_pending)
-    assert "min(programme_cap" in src, (
-        "the nightly cap is not combined with min() — a large nightly value could raise the "
-        "programme total instead of tightening it")
+    ⚰️ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): the prior version of this
+    test asserted `"min(programme_cap" in inspect.getsource(batch.submit_pending)`. The ONLY place
+    that substring appears in the real source is inside the R65 comment NARRATING the removed bug;
+    the current code two lines later explicitly does the opposite. The test passed on prose
+    describing a fixed bug, not on any code path — it would stay green through a real revert to the
+    pre-R65 min() shape (nobody deletes the comment explaining why the code looks the way it does)
+    and would go red on a harmless comment rewording. Same disease as the calibration bug this
+    session already fixed, one test away."""
+    with store.write() as conn:
+        # Night 1 (2026-09-18) already spent its own $5 night cap in full.
+        conn.execute("INSERT INTO wisdom_batches (batch_id, kind, extractor_version, model, "
+                     "submitted_at, status, request_count, cost_usd_actual, budget_cap_usd) VALUES "
+                     "('b-night1', 'extract', 'v0', 'm', '2026-09-18T20:00:00-04:00', 'reaped', "
+                     "1, 5.0, 120.0)")
+    with store.read() as conn:
+        # Night 2 is a DIFFERENT date with its own $5 night cap and $115 of unused PROGRAMME
+        # headroom ($120 total, only night 1's $5 spent) -- it must get a fresh allowance.
+        d = budget.select_within_budget(conn, "v0", [2.0, 2.0, 2.0], cap=120.0,
+                                        night_cap=5.0, night_date="2026-09-19")
+    assert d.allowed_count == 2, (
+        f"expected night 2's OWN $5 cap (unrelated to night 1's already-spent $5) to admit "
+        f"exactly 2 of 3 $2 items -- got {d.allowed_count}. If this is 0, the night cap was "
+        f"min()'d with the programme cap and checked against CUMULATIVE programme spend "
+        f"(night 1's $5) instead of night 2's own ($0) -- exactly the R65 incident.")
+    assert "night budget stop" in (d.reason or ""), d.reason
 
 
 def test_the_night_budget_shrinks_as_passes_are_submitted(env, monkeypatch):
