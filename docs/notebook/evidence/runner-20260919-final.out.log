@@ -4,3 +4,9 @@
    💾 evidence: docs/notebook/evidence/20260919T120305-p3-append-door-restored-guard-unknown-only (12391B raw)
    ⇒ p3-append-door-restored-guard-unknown-only: INCONCLUSIVE (attempt 1, requeued) in 557.1s
    ▶ p3-append-door-restored-guard-unknown-only: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T121224-p3-append-door-restored-guard-unknown-only (7328B raw)
+   ⇒ p3-append-door-restored-guard-unknown-only: INCONCLUSIVE (attempt 2, requeued) in 313.5s
+   ▶ p3-append-door-restored-guard-unknown-only: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T121739-p3-append-door-restored-guard-unknown-only (7492B raw)
+   ⇒ p3-append-door-restored-guard-unknown-only: INCONCLUSIVE (attempt 3, giving up — needs a human) in 212.3s
+queue empty — nothing staged

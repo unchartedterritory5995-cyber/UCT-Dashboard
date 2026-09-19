@@ -1,0 +1,16 @@
+{
+  "id": "matrix-remainder",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--resume",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 1,
+  "started": "2026-09-19T12:19:55",
+  "seconds": 6.8,
+  "why": "Running the remainder first would spend window minutes on cells the fix is about to change, and the rig window is the scarcest resource in this programme."
+}

@@ -1,0 +1,9 @@
+
+=== WINDOW OPEN 12:19:47 · 2 staged ===
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T121947-w2-deferred-by-guard-banking-run (540B raw)
+   ⇒ w2-deferred-by-guard-banking-run: exit 1 in 6.5s
+   ▶ matrix-remainder: python tools/q1_f5_matrix.py --resume --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260919T121955-matrix-remainder (541B raw)
+   ⇒ matrix-remainder: exit 1 in 6.8s
+queue empty — nothing staged

@@ -1921,6 +1921,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # ⭐ Same 5s ceiling (20 x 250ms), so nothing that passed can start
         # failing; a toast alive at ANY instant inside it is now caught.
         latched_toast = None
+        latched_queued = None
         for _ in range(20):
             page.wait_for_timeout(250)
             if latched_toast:
@@ -1930,6 +1931,20 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                 _t = (_g or {}).get("text")
                 if _t:
                     latched_toast = _t
+                    # ⛔⛔ LATCH THE QUEUE AT THE SAME INSTANT AS THE TOAST. The
+                    # guard decided from the store AT CLICK TIME; reading the
+                    # store 5s later reads a DIFFERENT moment, and the drain can
+                    # empty the outbox in between. Measured 2026-09-19: setup
+                    # showed queuedForThisNote 1, the post-hoc read showed 0, and
+                    # the cell concluded "the guard deferred a note that had
+                    # nothing to defer" - a FALSE DEFER that was really a race
+                    # between two reads taken seconds apart.
+                    try:
+                        _q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
+                                                       "sentence": sentence})
+                        latched_queued = (_q or {}).get("queuedForThisNote")
+                    except Exception:            # noqa: BLE001
+                        pass
             except Exception:                        # noqa: BLE001
                 # ⛔ UNREADABLE is not ABSENT. Leave it None and let the read
                 # below report the failure in its own words.
@@ -1960,7 +1975,10 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             seen = toast_in(rendered, expected)
             q_now = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id,
                                               "sentence": sentence})
-            queued_now = (q_now or {}).get("queuedForThisNote") or 0
+            # ⭐ The queue AS IT WAS WHEN THE TOAST WAS ON SCREEN, which is the
+            # moment the guard actually decided. The live read is the fallback.
+            queued_now = (latched_queued if latched_queued is not None
+                          else ((q_now or {}).get("queuedForThisNote") or 0))
             log(f"      guard toast seen: {seen} · queued for this note: {queued_now} "
                 f"· {ENDPOINT[family]} calls: {len(hit)}")
             verdict, why = judge_append_door(endpoint_hits=len(hit), toast_seen=seen,

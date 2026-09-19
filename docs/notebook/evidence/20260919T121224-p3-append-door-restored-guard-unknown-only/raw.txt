@@ -1,0 +1,67 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 5 cell(s) to run · stamp 2026-09-19T17-12-24Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 1, 'deadNotes': 1, 'removed': 1}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'unknown-only'}
+
+═══ append_widget_embed  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:12:44.200430+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-19T17:12:44.200430+00:00', 'marker': None, 'ring': ['2026-09-19T17:12:44.200430+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: False · queued for this note: 1 · /embeds calls: 1
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '30+00:00', True), (0, False, 'None', True)]
+      drain: emptied after 10.0s
+      wire: POST /→200 · POST /f694de3327d74056822ecba876036130/opened→200 · PUT /f694de3327d74056822ecba876036130[06+00:00]→200 · POST /f694de3327d74056822ecba876036130/opened→200 · PUT /f694de3327d74056822ecba876036130+SENT[30+00:00]→None · PUT /f694de3327d74056822ecba876036130+SENT[30+00:00]→None · PUT /f694de3327d74056822ecba876036130+SENT[30+00:00]→None · POST /f694de3327d74056822ecba876036130/embeds→200 · PUT /f694de3327d74056822ecba876036130+SENT[30+00:00]→409 · PUT /f694de3327d74056822ecba876036130+SENT[30+00:00]→409 · PUT /f694de3327d74056822ecba876036130+SENT[87+00:00]→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · appended node present: **True** · queued 1 entry(s), baseline `2026-09-19T17:12:44.200430+00:00` · 6 r
+
+═══ append_widget_embed  ·  marker LIVE
+      warmed /charts, back to the editor
+      cleanup: {'err': 502}
+   ⇒ INCONCLUSIVE  the editor never mounted within 30000ms of going offline, so the sentence was never typed — an INSTRUMENT answer, not a finding
+
+═══ append_widget_embed  ·  marker EXPIRED
+      warmed /charts, back to the editor
+      cleanup: {'found': 2, 'deleted': 2}
+   ⇒ INCONCLUSIVE  the editor never mounted within 30000ms of going offline, so the sentence was never typed — an INSTRUMENT answer, not a finding
+
+═══ append_widget_embed  ·  slow PUT (landed, ring populated)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:15:57.657261+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'landed ring carries the revision + an expired marker', 'baseUpdatedAt': '2026-09-19T17:15:57.657261+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789838158414, 'baseUpdatedAt': '2026-09-19T17:15:57.657261+00:00'}, 'ring': ['2026-09-19T17:15:57.657261+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: True · queued for this note: 0 · /embeds calls: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the deferral sentence was shown but the store reported NO queued entry, so the guard deferred a note that had nothing to defer - the cell cannot tell 
+
+═══ append_widget_embed  ·  reload mid-flight (marker from a dead tab)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:16:28.909352+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker from a previous tab', 'baseUpdatedAt': '2026-09-19T17:16:28.909352+00:00', 'marker': {'sessionId': 'previous-tab', 'startedAt': 1789838209003, 'baseUpdatedAt': '2026-09-19T17:16:28.909352+00:00'}, 'ring': ['2026-09-19T17:16:28.909352+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: True · queued for this note: 0 · /embeds calls: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the deferral sentence was shown but the store reported NO queued entry, so the guard deferred a note that had nothing to defer - the cell cannot tell 
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → C:\Users\Patrick\uct-worktrees\notebook-k\docs\notebook\wave-q1-f5-production-matrix.md
+(node:28036) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:14932) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

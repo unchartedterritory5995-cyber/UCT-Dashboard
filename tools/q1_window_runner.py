@@ -179,6 +179,29 @@ def write_raw_evidence(ev: pathlib.Path, *, entry: dict, cmd, out: str, code, st
     return report
 
 
+def teardown_rig_browser(log=print) -> None:
+    """Close the rig BROWSER, keep the rig PROFILE. Best-effort, never fatal.
+
+    ⛔ BY MARKER, NEVER BY NAME. `chrome.exe` alone would take the owner's own
+    browser with it; the marker is the rig profile path, which only the rig's
+    browser carries on its command line.
+    ⛔ THE PROFILE IS NEVER DELETED — a fresh profile is a SIGNED-OUT profile,
+    and a sign-in is a 30-day event, not a session event.
+    """
+    try:
+        _ps = shutil.which("powershell") or "powershell"
+        subprocess.run(
+            [_ps, "-NoProfile", "-Command",
+             "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
+             "Where-Object { $_.CommandLine -like '*canary-chrome-profile-persistent*' } | "
+             "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"],
+            capture_output=True, timeout=60)
+    except Exception as _e:                          # noqa: BLE001
+        # ⛔ Teardown must never change a verdict. The next cell refuses loudly
+        # if the profile is still held, which is the real safety net.
+        log(f"  [runner] ⚠️ teardown failed: {type(_e).__name__}")
+
+
 def run_entry(entry: dict, log=print) -> dict:
     """Run one staged cell. Its own exit code and stdout tail are the result."""
     cmd = entry.get("cmd") or []
@@ -303,6 +326,13 @@ def run_entry(entry: dict, log=print) -> dict:
     if not ev_report["written"]:
         inconclusive = True
         tail = f"INCONCLUSIVE — {ev_report['why']} (R-RAW) / {tail}"[:300]
+    # ⛔⛔ AFTER EVERY CELL, NOT JUST A TIMED-OUT ONE. Measured 2026-09-19: a
+    # cell that ended NORMALLY left nine rig Chrome processes holding the
+    # profile, and the next two cells died in under 7s on "the rig profile is
+    # locked by a running Chrome". The existing guard lived in the timeout
+    # branch only — the fix had been put where the symptom was first seen
+    # rather than where the cause lives.
+    teardown_rig_browser(log)
     return {"exit": code, "seconds": round(secs, 1), "tail": tail,
             "inconclusive": inconclusive, "declared_fail": declared_fail,
             "evidence": _rel(ev), "evidence_ok": ev_report["written"]}
