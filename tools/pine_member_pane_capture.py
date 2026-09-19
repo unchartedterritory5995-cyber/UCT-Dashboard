@@ -108,7 +108,15 @@ def _gate(page, what: str) -> None:
 def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.Path,
                          tag: str, slug: str, viewport: tuple[int, int] = (1440, 900)) -> dict:
     """Attach `script_path` as a member-pane definition on `base` and screenshot it
-    at `viewport`. Returns {"ok", "shot", "plots", "fills", "hidden", "reason"}.
+    at `viewport`. Returns {"ok", "shot", "plots", "fills", "hidden", "reason",
+    "kind"}. `kind` is only present when `ok` is False, and is one of
+    "inconclusive" (the rig wasn't reachable / sign-in failed / the door never
+    appeared — never a pass, never reported as a product failure) or "measured"
+    (a real, MEASURED product failure — the door refused, the pasted text didn't
+    match the file, a tier rendered at the wrong width) — the same three-way split
+    main()'s own exit codes 0/1/2 document at the top of this file, carried into
+    the return value so a caller (vendor_parity_capture.py) can make the same
+    distinction without duplicating main()'s exit-code logic.
     Never types a password into a page — sign-in is an API call against a local
     sandbox account. Never reaches TradingView."""
     from playwright.sync_api import sync_playwright
@@ -133,7 +141,7 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
             r = page.request.post(f"{base}/api/auth/login", data=SIGN_IN)
             if not r.ok:
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
-                        "reason": f"sign-in {r.status}"}
+                        "reason": f"sign-in {r.status}", "kind": "inconclusive"}
 
             page.goto(f"{base}/charts", wait_until="domcontentloaded")
             page.wait_for_timeout(6000)
@@ -142,30 +150,32 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
             opened = page.evaluate(OPEN_DOOR_JS)
             if not opened.get("importTab"):
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
-                        "reason": f"no Import tab: {opened}"}
+                        "reason": f"no Import tab: {opened}", "kind": "inconclusive"}
 
             page.wait_for_timeout(1500)
             paste = page.evaluate(PASTE_JS, f"/assets/{SERVED_NAME}")
             if paste.get("sha") != want:
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
-                        "reason": f"textarea sha {paste.get('sha')} != file sha {want}"}
+                        "reason": f"textarea sha {paste.get('sha')} != file sha {want}",
+                        "kind": "measured"}
 
             try:
                 page.wait_for_function(READY_JS, timeout=20000)
             except Exception:
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
-                        "reason": "attach door never appeared"}
+                        "reason": "attach door never appeared", "kind": "inconclusive"}
 
             attached = page.evaluate(ATTACH_JS)
             if not attached.get("ok"):
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
-                        "reason": f"attach failed: {attached}"}
+                        "reason": f"attach failed: {attached}", "kind": "measured"}
 
             state = _gate(page, "final screenshot")
             if state["w"] != viewport[0]:
                 return {"ok": False, "shot": None, "plots": attached["plots"],
                         "fills": attached["fills"], "hidden": attached["hidden"],
-                        "reason": f"asked for width {viewport[0]}, page reports {state['w']}"}
+                        "reason": f"asked for width {viewport[0]}, page reports {state['w']}",
+                        "kind": "measured"}
 
             shot = out_dir / f"member-door-{slug}-{tag}.png"
             page.screenshot(path=str(shot))
@@ -179,8 +189,8 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
 
 def _run_self_check(base: str) -> int:
     """⛔ A GATE NOBODY HAS SEEN FIRE IS NOT A GATE. Drives a page into a
-    background tab and proves the refusal happens. Relocated verbatim (Task 2
-    extraction) from main()'s old --self-check branch, which used to reuse
+    background tab and proves the refusal happens. Relocated verbatim from
+    main()'s old --self-check branch, which used to reuse
     main()'s own `browser` — this owns its own Playwright/browser lifecycle
     instead, since it is no longer nested inside that call."""
     from playwright.sync_api import sync_playwright
