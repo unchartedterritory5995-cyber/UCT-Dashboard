@@ -1,0 +1,22 @@
+{
+  "id": "p2-2.8b-marker-live-hero",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--family",
+    "hero",
+    "--ordering",
+    "marker LIVE",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T20:58:23",
+  "seconds": 105.5,
+  "why": "2.8b single cell: `hero` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved."
+}

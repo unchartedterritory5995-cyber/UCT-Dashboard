@@ -22,3 +22,57 @@
    💾 evidence: docs/notebook/evidence/20260918T185624-p2-2.8b-reload-mid-flight (18910B raw)
    ⇒ p2-2.8b-reload-mid-flight: ok in 397.9s
 === WINDOW CLOSED · 7 executed ===
+
+=== WINDOW OPEN 20:03:17 · 2 staged ===
+   ▶ p2-2.8b-marker-expired: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T200317-p2-2.8b-marker-expired (17332B raw)
+   ⇒ p2-2.8b-marker-expired: INCONCLUSIVE (attempt 1, requeued) in 593.0s
+   ▶ p2-2.8b-marker-expired: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T201312-p2-2.8b-marker-expired (17039B raw)
+   ⇒ p2-2.8b-marker-expired: INCONCLUSIVE (attempt 2, requeued) in 612.1s
+   ▶ p2-2.8b-marker-expired: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T202325-p2-2.8b-marker-expired (17511B raw)
+   ⇒ p2-2.8b-marker-expired: INCONCLUSIVE (attempt 3, giving up — needs a human) in 474.6s
+   ▶ p2-2.8b-marker-expired-folder: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family folder --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T203121-p2-2.8b-marker-expired-folder (2354B raw)
+   ⇒ p2-2.8b-marker-expired-folder: INCONCLUSIVE (attempt 1, requeued) in 135.7s
+   ▶ p2-2.8b-marker-expired-folder: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family folder --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T203338-p2-2.8b-marker-expired-folder (3783B raw)
+   ⇒ p2-2.8b-marker-expired-folder: ok in 82.1s
+   ▶ p2-2.8b-marker-expired-ticker: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family ticker --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T203501-p2-2.8b-marker-expired-ticker (4373B raw)
+   ⇒ p2-2.8b-marker-expired-ticker: ok in 102.6s
+   ▶ p2-2.8b-marker-expired-tags: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family tags --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T203645-p2-2.8b-marker-expired-tags (4368B raw)
+   ⇒ p2-2.8b-marker-expired-tags: ok in 102.7s
+   ▶ p2-2.8b-marker-expired-hero: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family hero --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T203829-p2-2.8b-marker-expired-hero (4780B raw)
+   ⇒ p2-2.8b-marker-expired-hero: ok in 104.5s
+   ▶ p2-2.8b-marker-expired-append_widget_embed: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_widget_embed --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T204015-p2-2.8b-marker-expired-append_widget_embed (3859B raw)
+   ⇒ p2-2.8b-marker-expired-append_widget_embed: ok in 83.8s
+   ▶ p2-2.8b-marker-expired-append_financial_fact: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_financial_fact --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T204140-p2-2.8b-marker-expired-append_financial_fact (3798B raw)
+   ⇒ p2-2.8b-marker-expired-append_financial_fact: ok in 82.3s
+   ▶ p2-2.8b-marker-expired-append_document_excerpt: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_document_excerpt --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T204304-p2-2.8b-marker-expired-append_document_excerpt (3017B raw)
+   ⇒ p2-2.8b-marker-expired-append_document_excerpt: INCONCLUSIVE (attempt 1, requeued) in 168.7s
+   ▶ p2-2.8b-marker-expired-append_document_excerpt: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_document_excerpt --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T204554-p2-2.8b-marker-expired-append_document_excerpt (3016B raw)
+   ⇒ p2-2.8b-marker-expired-append_document_excerpt: INCONCLUSIVE (attempt 2, requeued) in 168.0s
+   ▶ p2-2.8b-marker-expired-append_document_excerpt: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_document_excerpt --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T204843-p2-2.8b-marker-expired-append_document_excerpt (3203B raw)
+   ⇒ p2-2.8b-marker-expired-append_document_excerpt: INCONCLUSIVE (attempt 3, giving up — needs a human) in 249.9s
+   ▶ p2-2.8b-marker-live-folder: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family folder --ordering marker LIVE --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T205254-p2-2.8b-marker-live-folder (3767B raw)
+   ⇒ p2-2.8b-marker-live-folder: ok in 81.7s
+   ▶ p2-2.8b-marker-live-ticker: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family ticker --ordering marker LIVE --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T205417-p2-2.8b-marker-live-ticker (4357B raw)
+   ⇒ p2-2.8b-marker-live-ticker: ok in 116.9s
+   ▶ p2-2.8b-marker-live-tags: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family tags --ordering marker LIVE --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T205615-p2-2.8b-marker-live-tags (4355B raw)
+   ⇒ p2-2.8b-marker-live-tags: ok in 127.4s
+   ▶ p2-2.8b-marker-live-hero: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family hero --ordering marker LIVE --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260918T205823-p2-2.8b-marker-live-hero (4764B raw)
+   ⇒ p2-2.8b-marker-live-hero: ok in 105.5s
+=== WINDOW CLOSED · 17 executed ===

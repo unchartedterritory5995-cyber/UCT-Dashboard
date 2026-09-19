@@ -1,0 +1,20 @@
+{
+  "id": "p2-2.8b-marker-expired",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--ordering",
+    "marker EXPIRED",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T20:23:25",
+  "seconds": 474.6,
+  "why": "2.8b chunk 4 of 6 \u2014 the `marker EXPIRED` ordering across all seven families, second writer on the `folder` door, 7 cells. Identical member interleaving to the monolithic cell; ONLY the process boundary moved."
+}

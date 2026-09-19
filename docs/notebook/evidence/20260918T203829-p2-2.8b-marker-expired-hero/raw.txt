@@ -1,0 +1,40 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 1 cell(s) to run · stamp 2026-09-19T01-38-29Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ hero  ·  marker EXPIRED
+      hero seed (SETUP, not the door): {'ok': True, 'status': 200}
+      hero after the seed: {'hero': '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/aa14a98b9cec43a99599fbedc33e86ab/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png'}
+      after re-opening the note: picker=True editor=True
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T01:38:53.021720+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, dead session, aged past the TTL', 'baseUpdatedAt': '2026-09-19T01:38:53.021720+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789781935964, 'baseUpdatedAt': '2026-09-19T01:38:53.021720+00:00'}, 'ring': ['2026-09-19T01:38:48.830339+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-19T01:38:53.021720+00:00', 'server_after': '2026-09-19T01:39:18.702081+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /aa14a98b9cec43a99599fbedc33e86ab/opened→200 · PUT /aa14a98b9cec43a99599fbedc33e86ab[65+00:00]→200 · POST /aa14a98b9cec43a99599fbedc33e86ab/hero→200 · POST /aa14a98b9cec43a99599fbedc33e86ab/opened→200 · POST /aa14a98b9cec43a99599fbedc33e86ab/opened→200 · PUT /aa14a98b9cec43a99599fbedc33e86ab+SENT[20+00:00]→None · PUT /aa14a98b9cec43a99599fbedc33e86ab+SENT[20+00:00]→None · PUT /aa14a98b9cec43a99599fbedc33e86ab+SENT[20+00:00]→None · PUT /aa14a98b9cec43a99599fbedc33e86ab+SENT[20+00:00]→409 · PUT /aa14a98b9cec43a99599fbedc33e86ab+SENT[81+00:00]→200 · POST /aa14a98b9cec43a99599fbedc33e86ab/opened→200
+      the door fired after call #9; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-19T01:38:53.021720+00:00` · 5 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:49544) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:63104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
