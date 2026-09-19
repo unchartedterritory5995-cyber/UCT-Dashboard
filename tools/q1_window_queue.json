@@ -5,7 +5,7 @@
   "queue": [
     {
       "id": "p3-append-door-restored-guard-unknown-only",
-      "status": "inconclusive",
+      "status": "done",
       "why": "P3 stage 2, and D3's ACTUAL PROOF. The same five orderings of `append_widget_embed` \u2014 the DISCRIMINATING cell \u2014 with `NOTEBOOK_DOOR_GUARD=unknown-only`, so the guard no longer suppresses the door and fix 6's `discardsUnsentWork` is what has to hold the member's words. These five were RED 5/5 against fix 5 (commit `9e7c67e73`), with the signature `record went CLEAN while queued: True` \u2014 which is exactly the write `persist` now guards. GREEN here is what closes D3.",
       "expect": "GREEN",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD=unknown-only, VERIFIED IN-PROCESS on the pod",
@@ -41,18 +41,19 @@
         "reload mid-flight (marker from a dead tab)"
       ],
       "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not.",
-      "attempts": 3,
+      "attempts": 1,
       "released_why": "Re-held.",
       "result": {
         "exit": 0,
-        "seconds": 212.3,
-        "tail": "\u21d2 INCONCLUSIVE  the cell raised TargetClosedError: Page.wait_for_timeout: Target page, context or browser has been closed",
-        "inconclusive": true,
+        "seconds": 306.5,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T17:40:09.489805+00:00` \u00b7 6 r",
+        "inconclusive": false,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T121739-p3-append-door-restored-guard-unknown-only",
+        "evidence": "docs/notebook/evidence/20260919T123625-p3-append-door-restored-guard-unknown-only",
         "evidence_ok": true
       },
-      "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence."
+      "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence.",
+      "second_window_why": "Second consecutive window. The standing rule is \"two consecutive GREEN windows -> the guard stays narrowed, D3 TRUE\". One GREEN window is not two, and banking D3 on one would be the same shape as banking a single measurement as a rate."
     },
     {
       "id": "p2-metadata-settle-first-folder",
@@ -919,7 +920,7 @@
     },
     {
       "id": "w2-deferred-by-guard-banking-run",
-      "status": "pending",
+      "status": "inconclusive",
       "why": "W2. ONE banking run of `append_widget_embed` with the FOURTH OUTCOME live and the guard STILL FULL, to bank the DEFERRED-BY-GUARD reading with a raw artifact. It is not trying to reproduce anything: D1 closed the loss path, so this records, once, that the door was driven to completion and the capture chokepoint stopped it WITH THE MEMBER TOLD.",
       "expect": "DEFERRED-BY-GUARD",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD unset or full",
@@ -938,15 +939,15 @@
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
       ],
       "held_why": "HELD WHILE THE MODE IS NARROWED. This cell exists to bank the deferral reading, which only happens in the SAFE state. Running it now would measure the opposite condition and bank a reading of the wrong experiment.",
-      "attempts": 1,
+      "attempts": 3,
       "released_why": "Released: the mode is back to its SAFE state, which is the condition W2 exists to record, and the toast is now LATCHED while on screen so the outcome is reachable for the first time.",
       "result": {
         "exit": 0,
-        "seconds": 110.7,
+        "seconds": 154.4,
         "tail": "\u21d2 INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T122133-w2-deferred-by-guard-banking-run",
+        "evidence": "docs/notebook/evidence/20260919T122716-w2-deferred-by-guard-banking-run",
         "evidence_ok": true
       },
       "restaged_why": "Re-staged after the toast latch. Its three prior attempts could NEVER have banked: the product clears the toast at 2200ms and the rig read it at 5000ms, so the outcome this cell exists to record was structurally unreachable. The instrument changed, so this is a different experiment."
@@ -1097,7 +1098,7 @@
     },
     {
       "id": "matrix-remainder",
-      "status": "pending",
+      "status": "held",
       "timeout": 3600,
       "why": "Running the remainder first would spend window minutes on cells the fix is about to change, and the rig window is the scarcest resource in this programme.",
       "cmd": [

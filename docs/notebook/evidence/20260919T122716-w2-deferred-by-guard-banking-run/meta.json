@@ -1,0 +1,15 @@
+{
+  "id": "w2-deferred-by-guard-banking-run",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "append_widget_embed",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+  ],
+  "exit": 0,
+  "started": "2026-09-19T12:27:16",
+  "seconds": 154.4,
+  "why": "W2. ONE banking run of `append_widget_embed` with the FOURTH OUTCOME live and the guard STILL FULL, to bank the DEFERRED-BY-GUARD reading with a raw artifact. It is not trying to reproduce anything: D1 closed the loss path, so this records, once, that the door was driven to completion and the capture chokepoint stopped it WITH THE MEMBER TOLD."
+}
