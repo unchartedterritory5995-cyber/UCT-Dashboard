@@ -2,6 +2,62 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ⭐⭐ GitHub's OWN full-suite CI check found 71 "new" failures — investigated fully, three were real, now FIXED at `8fde10fcb`
+>
+> Opening the PR's merge-status panel to click Ready surfaced a check this
+> session's own local gate never runs: **"full suite (report-only)"**, a
+> 17-shard GitHub Actions job (vitest + 12 pytest shards) that publishes its
+> full diff to the `ci-results` branch. It reported `verdict: NEW_FAILURES,
+> NEW 71` against `baseline_sha 03ebbd7f7` — a commit that is an ancestor of
+> **neither** `origin/master` nor this branch (an unrelated/stale baseline for
+> this specific report-only check), so "71 new" on its face proves nothing
+> about this merge and had to be investigated file by file rather than
+> trusted OR dismissed.
+>
+> **Method:** for each of the 38 unique files behind the 71 failures, checked
+> whether the file existed at `baseline_sha` at all (20 didn't — trivially
+> "new" because the baseline predates them); for the 18 that did, ran each
+> FILE ALONE (never combined — a combined run of all 35 flagged node-ids
+> produced a false "everything fails" result, the exact
+> `lesson_a_rail_can_be_green_alone_and_red_in_company` shape) on this
+> branch's tip AND on a detached `origin/master` checkout, side by side.
+>
+> ✅ **15 of the 18 are pre-existing to master, this branch's own
+> long-documented HEAD trio, or the already-ruled gate-5.3 finding** —
+> byte-identical failure counts on both sides, or (flow-worker/scan_store)
+> already reasoned through above. Nothing to do.
+>
+> ✅ **3 were genuine, now fixed, verified against a fresh `origin/master`
+> checkout to confirm they're not there:**
+> 1. `test_alert_taxonomy_scan_membership_change_{compare,schema}.py`'s S7
+>    mirror tests drove the REAL `screen_alerts.run_nightly`, which this
+>    branch's own RISK-025 fix (2026-09-04) now gates on a real
+>    `user_definitions` row existing — the S7 fixtures never created one, so
+>    every subscription read as dangling. Fixed by stubbing `ud.get` to the
+>    same "presume live" shape `test_screener_screen_alerts.py` already
+>    established for files whose subject isn't the dangling check itself.
+> 2. `test_scan_store_prune_has_ZERO_CALLERS...` found RISK-024's own
+>    scheduled `prune_old()` job (wired 2026-09-04) as a "new" caller.
+>    Reasoned about the horizon per the test's own instruction: 120-day
+>    default retention vs. the ~1-day previous-session lookup `diff_for`
+>    needs is a two-order-of-magnitude margin — named and exempted that
+>    SPECIFIC caller (matched by file+text, never a line number), rail stays
+>    live for any other or tighter-horizon one.
+> 3. `test_the_read_set_covers_every_root_relative_path_the_suite_reads`:
+>    `GATE_READ_PATHS` predates this branch's own Pine corpus/parity/lookback
+>    fixtures. Added the missing paths.
+>
+> ⚠️ A 4th candidate (`test_wisdom_publish_adapters_routes.py`) gave DIFFERENT
+> outcome shapes on two consecutive isolated runs of the identical command on
+> the identical tree — genuinely flaky, not a regression, confirmed also red
+> on bare master. Left alone.
+>
+> **This is orthogonal to gate 5.2** (which is the required, LOCAL, vitest-only
+> six-shard gate and already reads CLEAR above) — this CI check is
+> report-only, non-blocking in GitHub's own merge-status panel, and covers
+> pytest too, which the local gate doesn't. Fixed anyway because the findings
+> were real, not because anything required it.
+
 > ### ✅ R38 5.2 CLEAR + ✅ R38 5.3 RULED — both against tree `0da41cb72` (post both remerges)
 >
 > **Gate 5.2 — six-shard run, VALID, un-drifted, un-refused.** Tree hash
