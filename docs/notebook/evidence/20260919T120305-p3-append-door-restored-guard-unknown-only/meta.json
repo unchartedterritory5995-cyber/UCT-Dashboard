@@ -1,0 +1,15 @@
+{
+  "id": "p3-append-door-restored-guard-unknown-only",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--family",
+    "append_widget_embed",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
+  ],
+  "exit": 0,
+  "started": "2026-09-19T12:03:05",
+  "seconds": 557.1,
+  "why": "P3 stage 2, and D3's ACTUAL PROOF. The same five orderings of `append_widget_embed` \u2014 the DISCRIMINATING cell \u2014 with `NOTEBOOK_DOOR_GUARD=unknown-only`, so the guard no longer suppresses the door and fix 6's `discardsUnsentWork` is what has to hold the member's words. These five were RED 5/5 against fix 5 (commit `9e7c67e73`), with the signature `record went CLEAN while queued: True` \u2014 which is exactly the write `persist` now guards. GREEN here is what closes D3."
+}
