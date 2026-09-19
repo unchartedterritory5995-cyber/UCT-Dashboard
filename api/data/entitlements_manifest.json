@@ -33,48 +33,39 @@
         "ors_in_trial_active": true
       },
       {
-        "file": "app/src/pages/Login.jsx",
-        "ors_in_trial_active": false
-      },
-      {
         "file": "app/src/pages/Pricing.jsx",
         "ors_in_trial_active": false
       }
     ],
-    "note": "THE REAL SHAPE OF GATE-S9's 'PAID_PLANS is copied twice' finding: not a second Python copy, but THREE independent JS re-implementations of the same literal. context/AuthContext.jsx (the canonical isPaid) ORs in an active trial; pages/Pricing.jsx deliberately does not (a narrower, intentionally-named trulyPaid predicate for pricing-page messaging); pages/Login.jsx also does not, and its use is ROUTING (paid -> /dashboard, else -> /morning-wire) -- the same purpose isPaid serves, missing the term isPaid has. RECORDED, NOT FIXED: a member on an active trial may be routed to the free page immediately after logging in. CP1 changes no gate."
+    "note": "THE REAL SHAPE OF GATE-S9's 'PAID_PLANS is copied twice' finding: not a second Python copy, but THREE independent JS re-implementations of the same literal, found 2026-09-19. context/AuthContext.jsx (the canonical isPaid) ORs in an active trial; pages/Pricing.jsx deliberately does not (a narrower, intentionally-named trulyPaid predicate for pricing-page messaging) -- both REMAIN, by design, two different concepts. pages/Login.jsx's copy was the third: same purpose as isPaid (ROUTING: paid -> /dashboard, else -> /morning-wire), missing the term isPaid has -- FIXED the same day, now reads `data.paid_equiv` (the backend's own already-computed answer) instead of re-deriving anything."
   },
-  "free_pages_TRIPLICATED": {
-    "source": [
-      "app/src/components/AuthGuard.jsx",
-      "app/src/components/mobile/MoreSheet.jsx",
-      "app/src/components/NavBar.jsx"
+  "free_pages": {
+    "source": "app/src/constants/freePages.js",
+    "values": [
+      "/morning-wire"
     ],
-    "entries": [
+    "consumers": [
       {
         "file": "app/src/components/AuthGuard.jsx",
-        "values": [
-          "/morning-wire"
-        ],
+        "imports_shared_source": true,
+        "redeclares_locally": false,
         "match_semantics": "prefix (some+startsWith)"
       },
       {
         "file": "app/src/components/mobile/MoreSheet.jsx",
-        "values": [
-          "/morning-wire"
-        ],
+        "imports_shared_source": true,
+        "redeclares_locally": false,
         "match_semantics": "exact (includes)"
       },
       {
         "file": "app/src/components/NavBar.jsx",
-        "values": [
-          "/morning-wire"
-        ],
+        "imports_shared_source": true,
+        "redeclares_locally": false,
         "match_semantics": "exact (includes)"
       }
     ],
-    "values_agree": true,
-    "match_semantics_agree": false,
-    "note": "THE REAL DUPLICATION GATE-S9 §2 NAMED (against the wrong variable). Three hand-typed copies of one list, each commented 'keep in sync with' the other two. values_agree is the duplication rail this checkpoint's test asserts on. match_semantics_agree is RECORDED, NOT FIXED (CP1 changes no gate): AuthGuard.jsx matches by prefix (startsWith), MoreSheet.jsx and NavBar.jsx match by exact string (includes) -- identical today only because every declared page is currently list-item-shaped with no sub-routes."
+    "all_import_the_shared_source": true,
+    "note": "RETIRED 2026-09-19 — was hand-typed identically in all three consumers below (GATE-S9 §2's finding, against the wrong variable name). Now ONE export, three importers. match_semantics is DELIBERATELY NOT unified: AuthGuard.jsx tests a live location.pathname (needs prefix/startsWith, since a member could visit a nested sub-path); MoreSheet.jsx/NavBar.jsx test one fixed NAV_ITEMS target string (exact/includes is correct there, never a bug to converge). Only the VALUE was ever actually duplicated."
   },
   "gate_call_sites": {
     "source": "api/**/*.py, CODE only (docstrings/comments stripped)",

@@ -5,6 +5,7 @@ import BrandSplash from './BrandSplash'
 // Reuses the calendar's OWN deep-link ticker validator (§13 below) rather
 // than a second, drifting regex.
 import { normalizeSym } from '../pages/calendar/useEarningsModalRoute'
+import { FREE_PAGES } from '../constants/freePages'
 
 function MaintenancePage() {
   return (
@@ -108,8 +109,8 @@ export default function AuthGuard() {
 
   // Free tier: ONLY Morning Wire is accessible without a paid plan (owner
   // decision 2026-07-19 — everything else is behind the paywall).
-  // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
-  const FREE_PAGES = ['/morning-wire']
+  // FREE_PAGES itself lives in constants/freePages.js (S9 CP1 follow-up —
+  // was hand-typed identically in this file + NavBar.jsx + MoreSheet.jsx).
   // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
   const FREE_HOME = '/morning-wire'
 

@@ -39,8 +39,15 @@ export default function Login() {
     const next = safeNextPath(params.get('next'))
     if (next) { navigate(next, { replace: true }); return }
     // Dashboard is paid-only; free users land on Morning Wire (the only free page).
-    const paid = data?.user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(data?.plan)
-    navigate(paid ? '/dashboard' : '/morning-wire', { replace: true })
+    // ⛔ S9 CP1 FIX — was `role==='admin' || PAID_PLANS.includes(plan)`, a second
+    // hand-typed copy of the paid check that DROPPED the active-trial clause
+    // AuthContext.jsx's isPaid carries: a member on an active trial got routed to
+    // the free page immediately after signing in. `paid_equiv` is the backend's
+    // own authoritative answer (`_access_payload` -> `is_paid_plan or trial_active`,
+    // the same chokepoint isPaid mirrors) straight off THIS response — never
+    // re-derived, and never read from context, which would still be the
+    // PRE-login value at this point in the render.
+    navigate(data?.paid_equiv ? '/dashboard' : '/morning-wire', { replace: true })
   }
 
   const handleSubmit = async (e) => {
