@@ -1500,3 +1500,146 @@ at `stability = NULL` / unfloored forever -- reconcile's refusal is correct give
 that genuinely differ, and there is no honest way to manufacture a stability score for passes
 that were never asked the identical question three times. The fix prevents this from recurring;
 it does not (and should not) resurrect this specific night's data.
+
+## Session 28, part 3 -- an adversarial review found a SECOND cause of the same permanent-loss
+class, fixed; and 8 more real, verified findings not yet acted on (2026-09-19)
+
+**Given the budget-trim bug had a real, currently-live sibling**, a 4-dimension workflow review
+(budget-spend, N-pass/reconciliation parity, idempotency/retry, vacuous-test coverage) was run
+against the whole `api/services/wisdom/extract/` subsystem, using tonight's bug as the calibration
+example. Every one of the 9 findings it surfaced was independently adversarially verified by a
+skeptic instructed to default to "not real" and read the actual code before agreeing -- **9
+confirmed, 0 rejected.** One was fixed immediately because it is the exact same failure class
+already in scope tonight; the other 8 are recorded here, verified and reproducible, for a future
+session to prioritize -- NOT fixed tonight, because several touch concurrency/design decisions
+that deserve deliberate attention rather than a rushed unilateral change.
+
+### FIXED: `touch_segment`'s marker was written and never read (HIGH, npass-parity)
+
+`run_records.touch_segment()` writes an empty marker to `segments_seen.jsonl` specifically so a
+pass that legitimately kept ZERO records from a segment (routine LLM-instability -- exactly what
+N-pass exists to measure, not a fault) still counts as having COVERED that segment for
+`reconcile()`'s parity check. But `reconcile.load_run()` built its `"segments"` set from
+`records.jsonl` rows alone and never read `segments_seen.jsonl` -- so the marker had zero effect
+on the one comparison it exists for. Any segment yielding `kept=[]` in even one of the N passes
+made that pass's segment set differ from the others', and `reconcile()` refused the WHOLE night --
+**identical in kind to the budget-trim bug fixed in part 2, from a completely different cause, and
+still live even after that fix.** The one existing test for this
+(`test_a_pass_that_kept_nothing_still_records_the_segment`) only asserted the marker file's raw
+contents, never that `reconcile()` actually treated the segment as covered -- it proved the write,
+not the read, and so it could not have caught this.
+
+**Fix:** `reconcile.load_run()` now reads `segments_seen.jsonl` (new shared constant
+`SEGMENTS_SEEN_FILE`, replacing the filename literal that `run_records.py` used to hardcode
+separately -- one authority, matching this file's own "two builders for one on-disk format" rule)
+and unions the touched ids into the returned `"segments"` set. Rows/scoring are unaffected; only
+the parity check now sees a touched-but-empty segment as covered. New test in
+`test_wisdom_extract_reconcile.py` (`test_a_segment_touched_but_kept_nothing_does_not_break_parity`)
+proves `reconcile()` no longer refuses a run whose only gap is a touched-empty segment, while
+`test_a_segment_set_mismatch_is_refused_and_says_how_many_differ` (unchanged, still passing) proves
+a segment that was genuinely never seen at all -- no touch call either -- still correctly refuses.
+Mutation-proved: removing the marker read fails exactly the new test, nothing else.
+
+### NOT YET FIXED -- 8 verified findings, for the next session to prioritize
+
+Every one below was independently confirmed by an adversarial verifier reading the real file and
+line numbers, not by trusting the finder's prose. Full reasoning for each lives in this session's
+workflow transcript (`wf_6497a3d0-139`); summarized here so nothing is lost if that transcript
+ages out.
+
+**HIGH severity:**
+
+1. **TOCTOU race in the budget check itself** (`batch.py::submit_pending` + `budget.py::select_within_budget`).
+   The budget decision is read under a plain unlocked `store.read()`; the actual commit happens
+   later in `submit_items()` under `store.write()`, which never rechecks the budget against fresh
+   state. Two callers submitting at overlapping times -- the scheduled daily chain and the
+   documented manual door `tools/wisdom/extract_catalog_batch.py --submit` (which has NO
+   `registry.claim_slot` coordination with the cron job at all), or the daily `extract` chain
+   overlapping the weekly `audit` chain (different `job_id`s, so `claim_slot` gives zero mutual
+   exclusion, even though both share one programme cap via `BUDGET_KINDS=("extract","audit")`) --
+   can each independently see the same pre-commit headroom and both commit, silently exceeding
+   `WISDOM_EXTRACT_BUDGET_USD`. Zero concurrency test exists for this path.
+
+2. **The daily-chain golden gate and kill switch don't apply to the documented manual submit door**
+   (`tools/wisdom/extract_catalog_batch.py::submit()`). Its own docstring claims "the budget and
+   the gate still apply," but it calls `batch.submit_pending` directly, never `batch.run_daily` --
+   so `golden.gate_status` and `flags.extract_enabled()`/`WISDOM_EXTRACT_ENABLED` are never
+   consulted, only the raw numeric cap. `extract_common.job_context()` defaults `force=True`, which
+   means even calling `spend_allowed(ctx)` here would unconditionally return `False` per R64 --
+   confirming this path was never actually wired to the kill switch, not deliberately exempted the
+   way `run_daily`'s force-bypass is (which has its own documented rationale). An operator setting
+   `WISDOM_EXTRACT_ENABLED=0` believing it is THE kill switch (as `budget.py`'s own docstring says)
+   would still have this door spend real money.
+
+3. **`same_night.score_night()`/`reconcile.score_silently()` misattribute reconciliation across a
+   backlog of 2+ pending nights** (`reconcile.py` + `same_night.py`). `score_silently()` is
+   night-blind by construction -- it always reconciles whichever `MIN_RUNS` (3) run directories are
+   alphabetically LAST under the ONE shared `gate_runs_root()`, with no `due_key`/night scoping at
+   all (`ctx` is accepted and never read). `same_night.score_completed_nights()` processes a
+   backlog newest-first, up to `MAX_NIGHTS_PER_TICK` (default 4) nights per tick -- a real, designed
+   -for path (triggers whenever scoring falls behind by more than a night, e.g. an outage). The
+   newest pending night is scored correctly; every OLDER night in the same tick calls
+   `score_silently()` again, which re-discovers the SAME (already-scored, still-newest) 3 run dirs,
+   succeeds normally, and `registry.run_tracked` marks that OLDER night's `wisdom_job_claims` row
+   `status='ok'` anyway (it only checks whether the callable raised) -- permanently starving that
+   night's own records at `stability=NULL`, and `_already_scored()` never retries a claim already
+   `'ok'`. The one test built for this exact backlog path stubs `reconcile.score_silently` itself,
+   so it cannot see that every call after the first reconciles the wrong night.
+
+4. **The free local backend's real token usage is priced as the paid model and lands in the real
+   budget ledger** (`local_backend.py` + `batch.py` + `budget.py`). `LocalClient.cost_usd = 0.0` and
+   `is_local_backend = True` are decorative -- `grep`-confirmed as read NOWHERE outside their own
+   test. `submit_pending`/`_build_items`/`handle_result` always price with
+   `config.configured_model()` (the paid model string), with no branch on `config.is_local()`
+   anywhere in that chain. A local ($0) run's real usage numbers from the free local server are
+   converted to a non-zero dollar figure and written into the SAME `wisdom_batches.cost_usd_actual`
+   that `select_within_budget` rations real paid extraction against -- so dev/testing work on the
+   local backend can silently eat into (or exhaust) the real programme budget.
+
+**MEDIUM severity:**
+
+5. **A stale-night retry's `exclude_pending_usd` can loosen the PER-NIGHT cap** (`budget.py::select_within_budget`).
+   The same `exclude_pending_usd` (a retry's prior estimate, meant to avoid double-counting) is
+   subtracted from three pending pools that aren't all scoped the same way: per-version and
+   programme-wide pending carry no date filter, but `night_spent_and_pending` scopes strictly by
+   `created_at`'s date -- and a retried request's `created_at` is never refreshed on resubmission
+   (confirmed: the retry branch in `submit_items` updates status/attempt/est_cost_usd/updated_at,
+   not created_at). `same_night.py`'s own docstring calls cross-night retry carry-forward normal
+   ("a retry rides pass 1 of a later night under its ORIGINAL run id"). So a retry from an earlier
+   calendar night gets its estimate subtracted from TONIGHT's `n_pending` even though it was never
+   counted there in the first place -- can only loosen (never tighten) `WISDOM_EXTRACT_DAILY_BUDGET_USD`.
+   Zero test combines a nonzero `exclude_pending_usd` with `night_cap`/`night_date` in either
+   direction.
+
+6. **`writer.py`'s overlap-dedup key has no segment/position information**
+   (`write_output`, the `dedupe_key`). The module docstring says the key exists so "the same
+   statement read through two overlapping windows is stored once," but the actual key is
+   `(source_id, source_version, extractor_version, record_type, ticker, normalize_quote_key(quote))`
+   -- nothing about segment identity, ordinal, or adjacency. Two genuinely unrelated, non-adjacent
+   segments (e.g. one near the start of a stream, one near the end) where the host says the same
+   short sentence about the same ticker hours apart hash to the same key and the second, real,
+   distinct utterance is silently dropped with no row and no review item. The existing test for
+   this path builds its "two overlapping windows" fixture from two segments sharing the exact same
+   full-text span (differing only in ordinal) -- it cannot distinguish a real overlapping-window
+   duplicate from two unrelated segments that merely share wording.
+
+7. **The nightly-cap regression test greps a comment describing the OLD, already-fixed bug, not
+   live behavior** (`test_wisdom_npass_chain.py::test_the_nightly_cap_never_RAISES_the_programme_total`).
+   It asserts `"min(programme_cap" in inspect.getsource(batch.submit_pending)` -- the ONLY place
+   that substring appears today is inside the R65 comment narrating the REMOVED bug ("This used to
+   pass `min(programme_cap, night_cap)`..."); the current code two lines later explicitly does NOT
+   call `min()` (R65: "TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS"). The test would stay
+   green through a real revert to the pre-R65 shape (since nobody deletes the comment explaining
+   why the code looks the way it does) and would go red on a harmless comment rewording -- the same
+   disease that hid the calibration bug, in the same file, one test away.
+
+8. **Finding 5's defect, independently rediscovered from the test-coverage angle** -- listed
+   separately in the workflow's raw output (vacuous-tests dimension) because it was found via "what
+   combination has zero tests" rather than via tracing the retry-carryover scenario directly; kept
+   here as one item since it is the same underlying line (`budget.py:296-304`).
+
+⛔ **None of the 8 above were fixed tonight.** #1 and #3 are concurrency/architecture questions
+that deserve a deliberate design pass, not a rushed patch under time pressure; #2 and #4 are
+narrower and probably quick, but still real-money-adjacent changes that should not go in
+unreviewed at 2am. Recorded here, verified, with file:line and a reproduction path, so the next
+session can pick the highest-value one without re-deriving what a 13-agent review already proved.

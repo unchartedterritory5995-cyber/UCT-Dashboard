@@ -49,6 +49,8 @@ from typing import Iterable, Optional
 
 RECORDS_FILE = "records.jsonl"
 MANIFEST_FILE = "manifest.json"
+#: `run_records.touch_segment` writes this; `load_run` below is the ONE reader (2026-09-19 fix).
+SEGMENTS_SEEN_FILE = "segments_seen.jsonl"
 
 #: R56 (owner ruling, 2026-09-15). The persisted-runs root, resolved ONCE, here.
 #:
@@ -153,9 +155,28 @@ def load_run(root, run_id: str, *, phase: str = "gate") -> dict:
     if (d / MANIFEST_FILE).exists():
         manifest = json.loads((d / MANIFEST_FILE).read_text(encoding="utf-8"))
     versions = {r.get("extractor_version") for r in rows}
+    # ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 2): `run_records.touch_segment`
+    # writes an EMPTY marker to segments_seen.jsonl specifically so a segment that legitimately
+    # kept zero records still counts as SEEN for the parity check below (`reconcile`'s segment-set
+    # comparison) -- a pass finding nothing in one paragraph is routine LLM-instability, not a
+    # fault, and `persist_result`'s own docstring says so. But this function used to build
+    # "segments" from `rows` alone, so that marker had ZERO effect on the comparison it exists
+    # for: any segment with kept=[] in even one pass made that pass's segment set differ from the
+    # others', and `reconcile()` refused the WHOLE night -- the identical permanent-loss failure
+    # mode as the N-pass budget-trim bug fixed earlier tonight, from an entirely different cause.
+    # The marker file is read here, unioned into "segments", and is the ONLY thing this dict
+    # exposes about it -- rows (and therefore scoring) are unaffected by a segment having no kept
+    # records; only the parity check now sees it as covered.
+    seen_path = d / SEGMENTS_SEEN_FILE
+    seen_ids = {r.get("segment_id") for r in rows}
+    if seen_path.exists():
+        for line in seen_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            seen_ids.add(json.loads(line).get("segment_id"))
     return {"run_id": run_id, "rows": rows, "manifest": manifest,
             "extractor_version": versions.pop() if len(versions) == 1 else None,
-            "segments": {r.get("segment_id") for r in rows}}
+            "segments": seen_ids}
 
 
 class _Union:
