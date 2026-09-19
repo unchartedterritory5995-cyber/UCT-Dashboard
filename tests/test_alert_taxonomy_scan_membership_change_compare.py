@@ -12,6 +12,7 @@ import pathlib
 
 import pytest
 
+from api.services import user_definitions as ud
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import scan_membership_change as smc
 from api.services.alert_taxonomy import scan_membership_change_compare as cmp_
@@ -52,6 +53,15 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setenv("SCREENER_DB_PATH", str(path))
     monkeypatch.setattr(scan_store, "_INITED", set())
     monkeypatch.setattr(screen_alerts, "_done", set())
+    # RISK-025's existence check (`ud.get(user_id, def_id)`) is not this file's
+    # subject — this drives the real `run_nightly` to test the S7 mirror, not
+    # the dangling-definition self-heal (`tests/test_screener_screen_alerts.py`
+    # owns that). Same precedent, same stub shape: every subscription here is
+    # presumed to point at a LIVE definition unless a test says otherwise.
+    monkeypatch.setattr(
+        ud, "get",
+        lambda user_id, def_id, version=None: {
+            "definition": {"meta": {"name": None}}})
     assert snapshot_db.get_db_path() == str(path), (
         "SCREENER_DB_PATH did not reach snapshot_db — a module-level capture has "
         "appeared and this whole file is writing somewhere else")
