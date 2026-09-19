@@ -44,6 +44,14 @@ if str(_ROOT) not in sys.path:
 
 OUT_PATH = _ROOT / "api" / "data" / "canonical_address_book.json"
 
+#: D2 §4-CP3 — the frontend's read of `axes.timeframe.code_to_label`. Lives
+#: beside `closedTable.json` (the same "ast" vocabulary directory both lanes
+#: already read from) so `GridChartCell.jsx` can `import` it as plain JSON
+#: instead of hand-typing the eight entries a second time. Same book, same
+#: value, one more consumer — never a second derivation of the map.
+TF_LABELS_OUT_PATH = (_ROOT / "app" / "src" / "components" / "chart" / "engine"
+                       / "ast" / "timeframeLabels.json")
+
 SCHEMA_VERSION = 1
 
 #: PRD-D2 §7's classification, for the stores the metric axis actually names
@@ -514,6 +522,17 @@ def _dumps(book: dict) -> str:
     return json.dumps(book, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
 
 
+def _tf_labels_dumps(book: dict) -> str:
+    """D2 §4-CP3 — the frontend export: `axes.timeframe.code_to_label`, alone.
+
+    ⛔ A SLICE OF THE BOOK, NEVER A SECOND READ OF `_BARS_STORE_TF_KEYS`. If this
+    read the ledger directly it would be a fourth copy of the same map, which is
+    the exact defect this checkpoint exists to close.
+    """
+    tf_map = book["axes"]["timeframe"]["code_to_label"]
+    return json.dumps(tf_map, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true",
@@ -522,6 +541,7 @@ def main(argv=None) -> int:
 
     book = build()
     text = _dumps(book)
+    tf_text = _tf_labels_dumps(book)
 
     if args.check:
         if not OUT_PATH.exists():
@@ -532,12 +552,24 @@ def main(argv=None) -> int:
             print("[address-book] STALE — the checked-in book is not what the "
                   "declarations derive. Re-run without --check.")
             return 1
+        if not TF_LABELS_OUT_PATH.exists():
+            print("[address-book] MISSING: %s" % TF_LABELS_OUT_PATH)
+            return 1
+        tf_current = TF_LABELS_OUT_PATH.read_text(encoding="utf-8")
+        if tf_current != tf_text:
+            print("[address-book] STALE — %s does not match the book's "
+                  "axes.timeframe.code_to_label. Re-run without --check."
+                  % TF_LABELS_OUT_PATH)
+            return 1
         print("[address-book] OK — %d metrics, derivation matches" % len(book["metrics"]))
         return 0
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(text, encoding="utf-8")
+    TF_LABELS_OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TF_LABELS_OUT_PATH.write_text(tf_text, encoding="utf-8")
     print("[address-book] wrote %s — %d metrics" % (OUT_PATH, len(book["metrics"])))
+    print("[address-book] wrote %s" % TF_LABELS_OUT_PATH)
     print("[address-book] axes: %s" % json.dumps(book["axis_report"], ensure_ascii=False))
     return 0
 

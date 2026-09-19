@@ -263,8 +263,16 @@ def test_an_UNREADABLE_bar_time_costs_the_message_its_bar_and_not_the_alert(sent
 
 
 def test_the_timeframe_label_comes_from_the_LEDGERS_table_not_a_second_one():
-    """One bar, one name. `_LEDGER_TIMEFRAME` is that table."""
-    for code, label in ev._LEDGER_TIMEFRAME.items():
+    """One bar, one name. D2 CP3 — the book's `axes.timeframe.code_to_label`
+    (via `timeframe_labels()`) is that table; `_LEDGER_TIMEFRAME` is retired."""
+    assert not hasattr(ev, "_LEDGER_TIMEFRAME"), (
+        "a second copy of the timeframe map came back — D2 CP3 retired it "
+        "onto the address book for exactly this reason"
+    )
+    from api.services.alert_taxonomy.indicator_condition import timeframe_labels
+    labels = timeframe_labels()
+    assert labels, "the book's timeframe axis came back empty"
+    for code, label in labels.items():
         assert ev._tf_label(code) == label
     assert ev._tf_label("d") == "1D", "the lookup stopped folding case"
     # The ledger door RAISES on an unknown code; a notification may not.
@@ -272,6 +280,14 @@ def test_the_timeframe_label_comes_from_the_LEDGERS_table_not_a_second_one():
         ev.ledger_timeframe("zzz")
     assert ev._tf_label("zzz") == "zzz"
     assert ev._tf_label(None) == "?"
+
+
+def test_ledger_timeframe_reads_the_book_not_a_frozen_copy(monkeypatch):
+    """D2 CP3 mutation-proof — retype the book's answer, `ledger_timeframe` follows."""
+    monkeypatch.setattr(ev, "timeframe_labels", lambda: {"D": "1D-REMAPPED"})
+    assert ev.ledger_timeframe("D") == "1D-REMAPPED"
+    with pytest.raises(RuntimeError):
+        ev.ledger_timeframe("W")  # no longer declared once the book is remapped
 
 
 # ─── ⭐ ONE FORMATTING PIPELINE — the number, across the language boundary ────

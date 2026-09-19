@@ -742,7 +742,7 @@ def _modules_naming(needle: str) -> set:
     return out
 
 
-def test_the_callers_of_the_type_module_are_exactly_the_declared_three():
+def test_the_callers_of_the_type_module_are_exactly_the_declared_four():
     """§2a item 3: *what calls this, and which test fails if that wire is cut?*
 
     ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted the harness was the ONLY
@@ -754,11 +754,20 @@ def test_the_callers_of_the_type_module_are_exactly_the_declared_three():
     ⭐ The projection is what the sweep calls; `main.py` is where `register()`
     lives. A FOURTH name appearing here is a wire nobody classified, and that is
     exactly what this fails on.
+
+    ⭐⭐ UPDATED AGAIN, 2026-09-19, D2 §4-CP3 (a DIFFERENT "CP3" than the one
+    above — this file's CP1-CP3 is `indicator-condition`'s own taxonomy build
+    sequence; D2 §4-CP3 is the canonical-data-model packet retiring the
+    timeframe-map duplicates). `indicator_alert_evaluator.py` now imports
+    `timeframe_labels()` from this module instead of carrying its own
+    `_LEDGER_TIMEFRAME` dict — a declared FOURTH name, classified here rather
+    than discovered by this rail failing silently elsewhere.
     """
     naming = _modules_naming("indicator_condition")
     # ⚠️ The type module does NOT appear here and that is correct: it names
     # itself only through `__name__`, which carries no literal.
-    assert naming == {"indicator_condition_compare.py",
+    assert naming == {"indicator_alert_evaluator.py",
+                      "indicator_condition_compare.py",
                       "indicator_condition_projection.py",
                       "main.py"}, (
         f"the caller set changed: {sorted(naming)}")
