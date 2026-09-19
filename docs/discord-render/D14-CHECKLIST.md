@@ -604,6 +604,15 @@ un-maximises).
      run against the 14-row script happened 2026-09-17 (`evidence/smoke-2026-09-17/INDEX.md`):
      **10 PASS, 0 FAIL, 4 deliberately NOT RUN** (rows 2/3/5/7, unreachable by construction while V2
      is dark — correctly NOT scored as failures).
+     ⭐ **Re-checked live 2026-09-19, after tonight's canary-scope confirmation, precisely because
+     that confirmation raised the question of whether it changed anything here — it does not.**
+     `DISCORD_RENDER_V2_CHANNELS` (which channels reach V2 IF it is on) and `DISCORD_RENDER_V2_ENABLED`
+     (whether V2 runs AT ALL) are independent gates; narrowing the first to the canary channel does
+     nothing for these four rows while the second stays unset. Confirmed via a fresh in-process read
+     on `web` right now: `DISCORD_RENDER_V2_ENABLED: null`, unchanged. These four rows are not
+     runnable until V2 is actually enabled somewhere — which is W5's canary flip itself, not a
+     precondition this smoke run can satisfy first. See `docs/discord-render/SMOKE-3.5.md` §"Rows 2,
+     3, 5 and 7 cannot be run while V2 is dark" for the mechanism, per-row, already fully documented.
      ⛔⛔ **Root cause, previously diagnosed and deliberately left unfixed pending an owner
      decision — the owner has now made it.** `check_smoke()` summed PASS/FAIL marks across
      **every** declared 3.5 index in the tree, so `smoke-2026-09-14/INDEX.md`'s one stale FAIL (a
