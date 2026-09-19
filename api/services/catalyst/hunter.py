@@ -286,5 +286,24 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
         return []
 
     hits = _coerce_hits(parsed)
+
+    # F-CAT-2 (registered 2026-09-11, LEDGER.md): on 2026-09-11 four hunts ran
+    # with input_tokens of 14/16/18 against 17k-42k on a healthy day, while
+    # still billing ~2,000 output tokens -- the model answered without ever
+    # calling web_search. The hunter's entire mandate is to GO LOOK (its own
+    # module docstring: "the hunter goes *looking*"), so any hits it returns
+    # having performed ZERO searches are not grounded in anything real -- they
+    # are the model reciting from training data or inventing outright, priced
+    # and shaped exactly like a genuine finding. `searches` is the load-bearing
+    # signal, not a token-count heuristic: a healthy run can legitimately have
+    # a short first turn (a quiet pre-market), but it cannot legitimately
+    # report catalyst HITS without having searched for them even once.
+    if hits and searches == 0:
+        logger.warning(
+            "[hunter] mode=%s returned %d hit(s) after ZERO web_search calls "
+            "(in_tok=%d out_tok=%d) -- discarding as ungrounded, not a "
+            "genuine zero-catalyst day", mode, len(hits), in_tok, out_tok)
+        return []
+
     logger.info("[hunter] mode=%s returned %d hits", mode, len(hits))
     return hits
