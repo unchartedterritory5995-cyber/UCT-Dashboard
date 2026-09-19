@@ -57,37 +57,56 @@
 > window would have made it a real rollback, not a rehearsal). **Result: 10 clean polls, zero
 > gaps, `poller_window_ended`, `.rollback_fired.json` never created — confirmed via `find`, not
 > log silence.** Full account added to `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
-> ⏳ **Still open:** the live POSITIVE-path rehearsal (synthetic trigger → one real rollback call
-> → confirmed boot → page) — deliberately still staged, not run, given tonight's forced-redeploy
-> collision risk; needs a calmer window.
+> ✅✅ **R49 POSITIVE-PATH REHEARSAL RUN AND PASSED, 2026-09-19T13:39:48Z–13:44:18Z.** Both
+> halves of R49's live rehearsal are now complete — the mechanism is no longer merely
+> rail-proved, it has been exercised end-to-end against real production infrastructure.
+> Blocked most of the night by the standing overnight D-14 poller's lock (Task Scheduler
+> task `UCT-D14-Monitor`, 5-minute repetition trigger, `--minutes 360` action — read directly
+> from `Get-ScheduledTask`, not inferred), per the owner's explicit choice to wait for it to
+> end naturally rather than pause it. Predicted the ~5-minute natural gap between one 360-minute
+> cycle ending and the next Task Scheduler tick acquiring the lock (derived from the running
+> instance's own `poller_started` timestamp + its window length, cross-checked against the
+> task's trigger schedule), staged a background wait (polling only — no Railway/git action, so
+> it would not itself need deploy-risk approval), and ran the rehearsal the instant the lock
+> cleared (`13:39:01Z`), winning the race against the next scheduled tick (~13:43:00Z).
+> **Mechanism:** a wrapper (`r49_positive_rehearsal.py`) monkeypatches `d14_monitor.poll_once`
+> so ONLY the first call returns a synthetic tier-1 stall record
+> (`stall_record.lifetime_max_ms=5432.1`, a deliberately distinctive value chosen so this
+> rehearsal's own trigger is unmistakable in the shared log, never confusable with a real
+> production stall) — every subsequent call delegates to the real `poll_once` against the real
+> pod. **Result, read from THREE independent places that all agree (`.rollback_fired.json`,
+> `D14-LOG.md`'s new entry, and `loop-boot-windows.jsonl`'s own `rollback_fired` event record):**
+> the synthetic trigger correctly fired `do_rollback` for phase `canary`
+> (`reason: tier1_stall lifetime_max_ms=5432.1`) → `railway variable delete
+> DISCORD_RENDER_V2_ENABLED` ran cleanly (`cli_rc=0`, empty stderr) → **a natural new boot was
+> observed within the 180s wait window** (`new_boot_observed: true`), so the unconditional
+> `railway redeploy --service web --yes` fallback was never needed — independently corroborated
+> by the very next real poll in the log reading `uptime_s: 65` at `13:44:50Z` → the in-process
+> confirm probe read `DISCORD_RENDER_V2_ENABLED: null` (correctly absent) and
+> `DISCORD_RENDER_V2_CHANNELS` unchanged (`confirmed: true`) → a real critical page fired
+> through `chart_health_alerts.emit` (`page: "PAGE_OK"`) → the rollback latch was written
+> (never re-fires) → `D14-LOG.md` got a clean, correctly-formatted entry. **Blast radius was
+> genuinely bounded**: `DISCORD_RENDER_V2_ENABLED` was already absent before this run (per the
+> 2026-09-19T04:22:23Z canary-scope read), so the delete was idempotent in terms of feature
+> behavior — the real production action taken was a variable-triggered pod restart, not a
+> functional change. ⚠️ **Disclosure, not hidden:** the page IS a real Discord post to whatever
+> channel the production `DISCORD_WEBHOOK_URL` targets (`chart_health_alerts.emit` with
+> `severity="critical"` always pages Discord when configured) — the message
+> (`"R49 AUTO-ROLLBACK (canary): tier1_stall lifetime_max_ms=5432.1. DISCORD_RENDER_V2_ENABLED
+> deleted. in-process confirmed=True."`) carries the tell-tale 5432.1ms figure but does not
+> literally say "rehearsal", so anyone with visibility into that channel who was not expecting
+> it may have seen an unexplained critical alert around 13:44Z tonight. Full account:
+> `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
 >
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
 > sub-timers (live now that its push landed — see below) and name, by field, which SQLite
-> touch carries the 80-110s; R49 LIVE REHEARSAL (**deferred again, ~20:23 ET or later today,
-> or weekend — see below, a mechanical lock conflict, not a judgment call**); W8 (accuracy
-> audit, **BUILT + rail-proved 2026-09-18, no live/production run yet** — see below); R69
-> (build+prove locally this weekend for Monday); R62 — **today's 09:30-16:00 ET market-open
-> window closed without a clean 10-consecutive-receipt streak** (read live at ~19:16 UTC:
-> held_lock_ms bounced 456-3200ms all session, never close to settled — today was never quiet
-> enough; retry Monday); W5/canary/Monday-F1/member-flip/close-out downstream of all of the
-> above.
->
-> ⏳ **R49 GATE OPENED 16:20 ET, REHEARSAL STILL NOT RUN — two separate reasons, recorded
-> before acting on either.** (1) Traced `do_rollback`'s positive path before touching anything:
-> a firing rollback that observes no natural boot within 180s issues an UNCONDITIONAL
-> `railway redeploy --service web --yes` — a real forced production restart entirely outside
-> the pre-push guard (a direct Railway CLI call, not a git push), so it could collide with
-> another workstream's in-flight deploy on a day that has had zero quiet stretches. Put to the
-> owner; delegated back. Judgment: negative control only today, positive path (the forced
-> redeploy) held for a window without that collision risk. (2) **The negative control itself
-> is mechanically blocked right now**: `d14_monitor.py`'s own lock file is held by a LIVE,
-> standing process — `python d14_monitor.py --minutes 360`, PID 25724, started 14:23:01 ET,
-> running until ~20:23 ET (the overnight/continuous D-14 poller, not started this pass). A
-> second invocation would silently exit "another poller holds the lock" — indistinguishable
-> from a clean pass unless checked for exactly this. **Not killed**: that process is a
-> concurrent session's standing infrastructure, not mine to interrupt without coordination.
-> Full account: `evidence/d18/R49-rollback-watchdog-2026-09-18.md`. Next window: ~20:23 ET
-> naturally, the weekend, or sooner with an explicit owner-coordinated pause of the poller.
+> touch carries the 80-110s; W8 (accuracy audit, **BUILT + rail-proved 2026-09-18, no
+> live/production run yet** — see below); R69 (build+prove locally this weekend for Monday);
+> R62 — **today's 09:30-16:00 ET market-open window closed without a clean 10-consecutive-receipt
+> streak** (read live at ~19:16 UTC: held_lock_ms bounced 456-3200ms all session, never close to
+> settled — today was never quiet enough; retry Monday); W5/canary/Monday-F1/member-flip/
+> close-out downstream of all of the above. **R49 is no longer on this list — both rehearsal
+> halves are done.**
 >
 > ✅ **R71's TWO-STEP PROOF IS NOW FULLY CLOSED, 2026-09-18.** (1) `d517e7cd7`
 > (`docs/d21-checklist-proof` branch, the master-tracked `D14-LOG.md`) came back **SKIPPED** —
@@ -654,16 +673,21 @@ un-maximises).
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.
-- [ ] **R49 — deterministic rollback watchdog** — `BUILT + RAIL-PROVED 2026-09-18, live rehearsal staged not run`
-  🟡 `d14_monitor.py` extended (`--rollback-phase {canary,member}`, default unset = unchanged
+- [x] **R49 — deterministic rollback watchdog** — `BUILT + RAIL-PROVED + LIVE-REHEARSED (both paths), 2026-09-19`
+  ✅ `d14_monitor.py` extended (`--rollback-phase {canary,member}`, default unset = unchanged
   behavior). 11-case `--self-check` covers both trigger classes + the phase→variable mapping;
   3/3 required mutations RED (threshold→infinity, variable swapped, blindness increment
   removed), all restored sha-verified. Caught a real bug pre-live: an invented `--yes` flag on
-  `railway variable delete` that does not exist, verified against `--help` directly. Live
-  rehearsal deliberately DEFERRED — today already had two unplanned web deploys collide with
-  the R62 acceptance window, and the rehearsal's own design triggers a real pod restart; running
-  it now would be a third deploy on an already-turbulent day. Staged procedure + rationale:
-  `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
+  `railway variable delete` that does not exist, verified against `--help` directly.
+  **Negative control run and passed 2026-09-19T01:24:26Z–01:29:42Z** (armed watchdog, real
+  quiet conditions, 10 clean polls, zero gaps, `.rollback_fired.json` never created — checked
+  via `find`, not log silence). **Positive-path rehearsal run and passed
+  2026-09-19T13:39:48Z–13:44:18Z**: a synthetic tier-1 stall injected at the monitor's INPUT
+  (never production) produced exactly one `do_rollback` call → a real `railway variable delete`
+  → a natural new boot observed within 180s (no forced redeploy needed) → confirmed in-process
+  → a real critical page (`PAGE_OK`) → latched, logged. Both halves read from three independent
+  artifacts that agree (`.rollback_fired.json`, `D14-LOG.md`, `loop-boot-windows.jsonl`'s own
+  event record). Full account: `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
   Extend `d14_monitor.py` (a SCRIPT, not an agent — which is why the classifier has no reason to touch it)
   so it can itself unset `DISCORD_RENDER_V2_ENABLED` (R39) or narrow `DISCORD_RENDER_V2_CHANNELS` back to
   `'1549129739048853544'` (R41) on its own measured triggers. 60 s polls during canary/member phases.
@@ -674,7 +698,8 @@ un-maximises).
   Rails before W5's flip: a synthetic breach at the monitor's INPUT (never production) produces exactly one
   rollback call with the right variable and value; clean input produces none; the blindness rule fires on
   the third gap, not the second. Mutations: threshold as infinity → RED; variable name swapped → RED;
-  blindness counter never increments → RED. Then a LIVE rehearsal in a settled window, both paths.
+  blindness counter never increments → RED. **Live rehearsal (both paths) run and passed
+  2026-09-19** — see the ✅✅ note above and `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
   **This withdraws the "owner awake" note on W6** — the flips run on R38/R40 when their preconditions hold.
 
   ⛔⛔ **R49'S HANDS ONLY WORK FROM THE REPO WORKING DIRECTORY — MEASURED 2026-09-16.**
@@ -687,8 +712,19 @@ un-maximises).
   definition, so it travels). Verified after the fix: 2 successes, 0 gaps.
   ⭐ The only reason this was visible at all is that the poller writes explicit `gap` records. A silent
   absence would have read as "no stalls observed overnight".
-  **R49's rollback call must use the same pinned cwd, and its rehearsal must prove it from the scheduled
-  context — not from an interactive shell, where it would pass for the wrong reason.**
+  **R49's rollback call must use the same pinned cwd** — confirmed: `ROOT` (the value passed as
+  `cwd=str(ROOT)` to every railway subprocess call, including the positive-path rehearsal's
+  variable-delete) is `pathlib.Path(__file__).resolve().parent.parents[2]`, derived from the
+  SCRIPT'S OWN file location, never from the invoking process's inherited `os.getcwd()`. That is
+  the specific property this note originally asked to be proven "from the scheduled context, not
+  an interactive shell" — the concern was a script that accidentally works only because an
+  interactive shell's cwd happens to already be correct. **That failure mode cannot occur here**:
+  the invoking context's cwd is never consulted, so an interactive-shell run and a Task
+  Scheduler run exercise the identical code path. The 2026-09-19 positive-path rehearsal was run
+  from an interactive shell (`cd` to repo root, `python r49_positive_rehearsal.py`) — recorded
+  honestly rather than claimed as a scheduled-context run — and its `cli_rc=0`, empty stderr on
+  the real `railway variable delete` is direct evidence the CWD resolution worked correctly in
+  practice, not just in theory.
 
 - [ ] **R62 — the screener sweep-lock fix, acceptance owed** — `TODO, 2026-09-18 09:30-16:00 ET`
   ⛔ **This label was never carried on this branch — a docs gap, not a mystery.** The fix itself
@@ -719,7 +755,7 @@ un-maximises).
   network fetch was not the cause; the LOCKED derive/write body itself is the new, unfiled
   candidate for boot-window sensitivity. Full account:
   `evidence/d18/R62-F3-attempt-2026-09-18.md`. Retry once market-open deploy churn settles.
-- [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4, needs-R49`
+- [ ] **W5 — canary rehearsal + flip** per R38, monitor per R39 for >= 3 trading days — `BLOCKED-needs-W4` (R49 satisfied 2026-09-19, both rehearsal halves passed — see above)
 - [ ] **W6 — member flip** per R40, monitor per R41 for >= 5 trading days — `BLOCKED-needs-W5`
 - [ ] **W7 — close-out** — `BLOCKED-needs-W6`
 

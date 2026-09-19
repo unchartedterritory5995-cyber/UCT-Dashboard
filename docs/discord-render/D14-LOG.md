@@ -711,3 +711,14 @@ Full account: evidence/d18/R62-F3-attempt-2026-09-18.md. Recommend retry once
 market-open deploy churn settles, or first thing next session.
 ================================================================================
 ```
+2026-09-19T13:44:18Z | R49 AUTO-ROLLBACK FIRED
+================================================================================
+Phase: canary
+Reason: tier1_stall lifetime_max_ms=5432.1
+Action: delete DISCORD_RENDER_V2_ENABLED
+New boot observed: True
+In-process confirmed: True
+Page result: PAGE_OK
+Never re-fires — latched at docs/discord-render/evidence/d14-monitor/.rollback_fired.json.
+================================================================================
+```

@@ -1,0 +1,15 @@
+{
+  "t": "2026-09-19T13:39:48Z",
+  "phase": "canary",
+  "reason": "tier1_stall lifetime_max_ms=5432.1",
+  "status": "done",
+  "cli_rc": 0,
+  "cli_stderr": "",
+  "new_boot_observed": true,
+  "confirm": {
+    "DISCORD_RENDER_V2_ENABLED": null,
+    "DISCORD_RENDER_V2_CHANNELS": "1549129739048853544"
+  },
+  "confirmed": true,
+  "page": "PAGE_OK"
+}
