@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 1403,
+  "passed": 1401,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 374.36,
+  "failed_files": [
+    "tests/test_no_cr_in_tracked_text_blobs.py",
+    "tests/test_preference_key_validation.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 1401 passed, 14 warnings in 374.36s (0:06:14)",
+  "ok": true
+}

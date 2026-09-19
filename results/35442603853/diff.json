@@ -1,0 +1,79 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 3,
+    "fixed": 1,
+    "unchanged": 152,
+    "missing": 0,
+    "baseline": 153,
+    "current": 158,
+    "current_ran": 50254,
+    "new_flaky": 3,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 153 = unchanged 152 + fixed 1 + missing 0  |  current 158 = unchanged 152 + new 3 + new-but-flaky 3",
+  "invalid_because": [],
+  "baseline_run_id": "35441989653",
+  "current_run_id": "35442603853",
+  "baseline_sha": "46b69fd501cd29d4be1b8bbe8ea3507f711e0ae0",
+  "current_sha": "efd010a28b1c4af26e3d977eba88e0668f0cde4d",
+  "commit_range": "46b69fd501cd29d4be1b8bbe8ea3507f711e0ae0..efd010a28b1c4af26e3d977eba88e0668f0cde4d",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/components/Layout.pageTracking.test.jsx|src/components/Layout.pageTracking.test.jsx",
+    "vitest|src/components/Layout.routeSuspense.test.jsx|src/components/Layout.routeSuspense.test.jsx"
+  ],
+  "missing": [],
+  "fixed": [
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 46b69fd50..efd010a28 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    },
+    "vitest|src/components/Layout.pageTracking.test.jsx|src/components/Layout.pageTracking.test.jsx": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 46b69fd50..efd010a28 touched src/components/Layout.pageTracking.test.jsx or anything it imports"
+    },
+    "vitest|src/components/Layout.routeSuspense.test.jsx|src/components/Layout.routeSuspense.test.jsx": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 46b69fd50..efd010a28 touched src/components/Layout.routeSuspense.test.jsx or anything it imports"
+    },
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 46b69fd50..efd010a28 touched src/surfaces/manifest.test.js or anything it imports"
+    }
+  }
+}
