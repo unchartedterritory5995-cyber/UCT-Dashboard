@@ -663,13 +663,55 @@ un-maximises).
      over actual `Call` nodes (`ast.parse` + `ast.walk`, checking for `.start`/`.resume_pending`
      method-call nodes, never a string search) — re-tested: mutation reds exactly the new case and
      nothing else (12/13 pass, 1 fail, named), reverted, self-check clean at **13/13**.
-     ⛔ **Still open, deliberately not attempted here:** actually restarting the standing soak
-     Task Scheduler job to prove the fix clears the real backlog and runs clean for 24h — that is
-     itself standing infrastructure not mine to restart without the same coordination this session
-     already applied to the R49 poller. The fix is on disk now (this exact worktree's file path is
-     what the scheduled task invokes), so its NEXT natural tick will pick it up and should
-     immediately clear the 1-2 stuck rows via `resume_pending()`'s own reclaim/abandon logic — worth
-     checking the log after that tick to confirm, not assumed.
+     ⛔⛔ **Checked, not assumed — and finding a SECOND, separate bug the first fix alone could
+     not have found.** Re-ran `flip_preconditions.py` after pushing the `resume_pending()` fix
+     and the row was STILL "NOT MET — 147 non-PASS tick(s)". Investigated rather than shrugged
+     off as "just needs time":
+     1. **The standing Task Scheduler soak job itself had been silently dead for ~14+ hours.**
+        `Get-CimInstance Win32_Process` found the `cmd.exe` wrapper from the 23:15:02 ET
+        interrupted tick (PID 67020) still alive — the classic Windows batch-Ctrl+C trap (a
+        killed `.cmd` script's `cmd.exe` host hangs at an invisible "Terminate batch job (Y/N)?"
+        prompt nobody can answer on a headless scheduled task). Confirmed genuinely dead, not
+        doing anything (1 thread, ~0 CPU consumed over 14+ hours, no live children) before
+        touching it. The task's `MultipleInstances: IgnoreNew` policy meant every 5-minute
+        Task Scheduler trigger since had silently no-opped, believing the old instance still
+        held the slot — `LastRunTime` kept advancing with zero actual ticks executing (no file
+        in the soak's output directory had a new mtime in all that time). **Owner asked
+        explicitly before touching it** (a process-kill is flagged for confirmation regardless
+        of analysis); authorized, then terminated. The very next scheduled trigger (9:15 AM CDT)
+        launched a genuine new tick.
+     2. **That first real tick, with the `resume_pending()` fix active, STILL logged FAIL —
+        `stale_leases=2, stuck_jobs=1`, identical to before.** Read the real
+        `soak-state.json` directly rather than trust the log line: every one of the ~60 newest
+        samples (this tick's own output) read a clean `0, 0` — the fix genuinely works and
+        prevents new leaks. The FAIL was coming from exactly **one** sample, buried at position
+        1601 of 5000 in the persisted rolling window, dated **~26 hours earlier** — a single
+        transient blip that had never been cleared because `analyse()`'s `ABSOLUTE_ZERO` check
+        (`for metric in ABSOLUTE_ZERO: values = [s.get(metric) for s in samples ...]; worst =
+        max(values)`) scans the **entire** accumulated cross-tick sample history (the state
+        file persists via `--state` and is NOT reset per tick, unlike the JobsStore's own DB,
+        which the earlier fix wrongly assumed was the only piece of state carrying over) rather
+        than the recent window. **The exact "sums across all history, one bad entry poisons it
+        forever" defect this repo names repeatedly** (`check_smoke`'s own documented bug is the
+        same shape) — found here as a fourth instance, self-inflicted in code this same session
+        had already touched once. The module's own docstring said "any value above zero AT THE
+        END is a defect on its own" and "Not a trend" — the code checked the whole history
+        instead of "the end". **Fixed:** changed `for s in samples` to `for s in tail` (the same
+        last-third slice `THRESHOLDS` already compares against, reused rather than inventing a
+        new window). New self-check case ("an old, already-healed stale-lease blip in the HEAD
+        does not poison a clean tail") added and mutation-proved: reverting to `samples` reds
+        exactly and only that one case (14/14 → 13/14, named), restored, clean 14/14 again.
+        **Verified against the REAL current `soak-state.json`, not just synthetic cases:**
+        running the fixed `analyse()` against the actual production state file now returns
+        `PASS`, all five metrics `ok`, `stale_leases`/`stuck_jobs` both `max: 0`.
+     ⭐ **Honest characterization of what is and isn't proven:** both root causes are found,
+     both fixes are mutation-proved, and the analysis has been checked against real data and
+     shown correct. What genuinely remains is time, not doubt — the checklist's own "soak clean
+     for >= 24 h" gate reads accumulated real ticks in `soak.log`, and that log needs actual
+     wall-clock hours of clean ticks (now that the standing job is unstuck and both fixes are
+     live) to accumulate before the gate itself reads MET. That is a calendar fact, not a
+     hedge — no amount of code review substitutes for the soak actually running clean for the
+     stated duration.
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.

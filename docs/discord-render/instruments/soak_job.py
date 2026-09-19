@@ -163,7 +163,20 @@ def analyse(samples: list[dict], *, min_samples: int) -> tuple[int, dict, list[s
             reasons.append(f"{metric} rose {grew:+.1f} {rule['unit']} ({first:.1f} → {last:.1f})")
 
     for metric in ABSOLUTE_ZERO:
-        values = [s.get(metric) for s in samples if s.get(metric) is not None]
+        # ⛔⛔ MUST BE `tail`, NEVER `samples` — the exact "sums across all history, one bad
+        # entry poisons it forever" defect this repo names repeatedly (check_smoke's own
+        # documented bug is the same shape), found here 2026-09-19 after the resume_pending()
+        # fix landed and STILL read FAIL. Root cause traced with the real state file: exactly
+        # ONE sample in a 5000-sample window (a single transient stale-lease blip, ~26h old)
+        # was keeping every tick FAIL, while every sample from the actually-fixed run (the
+        # most recent ~60) read clean 0/0. `samples` here can span days of accumulated
+        # cross-tick history (state.json persists via --state; only the JobsStore's own DB is
+        # fresh per tick, not the sample window) -- a single ancient blip that self-resolved
+        # hours ago should not out-vote hours of subsequent clean readings. The module's own
+        # docstring already said "any value above zero AT THE END is a defect on its own" and
+        # "Not a trend" -- `tail` (the same last-third slice THRESHOLDS already compares
+        # against) is what "at the end" actually means; `samples` was never-ending history.
+        values = [s.get(metric) for s in tail if s.get(metric) is not None]
         if not values:
             per[metric] = {"state": "unmeasured"}
             unmeasured.append(f"{metric} was never readable")
@@ -345,6 +358,19 @@ def self_check() -> int:
     code, _, reasons = analyse(leased, min_samples=6)
     cases.append(("one unclosed lease is a FAIL on its own, not a trend",
                   code == FAIL and any("nobody owns" in r for r in reasons)))
+
+    # ⛔⛔ Measured 2026-09-19 against the real soak-state.json: a single stale-lease sample
+    # ~26h old, buried in the HEAD of a 5000-sample window, kept every subsequent tick FAIL
+    # for a full day even though the resume_pending() fix (above) had made every sample since
+    # genuinely clean 0/0 -- `max(values)` over the WHOLE window, not just `tail`, is the
+    # exact "sums across all history, one bad entry poisons it forever" shape this repo names
+    # repeatedly elsewhere. An old blip that already self-resolved must not out-vote hours of
+    # clean readings after it.
+    old_blip_healed = _series(queue_depth=flat, threads=[40.0] * 12, rss_mb=[300.0] * 12,
+                              stale_leases=[2] + [0] * 11, stuck_jobs=[0] * 12)
+    code, per, _ = analyse(old_blip_healed, min_samples=6)
+    cases.append(("an old, already-healed stale-lease blip in the HEAD does not poison a clean tail",
+                  code == PASS and per["stale_leases"]["state"] == "ok"))
 
     cases.append(("too few samples is INCONCLUSIVE, never a pass",
                   analyse(ok[:3], min_samples=6)[0] == INCONCLUSIVE))
