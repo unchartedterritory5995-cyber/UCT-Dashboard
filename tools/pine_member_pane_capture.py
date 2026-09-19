@@ -183,6 +183,17 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
             browser.close()
             return {"ok": True, "shot": shot, "plots": attached["plots"],
                      "fills": attached["fills"], "hidden": attached["hidden"], "reason": None}
+    except SystemExit as exc:
+        # `_gate()` raises SystemExit on a genuine, MEASURED fact about this
+        # run (the page was not visible when a shot was about to be taken) —
+        # that is real product evidence, not a reason to kill the whole
+        # process out from under a caller (vendor_parity_capture.py's main())
+        # that expects a return value it can turn into a proper exit code.
+        # main() itself is unaffected: its own SystemExit(s) from argparse
+        # (--help, a missing required arg) are raised OUTSIDE this function
+        # entirely, before capture_member_pane is ever called.
+        return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
+                "reason": str(exc), "kind": "measured"}
     finally:
         served.unlink(missing_ok=True)
 

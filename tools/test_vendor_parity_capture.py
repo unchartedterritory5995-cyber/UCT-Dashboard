@@ -94,19 +94,15 @@ def test_write_report_creates_md_and_json_with_expected_naming(tmp_path):
     assert "test-indicator" in paths["md"].read_text()
 
 
-def test_main_requires_vendor_screenshot_argument(capsys):
-    import sys
-    old_argv = sys.argv
-    sys.argv = ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x"]
+def test_main_requires_vendor_screenshot_argument(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv",
+                         ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x"])
+    raised = False
     try:
-        raised = False
-        try:
-            vpc.main()
-        except SystemExit:
-            raised = True
-        assert raised, "argparse should reject a missing required --vendor-screenshot"
-    finally:
-        sys.argv = old_argv
+        vpc.main()
+    except SystemExit:
+        raised = True
+    assert raised, "argparse should reject a missing required --vendor-screenshot"
 
 
 def test_the_documented_invocation_actually_starts():
@@ -175,40 +171,40 @@ def test_write_report_default_threshold_has_no_dangling_reason(tmp_path):
     assert data["threshold_reason"] is None
 
 
+def _real_script_arg(tmp_path):
+    """--script must exist (main() now checks) — every test invoking main()
+    needs a real, if trivial, .pine file, not a placeholder string."""
+    script = tmp_path / "x.pine"
+    script.write_text("//@version=6\nindicator(\"x\")\n")
+    return script
+
+
 def test_main_reports_a_measured_capture_failure_as_exit_1_not_inconclusive(
         monkeypatch, tmp_path, capsys):
     """A "kind": "measured" capture failure (the door refused, the attach
     failed) is a real product defect and must exit 1 — flattening it to the
     same INCONCLUSIVE exit 2 as an unreachable rig would make a real
     regression indistinguishable from "nobody tried"."""
-    import sys as _sys
     monkeypatch.setattr(vpc.pmpc, "capture_member_pane", lambda **kw: {
         "ok": False, "shot": None, "reason": "attach failed: {}", "kind": "measured"})
     vendor_shot = tmp_path / "vendor.png"
     Image.new("RGB", (10, 10)).save(vendor_shot)
-    old_argv = _sys.argv
-    _sys.argv = ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x",
-                 "--vendor-screenshot", str(vendor_shot)]
-    try:
-        assert vpc.main() == 1
-    finally:
-        _sys.argv = old_argv
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(_real_script_arg(tmp_path)), "--slug", "x",
+                                      "--vendor-screenshot", str(vendor_shot)])
+    assert vpc.main() == 1
     assert "MEASURED FAILURE" in capsys.readouterr().out
 
 
 def test_main_reports_an_inconclusive_capture_failure_as_exit_2(monkeypatch, tmp_path, capsys):
-    import sys as _sys
     monkeypatch.setattr(vpc.pmpc, "capture_member_pane", lambda **kw: {
         "ok": False, "shot": None, "reason": "sign-in 401", "kind": "inconclusive"})
     vendor_shot = tmp_path / "vendor.png"
     Image.new("RGB", (10, 10)).save(vendor_shot)
-    old_argv = _sys.argv
-    _sys.argv = ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x",
-                 "--vendor-screenshot", str(vendor_shot)]
-    try:
-        assert vpc.main() == 2
-    finally:
-        _sys.argv = old_argv
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(_real_script_arg(tmp_path)), "--slug", "x",
+                                      "--vendor-screenshot", str(vendor_shot)])
+    assert vpc.main() == 2
     assert "INCONCLUSIVE" in capsys.readouterr().out
 
 
@@ -218,18 +214,80 @@ def test_main_reports_an_unreadable_vendor_screenshot_as_inconclusive_not_a_cras
     corrupt/non-image file was an uncaught exception — an unreadable file is
     a measurement we could not make, which is INCONCLUSIVE (exit 2), not the
     exit-1 code the contract reserves for a real, measured comparison."""
-    import sys as _sys
     member_shot = tmp_path / "member.png"
     Image.new("RGB", (10, 10)).save(member_shot)
     monkeypatch.setattr(vpc.pmpc, "capture_member_pane", lambda **kw: {
         "ok": True, "shot": member_shot, "reason": None})
     not_an_image = tmp_path / "vendor.png"
     not_an_image.write_bytes(b"this is not a png file")
-    old_argv = _sys.argv
-    _sys.argv = ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x",
-                 "--vendor-screenshot", str(not_an_image)]
-    try:
-        assert vpc.main() == 2
-    finally:
-        _sys.argv = old_argv
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(_real_script_arg(tmp_path)), "--slug", "x",
+                                      "--vendor-screenshot", str(not_an_image)])
+    assert vpc.main() == 2
     assert "INCONCLUSIVE" in capsys.readouterr().out
+
+
+def test_main_reports_a_missing_script_as_inconclusive(monkeypatch, tmp_path, capsys):
+    vendor_shot = tmp_path / "vendor.png"
+    Image.new("RGB", (10, 10)).save(vendor_shot)
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(tmp_path / "does-not-exist.pine"), "--slug", "x",
+                                      "--vendor-screenshot", str(vendor_shot)])
+    assert vpc.main() == 2
+    assert "INCONCLUSIVE" in capsys.readouterr().out
+
+
+def test_main_rejects_a_slug_shaped_like_a_path(monkeypatch, tmp_path, capsys):
+    vendor_shot = tmp_path / "vendor.png"
+    Image.new("RGB", (10, 10)).save(vendor_shot)
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(_real_script_arg(tmp_path)),
+                                      "--slug", "../escape", "--vendor-screenshot", str(vendor_shot)])
+    raised = False
+    try:
+        vpc.main()
+    except SystemExit:
+        raised = True
+    assert raised, "argparse should reject a slug shaped like a path"
+
+
+def test_main_rejects_a_whitespace_only_threshold_reason(monkeypatch, tmp_path):
+    vendor_shot = tmp_path / "vendor.png"
+    Image.new("RGB", (10, 10)).save(vendor_shot)
+    monkeypatch.setattr("sys.argv", ["vendor_parity_capture.py",
+                                      "--script", str(_real_script_arg(tmp_path)), "--slug", "x",
+                                      "--vendor-screenshot", str(vendor_shot),
+                                      "--threshold", "0.5", "--threshold-reason", "   "])
+    raised = False
+    try:
+        vpc.main()
+    except SystemExit:
+        raised = True
+    assert raised, "a whitespace-only --threshold-reason documents nothing and should be rejected"
+
+
+def test_write_report_survives_needs_review_and_size_mismatch_verdicts_with_their_emoji(tmp_path):
+    """Regression for a real, measured crash: write_text() with no explicit
+    encoding uses the platform default (cp1252 on plain Windows), which
+    cannot encode the ⚠️/⛔ glyphs in the NEEDS_REVIEW/SIZE_MISMATCH branches
+    — i.e. it crashed exactly on the two verdicts a human most needs to read.
+    Every prior write_report test used two identical images (always OK,
+    whose branches are both empty strings), which is exactly why none of
+    them caught it."""
+    a = tmp_path / "member.png"
+    b = tmp_path / "vendor.png"
+    Image.new("RGB", (100, 100)).save(a)
+    Image.new("RGB", (100, 100)).save(b)
+    result = {"score": 0.5, "a_size": [100, 100], "b_size": [100, 100], "size_mismatch": False}
+    paths = vpc.write_report(
+        out_dir=tmp_path, slug="needs-review", tag="2026-09-19",
+        member_shot=a, vendor_shot=b, compare_result=result, verdict_str="NEEDS_REVIEW",
+    )
+    assert "⚠️" in paths["md"].read_text(encoding="utf-8")
+
+    mismatch = {"score": None, "a_size": [100, 100], "b_size": [50, 50], "size_mismatch": True}
+    paths2 = vpc.write_report(
+        out_dir=tmp_path, slug="size-mismatch", tag="2026-09-19",
+        member_shot=a, vendor_shot=b, compare_result=mismatch, verdict_str="SIZE_MISMATCH",
+    )
+    assert "⛔" in paths2["md"].read_text(encoding="utf-8")

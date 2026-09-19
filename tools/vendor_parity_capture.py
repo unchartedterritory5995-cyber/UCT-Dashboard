@@ -101,7 +101,16 @@ def write_report(out_dir: pathlib.Path, slug: str, tag: str, member_shot: pathli
         "verdict": verdict_str, "threshold": threshold,
         "threshold_reason": threshold_reason or None,
     }
-    json_path.write_text(json.dumps(record, indent=2))
+    # ⛔ EXPLICIT encoding="utf-8" ON BOTH WRITES, NOT THE PLATFORM DEFAULT.
+    # `Path.write_text()` with no encoding uses `locale.getpreferredencoding()`
+    # — cp1252 on a plain Windows box, which cannot encode the ⚠️/⛔ glyphs
+    # below. Verified: writing this exact report for NEEDS_REVIEW or
+    # SIZE_MISMATCH (the two verdicts a human most needs to actually read)
+    # raised UnicodeEncodeError on this machine before this fix — the only
+    # verdict that ever survived was OK, whose branches are both empty
+    # strings, which is also why no prior test caught it (every write_report
+    # test used two identical images, i.e. always OK).
+    json_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
 
     threshold_line = f"**Threshold:** {threshold!r}"
     if threshold_reason:
@@ -116,7 +125,8 @@ def write_report(out_dir: pathlib.Path, slug: str, tag: str, member_shot: pathli
         f"**Member shot:** `{member_shot}`\n"
         f"**Vendor shot:** `{vendor_shot}`\n\n"
         f"{'⚠️ Needs human review — score below threshold.' if verdict_str == 'NEEDS_REVIEW' else ''}"
-        f"{'⛔ Size mismatch — the two captures are not directly comparable.' if verdict_str == 'SIZE_MISMATCH' else ''}\n"
+        f"{'⛔ Size mismatch — the two captures are not directly comparable.' if verdict_str == 'SIZE_MISMATCH' else ''}\n",
+        encoding="utf-8",
     )
     return {"md": md_path, "json": json_path}
 
@@ -140,8 +150,24 @@ def main() -> int:
                           "the report, mirroring chart_parity.py's --tolerance-reason")
     args = ap.parse_args()
 
-    if args.threshold != DEFAULT_THRESHOLD and not args.threshold_reason:
+    # A whitespace-only reason (" ") satisfies a bare truthiness check but
+    # documents nothing — the whole point of requiring one is that a later
+    # reader can see WHY the threshold was overridden.
+    if args.threshold != DEFAULT_THRESHOLD and not args.threshold_reason.strip():
         ap.error("--threshold-reason is required when --threshold overrides the default")
+
+    # --slug names output files directly (parity-report-{slug}-{tag}.md/.json)
+    # with no directory component of its own — a slug containing "/", "\", or
+    # ".." would let a malformed or malicious value write outside --out
+    # entirely. Rejected outright rather than silently sanitized: a slug is
+    # meant to be a short, deliberate name someone chose, not something to
+    # guess a "safe" rewrite of.
+    if any(c in args.slug for c in "/\\") or ".." in args.slug:
+        ap.error(f"--slug must be a plain filename component, not a path: {args.slug!r}")
+
+    if not args.script.exists():
+        print(f"[vendor-parity] INCONCLUSIVE: --script fixture not found: {args.script}")
+        return 2
 
     # Same anchoring as pine_member_pane_capture.py's own main() — a relative
     # --out must not silently depend on the caller's cwd.
