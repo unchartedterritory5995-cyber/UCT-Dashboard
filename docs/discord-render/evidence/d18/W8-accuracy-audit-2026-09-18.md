@@ -244,8 +244,94 @@ the premium-exceeds bound (exactly 1 case red). Self-check: **33/33 passing**
 rewritten against the real shape (its 5 old cases would now correctly fail —
 they tested the bug), `TestFlowAgainstRawTape` added (7 new cases).
 
-### Still true, unchanged
+### Still true, unchanged (as of the previous pass)
 
 Everything under "Not done this pass" above still holds — this closes part of
-`/flow`'s coverage gap, not all of it, and W8 has still never been run
-against live production.
+`/flow`'s coverage gap, not all of it. **What follows is what changed the
+night the tool was actually deployed and run.**
+
+## 2026-09-19 — deployed to master, run against LIVE production for the first time ever
+
+`discord-render-hardening` itself was never merged (730 commits behind master,
+86 ahead, 13-file overlap including 3 production Python files — a separate,
+higher-risk decision explicitly escalated and deferred). Instead, the two new,
+purely-additive files (`w8_accuracy_audit.py` + its test file) were
+cherry-picked onto a fresh `origin/master`-based branch after confirming every
+dependency they import (`api/services/discord_render/adapters/flow.py`,
+`result.py`, `api/routers/discord_interactions.py`, `api/routers/bars.py`)
+already existed on master byte-identical to the hardening branch's copies.
+Pushed as `7e3891f33`. **Deliberately SKIPPED as a deploy record** — the two
+files are `docs/`+`tests/`, matching no service's `watchPatterns` — but
+`Dockerfile.web` does `COPY . /app` with no `.dockerignore`, so the very next
+commit that DID trigger a `web` rebuild picked the files up anyway (confirmed:
+the script was present and ran successfully on the pod within the hour).
+
+**Real production run — `/chart` + `/buzz`, 5 tickers (NVDA, SPY, QQQ, AAPL, MSFT):**
+
+```
+TOTALS w8_accuracy_audit checked=6 matched=6 mismatched=0 not_computable=0
+  [chart] NVDA     matched
+  [chart] SPY      matched
+  [chart] QQQ      matched
+  [chart] AAPL     matched
+  [chart] MSFT     matched
+  [buzz ] buzz     matched
+```
+
+Real, independently-agreeing numbers — e.g. NVDA `day_pct_from_bars =
+1.335825658794576` vs the live snapshot's `live_change_pct = 1.3358`. `/buzz`
+matched 140/140 tickers, 368/368 total mentions, against a raw SQL tally
+written from scratch, never calling `buzz_store.board()`. **This is the first
+time either check has ever run against real production data** — every prior
+run was either the self-check's synthetic fixtures or a local dev smoke test.
+
+⚠️ **The very first invocation** showed `/chart` failing all 5 tickers with
+`fetch_bars returned no bars` — diagnosed via a direct call to
+`bars_router.serve_bars("NVDA", "D", 260, "", "", 0)` on the pod, which
+returned a real 200 with 20,062 bytes of valid OHLCV JSON immediately after.
+Concluded transient cold-start (first invocation on a pod that had not yet
+served that ticker/timeframe), not a persistent bug — confirmed by the clean
+re-run above minutes later.
+
+### `/flow`'s 100% "mismatch" — root-caused as an environmental fact, not a code bug
+
+Running the (then-just-fixed) raw-tape check against `web`'s local
+`/data/flow.db` flagged **every single shown contract on all 5 tickers** as
+"ZERO raw flow.db rows". Too systematic to be a real finding on five highly
+liquid names — investigated rather than accepted. Root cause, confirmed via
+direct sqlite queries on the pod: `web`'s `/data/flow.db` is the documented
+"P5 cutover" **FROZEN pre-cutover copy** — newest row **7/14/2026**, over two
+months stale as of this run. `flow-worker`'s own `/data/flow.db` IS live and
+current (newest row **9/18/2026**), but flow-worker's currently-deployed
+commit predates `7e3891f33`, so W8 isn't there yet, and a direct file-pipe
+attempt to flow-worker was blocked by the harness's auto-mode classifier
+(`[Production Reads]`) and abandoned per its own instruction to never retry
+the exact denied action.
+
+**Fixed, same night, in a follow-up commit (`20f196d4a`):** the raw-tape check
+never distinguished "this db has no matching rows" from "this db cannot
+possibly have matching rows for this date." Added `flow_db_freshness()` —
+reads the table's own newest `CreatedDate` before running
+`check_flow_against_raw_tape`; if it predates the card's window end, the
+raw-tape leg is SKIPPED and `tape_check_note` reports the staleness fact
+instead of the check silently producing a false "mismatch" verdict. Dates are
+compared as parsed `(y, m, d)` tuples (`_parse_flow_date`), never as strings —
+flow.db's own `CreatedDate`/`ExpirationDate` are US `M/D/YYYY` text, which
+does not sort chronologically as a string. Mutation-proved (swapping the
+`M/D/YYYY` field order reds exactly the 2 dependent self-check cases, nothing
+else; reverted, sha256-verified byte-identical). Self-check **37/37** (was
+33), pytest **46/46** (was 42).
+
+**Still open, deliberately not attempted tonight:** getting W8 to actually run
+against `flow-worker`'s own live `/data/flow.db` for a real `/flow` accuracy
+reading. That needs either flow-worker's own watched-path rebuild to pick up
+the file naturally on its next deploy, or a different route around the
+classifier's block on piping to that host — neither was pursued tonight.
+
+### Bottom line, honestly
+
+`/chart` and `/buzz` are now CONFIRMED ACCURATE in live production, for the
+first time ever, via independent-source checks. `/flow`'s structural +
+internal-consistency checks have been proven correct against a real (if
+worker-served) payload; its raw-tape upper-bound check has never yet produced
+a real (non-stale-db) reading, and now correctly says so instead of lying.

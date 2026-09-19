@@ -160,6 +160,32 @@
 > not achievable from inside the session. Full account added to
 > `evidence/d18/W8-accuracy-audit-2026-09-18.md`.
 >
+> ✅✅✅ **W8 — 2026-09-19: DEPLOYED to master and RUN AGAINST LIVE PRODUCTION for the
+> first time ever.** The `railway ssh` blocker above was resolved this session —
+> `MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"` fixes a Git-Bash/MSYS word-splitting bug
+> in the `railway` npm shim (`sh: 1: C:/Program: not found`) that had nothing to do with
+> permissions. Rather than merging all of `discord-render-hardening` (730 behind/86 ahead,
+> 3 overlapping production files — escalated and deliberately deferred as a separate,
+> higher-risk decision), the two new purely-additive files (the audit script + its test
+> file) were cherry-picked onto a fresh `origin/master` branch after confirming every
+> dependency they import is byte-identical on master, pushed as `7e3891f33`.
+> **Real result — `/chart` + `/buzz`, 5 tickers:** `checked=6 matched=6 mismatched=0
+> not_computable=0` — real independently-agreeing numbers (e.g. NVDA
+> `day_pct_from_bars=1.335825658794576` vs. live snapshot `1.3358`), buzz 140/140 tickers
+> / 368/368 mentions matched. **This is the first genuine confirmation that `/chart` and
+> `/buzz` are accurate in production**, not a self-check or a degraded local run.
+> `/flow`'s raw-tape check produced a systematic 100%-mismatch on the first run —
+> root-caused (not a code bug) to `web`'s `/data/flow.db` being the documented FROZEN
+> pre-cutover copy (newest row 7/14/2026, vs. flow-worker's genuinely-live copy at
+> 9/18/2026) — and FIXED same night (`20f196d4a`): a `flow_db_freshness()` staleness
+> guard now skips the raw-tape leg and reports the fact honestly instead of a false
+> mismatch when the local flow.db predates the card's date. Self-check 37/37 (was 33),
+> pytest 46/46 (was 42), mutation-proved. **Still open:** W8 has not yet run against
+> flow-worker's own live tape for a real `/flow` reading (flow-worker's deployed commit
+> predates the audit file; a direct pipe attempt was blocked by the harness classifier
+> and abandoned per its own instruction never to retry a denied action). Full account:
+> `evidence/d18/W8-accuracy-audit-2026-09-18.md`.
+>
 > 🟢 **D-21 PROGRESS 2026-09-18 (this pass) — owner corrected R71's D-20 conclusion.** R71 is
 > **config-as-code, not a login**: Railway's `build.watchPatterns` in `railway.web.json` (web's
 > OWN config file, confirmed live via deployment metadata — distinct from the SHARED
