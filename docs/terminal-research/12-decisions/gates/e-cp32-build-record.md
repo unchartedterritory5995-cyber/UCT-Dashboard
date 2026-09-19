@@ -3,7 +3,7 @@ id: e-cp32-build-record
 unit: E CP32
 packet: packet-e-ci-gap-gate
 merges-after: E CP26
-status: UNSIGNED
+status: SIGNED (E CP32, fingerprint 604b0dc69)
 ---
 
 # E CP32 — build record

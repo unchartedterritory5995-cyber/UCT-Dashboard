@@ -3,7 +3,7 @@ id: k-cp17-build-record
 unit: K CP17
 packet: packet-k-two-command-signing-gate
 merges-after: K CP16
-status: UNSIGNED
+status: SIGNED (K CP17, fingerprint 5beba91be)
 ---
 
 # K CP17 — build record

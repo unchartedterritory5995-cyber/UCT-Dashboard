@@ -3,7 +3,7 @@ id: e-cp28-build-record
 unit: E CP28
 packet: packet-e-ci-gap-gate
 merges-after: E CP27
-status: UNSIGNED
+status: SIGNED (E CP28, fingerprint 72443be8b)
 ---
 
 # E CP28 — build record

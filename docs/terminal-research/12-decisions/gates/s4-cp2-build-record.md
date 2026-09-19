@@ -2,7 +2,7 @@
 id: S4-CP2-BUILD
 title: S4 CP2 — build record, signature-ready
 role: the evidence an approval line for S4 CP2 is signed against
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (S4-CP2-BUILD, fingerprint 21d6ad3e8)
 date: 2026-09-14
 ---
 

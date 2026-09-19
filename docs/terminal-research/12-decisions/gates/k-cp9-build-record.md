@@ -3,7 +3,7 @@ id: k-cp9-build-record
 unit: K CP9
 packet: packet-k-two-command-signing-gate
 merges-after: K CP8
-status: UNSIGNED
+status: SIGNED (K CP9, fingerprint 439dfc4a7)
 ---
 
 # K CP9 — build record

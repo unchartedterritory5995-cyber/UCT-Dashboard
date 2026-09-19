@@ -3,7 +3,7 @@ id: k-cp4-build-record
 unit: K CP4
 packet: packet-k-two-command-signing-gate
 merges-after: K CP3
-status: UNSIGNED
+status: SIGNED (K CP4, fingerprint 35237823c)
 ---
 
 # K CP4 — build record

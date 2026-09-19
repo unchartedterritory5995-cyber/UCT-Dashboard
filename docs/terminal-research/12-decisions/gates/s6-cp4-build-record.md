@@ -3,7 +3,7 @@ id: s6-cp4-build-record
 unit: CP4
 packet: s6-personalization-pre-implementation-gate
 merges-after: d5-cp6-build-record
-status: UNSIGNED
+status: SIGNED (CP4, fingerprint 78268f5e0)
 ---
 
 # S6 CP4 — build record

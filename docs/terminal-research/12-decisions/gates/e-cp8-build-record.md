@@ -3,7 +3,7 @@ id: e-cp8-build-record
 unit: E CP8
 packet: packet-e-ci-gap-gate
 merges-after: E CP7
-status: UNSIGNED
+status: SIGNED (E CP8, fingerprint 437a51a06)
 ---
 
 # E CP8 — build record

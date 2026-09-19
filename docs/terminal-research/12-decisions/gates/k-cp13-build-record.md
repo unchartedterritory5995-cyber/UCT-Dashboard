@@ -3,7 +3,7 @@ id: k-cp13-build-record
 unit: K CP13
 packet: packet-k-two-command-signing-gate
 merges-after: K CP15
-status: UNSIGNED
+status: SIGNED (K CP13, fingerprint 83651c95e)
 ---
 
 # K CP13 — build record

@@ -3,7 +3,7 @@ id: e-cp38-build-record
 unit: E CP38
 packet: packet-e-ci-gap-gate
 merges-after: E CP37
-status: UNSIGNED
+status: SIGNED (E CP38, fingerprint 2e91d23c6)
 ---
 
 # E CP38 — build record

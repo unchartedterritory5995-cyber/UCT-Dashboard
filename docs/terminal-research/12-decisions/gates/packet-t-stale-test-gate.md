@@ -2,7 +2,7 @@
 id: PACKET-T
 title: A stale ThemeTracker test — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (PACKET-T, fingerprint 5179b2890)
 date: 2026-09-15
 ---
 

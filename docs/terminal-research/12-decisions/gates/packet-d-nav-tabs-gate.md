@@ -2,7 +2,7 @@
 id: PACKET-D
 title: CLAUDE.md's Nav Tabs section, generated from the AST — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (PACKET-D, fingerprint e279c828c)
 date: 2026-09-14
 ---
 

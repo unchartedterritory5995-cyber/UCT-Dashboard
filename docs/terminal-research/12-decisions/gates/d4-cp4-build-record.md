@@ -3,7 +3,7 @@ id: d4-cp4-build-record
 unit: D4 CP4'
 packet: d4-caching-and-serving-pre-implementation-gate
 merges-after: D CP4
-status: UNSIGNED
+status: SIGNED (D4 CP4', fingerprint 23a8da7a9)
 ---
 
 # D4 CP4′ — build record

@@ -2,7 +2,7 @@
 id: PACKET-K
 title: Nine signatures and eight merges from two commands — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (PACKET-K, fingerprint 36179a330)
 date: 2026-09-14
 ---
 

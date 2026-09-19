@@ -3,7 +3,7 @@ id: k-cp20-build-record
 unit: K CP20
 packet: packet-k-two-command-signing-gate
 merges-after: K CP18
-status: UNSIGNED
+status: SIGNED (K CP20, fingerprint 51c47081a)
 ---
 
 # K CP20 — build record

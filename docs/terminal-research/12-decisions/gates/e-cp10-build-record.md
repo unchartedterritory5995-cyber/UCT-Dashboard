@@ -3,7 +3,7 @@ id: e-cp10-build-record
 unit: E CP10
 packet: packet-e-ci-gap-gate
 merges-after: E CP9
-status: UNSIGNED
+status: SIGNED (E CP10, fingerprint 3f12a8773)
 ---
 
 # E CP10 — build record

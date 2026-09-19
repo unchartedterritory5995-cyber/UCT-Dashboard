@@ -3,7 +3,7 @@ id: e-cp5-build-record
 unit: E CP5
 packet: packet-e-ci-gap-gate
 merges-after: E CP4
-status: UNSIGNED
+status: SIGNED (E CP5, fingerprint 789e35efd)
 ---
 
 # E CP5 — build record

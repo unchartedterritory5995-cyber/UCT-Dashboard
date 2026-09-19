@@ -2,7 +2,10 @@
 id: PACKET-A
 title: Absent-bound-read-as-open — CLOSED AS FINDING
 role: a packet that concluded its own proposed rail must not be built
-status: ⛔ CLOSED-AS-FINDING. **There is no approval block, because there is nothing to sign.**
+status: SIGNED (A-CP1, fingerprint f6180b3da). ⚰️ This said "CLOSED-AS-FINDING — there
+  is no approval block, because there is nothing to sign," written before A-CP1 was
+  proposed and signed against this same file; the frontmatter was never updated when
+  that happened.
 date: 2026-09-14
 ---
 

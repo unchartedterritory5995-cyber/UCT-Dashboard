@@ -3,7 +3,7 @@ id: t2-cp1-build-record
 unit: T2 CP1
 packet: (none — see §0)
 merges-after: E CP4
-status: UNSIGNED
+status: SIGNED (T2 CP1, fingerprint 42eafe314)
 ---
 
 # T2 CP1 — build record

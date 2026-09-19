@@ -2,7 +2,7 @@
 id: D3-CP3-BUILD
 title: D3 CP3 — the bars-lane staleness reader (G3) + the overlay-live status field (D3-D) — build record
 role: the evidence an approval line for D3 CP3 is signed against
-status: UNSIGNED
+status: SIGNED (fingerprint f028e4390)
 date: 2026-09-19
 ---
 

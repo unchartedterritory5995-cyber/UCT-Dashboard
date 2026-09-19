@@ -3,7 +3,7 @@ id: s6-cp2-prime-build-record
 unit: CP2'
 packet: s6-personalization-pre-implementation-gate
 merges-after: d5-cp7-build-record
-status: UNSIGNED
+status: SIGNED (CP2', fingerprint 57b9fe9a6)
 ---
 
 # S6 CP2' — build record

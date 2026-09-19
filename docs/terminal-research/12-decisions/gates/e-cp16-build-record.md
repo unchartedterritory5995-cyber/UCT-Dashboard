@@ -3,7 +3,7 @@ id: e-cp16-build-record
 unit: E CP16
 packet: packet-e-ci-gap-gate
 merges-after: E CP15
-status: UNSIGNED
+status: SIGNED (E CP16, fingerprint f62b29968)
 ---
 
 # E CP16 — build record

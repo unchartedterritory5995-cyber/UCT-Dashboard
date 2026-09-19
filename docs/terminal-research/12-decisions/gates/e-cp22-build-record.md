@@ -3,7 +3,7 @@ id: e-cp22-build-record
 unit: E CP22
 packet: packet-e-ci-gap-gate
 merges-after: E CP21
-status: UNSIGNED
+status: SIGNED (E CP22, fingerprint ac382d2b2)
 ---
 
 # E CP22 — build record

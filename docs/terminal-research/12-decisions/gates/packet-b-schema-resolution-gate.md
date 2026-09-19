@@ -2,7 +2,7 @@
 id: PACKET-B
 title: Resolving a query against the schema the product actually has — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (PACKET-B, fingerprint a03e0cbf5)
 date: 2026-09-14
 ---
 

@@ -3,7 +3,7 @@ id: t-cp2-build-record
 unit: T CP2
 packet: packet-t-stale-test-gate
 merges-after: F-S2-1 (s2-accelerator-chord-pre-implementation-gate)
-status: UNSIGNED
+status: SIGNED (T CP2, fingerprint 21c37a3bc)
 ---
 
 # T CP2 — build record

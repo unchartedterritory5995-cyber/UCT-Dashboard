@@ -2,7 +2,7 @@
 id: PACKET-C
 title: Signature-regex rail + the CLAUDE.md service count — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (PACKET-C, fingerprint c443515eb)
 date: 2026-09-14
 ---
 

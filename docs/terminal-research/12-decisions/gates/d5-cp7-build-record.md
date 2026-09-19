@@ -3,7 +3,7 @@ id: d5-cp7-build-record
 unit: CP7
 packet: d5-reference-corp-actions-pre-implementation-gate
 merges-after: d5-cp5-build-record
-status: UNSIGNED
+status: SIGNED (CP7, fingerprint d8c232db0)
 ---
 
 # D5 CP7 — build record

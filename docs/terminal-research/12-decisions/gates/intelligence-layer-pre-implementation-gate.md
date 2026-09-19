@@ -2,7 +2,15 @@
 id: GATE-I1
 title: I1 Intelligence Layer — Pre-Implementation Gate
 role: gates FUTURE I1 work. Slices 1–3, Composite Rating and Earnings Events are already shipped and are NOT gated by this packet — they are recorded in PRD-I1/SPEC-I1 as-shipped.
-status: PRESENTED — awaiting owner approval. NOT approved.
+status: SIGNED — SLICE 1 (fingerprint `cd1b37cfc8...`, full detail below) and SLICE 2
+  (fingerprint `22a0367fe3...`) are real, complete, dated owner approvals. ⛔ A THIRD
+  block ("SLICE 3 / F-I1-2", fingerprint `196e7a63d`) is MALFORMED — BY/ON/AT-SHA
+  filled, `SCOPE APPROVED:` left BLANK — matching `sign_gate.py`'s own K CP4 category
+  exactly. Unlike S2 CP2's identical defect (corrected 2026-09-19 elsewhere this
+  session), no unambiguous scope text for this specific block could be found
+  elsewhere in this document to transcribe, so it is flagged here rather than
+  guessed at. ⚰️ This said "PRESENTED — awaiting owner approval. NOT approved,"
+  written before slices 1 and 2 were signed against this same file; never updated.
 pairs_with: PRD-I1, SPEC-I1
 date: 2026-09-11
 ---
@@ -46,6 +54,17 @@ APPROVED ON:      2026-09-14
 APPROVED AT SHA:  196e7a63d
 SCOPE APPROVED:
 ```
+
+> ⛔⛔ **MALFORMED, FLAGGED 2026-09-19, NOT CORRECTED.** BY/ON/AT-SHA are filled and
+> `SCOPE APPROVED:` is blank — `sign_gate.py`'s own K CP4 category, which reads as a
+> full approval to anything that greps for the hash while saying nothing about what
+> was approved. Unlike this session's S2 CP2 correction (same defect, fixed by
+> transcribing the packet's own already-written scope text verbatim), no unambiguous
+> scope for "SLICE 3 / F-I1-2" could be found elsewhere in this document — the
+> "why slice 2 exists" prose immediately below appears to describe SLICE 2 itself,
+> not a distinct third increment, and inventing a scope here would be exactly the
+> fabrication this programme's own discipline exists to prevent. Left as a named,
+> visible gap rather than guessed at.
 
 ---
 

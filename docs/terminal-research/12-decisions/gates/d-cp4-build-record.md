@@ -3,7 +3,7 @@ id: d-cp4-build-record
 unit: D CP4
 packet: packet-d-nav-tabs-gate
 merges-after: E CP38
-status: UNSIGNED
+status: SIGNED (D CP4, fingerprint 45472396e)
 ---
 
 # D CP4 — build record

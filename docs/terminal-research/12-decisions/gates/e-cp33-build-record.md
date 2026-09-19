@@ -3,7 +3,7 @@ id: e-cp33-build-record
 unit: E CP33
 packet: packet-e-ci-gap-gate
 merges-after: E CP32
-status: UNSIGNED
+status: SIGNED (E CP33, fingerprint 0651de213)
 ---
 
 # E CP33 — build record

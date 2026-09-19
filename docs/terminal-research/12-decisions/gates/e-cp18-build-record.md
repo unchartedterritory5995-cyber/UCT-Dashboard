@@ -3,7 +3,7 @@ id: e-cp18-build-record
 unit: E CP18
 packet: packet-e-ci-gap-gate
 merges-after: E CP17
-status: UNSIGNED
+status: SIGNED (E CP18, fingerprint b8aa16024)
 ---
 
 # E CP18 — build record

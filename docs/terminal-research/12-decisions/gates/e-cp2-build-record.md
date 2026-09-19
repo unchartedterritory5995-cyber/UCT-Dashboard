@@ -3,7 +3,7 @@ id: e-cp2-build-record
 unit: E CP2
 packet: packet-e-ci-gap-gate
 merges-after: E CP1
-status: UNSIGNED
+status: SIGNED (E CP2, fingerprint 00eecb391)
 ---
 
 # E CP2 — build record

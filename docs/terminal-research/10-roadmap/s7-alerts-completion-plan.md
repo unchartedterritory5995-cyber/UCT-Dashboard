@@ -170,7 +170,7 @@ twice and BOTH keys are still live.**
 
 | the ad-hoc key | what it was | still live? |
 |---|---|---|
-| `_LEDGER_TIMEFRAME` (`indicator_alert_evaluator.py:1694`) | a hand-typed copy of `_BARS_STORE_TF_KEYS`, shipped **with a comment explaining why it is dangerous** | **yes** |
+| `_LEDGER_TIMEFRAME` (`indicator_alert_evaluator.py:1694`) | a hand-typed copy of `_BARS_STORE_TF_KEYS`, shipped **with a comment explaining why it is dangerous** | ⚰️ **RETIRED 2026-09-19** — D2 §4-CP3 pointed `ledger_timeframe()` at the address book's `axes.timeframe.code_to_label` (via `indicator_condition.py`'s own `timeframe_labels()`), same for `GridChartCell.jsx`'s matching copy. Was the third instance of the shape this row cites; killing the ad-hoc key it argues against here also closed this one. |
 | `pct_above_50ma` | an ad-hoc spelling of a metric that already had one (`pct_above_50sma`, 190 refs) | **yes**, in 5 files including a live regime classifier |
 
 ⭐ **A sunset date is a promise made by the person who benefits from not keeping it.** Every

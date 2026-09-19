@@ -2,7 +2,9 @@
 id: GATE-D4-CACHING-AND-SERVING
 title: D4 — Caching & Serving — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ UNAPPROVED — the approval block is empty. NOTHING IN THIS PACKET IS AUTHORIZED.
+status: SIGNED (CP1, fingerprint 40caca541). ⚰️ This said "UNAPPROVED — the approval
+  block is empty," written before CP1 was signed against this same block; the
+  frontmatter was never updated when that happened.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-D4-CACHING-AND-SERVING

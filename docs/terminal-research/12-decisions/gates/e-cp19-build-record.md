@@ -3,7 +3,7 @@ id: e-cp19-build-record
 unit: E CP19
 packet: packet-e-ci-gap-gate
 merges-after: E CP18
-status: UNSIGNED
+status: SIGNED (E CP19, fingerprint e81d61259)
 ---
 
 # E CP19 — build record

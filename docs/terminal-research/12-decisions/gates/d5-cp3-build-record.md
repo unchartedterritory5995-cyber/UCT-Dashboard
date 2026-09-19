@@ -3,7 +3,7 @@ id: d5-cp3-build-record
 unit: CP3
 packet: d5-reference-corp-actions-pre-implementation-gate
 merges-after: s7-price-level-f6-build-record
-status: UNSIGNED
+status: SIGNED (CP3, fingerprint c6f071bf6)
 ---
 
 # D5 CP3 — build record

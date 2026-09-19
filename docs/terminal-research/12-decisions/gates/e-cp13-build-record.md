@@ -3,7 +3,7 @@ id: e-cp13-build-record
 unit: E CP13
 packet: packet-e-ci-gap-gate
 merges-after: E CP12
-status: UNSIGNED
+status: SIGNED (E CP13, fingerprint a2c1f43d1)
 ---
 
 # E CP13 — build record

@@ -3,7 +3,7 @@ id: k-cp19-build-record
 unit: K CP19
 packet: packet-k-two-command-signing-gate
 merges-after: K CP17
-status: UNSIGNED
+status: SIGNED (K CP19, fingerprint ce5f54e14)
 ---
 
 # K CP19 — build record

@@ -3,7 +3,7 @@ id: e-cp20-build-record
 unit: E CP20
 packet: packet-e-ci-gap-gate
 merges-after: E CP19
-status: UNSIGNED
+status: SIGNED (E CP20, fingerprint 8b1afab93)
 ---
 
 # E CP20 — build record

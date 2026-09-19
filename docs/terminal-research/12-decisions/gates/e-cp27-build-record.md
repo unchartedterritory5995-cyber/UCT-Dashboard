@@ -3,7 +3,7 @@ id: e-cp27-build-record
 unit: E CP27
 packet: packet-e-ci-gap-gate
 merges-after: E CP26
-status: UNSIGNED
+status: SIGNED (E CP27, fingerprint a46b03961)
 ---
 
 # E CP27 — build record

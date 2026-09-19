@@ -2,7 +2,7 @@
 id: S2-F-S2-1
 title: Ctrl/Cmd+Shift+F must not write to a member's flag list — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (S2-F-S2-1, fingerprint 72cda4cda)
 date: 2026-09-14
 ---
 

@@ -3,7 +3,7 @@ id: e-cp21-build-record
 unit: E CP21
 packet: packet-e-ci-gap-gate
 merges-after: E CP20
-status: UNSIGNED
+status: SIGNED (E CP21, fingerprint d75a0716a)
 ---
 
 # E CP21 — build record

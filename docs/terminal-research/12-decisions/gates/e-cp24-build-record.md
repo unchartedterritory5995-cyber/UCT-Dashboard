@@ -3,7 +3,7 @@ id: e-cp24-build-record
 unit: E CP24
 packet: packet-e-ci-gap-gate
 merges-after: E CP23
-status: UNSIGNED
+status: SIGNED (E CP24, fingerprint c9904433a)
 ---
 
 # E CP24 — build record

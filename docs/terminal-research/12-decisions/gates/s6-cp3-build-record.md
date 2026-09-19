@@ -3,7 +3,7 @@ id: s6-cp3-build-record
 unit: CP3
 packet: s6-personalization-pre-implementation-gate
 merges-after: s6-cp2-prime-build-record
-status: UNSIGNED
+status: SIGNED (CP3, fingerprint de2ed54f8)
 ---
 
 # S6 CP3 — build record

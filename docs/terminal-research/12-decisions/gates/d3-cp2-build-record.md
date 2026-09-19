@@ -2,7 +2,7 @@
 id: D3-CP2-BUILD
 title: D3 CP2 — the bars-pair cap gets a name — build record
 role: the evidence an approval line for D3 CP2 is signed against
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: SIGNED (D3-CP2-BUILD, fingerprint f7e851d58)
 date: 2026-09-14
 ---
 

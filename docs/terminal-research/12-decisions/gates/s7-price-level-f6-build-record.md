@@ -3,7 +3,7 @@ id: s7-price-level-f6-build-record
 unit: CP3
 packet: s7-price-level-pre-implementation-gate
 merges-after: D4 CP4'
-status: UNSIGNED
+status: SIGNED (CP3, fingerprint 809a6447f)
 ---
 
 # F-S7-6 fix — build record
