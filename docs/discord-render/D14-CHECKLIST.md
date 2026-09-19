@@ -691,6 +691,16 @@ un-maximises).
      A/B/C/D, or the checklist's own honest fallback — canary traffic under D2 with `source=canary`,
      min N=50 — an honest new SOURCE, contract already updated to accept it, needing only elapsed
      real time once canary is live, not new infrastructure.
+     ⭐ **Option B's own cost objection — "the derivation itself is unstarted work" — is now closed,
+     2026-09-19: `OPTION-B-KILL-LIST-2026-09-19.md`.** A full census of every scheduler-gated
+     outbound path in this codebase (Discord webhook/bot-token posts, Resend email, YouTube publish,
+     Substack) with each flag's exact default polarity (two are kill-switches, unset=ON — an easy
+     way to get this wrong silently) and a credential-first defense-in-depth strategy (blank
+     `DISCORD_WEBHOOK_URL`/`DISCORD_BOT_TOKEN`/`RESEND_API_KEY`/`YT_OAUTH_*` first; the per-feature
+     flags are the second layer, not the only one). **This is documentation only — nothing was
+     deployed, no Railway service was created or touched.** A future session or the owner can now go
+     directly to the design doc's own §1.5 step 2 without re-deriving anything. The decision of
+     whether to actually build Option B remains exactly as owner-gated as before.
   4. ✅ **ROW MOVED 2026-09-19: "mutation NOT-APPLIED = 0" NOT MEASURABLE → MET, fixed properly
      rather than manually patched around.** The gate's own `check_mutations_applied` shelled out to
      each harness's own `--dry-check` flag — only 6 of 16 harnesses declared one, so the row could
