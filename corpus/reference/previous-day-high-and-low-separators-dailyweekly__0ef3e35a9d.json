@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0ef3e35a9d4e4bc7b092316b1be4b566",
+ "title": "Previous Day High and Low + Separators Daily/Weekly",
+ "author": "Algoryze",
+ "url": "https://www.tradingview.com/script/bwpBIBHM-previous-day-high-and-low-separators-daily-weekly/",
+ "agreeCount": 6848,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine",
+ "our_status": "committed"
+}

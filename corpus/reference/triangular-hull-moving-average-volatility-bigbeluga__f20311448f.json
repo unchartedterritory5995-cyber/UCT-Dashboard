@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f20311448f5847fdbf123162e14cbbd7",
+ "title": "Triangular Hull Moving Average + Volatility [BigBeluga]",
+ "author": "BigBeluga",
+ "url": "https://www.tradingview.com/script/jequ7L0t-triangular-hull-moving-average-volatility-bigbeluga/",
+ "agreeCount": 5209,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/triangular-hull-moving-average-volatility-bigbeluga__f20311448f.pine",
+ "our_status": "reference-only"
+}

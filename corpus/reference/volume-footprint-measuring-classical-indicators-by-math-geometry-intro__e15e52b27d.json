@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e15e52b27d234f238522c37120642c73",
+ "title": "Volume Footprint: Measuring Classical Indicators by Math & Geometry, Introduction",
+ "author": "ata_sabanci",
+ "url": "https://www.tradingview.com/script/Tm1cGCPD-volume-footprint-measuring-classical-indicators-by-math-geom/",
+ "agreeCount": 4699,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+ "our_status": "committed"
+}

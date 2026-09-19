@@ -1,0 +1,46 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License 2.0.
+// If a copy of the MPL was not distributed with this file, You can obtain one at
+// https://mozilla.org/MPL/2.0/
+// © Uncharted Territory
+//
+// Ichimoku Kinko Hyo — written from the published definition of the system.
+//
+//   Tenkan-sen    (conversion line) = midpoint of the highest high and lowest
+//                                     low of the last 9 bars
+//   Kijun-sen     (base line)       = the same midpoint over 26 bars
+//   Senkou Span A (leading span A)  = midpoint of Tenkan and Kijun, drawn 26
+//                                     bars into the future
+//   Senkou Span B (leading span B)  = the 52-bar midpoint, also drawn 26 ahead
+//   Chikou Span   (lagging span)    = the close, drawn 26 bars into the past
+//   Kumo          (the cloud)       = the region between the two leading spans
+//
+// The displacement convention matches TradingView's own built-in Ichimoku:
+// forward spans use `displacement - 1` and the lagging span `-displacement + 1`,
+// so a vendor parity measurement against the built-in compares like with like.
+//@version=6
+indicator("Ichimoku Kinko Hyo", shorttitle = "Ichimoku", overlay = true)
+
+tenkanLength  = input.int(9,  "Conversion line length", minval = 1)
+kijunLength   = input.int(26, "Base line length",       minval = 1)
+senkouBLength = input.int(52, "Leading span B length",  minval = 1)
+displacement  = input.int(26, "Displacement",           minval = 1)
+
+// The one shape the whole system is built from: the midpoint of a window's
+// extremes, which Ichimoku uses in place of a moving average.
+donchianMid(length) => math.avg(ta.highest(high, length), ta.lowest(low, length))
+
+tenkan  = donchianMid(tenkanLength)
+kijun   = donchianMid(kijunLength)
+senkouA = math.avg(tenkan, kijun)
+senkouB = donchianMid(senkouBLength)
+
+plot(tenkan, "Conversion line", color = #2962ff)
+plot(kijun,  "Base line",       color = #f23645)
+plot(close,  "Lagging span",    color = #089981, offset = -displacement + 1)
+
+spanA = plot(senkouA, "Leading span A", color = #089981, offset = displacement - 1)
+spanB = plot(senkouB, "Leading span B", color = #f23645, offset = displacement - 1)
+
+fill(spanA, spanB,
+     color = senkouA > senkouB ? color.new(#089981, 90) : color.new(#f23645, 90),
+     title = "Kumo")

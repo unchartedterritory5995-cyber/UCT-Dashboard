@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;H94Z0NbN5PsPwKVYR4BVETEVh4M7Ojii",
+ "title": "YTC - Swing Highs & Lows",
+ "author": "jatubio",
+ "url": "https://www.tradingview.com/script/NK8sXs0K-ytc-swing-highs-lows/",
+ "agreeCount": 571,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ytc-swing-highs-lows__H94Z0NbN5P.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;91ff446fe08b409b9ed63022db8d359a",
+ "title": "Volume Profile Plus",
+ "author": "AlphaViz",
+ "url": "https://www.tradingview.com/script/Lh5drG70-volume-profile-plus/",
+ "agreeCount": 5845,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-profile-plus__91ff446fe0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-plus__91ff446fe0.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;01de230c0aa04e7693b0ffe489b5c935",
+ "title": "Auto Fib Levels",
+ "author": "CheatCode1",
+ "url": "https://www.tradingview.com/script/GaZ6A3un-auto-fib-levels/",
+ "agreeCount": 2717,
+ "category": "harmonic patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/auto-fib-levels__01de230c0a.pine",
+ "our_status": "reference-only"
+}

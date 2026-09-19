@@ -7,6 +7,25 @@ import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ColorPanel from './ColorPanel'
 import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
+
+/** ⭐⭐ HOW MUCH OF THE CHART'S TOP EDGE THIS TOOLBAR OCCUPIES, in CSS pixels.
+ *
+ *  ⛔ A FLOATING TOOLBAR IS NOT FREE SPACE, AND SOMETHING ELSE HAD TO BE TOLD.
+ *  `.toolbar` is `position: absolute; top: 4px; height: 26px` over the chart
+ *  container at `z-index: 5`, so anything else anchored to that container's TOP
+ *  corners lands underneath it. R2 step 6 anchors the object model's tables
+ *  there — `position.top_left` and `position.top_right` are two of Pine's nine —
+ *  and on the first live run both of `uncharted-volume-v2.pine`'s dashboards drew
+ *  correctly and were painted over by this strip.
+ *
+ *  ⛔ THE HOST TELLS THE LAYER; THE LAYER MEASURES NOTHING. `objectTableDom.js`
+ *  is deliberately free of `getBoundingClientRect`, which is what makes a resize
+ *  cost nothing — so the one thing it cannot know, the height of the chrome the
+ *  HOST chose to float, is handed to it. `objectTableDom.test.js` derives the two
+ *  CSS numbers from `ChartToolbar.module.css` and fails if their sum stops
+ *  matching this constant, so the pair cannot drift apart silently.
+ */
+export const CHART_TOOLBAR_FOOTPRINT_PX = 30
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 // ⛔⛔ LAZY, AND THE BUNDLE IS WHY. `BuilderSheet` pulls `PineBox`, which pulls
@@ -1643,6 +1662,15 @@ function ChartToolbar({
                cannot write an instance. */
             settings={cs}
             onChange={onUpdateSettings}
+            /* ⭐⭐ j.5 (2026-09-18) — THE HALF OF THE CONTRACT THIS DOOR NEVER
+               IMPLEMENTED. `save()` has ended in `onSaved?.(res.row)` since Phase
+               D and the screener door has always closed on it; this mount passed
+               no handler at all, so on the chart — the door a member actually
+               uses — a finished save had nowhere to land and the sheet stayed
+               over the indicator it had just added. Closing IS the confirmation
+               here: the formula is already on the chart with its legend row,
+               exactly as if it had been ticked in the indicator library. */
+            onSaved={() => setBuilderOpen(false)}
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}

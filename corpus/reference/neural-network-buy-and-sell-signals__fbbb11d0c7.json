@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fbbb11d0c77b4d76ab1f9509105726aa",
+ "title": "Neural Network Buy and Sell Signals",
+ "author": "B3AR_Trades",
+ "url": "https://www.tradingview.com/script/pn25rKHZ-neural-network-buy-and-sell-signals/",
+ "agreeCount": 4376,
+ "category": "machine-learning-styled",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+ "cached_source": "tools/pine_survey/cache/sources/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+ "our_status": "committed"
+}

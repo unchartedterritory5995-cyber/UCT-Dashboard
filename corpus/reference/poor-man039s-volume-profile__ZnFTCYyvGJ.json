@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ZnFTCYyvGJ1KgtZQnNqqjQQjgmczb67G",
+ "title": "Poor man&#039;s volume profile",
+ "author": "IldarAkhmetgaleev",
+ "url": "https://www.tradingview.com/script/IWdpl712-poor-man-039-s-volume-profile/",
+ "agreeCount": 4839,
+ "category": "order flow",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+ "cached_source": "tools/pine_survey/cache/sources/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+ "our_status": "committed"
+}

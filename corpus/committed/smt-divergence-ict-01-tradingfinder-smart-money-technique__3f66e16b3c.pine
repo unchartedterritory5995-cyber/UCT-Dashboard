@@ -1,0 +1,117 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TFlab
+
+//@version=5
+indicator("SMT Divergence ICT 01 [TradingFinder] Smart Money Technique", shorttitle="TFlab SMT", overlay=false ,max_bars_back = 5000 , max_labels_count = 500, max_lines_count = 500)
+ATR = ta.atr(55)
+Sym = input.symbol('XAUUSD' , 'Second Symbol')
+n = input.int(2, title  ="Divergence Fractal Periods", minval=1 , group = 'Logic Setting')
+Bull_Line  = input.bool(true, 'Show SMT Divergence Line from the Bottom.') 
+Bull_Label  = input.bool(true, 'Show SMT Divergence Label from the Bottom.') 
+Bear_Line = input.bool(true, 'Show SMT Divergence Line from the Top.') 
+Bear_Label = input.bool(true, 'Show SMT Divergence Label from the Top.') 
+
+//Fractal////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+[Open, High, Low, Close] = request.security(Sym, timeframe.period,[open, high, low, close])
+// UpPivot
+UpPivot = bool(ta.pivothigh(n,n))
+
+// DownPivot
+DownPivot = bool(ta.pivotlow(n,n))
+
+
+// plotshape(DownPivot and Show_Fractal =='Yes', style=shape.triangleup, location=location.belowbar, offset=-n, color= color.rgb(57, 160, 60), size = size.tiny)
+// plotshape(UpPivot and Show_Fractal =='Yes', style=shape.triangledown,   location=location.abovebar, offset=-n, color= color.rgb(236, 69, 69), size = size.tiny)
+
+//Data//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Bearish Divergence Data
+
+//price Data
+High_Last_Price = ta.valuewhen(UpPivot,high[n],0)
+High_Per_Price = ta.valuewhen(UpPivot,high[n],1)
+
+//MACD hist Data
+High_Last_Hist = ta.valuewhen(UpPivot, High[n],0)
+High_Per_Hist = ta.valuewhen(UpPivot, High[n],1)
+
+//Bar index Data
+High_Last_Bar = ta.valuewhen(UpPivot, bar_index[n],0)
+High_Per_Bar = ta.valuewhen(UpPivot, bar_index[n],1)
+
+// Time Condition Bullish
+Time_Condition_Bear = (High_Last_Bar + 30) > bar_index
+
+
+//Bearish Divergenc Detector////////////////////////
+Last_Bearish_Divergece = if High_Last_Hist > 0 and High_Per_Hist > 0 and Time_Condition_Bear and (High_Last_Bar - High_Per_Bar) < 30
+    ((High_Last_Price > High_Per_Price) and (High_Last_Hist < High_Per_Hist)) or ((High_Last_Price < High_Per_Price) and (High_Last_Hist > High_Per_Hist)) 
+else 
+    false
+
+// Bullish Divergennce Data
+
+//price Data
+Low_Last_Price = ta.valuewhen(DownPivot,low[n],0)
+Low_Per_Price = ta.valuewhen(DownPivot,low[n],1)
+
+//MACD hist Data
+Low_Last_Hist = ta.valuewhen(DownPivot, Low[n],0)
+Low_Per_Hist = ta.valuewhen(DownPivot, Low[n],1)
+
+//Bar index Data
+Low_Last_Bar = ta.valuewhen(DownPivot, bar_index[n],0)
+Low_Per_Bar = ta.valuewhen(DownPivot, bar_index[n],1)
+
+
+
+// Time Condition Bullish
+Time_Condition_Bull = (Low_Last_Bar + 30) > bar_index 
+
+//Bullish Divergenc Detector////////////////////////
+Last_Bullish_Divergece = if Low_Last_Hist > 0 and Low_Per_Hist > 0 and Time_Condition_Bull and (Low_Last_Bar - Low_Per_Bar) < 30
+    ((Low_Last_Price < Low_Per_Price) and (Low_Last_Hist > Low_Per_Hist)) or ((Low_Last_Price > Low_Per_Price) and (Low_Last_Hist < Low_Per_Hist))
+else 
+    false
+//count_Bear_Divergence
+var int CBullDive = 0 
+  
+if bool(ta.change(Low_Last_Price)) and Last_Bullish_Divergece == true
+    CBullDive := CBullDive + 1
+else if Last_Bullish_Divergece == false
+    CBullDive := 0
+
+
+// plot
+//Divergence Line & Label
+
+Drawing(Bull_Line, Bear_Line, Bull_Label, Bear_Label)=>
+    var line BeLine = na
+    var line BuLine = na 
+    var label BeLabel = na
+    var label BuLabel = na
+    var line BeLine_OnChart = na
+    var line BuLine_OnChart = na 
+    var label BeLabel_OnChart = na
+    var label BuLabel_OnChart = na
+// 
+
+    if Last_Bullish_Divergece
+        if Bull_Line
+            BuLine := line.new(Low_Per_Bar, Low_Per_Hist, Low_Last_Bar,Low_Last_Hist , color = color.black , width = 1, style = line.style_dashed)
+            BuLine_OnChart := line.new(Low_Per_Bar, low[bar_index - Low_Per_Bar], Low_Last_Bar,low[bar_index - Low_Last_Bar] , color = color.black , width = 1 , force_overlay = true, style = line.style_dashed)
+        if Bull_Label
+            BuLabel := label.new(Low_Last_Bar,Low_Last_Hist , '+SMT', color = color.green, textcolor = color.white, size = size.tiny , style = label.style_label_up)
+            BuLabel_OnChart := label.new(Low_Last_Bar,low[bar_index - Low_Last_Bar] , '+SMT', color = color.green, textcolor = color.white, size = size.tiny , style = label.style_label_up, force_overlay = true)
+  
+    if Last_Bearish_Divergece
+        if Bear_Line
+            BeLine := line.new(High_Per_Bar,High_Per_Hist, High_Last_Bar,High_Last_Hist , color = color.black, width = 1, style = line.style_dashed)
+            BeLine_OnChart := line.new(High_Per_Bar,high[bar_index - High_Per_Bar], High_Last_Bar,high[bar_index - High_Last_Bar] , color = color.black, width = 1, force_overlay = true, style = line.style_dashed)
+        if Bear_Label
+            BeLabel := label.new(High_Last_Bar,High_Last_Hist ,'-SMT', color = color.red, textcolor = color.white, size = size.tiny, style = label.style_label_down)
+            BeLabel_OnChart := label.new(High_Last_Bar,high[bar_index - High_Last_Bar] ,'-SMT', color = color.red, textcolor = color.white, size = size.tiny, style = label.style_label_down, force_overlay = true)
+
+
+plotcandle(Open, High, Low, Close, color = Close >= Open ? #089981 : #f23645 ,wickcolor = Close >= Open ? #089981 : #f23645, bordercolor = Close >= Open ? #089981 : #f23645)
+Drawing(Bull_Line, Bear_Line, Bull_Label, Bear_Label)

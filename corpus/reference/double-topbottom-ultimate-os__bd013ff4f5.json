@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bd013ff4f5c7402e908c2ce62fad6844",
+ "title": "Double Top/Bottom - Ultimate (OS)",
+ "author": "Trendoscope",
+ "url": "https://www.tradingview.com/script/a0vTLaS6-double-top-bottom-ultimate-os/",
+ "agreeCount": 5109,
+ "category": "harmonic patterns",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/double-topbottom-ultimate-os__bd013ff4f5.pine",
+ "cached_source": "tools/pine_survey/cache/sources/double-topbottom-ultimate-os__bd013ff4f5.pine",
+ "our_status": "committed"
+}

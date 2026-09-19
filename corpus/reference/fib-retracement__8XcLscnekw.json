@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8XcLscnekwvtFgLsRVVATJjlDFx2ZuNo",
+ "title": "Fib Retracement",
+ "author": "TradeChartist",
+ "url": "https://www.tradingview.com/script/mWmIRNVF-fib-retracement/",
+ "agreeCount": 3500,
+ "category": "harmonic patterns",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fib-retracement__8XcLscnekw.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fib-retracement__8XcLscnekw.pine",
+ "our_status": "committed"
+}

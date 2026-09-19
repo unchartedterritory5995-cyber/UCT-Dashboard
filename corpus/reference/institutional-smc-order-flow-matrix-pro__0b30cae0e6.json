@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0b30cae0e68747f1809ddac41c8f1baa",
+ "title": "Institutional SMC & Order Flow Matrix PRO",
+ "author": "Dark_Ace_Master",
+ "url": "https://www.tradingview.com/script/MFh7pYiG-institutional-smc-order-flow-matrix-pro/",
+ "agreeCount": 603,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+ "our_status": "committed"
+}

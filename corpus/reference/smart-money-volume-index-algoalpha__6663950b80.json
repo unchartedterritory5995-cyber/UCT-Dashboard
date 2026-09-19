@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6663950b80b4453082553dc21fd4a757",
+ "title": "Smart Money Volume Index [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/WBJhew74-smart-money-volume-index-algoalpha/",
+ "agreeCount": 6883,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-volume-index-algoalpha__6663950b80.pine",
+ "our_status": "committed"
+}

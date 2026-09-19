@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3b96428a77714e5ca8d9b41ac5e9e460",
+ "title": "Footprint IQ Pro [TradingIQ]",
+ "author": "Trading-IQ",
+ "url": "https://www.tradingview.com/script/mxDTtwh8-footprint-iq-pro-tradingiq/",
+ "agreeCount": 5351,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/footprint-iq-pro-tradingiq__3b96428a77.pine",
+ "cached_source": "tools/pine_survey/cache/sources/footprint-iq-pro-tradingiq__3b96428a77.pine",
+ "our_status": "committed"
+}

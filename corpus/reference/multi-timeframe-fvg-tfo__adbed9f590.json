@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;adbed9f5901d43408f291f3db6cef75f",
+ "title": "Multi-Timeframe FVG [TFO]",
+ "author": "tradeforopp",
+ "url": "https://www.tradingview.com/script/ipyHUfOO-multi-timeframe-fvg-tfo/",
+ "agreeCount": 3926,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multi-timeframe-fvg-tfo__adbed9f590.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-fvg-tfo__adbed9f590.pine",
+ "our_status": "committed"
+}

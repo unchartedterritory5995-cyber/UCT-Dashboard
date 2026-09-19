@@ -1,0 +1,159 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © loxx
+
+//@version=5
+indicator("Deviation Scaled Moving Average w/ DSL [Loxx]", 
+     shorttitle='DSMAWDSL [Loxx]', 
+     overlay = true, 
+     timeframe="", 
+     timeframe_gaps = true)
+     
+import loxx/loxxexpandedsourcetypes/4
+import loxx/loxxmas/1
+
+greencolor = #2DD204
+redcolor = #D2042D 
+
+darkGreenColor =  #1B7E02 
+darkRedColor = #93021F
+
+SM02 = 'Slope'
+SM04 = 'Levels Crosses'
+
+variant(type, src, len) =>
+    sig = 0.0
+    trig = 0.0
+    special = false
+    if type == "Exponential Moving Average - EMA"
+        [t, s, b] = loxxmas.ema(src, len)
+        sig := s
+        trig := t
+        special := b
+    else if type == "Fast Exponential Moving Average - FEMA"
+        [t, s, b] = loxxmas.fema(src, len)
+        sig := s
+        trig := t
+        special := b
+    trig
+
+smthtype = input.string("Kaufman", "Heiken-Ashi Better Smoothing", options = ["AMA", "T3", "Kaufman"], group=  "Source Settings")
+srcoption = input.string("Close", "Source", group= "Source Settings", 
+     options = 
+     ["Close", "Open", "High", "Low", "Median", "Typical", "Weighted", "Average", "Average Median Body", "Trend Biased", "Trend Biased (Extreme)", 
+     "HA Close", "HA Open", "HA High", "HA Low", "HA Median", "HA Typical", "HA Weighted", "HA Average", "HA Average Median Body", "HA Trend Biased", "HA Trend Biased (Extreme)",
+     "HAB Close", "HAB Open", "HAB High", "HAB Low", "HAB Median", "HAB Typical", "HAB Weighted", "HAB Average", "HAB Average Median Body", "HAB Trend Biased", "HAB Trend Biased (Extreme)"])
+
+per = input.int(25, "Period", group = "Basic Settings")
+
+signal_length = input.int(9, "Signal Period", group = "Signal/DSL Settings")
+sigmatype = input.string("Exponential Moving Average - EMA", "Signal/DSL Smoothing", options = ["Exponential Moving Average - EMA", "Fast Exponential Moving Average - FEMA"], group = "Signal/DSL Settings")
+
+sigtype = input.string(SM04, "Signal type", options = [SM02, SM04], group = "Signal/DSL Settings")
+
+colorbars = input.bool(true, "Color bars?", group = "UI Options")
+showSigs = input.bool(true, "Show signals?", group = "UI Options")
+
+kfl=input.float(0.666, title="* Kaufman's Adaptive MA (KAMA) Only - Fast End", group = "Moving Average Inputs")
+ksl=input.float(0.0645, title="* Kaufman's Adaptive MA (KAMA) Only - Slow End", group = "Moving Average Inputs")
+amafl = input.int(2, title="* Adaptive Moving Average (AMA) Only - Fast", group = "Moving Average Inputs")
+amasl = input.int(30, title="* Adaptive Moving Average (AMA) Only - Slow", group = "Moving Average Inputs")
+
+haclose = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close)
+haopen = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open)
+hahigh = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, high)
+halow = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, low)
+hamedian = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hl2)
+hatypical = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hlc3)
+haweighted = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hlcc4)
+haaverage = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, ohlc4)
+
+float src = switch srcoption
+	"Close" => loxxexpandedsourcetypes.rclose()
+	"Open" => loxxexpandedsourcetypes.ropen()
+	"High" => loxxexpandedsourcetypes.rhigh()
+	"Low" => loxxexpandedsourcetypes.rlow()
+	"Median" => loxxexpandedsourcetypes.rmedian()
+	"Typical" => loxxexpandedsourcetypes.rtypical()
+	"Weighted" => loxxexpandedsourcetypes.rweighted()
+	"Average" => loxxexpandedsourcetypes.raverage()
+    "Average Median Body" => loxxexpandedsourcetypes.ravemedbody()
+	"Trend Biased" => loxxexpandedsourcetypes.rtrendb()
+	"Trend Biased (Extreme)" => loxxexpandedsourcetypes.rtrendbext()
+	"HA Close" => loxxexpandedsourcetypes.haclose(haclose)
+	"HA Open" => loxxexpandedsourcetypes.haopen(haopen)
+	"HA High" => loxxexpandedsourcetypes.hahigh(hahigh)
+	"HA Low" => loxxexpandedsourcetypes.halow(halow)
+	"HA Median" => loxxexpandedsourcetypes.hamedian(hamedian)
+	"HA Typical" => loxxexpandedsourcetypes.hatypical(hatypical)
+	"HA Weighted" => loxxexpandedsourcetypes.haweighted(haweighted)
+	"HA Average" => loxxexpandedsourcetypes.haaverage(haaverage)
+    "HA Average Median Body" => loxxexpandedsourcetypes.haavemedbody(haclose, haopen)
+	"HA Trend Biased" => loxxexpandedsourcetypes.hatrendb(haclose, haopen, hahigh, halow)
+	"HA Trend Biased (Extreme)" => loxxexpandedsourcetypes.hatrendbext(haclose, haopen, hahigh, halow)
+	"HAB Close" => loxxexpandedsourcetypes.habclose(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Open" => loxxexpandedsourcetypes.habopen(smthtype, amafl, amasl, kfl, ksl)
+	"HAB High" => loxxexpandedsourcetypes.habhigh(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Low" => loxxexpandedsourcetypes.hablow(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Median" => loxxexpandedsourcetypes.habmedian(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Typical" => loxxexpandedsourcetypes.habtypical(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Weighted" => loxxexpandedsourcetypes.habweighted(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Average" => loxxexpandedsourcetypes.habaverage(smthtype, amafl, amasl, kfl, ksl)
+    "HAB Average Median Body" => loxxexpandedsourcetypes.habavemedbody(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Trend Biased" => loxxexpandedsourcetypes.habtrendb(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Trend Biased (Extreme)" => loxxexpandedsourcetypes.habtrendbext(smthtype, amafl, amasl, kfl, ksl)
+	=> haclose
+	
+[filt, _, _] = loxxmas.super(ta.change(close, 2), per) 
+
+rms = 0.
+for k = 0 to per - 1  
+    rms += math.pow(nz(filt[k]), 2)
+    
+rms := math.sqrt(rms / per)
+scaledfit = filt / rms
+alpha = math.abs(scaledfit) * 5 / per
+out = 0.
+out := nz(out[1]) + alpha * (src - nz(out[1]))
+sig = out[1]
+levelu = 0., leveld = 0., mid = 0.
+
+levelu := (out > sig) ? variant(sigmatype, out, signal_length) : nz(levelu[1])
+leveld := (out < sig) ? variant(sigmatype, out, signal_length) : nz(leveld[1])
+        
+state = 0.
+if sigtype == SM02
+    if (out < sig) 
+        state :=-1
+    if (out > sig) 
+        state := 1
+else if sigtype == SM04
+    if (out < leveld) 
+        state :=-1
+    if (out > levelu)
+        state := 1
+        
+goLong_pre =  sigtype == SM02 ? ta.crossover(out, sig) : ta.crossover(out, levelu) 
+goShort_pre = sigtype == SM02 ? ta.crossunder(out, sig) : ta.crossunder(out, leveld) 
+
+contSwitch = 0
+contSwitch := nz(contSwitch[1])
+contSwitch := goLong_pre ? 1 : goShort_pre ? -1 : contSwitch
+
+colorout = sigtype == SM02 ? contSwitch == -1 ? redcolor : greencolor : 
+     state == 1 ? greencolor : state == -1 ? redcolor : color.gray
+
+plot(out,"Pips-Stepped, Adaptive-ER DSEMA", color = colorout,  linewidth = 3)
+
+plot(levelu, "Level Up", color =  darkGreenColor)
+plot(leveld, "Level Down", color =  darkRedColor)
+
+barcolor(colorbars ? colorout : na)
+
+goLong = goLong_pre and ta.change(contSwitch)
+goShort = goShort_pre and ta.change(contSwitch)
+
+plotshape(showSigs and goLong, title = "Long", color = color.yellow, textcolor = color.yellow, text = "L", style = shape.triangleup, location = location.belowbar, size = size.tiny)
+plotshape(showSigs and goShort, title = "Short", color = color.fuchsia, textcolor = color.fuchsia, text = "S", style = shape.triangledown, location = location.abovebar, size = size.tiny)
+
+alertcondition(goLong, title="Long", message="Deviation Scaled Moving Average w/ DSL [Loxx]: Long\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(goShort, title="Short", message="Deviation Scaled Moving Average w/ DSL [Loxx]: Short\nSymbol: {{ticker}}\nPrice: {{close}}")

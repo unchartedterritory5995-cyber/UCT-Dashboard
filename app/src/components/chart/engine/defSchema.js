@@ -122,6 +122,11 @@ import { UNBOUNDED as FORWARD_UNBOUNDED, declaredInputs } from './ast/lint'
 // clock, no second grammar. It is here because the alternative is worse — the
 // hash and the badge aggregators would be re-spelled per consumer.
 import { treesHash as treesHashOf, assertTrees } from './ast/trees'
+// ⭐⭐ C3B — the object program is validated by ITS OWN module, never by a
+// second copy of the rules here. `assertObjectProgram` is the one authority on
+// what a legal program is; this file only adds the DOCUMENT-level rules the
+// program module cannot know (is it bound, and does every node it names exist).
+import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from './ast/objectProgram'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -159,6 +164,70 @@ export const PLOT_STYLES = Object.freeze([
  *  its point markers are circles; a cross marker needs W6's series primitives.
  *  Until then it is refused with the later-phase sentence, never coerced to
  *  `markers` (which is what "circles" already is). */
+/** ⭐⭐ C3A — THE EVENT-MARKER VOCABULARY, CLOSED ON PURPOSE.
+ *
+ *  A marker is the declarative half of Pine's `plotshape`/`plotchar`: a glyph on
+ *  a bar, positioned relative to that bar, optionally carrying a short label. It
+ *  is NOT the mutable object model (`label.new` and friends) — there is no id to
+ *  update, nothing to delete, and no lifetime beyond the column it reads.
+ *
+ *  ⛔ THE THREE VOCABULARIES ARE CLOSED BECAUSE THE RENDERER'S ARE. LWC 5.2
+ *  draws these four shapes at these three positions; a document naming a fifth
+ *  would register happily and draw nothing, which is the "validated but inert"
+ *  failure this schema exists to prevent (`colorMode: 'column:<key>'` shipped
+ *  that way for a whole wave). */
+export const MARKER_SHAPES = Object.freeze(['circle', 'square', 'arrowUp', 'arrowDown'])
+export const MARKER_POSITIONS = Object.freeze(['aboveBar', 'belowBar', 'inBar'])
+/** Bounds, not a list — the translator maps five named Pine sizes into it and a
+ *  hand-authored document may pick anything sane between them. */
+export const MARKER_SIZE_RANGE = Object.freeze({ min: 0.25, max: 4 })
+
+/**
+ * `plots[i].marker` — the glyph an event column draws.
+ *
+ * ⛔ ONLY ON A `markers` PLOT. A marker on a line plot would be two renderers
+ * over one column, and the one that ran would depend on read order.
+ */
+function validateMarker(plot, path, errors) {
+  const m = plot.marker
+  if (m === undefined) return
+  if (!isPlainObject(m)) {
+    errors.push(`${path}.marker: expected an object, got ${fmt(m)}`)
+    return
+  }
+  if (plot.style !== 'markers') {
+    errors.push(
+      `${path}.marker: only a plot with style "markers" draws one — this plot is ` +
+      `${fmt(plot.style)}. A marker on a line plot would be two renderers over one column.`,
+    )
+  }
+  if (!MARKER_SHAPES.includes(m.shape)) {
+    errors.push(
+      `${path}.marker.shape: expected one of ${MARKER_SHAPES.join(', ')} — got ${fmt(m.shape)}. ` +
+      `The list is closed because the renderer's is: a fifth name would register and draw nothing.`,
+    )
+  }
+  if (m.position !== undefined && !MARKER_POSITIONS.includes(m.position)) {
+    errors.push(
+      `${path}.marker.position: expected one of ${MARKER_POSITIONS.join(', ')} — got ${fmt(m.position)}`,
+    )
+  }
+  if (m.size !== undefined
+      && (typeof m.size !== 'number' || !Number.isFinite(m.size)
+          || m.size < MARKER_SIZE_RANGE.min || m.size > MARKER_SIZE_RANGE.max)) {
+    errors.push(
+      `${path}.marker.size: expected a number between ${MARKER_SIZE_RANGE.min} and ` +
+      `${MARKER_SIZE_RANGE.max}, got ${fmt(m.size)}`,
+    )
+  }
+  if (m.text !== undefined && typeof m.text !== 'string') {
+    errors.push(`${path}.marker.text: expected a string, got ${fmt(m.text)}`)
+  }
+  if (typeof m.text === 'string' && m.text.length > 24) {
+    errors.push(`${path}.marker.text: at most 24 characters, got ${m.text.length}`)
+  }
+}
+
 export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor', 'fill', 'cross'])
 
 /** Compute lanes (spec §3). Every kind here PARSES — a definition naming one is
@@ -312,17 +381,21 @@ export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted', 'lar
  *   * `plots[].precision` validated for every plot, read only for histograms
  *     (N-4) — same shape. Wired.
  *
- * `column:<key>` is different in kind: NO SHIPPED DEFINITION DECLARES IT, so
- * there is nothing to drop. It is here because the reference-integrity check
- * below (does that column exist?) is the expensive half and is cheap to keep
- * true, and because a per-point colour column is how B3's first bar-colouring
- * indicator will express itself. `pool.signColorsForPlot` returns null for it and
- * says so; the series renders in its own colour, which is the correct v1
- * behaviour for a mode with no consumer.
+ * `column:<key>` was validated-but-inert through v1 — reference-checked, drawn by
+ * nobody, and this note used to say so. ⭐⭐ **C1 GAVE IT A RENDERER.**
+ * `pool.columnColorsForPlot` resolves it and `binder.toPoints` colours each point
+ * by whether the named column is non-zero on that bar, exactly as this comment
+ * predicted ("the two places that must learn it").
  *
- * The day a definition declares one, `signColorsForPlot` and `binder.toPoints`
- * are the two places that must learn it — and a test asserting per-point colours
- * is the thing to write first. Until then: validated, inert, and deliberate.
+ * It is how a Pine `color = cond ? colour_a : colour_b` survives import, and that
+ * is not a niche shape: measured over the frozen 60-script out-of-sample corpus,
+ * **49 colour a plot from an expression rather than a literal**. `sign` cannot
+ * express any of them, because the deciding quantity is a different series from
+ * the one being drawn.
+ *
+ * ⛔ IT REQUIRES `colorUp`/`colorDown`, same as `sign` and for the same reason: a
+ * per-point mode with nothing to alternate between draws one flat colour while
+ * registering happily.
  */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])
 
@@ -1320,6 +1393,11 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     plot.style, PLOT_STYLES, RESERVED_PLOT_STYLES, `${path}.style`, 'plot style', errors,
   )
 
+  // ⭐ C3A — the glyph an event column draws. Checked here, beside the style it
+  // depends on, so a marker and the style that permits it are ONE refusal rather
+  // than two a member meets on separate save attempts.
+  validateMarker(plot, path, errors)
+
   // ─ substitutable fields (spec §3.1: color, width, levels) ─
 
   if (plot.color !== undefined) {
@@ -1608,15 +1686,29 @@ function validateColorModes(plots, columnKeys, errors) {
       )
       return
     }
-    // Reachable, checked — and deliberately inert at render time in v1. See the
-    // note on COLOR_MODES: no shipped definition declares `column:<key>`, so
-    // there is no author declaration being dropped here. Keeping the reference
-    // check true costs nothing and is what makes the mode safe to start using.
+    // ⭐⭐ C1: NO LONGER INERT. `pool.columnColorsForPlot` + `binder.toPoints`
+    // draw this mode per point, colouring by whether the named column is
+    // non-zero on that bar. It is how a Pine `color = cond ? a : b` survives
+    // import — 49 of the frozen 60 scripts colour from an expression.
     const col = mode.slice('column:'.length)
     if (!columnKeys.has(col)) {
       errors.push(
         `${path}: ${fmt(mode)} references column ${fmt(col)}, which no plot or event declares ` +
         `(available columns: ${list([...columnKeys]) || 'none'})`,
+      )
+      return
+    }
+    // ⛔ THE SAME TWO COLOURS, FOR THE SAME REASON AS `sign`. A per-point mode
+    // with nothing to alternate between registers happily and then draws one
+    // flat colour — which is the exact "declared it and stopped" defect the
+    // `sign` branch above exists to make impossible. Reusing `colorUp`/
+    // `colorDown` rather than inventing a second spelling keeps one vocabulary
+    // for "the two colours a per-point mode needs".
+    const missing = ['colorUp', 'colorDown'].filter((f) => !isNonEmptyString(plot[f]))
+    if (missing.length) {
+      errors.push(
+        `${path}: colour mode ${fmt(mode)} colours each point by whether column ${fmt(col)} is ` +
+        `non-zero, so the plot must declare both colorUp and colorDown — missing ${list(missing)}`,
       )
     }
   })
@@ -1933,6 +2025,91 @@ export function validateSourceReferents(def, resolveColumns) {
   return errors
 }
 
+/**
+ * ⭐⭐ C3B — `definition.objects`, THE GRAPHICAL-OBJECT PROGRAM.
+ *
+ * A definition may carry a lifecycle program beside its columns. It is
+ * OPTIONAL: 14 of the frozen 60 draw no objects at all and must stay
+ * byte-identical, so an absent field is not an error and an absent field is not
+ * an empty program either.
+ *
+ * ⛔⛔ WHICH FORM IS LEGAL DEPENDS ON THE DOCUMENT, and getting this backwards
+ * is how the C2C compaction would be lost in silence:
+ *
+ *   V1 (inlined, `compute.trees`)  →  the program is UNBOUND. Its `{v:'tree'}`
+ *       references index its OWN `trees` array, which is the only place those
+ *       expressions live — carrying them is necessary, not wasteful.
+ *   V2 (`compute.graph`)           →  the program is BOUND. Its references are
+ *       node indices into the shared graph, and a `trees` array beside them
+ *       would be a SECOND copy of every expression the graph already holds.
+ *
+ * So this refuses a bound program on a V1 document (its node indices point at a
+ * table that is not there) and an unbound one on a V2 document (a duplicate
+ * store). Either way the failure is named, not silent.
+ */
+function validateObjectProgramField(def, errors) {
+  const program = def.objects
+  if (program === undefined || program === null) return
+  try {
+    assertObjectProgram(program)
+  } catch (err) {
+    errors.push(`objects: ${err && err.message ? err.message : String(err)}`)
+    return
+  }
+  const graph = def.compute && def.compute.graph
+  const nodes = graph && Array.isArray(graph.nodes) ? graph.nodes.length : null
+  const treeRefs = treeRefsReferenced(program)
+  const nodeRefs = graphNodesReferenced(program)
+  const trees = Array.isArray(program.trees) ? program.trees : null
+
+  if (nodes === null) {
+    // ── the V1 form ───────────────────────────────────────────────────────
+    if (nodeRefs.length) {
+      errors.push(
+        `objects: ${nodeRefs.length} graph node reference(s) on a document that carries no graph — `
+        + 'a bound program indexes a node table that is not here',
+      )
+    }
+    if (treeRefs.length && !trees) {
+      errors.push(
+        'objects.trees: the program references its own trees but carries none — '
+        + `[${treeRefs.join(', ')}] index nothing`,
+      )
+    }
+    if (trees) {
+      const over = treeRefs.filter((i) => i >= trees.length)
+      if (over.length) {
+        errors.push(
+          `objects.trees: reference(s) [${over.join(', ')}] are past the end of a ${trees.length}-tree list`,
+        )
+      }
+    }
+    return
+  }
+
+  // ── the V2 form ─────────────────────────────────────────────────────────
+  if (trees) {
+    errors.push(
+      'objects.trees: a program stored beside a graph is BOUND to it and carries no trees of its own — '
+      + 'keeping them would put a second copy of every expression in the document, which is the '
+      + 'compaction C2C exists to protect',
+    )
+  }
+  if (treeRefs.length) {
+    errors.push(
+      `objects: ${treeRefs.length} unbound {v:"tree"} reference(s) on a graph document — `
+      + 'the intermediate form a translator emits must be bound before it is stored',
+    )
+  }
+  const bad = nodeRefs.filter((n) => n >= nodes)
+  if (bad.length) {
+    errors.push(
+      `objects: node reference(s) [${bad.join(', ')}] are past the end of a ${nodes}-node graph — `
+      + 'a dangling reference renders as NaN, which draws an object at zero and explains nothing',
+    )
+  }
+}
+
 export function validateDefinition(def) {
   try {
     const errors = []
@@ -2027,6 +2204,7 @@ export function validateDefinition(def) {
     validateBandEdges(plots, errors)
     validateFills(plots, errors)
     validateTreesAgainstPlots(out.compute, plots, errors)
+    validateObjectProgramField(out, errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array

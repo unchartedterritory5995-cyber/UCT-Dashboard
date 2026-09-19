@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;HN4w1eNW3B9HP5oSa2MNMIHMYUqLPHUT",
+ "title": "Pivot Point SuperTrend",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/L0AIiLvH-pivot-point-supertrend/",
+ "agreeCount": 29038,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pivot-point-supertrend__HN4w1eNW3B.pine",
+ "our_status": "committed"
+}

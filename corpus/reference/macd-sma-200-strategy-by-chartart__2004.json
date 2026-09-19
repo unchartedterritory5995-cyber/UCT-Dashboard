@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2004",
+ "title": "MACD + SMA 200 Strategy (by ChartArt)",
+ "author": "ChartArt",
+ "url": "https://www.tradingview.com/script/yMCa3XZD-macd-sma-200-strategy-by-chartart/",
+ "agreeCount": 31176,
+ "category": "momentum",
+ "pine_version": "v2",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/macd-sma-200-strategy-by-chartart__2004.pine",
+ "our_status": "reference-only"
+}

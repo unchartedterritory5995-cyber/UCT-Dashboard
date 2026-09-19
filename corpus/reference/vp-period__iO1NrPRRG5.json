@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;iO1NrPRRG5McW5F9ensxSKm1rwxriwNK",
+ "title": "VP-Period",
+ "author": "juliangonzaconde",
+ "url": "https://www.tradingview.com/script/Nn6PKWp1-vp-period/",
+ "agreeCount": 9479,
+ "category": "order flow",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vp-period__iO1NrPRRG5.pine",
+ "our_status": "reference-only"
+}

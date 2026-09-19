@@ -76,13 +76,32 @@ describe('the D ruling — the step-back that makes it unsafe', () => {
     expect(at(4)).not.toEqual(ownCloses)
   })
 
-  it('⛔ so `request.security(_, "D", _)` refuses, and names the ladder', () => {
+  // ➕➕ ADDENDUM, 2026-09-12 — ruling 3.5. The assertion that used to sit here read
+  // `request.security(_, "D", _)` refuses, and names the ladder. That is no longer
+  // true, and the ruling above is not what changed: the STEP-BACK form is still
+  // refused (the two tests above are untouched and still pass), while the IDENTITY
+  // form now folds. Both halves are asserted below, because either one alone would
+  // let the other regress silently.
+  it('⛔ the STEP-BACK form is STILL unavailable — `D` never becomes a `tf` node', () => {
+    // This is the 2026-09-01 ruling, restated as the thing it was actually about:
+    // `tf(close, 'D')` would answer YESTERDAY on a daily base, so no door may emit it.
+    expect(TF_RESAMPLABLE).not.toContain('D')
     const out = pine('request.security(syminfo.tickerid, "D", close)')
-    expect(out.ok).toBe(false)
-    expect(out.refusal.guard).toBe('pine:request')
+    expect(out.outputs[out.selected].formula).not.toBe("tf(close, 'D')")
+    expect(out.outputs[out.selected].formula).not.toMatch(/tf\(.*'D'\)/)
+  })
+
+  it('⭐ and the IDENTITY form folds — `D` equals the base, so it is the bars in hand', () => {
+    const out = pine('request.security(syminfo.tickerid, "D", close)')
+    expect(out.ok).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('close')
   })
 
   it('⭐ …while `timeframe.period` folds to the bar itself — the inconsistency', () => {
+    // ⚰️ THE INCONSISTENCY THIS TEST NAMED IS RESOLVED (ruling 3.5, 2026-09-12): the
+    // two spellings now agree, and they agree on the IDENTITY rather than on the
+    // step-back. The test is kept because the agreement is the claim — if a future
+    // change made `"D"` a resample again, this and the pair above would disagree.
     // ⚠️ THE TWO HALVES TOGETHER ARE THE ARGUMENT. If `"D"` were declared, these
     // two lines would mean the same thing on a daily chart and answer one bar
     // apart, with nothing refusing. Neither half alone says that.

@@ -1,0 +1,112 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © kurtsmock
+
+// v14 v5 update. reVar. Fix Plotting
+// v15 Fix Lines add daily and Hourly Resets
+// v16 Add max_lines_count
+
+//@version=5
+indicator('Session HiLo', overlay=true, max_bars_back=5000, max_lines_count = 500)
+
+// -- Functions {
+backtest(int _start, int _end, bool _sessions, bool _incWeekends, string _sessPeriod) => 
+    session         = _sessions and _incWeekends ? not na(time(timeframe.period, _sessPeriod + ":1234567")) : _sessions ? not na(time(timeframe.period, _sessPeriod + ":23456")) : true
+    backtestRange   = time >= _start and time <= _end and session ? true : false
+    backtestRange
+hrsBack(_hours) =>
+    _barTime = (60/timeframe.multiplier) * _hours
+    _reset   = false
+    var _bars    = 0
+    if bar_index > 1 and bar_index < 100
+        _reset := true
+        _bars  := 0
+    else if _bars == _barTime - 1
+        _reset := true
+        _bars  := 0
+    if not _reset
+        _bars += 1
+    [_reset, _bars, _barTime]
+//}
+
+// -- String Definitions{
+c01 = color.green, c02 = color.red, c03 = color.black
+r01 = "Session",   r02 = "Hours",  r03 = "Daily"
+shl_g1 = "[===== Display Options =====]"
+shl_g2 = "[===== Date Range =====]"
+shl_g3 = "[===== Reset Condition =====]"
+//}
+
+// -- Inputs {
+// ───── RESET CONDITION ↴
+c_reset    = input.string(r01, group=shl_g3,             title='Reset Condition',    options=[r01, r02, r03], tooltip = "Obviously, if using Hours, viewing timeframe must be under 1h. Intended for low timeframe trading.")
+c_hours    = input.int(1,      group=shl_g3,             title='No. of Hours',       minval=1, maxval=23)
+// ───── BACKTESTING DATE RANGE ↴
+c_start    = input.time(       group=shl_g2,             title='Start Date',         defval=timestamp('18 May 2022 00:00 +0000'))
+c_end      = input.time(       group=shl_g2,             title='End Date',           defval=timestamp('01 Jan 2023 00:00 +0000'))
+// ───── BACKTESTING SESSION RANGE ↴
+s_useSess  = input.bool(false, group=shl_g2, inline='i', title='Use Session Constraint |')
+s_incWE    = input.bool(true,  group=shl_g2, inline='i', title='Include Weekends')
+c_sessPd   = input.session(    group=shl_g2,             title='Session Definition', defval='1800-1500')
+
+s_lines     = input(false,     group=shl_g1, inline='a', title='Show Lines | ')
+s_bg        = input(true,      group=shl_g1, inline='a', title='Show Bg Color | ')
+s_fill      = input(false,     group=shl_g1, inline='a', title='Show Fill')     // Not sure if this works... should work for lines too
+c_bg        = input.color(c03, group=shl_g1, inline='b', title='Bg')
+c_transp    = input.int(95,    group=shl_g1, inline='b', title='| Bg Transp',        minval=1, maxval=100)
+c_highsCol  = input.color(c01, group=shl_g1, inline='c', title='Highs')
+c_lowsCol   = input.color(c02, group=shl_g1, inline='c', title='| Lows')
+c_fillCol   = input.color(c03, group=shl_g1, inline='c', title='| Fills')
+c_lw        = input(2,         group=shl_g1,             title='Line Width')
+i_sessions  = input.int(5,     group=shl_g1,             title='Sessions Back (Lines)',  minval=1, maxval=21)
+//}
+
+// -- Calculations {
+[hrReset, bars, barTime] = hrsBack(c_hours)
+o_sessionActive = backtest(c_start, c_end, s_useSess, s_incWE, c_sessPd)
+o_hourActive    = not hrReset
+o_dayActive     = time('D') == time('D')[1]
+o_track         = c_reset == r01 ? o_sessionActive : 
+                  c_reset == r02 ? o_hourActive    :
+                  c_reset == r03 ? o_dayActive     : o_sessionActive
+                  
+sessionReset    = o_sessionActive and not(o_sessionActive[1])
+hourReset       = hrReset
+dayReset        = time('D') != time('D')[1]
+o_reset         = c_reset == r01 ? sessionReset : 
+                  c_reset == r02 ? hourReset    :
+                  c_reset == r03 ? dayReset     : sessionReset
+
+var _hh = float(na)
+_hh := o_reset ? high : o_track ? high > _hh ? high : nz(_hh[1]) : na
+var _ll = float(na)
+_ll := o_reset ? low  : o_track ? low  < _ll ? low  : nz(_ll[1]) : na
+//}
+
+// -- Plots {
+p1 = plot(not s_lines ? o_reset ? na : _hh : na, 'Highest High of Session', color=c_highsCol, linewidth=c_lw, style=plot.style_linebr)
+p2 = plot(not s_lines ? o_reset ? na : _ll : na, 'Lowest Low of Session',   color=c_lowsCol,  linewidth=c_lw, style=plot.style_linebr)
+fTransp = s_fill ? c_transp : 100
+fill(p1, p2, color.new(c_fillCol,fTransp), 'Plot Fills')
+//}
+
+// -- Lines {
+var lineVarHighs = line(na)
+if s_lines and o_reset
+    lineVarHighs := line.new(bar_index[1], _hh, bar_index, _hh, xloc.bar_index, extend=extend.none, color=color.red, width=c_lw)
+
+var lineVarLows = line(na)
+if s_lines and o_reset
+    lineVarLows := line.new(bar_index[1], _ll, bar_index, _ll, xloc.bar_index, extend=extend.none, color=color.green, width=c_lw)
+
+if o_track
+    line.set_x2(lineVarHighs, bar_index)
+    line.set_y1(lineVarHighs, _hh)
+    line.set_y2(lineVarHighs, _hh)
+    line.set_x2(lineVarLows, bar_index)
+    line.set_y1(lineVarLows, _ll)
+    line.set_y2(lineVarLows, _ll)
+//}
+
+// -- BG Color {
+bgcolor(color=o_sessionActive and s_bg and not s_fill ? color.new(c_bg, c_transp) : na, title='Background')
+//}

@@ -1,0 +1,380 @@
+{
+  "_": "⭐⭐ THE VENDOR'S OWN ANSWER for `uncharted-volume-v2.pine` on AMEX:SPY 1D, read off a live TradingView chart on the scratch rig. This is the oracle T5's per-series comparison is measured against. ⛔ NOTHING HERE IS COMPUTED BY THIS PROJECT — every number and every string is what TradingView drew.",
+  "_supersedes": "tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json as first captured earlier the same day, which held 8 plots and a PARTIAL table read: the 19-study layout left the volume pane ~20px tall and the chart legend covered the Range table, so only `Range: 127.58%` came out of it. This capture is on the 0-indicator rig with the legend off and the pane maximised, and it carries all three Range cells.",
+  "capture": {
+    "symbol": "AMEX:SPY",
+    "interval": "1D",
+    "layout": "e3cTXatd — UCT AGENT VISIT 2026-09-10 (disposable)",
+    "captured_at_utc": "2026-09-12T23:10:12Z",
+    "last_bar_utc_date": "2026-09-11",
+    "last_bar_unix": 1789133400,
+    "rig_indicators_before_add": 0,
+    "rig_indicators_after_add": 1,
+    "study_status": {
+      "isFailed": false,
+      "isLoading": false,
+      "isCompleted": true,
+      "statusType": 2
+    },
+    "_gate": "visibility gate v2 PASS at the write: visible, display y ∈ [-1446, -54], window y ∈ [-1287, -272]"
+  },
+  "source_receipt": {
+    "_": "⛔ THE STRONGEST FORM THIS RECEIPT TAKES. The editor buffer was hashed BEFORE and AFTER the write, and the AFTER hash equals the committed fixture's `file_sha256` exactly — so the script TradingView ran is byte-identical to the file in this repo, not merely 'the same script'.",
+    "buffer_sha256_before": "e550e994f5ad04f197b7746b14db21e9e1a0edcee843a2fa568402ac2e22c0c6",
+    "buffer_sha256_after": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "fixture_file_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "match": true,
+    "chars_before": 34365,
+    "chars_after": 34378,
+    "delta_chars": 13,
+    "_delta": "`, maxval=5000` — the R-J authored edit. The buffer held the PRE-R-J revision from an earlier session; the write brought it to the committed one."
+  },
+  "monaco": {
+    "module_id": "423129",
+    "_": "⛔ RE-DERIVED THIS VISIT from the webpack registry (10,558 modules scanned for one exporting `editor.getModels` + `editor.create`), never assumed. It happens to match the previously recorded id; that is a fact about this build, confirmed, not carried forward.",
+    "model_uri": "file:///bceb86f0-5f71-46d5-bf1d-2d0d71553be9.pine?placement%3Ddialog",
+    "language": "pine_v6",
+    "_placement": "`placement=dialog` is the IN-TAB RIGHT PANEL and is exactly where the text `Add to chart` button lives — the 2026-09-12 correction to the earlier `dialog means undocked` rule."
+  },
+  "add_button_gate": {
+    "_": "The corrected gate: exactly one element whose OWN TEXT is `Add to chart`, visible, enabled, height > 0; and zero `Update on chart`.",
+    "add_to_chart_matches": [
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 24,
+        "visible": true,
+        "disabled": false
+      },
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 0,
+        "visible": false,
+        "disabled": false
+      }
+    ],
+    "add_visible_enabled_nonzero": 1,
+    "update_on_chart_matches": 0,
+    "verdict": "SAFE TO ADD",
+    "_zero_height": "⭐ THE ZERO-HEIGHT DUPLICATE THE RULE WARNS ABOUT IS RIGHT THERE — two spans, same text, 93x24 and 93x0. A gate without the height test would have counted two and stopped."
+  },
+  "plots": {
+    "_": "⭐ THE VENDOR'S OWN PLOT ROSTER, read from `metaInfo().plots`. ⛔⛔ NOTE `plot_7`: TradingView itself types it `alertcondition`, DISTINCT from the four `line` plots. That is the vendor confirming ruling D1 — an alertcondition is not a drawable series, and the four this project draws are exactly the four TradingView types as lines.",
+    "order": [
+      {
+        "id": "plot_0",
+        "type": "line",
+        "title": "Volume"
+      },
+      {
+        "id": "plot_1",
+        "type": "colorer",
+        "target": "plot_0"
+      },
+      {
+        "id": "plot_2",
+        "type": "line",
+        "title": "Avg Vol Columns"
+      },
+      {
+        "id": "plot_3",
+        "type": "colorer",
+        "target": "plot_2"
+      },
+      {
+        "id": "plot_4",
+        "type": "line",
+        "title": "Avg Vol Line"
+      },
+      {
+        "id": "plot_5",
+        "type": "colorer",
+        "target": "plot_4"
+      },
+      {
+        "id": "plot_6",
+        "type": "line",
+        "title": "Scale Padding"
+      },
+      {
+        "id": "plot_7",
+        "type": "alertcondition",
+        "title": "HVE Trigger"
+      }
+    ],
+    "value_array_layout": "[time, plot_0, plot_1, plot_2, plot_3, plot_4, plot_5, plot_6, plot_7]",
+    "rows": [
+      {
+        "bars_back": 0,
+        "date": "2026-09-11",
+        "time": 1789133400,
+        "values": [
+          45512741,
+          4283477836,
+          43318979,
+          4287003512,
+          43318979,
+          436207615,
+          56890926.25,
+          0
+        ]
+      },
+      {
+        "bars_back": 1,
+        "date": "2026-09-10",
+        "time": 1789047000,
+        "values": [
+          42740375,
+          4287003512,
+          null,
+          4287003512,
+          43350741.74,
+          436207615,
+          54188427.175000004,
+          0
+        ]
+      },
+      {
+        "bars_back": 2,
+        "date": "2026-09-09",
+        "time": 1788960600,
+        "values": [
+          32812411,
+          4287003512,
+          null,
+          4287003512,
+          43608454.94,
+          436207615,
+          54510568.675,
+          0
+        ]
+      },
+      {
+        "bars_back": 5,
+        "date": "2026-09-03",
+        "time": 1788442200,
+        "values": [
+          43531581,
+          4287003512,
+          null,
+          4287003512,
+          45040146.1,
+          436207615,
+          56300182.625,
+          0
+        ],
+        "_date_corrected": "⚰️ CORRECTED 2026-09-12 (T5). This row was labelled `2026-09-04` while its own `time` (1788442200 = 2026-09-03 13:30 UTC) says 2026-09-03 — and bars_back 5 from 2026-09-11 IS 09-03, because 09-07 was Labor Day and 09-05/09-06 the weekend. ⛔ THE LABEL WAS THE ONLY THING WRONG; every value on the row is the vendor's. T5's comparison aligned on the LABEL first and reported our volume 34,015,600 against the vendor's 43,531,581 — a 28% divergence that does not exist. Aligned on `time` the same pair is 43,494,000 vs 43,531,581, rel 8.6e-4, in line with every other bar. ⭐ COMPARE BY TIMESTAMP; a human-written date beside a machine-written one is a second authority over one value."
+      }
+    ],
+    "spread_control": {
+      "_": "⛔ NON-ZERO SPREAD PER READ — the control that this capture is a MEASUREMENT and not a blank or a constant. A series that read the same on every bar would satisfy any comparison and prove nothing.",
+      "Volume": {
+        "distinct": 4,
+        "min": 32812411,
+        "max": 45512741,
+        "spread": 12700330
+      },
+      "Avg Vol Line": {
+        "distinct": 4,
+        "min": 43318979,
+        "max": 45040146.1,
+        "spread": 1721167.1
+      },
+      "Scale Padding": {
+        "distinct": 4,
+        "min": 54188427.175000004,
+        "max": 56890926.25,
+        "spread": 2702499.075
+      },
+      "Avg Vol Columns": {
+        "distinct": 2,
+        "note": "value on the last bar (45.51M > 43.32M avg), null on the three below it — the two-tone cap only draws when volume exceeds the average. Varying, and varying for a reason the script states."
+      },
+      "HVE Trigger": {
+        "distinct": 1,
+        "value": 0,
+        "note": "⚠️ FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series. Recorded as flat rather than quietly dropped."
+      }
+    },
+    "_alignment_rule": "⛔⛔ ALIGN ON `time`, NEVER ON `date`. `time` is what TradingView returned; `date` is a convenience label written beside it, and on 2026-09-12 one of them was a day out. A comparison that keys on the label can invent a divergence of any size — this one invented 28% on a bar that agrees to 8.6e-4.",
+    "_HVE_TRIGGER_IS_WRONG_HERE": "⚰️ `spread_control.HVE Trigger` says \"FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series.\" THE SECOND HALF IS TRUE AND THE FIRST IS AN ARTEFACT. At 4,633 bars the column fires 25 times, starting the week Lehman failed. Left in place, marked, because a fixture that quietly changed its mind teaches nothing."
+  },
+  "tables": {
+    "_": "⛔⛔ READ AS STRINGS, NOT AS PIXELS. These are the exact arguments TradingView passed to `fillText`, captured by wrapping `CanvasRenderingContext2D.prototype.fillText` for one redraw and restoring it immediately (`restored: true` asserted). A screenshot read cannot recover a TRAILING SPACE, and one of these cells has one.",
+    "_why_not_the_model": "The study's own `tables()` store (`_builtTables`, `_cellsByTableId`, `_tableSources`) and `graphics()._primitivesCollection.dwgtables` are ALL EMPTY while the tables are plainly on screen — they are staging areas consumed at materialisation. Three approaches were tried; the draw call is the only place the string exists.",
+    "range_table": {
+      "position_input": "Top Left",
+      "cells": [
+        {
+          "text": "ATR : $6.21 (0.81%)",
+          "len": 19,
+          "trailing_space": false,
+          "x": 76,
+          "y": 22
+        },
+        {
+          "text": "| Range: 137.58%",
+          "len": 16,
+          "trailing_space": false,
+          "x": 201,
+          "y": 22
+        },
+        {
+          "text": "| ATRx: 0.92",
+          "len": 12,
+          "trailing_space": false,
+          "x": 304,
+          "y": 22
+        }
+      ],
+      "_": "⚰️ THREE CELLS. The earlier capture recorded ONE (`Range: 127.58%`) because the chart legend sat on top of the ATR cell and the pane was ~20px tall. The `| ` prefixes are separators the script writes INTO the cell text, not gaps between cells."
+    },
+    "volume_table": {
+      "position_input": "Top Right",
+      "cells": [
+        {
+          "text": "Vol : 45.51M (1.05x) ",
+          "len": 21,
+          "trailing_space": true,
+          "x": 1533,
+          "y": 22
+        }
+      ],
+      "_": "⭐ len 21 for 20 visible characters — THE TRAILING SPACE IS REAL and is the reason these were read as strings. It is also the only one of the four cells that has one."
+    },
+    "labels": [
+      {
+        "text": "HV1•256.61M",
+        "len": 11,
+        "x": 36,
+        "y": 2
+      },
+      {
+        "text": "+282%",
+        "len": 5,
+        "x": 36,
+        "y": 16
+      }
+    ]
+  },
+  "study_inputs": {
+    "_": "The defaults as the script declares them — NOT altered for this capture. Recorded so a re-read can be compared against the same configuration.",
+    "Daily Length": 50,
+    "Weekly Length": 50,
+    "HVE lookback (bars)": 2500,
+    "Range Type": "ATR",
+    "Range Length": 14,
+    "Calculation Method": "RMA",
+    "Range Display Format": "Percentage",
+    "ATR Ext MA Type": "SMA",
+    "ATR Ext MA Length": 50,
+    "Volume Display Style": "Histogram",
+    "Histogram Line Width": 3,
+    "Color based on previous close": true,
+    "Show Only Latest HV Label": true,
+    "Table Label Size": "Normal",
+    "Show Range Table": true,
+    "Show Range Used": true,
+    "Show ATR extension from MA": true,
+    "Show DCR in Range Table": false,
+    "Show Volume Table": true,
+    "Show Avg Vol": false,
+    "Volume Table Pos": "Top Right",
+    "Range Table Pos": "Top Left",
+    "Vol Table Lookback": 50
+  },
+  "_chart_settings_touched": "⚠️ Chart legend `Indicators → Titles` and `Values` were turned OFF for this read, because the Range table renders at the pane's top-left and the legend sits on the same line. That is a CHART setting, not a study input — no captured number depends on it. Not saved.",
+  "_still_owed": "The HVE symbol fixture — a symbol on which the HVE Trigger actually fires, with the symbol and the record date named BEFORE the capture. `HVE Trigger` is flat 0 on SPY across this window, so SPY cannot serve as that case.",
+  "window_check": {
+    "_": "⭐ THE WINDOW CHECK — owner ruling 2026-09-12, out of the AGEN firing-count divergence. A capture records the depth it was read at and that depth is asserted against the script's largest declared window BEFORE the numbers are used. Below the window the capture is WINDOW_TRUNCATED, not void, and only its short columns drop out of comparison. ⛔ Every field here except `bars_loaded` is RE-DERIVED by `tests/test_vendor_capture_window.py` from `tools/lookback_agreement.json` and compared against what is written — the capture cannot certify its own arithmetic. `bars_loaded` is the one observation only the rig can supply.",
+    "_largest_is_2751_not_2500": "⚠️ 2,751 AND NOT THE 2,500 THE INPUT DECLARES. `maxLookback` is a tree SUM: the 2,500 `lookbackBarsHVE` input is the largest single term in `HVE Trigger`'s reach and not the whole of it. Both readers measure 2,751 and this is their number, not a transcription — and it is the conservative one, since a capture clearing 2,751 clears 2,500 too.",
+    "script": "member/uncharted-volume-v2.pine",
+    "script_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "bars_loaded": null,
+    "largest_declared_window": 2751,
+    "declared_windows": {
+      "Avg Vol Columns": 50,
+      "Avg Vol Line": 50,
+      "HVE Trigger": 2751,
+      "Scale Padding": 50,
+      "Volume": 0
+    },
+    "verdict": "UNMEASURED",
+    "excluded_from_comparison": [
+      "Avg Vol Columns",
+      "Avg Vol Line",
+      "HVE Trigger",
+      "Scale Padding"
+    ],
+    "_why_unmeasured": "⚰️ THIS CAPTURE PREDATES THE RULING BY HOURS. The rig depth was never probed, and it cannot be recovered from the artifact — only from the chart, on another visit. Named in `tests/test_vendor_capture_window.py::PREDATES_THE_MEASUREMENT`, which is a CLOSED list: a capture taken after 2026-09-12 that lands at UNMEASURED fails that rail by name.",
+    "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one.",
+    "_depth_evidence_2026_09_13": "⛔⛔ AND IT IS PROBABLY NOT JUST UNRECORDED — IT IS PROBABLY SHORT. A fresh load of this very layout on SPY 1D gives **640 bars** (2024-02-23 → 2026-09-11), measured 2026-09-13. The AGEN capture had to FORCE 4,066 bars with `Go to → 2012-01-03` to clear the 2,751 window, and the SPY capture records no such forcing. So the honest reading is that this capture was taken shallow and its `HVE Trigger` flat 0 may be an artefact of the load rather than the script's answer. ⭐ THAT IS WHY UNMEASURED IS NOT FLIPPED BY A PROBE: reading the depth TODAY measures today's chart, not the capture's, and the fix is a RE-CAPTURE at forced depth.",
+    "_verdict_note": "Kept at UNMEASURED rather than back-filled. The depth of THIS capture was never read and cannot be recovered; 640 bars is what a fresh load of the same layout gives today, which is evidence about the layout and not a measurement of this capture."
+  },
+  "volume_granularity": {
+    "_": "⭐⭐ R-L (owner ruling, 2026-09-12): an INTEGER series compares EXACTLY after the coarser side's granularity is applied; anything the unit does not explain is a real divergence. ⛔ NOT A TOLERANCE — `seriesCompare` snaps BOTH sides to the unit and then demands equality, so a bar off by 101 shares still fails at unit 100. ⛔ AND IT IS DECLARED HERE, NEVER SNIFFED: 'every bar in this capture happens to be a multiple of 100' is not the same claim as 'this store rounds to 100'.",
+    "comparison_unit": 100,
+    "coarser_side": "ours",
+    "_whose": "⚠️ THE ROUNDING IS ON OUR SIDE. The ruling named the field `vendor_volume_granularity`; the vendor's own granularity is 1 — its values are multiples of nothing — and OUR store is the one quantising. Both are recorded so the field the ruling named exists and is true, and so the day a provider swaps the direction, the change is visible rather than absorbed.",
+    "ours_volume_granularity": 100,
+    "vendor_volume_granularity": 1,
+    "evidence": {
+      "measured_at": "2026-09-12",
+      "spy_bars_multiple_of_100": "5000 of 5000 in our store; 100% of every year back to 2002 over a 6,000-bar window",
+      "vendor_values_are_not": [
+        45512741,
+        42740375,
+        32812411,
+        43531581
+      ],
+      "the_two_bars_the_unit_EXPLAINS": [
+        {
+          "date": "2026-09-10",
+          "ours": 42740400,
+          "vendor": 42740375,
+          "delta": -25
+        },
+        {
+          "date": "2026-09-09",
+          "ours": 32812400,
+          "vendor": 32812411,
+          "delta": 11
+        }
+      ],
+      "the_two_bars_it_DOES_NOT": [
+        {
+          "date": "2026-09-11",
+          "ours": 45477300,
+          "vendor": 45512741,
+          "delta": 35441,
+          "rel": 0.000779
+        },
+        {
+          "date": "2026-09-03",
+          "ours": 43494000,
+          "vendor": 43531581,
+          "delta": 37581,
+          "rel": 0.000863
+        }
+      ],
+      "_the_two_that_remain": "⛔ 35,441 and 37,581 shares are NOT rounding at any unit, and they go on the open volume-provenance row with their dates. That row is the reason this field is a measurement and not a licence."
+    }
+  },
+  "chart_data_settings": {
+    "_": "⭐⭐ READ OFF THE RIG 2026-09-13, owed as the volume-provenance row's first evidence. ⛔ THE ADJUSTED-VOLUME HYPOTHESIS IS DEAD: dividend adjustment was ALREADY OFF when every one of these captures was taken, so the vendor's fractional pre-2024 volumes are not an adjustment we forgot to disable.",
+    "read_from": "mainSeries().properties().state() on the capture layout, both symbols, 2026-09-13",
+    "dividendsAdjustment": false,
+    "backAdjustment": false,
+    "esdShowSplits": true,
+    "esdShowDividends": false,
+    "sessionId": "regular",
+    "_esd_are_markers": "⚠️ `esdShow*` are the chart's EVENT MARKERS (the Splits/Earnings glyphs the study-count probe excludes), not adjustments. The two that adjust prices are `dividendsAdjustment` and `backAdjustment`, and both are off.",
+    "symbolInfo_exchange": {
+      "SPY": "NYSE Arca",
+      "AGEN": "NASDAQ"
+    },
+    "_exchange_is_a_witness_check": "⭐ `NYSE Arca` is exactly the store spelling `symbolScope.json::confirmed` maps to Pine `AMEX`, witnessed by `AMEX:SPY`. The witness table is right, independently."
+  },
+  "_SUPERSEDED": "⛔⛔ SUPERSEDED 2026-09-13 by `uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json`, which was taken with the study holding 4,633 bars. THIS ONE IS `WINDOW_UNMEASURED` and its `HVE Trigger` column is WRONG: it reads flat 0 because the chart held ~640 bars against a 2,751-bar window, and at full depth the same script fires 25 times. ⭐ ITS FOUR DRAWN SERIES ARE STILL GOOD — byte-for-byte identical to the deep capture on all four rows — which is the per-column exclusion rule working: only the window-dependent column was ever at risk."
+}

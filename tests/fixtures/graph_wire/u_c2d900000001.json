@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "id": "u_c2d900000001",
+  "version": 1,
+  "compute": {
+    "kind": "ast",
+    "fn": "sha256:397bc599303dcbfb6f1dcf8c69857bcfb0cb3dc4c8f0e7e44a24cbfb8cd95686",
+    "rev": 1,
+    "ast": {
+      "type": "op",
+      "name": "*",
+      "args": [
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            {
+              "type": "call",
+              "name": "stdev",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "ln",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "/",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "offset",
+                          "value": 1,
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 90
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": "?:",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "annualize"
+                },
+                {
+                  "type": "call",
+                  "name": "sqrt",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "annPeriod"
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "num",
+          "value": 100
+        }
+      ]
+    },
+    "source": "stdev(ln(close / close[1]), 90) * (annualize ? sqrt(annPeriod) : 1) * 100",
+    "paramManifest": {
+      "__uct_param_1": {
+        "sourceName": "length",
+        "title": "Volatility Lookback (bars)",
+        "type": "int",
+        "default": 90,
+        "min": 2,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_2": {
+        "sourceName": "maLen",
+        "title": "MA Length",
+        "type": "int",
+        "default": 30,
+        "min": 1,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "trees": {
+      "value": {
+        "type": "op",
+        "name": "*",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "stdev",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "ln",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "/",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 1,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 90
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "annualize"
+                  },
+                  {
+                    "type": "call",
+                    "name": "sqrt",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "annPeriod"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 100
+          }
+        ]
+      },
+      "out2": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "series",
+            "name": "showMa"
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "stdev",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "ln",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 90
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "annualize"
+                          },
+                          {
+                            "type": "call",
+                            "name": "sqrt",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "annPeriod"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 30
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "treesHash": "sha256:a0c86258a2e873fae50149e5dbf40c4c4c8153ffed3fa7f1050bda1540588ae1",
+    "scanPlot": "value",
+    "sources": {
+      "value": "stdev(ln(close / close[1]), 90) * (annualize ? sqrt(annPeriod) : 1) * 100",
+      "out2": "showMa ? ema(stdev(ln(close / close[1]), 90) * (annualize ? sqrt(annPeriod) : 1) * 100, 30) : 0 / 0"
+    }
+  },
+  "meta": {
+    "name": "long_tail__13-volatility-of-returns",
+    "shortName": "long_tail__1",
+    "category": "Custom",
+    "description": "",
+    "tags": [
+      "custom"
+    ],
+    "tier": "premium",
+    "repaint": "repaints",
+    "freshness": "unknown"
+  },
+  "placement": {
+    "target": "pane"
+  },
+  "inputs": [
+    {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Moving Average colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Moving Average width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    }
+  ],
+  "plots": [
+    {
+      "key": "value",
+      "label": "Volatility (%)",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out2",
+      "label": "Moving Average",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    }
+  ]
+}

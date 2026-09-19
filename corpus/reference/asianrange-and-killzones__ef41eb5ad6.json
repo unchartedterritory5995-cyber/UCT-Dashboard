@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ef41eb5ad6954a15bb7b67c186f240f3",
+ "title": "AsianRange and KillZones",
+ "author": "nsrgroup",
+ "url": "https://www.tradingview.com/script/Lv1vtXa7-asianrange-and-killzones/",
+ "agreeCount": 4773,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/asianrange-and-killzones__ef41eb5ad6.pine",
+ "our_status": "committed"
+}

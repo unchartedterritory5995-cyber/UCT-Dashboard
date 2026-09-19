@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9ICIDOiMbFPC9FMp8dmVuBPa7MM8qRSQ",
+ "title": "Color Gradient Framework [PineCoders]",
+ "author": "PineCoders",
+ "url": "https://www.tradingview.com/script/hqH4YIFa-color-gradient-framework-pinecoders/",
+ "agreeCount": 3003,
+ "category": "visual decoration",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/color-gradient-framework-pinecoders__9ICIDOiMbF.pine",
+ "our_status": "reference-only"
+}

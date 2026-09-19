@@ -1,0 +1,132 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © xdecow
+
+//@version=4
+study("Nubia - Auto Midas Anchored VWAP [xdecow]", shorttitle="Nubia [xdecow]", overlay=true, max_bars_back=2584)
+
+
+md_show = input(false, 'Always show')
+
+getVwap(src, length, vol) =>
+	uvol = vol
+	uwgt = vol * src
+
+    if length < 1
+        na
+    else
+    	for i = 1 to length - 1
+    	    uvol := uvol + vol[i]
+    		uwgt := uwgt + vol[i] * src[i]
+    	uwgt / uvol
+
+getMidas(len, isHighest) =>
+    if na(len)
+        [na, na]
+    else
+        mid = getVwap(hlc3, len, volume)
+        value = if isHighest
+            getVwap(high, len, volume)
+        else
+            getVwap(low, len, volume)
+
+        [mid, value]
+
+getMidasTrend(vtop, vbot) =>
+    (na(vtop) or close > vtop) and close > vbot ? 1 :
+      (na(vbot) or close < vbot) and close < vtop ? -1 : 0
+
+
+ma1_len = input(17, '#1 Length', minval=2, type=input.integer)
+
+ma1_highbars  = highestbars(ma1_len) * -1
+ma1_lowbars   = lowestbars(ma1_len) * -1
+
+[ma1_top_mid, ma1_top_high] = getMidas(ma1_highbars, true)
+[ma1_bot_mid, ma1_bot_low] = getMidas(ma1_lowbars, false)
+
+ma1_top_visible = ma1_top_high > low
+ma1_bot_visible = ma1_bot_low < high
+ma1_top_color = ma1_top_visible ? color.red : md_show ? #926966 : na
+ma1_bot_color = ma1_bot_visible ? color.green : md_show ? #527552 : na
+
+ma1_top_p1 = plot(ma1_top_visible or md_show ? ma1_top_high : na, color=ma1_top_color, linewidth=1, style=plot.style_linebr, title='#1 Highest AVWAP')
+ma1_top_p2 = plot(ma1_top_visible or md_show ? ma1_top_mid : na, color=na, editable=false)
+fill(ma1_top_p1, ma1_top_p2, ma1_top_color, title='#1 Highest background')
+
+ma1_bot_p1 = plot(ma1_bot_visible or md_show ? ma1_bot_low : na, color=ma1_bot_color, linewidth=1, style=plot.style_linebr, title='#1 Lowest AVWAP')
+ma1_bot_p2 = plot(ma1_bot_visible or md_show ? ma1_bot_mid : na, color=na, editable=false)
+fill(ma1_bot_p1, ma1_bot_p2, ma1_bot_color, title='#1 Lowest background')
+
+ma1_trend = getMidasTrend(ma1_top_high, ma1_bot_low)
+
+
+ma2_len = input(72, '#2 Length', minval=2, type=input.integer)
+
+ma2_highbars  = highestbars(ma2_len) * -1
+ma2_lowbars   = lowestbars(ma2_len) * -1
+
+[ma2_top_mid, ma2_top_high] = getMidas(ma2_highbars, true)
+[ma2_bot_mid, ma2_bot_low] = getMidas(ma2_lowbars, false)
+
+ma2_top_visible = (na(ma1_top_high) or ma1_top_high < ma2_top_high) and ma2_top_high > low
+ma2_bot_visible = (na(ma1_bot_low) or ma1_bot_low > ma2_bot_low) and ma2_bot_low < high
+ma2_top_color = ma2_top_visible ? color.red : md_show ? #926966 : na
+ma2_bot_color = ma2_bot_visible ? color.green : md_show ? #527552 : na
+
+ma2_top_p1 = plot(ma2_top_visible or md_show ? ma2_top_high : na, color=ma2_top_color, linewidth=2, style=plot.style_linebr, title='#2 Highest AVWAP')
+ma2_top_p2 = plot(ma2_top_visible or md_show ? ma2_top_mid : na, color=na, editable=false)
+fill(ma2_top_p1, ma2_top_p2, ma2_top_color, title='#2 Highest background')
+
+ma2_bot_p1 = plot(ma2_bot_visible or md_show ? ma2_bot_low : na, color=ma2_bot_color, linewidth=2, style=plot.style_linebr, title='#2 Lowest AVWAP')
+ma2_bot_p2 = plot(ma2_bot_visible or md_show ? ma2_bot_mid : na, color=na, editable=false)
+fill(ma2_bot_p1, ma2_bot_p2, ma2_bot_color, title='#2 Lowest background')
+
+ma2_trend = getMidasTrend(ma2_top_high, ma2_bot_low)
+
+
+ma3_len = input(305, '#3 Length', minval=2, type=input.integer)
+
+ma3_highbars  = highestbars(ma3_len) * -1
+ma3_lowbars   = lowestbars(ma3_len) * -1
+
+[ma3_top_mid, ma3_top_high] = getMidas(ma3_highbars, true)
+[ma3_bot_mid, ma3_bot_low] = getMidas(ma3_lowbars, false)
+
+ma3_top_visible = (na(ma2_top_high) or ma2_top_high < ma3_top_high) and ma3_top_high > low
+ma3_bot_visible = (na(ma2_bot_low) or ma2_bot_low > ma3_bot_low) and ma3_bot_low < high
+ma3_top_color = ma3_top_visible ? color.red : md_show ? #926966 : na
+ma3_bot_color = ma3_bot_visible ? color.green : md_show ? #527552 : na
+
+ma3_top_p1 = plot(ma3_top_visible or md_show ? ma3_top_high : na, color=ma3_top_color, linewidth=4, style=plot.style_linebr, title='#3 Highest AVWAP')
+ma3_top_p2 = plot(ma3_top_visible or md_show ? ma3_top_mid : na, color=na, editable=false)
+fill(ma3_top_p1, ma3_top_p2, ma3_top_color, title='#3 Highest background')
+
+ma3_bot_p1 = plot(ma3_bot_visible or md_show ? ma3_bot_low : na, color=ma3_bot_color, linewidth=4, style=plot.style_linebr, title='#3 Lowest AVWAP')
+ma3_bot_p2 = plot(ma3_bot_visible or md_show ? ma3_bot_mid : na, color=na, editable=false)
+fill(ma3_bot_p1, ma3_bot_p2, ma3_bot_color, title='#3 Lowest background')
+
+ma3_trend = getMidasTrend(ma3_top_high, ma3_bot_low)
+
+
+ma4_len = input(1292, '#4 Length', minval=2, type=input.integer)
+
+ma4_highbars  = highestbars(ma4_len) * -1
+ma4_lowbars   = lowestbars(ma4_len) * -1
+
+[ma4_top_mid, ma4_top_high] = getMidas(ma4_highbars, true)
+[ma4_bot_mid, ma4_bot_low] = getMidas(ma4_lowbars, false)
+
+ma4_top_visible = (na(ma3_top_high) or ma3_top_high < ma4_top_high) and ma4_top_high > low
+ma4_bot_visible = (na(ma3_bot_low) or ma3_bot_low > ma4_bot_low) and ma4_bot_low < high
+ma4_top_color = ma4_top_visible ? color.red : md_show ? #926966 : na
+ma4_bot_color = ma4_bot_visible ? color.green : md_show ? #527552 : na
+
+ma4_top_p1 = plot(ma4_top_visible or md_show ? ma4_top_high : na, color=ma4_top_color, linewidth=6, style=plot.style_linebr, title='#4 Highest AVWAP')
+ma4_top_p2 = plot(ma4_top_visible or md_show ? ma4_top_mid : na, color=na, editable=false)
+fill(ma4_top_p1, ma4_top_p2, ma4_top_color, title='#4 Highest background')
+
+ma4_bot_p1 = plot(ma4_bot_visible or md_show ? ma4_bot_low : na, color=ma4_bot_color, linewidth=6, style=plot.style_linebr, title='#4 Lowest AVWAP')
+ma4_bot_p2 = plot(ma4_bot_visible or md_show ? ma4_bot_mid : na, color=na, editable=false)
+fill(ma4_bot_p1, ma4_bot_p2, ma4_bot_color, title='#4 Lowest background')
+
+ma4_trend = getMidasTrend(ma4_top_high, ma4_bot_low)

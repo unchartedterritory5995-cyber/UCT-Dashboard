@@ -1,0 +1,87 @@
+{
+  "_what": "Every saved TradingView probe checked against its committed source, WITHOUT adding any study to any chart. 2026-09-10 evening.",
+  "_how": "GET pine-facade/get/<id>/last gives the stored source; GET pine-facade/translate/<id>/last gives {IL, ilTemplate, metaInfo} and metaInfo.plots is the VENDOR'S OWN plot roster. Both are ordinary authenticated reads of the owner's own scripts. The stored source's sha256 was computed in the page; the committed side was normalised and hashed locally, and the roster was derived by a balanced-paren scan of the committed file.",
+  "_why_this_matters": "⭐⭐ THIS IS THE H6 GATE WITHOUT A CHART. Until tonight, checking that a saved probe still matches its committed source meant putting the study on a chart and reading its metaInfo -- which needs the add mechanism that is currently broken (see docs/pine/capture-procedure.md). The translate endpoint answers the SHAPE question on its own. ⛔ It does NOT answer the VALUES question: a roster is what the script would plot, not what it plotted. Captures still need the study on a chart.",
+  "_three_number_gotcha": "⚠️ DISK BYTES, CHARACTERS AND STORED CHARACTERS ARE THREE DIFFERENT NUMBERS and confusing them makes every comparison fail. These probes are full of multi-byte marks, so groupb-hilo-default.pine is 3810 bytes, 3502 characters, and 3557 characters once the vendor's CRLF line endings are applied. Compare CHARACTERS, and allow the trailing newline to be absent -- UCTPROBE_FOLD is the one stored without it.",
+  "_the_deliberate_failure": "⭐ UCTPROBE_GB_BARSSINCE_2ARG IS SUPPOSED TO FAIL AND ITS ROW PROVES THE GATE CAN SEE FAILURE. Its source declares 3 plots; translate answers success:false with a ONE-plot stub. That is the same failed-study signature the chart shows, read here without a chart -- and it independently corroborates the CE10115 arity reading that divergences.json::barssince-unbounded-vs-bounded-state rests on. A sweep where every row passes for the same reason would be a sweep that cannot discriminate.",
+  "capturedAtET": "2026-09-10 19:2x",
+  "rows": [
+    {
+      "name": "UCTPROBE_FOLD",
+      "bytes": 635,
+      "chars": 629,
+      "storedChars": 642,
+      "sourceMatch": "crlf_drop_nl",
+      "committedRoster": 5,
+      "vendorPlots": 5,
+      "compiles": true,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_TUPLE",
+      "bytes": 8154,
+      "chars": 7414,
+      "storedChars": 7539,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 26,
+      "vendorPlots": 26,
+      "compiles": true,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_BARSTATE_FULL",
+      "bytes": 1542,
+      "chars": 1542,
+      "storedChars": 1573,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 26,
+      "vendorPlots": 26,
+      "compiles": true,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_EXCHANGE",
+      "bytes": 10682,
+      "chars": 10328,
+      "storedChars": 10489,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 11,
+      "vendorPlots": 11,
+      "compiles": true,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_GB_BARSSINCE_1ARG",
+      "bytes": 2316,
+      "chars": 2056,
+      "storedChars": 2093,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 4,
+      "vendorPlots": 4,
+      "compiles": true,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_GB_BARSSINCE_2ARG",
+      "bytes": 3228,
+      "chars": 2964,
+      "storedChars": 3015,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 3,
+      "vendorPlots": 1,
+      "compiles": false,
+      "ok": true
+    },
+    {
+      "name": "UCTPROBE_GB_HILO",
+      "bytes": 3810,
+      "chars": 3502,
+      "storedChars": 3557,
+      "sourceMatch": "crlf_keep_nl",
+      "committedRoster": 11,
+      "vendorPlots": 11,
+      "compiles": true,
+      "ok": true
+    }
+  ]
+}

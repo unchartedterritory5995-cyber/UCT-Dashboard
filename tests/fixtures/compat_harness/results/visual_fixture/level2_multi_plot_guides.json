@@ -1,0 +1,70 @@
+{
+  "id": "visual_fixture/level2_multi_plot_guides",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "app/src/components/chart/builder/compatHarness.level2Fixture.test.js",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "compute.trees.{fast,slow}"
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": null
+    },
+    "visual_requirements": {
+      "status": "SUPPORTED",
+      "plot_count": 2,
+      "needs": [
+        "guide_levels"
+      ]
+    },
+    "chart_render": {
+      "status": "PARTIAL",
+      "note": "document validates and installs cleanly through validateUserDefinitions (no browser); a live pixel-diff case is registered in tools/chart_parity_cases.json as `ast_user_formula_multiplot_rsi` with NO expect value yet -- pending RISK-027 (FontNotSettledError, undiagnosed) being resolved in a future session. This is NOT the same claim as SUPPORTED: install-clean is verified, pixel-correct is not.",
+      "validation_errors": []
+    },
+    "persistence_save": {
+      "status": "PARTIAL",
+      "note": "not exercised live; document shape is the same the real save door produces"
+    },
+    "persistence_reload": {
+      "status": "PARTIAL",
+      "note": "not exercised live; deferred to a save/reopen fixture at a later level"
+    },
+    "screener_eligibility": {
+      "status": "PARTIAL",
+      "eligible": false,
+      "reason": "rsi yields num; scanPlot is \"fast\", not itself boolean"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "PARTIAL",
+  "evidence_artifact_paths": [
+    "tools/chart_parity_cases.json#ast_user_formula_multiplot_rsi"
+  ],
+  "harness_version": "compat-harness-v1"
+}

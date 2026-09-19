@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ingZSaBNLaVvRLCx35GKIegXLFqMWSxJ",
+ "title": "FXN - Week and Day Separator",
+ "author": "RobMinty",
+ "url": "https://www.tradingview.com/script/xoLCBvgF-fxn-week-and-day-separator/",
+ "agreeCount": 7856,
+ "category": "session tools",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/fxn-week-and-day-separator__ingZSaBNLa.pine",
+ "our_status": "reference-only"
+}

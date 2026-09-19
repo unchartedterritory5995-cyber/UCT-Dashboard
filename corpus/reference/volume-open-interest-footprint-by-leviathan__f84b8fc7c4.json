@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f84b8fc7c4c9460ca0c5245db3ca57fb",
+ "title": "Volume / Open Interest Footprint - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/J9a6nWwM-volume-open-interest-footprint-by-leviathan/",
+ "agreeCount": 11717,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine",
+ "our_status": "committed"
+}

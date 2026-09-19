@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;90a5bf4ab14140758a70f8d5fb9f06e3",
+ "title": "Trend Levels [ChartPrime]",
+ "author": "ChartPrime",
+ "url": "https://www.tradingview.com/script/bacXsRFN-trend-levels-chartprime/",
+ "agreeCount": 7593,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trend-levels-chartprime__90a5bf4ab1.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trend-levels-chartprime__90a5bf4ab1.pine",
+ "our_status": "committed"
+}

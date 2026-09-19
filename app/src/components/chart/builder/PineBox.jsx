@@ -28,8 +28,10 @@ import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { declaredInputs } from '../engine/ast/lint'
+import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
-import { vendorNotesForTree } from '../engine/ast/parse'
+import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
 import styles from './PineBox.module.css'
@@ -91,6 +93,26 @@ function splitFoldedInputs(out) {
   return { pasteInputs: settable, fixedInputs: [...fixed, ...others] }
 }
 
+/** The scope `evaluateFormula` needs to read back a Pine candidate's OWN
+ *  declared inputs by name, not only the chrome every document carries.
+ *
+ *  🔴🔴 WITHOUT THIS, EVERY CANDIDATE THAT DECLARES ANY INPUT REFUSED AT
+ *  `sentence:name` — not a boolean-specific defect, a `BUILDER_INPUT_SCOPE`-only
+ *  one. `memberInputTranslation` already computes `out.memberInputs` (Track F's
+ *  own machinery, proven live for numeric knobs) two lines above every call site
+ *  that reads it below; the downstream verdict simply never saw it. A script
+ *  whose only declared inputs land in a WINDOW slot (folded back to a literal —
+ *  `pd` in `03-cm-williams-vix-fix.pine`) never surfaced this, because no bare
+ *  name from `BUILDER_INPUT_SCOPE`'s complement ever reached the tree — a
+ *  boolean toggle, used as a GATE rather than a length, almost always does.
+ *  Measured directly against the real corpus: `hp`/`sd` in
+ *  `03-cm-williams-vix-fix.pine` and `show_52_week_high_low` in
+ *  `18-minervini-trend-template.pine` all read back cleanly once this scope is
+ *  merged in, with no other change anywhere in the translator. */
+function downstreamScopeFor(out) {
+  return { ...BUILDER_INPUT_SCOPE, ...declaredInputs({ inputs: out?.memberInputs }) }
+}
+
 export function inspectPine(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
@@ -99,14 +121,37 @@ export function inspectPine(source, opts = undefined) {
   // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
   // refusals; the only difference is that a threshold or a multiplier reaches the
   // formula as its own identifier instead of as somebody else's constant.
-  const translated = memberInputTranslation(translatePine, source, opts || {})
+  // ⭐⭐ C2D.1 — `paramManifest: true` RIDES ON *THIS* TRANSLATION, and that is
+  // the whole fix. It is structurally inert (measured: the saved trees are
+  // byte-identical with and without it, on every corpus script) because the
+  // parameter mint runs AFTER the fold and tags the literal it already
+  // produced, with a NON-ENUMERABLE property. What it buys is the invariant
+  // C2D.1 demands: the manifest and the saved computation come from ONE
+  // translation result.
+  const translated = memberInputTranslation(
+    translatePine, source, { paramManifest: true, ...(opts || {}) })
   const outputs = translated.outputs.map((out) => ({
     ...out,
     ...splitFoldedInputs(out),
-    vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
+    // ⭐⭐ TWO SOURCES, ONE LIST, AND THE SECOND ONE CANNOT COME FROM THE TREE.
+    // A fold ERASES the call it folded — that is what a fold is — so a walk over
+    // the saved tree can never find `request.security` to hang a note on. The
+    // translation records it on the ROW instead, and `foldNotesForOutput` maps
+    // that channel to the sentence declared in `closedTable.json::_folds`.
+    // ⛔ Rendered VERBATIM, like every other note here: this component writes no
+    // sentence of its own (owner ruling, 2026-09-12).
+    vendorNotes: [
+      ...(out.ast ? vendorNotesForTree(out.ast) : []),
+      ...foldNotesForOutput(out),
+      // ⭐ THIRD SOURCE, SAME RULE (ruling D1, option C, 2026-09-12): an
+      // `alertcondition` row tells the member the pane declined to draw it and
+      // where the condition actually lives. Interpolated in `parse.js`, rendered
+      // here verbatim — this component still writes no sentence of its own.
+      ...alertNoteForOutput(out),
+    ],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
-    downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
+    downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
   }))
   // ⭐ `ignored` IS THE ONE NAME THE UI READS. `notes` is kept because it is this
   // function's published shape and other callers read it; the alias is what lets
@@ -171,14 +216,32 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     // for. A PASTE-TIME value needs only that the translator freeze it, which both
     // now do, with the same semantics and the same shared predicate.
     const t = lang === 'pine'
-      ? memberInputTranslation(translatePine, source, opts || {})
+      // ⭐⭐ C2D.1 — see `inspectPine`. Inert for thinkScript, which has no
+      // `paramManifest` option and simply ignores it, leaving `inputParams`
+      // absent exactly as it is today.
+      ? memberInputTranslation(translatePine, source, { paramManifest: true, ...(opts || {}) })
       : translateThinkScript(source, opts || {})
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
       ...splitFoldedInputs(out),
-      vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
+      // ⭐⭐ TWO SOURCES, ONE LIST, AND THE SECOND ONE CANNOT COME FROM THE TREE.
+    // A fold ERASES the call it folded — that is what a fold is — so a walk over
+    // the saved tree can never find `request.security` to hang a note on. The
+    // translation records it on the ROW instead, and `foldNotesForOutput` maps
+    // that channel to the sentence declared in `closedTable.json::_folds`.
+    // ⛔ Rendered VERBATIM, like every other note here: this component writes no
+    // sentence of its own (owner ruling, 2026-09-12).
+    vendorNotes: [
+      ...(out.ast ? vendorNotesForTree(out.ast) : []),
+      ...foldNotesForOutput(out),
+      // ⭐ THIRD SOURCE, SAME RULE (ruling D1, option C, 2026-09-12): an
+      // `alertcondition` row tells the member the pane declined to draw it and
+      // where the condition actually lives. Interpolated in `parse.js`, rendered
+      // here verbatim — this component still writes no sentence of its own.
+      ...alertNoteForOutput(out),
+    ],
       refusal: stamp(out.refusal),
-      downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
+      downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
     }))
     return {
       ok: t.ok,
@@ -192,6 +255,36 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // ⭐ Pine's `notes` and thinkScript's `ignored` are the same list.
       ignored: t.ignored || t.notes || [],
       folded: t.folded || [],
+      // ⭐⭐ C2D.1 — NAMED, because this function does not spread (see the note
+      // below on exactly that). `inputParams` is the immutable per-declaration
+      // parameter metadata from the SAME translation whose `outputs` are above,
+      // and the manifest is assembled from it plus each output's own tags.
+      // Absent for a dialect with no `paramManifest` support, which is an empty
+      // list rather than a missing key.
+      inputParams: t.inputParams || [],
+      // ⭐⭐ C3B — THE OBJECT PROGRAM, FORWARDED BY NAME for the same reason
+      // `presentation` had to be added below: this function does NOT spread, so
+      // a new field the translator produces is invisible here until a line says
+      // otherwise — and `ImportBox`, the only production paste door, goes
+      // through THIS function. A program left unforwarded would translate
+      // perfectly, save nothing, and draw nothing, with every test still green.
+      objects: t.objects || null,
+      // ⭐⭐ WAVE B — AND THIS LINE IS WHY THE WAVE EXISTS, COMMITTED TWICE.
+      //
+      // ⚰️ `inspectPine` above SPREADS its translation (`{...translated}`), so it
+      // carried the new `presentation` field the day the translator started
+      // producing one. This function does not spread — it names every field it
+      // forwards, deliberately, so that one shape answers for four dialects. The
+      // consequence is that a new field is INVISIBLE here until someone adds a
+      // line, and `ImportBox` — the only production paste door — goes through
+      // THIS function, not that one.
+      //
+      // So the visual program was read off the source, handed to a door that
+      // dropped it, and every unit test passed because they call `translatePine`
+      // directly. It took the real chart to see: an imported RSI arrived with its
+      // levels box empty. That is the same failure this whole wave is about — a
+      // carriage that stops one door short — committed inside the wave fixing it.
+      presentation: t.presentation || null,
     }
   }
 
@@ -217,6 +310,8 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     }),
     ignored: [],
     folded: [],
+    inputParams: [],
+    objects: null,
   }
 }
 
@@ -376,13 +471,39 @@ function loadEditor() {
   return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
 }
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
   )
   const [text, setText] = useState(initialSource)
   const [report, setReport] = useState(() => (initialSource ? inspect(initialSource) : null))
+  // ⚰️⚰️ C2D.1 — THE SECOND TRANSLATION IS GONE, AND THE ARGUMENT FOR IT WAS
+  // WRONG IN A WAY THAT COST A CONTROL.
+  //
+  // This used to hold a SEPARATE `translatePine(text, {paramManifest: true})`
+  // call, deliberately uncoupled from `declareInputs`, on the reasoning that a
+  // name `declareInputs` declares "takes an early return in `resolveInput`
+  // before Track F's tagging runs — so sharing one call would silently split
+  // one script's parameters across two mechanisms."
+  //
+  // The early return is real. The conclusion was backwards. Splitting is
+  // exactly what SHOULD happen: a declared input already has a member-input
+  // control, and giving it a Track F slider as well would be two authorities
+  // over one Pine input. What the separate call actually bought was a manifest
+  // whose `astPath`s were measured against a DIFFERENT TREE FROM THE ONE SAVED
+  // — measured on the corpus, `…03-supertrend` and `…22-rsi-levels` disagree at
+  // output 0's astHash — so those locators resolved to `undefined` and the
+  // control arrived permanently detached. It also mis-INDEXED: the comment
+  // claimed the two passes "share the same statement-order-derived indexing",
+  // and `…12-cm-ultimate-rsi` produces 7 outputs in one pass and 6 in the
+  // other.
+  //
+  // ⛔ THE INVARIANT NOW: the parameter manifest and the saved computation come
+  // from ONE translation result. `inspect()` carries `paramManifest: true`, and
+  // enabling it is structurally inert (the saved trees are byte-identical with
+  // and without, on every corpus script) because the mint tags a literal the
+  // fold already produced, non-enumerably.
   const [chosen, setChosen] = useState(null)
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
@@ -458,6 +579,30 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     return report.outputs[chosen] || null
   }, [report, chosen])
 
+  // ⭐⭐ C2D.1/C2D.2 — PLACEMENTS, NOT A MANIFEST, AND FOR EVERY OUTPUT.
+  //
+  // Two changes from the pre-C2D shape, and each closes a measured defect:
+  //
+  //   1. It reads `report` — the translation whose trees are SAVED — so an
+  //      astPath means something in the document that eventually exists.
+  //   2. It covers EVERY output, not just the chosen one. A Pine input feeding
+  //      ten plots was previously located in one of them, so moving the slider
+  //      would have rewritten one tree and left nine holding the old literal:
+  //      one input, ten plots, two different values. `…03-supertrend`'s
+  //      "Multiplier" has seventeen occurrences in output 0 alone.
+  //
+  // ⛔ NO `treeIndex` HERE, ON PURPOSE. This component cannot know what a plot
+  // will be called — `BuilderSheet` derives every key from the author's title
+  // and deduplicates against its own `taken` set — so it hands back the
+  // placement and lets the one component that owns key assignment supply the
+  // address. See `paramLocatorsIn`'s own header.
+  const paramPlacements = useMemo(() => {
+    const params = (report && report.inputParams) || []
+    if (!params.length) return null
+    return (report.outputs || []).map((o) => (o && o.ast
+      ? paramLocatorsIn(params, o.ast) : []))
+  }, [report])
+
   // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
   // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
   // save, and only 19 can be RUN as a screen — every refusal is the `yields` gate
@@ -515,9 +660,173 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const rows = active.memberInputs || []
     // ⛔ THE COMPARISON WRAPS THE COLUMN, so the author's knobs still sit inside it
     // and travel unchanged. A member who left the threshold blank gets the column.
-    const picked = condition && condition.ok ? condition.formula : active.formula
-    onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
-  }, [active, onPick, condition])
+    const wrapped = condition && condition.ok
+    const picked = wrapped ? condition.formula : active.formula
+    // ⭐⭐ TRACK F — NEVER ATTACHED WHEN A SCREEN THRESHOLD WRAPS THE COLUMN.
+    // The astPath locators are measured against `active.ast` — the UNWRAPPED
+    // tree — and `conditionFrom` builds `wrapped` as NEW TEXT (`rsi(close,14) >
+    // 50`), which the eventual save re-parses into a tree where the original
+    // positions sit one level deeper (under a comparison op node). Attaching
+    // the unwrapped locators to that document would point them at the wrong
+    // nodes. Known, disclosed scope cut, unchanged by C2D: a Pine import saved
+    // AS A SCREEN CONDITION in this same action does not get an adjustable
+    // parameter. The pure-numeric path is unaffected.
+    // ⭐⭐ WAVE B — THE SCRIPT'S VISUAL PROGRAM TRAVELS WITH ITS FORMULA.
+    //
+    // ⚰️ EVERYTHING A PINE AUTHOR SAID ABOUT HOW THEIR INDICATOR LOOKS USED TO
+    // DIE HERE. The translator now reads `overlay=` off the declaration, the
+    // `hline` levels it used to discard, and each output's own colour, width,
+    // style and opacity — and this was the door that dropped them, handing back
+    // a formula string so the receiving row was born `style:'line'`, default
+    // colour, default width. The renderer could always draw these; nothing ever
+    // told it what to draw.
+    //
+    // ⛔ THE STRING FORM IS STILL UNCHANGED FOR A CALLER WITH NOTHING TO SAY.
+    // `StarterLibrary` hands back a bare string and still does; the object form
+    // appears only when this paste actually carries something extra.
+    //
+    // ⚠️ AND IT CARRIES WHAT WAS *NOT* CARRIED TOO — `colorDynamic`,
+    // `styleUncarried`. A conditional colour is 40 of the 60 OOS scripts, and
+    // the honest thing is to say it was demanded and dropped rather than show
+    // one flat colour and call the import complete.
+    //
+    // ⛔⛔ AND "NOTHING TO SAY" MEANS THE BARE STRING, STILL. `report.presentation`
+    // is always PRESENT (it is a shape, not a signal), so handing the object form
+    // whenever it exists would make every paste an object and break the guarded
+    // contract two paragraphs up — which is exactly what happened on the first
+    // attempt, and what `pineBox.onPick` pins in two directions. The object form
+    // appears only when the script actually SAID something visual.
+    const outPres = (active && active.presentation) || {}
+    const scriptPres = (report && report.presentation) || {}
+    const saidSomething = scriptPres.overlay !== null && scriptPres.overlay !== undefined
+      ? true
+      : ((scriptPres.levels || []).length > 0 || Object.keys(outPres).length > 0)
+    const presentation = saidSomething
+      ? { ...scriptPres, output: outPres }
+      : null
+    // ⛔⛔ C1-B — THE BAND'S EDGES ARE RE-INDEXED HERE, and this is the whole
+    // reason it is done at this door rather than downstream.
+    //
+    // `presentation.fills` names its two edges by their index in the
+    // TRANSLATOR's output array. The array handed back below is a different one:
+    // the member's SELECTED column is moved to the front and every refused or
+    // hidden output is filtered out. Passing the translator's indexes through
+    // unchanged would draw the band between two arbitrary other plots — a
+    // plausible-looking picture of a relationship the script never asserted,
+    // which is the worst kind of wrong.
+    //
+    // ⛔ AND A BAND WHOSE EDGE DID NOT SURVIVE IS DROPPED, not half-drawn.
+    if (presentation && Array.isArray(scriptPres.fills) && scriptPres.fills.length && report) {
+      const order = [active, ...report.outputs.filter((o) => o.formula && !o.hidden && o !== active)]
+      const seat = new Map()
+      order.forEach((o, i) => { const j = report.outputs.indexOf(o); if (j >= 0) seat.set(j, i) })
+      presentation.fills = scriptPres.fills
+        .map((f) => ({ ...f, a: seat.get(f.a), b: seat.get(f.b) }))
+        .filter((f) => f.a !== undefined && f.b !== undefined && f.a !== f.b)
+    }
+    // ⭐⭐ C0.1 — THE WHOLE INDICATOR, NOT ONE OF ITS PLOTS.
+    //
+    // ⚰️ THIS DOOR HANDED BACK ONE COLUMN. A four-plot Pine indicator became four
+    // separate Apply actions into four unrelated builder rows, each losing every
+    // relationship to its siblings — and the OOS corpus is full of indicators
+    // whose meaning IS the relationship (a signal line against its MACD, a band
+    // against its basis). `BuilderSheet.buildDefinition` has always been able to
+    // write a multi-tree document (`compute.trees` / `treesHash` / `scanPlot` /
+    // `sources`); nothing ever handed it more than one tree.
+    //
+    // ⛔ ONE INDICATOR IDENTITY, MANY OUTPUTS — never several saved indicators.
+    // The array is ORDERED as the script declares them, and `source` stays the
+    // member's CHOSEN column so it remains the scan plot and every existing
+    // caller reads the same field it always did.
+    //
+    // ⛔ A SCREEN CONDITION STAYS SINGLE. `conditionFrom` wraps ONE column into a
+    // comparison; the other plots are not part of that question, and carrying
+    // them would silently add trees to a document the member asked to be a screen.
+    // ⛔ DERIVED FROM `report`, NOT FROM THE `usable` MEMO BELOW. `usable` is
+    // declared AFTER this callback and is not in its dependency array, so
+    // reading it here would close over whichever render happened to run first —
+    // a stale-closure bug that would surface as "the second plot is missing,
+    // sometimes". `report` is already a declared dependency, and `usable` is
+    // exactly this filter over it.
+    // ⛔⛔ EVERY CARRIED OUTPUT BRINGS THE INPUTS ITS OWN FORMULA NAMES.
+    //
+    // ⚰️ MEASURED, AND IT WAS THIS LINE. `inputs` below is the SELECTED output's
+    // rows, and until now that was the ONLY set of rows that travelled — while
+    // `others` carried every sibling's FORMULA. A sibling naming an input the
+    // selected column happens not to use therefore reached the saved document as
+    // a free identifier, and the closed table refused it AT SAVE with a message
+    // about a symbol the member never typed.
+    //
+    // Six of the eight C0 SAVE_BLOCKED scripts are exactly this, and every one of
+    // them fails on a SIBLING output, never on output 0:
+    //   `mult` (waddah-attar, out 2) · `upLine` (cm-ultimate-rsi, out 2 and 6) ·
+    //   `showMa` (volatility-of-returns, out 1) · `bandStdevMult` (3way-bollinger,
+    //   out 1 and 2) · `showBand` (master-line-lite, out 1 and 2) · `lv3`
+    //   (rsi-levels-regime-map, out 2 and 16).
+    //
+    // ⭐ `lv3` IS THE ONE THAT NAMES THE MECHANISM. That script's selected column
+    // is output 22, whose rows declare `lv1` and `lv2` — which is why the refusal
+    // could suggest *"did you mean `lv1` or `lv2`?"* while `lv3`, named only by
+    // dropped siblings, was undeclared. It was never partial traversal, ternary
+    // handling or manifest pruning: it was this projection dropping a field
+    // (`lesson_a_projection_drops_what_it_does_not_name`).
+    // ⭐⭐ C2D.2 — EACH CARRIED OUTPUT TRAVELS WITH ITS OWN PARAMETER
+    // PLACEMENTS, attached to the row rather than shipped as a parallel array.
+    // A side list indexed by position is a second authority over "which
+    // placements belong to which output", and the defect this wave exists to
+    // fix was exactly two structures that were assumed to be index-aligned and
+    // measured not to be.
+    const placementsFor = (o) => {
+      if (!paramPlacements || !report) return []
+      const i = report.outputs.indexOf(o)
+      return i >= 0 ? (paramPlacements[i] || []) : []
+    }
+    const others = wrapped || !report ? [] : report.outputs
+      .filter((o) => o.formula && !o.hidden && o !== active)
+      .map((o) => ({
+        source: o.formula,
+        title: o.title || null,
+        presentation: o.presentation || {},
+        inputs: o.memberInputs || [],
+        paramLocators: placementsFor(o),
+      }))
+    const outputs = wrapped ? null : [
+      { source: picked, title: (active && active.title) || null, presentation: outPres,
+        inputs: rows, paramLocators: wrapped ? [] : placementsFor(active) },
+      ...others,
+    ]
+    // ⭐ THE IMMUTABLE METADATA RIDES ONCE, BESIDE THE PLACEMENTS. `BuilderSheet`
+    // assembles the manifest from the two once it knows every plot key.
+    const inputParams = wrapped || !report ? [] : (report.inputParams || [])
+    const anyPlacement = !wrapped && (outputs || []).some(
+      (o) => o.paramLocators && o.paramLocators.length)
+    const extra = rows.length || anyPlacement || presentation || (outputs && outputs.length > 1)
+    // ⭐⭐ C3B — an object program makes the pick "extra" ALL BY ITSELF. A script
+    // whose only non-formula content is a set of lines and labels has no member
+    // inputs, no placements and one output — so without this it would take the
+    // bare-string branch and the program would be dropped on the floor.
+    const objectProgram = wrapped || !report ? null : (report.objects || null)
+    onPick?.(extra || objectProgram
+      ? { source: picked, inputs: rows, inputParams, presentation, outputs, objects: objectProgram }
+      : picked)
+    // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
+    // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
+    // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —
+    // see the STRING FORM note two lines up — and every existing caller
+    // (`StarterLibrary`, today's `ImportBox`) only understands it as
+    // documented today. `onImportTelemetry` is orthogonal: it reports THAT a
+    // pick happened and under which dialect, for a caller (`BuilderSheet`)
+    // that wants to correlate this moment with the eventual save, without
+    // touching what `onPick` itself carries. Fires only here — the same
+    // guarded, deliberate "Apply" action `onPick` fires from — never on a
+    // keystroke, so pasting and revising text repeatedly before applying
+    // logs nothing until the member actually commits to a translation.
+    //
+    // ⛔ READS `report.dialect` DIRECTLY, NOT THE LATER `seen` CONST — `seen`
+    // is declared further down this component's body, and closing over it
+    // here would be a temporal-dead-zone reference at first render.
+    onImportTelemetry?.((report && report.dialect) || 'pine')
+  }, [active, onPick, onImportTelemetry, condition, report, paramPlacements])
 
   // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
   //
@@ -699,13 +1008,27 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                     <div key={`hid-${out.line}-${i}`} className={styles.outputRow}
                       data-testid={`pine-output-hidden-${i}`}>
                       <span className={styles.outKind}>{out.kind}</span>
-                      <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
+                      {/* ⛔⛔ RULING 1.2 (owner, 2026-09-12): A HIDDEN ROW WEARS ITS OWN
+                          NAME, NEVER THE SCRIPT'S. The author's variable is the honest
+                          label for a helper series — `mPlot`, not "Supertrend" — and the
+                          script title is what turned one of these into a mistranslation
+                          when the door offered it. `line N` remains the last resort for a
+                          plot the author neither titled nor bound. */}
+                      <span className={styles.outTitle} data-testid={`pine-hidden-label-${i}`}>
+                        {out.title || out.handle || `line ${out.line}`}
+                        <span className={styles.outHiddenTag} data-testid={`pine-hidden-tag-${i}`}>
+                          {' hidden'}
+                        </span>
+                      </span>
                       <code className={styles.outFormula}>{out.formula}</code>
                       <span className={styles.outReadback}>
                         {out.hiddenReason === 'author'
                           ? 'The script hides this plot, so it is not offered as a column.'
-                          : 'The same number on every bar and every symbol — a screen '
-                            + 'cannot answer from it.'}
+                          : out.hiddenReason === 'fill-anchor'
+                            ? 'The script gave this plot no name and uses it as the edge of '
+                              + 'a fill, so it is scaffolding rather than a column.'
+                            : 'The same number on every bar and every symbol — a screen '
+                              + 'cannot answer from it.'}
                       </span>
                     </div>
                   )
@@ -1051,6 +1374,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
+  onImportTelemetry = null,
 }) {
   return (
     <PasteBox
@@ -1059,19 +1383,24 @@ export function ImportBox({
       initialSource={initialSource}
       dialect={dialect}
       onSourceChange={onSourceChange}
+      onImportTelemetry={onImportTelemetry}
     />
   )
 }
 
 /** The Pine-only box, byte-identical in behaviour to what it was: no `dialect`
  *  prop means `inspectPine`, the Pine heading and the Pine aria-label. */
-export default function PineBox({ onPick, disabled = false, initialSource = '', onSourceChange = null }) {
+export default function PineBox({
+  onPick, disabled = false, initialSource = '', onSourceChange = null,
+  onImportTelemetry = null,
+}) {
   return (
     <PasteBox
       onPick={onPick}
       disabled={disabled}
       initialSource={initialSource}
       onSourceChange={onSourceChange}
+      onImportTelemetry={onImportTelemetry}
     />
   )
 }

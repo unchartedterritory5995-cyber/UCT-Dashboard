@@ -1,0 +1,961 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tests/fixtures/pine_multiplot",
+  "rows": [
+    {
+      "script": "01-two-plots-pane",
+      "timings_ms": {
+        "goto": 2445,
+        "open_builder": 28,
+        "new_formula": 15,
+        "import_tab": 56,
+        "paste": 174,
+        "translate": 337,
+        "apply": 54,
+        "save_click": 24,
+        "save_roundtrip": 683,
+        "instance_persist": 20,
+        "reopen": 2433,
+        "render": 209
+      },
+      "definitions_before": 22,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "01-two-plots-pane",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_de2d8c2fdbb4",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "signalColor",
+          "signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "signalColor": "#FF9800",
+          "signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_de2d8c2fdbb4:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_de2d8c2fdbb4:1",
+          "plotKey": "value",
+          "text": "01-two-plots 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_de2d8c2fdbb4:1",
+          "plotKey": "signal",
+          "text": "01-two-plots 49.47",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 23,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "signalColor",
+          "signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "signalColor": "#FF9800",
+          "signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_fixtures\\01-two-plots-pane.png",
+      "declared_plots": [
+        "value",
+        "signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "signal"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "02-three-plots-styles",
+      "timings_ms": {
+        "goto": 2488,
+        "open_builder": 49,
+        "new_formula": 47,
+        "import_tab": 20,
+        "paste": 56,
+        "translate": 271,
+        "apply": 11,
+        "save_click": 11,
+        "save_roundtrip": 646,
+        "instance_persist": 39,
+        "reopen": 2521,
+        "render": 280
+      },
+      "definitions_before": 23,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "stepline",
+          "histogram"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800",
+          "#2962ff"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "02-three-plots-styles",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_6fd32e5aa1f2",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "mid",
+          "slow",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "midColor",
+          "midWidth",
+          "slowColor",
+          "slowWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "midColor": "#FF9800",
+          "midWidth": 3,
+          "slowColor": "#2962FF",
+          "slowWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "stepline",
+          "histogram"
+        ],
+        "plot_colors": [
+          "$color",
+          "$midColor",
+          "$slowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_6fd32e5aa1f2:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_6fd32e5aa1f2:1",
+          "plotKey": "value",
+          "text": "02-three-plo 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6fd32e5aa1f2:1",
+          "plotKey": "mid",
+          "text": "02-three-plo 49.47",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6fd32e5aa1f2:1",
+          "plotKey": "slow",
+          "text": "02-three-plo 54.48",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 24,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "mid",
+          "slow"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "mid",
+          "slow",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "midColor",
+          "midWidth",
+          "slowColor",
+          "slowWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "midColor": "#FF9800",
+          "midWidth": 3,
+          "slowColor": "#2962FF",
+          "slowWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "stepline",
+          "histogram"
+        ],
+        "plot_colors": [
+          "$color",
+          "$midColor",
+          "$slowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_fixtures\\02-three-plots-styles.png",
+      "declared_plots": [
+        "value",
+        "mid",
+        "slow"
+      ],
+      "drawn_plots": [
+        "value",
+        "mid",
+        "slow"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 3
+    },
+    {
+      "script": "03-plots-with-hlines",
+      "timings_ms": {
+        "goto": 2457,
+        "open_builder": 22,
+        "new_formula": 23,
+        "import_tab": 38,
+        "paste": 37,
+        "translate": 286,
+        "apply": 14,
+        "save_click": 10,
+        "save_roundtrip": 645,
+        "instance_persist": 45,
+        "reopen": 2633,
+        "render": 288
+      },
+      "definitions_before": 24,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "70, 30",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#9c27b0",
+          "#ff9800"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "03-plots-with-hlines",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_f1a6fe0c01b6",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "signalColor",
+          "signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "signalColor": "#FF9800",
+          "signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$signalColor"
+        ],
+        "targets": [],
+        "levels": [
+          70,
+          30
+        ]
+      },
+      "instance_persisted": [
+        "inst:u_f1a6fe0c01b6:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_f1a6fe0c01b6:1",
+          "plotKey": "value",
+          "text": "03-plots-wit 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_f1a6fe0c01b6:1",
+          "plotKey": "signal",
+          "text": "03-plots-wit 49.47",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 25,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "signal",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "signal"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "signalColor",
+          "signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2,
+          "signalColor": "#FF9800",
+          "signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$signalColor"
+        ],
+        "targets": [],
+        "levels": [
+          70,
+          30
+        ]
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_fixtures\\03-plots-with-hlines.png",
+      "declared_plots": [
+        "value",
+        "signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "signal"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "04-overlay-multi-plot",
+      "timings_ms": {
+        "goto": 2434,
+        "open_builder": 24,
+        "new_formula": 20,
+        "import_tab": 41,
+        "paste": 57,
+        "translate": 270,
+        "apply": 33,
+        "save_click": 11,
+        "save_roundtrip": 650,
+        "instance_persist": 24,
+        "reopen": 2734,
+        "render": 286
+      },
+      "definitions_before": 25,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#ff9800",
+          "#2962ff",
+          "#2962ff"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "04-overlay-multi-plot",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_8988efac5cd1",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower",
+          "upper",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upperColor",
+          "upperWidth",
+          "lowerColor",
+          "lowerWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 2,
+          "upperColor": "#2962FF",
+          "upperWidth": 1,
+          "lowerColor": "#2962FF",
+          "lowerWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upperColor",
+          "$lowerColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_8988efac5cd1:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_8988efac5cd1:1",
+          "plotKey": "value",
+          "text": "04-overlay-m 742.24",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8988efac5cd1:1",
+          "plotKey": "upper",
+          "text": "04-overlay-m 760.64",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8988efac5cd1:1",
+          "plotKey": "lower",
+          "text": "04-overlay-m 723.84",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 26,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper",
+          "lower"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower",
+          "upper",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upperColor",
+          "upperWidth",
+          "lowerColor",
+          "lowerWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 2,
+          "upperColor": "#2962FF",
+          "upperWidth": 1,
+          "lowerColor": "#2962FF",
+          "lowerWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upperColor",
+          "$lowerColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_fixtures\\04-overlay-multi-plot.png",
+      "declared_plots": [
+        "value",
+        "upper",
+        "lower"
+      ],
+      "drawn_plots": [
+        "value",
+        "upper",
+        "lower"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 3
+    },
+    {
+      "script": "05-independent-titles",
+      "timings_ms": {
+        "goto": 2478,
+        "open_builder": 22,
+        "new_formula": 61,
+        "import_tab": 39,
+        "paste": 43,
+        "translate": 291,
+        "apply": 17,
+        "save_click": 12,
+        "save_roundtrip": 644,
+        "instance_persist": 568,
+        "reopen": 2639,
+        "render": 287
+      },
+      "definitions_before": 26,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#4caf50",
+          "#f23645",
+          "#ffeb3b"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "05-independent-titles",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_82aab06aeffa",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "momentum_slow",
+          "range",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "momentum_slowColor",
+          "momentum_slowWidth",
+          "rangeColor",
+          "rangeWidth"
+        ],
+        "input_defaults": {
+          "color": "#4CAF50",
+          "lineWidth": 1,
+          "momentum_slowColor": "#F23645",
+          "momentum_slowWidth": 1,
+          "rangeColor": "#FFEB3B",
+          "rangeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$momentum_slowColor",
+          "$rangeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_82aab06aeffa:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_82aab06aeffa:1",
+          "plotKey": "value",
+          "text": "05-independe 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_82aab06aeffa:1",
+          "plotKey": "momentum_slow",
+          "text": "05-independe 56.04",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_82aab06aeffa:1",
+          "plotKey": "range",
+          "text": "05-independe 10.30",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 27,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "momentum_slow",
+          "range"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "momentum_slow",
+          "range",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "momentum_slowColor",
+          "momentum_slowWidth",
+          "rangeColor",
+          "rangeWidth"
+        ],
+        "input_defaults": {
+          "color": "#4CAF50",
+          "lineWidth": 1,
+          "momentum_slowColor": "#F23645",
+          "momentum_slowWidth": 1,
+          "rangeColor": "#FFEB3B",
+          "rangeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$momentum_slowColor",
+          "$rangeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_fixtures\\05-independent-titles.png",
+      "declared_plots": [
+        "value",
+        "momentum_slow",
+        "range"
+      ],
+      "drawn_plots": [
+        "value",
+        "momentum_slow",
+        "range"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 3
+    }
+  ],
+  "bars_probe": 300
+}

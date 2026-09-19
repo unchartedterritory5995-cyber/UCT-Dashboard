@@ -1,0 +1,83 @@
+{
+  "_": "⭐⭐⭐ THE SYMBOL-SCOPED VOCABULARY — what `syminfo.*` may resolve to, and where the vendor's own spelling lands when it is measured. This is the FOURTH kind of dotted Pine name (engine-model constants → `BUILTIN_CONSTANT_TREE`; calendar constants → `BUILTIN_CALENDAR_TREE`; series aliases → `BUILTIN_TIMEFRAME_ALIAS`; and these). It is a DATA FILE rather than a map in `pine.js` because every value in it is a fact about the outside world — our symbol store's vocabulary on one side, TradingView's on the other — and neither is a property of the grammar. A fact that can change without any code changing belongs where it can be edited without reading code.",
+  "_the_one_rule": "⛔⛔ AN UNCONFIRMED SPELLING IS NEVER SERVED. `syminfo.prefix` and `syminfo.tickerid` are TRADINGVIEW STRINGS, not ours: the member's script compares them with `==` and `str.contains`, so a plausible-but-unmeasured spelling does not degrade the answer, it INVERTS it. `NASDAQ` vs `NASDAQ Global Select` vs `NMS` are three different answers to `syminfo.prefix == \"NASDAQ\"` and only one of them is the vendor's. So the serving path reads `confirmed` and nothing else; `store_to_pine` below is a PROPOSAL that serves nothing until a capture backs it.",
+  "_why_not_just_ship_our_own_spelling": "Because it would be a KNOWN WRONG VALUE, which this program does not ship. Our store's `exchange` field holds trader-friendly names (`NYSE Arca`, `NASDAQ Global Select`) assembled from yfinance MIC-ish codes and FMP free text — see `_YF_EXCHANGE` in `api/services/ticker_meta.py`. Handing one of those to a script that tests `syminfo.prefix == \"AMEX\"` answers false where TradingView answers true, silently, per symbol, forever.",
+  "_what_ships_today": "⭐ ALL THREE OF `syminfo.ticker`, `syminfo.tickerid` and `syminfo.prefix` are Kind-4 NAMES — the door resolves each to a `symtext` node — and the six fields in `unserved` refuse BY NAME at the door. The gate on the two vendor-spelled fields is NOT the door, it is the FOLD, and it is per-binding: `syminfo.ticker` folds for every symbol, while `tickerid` and `exchange` fold only for a symbol whose exchange has a `confirmed` entry below. ⭐⭐ THAT IS WHY THE GATE LIVES IN THE FOLD: confirmation is a property of THE SYMBOL'S EXCHANGE, decided when a symbol is chosen, and a door that runs once per script cannot decide it. It also means a capture turns these on with NO CODE CHANGE — the mechanism is built, railed and reachable today, and the only thing missing is the measurement.",
+  "_the_probe_that_settles_it": "⭐ THE PROBE IS COMMITTED, NOT DESCRIBED: `tools/visual_conformance/probes/exchange-spelling.pine`. Paste it into the TradingView editor and read the plot values per `docs/pine/capture-procedure.md` (a VALUE capture, so it survives a hidden tab once the study is on the chart; ADDING the study still needs a visible one). It asks `syminfo.prefix == \"...\"` with the member's own operator against each distinct `store_to_pine` value, plus `str.length` so an unmatched spelling still reports its length, plus a `str.length(syminfo.ticker)` NON-VACUITY CONTROL so a dead study and a symbol that matched nothing cannot wear the same row of zeros. ⛔⛔ ONE CAPTURE PER DISTINCT STORE SPELLING, AND THERE ARE SIX bounded ones (`_YF_EXCHANGE` in `api/services/ticker_meta.py`, measured) — so a FIVE-symbol run cannot cover them, and the FMP leg adds unbounded spellings on top. Record each capture as a `confirmed` entry with all four of `{pine, witness, captured, how}`, and name the invocation in the result JSON the way `tools/record_clock_parity.py` names its own.",
+  "confirmed": {
+    "_": "⭐⭐ SIX ROWS, EACH WITH A WITNESS, MEASURED 2026-09-10. Each entry is `<our store's exchange string>`: `{pine, witness, captured, how}` — `pine` is the string TradingView's `syminfo.prefix` returns. ⚠️ AN ENTRY MUST CARRY ALL FOUR: one without a witness is an assertion wearing a data structure. ⛔ THESE SIX ARE EXACTLY `_YF_EXCHANGE`'s DISTINCT OUTPUTS (11 codes collapsing to 6 spellings, derived from api/services/ticker_meta.py, not typed), so the yfinance leg of our store is fully covered. The FMP leg is free text and cannot be enumerated — an unknown spelling still REFUSES rather than being passed through, which is the whole point of the gate.",
+    "NYSE Arca": {
+      "pine": "AMEX",
+      "witness": "AMEX:SPY",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "NASDAQ": {
+      "pine": "NASDAQ",
+      "witness": "NASDAQ:AAPL",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "NYSE": {
+      "pine": "NYSE",
+      "witness": "NYSE:JPM",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "NYSE American": {
+      "pine": "AMEX",
+      "witness": "AMEX:IMO",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "Cboe BZX": {
+      "pine": "CBOE",
+      "witness": "CBOE:ARKK",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "OTC": {
+      "pine": "OTC",
+      "witness": "OTC:LVMUY",
+      "captured": "2026-09-10",
+      "how": "tools/visual_conformance/probes/exchange-spelling.pine saved as Script$USER;631d746765c044fa86e7de4ed8004941 and added to the chart; plot values read from study._data._items per docs/pine/capture-procedure.md. Receipt-verified capture: tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json"
+    },
+    "_many_to_one": "⛔ THE MAP IS MANY-TO-ONE AND THE REVERSE IS AMBIGUOUS. 'NYSE Arca' (SPY) and 'NYSE American' (IMO) BOTH answer 'AMEX' — measured, not assumed. store→pine is well defined; pine→store is NOT, so never invert this object.",
+    "_the_field_is_not_the_only_one": "⚠️ TRADINGVIEW ALSO HAS OUR SPELLING, AND PINE CANNOT SEE IT. The chart model's `symbolInfo.exchange` reads 'NYSE Arca' for SPY — character-for-character our store's string — while `symbolInfo.listed_exchange` reads 'AMEX', which is what `syminfo.prefix` returns. So this was never a naming DISAGREEMENT between us and the vendor; they are TWO DIFFERENT FIELDS and Pine exposes only the listed one. ⛔ That does not make our spelling servable: a member's script can only compare against `syminfo.prefix`, so the pine column here stays the listed exchange."
+  },
+  "store_to_pine": {
+    "_": "⚠️ A PROPOSAL, NOT A MAPPING IN FORCE. These are the pairings we EXPECT the capture to confirm, written down so the probe knows what to check and so a reviewer can disagree with a specific line rather than with a vacuum. The serving path does not read this object. Moving a line from here into `confirmed` requires a witness.",
+    "NASDAQ": "NASDAQ",
+    "NASDAQ Global Select": "NASDAQ",
+    "NASDAQ Global Market": "NASDAQ",
+    "NASDAQ Capital Market": "NASDAQ",
+    "NYSE": "NYSE",
+    "New York Stock Exchange": "NYSE",
+    "NYSE American": "AMEX",
+    "NYSE Arca": "AMEX",
+    "AMEX": "AMEX",
+    "Cboe BZX": "CBOE",
+    "OTC": "OTC"
+  },
+  "_the_store_vocabulary_is_not_closed": "⚠️ AND IT CANNOT BE MADE CLOSED FROM HERE. `_YF_EXCHANGE` in `api/services/ticker_meta.py` is a bounded set and a rail checks this file covers every value of it. FMP's leg is not bounded — `row.get('exchange') or row.get('exchangeShortName')` is free text from a vendor — so a symbol can arrive carrying an exchange string nothing here names. THAT SYMBOL REFUSES rather than guessing, which is the same failure direction as everything else in this file.",
+  "unserved": {
+    "_": "⛔ THE `syminfo.*` FIELDS THAT ARE REFUSED BY NAME, each with the reason a member can act on. A generic `pine:builtin` — *\"the engine grammar does not hold this\"* — would be FALSE the moment `syminfo.ticker` works one line above, and a refusal that is false about its neighbours teaches the reader to distrust every refusal.",
+    "type": "what kind of instrument the symbol is (`stock`, `futures`, `crypto`…). This engine screens US equities, so the answer would be the same constant for every symbol it can reach — a value that cannot vary is not a value, it is a hidden assumption, and a script branching on it would take one arm forever without being told why.",
+    "currency": "the symbol's quote currency. Same shape as `type`: constant across everything this engine holds, so serving it would let a multi-currency script look like it was working while one whole branch was unreachable.",
+    "session": "the symbol's trading session string. This engine evaluates the bars it is given and holds no session calendar per symbol, so there is nothing here to read it from.",
+    "mintick": "It is the symbol's minimum price increment, which differs per symbol and is not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — `math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero denominator is reported as NOT COMPUTABLE for that symbol rather than quietly replaced, so write `(close - low) / (high - low)` and a halted, zero-range bar is left unanswered instead of being scored as though it closed on its low. ⚠️ That is a REAL difference, not a simplification: Pine answers 0 on such a bar and this engine answers nothing, which is why the edit is yours to make rather than one taken silently on your behalf.",
+    "pointvalue": "the currency value of one point, which is a contract specification for futures and is not something this engine holds for the equities it screens.",
+    "description": "the instrument's long name. It is free text from a data vendor, it differs between our providers for the same symbol, and a script that branches on it would branch on which provider answered — the definition of a value that is not reproducible.",
+    "basecurrency": "the symbol's BASE currency — the left half of a pair like `BTCUSD`. It is a property of an instrument that HAS two currencies, and this engine screens US equities, where there is no base half to name. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 22 uses across 7 corpus files, 6 of them reaching an output — the largest of the three names that were still falling through the namespace refusal unnamed. ⚠️ It is on this roster rather than served because answering it for an equity would mean choosing between `\"USD\"` and the empty string, and a script that branches on that branches on our guess.",
+    "timezone": "the exchange's timezone string. This engine evaluates the bars it is given and holds no session calendar, which is the same reason `session` is on this roster — and the two are usually read together, so they refuse together rather than one of them falling through anonymously. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 13 uses across 6 corpus files, 4 reaching an output.",
+    "root": "the root of a futures contract — the symbol with its expiry stripped (`ES` from `ESH2026`). It is a futures concept, like `pointvalue`, and this engine screens equities where a symbol has no expiry to strip. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 1 use in 1 corpus file, reaching no output. ⛔ It is rostered at ONE use deliberately: the roster's job is to record that a name has been THOUGHT ABOUT, and a rare name is exactly the one a reader would otherwise assume had merely fallen through."
+  },
+  "_why_unserved_is_a_ROSTER_and_not_a_default": "⛔ BECAUSE A DEFAULT CANNOT BE COUNTED. A namespace-wide fallthrough would refuse an unknown `syminfo.whatever` with the same sentence as `syminfo.mintick`, and nobody could tell from the outside which names had been THOUGHT ABOUT and which had merely fallen through. The roster is the thinking; the fallthrough stays behind it for names nobody has ruled on yet.",
+  "pending_measurement": {
+    "_": "⛔ THE REASON THE FOLD QUOTES when one of these cannot be resolved for a binding. It is a MEASUREMENT gap, not a grammar gap, and the sentence has to say so — a member reading \"the engine grammar does not hold this\" would rewrite a script that will work unchanged the day a witness lands.",
+    "tickerid": "the exchange-prefixed identifier — `EXCHANGE:SYMBOL`. The symbol half is ours; the exchange half is a TradingView string this engine has not measured, and a comparison against a guessed prefix answers backwards rather than approximately. Waiting on the capture described in `_the_probe_that_settles_it`. ⭐ IF YOU ONLY NEED TO KNOW WHETHER THE SYMBOL IS A PAIR OR RATIO CHART, `syminfo.ticker` already answers that and is served.",
+    "prefix": "the exchange code — a TradingView string this engine has not measured. Our symbol store holds a trader-friendly name (`NYSE Arca`) which is not what Pine returns, and serving it would answer `syminfo.prefix == \"AMEX\"` false where TradingView answers true. Waiting on the same capture."
+  },
+  "_the_tickerid_capture_is_a_different_question": "⚰️ READ THIS BEFORE REUSING THE 2026-09-09 CAPTURE. `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json::tickerid_shape_five_symbols` is a real, correct measurement of `syminfo.ticker` and `syminfo.tickerid` — and it is NOT evidence about `syminfo.prefix`, which is the field this map is keyed on. ⛔ THE PREFIX IS NOT THE EXCHANGE: that same capture requested `SP:SPX` and the vendor resolved it to `SP_DLY:SPX`, so the tickerid prefix is not even the text the member typed. Deriving a `confirmed` entry from a tickerid prefix would be the exact 'assertion wearing a data structure' this file refuses. `exchange-spelling.pine` N11 measures whether the two fields agree instead of assuming it.",
+  "_ruling_2026_09_10_the_identifier": "⚰️⚰️ THIS MANIFEST NAMED `syminfo.exchange` UNTIL 2026-09-10. THERE IS NO SUCH IDENTIFIER IN PINE v6 — the vendor answers `CE10272 Undeclared identifier \"syminfo.exchange\"`, so every sentence here that promised a member could write `syminfo.exchange == \"AMEX\"` described a script that cannot compile. The field is `syminfo.prefix`. ⭐ RENAMED RATHER THAN ALIASED, ON A MEASUREMENT: all 502 tracked .pine files across 16 directories were counted and `syminfo.exchange` appears 0 times outside our own probe, with an R6 control in the same pass (`syminfo.*` matched 944 times in 183 files across 10 directories) proving the reader could see it. Nothing in the wild used the old name, so keeping it as an alias would have preserved a name no script has ever written."
+}

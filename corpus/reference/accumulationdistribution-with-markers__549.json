@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;549",
+ "title": "Accumulation/Distribution - with markers",
+ "author": "DovCaspi",
+ "url": "https://www.tradingview.com/script/SDApu80T-accumulation-distribution-with-markers/",
+ "agreeCount": 3017,
+ "category": "volume",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/accumulationdistribution-with-markers__549.pine",
+ "our_status": "reference-only"
+}

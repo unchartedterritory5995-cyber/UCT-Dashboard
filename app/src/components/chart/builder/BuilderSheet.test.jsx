@@ -1022,6 +1022,32 @@ describe('🔴 saving a formula puts it ON THE CHART', () => {
     expect(getDefinition('rsi').compute.kind).toBe('native')
   })
 
+  it('RISK-012: two Save clicks fired before the first repaint still write ONCE', async () => {
+    // 🔴 THE REAL BUG, REPRODUCED AT THE ONLY LAYER THAT CAN SEE IT. `canSave`
+    // is derived from `saving` STATE — `setSaving(true)` schedules a re-render,
+    // it does not retroactively change what a click handler already closed
+    // over. Two `fireEvent.click`s fired in the SAME act() (no await between
+    // them, no repaint between them) is the actual shape of a fast real
+    // double-click: both handlers run synchronously up to `save`'s first
+    // `await`, both read the SAME `canSave`, and before the fix both passed
+    // `if (!canSave) return` and both wrote — the duplicate chart instance and
+    // briefly-duplicate persisted definition this risk names.
+    const { writes } = mountWithChart()
+    await typeFormula('sma(close, 20)')
+    await nameIt('My line')
+
+    await act(async () => {
+      fireEvent.click(saveBtn())
+      fireEvent.click(saveBtn())
+    })
+    await flush()
+
+    const writeCalls = H.requests.filter(r => r.method !== 'GET')
+    expect(writeCalls, 'two clicks before a repaint must still produce ONE write')
+      .toHaveLength(1)
+    expect(writes, 'and therefore exactly one chart instance').toHaveLength(1)
+  })
+
   it('a READ-ONLY mount still saves and still refuses to touch a chart it has no handle on', async () => {
     // `ChartToolbar` renders the builder only behind `chartSettings &&
     // onUpdateSettings`, so this pair is never half-present in the product — but

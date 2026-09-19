@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;722410befd6944a0982b28a9410fecff",
+ "title": "4C NYSE Market Breadth Ratio",
+ "author": "FourC",
+ "url": "https://www.tradingview.com/script/j9SeDLRu-4c-nyse-market-breadth-ratio/",
+ "agreeCount": 691,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/4c-nyse-market-breadth-ratio__722410befd.pine",
+ "cached_source": "tools/pine_survey/cache/sources/4c-nyse-market-breadth-ratio__722410befd.pine",
+ "our_status": "committed"
+}

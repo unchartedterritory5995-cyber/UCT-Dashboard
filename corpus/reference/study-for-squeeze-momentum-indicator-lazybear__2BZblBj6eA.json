@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2BZblBj6eAtWyPEgEnBSYVCZ4R31o06z",
+ "title": "Study for Squeeze Momentum Indicator [LazyBear]",
+ "author": "03.freeman",
+ "url": "https://www.tradingview.com/script/tDipDZBj-study-for-squeeze-momentum-indicator-lazybear/",
+ "agreeCount": 675,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA.pine",
+ "our_status": "reference-only"
+}

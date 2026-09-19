@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;14866581511344d6b4fa364d63c601d8",
+ "title": "Contraction Box & Doji Lines",
+ "author": "RandyPanda1",
+ "url": "https://www.tradingview.com/script/4wjs61mH-contraction-box-doji-lines/",
+ "agreeCount": 727,
+ "category": "candlestick patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+ "cached_source": "tools/pine_survey/cache/sources/contraction-box-doji-lines__1486658151.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;Ph230jpfC93jvBzUJFMvqBOWKM6uCXaq",
+ "title": "Support and Resistance Multi Time frame",
+ "author": "kaaiii",
+ "url": "https://www.tradingview.com/script/P0N14VcD-support-and-resistance-multi-time-frame/",
+ "agreeCount": 3462,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1ae5bb663e564f0fb80c4b30abbea601",
+ "title": "[CT] Displacement FVG Toolkit",
+ "author": "ChaosTrader63",
+ "url": "https://www.tradingview.com/script/9XR0LViS-ct-displacement-fvg-toolkit/",
+ "agreeCount": 452,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ct-displacement-fvg-toolkit__1ae5bb663e.pine",
+ "our_status": "reference-only"
+}

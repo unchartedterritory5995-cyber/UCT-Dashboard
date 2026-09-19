@@ -1,0 +1,10 @@
+//@version=5
+// C1-B: a band between two plots. 33 of the corpus' 35 fill() calls are
+// plot<->plot, which is why the renderer is a series primitive and not a
+// BaselineSeries.
+indicator("C1 Fill Band", overlay = true)
+basis = ta.sma(close, 20)
+dev = 2 * ta.stdev(close, 20)
+u = plot(basis + dev, title = "Upper", color = color.blue)
+l = plot(basis - dev, title = "Lower", color = color.blue)
+fill(u, l, color = color.new(color.blue, 90))

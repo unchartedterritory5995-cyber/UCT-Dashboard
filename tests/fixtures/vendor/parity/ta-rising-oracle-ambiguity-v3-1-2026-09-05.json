@@ -1,0 +1,493 @@
+{
+  "rows": [
+    {
+      "index": 0,
+      "t": "1748784600",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 1,
+      "t": "1748871000",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 2,
+      "t": "1748957400",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 3,
+      "t": "1749043800",
+      "is_warmup": true,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 4,
+      "t": "1749130200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 5,
+      "t": "1749216600",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 6,
+      "t": "1749303000",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 7,
+      "t": "1749389400",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 8,
+      "t": "1749475800",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 9,
+      "t": "1749562200",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 10,
+      "t": "1749648600",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 11,
+      "t": "1749735000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 12,
+      "t": "1749821400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 13,
+      "t": "1749907800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 14,
+      "t": "1749994200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 15,
+      "t": "1750080600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 16,
+      "t": "1750167000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 17,
+      "t": "1750253400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 18,
+      "t": "1750339800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 19,
+      "t": "1750426200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 20,
+      "t": "1750512600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 21,
+      "t": "1750599000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 22,
+      "t": "1750685400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 23,
+      "t": "1750771800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 24,
+      "t": "1750858200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 25,
+      "t": "1750944600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 26,
+      "t": "1751031000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 27,
+      "t": "1751117400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 28,
+      "t": "1751203800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 29,
+      "t": "1751290200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 30,
+      "t": "1751376600",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 31,
+      "t": "1751463000",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 32,
+      "t": "1751549400",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 33,
+      "t": "1751635800",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 34,
+      "t": "1751722200",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 35,
+      "t": "1751808600",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 36,
+      "t": "1751895000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 37,
+      "t": "1751981400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 38,
+      "t": "1752067800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 39,
+      "t": "1752154200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 40,
+      "t": "1752240600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 41,
+      "t": "1752327000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 42,
+      "t": "1752413400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 43,
+      "t": "1752499800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 44,
+      "t": "1752586200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 45,
+      "t": "1752672600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 46,
+      "t": "1752759000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 47,
+      "t": "1752845400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 48,
+      "t": "1752931800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 49,
+      "t": "1753018200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 50,
+      "t": "1753104600",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 51,
+      "t": "1753191000",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 52,
+      "t": "1753277400",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 53,
+      "t": "1753363800",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 54,
+      "t": "1753450200",
+      "is_warmup": false,
+      "uct_value": 1.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 55,
+      "t": "1753536600",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 56,
+      "t": "1753623000",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 57,
+      "t": "1753709400",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 58,
+      "t": "1753795800",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 59,
+      "t": "1753882200",
+      "is_warmup": false,
+      "uct_value": 0.0,
+      "vendor_value": false,
+      "abs_delta": 0.0,
+      "rel_delta": 0.0,
+      "status": "AGREE"
+    }
+  ],
+  "warmup_bars": 4,
+  "tolerance_rel": 1e-06,
+  "compared_non_warmup": 1,
+  "max_abs_delta_non_warmup": 0.0,
+  "any_data_blocked": true,
+  "disagreement_count": 0,
+  "verdict": "VENDOR-PARITY VERIFIED"
+}

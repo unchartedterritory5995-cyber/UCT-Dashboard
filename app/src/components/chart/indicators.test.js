@@ -92,17 +92,51 @@ describe('computeRSI', () => {
     values(rsi).forEach(v => expect(v).toBe(100))
   })
 
-  it('a series that has not moved at all is NOT computable, and is not 100', () => {
-    // ⛔ `avgLoss === 0` is TWO different facts. The test above is the real one —
-    // an unbroken advance, where 100 is the textbook answer. This is the other:
-    // gains AND losses are zero, 0/0 is not a number, and reading it as maximum
-    // overbought put five frozen tickers (SIM, TMTS, CWEN-A, DRDB, OBA) at the
-    // top of an "RSI > 70" screen with chg_pct_1d = 0.00 on 2026-08-09.
+  it('⚰️ a series that has not moved at all reads 100, because TradingView says so', () => {
+    // ⛔⛔ THIS RAIL ASSERTED THE OPPOSITE UNTIL 2026-09-08 — that 0/0 is "not
+    // computable" and must stay NA. The reasoning was sound and the outcome was a
+    // UCT invention: `ta.rsi` of a constant source reads **100** on TradingView,
+    // measured directly (UCTPROBE_COMPOSITE_A plot P17, SPY 1D). Pine evaluates
+    // `down == 0 ? 100 : up == 0 ? 0 : ...`, so the zero-LOSS test fires FIRST.
+    //
+    // ⚠️ THE INCIDENT THAT MOTIVATED THE OLD RULE IS REAL AND UNRESOLVED HERE. On
+    // 2026-08-09 SIM, TMTS, CWEN-A, DRDB and OBA carried rsi14 = 100.0 with
+    // chg_pct_1d = 0.00, topping an "RSI > 70" screen. Restoring Pine's answer
+    // restores that exposure. The guard belongs at the SCREENER — a zero-movement
+    // ticker should not reach a momentum screen — not in the definition of RSI,
+    // which every Pine script in the product also reads.
+    // See divergences.json::rsi-zero-movement-reads-na (owner ruling requested).
     const bars = Array.from({ length: 30 }, (_, i) => ({ t: i, c: 10 }))
     const rsi = computeRSI(bars, 14)
     expect(rsi.length).toBe(30)
-    expect(values(rsi).length).toBe(0)          // every point is the NA pad
-    rsi.forEach(p => expect(Number.isNaN(p.value)).toBe(true))
+    // warm-up pad only: the first `period` bars have no seed yet
+    expect(values(rsi).length).toBe(30 - 14)
+    values(rsi).forEach(v => expect(v).toBe(100))
+  })
+
+  it('⭐ and the OTHER zero corner reads 0 — an unbroken decline', () => {
+    // ⛔ NON-VACUITY FOR THE ROW ABOVE. If both corners answered 100 the change
+    // would be "always 100 when a denominator vanishes", which is not the rule.
+    // Vendor-measured on the same probe: `ta.rsi(-bar_index, 14)` reads 0.
+    const bars = Array.from({ length: 30 }, (_, i) => ({ t: i, c: 100 - i }))
+    expect(computeRSI(bars, 14)[29].value).toBe(0)
+  })
+
+  it('⭐⭐ a hole HOLDS the state — na on the hole and the bar after, then resume', () => {
+    // ⭐ THE DEFECT THAT LEFT NO GAP. A non-finite diff used to be booked as
+    // gain 0 / loss 0, which decays BOTH averages and leaves their RATIO alone —
+    // so the printed value repeated the previous bar and looked exactly like a
+    // hold, while the state underneath had been scaled down and every later bar
+    // was wrong. Vendor: blank twice, then one normal step (380 of 380 bars).
+    const clean = Array.from({ length: 40 }, (_, i) => ({ t: i, c: 100 + Math.sin(i / 3) * 5 }))
+    const gappy = clean.map((b, i) => (i === 25 ? { ...b, c: NaN } : b))
+    const out = computeRSI(gappy, 14)
+    expect(Number.isNaN(out[25].value), 'the hole itself').toBe(true)
+    expect(Number.isNaN(out[26].value), 'and the bar after, whose change reads the hole').toBe(true)
+    expect(Number.isFinite(out[27].value), 'then it resumes').toBe(true)
+    // ⛔ AND IT LOSES EXACTLY TWO BARS — not the rest of the series, and not none.
+    const finiteClean = values(computeRSI(clean, 14)).length
+    expect(values(out).length).toBe(finiteClean - 2)
   })
 
   it('one up-step in an otherwise flat window is still 100 — the lanes agree', () => {

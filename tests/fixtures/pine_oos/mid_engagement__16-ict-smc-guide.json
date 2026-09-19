@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "16-ict-smc-guide.pine",
+  "title": "ICT & SMC Guide [JPT]",
+  "author": "Jos-ProTrader",
+  "source_url": "https://www.tradingview.com/script/pTyIoJXa-ICT-SMC-Guide-JPT/",
+  "retrieved_at": "2026-09-07T12:05:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"7 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 273,
+  "complexity_bucket": "long",
+  "sha256_source": "de56b769c223c9ad0caf52a43c6d77dc7eb89afd4807e20e2a78576813d2e07c",
+  "sha256_normalized": "9a4591a9f2f29ee39323a102c638cf874be806ed9d4c0059cd2763df6c7c56b8",
+  "storage": "git"
+}

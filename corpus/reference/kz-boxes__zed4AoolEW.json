@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;zed4AoolEWwGTDXEfiLVq56PVLUMqr4Q",
+ "title": "KZ Boxes",
+ "author": "BryceWH",
+ "url": "https://www.tradingview.com/script/MSeLR1Nk-kz-boxes/",
+ "agreeCount": 4116,
+ "category": "session tools",
+ "pine_version": "v2",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/kz-boxes__zed4AoolEW.pine",
+ "our_status": "reference-only"
+}

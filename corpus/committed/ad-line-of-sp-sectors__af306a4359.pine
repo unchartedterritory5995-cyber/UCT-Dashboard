@@ -1,0 +1,100 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Tom1trader
+// Thanks to @MartinShkreli. The sector function, variables & "repaint" (approx lines 28 through 43 of this script)
+// are used directly from your script "Sectors"
+// RECOMMENDATION: Update the sector weightings -inputs are provided. They change as often as monthly and the 
+//   annual changes are certainly significant.
+//   When updating weighting percentages use the decimal value. I.E. 29% is .29
+/////
+//  All sectors advanced is line at +1 and declined at -1
+//    Line values between +/- 100 represent percentage of sector weight that advanced or declined
+
+//  The weight (% S&P mkt cap) is added if advances or subtracted if declines
+//    i.e infotech sector was 26% of S&P when I did this so .26 added/subtracted when advance/decline.
+//  The columes aqua fuchsia are a 5 period Hull Moving Average [changed from ema]
+
+//  Zero Cross of this histo/columns give pretty good signals for S&P.
+//  Above/below zero track pretty well as price rising/falling.
+//  The space between plus 0.5 and minus 0.5 is more neutral such that
+//    when histo is between them price is rising or falling more slowly
+//    or price is ranging when histo straddles back and forth + and -.
+
+//    I colored the AD line also to emphasize the times it opposes the histo.
+//    On 7/7/23 updated the sector weightings and changed the online source for the 
+//    Weightings to yahoo. Link: https://finance.yahoo.com/quote/SPY/holdings/
+
+
+//@version=5
+indicator("AD Line of S&P Sectors", "AD Sects", overlay=false)
+f_security(_symbol, _res, _src, _repaint) =>
+    request.security(_symbol, _res, _src[_repaint ? 0 : barstate.isrealtime ? 1 : 0])[_repaint ? 0 : barstate.isrealtime ? 0 : 1]
+res = timeframe.period
+re = input(title='Repaint', defval=true)
+
+energy  = f_security('SP:SPN', res, close, re) // this group sector closes
+mat     = f_security('SP:S5MATR', res, close, re)
+indu    = f_security('SP:S5INDU', res, close, re)
+discr   = f_security('SP:S5COND', res, close, re)
+staple  = f_security('SP:S5CONS', res, close, re)
+hlth    = f_security('SP:S5HLTH', res, close, re)
+fin     = f_security('SP:SPF', res, close, re)
+infot   = f_security('SP:S5INFT', res, close, re)
+tele    = f_security('SP:S5TELS', res, close, re)
+util    = f_security('SP:S5UTIL', res, close, re)
+real    = f_security('SP:S5REAS', res, close, re)
+
+enec = energy-energy[1] // this group establish sector advance or decline
+matc = mat-mat[1]
+indc = indu-indu[1]
+disc = discr-discr[1]
+stac = staple-staple[1]
+hltc = hlth-hlth[1]
+finc = fin-fin[1]
+infc = infot-infot[1]
+telc = tele-tele[1]
+utic = util-util[1]
+reac = real-real[1]
+// calculate impact by Market Cap weighting of setocr
+// note that market caps change and when they do these following values could be updated
+// I intend to update them annually with free info from  https://finance.yahoo.com/quote/SPY/holdings/
+enep = input(.0417, title="Energy Wght [1%=.01")
+matp = input(.0218, title="Materials Wght [1%=.01]")
+indp = input(.0801, title="Indusrials Wght [1%=.01]")
+disp = input(.1031, title="Cons Disc (cyclical) Wght [1%=.01]")
+stap = input(.0683, title="Cons Staples (defensive) Wght [1%=.01]")
+hltp = input(.1377, title="Health Wght [1%=.01]")
+finp = input(.1201, title="Financials Wght [1%=.01]")
+infp = input(.2864, title="InfoTech Wght [1%=.01]")
+telp = input(.0875, title="Comms Svcs Wght [1%=.01]")
+utip = input(.0268, title="Utilities Wght [1%=.01]")
+reap = input(.0250, title="Real Estate Wght [1%=.01]")
+// this is each sector % of s&P times 500 for std ADL scale
+enet = enec==0 ? 0 : enec>0 ? enep : -enep
+matt = matc==0 ? 0 : matc>0 ? matp : -matp
+indt = indc==0 ? 0 : indc>0 ? indp : -indp
+dist = disc==0 ? 0 : disc>0 ? disp : -disp
+stat = stac==0 ? 0 : stac>0 ? stap : -stap
+hltt = hltc==0 ? 0 : hltc>0 ? hltp : -hltp
+fint = finc==0 ? 0 : finc>0 ? finp : -finp
+inft = infc==0 ? 0 : infc>0 ? infp : -infp
+telt = telc==0 ? 0 : telc>0 ? telp : -telp
+utit = utic==0 ? 0 : utic>0 ? utip : -utip
+reat = reac==0 ? 0 : reac>0 ? reap : -reap
+
+adls = enet+matt+indt+dist+stat+hltt+fint+inft+telt+utit+reat
+color adcol = adls >= adls[1] ? color.green : adls <= adls[1] ? color.red : color.blue
+plot(adls, "AD Line Sects", color.new(adcol, 30), linewidth=2)
+
+admlen  = input(5, "adma len")
+adma    = ta.hma(adls, admlen)
+color macol = adma>adma[1] ? color.aqua : adma<adma[1] ? color.fuchsia : color.gray
+// choice of factor to bring up visibility of the Hull MA histo
+mamult  = input.float(1.4, title="Increase scale of Histo", minval=1, maxval=2, step=0.1)
+plot(adma, "adma", color.new(macol, 60), linewidth=2, style=plot.style_columns)
+hline(0, color=color.black, linewidth=2)
+hline(1, title="All Up-scaled-350")
+hline(-1, title="All Down-scxaled-350")
+// for the line, not the histo inside of these lines is more neutral as to direction change
+hline(.5, title="Upper of more neutral values")
+hline(-.5, title="Lower of more neutral values")
+

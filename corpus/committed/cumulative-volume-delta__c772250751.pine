@@ -1,0 +1,30 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © footlz
+
+//@version=4
+study("Cumulative Volume Delta", "CVD")
+
+sym = input(title="Symbol", type=input.symbol, defval="BINANCE:BTCUSDTPERP")
+ema_len = input(200, title="EMA Length")
+
+v = security(sym, timeframe.period, volume)
+o = security(sym, timeframe.period, open)
+c = security(sym, timeframe.period, close)
+vbuy = 0.0
+vsell = 0.0
+
+if c > o
+    vbuy := v * abs(o / c - 1)
+if c < o
+    vsell := v * abs(o / c - 1)
+
+delta = cum(vbuy - vsell)
+ema = ema(delta, ema_len)
+
+delta_color = delta >= ema ? color.new(#3eb370, 0) : color.new(#e9546b, 0)
+ema_color = delta >= ema ? color.new(#3eb370, 100) : color.new(#e9546b, 100)
+fill_color = delta >= ema ? color.new(#3eb370, 70) : color.new(#e9546b, 70)
+
+plot_delta = plot(delta, title="CVD", color=delta_color, linewidth=2)
+plot_ema = plot(ema, title="CVD EMA", color=ema_color)
+fill(plot_delta, plot_ema, color=fill_color)

@@ -1,0 +1,193 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © william_wq (Enhanced with Anchor/Date Range Engine)
+//@version=6
+indicator("Market Compass - Dynamic Range Framework", shorttitle="Market Compass Region", overlay=true)
+
+// ============================================================================
+// 1. INPUT PARAMETERS & STYLING CONFIGURATION | 输入参数与样式设置
+// ============================================================================
+string GRP_CORE    = "Core & Anchor Settings | 核心与锚定设置"
+string GRP_VISUAL  = "UI Display Controls | 显示界面控制"
+string GRP_PALETTE = "Color Palette Customization | 配色方案定制"
+
+// --- Mode Selection & Time Controls | 模式与时间锚定控制 ---
+string MODE_FIXED  = "Fixed Lookback (固定 K 线根数)"
+string MODE_ANCHOR = "Anchor Date to Present (自定义起点 -> 当前)"
+string MODE_RANGE  = "Custom Date Range (自定义起止时间段)"
+
+string i_calcMode     = input.string(MODE_FIXED, title="Calculation Mode | 计算模式", options=[MODE_FIXED, MODE_ANCHOR, MODE_RANGE], group=GRP_CORE, tooltip="选择按固定 K 线计算，还是自主选择时间锚定点/时间段。")
+int i_lookbackLength = input.int(252, title="Lookback Window Period | 固定周期长度 (根数)", minval=1, group=GRP_CORE, tooltip="仅在选择'固定 K 线根数'模式时生效。")
+
+// Default date anchors are set to typical bull/bear cycle examples.
+// Adjust them to match your own analysis timeline.
+int i_startTime      = input.time(timestamp("2024-01-01T00:00:00"), title="Start Time | 锚定起始时间", group=GRP_CORE, tooltip="锚定计算的起始日期时间。")
+int i_endTime        = input.time(timestamp("2025-01-01T00:00:00"), title="End Time | 锚定结束时间", group=GRP_CORE, tooltip="仅在选择'自定义起止时间段'模式时生效。")
+
+// --- Visibility Toggles | 开关控制 ---
+bool i_showRegionBox   = input.bool(true,  title="Show Bounding Box | 显示周期背景矩形框", group=GRP_VISUAL)
+bool i_showExtremes    = input.bool(true,  title="Show Extreme Bands (89% / 11%) | 显示 89% / 11% 超买超卖轨", group=GRP_VISUAL)
+bool i_showOuterLevels = input.bool(false, title="Show Strength Boundaries (75% / 25%) | 显示 75% / 25% 强弱分界线", group=GRP_VISUAL)
+bool i_showInnerLevels = input.bool(true,  title="Show Pivot Thresholds (62.5% / 37.5%) | 显示 62.5% / 37.5% 枢轴线", group=GRP_VISUAL)
+bool i_showPriceLabels = input.bool(true,  title="Show Price Labels | 显示右侧实时价格标签", group=GRP_VISUAL)
+
+// --- Size Controls | 尺寸与字号设置 ---
+int    i_lineWidthBoundary = input.int(2, title="Boundary Line Width | 边界线宽度 (0%/100%)", minval=1, maxval=10, group=GRP_VISUAL)
+int    i_lineWidthInner    = input.int(1, title="Inner Line Width | 内部轨迹线宽度", minval=1, maxval=10, group=GRP_VISUAL)
+string i_labelSize         = input.string(size.small, title="Label Text Size | 标签字号大小", options=[size.tiny, size.small, size.normal, size.large, size.huge], group=GRP_VISUAL)
+
+// --- Color Palette Inputs | 色彩配置 ---
+color colorL100 = input.color(#ff0055, "100% Peak Threshold | 100 轨 (顶部极值)", group=GRP_PALETTE)
+color colorL89  = input.color(#ff5500, "89% Overbought Zone | 89 轨 (高位超买)", group=GRP_PALETTE)
+color colorL75  = input.color(#ffaa00, "75% Bullish Boundary | 75 轨 (偏强区域)", group=GRP_PALETTE)
+color colorL625 = input.color(#e040fb, "62.5% Bull Pivot Threshold | 62.5 轨 (强界临界)", group=GRP_PALETTE)
+color colorL50  = input.color(#ffffff, "50% Equilibrium Axis | 50 轨 (多空中轴)", group=GRP_PALETTE)
+color colorL375 = input.color(#1de9b6, "37.5% Bear Pivot Threshold | 37.5 轨 (弱界临界)", group=GRP_PALETTE)
+color colorL25  = input.color(#00e5ff, "25% Bearish Boundary | 25 轨 (偏弱区域)", group=GRP_PALETTE)
+color colorL11  = input.color(#00f5d4, "11% Oversold Zone | 11 轨 (低位超卖)", group=GRP_PALETTE)
+color colorL0   = input.color(#00bbf9, "0% Floor Threshold | 0 轨 (底部极值)", group=GRP_PALETTE)
+color colorBg   = input.color(color.new(#1e293b, 88), "Background Shading | 区域背景遮罩色", group=GRP_PALETTE)
+
+// ============================================================================
+// 2. CORE QUANTITATIVE CALCULATION ENGINE | 核心量化与时间锚定引擎
+// ============================================================================
+
+// Dynamic accumulation logic for custom date modes
+var float dynamicHigh     = na
+var float dynamicLow      = na
+var int   dynamicStartBar = na
+var int   dynamicEndBar   = na
+
+bool isAfterStart = time >= i_startTime
+bool isBeforeEnd  = (i_calcMode == MODE_RANGE) ? (time <= i_endTime) : true
+bool inTimeWindow = isAfterStart and isBeforeEnd
+
+// Track dynamic high/low across historical bars if custom mode is enabled
+if i_calcMode != MODE_FIXED and inTimeWindow
+    if na(dynamicStartBar)
+        dynamicStartBar := bar_index
+        dynamicHigh     := high
+        dynamicLow      := low
+    else
+        dynamicHigh := math.max(dynamicHigh, high)
+        dynamicLow  := math.min(dynamicLow, low)
+    dynamicEndBar := bar_index
+
+// Final price boundaries selection based on mode
+float periodHigh    = na
+float periodLow     = na
+int   leftBarOffset = na
+int   boxRightBar   = na
+
+if i_calcMode == MODE_FIXED
+    int effectiveLookback = math.min(i_lookbackLength, bar_index + 1)
+    periodHigh    := ta.highest(high, effectiveLookback)
+    periodLow     := ta.lowest(low, effectiveLookback)
+    leftBarOffset := math.max(0, bar_index - effectiveLookback + 1)
+    boxRightBar   := bar_index
+else
+    periodHigh    := dynamicHigh
+    periodLow     := dynamicLow
+    leftBarOffset := dynamicStartBar
+    boxRightBar   := (i_calcMode == MODE_RANGE and not na(dynamicEndBar)) ? dynamicEndBar : bar_index
+
+// Fallback safety (e.g. if requested date range is beyond current historical data)
+if na(periodHigh) or na(periodLow) or na(leftBarOffset)
+    periodHigh    := high
+    periodLow     := low
+    leftBarOffset := bar_index
+    boxRightBar   := bar_index
+
+float priceRange = periodHigh - periodLow
+
+// Quantile / Ratio Level Price Calculations
+float priceL100 = periodHigh
+float priceL89  = periodLow + priceRange * 0.89
+float priceL75  = periodLow + priceRange * 0.75
+float priceL625 = periodLow + priceRange * 0.625
+float priceL50  = periodLow + priceRange * 0.50
+float priceL375 = periodLow + priceRange * 0.375
+float priceL25  = periodLow + priceRange * 0.25
+float priceL11  = periodLow + priceRange * 0.11
+float priceL0   = periodLow
+
+// ============================================================================
+// 3. GRAPHICAL RENDERING ENGINE | 图形渲染引擎
+// ============================================================================
+
+// Persistent Graphic Handles
+var box   boxMain       = na
+var box   boxOverbought = na
+var box   boxOversold   = na
+
+var line lineL100 = na, var line lineL89 = na, var line lineL75 = na, var line lineL625 = na, var line lineL50 = na, var line lineL375 = na, var line lineL25 = na, var line lineL11 = na, var line lineL0 = na
+var label labelL100 = na, var label labelL89 = na, var label labelL75 = na, var label labelL625 = na, var label labelL50 = na, var label labelL375 = na, var label labelL25 = na, var label labelL11 = na, var label labelL0 = na
+
+if barstate.islast
+    // --- Step 1: Garbage Collection | 清理上一 K 线绘图句柄 ---
+    box.delete(boxMain), box.delete(boxOverbought), box.delete(boxOversold)
+
+    line.delete(lineL100), line.delete(lineL89), line.delete(lineL75), line.delete(lineL625), line.delete(lineL50), line.delete(lineL375), line.delete(lineL25), line.delete(lineL11), line.delete(lineL0)
+
+    label.delete(labelL100), label.delete(labelL89), label.delete(labelL75), label.delete(labelL625), label.delete(labelL50), label.delete(labelL375), label.delete(labelL25), label.delete(labelL11), label.delete(labelL0)
+
+    // Right Boundary for horizontal extension lines & labels
+    int rightBarOffset = bar_index + 8
+
+    // --- Step 2: Render Bounding Profile Boxes | 绘制背景矩形框 ---
+    if i_showRegionBox
+        boxMain := box.new(leftBarOffset, priceL100, boxRightBar, priceL0, border_color=color.new(color.gray, 50), border_width=1, border_style=line.style_dashed, bgcolor=colorBg)
+
+        if i_showExtremes
+            boxOverbought := box.new(leftBarOffset, priceL100, boxRightBar, priceL89, border_color=color.new(colorL100, 90), bgcolor=color.new(colorL100, 92))
+            boxOversold   := box.new(leftBarOffset, priceL11, boxRightBar, priceL0, border_color=color.new(colorL11, 90), bgcolor=color.new(colorL11, 92))
+
+    // --- Step 3: Render Level Trendlines | 绘制各分界横线 ---
+    lineL100 := line.new(leftBarOffset, priceL100, rightBarOffset, priceL100, color=colorL100, width=i_lineWidthBoundary, style=line.style_solid)
+
+    if i_showExtremes
+        lineL89 := line.new(leftBarOffset, priceL89, rightBarOffset, priceL89, color=colorL89, width=i_lineWidthInner, style=line.style_dashed)
+
+    if i_showOuterLevels
+        lineL75 := line.new(leftBarOffset, priceL75, rightBarOffset, priceL75, color=colorL75, width=i_lineWidthInner, style=line.style_dotted)
+
+    if i_showInnerLevels
+        lineL625 := line.new(leftBarOffset, priceL625, rightBarOffset, priceL625, color=colorL625, width=i_lineWidthInner, style=line.style_dotted)
+
+    lineL50 := line.new(leftBarOffset, priceL50, rightBarOffset, priceL50, color=colorL50, width=i_lineWidthInner, style=line.style_dotted)
+
+    if i_showInnerLevels
+        lineL375 := line.new(leftBarOffset, priceL375, rightBarOffset, priceL375, color=colorL375, width=i_lineWidthInner, style=line.style_dotted)
+
+    if i_showOuterLevels
+        lineL25 := line.new(leftBarOffset, priceL25, rightBarOffset, priceL25, color=colorL25, width=i_lineWidthInner, style=line.style_dotted)
+
+    if i_showExtremes
+        lineL11 := line.new(leftBarOffset, priceL11, rightBarOffset, priceL11, color=colorL11, width=i_lineWidthInner, style=line.style_dashed)
+
+    lineL0 := line.new(leftBarOffset, priceL0, rightBarOffset, priceL0, color=colorL0, width=i_lineWidthBoundary, style=line.style_solid)
+
+    // --- Step 4: Render Right-aligned Data Labels | 绘制右侧数值与属性标签 ---
+    if i_showPriceLabels
+        labelL100 := label.new(rightBarOffset, priceL100, "100.0% Peak (最高): " + str.tostring(priceL100, format.mintick), color=color.new(colorL100, 100), textcolor=colorL100, style=label.style_label_left, size=i_labelSize)
+
+        if i_showExtremes
+            labelL89 := label.new(rightBarOffset, priceL89, "89.0% High (高位): " + str.tostring(priceL89, format.mintick), color=color.new(colorL89, 100), textcolor=colorL89, style=label.style_label_left, size=i_labelSize)
+
+        if i_showOuterLevels
+            labelL75 := label.new(rightBarOffset, priceL75, "75.0% Strong (偏强): " + str.tostring(priceL75, format.mintick), color=color.new(colorL75, 100), textcolor=colorL75, style=label.style_label_left, size=i_labelSize)
+
+        if i_showInnerLevels
+            labelL625 := label.new(rightBarOffset, priceL625, "62.5% Bull Pivot (强界): " + str.tostring(priceL625, format.mintick), color=color.new(colorL625, 100), textcolor=colorL625, style=label.style_label_left, size=i_labelSize)
+
+        labelL50 := label.new(rightBarOffset, priceL50, "50.0% Equilibrium (中轴): " + str.tostring(priceL50, format.mintick), color=color.new(colorL50, 100), textcolor=colorL50, style=label.style_label_left, size=i_labelSize)
+
+        if i_showInnerLevels
+            labelL375 := label.new(rightBarOffset, priceL375, "37.5% Bear Pivot (弱界): " + str.tostring(priceL375, format.mintick), color=color.new(colorL375, 100), textcolor=colorL375, style=label.style_label_left, size=i_labelSize)
+
+        if i_showOuterLevels
+            labelL25 := label.new(rightBarOffset, priceL25, "25.0% Weak (偏弱): " + str.tostring(priceL25, format.mintick), color=color.new(colorL25, 100), textcolor=colorL25, style=label.style_label_left, size=i_labelSize)
+
+        if i_showExtremes
+            labelL11 := label.new(rightBarOffset, priceL11, "11.0% Low (低位): " + str.tostring(priceL11, format.mintick), color=color.new(colorL11, 100), textcolor=colorL11, style=label.style_label_left, size=i_labelSize)
+
+        labelL0 := label.new(rightBarOffset, priceL0, "0.0% Floor (最低): " + str.tostring(priceL0, format.mintick), color=color.new(colorL0, 100), textcolor=colorL0, style=label.style_label_left, size=i_labelSize)

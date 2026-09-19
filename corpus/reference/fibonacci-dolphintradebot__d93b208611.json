@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d93b208611ad42bd8206faa71da3beaa",
+ "title": "Fibonacci - DolphinTradeBot",
+ "author": "WhaleTogether",
+ "url": "https://www.tradingview.com/script/ySq5zWb7-fibonacci-dolphintradebot/",
+ "agreeCount": 744,
+ "category": "harmonic patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fibonacci-dolphintradebot__d93b208611.pine",
+ "our_status": "committed"
+}

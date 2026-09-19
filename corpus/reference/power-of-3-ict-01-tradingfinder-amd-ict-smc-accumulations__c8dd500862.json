@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c8dd5008628d42faabe07b703ac28402",
+ "title": "Power Of 3 ICT 01 [TradingFinder] AMD ICT & SMC Accumulations",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/5thZ7SVC-power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations/",
+ "agreeCount": 9092,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine",
+ "cached_source": "tools/pine_survey/cache/sources/power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine",
+ "our_status": "committed"
+}

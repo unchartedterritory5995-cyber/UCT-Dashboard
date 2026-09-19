@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;78f5b055222d46e2929b1bc7599bd942",
+ "title": "Previous N Days/Weeks/Months High Low",
+ "author": "FX365_Thailand",
+ "url": "https://www.tradingview.com/script/fqiMxTMr-previous-n-days-weeks-months-high-low/",
+ "agreeCount": 2850,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/previous-n-daysweeksmonths-high-low__78f5b05522.pine",
+ "cached_source": "tools/pine_survey/cache/sources/previous-n-daysweeksmonths-high-low__78f5b05522.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;58ujcjLFItoYCyX4gPyWv2fU5sC17e6T",
+ "title": "72s Strategy: Adaptive Hull Moving Average+ pt.1",
+ "author": "io72signals",
+ "url": "https://www.tradingview.com/script/FrjeeWdl-72s-strategy-adaptive-hull-moving-average-pt-1/",
+ "agreeCount": 4717,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+ "cached_source": "tools/pine_survey/cache/sources/72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+ "our_status": "committed"
+}

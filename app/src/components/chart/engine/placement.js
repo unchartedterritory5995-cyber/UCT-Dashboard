@@ -353,6 +353,42 @@ function asSet(value) {
  * the layout keys its PANES by definition id today for the same reason, which is
  * the same boundary `instances.js` notes about stacking ORDER not being user data.
  */
+/**
+ * ⭐⭐ ITEM 10's GATE — `VITE_VOLUME_NUMERIC_PANE_ENABLED`. DEFAULT OFF.
+ *
+ * Item 10 is *"Volume's numeric plots as a pane"*. Today a definition the user
+ * has overlaid onto the volume pane lands on that pane's SHARED LEFT AXIS, which
+ * autoscales against everything else overlaid there — so a numeric read has no
+ * ladder of its own. With this gate on, such a definition skips the overlay
+ * branch and falls through to the Flip-C branch below, which gives it a REAL
+ * PANE and its own right-hand scale carrying its own numbers.
+ *
+ * ⛔ READ INSIDE THE FUNCTION, NEVER AT MODULE SCOPE. That is this repo's
+ * frontend convention and it exists for a reason `GlobalVideoLayer.jsx` writes
+ * down: a module-scope read is frozen at import and a test cannot flip it.
+ *
+ * ⛔ AND IT DEFAULTS OFF BY CONSTRUCTION — `=== '1'`, so anything else, including
+ * the variable being absent entirely, is off. The member-visible assertion in
+ * `placement.volumeNumericPane.test.js` is that with the gate unset this module
+ * answers byte-identically to the version before it existed.
+ *
+ * ⚠️ `import.meta.env` is a Vite transform and is absent under bare node, where
+ * reading a property off it throws. The try/catch is that, not defensiveness
+ * about the value.
+ *
+ * ⚰️ THE OWNER'S §6 MESSAGE WAS TRUNCATED AT "Feature fl…" and the tail never
+ * arrived, so the NAME is an assumption — recorded in `docs/pine/SESSION-STATE.md`
+ * under "Decisions taken autonomously" and in `docs/frontend_feature_flags.json`,
+ * and renameable in one line because it is read in exactly one place.
+ */
+export function volumeNumericPaneEnabled() {
+  try {
+    return import.meta.env.VITE_VOLUME_NUMERIC_PANE_ENABLED === '1'
+  } catch {
+    return false
+  }
+}
+
 export function resolvePlacement(instance, def, ctx) {
   if (!def || typeof def !== 'object') return null
   const c = ctx || {}
@@ -481,6 +517,26 @@ export function resolvePlacement(instance, def, ctx) {
     : def.id
 
   // ── Overlaid into the volume pane, on its left axis ──
+  //
+  // ⭐⭐ MERGED 2026-09-15 AS A UNION OF TWO INDEPENDENT CHANGES TO ONE `if`.
+  // Master widened WHICH definitions match (the modern `target === 'volume'`
+  // beside the legacy mirror); this branch added item 10's dark gate. Neither is
+  // a variant of the other: drop master's clause and a modern-only blob binds
+  // nothing again; drop this branch's and item 10 ships lit. Both comments are
+  // kept because each explains a different half of the condition below.
+  //
+  // ⭐ ITEM 10's GATE SITS ON THIS BRANCH AND NOWHERE ELSE. With
+  // `VITE_VOLUME_NUMERIC_PANE_ENABLED=1` the overlay is SKIPPED and the
+  // definition falls through to the Flip-C pane branch below, which is what
+  // "numeric plots as a pane" means: its own pane, its own right-hand scale, its
+  // own ladder — instead of a shared left axis autoscaled by its neighbours.
+  //
+  // ⛔ FAILING CLOSED IS PRESERVED, AND IT IS THE REASON THIS IS SAFE TO SHIP
+  // DARK. If the layout gave the definition no pane, the branch below returns
+  // `null` and the definition binds NOTHING — the same posture the rest of this
+  // module takes. A gate that turned a working overlay into a silent
+  // no-render would be a capability REMOVED, so the default stays off until an
+  // owner turns it on and sees a pane.
   // ⚰️⚰️ AND THE MODERN TARGET COUNTS, NOT ONLY THE LEGACY MIRROR.
   // `volumeOverlayIndicators` is the OLD way of saying "this draws in the volume
   // pane"; `placement.target === 'volume'` is the canonical one, and
@@ -501,7 +557,8 @@ export function resolvePlacement(instance, def, ctx) {
   // gets the LEFT axis so Volume keeps the right one. Same pane, different ladder
   // — a $704 security must not be read against 45M shares just because a member
   // put them in the same rectangle.
-  if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))) {
+  if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))
+      && !volumeNumericPaneEnabled()) {
     // ⭐⭐ WHICH LADDER? THE BARS DECIDE, BECAUSE THE RULE IS ABOUT THEM. `'left'`
     // exists so Volume keeps the right axis; `nativeVolumeInPane === false` says
     // the bars are not in this pane at all, and then the guest is the host. See

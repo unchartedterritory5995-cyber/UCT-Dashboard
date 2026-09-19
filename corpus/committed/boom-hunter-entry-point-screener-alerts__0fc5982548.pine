@@ -1,0 +1,164 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © veryfid
+
+//@version=4
+
+study(title = "Boom Hunter - Entry Point Screener Alerts" , shorttitle = "Boom Screener", overlay = false)
+
+//Inputs
+preset = input("Blue - Boom Hunter", "Preset:", options=["Blue - Boom Hunter", "White - Boom Hunter Pro","Yellow - Boom Hunter Pro", "Red - Boom Hunter Pro"])
+
+//Vars
+eot_func() => 
+    alpha1222 = 0.00 
+    HP2 = 0.00 
+    a12 = 0.00 
+    b12 = 0.00 
+    c12 = 0.00 
+    c22 = 0.00 
+    c32 = 0.00 
+    Filt2 = 0.00 
+    Peak2 = 0.00
+    X2 = 0.00 
+    Quotient3 = 0.00 
+    Quotient4 = 0.00
+    pi = math.pi
+    K12 = 0.8
+    K22 = 0.4
+    LPPeriod2 = 20
+    if preset == "White - Boom Hunter Pro"
+        LPPeriod2 := 6
+        K12 := 0.3
+    if preset == "Yellow - Boom Hunter Pro"
+        LPPeriod2 := 11
+        K12 := 0.99
+    if preset == "Red - Boom Hunter Pro"
+        LPPeriod2 := 27
+    alpha1222 := ( cos( .707 * 2 * pi / 100 ) + sin( .707 * 2 * pi / 100 ) - 1 ) / cos( .707 * 2 * pi / 100 ) 
+    HP2 := ( 1 - alpha1222 / 2 )*( 1 - alpha1222 / 2 )*( close - 2 * nz(close[1]) + nz(close[2]) ) + 2 * ( 1 - alpha1222 ) * nz(HP2[1])  - ( 1 - alpha1222 ) * ( 1 - alpha1222 ) * nz(HP2[2]) 
+
+//SuperSmoother Filter
+    a12 := exp( -1.414 * pi / LPPeriod2 ) 
+    b12 := 2 * a12 * cos( 1.414*pi / LPPeriod2 ) 
+    c22 := b12 
+    c32 := -a12 * a12 
+    c12 := 1 - c22 - c32 
+    Filt2 := c12 * ( HP2 + nz(HP2[1]) ) / 2 + c22 * nz(Filt2[1]) + c32 * nz(Filt2[2]) 
+
+//Fast Attack - Slow Decay Algorithm
+    Peak2 := .991 * nz(Peak2[1]) 
+    if abs( Filt2 ) > Peak2  
+	    Peak2 := abs( Filt2 ) 
+
+//Normalized Roofing Filter
+    if Peak2 != 0  
+        X2 := Filt2 / Peak2 
+
+    Quotient3 := ( X2 + K12 ) / ( K12 * X2 + 1 ) 
+
+eot_func2() => 
+    alpha1222 = 0.00 
+    HP2 = 0.00 
+    a12 = 0.00 
+    b12 = 0.00 
+    c12 = 0.00 
+    c22 = 0.00 
+    c32 = 0.00 
+    Filt2 = 0.00 
+    Peak2 = 0.00
+    X2 = 0.00 
+    Quotient3 = 0.00 
+    Quotient4 = 0.00
+    pi = math.pi
+    K12 = 0.8
+    K22 = 0.4
+    LPPeriod2 = 20
+    if preset == "White - Boom Hunter Pro"
+        LPPeriod2 := 6
+        K12 := 0.3
+    if preset == "Yellow - Boom Hunter Pro"
+        LPPeriod2 := 11
+        K12 := 0.99
+    if preset == "Red - Boom Hunter Pro"
+        LPPeriod2 := 27
+    alpha1222 := ( cos( .707 * 2 * pi / 100 ) + sin( .707 * 2 * pi / 100 ) - 1 ) / cos( .707 * 2 * pi / 100 ) 
+    HP2 := ( 1 - alpha1222 / 2 )*( 1 - alpha1222 / 2 )*( close - 2 * nz(close[1]) + nz(close[2]) ) + 2 * ( 1 - alpha1222 ) * nz(HP2[1])  - ( 1 - alpha1222 ) * ( 1 - alpha1222 ) * nz(HP2[2]) 
+
+//SuperSmoother Filter
+    a12 := exp( -1.414 * pi / LPPeriod2 ) 
+    b12 := 2 * a12 * cos( 1.414*pi / LPPeriod2 ) 
+    c22 := b12 
+    c32 := -a12 * a12 
+    c12 := 1 - c22 - c32 
+    Filt2 := c12 * ( HP2 + nz(HP2[1]) ) / 2 + c22 * nz(Filt2[1]) + c32 * nz(Filt2[2]) 
+
+//Fast Attack - Slow Decay Algorithm
+    Peak2 := .991 * nz(Peak2[1]) 
+    if abs( Filt2 ) > Peak2  
+	    Peak2 := abs( Filt2 ) 
+
+//Normalized Roofing Filter
+    if Peak2 != 0  
+        X2 := Filt2 / Peak2 
+
+    Quotient3 := ( X2 + K22 ) / ( K22 * X2 + 1 ) 
+    
+    
+f_triggerBoom(_ticker)=>
+	_x = crossunder(eot_func(),-0.9)
+    _y = crossover(eot_func(),0.9)
+    [_long] = security(_ticker, timeframe.period, [_x])
+    _msg = _ticker + ", " + timeframe.period + ": "
+    if _long
+        _msg := _msg + "BOOM Long Entry Zone"
+        alert(_msg,  alert.freq_once_per_bar_close)
+
+    [_short] = security(_ticker, timeframe.period, [_y])
+    if _short
+        _msg := _msg + "BOOM Short Entry Zone"
+        alert(_msg,  alert.freq_once_per_bar_close)
+
+
+t1 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t2 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t3 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t4 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t5 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t6 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t7 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t8 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t9 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t10 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t11 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t12 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t13 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t14 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t15 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t16 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t17 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+t18 = input('INDEX:BTCUSD', type=input.symbol, group = "BOOM Entry Point Screener")
+
+f_triggerBoom(t1)
+f_triggerBoom(t2)
+f_triggerBoom(t3)
+f_triggerBoom(t4)
+f_triggerBoom(t5)
+f_triggerBoom(t6)
+f_triggerBoom(t7)
+f_triggerBoom(t8)
+f_triggerBoom(t9)
+f_triggerBoom(t10)
+f_triggerBoom(t11)
+f_triggerBoom(t12)
+f_triggerBoom(t13)
+f_triggerBoom(t14)
+f_triggerBoom(t15)
+f_triggerBoom(t16)
+f_triggerBoom(t17)
+f_triggerBoom(t18)
+
+p1 = plot(eot_func(), transp = 50, color = preset == "Blue - Boom Hunter" ? color.blue : preset == "White - Boom Hunter Pro" ? color.white : preset == "Yellow - Boom Hunter Pro" ? color.yellow : preset == "Red - Boom Hunter Pro" ? color.red : na )
+p2 = plot(preset == "Blue - Boom Hunter" or preset == "Red - Boom Hunter Pro" ? eot_func2() : na, transp = 50, color = preset == "Blue - Boom Hunter" ? color.blue : preset == "Red - Boom Hunter Pro" ? color.red : na)
+fill(p1,p2, color = preset == "Blue - Boom Hunter" ? color.blue : preset == "Red - Boom Hunter Pro" ? color.red : na)
+plotshape(crossunder(eot_func(),-0.9), title="Long Entry Point Warning", location=location.top, style=shape.circle, size=size.tiny, color=color.lime, transp=20)
+plotshape(crossover(eot_func(),0.9), title="Short Entry Point Warning", location=location.top, style=shape.circle, size=size.tiny, color=color.red, transp=20)

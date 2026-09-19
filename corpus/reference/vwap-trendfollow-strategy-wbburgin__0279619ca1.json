@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0279619ca1224ebba48b4fb863b190ad",
+ "title": "VWAP Trendfollow Strategy [wbburgin]",
+ "author": "wbburgin",
+ "url": "https://www.tradingview.com/script/XoR8rQaW-vwap-trendfollow-strategy-wbburgin/",
+ "agreeCount": 4467,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vwap-trendfollow-strategy-wbburgin__0279619ca1.pine",
+ "our_status": "reference-only"
+}

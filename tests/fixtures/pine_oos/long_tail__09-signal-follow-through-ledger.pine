@@ -1,0 +1,426 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/
+// © MQLSoftware
+//@version=6
+//
+// Signal Follow-Through Ledger [MQLSoftware]
+//
+// Free/open-source measurement overlay for a signal the trader already has. The
+// script produces no signal of its own: it reads a numeric series the user points it
+// at - a built-in price source, or any plot of any indicator already on the chart,
+// including one that is not ours - takes the user's definition of what counts as an
+// event on that series, and keeps an audit trail of what price did afterwards. It
+// creates no entries, stops, targets, position sizing or execution instructions, and
+// it does not rank, score or recommend the source it is measuring.
+//
+// ORIGINAL CONTRIBUTION
+// 1. The audited object is supplied by the user, not invented by the script. Through
+//    input.source the ledger attaches to whatever numeric plot is already on the
+//    chart and measures THAT. Published scripts overwhelmingly compute their own
+//    signal and then describe it; this one owns no signal and exists only to measure
+//    someone else's. The consequence is that one tool answers the same question for
+//    an RSI level cross, for a moving-average cross and for a third-party
+//    indicator's output, without reimplementing any of them.
+// 2. Frozen per-sample ATR. The favourable and adverse distances for a sample are
+//    fixed from the ATR reading on its own signal bar and are never recomputed.
+//    Rescaling every historical sample by today's volatility is the standard way
+//    this measurement goes wrong: a quiet market silently reclassifies old samples.
+//    Here each sample is judged by the volatility that existed when it was taken, so
+//    a historical row cannot change because the market changed later.
+// 3. Same-bar ambiguity is a first-class outcome, not a coin flip. When one bar
+//    contains both the favourable and the adverse threshold, OHLC data cannot say
+//    which was reached first. The sample is classed AMBIGUOUS, is excluded from the
+//    headline rate, and is shown with its own count. Resolving those by assumption -
+//    in either direction - is the largest single source of overstated hit rates in
+//    this kind of measurement, and this script refuses to make the assumption.
+// 4. Excursion measured over the full horizon, outcome measured to first touch. MFE
+//    and MAE keep accumulating for the whole horizon even after the sample has
+//    already resolved. Stopping them at resolution would floor MFE at the user's own
+//    favourable multiple and report that setting back to him as though it were a
+//    property of the market. Separating "which side did it reach first" from "how far
+//    did it actually travel" is what makes the two figures independently informative.
+// 5. Independence before sample count. The default sampling policy runs one sample at
+//    a time: a new event is not admitted while an earlier sample is still inside its
+//    evaluation horizon. Overlapping samples share future bars, so they are
+//    correlated, and pooling them inflates the apparent sample size without adding
+//    evidence. Events declined for this reason are counted and displayed, so the user
+//    can see that the signal fires more often than the ledger samples it.
+//
+// DATA LIMITATION
+// Every figure is computed from the loaded history of the current chart, current
+// timeframe and current source only. These are descriptive counts of what already
+// happened - not a probability, an expectancy, an edge or a forecast - and this is not
+// a strategy backtest: no fills, spread, commission, slippage, position sizing, order
+// handling, partial exits or intrabar sequencing are modelled anywhere in this script.
+// A different symbol, feed, timeframe or source will produce different numbers.
+//
+// REALTIME BEHAVIOUR - WHAT IS FROZEN AND WHAT IS LIVE
+// FROZEN (confirmed bars only, never revised). Event detection, the per-sample ATR
+// snapshot, excursion accumulation, outcome classification, the ledger arrays, every
+// count and median derived from them, the chart markers, the measurement-window boxes
+// and both alerts. All of it executes inside barstate.isconfirmed, and an outcome is
+// latched once and never rewritten, so a historical sample cannot improve later.
+//
+// LIVE. Exactly one thing: the raw source readout in the panel footer, which exists
+// so the user can confirm the source is actually wired up. It writes nothing to the
+// ledger.
+//
+// UPSTREAM SOURCE CAVEAT - READ THIS
+// This script's own evaluation uses confirmed bars and no lookahead, but it cannot make
+// the series it is handed stable. If the selected source repaints - if the upstream
+// indicator rewrites its own historical output - then the events detected on it change
+// too, and this audit changes with them. The audit is only ever as stable as the source
+// it is pointed at. No request.security() path exists in this script.
+
+indicator("Signal Follow-Through Ledger [MQLSoftware]", shorttitle="MQLSoftware - Signal Follow-Through Ledger", overlay=true, max_bars_back=5000, max_boxes_count=500, max_labels_count=500)
+
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+color NS_WHITE = color.rgb(225, 230, 240)
+color NS_LBL = color.rgb(170, 178, 195)
+color NS_SEC = color.rgb( 90, 98, 115)
+color NS_BG = color.rgb( 8, 11, 18)
+color NS_ROW = color.rgb( 16, 20, 30)
+
+color SFT_FAV_DEF = #00E5A8
+color SFT_ADV_DEF = #FF3D71
+color SFT_AMB_DEF = #FFB020
+color SFT_NEI_DEF = #7A869F
+color SFT_SIG_DEF = #5B8CFF
+color SFT_ACC_DEF = #00E5FF
+
+// Outcome codes, named so the engine below reads as prose.
+int OC_OPEN = 0
+int OC_FAV = 1
+int OC_ADV = 2
+int OC_AMB = 3
+int OC_NEI = 4
+
+// Hard ceiling on samples tracked simultaneously. Only reachable with overlap enabled
+// and a long horizon; it bounds per-bar work so a high-frequency source on a long
+// history cannot turn the script into a performance bomb. Declined events are counted.
+int MAX_ACTIVE = 64
+
+// ─── INPUTS ───────────────────────────────────────────────────────────────────
+var string GRP_SRC = "◆ Signal"
+var string GRP_OUT = "◆ Outcome Test"
+var string GRP_SMP = "◆ Sampling"
+var string GRP_VIS = "◆ Display"
+var string GRP_ALR = "◆ Alerts"
+
+float srcMain = input.source(close, "Signal source", group=GRP_SRC, tooltip="The series to audit. Pick a built-in price source, or the plot of any indicator already on this chart - it does not have to be one of ours. Every figure in the panel describes events on THIS series.")
+
+string EV_XUL = "Cross up through level"
+string EV_XDL = "Cross down through level"
+string EV_XUR = "Cross up through reference"
+string EV_XDR = "Cross down through reference"
+string EV_NHI = "New high over N bars"
+string EV_NLO = "New low over N bars"
+string EV_APP = "Value appears (blank to number)"
+
+string evMode = input.string(EV_XUR, "Signal event", options=[EV_XUL, EV_XDL, EV_XUR, EV_XDR, EV_NHI, EV_NLO, EV_APP], group=GRP_SRC, tooltip="What counts as one event on the source. Level modes compare it against a fixed number, reference modes against a second series, and the appears mode is for sources that are blank except on the bars where they signal.")
+float lvl = input.float(0.0, "Level", step=0.5, group=GRP_SRC, tooltip="In the units of the source. RSI: 30 or 70. A zero-centred oscillator: 0. Ignored unless a level mode is selected.")
+
+string REF_MA = "Moving average of the source"
+string REF_SRC = "Second source"
+string refMode = input.string(REF_MA, "Reference", options=[REF_MA, REF_SRC], group=GRP_SRC, tooltip="What the two reference modes compare the source against.")
+int refLen = input.int(50, "Reference MA length", minval=1, maxval=1000, group=GRP_SRC)
+float srcRef = input.source(close, "Second source", group=GRP_SRC, tooltip="Used only when Reference is set to Second source. This may be an external plot as well.")
+int extLen = input.int(20, "Extreme lookback (bars)", minval=2, maxval=500, group=GRP_SRC, tooltip="Used only by the new-high and new-low modes.")
+
+string DIR_AUTO = "Follow event direction"
+string DIR_LONG = "Long (up is favourable)"
+string DIR_SHORT = "Short (down is favourable)"
+string dirMode = input.string(DIR_AUTO, "Favourable direction", options=[DIR_AUTO, DIR_LONG, DIR_SHORT], group=GRP_OUT, tooltip="Which way price has to move for a sample to count as favourable. This decides only how outcomes are scored - it never changes when an event fires. Follow event direction maps upward events to long and downward events to short; override it when you read the source the other way round, for example treating an RSI cross above 70 as a fade.")
+float favMult = input.float(1.0, "Favourable target × ATR", minval=0.1, maxval=10.0, step=0.1, group=GRP_OUT)
+float advMult = input.float(1.0, "Adverse target × ATR", minval=0.1, maxval=10.0, step=0.1, group=GRP_OUT)
+int horizon = input.int(20, "Evaluation horizon (bars)", minval=2, maxval=200, group=GRP_OUT, tooltip="How many bars after the signal bar a sample is watched. If neither target is reached inside the horizon the sample resolves as neither - that is a real answer and it stays in the denominator.")
+int atrLen = input.int(14, "ATR length", minval=2, maxval=200, group=GRP_OUT, tooltip="ATR of the chart symbol. Read once on the signal bar and frozen for that sample.")
+
+string OV_ONE = "One at a time"
+string OV_ANY = "Allow overlap"
+string ovMode = input.string(OV_ONE, "Overlapping signals", options=[OV_ONE, OV_ANY], group=GRP_SMP, tooltip="One at a time declines a new event while an earlier sample is still inside its horizon, so samples never share future bars. Allow overlap collects more samples, but they are correlated with each other.")
+int cdBars = input.int(5, "Minimum bars between signals", minval=0, maxval=200, group=GRP_SMP, tooltip="Stops a source that is hovering on the threshold from logging a burst of near-identical events.")
+int maxKeep = input.int(300, "Keep at most N recent samples", minval=20, maxval=1000, group=GRP_SMP)
+int minN = input.int(20, "Minimum sample before showing rates", minval=5, maxval=200, group=GRP_SMP, tooltip="Below this the panel shows the raw counts and says it is still collecting, instead of quoting a percentage built on too little evidence.")
+
+bool showPanel = input.bool(true, "Show ledger panel", group=GRP_VIS)
+string panelPos = input.string(position.top_right, "Panel position", options=[position.top_left, position.top_center, position.top_right, position.middle_left, position.middle_right, position.bottom_left, position.bottom_center, position.bottom_right], group=GRP_VIS)
+string panelSize = input.string(size.small, "Panel text size", options=[size.tiny, size.small, size.normal, size.large], group=GRP_VIS)
+bool showSig = input.bool(true, "Mark audited signals", group=GRP_VIS)
+bool showOut = input.bool(true, "Mark where each sample resolved", group=GRP_VIS)
+int boxN = input.int(20, "Measurement windows to draw", minval=0, maxval=50, group=GRP_VIS, tooltip="Draws the favourable/adverse corridor across the whole evaluation horizon, for the most recent N completed samples. The marker inside it shows where the outcome was decided. 0 turns them off.")
+color cFav = input.color(SFT_FAV_DEF, "Favourable first", inline="oc1", group=GRP_VIS)
+color cAdv = input.color(SFT_ADV_DEF, "Adverse first", inline="oc1", group=GRP_VIS)
+color cAmb = input.color(SFT_AMB_DEF, "Ambiguous", inline="oc2", group=GRP_VIS)
+color cNei = input.color(SFT_NEI_DEF, "Neither", inline="oc2", group=GRP_VIS)
+color cSig = input.color(SFT_SIG_DEF, "Signal marker", group=GRP_VIS)
+
+bool alrNew = input.bool(true, "Alert when a signal enters the ledger", group=GRP_ALR)
+bool alrRes = input.bool(true, "Alert when a sample resolves", group=GRP_ALR)
+
+// ─── SHARED HELPERS ───────────────────────────────────────────────────────────
+// House idiom: below the minimum sample, say so. Never print a percentage the
+// evidence does not support. Matches Level Watch & Touch Ledger and Session
+// Liquidity Architecture.
+f_rate(int c, int n, int gate) =>
+    n >= gate ? str.tostring(100.0 * c / n, "#") + "%" : "collecting"
+
+f_num(float v) =>
+    na(v) ? "—" : str.tostring(v, "#.##")
+
+// Excursions are spelled " ATR", never "R". In this product line "R" already means
+// risk multiple - Price Reaction Levels renders live trade R-multiples that way - and
+// reusing it for an ATR multiple would read as a risk figure to our own users. Both
+// numbers are signed, because a median MFE below zero (price never traded favourably
+// at all) and a median MAE above zero (it never traded against) are real, informative
+// answers rather than errors.
+f_pair(float a, float b) =>
+    na(a) or na(b) ? "—" : (a >= 0 ? "+" : "") + str.tostring(a, "#.##") + " / " + (b >= 0 ? "+" : "") + str.tostring(b, "#.##") + " ATR"
+
+// ─── SOURCE, REFERENCE AND EVENT DETECTION ────────────────────────────────────
+// Every ta.* call is unconditional. Calling one inside a ternary or an if branch makes
+// its internal state depend on the branch being taken and is the classic way a series
+// function starts returning inconsistent values.
+float atr = ta.atr(atrLen)
+float refMa = ta.sma(srcMain, refLen)
+float hiPrev = ta.highest(srcMain, extLen)[1]
+float loPrev = ta.lowest(srcMain, extLen)[1]
+
+float refSeries = refMode == REF_SRC ? srcRef : refMa
+
+// Crosses are written out rather than taken from ta.crossover so that a source which is
+// blank on some bars - the normal shape of a third-party signal plot - is handled
+// explicitly, instead of producing a silent na that would read as "no event".
+bool pOk = not na(srcMain[1])
+bool cOk = not na(srcMain)
+bool rOk = not na(refSeries) and not na(refSeries[1])
+
+// A new-extreme event has to have a genuinely full lookback window behind it.
+// ta.highest and ta.lowest skip na, so while the source is still warming up they will
+// happily report a "new high over N bars" backed by a handful of values - on RSI(14)
+// with a 20-bar lookback that produced three phantom extremes inside the first 35 bars.
+// Counting the run of consecutive non-na source bars makes the requirement explicit.
+var int srcRun = 0
+srcRun := cOk ? srcRun + 1 : 0
+bool extReady = srcRun > extLen
+
+bool evXUL = pOk and cOk and srcMain[1] <= lvl and srcMain > lvl
+bool evXDL = pOk and cOk and srcMain[1] >= lvl and srcMain < lvl
+bool evXUR = pOk and cOk and rOk and srcMain[1] <= refSeries[1] and srcMain > refSeries
+bool evXDR = pOk and cOk and rOk and srcMain[1] >= refSeries[1] and srcMain < refSeries
+bool evNHI = cOk and extReady and not na(hiPrev) and srcMain > hiPrev
+bool evNLO = cOk and extReady and not na(loPrev) and srcMain < loPrev
+bool evAPP = cOk and not pOk and bar_index > 0
+
+bool rawEvent = switch evMode
+    EV_XUL => evXUL
+    EV_XDL => evXDL
+    EV_XUR => evXUR
+    EV_XDR => evXDR
+    EV_NHI => evNHI
+    EV_NLO => evNLO
+    EV_APP => evAPP
+    => false
+
+// The direction implied by the event itself, used when the user leaves the setting on
+// Follow event direction. It is a mapping, not an opinion about the market.
+int evDir = switch evMode
+    EV_XDL => -1
+    EV_XDR => -1
+    EV_NLO => -1
+    => 1
+
+int dirSign = dirMode == DIR_LONG ? 1 : dirMode == DIR_SHORT ? -1 : evDir
+
+// ─── LEDGER STATE ─────────────────────────────────────────────────────────────
+type Sample
+    float refPx
+    float atrSnap
+    int dir
+    int startBar
+    int age
+    int outcome
+    float mfe
+    float mae
+    int btp
+
+var array<Sample> active = array.new<Sample>()
+var array<float> mfeArr = array.new<float>()
+var array<float> maeArr = array.new<float>()
+var array<float> btpArr = array.new<float>()
+var array<int> outArr = array.new<int>()
+var array<box> winBox = array.new<box>()
+
+var int nFav = 0
+var int nAdv = 0
+var int nAmb = 0
+var int nNei = 0
+var int nSeen = 0
+var int nSkipped = 0
+var int cdLeft = 0
+var bool everSrc = false
+
+// Per-bar render flags, hoisted so the plotshape calls below can see them.
+bool sigLong = false
+bool sigShort = false
+bool resFav = false
+bool resAdv = false
+bool resAmb = false
+bool resNei = false
+
+// ─── ENGINE ───────────────────────────────────────────────────────────────────
+// The order inside this block is load-bearing. Open samples are advanced FIRST, and
+// only then may a new event be admitted. That is what makes evaluation start on the bar
+// AFTER the signal bar: the reference price is the signal bar's close, and the signal
+// bar's own high and low were printed partly before that close, so testing them would
+// be reading the past of a bar as though it were the signal's future.
+if barstate.isconfirmed
+    everSrc := everSrc or cOk
+
+    if cdLeft > 0
+        cdLeft := cdLeft - 1
+
+    if array.size(active) > 0
+        for i = array.size(active) - 1 to 0
+            Sample s = array.get(active, i)
+            s.age := s.age + 1
+
+            // Excursions in units of the sample's own frozen ATR.
+            float favExc = s.dir == 1 ? (high - s.refPx) / s.atrSnap : (s.refPx - low) / s.atrSnap
+            float advExc = s.dir == 1 ? (s.refPx - low) / s.atrSnap : (high - s.refPx) / s.atrSnap
+
+            // MFE and MAE run for the whole horizon, including after the outcome has
+            // already been latched - see ORIGINAL CONTRIBUTION 4.
+            if na(s.mfe) or favExc > s.mfe
+                s.mfe := favExc
+                s.btp := s.age
+            if na(s.mae) or advExc > s.mae
+                s.mae := advExc
+
+            if s.outcome == OC_OPEN
+                bool fHit = favExc >= favMult
+                bool aHit = advExc >= advMult
+
+                // Both thresholds inside one bar: OHLC cannot order them, so the sample
+                // is marked ambiguous rather than guessed - see ORIGINAL CONTRIBUTION 3.
+                s.outcome := fHit and aHit ? OC_AMB : fHit ? OC_FAV : aHit ? OC_ADV : s.age >= horizon ? OC_NEI : OC_OPEN
+
+                if s.outcome != OC_OPEN
+                    resFav := resFav or s.outcome == OC_FAV
+                    resAdv := resAdv or s.outcome == OC_ADV
+                    resAmb := resAmb or s.outcome == OC_AMB
+                    resNei := resNei or s.outcome == OC_NEI
+
+                    if alrRes
+                        string word = s.outcome == OC_FAV ? "reached the favourable target first" : s.outcome == OC_ADV ? "reached the adverse target first" : s.outcome == OC_AMB ? "hit both targets on one bar, so it is ambiguous" : "reached neither target"
+                        alert("Signal Follow-Through Ledger: a sample " + word + " after " + str.tostring(s.age) + " bars.", alert.freq_once_per_bar_close)
+
+            // Horizon complete. The sample is retired into the ledger and frozen.
+            if s.age >= horizon
+                // The measurement window is drawn here rather than at resolution, and
+                // spans the WHOLE horizon, because that is the window MFE and MAE are
+                // actually measured over. A box that stopped at the resolution bar would
+                // understate the window and, on a sample that resolved on its first bar,
+                // collapse to an unreadable sliver. The coloured marker on the chart
+                // still shows where the outcome was decided inside this window.
+                if boxN > 0
+                    color bc = s.outcome == OC_FAV ? cFav : s.outcome == OC_ADV ? cAdv : s.outcome == OC_AMB ? cAmb : cNei
+                    float top = s.refPx + (s.dir == 1 ? favMult : advMult) * s.atrSnap
+                    float bot = s.refPx - (s.dir == 1 ? advMult : favMult) * s.atrSnap
+                    array.push(winBox, box.new(s.startBar, top, bar_index, bot, border_color=bc, border_width=1, bgcolor=color.new(bc, 92)))
+                    while array.size(winBox) > boxN
+                        box.delete(array.shift(winBox))
+
+                array.push(mfeArr, s.mfe)
+                array.push(maeArr, s.mae)
+                array.push(btpArr, float(s.btp))
+                array.push(outArr, s.outcome)
+                nFav := nFav + (s.outcome == OC_FAV ? 1 : 0)
+                nAdv := nAdv + (s.outcome == OC_ADV ? 1 : 0)
+                nAmb := nAmb + (s.outcome == OC_AMB ? 1 : 0)
+                nNei := nNei + (s.outcome == OC_NEI ? 1 : 0)
+
+                // Bounded rolling window. The counters are decremented in step with the
+                // arrays, so the two can never disagree about the same sample.
+                while array.size(outArr) > maxKeep
+                    int gone = array.shift(outArr)
+                    array.shift(mfeArr)
+                    array.shift(maeArr)
+                    array.shift(btpArr)
+                    nFav := nFav - (gone == OC_FAV ? 1 : 0)
+                    nAdv := nAdv - (gone == OC_ADV ? 1 : 0)
+                    nAmb := nAmb - (gone == OC_AMB ? 1 : 0)
+                    nNei := nNei - (gone == OC_NEI ? 1 : 0)
+
+                array.remove(active, i)
+
+    // A new event may now be admitted, on this bar, for evaluation from the next one.
+    if rawEvent and not na(atr) and atr > 0
+        nSeen := nSeen + 1
+        bool busy = ovMode == OV_ONE and array.size(active) > 0
+        bool capped = array.size(active) >= MAX_ACTIVE
+        if cdLeft > 0 or busy or capped
+            nSkipped := nSkipped + 1
+        else
+            array.push(active, Sample.new(refPx=close, atrSnap=atr, dir=dirSign, startBar=bar_index, age=0, outcome=OC_OPEN, mfe=na, mae=na, btp=0))
+            cdLeft := cdBars
+            sigLong := dirSign == 1
+            sigShort := dirSign == -1
+            if alrNew
+                alert("Signal Follow-Through Ledger: a new " + (dirSign == 1 ? "long" : "short") + " sample entered the ledger.", alert.freq_once_per_bar_close)
+
+// ─── CHART MARKERS ────────────────────────────────────────────────────────────
+// Signal markers are plotted on the signal bar in one neutral colour and are never
+// recoloured afterwards, because the outcome was not knowable there. The outcome is
+// drawn separately, on the bar it actually became known on. Reading a pair left to
+// right is the whole product: here is the event, and here is where it resolved.
+plotshape(showSig and sigLong, title="Audited signal (long)", style=shape.triangleup, location=location.belowbar, color=cSig, size=size.tiny)
+plotshape(showSig and sigShort, title="Audited signal (short)", style=shape.triangledown, location=location.abovebar, color=cSig, size=size.tiny)
+plotshape(showOut and resFav, title="Resolved: favourable first", style=shape.circle, location=location.abovebar, color=cFav, size=size.tiny)
+plotshape(showOut and resAdv, title="Resolved: adverse first", style=shape.circle, location=location.belowbar, color=cAdv, size=size.tiny)
+plotshape(showOut and resAmb, title="Resolved: same-bar ambiguous", style=shape.xcross, location=location.abovebar, color=cAmb, size=size.tiny)
+plotshape(showOut and resNei, title="Resolved: neither target", style=shape.square, location=location.abovebar, color=cNei, size=size.tiny)
+
+// ─── PANEL ────────────────────────────────────────────────────────────────────
+// Cells are rewritten in full on every render and no cell is ever merged, so the table
+// needs no clear step and cannot accumulate stale merge state across renders.
+var table pnl = showPanel ? table.new(position.top_right, 2, 8, border_width=1, border_color=NS_SEC) : na
+
+if barstate.islast and showPanel
+    table.set_position(pnl, panelPos)
+    table.set_bgcolor(pnl, NS_BG)
+
+    int nRated = nFav + nAdv + nNei
+    int nOpen = array.size(active)
+
+    // Four separate reasons the ledger can be thin, kept apart so the panel says which
+    // one it is instead of printing a misleading 0%.
+    string state = not everSrc ? "no data from the selected source" : na(atr) or atr <= 0 ? "warming up" : nSeen == 0 ? "no signals on this chart yet" : nRated < minN ? "collecting - " + str.tostring(nRated) + " of " + str.tostring(minN) : ""
+
+    string headLbl = "+" + str.tostring(favMult, "0.0") + " ATR before -" + str.tostring(advMult, "0.0") + " ATR"
+    string headVal = nRated >= minN ? f_rate(nFav, nRated, minN) : "—"
+
+    table.cell(pnl, 0, 0, "SIGNAL FOLLOW-THROUGH LEDGER", text_color=NS_SEC, text_size=size.tiny, text_halign=text.align_left, bgcolor=NS_BG)
+    table.cell(pnl, 1, 0, "", bgcolor=NS_BG)
+
+    table.cell(pnl, 0, 1, headLbl, text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_ROW)
+    table.cell(pnl, 1, 1, headVal, text_color=SFT_ACC_DEF, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_ROW)
+
+    table.cell(pnl, 0, 2, "resolved samples", text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_BG)
+    table.cell(pnl, 1, 2, str.tostring(nRated), text_color=NS_WHITE, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_BG)
+
+    table.cell(pnl, 0, 3, "favourable / adverse / neither", text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_ROW)
+    table.cell(pnl, 1, 3, str.tostring(nFav) + " / " + str.tostring(nAdv) + " / " + str.tostring(nNei), text_color=NS_WHITE, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_ROW)
+
+    table.cell(pnl, 0, 4, "median MFE / MAE", text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_BG)
+    table.cell(pnl, 1, 4, array.size(mfeArr) >= minN ? f_pair(array.median(mfeArr), -array.median(maeArr)) : "collecting", text_color=NS_WHITE, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_BG)
+
+    table.cell(pnl, 0, 5, "median bars to peak", text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_ROW)
+    table.cell(pnl, 1, 5, array.size(btpArr) >= minN ? f_num(array.median(btpArr)) : "collecting", text_color=NS_WHITE, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_ROW)
+
+    table.cell(pnl, 0, 6, "ambiguous / open / declined", text_color=NS_LBL, text_size=panelSize, text_halign=text.align_left, bgcolor=NS_BG)
+    table.cell(pnl, 1, 6, str.tostring(nAmb) + " / " + str.tostring(nOpen) + " / " + str.tostring(nSkipped), text_color=NS_WHITE, text_size=panelSize, text_halign=text.align_right, bgcolor=NS_BG)
+
+    string ctx = (state != "" ? state + " · " : "") + "src " + f_num(srcMain) + " · " + str.lower(evMode) + " · " + (dirSign == 1 ? "long" : "short") + " · H" + str.tostring(horizon) + (array.size(outArr) >= maxKeep ? " · last " + str.tostring(maxKeep) : "")
+    table.cell(pnl, 0, 7, ctx, text_color=NS_SEC, text_size=size.tiny, text_halign=text.align_left, bgcolor=NS_BG)
+    table.cell(pnl, 1, 7, "", bgcolor=NS_BG)

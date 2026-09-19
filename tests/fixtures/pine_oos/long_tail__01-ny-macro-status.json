@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "01-ny-macro-status.pine",
+  "title": "NY Macro Status",
+  "author": "joeybellotti0",
+  "source_url": "https://www.tradingview.com/script/cgCfwdLs-NY-Macro-Status/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 166,
+  "complexity_bucket": "long",
+  "sha256_source": "e134b969090a321a9ec19451800642097d2d66e25ce9306346fe45c9cff0b98c",
+  "sha256_normalized": "827f6c737eb4b670137339b95fd86e1cecf525595dea66aa36183065ab28af36",
+  "storage": "local-only"
+}

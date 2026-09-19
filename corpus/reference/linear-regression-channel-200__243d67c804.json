@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;243d67c80446408e82cd094efe0e6d93",
+ "title": "Linear Regression Channel 200",
+ "author": "RozaniGhani-RG",
+ "url": "https://www.tradingview.com/script/yneNJmCb-linear-regression-channel-200/",
+ "agreeCount": 489,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/linear-regression-channel-200__243d67c804.pine",
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel-200__243d67c804.pine",
+ "our_status": "committed"
+}

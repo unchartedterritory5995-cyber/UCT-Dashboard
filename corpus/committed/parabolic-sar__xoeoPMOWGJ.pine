@@ -1,0 +1,69 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LonesomeTheBlue
+
+//@version=4
+study("Parabolic SAR", "SAR", overlay = true)
+
+start = input(title = "Start", defval = 0.02, step = 0.001)
+increment = input(title = "Increment", defval = 0.02, step = 0.001)
+maximum = input(title = "Max Value", defval = 0.2, step = 0.01)
+putlabel = input(title = "Put Labels", defval = true)
+colup = input(title = "Colors", defval = color.lime, inline = "col")
+coldn = input(title = "", defval = color.red, inline = "col")
+
+int trend = 0
+float sar = 0.0
+float ep = 0.0
+float af = 0.0
+
+trend := nz(trend[1])
+ep := nz(ep[1])
+af :=nz(af[1])
+sar := sar[1]
+
+if trend == 0 and not na(high[1])
+    trend := high >= high[1] or low >= low[1] ? 1 : -1
+    sar := trend > 0 ? low[1] : high[1]
+    ep := trend > 0 ? high[1] : low[1]
+    af := start
+else 
+    nextsar = sar
+    if trend > 0
+        if high[1] > ep
+            ep := high[1]
+            af := min(maximum, af + increment)
+            
+        nextsar := sar + af * (ep - sar)
+        nextsar := min(min(low[1], low[2]), nextsar)
+        
+        //Reversal
+        if nextsar > low
+            trend := -1
+            nextsar := ep
+            ep := low
+            af := start
+    else 
+        if low[1] < ep
+            ep := low[1]
+            af := min(maximum, af + increment)
+        
+        nextsar := sar + af * (ep - sar)
+        nextsar := max(max(high[1], high[2]), nextsar)
+        
+        //Reversal
+        if nextsar < high
+            trend := 1
+            nextsar := ep
+            ep := high
+            af := start
+    sar := nextsar
+
+plot(sar, title = "Parabolic SAR", color = trend > 0 ? colup : coldn, linewidth = 2, style = plot.style_circles)
+
+alertcondition(change(trend) > 0, title='PSAR Trend UP', message='PSAR Trend UP')
+alertcondition(change(trend) < 0, title='PSAR Trend DOWN', message='PSAR Trend DOWN')
+
+if change(trend) > 0 and putlabel
+    label.new(bar_index, sar, text = tostring(round_to_mintick(sar)), color = colup, style=label.style_labelup, size = size.tiny)
+if change(trend) < 0 and putlabel
+    label.new(bar_index, sar, text = tostring(round_to_mintick(sar)), color = coldn, style=label.style_labeldown, size = size.tiny)

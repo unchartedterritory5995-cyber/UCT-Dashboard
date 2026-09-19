@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ce1cc9553eb8411cba04914d28d9d07a",
+ "title": "Elliot Wave Detector Pro",
+ "author": "GoodBadBitcoin",
+ "url": "https://www.tradingview.com/script/ll4E7z1x-elliot-wave-detector-pro/",
+ "agreeCount": 3151,
+ "category": "harmonic patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/elliot-wave-detector-pro__ce1cc9553e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/elliot-wave-detector-pro__ce1cc9553e.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;68a59b1fc01246789ae4faa0c47b1ff1",
+ "title": "Machine Learning Supertrend [Aslan]",
+ "author": "Zimord",
+ "url": "https://www.tradingview.com/script/9SgtsBck-machine-learning-supertrend-aslan/",
+ "agreeCount": 5799,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-supertrend-aslan__68a59b1fc0.pine",
+ "our_status": "reference-only"
+}

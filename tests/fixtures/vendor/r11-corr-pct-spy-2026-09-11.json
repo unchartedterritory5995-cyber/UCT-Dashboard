@@ -1,0 +1,57 @@
+{
+  "_": "⭐⭐ ITEM 8, NAMES #8 AND #9 — both ANSWERED. They return `na` until the window fills, and the percentile's boundaries clamp EXACTLY to the window's min and max.",
+  "_probe": "tools/visual_conformance/probes/r11-corr-pct.pine",
+  "_probeSha256": "3f7cf02d3dc5390cc0c6b689384f8e7919bbd1feca212d828d252cee2272d630",
+  "_probeBytes": 2781,
+  "_studyName": "UCTPROBE_R11_CORR_PCT",
+  "_capturedET": "2026-09-11T09:05:00-04:00",
+  "symbol": "AMEX:SPY",
+  "_compiles": true,
+  "_vendorRoster": 8,
+  "_committedRoster": 8,
+
+  "taCorrelation": {
+    "signature": "ta.correlation(source1, source2, length)",
+    "beforeTheWindowFills": "na",
+    "firstDefinedBarIndex": 19,
+    "windowLength": 20,
+    "verdict": "`na` on bar_index 0..18 and DEFINED from bar_index 19 — i.e. the first bar at which `length` bars exist. No partial-window value is ever produced.",
+    "_selfCorrelationControl": {
+      "rule": "ta.correlation(close, close, 20) must be exactly 1 wherever the function is defined",
+      "naBars": "0..18",
+      "valueFromBar19": 1,
+      "exactlyOneOnEveryDefinedBar": true,
+      "definedBarsChecked": 610,
+      "_": "⭐⭐ THIS CONTROL DID TWO JOBS. On the daily capture it read 1 on all 610 bars WITH NO `na` ANYWHERE — which is how the capture knew the pre-fill region was NOT in the loaded window (it began at bar_index 7851) rather than concluding 'there is no pre-fill'. The full-history read then showed the `na` band directly. A control that can say 'you did not see the thing you are describing' is worth more than one that only confirms."
+    },
+    "sampleDefinedValues": [
+      { "barIndex": 7851, "closeVsOpen20": 0.7078394195752737 },
+      { "barIndex": 8460, "closeVsOpen20": 0.8905131448411905 }
+    ]
+  },
+
+  "taPercentileLinearInterpolation": {
+    "signature": "ta.percentile_linear_interpolation(source, length, percentage)",
+    "beforeTheWindowFills": "na",
+    "firstDefinedBarIndex": 19,
+    "boundaries": {
+      "atZero": "EXACTLY ta.lowest(source, length)",
+      "atOneHundred": "EXACTLY ta.highest(source, length)",
+      "barsChecked": 610,
+      "atZero_equals_lowest": 610,
+      "atZero_differs": 0,
+      "atHundred_equals_highest": 610,
+      "atHundred_differs": 0,
+      "_": "⭐⭐ 610 OF 610 IN BOTH DIRECTIONS, ZERO MISMATCHES, COMPARED AGAINST ORACLES CARRIED IN THE SAME SCRIPT. `r11-remaining-nine.md` said 'the interpolation rule at the boundaries is the whole function' — the rule is that it CLAMPS: 0 and 100 are the window's min and max, not an extrapolation past them and not `na`."
+    },
+    "sampleMidpoint": [
+      { "barIndex": 7851, "p50": 518.6199999999999, "low20": 509.83, "high20": 523.17 },
+      { "barIndex": 8460, "p50": 766.565, "low20": 757.83, "high20": 777.88 }
+    ],
+    "_whyTheOraclesAreInTheScript": "⛔ WITHOUT `ta.lowest`/`ta.highest` ON THE SAME BAR, 'the 0th percentile looks like the minimum' IS AN EYEBALL. Carrying the oracle in the probe makes it an identity check to the last double, which is what 610/610 means."
+  },
+
+  "_howTheFullHistoryWasREACHED": "⚠️ TWICE IN THIS SESSION THE LOADED WINDOW DID NOT CONTAIN bar_index 0 — it began at 7851 here and at 8061 for `ta.nvi` — so the pre-fill question could not be answered from the daily capture. The chart's own `All` range button loads the whole series; TradingView auto-coarsens the timeframe to 1M when it does, which is recorded because it bounds the reading: the `na` band was observed on MONTHLY bars. ⭐ That does not weaken it — `length` is counted in BARS, not in time, so 'na until 20 bars exist' is a statement about the window and not about the timeframe. `setVisibleRange` was tried first and answers 'Not implemented' on this chart type.",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE LENGTH (20), ONE SOURCE PAIR. Nothing here reads a length of 1 or 2, a percentage between the boundaries other than 50, a `na` in the SOURCE, or two series of different lengths. The boundary identity is measured on `close` only."
+}

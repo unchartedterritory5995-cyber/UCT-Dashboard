@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;UgNPprOr8h6PFHk9aC9Ydq8sV5sxMB2N",
+ "title": "Support and Resistance",
+ "author": "ahmad_naquib",
+ "url": "https://www.tradingview.com/script/C2KBKBfJ-support-and-resistance/",
+ "agreeCount": 9120,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/support-and-resistance__UgNPprOr8h.pine",
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance__UgNPprOr8h.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;67e98b8f2ac5479b8b9beea78b1f1b9d",
+ "title": "Uptrick: Volume Weighted Bands",
+ "author": "Uptrick",
+ "url": "https://www.tradingview.com/script/N5H4qGLa-uptrick-volume-weighted-bands/",
+ "agreeCount": 3045,
+ "category": "volume",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/uptrick-volume-weighted-bands__67e98b8f2a.pine",
+ "our_status": "reference-only"
+}

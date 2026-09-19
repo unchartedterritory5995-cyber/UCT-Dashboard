@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ZkkLVEb1akK56dmIifnUtR2SMDgJ4dqM",
+ "title": "RSI Support & Resistance by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/pnc5rcY3-rsi-support-resistance-by-dgt/",
+ "agreeCount": 9892,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/rsi-support-resistance-by-dgt__ZkkLVEb1ak.pine",
+ "our_status": "reference-only"
+}

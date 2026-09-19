@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;gcBksfRvvy2wG80wLsspsgFaMJBeKi9F",
+ "title": "Moving Averages as Support Resistance MTF",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/ikDtsst8-moving-averages-as-support-resistance-mtf/",
+ "agreeCount": 5500,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine",
+ "cached_source": "tools/pine_survey/cache/sources/moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine",
+ "our_status": "committed"
+}

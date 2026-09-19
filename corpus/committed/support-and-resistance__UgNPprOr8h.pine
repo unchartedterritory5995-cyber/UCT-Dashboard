@@ -1,0 +1,19 @@
+//@version=4
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ahmad_naquib
+
+study("Support and Resistance", overlay=true)
+left  = input(10)
+right = input(10)
+
+hih = pivothigh(high, left, right)
+lol = pivotlow (low , left, right)
+
+top = valuewhen(hih, high[right], 0)
+bot = valuewhen(lol, low [right], 0)
+
+res = plot(top, color=top != top[1] ? na : #00ced1, offset=-left)
+sup = plot(bot, color=bot != bot[1] ? na : #dc143c, offset=-left)
+
+
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;z4Yj46FVTXEYeBkRBgRimLzQ0rwZgg3O",
+ "title": "Delta-RSI Oscillator Strategy",
+ "author": "tbtkg",
+ "url": "https://www.tradingview.com/script/oIHW2xG2-delta-rsi-oscillator-strategy/",
+ "agreeCount": 8785,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+ "cached_source": "tools/pine_survey/cache/sources/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+ "our_status": "committed"
+}

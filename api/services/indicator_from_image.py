@@ -165,6 +165,16 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "that file type cannot be read as a picture"),
     "vision:image-too-large": (
         "that picture is too big to send"),
+    # RISK-016 (Phase One Track B, 2026-09-04). Gate name deliberately shared,
+    # bare, and NOT `vision:`-prefixed like its siblings above — this cap
+    # (`MAX_PROPOSE_BARS`) is the SAME limit `user_definitions.propose_definition`
+    # answers under the identical key, because it is one shared compute-stage
+    # bound, not two independent per-door policies (see `_bars_from`'s own
+    # docstring: "Both doors hand bars to the same compute stage"). Giving it a
+    # `vision:` prefix here would imply a second, door-specific decision where
+    # there is only one.
+    "bars:too-large": (
+        "the chart is holding more history than one request can carry"),
     "vision:spend-cap": (
         "the picture reader has reached its spending limit for today"),
     "vision:transport": (
@@ -198,6 +208,16 @@ def disabled_refusal() -> Dict[str, Any]:
     return _refusal("vision:disabled",
                     "paste the script on the Import tab, or build it on the "
                     "Formula tab — both reach the same engine")
+
+
+def bars_too_large_refusal(count: int) -> Dict[str, Any]:
+    """RISK-016 (Phase One Track B, 2026-09-04). The public door onto the
+    `bars:too-large` gate, mirroring `disabled_refusal()`'s shape exactly —
+    the router calls this rather than reaching into `_refusal` directly, the
+    same reason `disabled_refusal()` exists instead of the router building the
+    dict itself: the gate name and its sentence stay spelled in ONE file.
+    """
+    return _refusal("bars:too-large", f"got {count}")
 
 
 def _refusal(gate: str, detail: str = "", **extra: Any) -> Dict[str, Any]:

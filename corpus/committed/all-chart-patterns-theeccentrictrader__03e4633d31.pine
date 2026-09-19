@@ -1,0 +1,877 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © theEccentricTrader
+//@version=6
+
+indicator('All Chart Patterns [theEccentricTrader]', overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+/////////////
+// IMPORTS //
+/////////////
+
+import theEccentricTrader/PubLibSwing/3 as sw
+import theEccentricTrader/PubLibPattern/4 as pa
+
+////////////////////
+// PATTERN INPUTS //
+////////////////////
+
+bear_pattern_colour = input(color.red, 'Bearish Pattern Colour', group = 'Pattern Colours')
+bull_pattern_colour = input(color.green, 'Bullish Pattern Colour', group = 'Pattern Colours')
+neutral_pattern_colour = input(color.blue, 'Neutral Pattern Colour', group = 'Pattern Colours')
+dot_colour = input(color.blue, 'Dotted Line Colour', group = 'Pattern Colours')
+label_colour = input(color.blue, 'Label Colour', group = 'Pattern Colours')
+
+show_asc_broadening = input(true, 'Show Asc. Broadening', group = 'Patterns')
+show_broadening = input(true, 'Show Broadening', group = 'Patterns')
+show_desc_broadening = input(true, 'Show Desc. Broadening', group = 'Patterns')
+show_double_bot = input(true, 'Show Double Bottom', group = 'Patterns')
+show_double_top = input(true, 'Show Double Top', group = 'Patterns')
+show_triple_bot = input(true, 'Show Triple Bottom', group = 'Patterns')
+show_triple_top = input(true, 'Show Triple Top', group = 'Patterns')
+show_bear_elliot = input(true, 'Show Bear Elliot Wave', group = 'Patterns')
+show_bull_elliot = input(true, 'Show Bull Elliot Wave', group = 'Patterns')
+show_bear_alt_flag = input(true, 'Show Bear Alt. Flag', group = 'Patterns')
+show_bull_alt_flag = input(true, 'Show Bull Alt. Flag', group = 'Patterns')
+show_bear_flag = input(true, 'Show Bear Flag', group = 'Patterns')
+show_bull_flag = input(true, 'Show Bull Flag', group = 'Patterns')
+show_bear_asc_head_shoulders = input(true, 'Show Bear Asc. Head and Shoulders', group = 'Patterns')
+show_bull_asc_head_shoulders = input(true, 'Show Bull Asc. Head and Shoulders', group = 'Patterns')
+show_bear_desc_head_shoulders = input(true, 'Show Bear Desc. Head and Shoulders', group = 'Patterns')
+show_bull_desc_head_shoulders = input(true, 'Show Bull Desc. Head and Shoulders', group = 'Patterns')
+show_bear_head_shoulders = input(false, 'Show Bear Head and Shoulders', group = 'Patterns')
+show_bull_head_shoulders = input(false, 'Show Bull Head and Shoulders', group = 'Patterns')
+show_bear_pennant = input(true, 'Show Bear Pennant', group = 'Patterns')
+show_bull_pennant = input(true, 'Show Bull Pennant', group = 'Patterns')
+show_asc_wedge = input(true, 'Show Asc. Wedge', group = 'Patterns')
+show_desc_wedge = input(true, 'Show Desc. Wedge', group = 'Patterns')
+show_wedge = input(true, 'Show Wedge', group = 'Patterns')
+
+ab_ratio = input(defval = 100, title = 'AB Minimum Ratio', group = 'Pattern Ratios')
+bc_ratio = input(defval = 30, title = 'BC Maximum Ratio', group = 'Pattern Ratios')
+be_ratio = input(defval = 40, title = 'BE Maximum Ratio', group = 'Pattern Ratios')
+
+low_tol = input(defval = 10, title = 'Lower Tolerance (%)', group = 'Pattern Tolerances')
+up_tol = input(defval = 10, title = 'Upper Tolerance (%)', group = 'Pattern Tolerances')
+
+asc_broadening_alert = input(true, 'Asc. Broadening Alert', group = 'Alerts')
+broadening_alert = input(true, 'Broadening Alert', group = 'Alerts')
+desc_broadening_alert = input(true, 'Desc. Broadening Alert', group = 'Alerts')
+double_bot_alert = input(true, 'Double Bot Alert', group = 'Alerts')
+double_top_alert = input(true, 'Double Top Alert', group = 'Alerts')
+triple_bot_alert = input(true, 'Triple Bot Alert', group = 'Alerts')
+triple_top_alert = input(true, 'Triple Top Alert', group = 'Alerts')
+bear_elliot_alert = input(true, 'Bear Elliot Wave Alert', group = 'Alerts')
+bull_elliot_alert = input(true, 'Bull Elliot Wave Alert', group = 'Alerts')
+bear_alt_flag_alert = input(true, 'Bear Alt. Flag Alert', group = 'Alerts')
+bull_alt_flag_alert = input(true, 'Bull Alt. Flag Alert', group = 'Alerts')
+bear_flag_alert = input(true, 'Bear Flag Alert', group = 'Alerts')
+bull_flag_alert = input(true, 'Bull Flag Alert', group = 'Alerts')
+bear_asc_head_shoulders_alert = input(true, 'Bear Asc. Head and Shoulders Alert', group = 'Alerts')
+bull_asc_head_shoulders_alert = input(true, 'Bull Asc. Head and Shoulders Alert', group = 'Alerts')
+bear_desc_head_shoulders_alert = input(true, 'Bear Desc. Head and Shoulders Alert', group = 'Alerts')
+bull_desc_head_shoulders_alert = input(true, 'Bull Desc. Head and Shoulders Alert', group = 'Alerts')
+bear_head_shoulders_alert = input(false, 'Bear Head and Shoulders Alert', group = 'Alerts')
+bull_head_shoulders_alert = input(false, 'Bull Head and Shoulders Alert', group = 'Alerts')
+bear_pennant_alert = input(true, 'Bear Pennant Alert', group = 'Alerts')
+bull_pennant_alert = input(true, 'Bull Pennant Alert', group = 'Alerts')
+asc_wedge_alert = input(true, 'Asc. Wedge Alert', group = 'Alerts')
+desc_wedge_alert = input(true, 'Desc. Wedge Alert', group = 'Alerts')
+wedge_alert = input(true, 'Wedge Alert', group = 'Alerts')
+
+///////////////////////////
+// CONDITIONAL VARIABLES //
+///////////////////////////
+
+sl = sw.sl()
+sh = sw.sh()
+
+shp_0 = sw.shp(0)
+shpbi_0 = sw.shpbi(0)
+shrr_0 = sw.shrr(0)
+
+slp_0 = sw.slp(0)
+slpbi_0 = sw.slpbi(0)
+slrr_0 = sw.slrr(0)
+
+shp_1 = sw.shp(1)
+shpbi_1 = sw.shpbi(1)
+shrr_1 = sw.shrr(1)
+
+slp_1 = sw.slp(1)
+slpbi_1 = sw.slpbi(1)
+slrr_1 = sw.slrr(1)
+
+shp_2 = sw.shp(2)
+shpbi_2 = sw.shpbi(2)
+shrr_2 = sw.shrr(2)
+
+slp_2 = sw.slp(2)
+slpbi_2 = sw.slpbi(2)
+slrr_2 = sw.slrr(2)
+
+shp_3 = sw.shp(3)
+shpbi_3 = sw.shpbi(3)
+shrr_3 = sw.shrr(3)
+
+slp_3 = sw.slp(3)
+slpbi_3 = sw.slpbi(3)
+slrr_3 = sw.slrr(3)
+
+asc_broadening = pa.asc_broadening()
+broadening = pa.broadening()
+desc_broadening = pa.desc_broadening()
+
+double_bot = pa.double_bot(low_tol, up_tol)
+double_top = pa.double_top(low_tol, up_tol)
+
+triple_bot = pa.triple_bot(low_tol, up_tol)
+triple_top = pa.triple_top(low_tol, up_tol)
+
+bear_elliot = pa.bear_elliot()
+bull_elliot = pa.bull_elliot()
+
+bear_alt_flag = pa.bear_alt_flag(ab_ratio, bc_ratio)
+bull_alt_flag = pa.bull_alt_flag(ab_ratio, bc_ratio)
+
+bear_flag = pa.bear_flag(ab_ratio, bc_ratio, be_ratio)
+bull_flag = pa.bull_flag(ab_ratio, bc_ratio, be_ratio)
+
+bear_asc_head_shoulders = pa.bear_asc_head_shoulders()
+bull_asc_head_shoulders = pa.bull_asc_head_shoulders()
+
+bear_desc_head_shoulders = pa.bear_desc_head_shoulders()
+bull_desc_head_shoulders = pa.bull_desc_head_shoulders()
+
+bear_head_shoulders = pa.bear_head_shoulders()
+bull_head_shoulders = pa.bull_head_shoulders()
+
+bear_pennant = pa.bear_pennant(ab_ratio, bc_ratio)
+bull_pennant = pa.bull_pennant(ab_ratio, bc_ratio)
+
+asc_wedge = pa.asc_wedge()
+desc_wedge = pa.desc_wedge()
+wedge = pa.wedge()
+
+//////////////////////////
+// ASCENDING BROADENING //
+//////////////////////////
+
+var asc_broadening_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var asc_broadening_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var asc_broadening_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'ASC. BROADENING', textcolor = label_colour)
+
+if sh and asc_broadening and barstate.isconfirmed
+    if show_asc_broadening
+        line.set_xy1(asc_broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(asc_broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(asc_broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(asc_broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(asc_broadening_label_1, shpbi_0, shp_0)
+        label.set_style(asc_broadening_label_1, label.style_label_down)
+    if asc_broadening_alert
+        alert('Asc. Broadening')
+
+if sl and asc_broadening and barstate.isconfirmed
+    if show_asc_broadening
+        line.set_xy1(asc_broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(asc_broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(asc_broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(asc_broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(asc_broadening_label_1, slpbi_0, slp_0)
+        label.set_style(asc_broadening_label_1, label.style_label_up)
+    if asc_broadening_alert
+        alert('Asc. Broadening')
+
+////////////////
+// BROADENING //
+////////////////
+
+var broadening_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var broadening_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var broadening_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'BROADENING', textcolor = label_colour)
+
+if sh and broadening and barstate.isconfirmed
+    if show_broadening
+        line.set_xy1(broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(broadening_label_1, shpbi_0, shp_0)
+        label.set_style(broadening_label_1, label.style_label_down)
+    if broadening_alert
+        alert('Broadening')
+
+if sl and broadening and barstate.isconfirmed
+    if show_broadening
+        line.set_xy1(broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(broadening_label_1, slpbi_0, slp_0)
+        label.set_style(broadening_label_1, label.style_label_up)
+    if broadening_alert
+        alert('Broadening')
+
+///////////////////////////
+// DESCENDING BROADENING //
+///////////////////////////
+
+var desc_broadening_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var desc_broadening_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var desc_broadening_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'DESC. BROADENING', textcolor = label_colour)
+
+if sh and desc_broadening and barstate.isconfirmed
+    if show_desc_broadening
+        line.set_xy1(desc_broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(desc_broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(desc_broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(desc_broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(desc_broadening_label_1, shpbi_0, shp_0)
+        label.set_style(desc_broadening_label_1, label.style_label_down)
+    if desc_broadening_alert
+        alert('Desc. Broadening')
+
+if sl and desc_broadening and barstate.isconfirmed
+    if show_desc_broadening
+        line.set_xy1(desc_broadening_line_1, slpbi_1, slp_1)
+        line.set_xy2(desc_broadening_line_1, slpbi_0, slp_0)
+        line.set_xy1(desc_broadening_line_2, shpbi_1, shp_1)
+        line.set_xy2(desc_broadening_line_2, shpbi_0, shp_0)
+        label.set_xy(desc_broadening_label_1, slpbi_0, slp_0)
+        label.set_style(desc_broadening_label_1, label.style_label_up)
+    if desc_broadening_alert
+        alert('Desc. Broadening')
+
+///////////////////////
+// DOUBLE BOTTOM/TOP //
+///////////////////////
+
+var double_bot_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var double_bot_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var double_bot_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var double_bot_line_4 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var double_bot_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'DOUBLE BOTTOM', textcolor = label_colour)
+
+if sl and double_bot and barstate.isconfirmed
+    if show_double_bot
+        line.set_xy1(double_bot_line_1, slpbi_1, slp_1)
+        line.set_xy2(double_bot_line_1, shpbi_0, shp_0)
+        line.set_xy1(double_bot_line_2, shpbi_0, shp_0)
+        line.set_xy2(double_bot_line_2, slpbi_0, slp_0)
+        line.set_xy1(double_bot_line_3, slpbi_1, slp_1)
+        line.set_xy2(double_bot_line_3, bar_index, slp_1)
+        line.set_xy1(double_bot_line_4, shpbi_0, shp_0)
+        line.set_xy2(double_bot_line_4, bar_index, shp_0)
+        label.set_xy(double_bot_label_1, slpbi_0, slp_0)
+    if double_bot_alert
+        alert('Double Bottom')
+
+var double_top_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var double_top_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var double_top_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var double_top_line_4 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var double_top_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'DOUBLE TOP', textcolor = label_colour)
+
+if sh and double_top and barstate.isconfirmed
+    if show_double_top
+        line.set_xy1(double_top_line_1, shpbi_1, shp_1)
+        line.set_xy2(double_top_line_1, slpbi_0, slp_0)
+        line.set_xy1(double_top_line_2, slpbi_0, slp_0)
+        line.set_xy2(double_top_line_2, shpbi_0, shp_0)
+        line.set_xy1(double_top_line_3, shpbi_1, shp_1)
+        line.set_xy2(double_top_line_3, bar_index, shp_1)
+        line.set_xy1(double_top_line_4, slpbi_0, slp_0)
+        line.set_xy2(double_top_line_4, bar_index, slp_0)
+        label.set_xy(double_top_label_1, shpbi_0, shp_0)
+    if double_top_alert
+        alert('Double Top')
+
+///////////////////////
+// TRIPLE BOTTOM/TOP //
+///////////////////////
+
+var triple_bot_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var triple_bot_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var triple_bot_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var triple_bot_line_4 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var triple_bot_line_5 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var triple_bot_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var triple_bot_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'TRIPLE BOTTOM', textcolor = label_colour)
+
+if sl and triple_bot and barstate.isconfirmed
+    if show_triple_bot
+        line.set_xy1(triple_bot_line_1, slpbi_2, slp_2)
+        line.set_xy2(triple_bot_line_1, shpbi_1, shp_1)
+        line.set_xy1(triple_bot_line_2, shpbi_1, shp_1)
+        line.set_xy2(triple_bot_line_2, slpbi_1, slp_1)
+        line.set_xy1(triple_bot_line_3, slpbi_1, slp_1)
+        line.set_xy2(triple_bot_line_3, shpbi_0, shp_0)
+        line.set_xy1(triple_bot_line_4, shpbi_0, shp_0)
+        line.set_xy2(triple_bot_line_4, slpbi_0, slp_0)
+        line.set_xy1(triple_bot_line_5, slpbi_2, slp_2)
+        line.set_xy2(triple_bot_line_5, bar_index, slp_2)
+        line.set_xy1(triple_bot_line_6, shpbi_0, shp_0)
+        line.set_xy2(triple_bot_line_6, bar_index, shp_0)
+        label.set_xy(triple_bot_label_1, slpbi_0, slp_0)
+    if triple_bot_alert
+        alert('Triple Bottom')
+
+var triple_top_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var triple_top_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var triple_top_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var triple_top_line_4 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var triple_top_line_5 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var triple_top_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var triple_top_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'TRIPLE TOP', textcolor = label_colour)
+
+if sh and triple_top and barstate.isconfirmed
+    if show_triple_top
+        line.set_xy1(triple_top_line_1, shpbi_2, shp_2)
+        line.set_xy2(triple_top_line_1, slpbi_1, slp_1)
+        line.set_xy1(triple_top_line_2, slpbi_1, slp_1)
+        line.set_xy2(triple_top_line_2, shpbi_1, shp_1)
+        line.set_xy1(triple_top_line_3, shpbi_1, shp_1)
+        line.set_xy2(triple_top_line_3, slpbi_0, slp_0)
+        line.set_xy1(triple_top_line_4, slpbi_0, slp_0)
+        line.set_xy2(triple_top_line_4, shpbi_0, shp_0)
+        line.set_xy1(triple_top_line_5, shpbi_2, shp_2)
+        line.set_xy2(triple_top_line_5, bar_index, shp_2)
+        line.set_xy1(triple_top_line_6, slpbi_0, slp_0)
+        line.set_xy2(triple_top_line_6, bar_index, slp_0)
+        label.set_xy(triple_top_label_1, shpbi_0, shp_0)
+    if triple_top_alert
+        alert('Triple Top')
+
+/////////////////
+// ELLIOT WAVE //
+/////////////////
+
+var bear_elliot_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_4 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_5 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_6 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_line_7 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_elliot_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bear_elliot_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_elliot_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bear_elliot_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_elliot_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bear_elliot_label_6 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_elliot_label_7 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+
+if sh and bear_elliot and barstate.isconfirmed
+    if show_bear_elliot
+        line.set_xy1(bear_elliot_line_1, slpbi_3, slp_3)
+        line.set_xy2(bear_elliot_line_1, shpbi_3, shp_3)
+        line.set_xy1(bear_elliot_line_2, shpbi_3, shp_3)
+        line.set_xy2(bear_elliot_line_2, slpbi_2, slp_2)
+        line.set_xy1(bear_elliot_line_3, slpbi_2, slp_2)
+        line.set_xy2(bear_elliot_line_3, shpbi_2, shp_2)
+        line.set_xy1(bear_elliot_line_4, shpbi_2, shp_2)
+        line.set_xy2(bear_elliot_line_4, slpbi_1, slp_1)
+        line.set_xy1(bear_elliot_line_5, slpbi_1, slp_1)
+        line.set_xy2(bear_elliot_line_5, shpbi_1, shp_1)
+        line.set_xy1(bear_elliot_line_6, shpbi_1, shp_1)
+        line.set_xy2(bear_elliot_line_6, slpbi_0, slp_0)
+        line.set_xy1(bear_elliot_line_7, slpbi_0, slp_0)
+        line.set_xy2(bear_elliot_line_7, shpbi_0, shp_0)
+        label.set_xy(bear_elliot_label_1, shpbi_3, shp_3)
+        label.set_xy(bear_elliot_label_2, slpbi_2, slp_2)
+        label.set_xy(bear_elliot_label_3, shpbi_2, shp_2)
+        label.set_xy(bear_elliot_label_4, slpbi_1, slp_1)
+        label.set_xy(bear_elliot_label_5, shpbi_1, shp_1)
+        label.set_xy(bear_elliot_label_6, slpbi_0, slp_0)
+        label.set_xy(bear_elliot_label_7, shpbi_0, shp_0)
+        label.set_text(bear_elliot_label_1, '1 (' + str.tostring(math.round(shrr_3, 2)) + ')')
+        label.set_text(bear_elliot_label_2, '2 (' + str.tostring(math.round(slrr_2, 2)) + ')')
+        label.set_text(bear_elliot_label_3, '3 (' + str.tostring(math.round(shrr_2, 2)) + ')')
+        label.set_text(bear_elliot_label_4, '4 (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bear_elliot_label_5, '5 (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bear_elliot_label_6, 'A (' + str.tostring(math.round(slrr_0, 2)) + ')')
+        label.set_text(bear_elliot_label_7, 'BEAR ELLIOT WAVE\nB (' + str.tostring(math.round(shrr_0, 2)) + ')')
+    if bear_elliot_alert
+        alert('Bearish Elliot Wave')
+
+var bull_elliot_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_4 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_5 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_6 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_line_7 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_elliot_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bull_elliot_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_elliot_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bull_elliot_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_elliot_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bull_elliot_label_6 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_elliot_label_7 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+
+if sl and bull_elliot and barstate.isconfirmed
+    if show_bull_elliot
+        line.set_xy1(bull_elliot_line_1, shpbi_3, shp_3)
+        line.set_xy2(bull_elliot_line_1, slpbi_3, slp_3)
+        line.set_xy1(bull_elliot_line_2, slpbi_3, slp_3)
+        line.set_xy2(bull_elliot_line_2, shpbi_2, shp_2)
+        line.set_xy1(bull_elliot_line_3, shpbi_2, shp_2)
+        line.set_xy2(bull_elliot_line_3, slpbi_2, slp_2)
+        line.set_xy1(bull_elliot_line_4, slpbi_2, slp_2)
+        line.set_xy2(bull_elliot_line_4, shpbi_1, shp_1)
+        line.set_xy1(bull_elliot_line_5, shpbi_1, shp_1)
+        line.set_xy2(bull_elliot_line_5, slpbi_1, slp_1)
+        line.set_xy1(bull_elliot_line_6, slpbi_1, slp_1)
+        line.set_xy2(bull_elliot_line_6, shpbi_0, shp_0)
+        line.set_xy1(bull_elliot_line_7, shpbi_0, shp_0)
+        line.set_xy2(bull_elliot_line_7, slpbi_0, slp_0)
+        label.set_xy(bull_elliot_label_1, slpbi_3, slp_3)
+        label.set_xy(bull_elliot_label_2, shpbi_2, shp_2)
+        label.set_xy(bull_elliot_label_3, slpbi_2, slp_2)
+        label.set_xy(bull_elliot_label_4, shpbi_1, shp_1)
+        label.set_xy(bull_elliot_label_5, slpbi_1, slp_1)
+        label.set_xy(bull_elliot_label_6, shpbi_0, shp_0)
+        label.set_xy(bull_elliot_label_7, slpbi_0, slp_0)
+        label.set_text(bull_elliot_label_1, '1 (' + str.tostring(math.round(slrr_3, 2)) + ')')
+        label.set_text(bull_elliot_label_2, '2 (' + str.tostring(math.round(shrr_2, 2)) + ')')
+        label.set_text(bull_elliot_label_3, '3 (' + str.tostring(math.round(slrr_2, 2)) + ')')
+        label.set_text(bull_elliot_label_4, '4 (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bull_elliot_label_5, '5 (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bull_elliot_label_6, 'A (' + str.tostring(math.round(shrr_0, 2)) + ')')
+        label.set_text(bull_elliot_label_7, 'BULL ELLIOT WAVE\nB (' + str.tostring(math.round(slrr_0, 2)) + ')')
+    if bull_elliot_alert
+        alert('Bullish Elliot Wave')
+
+////////////////////
+// ALTERNATE FLAG //
+////////////////////
+
+var bear_alt_flag_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_alt_flag_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_alt_flag_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_alt_flag_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'A', textcolor = label_colour)
+var bear_alt_flag_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_alt_flag_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+
+if sh and bear_alt_flag and barstate.isconfirmed
+    if show_bear_alt_flag
+        line.set_xy1(bear_alt_flag_line_1, shpbi_1, shp_1)
+        line.set_xy2(bear_alt_flag_line_1, slpbi_0, slp_0)
+        line.set_xy1(bear_alt_flag_line_2, slpbi_0, slp_0)
+        line.set_xy2(bear_alt_flag_line_2, shpbi_0, shp_0)
+        line.set_xy1(bear_alt_flag_line_3, shpbi_0, shp_0)
+        line.set_xy2(bear_alt_flag_line_3, shpbi_0 - 1, shp_0)
+        label.set_xy(bear_alt_flag_label_1, shpbi_1, shp_1)
+        label.set_xy(bear_alt_flag_label_2, slpbi_0, slp_0)
+        label.set_xy(bear_alt_flag_label_3, shpbi_0, shp_0)
+        label.set_text(bear_alt_flag_label_2, 'B (' + str.tostring(math.round(slrr_0, 2)) + ')')
+        label.set_text(bear_alt_flag_label_3, 'BEAR ALT. FLAG\nC (' + str.tostring(math.round(shrr_0, 2)) + ')')
+    if bear_alt_flag_alert
+        alert('Bearish Alt. Flag')
+
+var bull_alt_flag_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_alt_flag_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_alt_flag_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_alt_flag_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'A', textcolor = label_colour)
+var bull_alt_flag_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_alt_flag_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+
+if sl and bull_alt_flag and barstate.isconfirmed
+    if show_bull_alt_flag
+        line.set_xy1(bull_alt_flag_line_1, slpbi_1, slp_1)
+        line.set_xy2(bull_alt_flag_line_1, shpbi_0, shp_0)
+        line.set_xy1(bull_alt_flag_line_2, shpbi_0, shp_0)
+        line.set_xy2(bull_alt_flag_line_2, slpbi_0, slp_0)
+        line.set_xy1(bull_alt_flag_line_3, slpbi_0, slp_0)
+        line.set_xy2(bull_alt_flag_line_3, slpbi_0 - 1, slp_0)
+        label.set_xy(bull_alt_flag_label_1, slpbi_1, slp_1)
+        label.set_xy(bull_alt_flag_label_2, shpbi_0, shp_0)
+        label.set_xy(bull_alt_flag_label_3, slpbi_0, slp_0)
+        label.set_text(bull_alt_flag_label_2, 'B (' + str.tostring(math.round(shrr_0, 2)) + ')')
+        label.set_text(bull_alt_flag_label_3, 'BULL ALT. FLAG\nC (' + str.tostring(math.round(slrr_0, 2)) + ')')
+    if bull_alt_flag_alert
+        alert('Bullish Alt. Flag')
+
+//////////
+// FLAG //
+//////////
+
+var bear_flag_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_flag_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_flag_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_flag_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'A', textcolor = label_colour)
+var bear_flag_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_flag_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bear_flag_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_flag_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+
+if sh and bear_flag and barstate.isconfirmed
+    if show_bear_flag
+        berr = (shp_0 - slp_1) / (shp_2 - slp_1) * 100
+        line.set_xy1(bear_flag_line_1, shpbi_2, shp_2)
+        line.set_xy2(bear_flag_line_1, slpbi_1, slp_1)
+        line.set_xy1(bear_flag_line_2, slpbi_1, slp_1)
+        line.set_xy2(bear_flag_line_2, slpbi_0, slp_0)
+        line.set_xy1(bear_flag_line_3, shpbi_1, shp_1)
+        line.set_xy2(bear_flag_line_3, shpbi_0, shp_0)
+        label.set_xy(bear_flag_label_1, shpbi_2, shp_2)
+        label.set_xy(bear_flag_label_2, slpbi_1, slp_1)
+        label.set_xy(bear_flag_label_3, shpbi_1, shp_1)
+        label.set_xy(bear_flag_label_4, slpbi_0, slp_0)
+        label.set_xy(bear_flag_label_5, shpbi_0, shp_0)
+        label.set_text(bear_flag_label_2, 'B (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bear_flag_label_3, 'C (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bear_flag_label_4, 'D (' + str.tostring(math.round(slrr_0, 2)) + ')')
+        label.set_text(bear_flag_label_5, 'BEAR FLAG\nE (' + str.tostring(math.round(berr, 2)) + ')')
+    if bear_flag_alert
+        alert('Bearish Flag')
+
+var bull_flag_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_flag_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_flag_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_flag_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'A', textcolor = label_colour)
+var bull_flag_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_flag_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bull_flag_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_flag_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+
+if sl and bull_flag and barstate.isconfirmed
+    if show_bull_flag
+        berr = (shp_1 - slp_0) / (shp_1 - slp_2) * 100
+        line.set_xy1(bull_flag_line_1, slpbi_2, slp_2)
+        line.set_xy2(bull_flag_line_1, shpbi_1, shp_1)
+        line.set_xy1(bull_flag_line_2, shpbi_1, shp_1)
+        line.set_xy2(bull_flag_line_2, shpbi_0, shp_0)
+        line.set_xy1(bull_flag_line_3, slpbi_1, slp_1)
+        line.set_xy2(bull_flag_line_3, slpbi_0, slp_0)
+        label.set_xy(bull_flag_label_1, slpbi_2, slp_2)
+        label.set_xy(bull_flag_label_2, shpbi_1, shp_1)
+        label.set_xy(bull_flag_label_3, slpbi_1, slp_1)
+        label.set_xy(bull_flag_label_4, shpbi_0, shp_0)
+        label.set_xy(bull_flag_label_5, slpbi_0, slp_0)
+        label.set_text(bull_flag_label_2, 'B (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bull_flag_label_3, 'C (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bull_flag_label_4, 'D (' + str.tostring(math.round(shrr_0, 2)) + ')')
+        label.set_text(bull_flag_label_5, 'BULL FLAG\nE (' + str.tostring(math.round(berr, 2)) + ')')
+    if bull_flag_alert
+        alert('Bullish Flag')
+
+//////////////////////////////////
+// ASCENDING HEAD AND SHOULDERS //
+//////////////////////////////////
+
+var bear_asc_head_shoulders_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_asc_head_shoulders_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_asc_head_shoulders_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_asc_head_shoulders_line_4 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_asc_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_asc_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_asc_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'BEAR ASC. HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sh and bear_asc_head_shoulders and barstate.isconfirmed
+    if show_bear_asc_head_shoulders
+        line.set_xy1(bear_asc_head_shoulders_line_1, shpbi_2, shp_2)
+        line.set_xy2(bear_asc_head_shoulders_line_1, slpbi_1, slp_1)
+        line.set_xy1(bear_asc_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy2(bear_asc_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy1(bear_asc_head_shoulders_line_3, shpbi_1, shp_1)
+        line.set_xy2(bear_asc_head_shoulders_line_3, slpbi_0, slp_0)
+        line.set_xy1(bear_asc_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy2(bear_asc_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy1(bear_asc_head_shoulders_line_5, shpbi_2, shp_2)
+        line.set_xy2(bear_asc_head_shoulders_line_5, shpbi_1, shp_1)
+        line.set_xy1(bear_asc_head_shoulders_line_6, shpbi_1, shp_1)
+        line.set_xy2(bear_asc_head_shoulders_line_6, shpbi_0, shp_0)
+        label.set_xy(bear_asc_head_shoulders_label_1, shpbi_1, shp_1)
+    if bear_asc_head_shoulders_alert
+        alert('Bearish Asc. Head and Shoulders')
+
+var bull_asc_head_shoulders_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_asc_head_shoulders_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_asc_head_shoulders_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_asc_head_shoulders_line_4 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_asc_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_asc_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_asc_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'BULL ASC. HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sl and bull_asc_head_shoulders and barstate.isconfirmed
+    if show_bull_asc_head_shoulders
+        line.set_xy1(bull_asc_head_shoulders_line_1, slpbi_2, slp_2)
+        line.set_xy2(bull_asc_head_shoulders_line_1, shpbi_1, shp_1)
+        line.set_xy1(bull_asc_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy2(bull_asc_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy1(bull_asc_head_shoulders_line_3, slpbi_1, slp_1)
+        line.set_xy2(bull_asc_head_shoulders_line_3, shpbi_0, shp_0)
+        line.set_xy1(bull_asc_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy2(bull_asc_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy1(bull_asc_head_shoulders_line_5, slpbi_2, slp_2)
+        line.set_xy2(bull_asc_head_shoulders_line_5, slpbi_1, slp_1)
+        line.set_xy1(bull_asc_head_shoulders_line_6, slpbi_1, slp_1)
+        line.set_xy2(bull_asc_head_shoulders_line_6, slpbi_0, slp_0)
+        label.set_xy(bull_asc_head_shoulders_label_1, slpbi_1, slp_1)
+    if bull_asc_head_shoulders_alert
+        alert('Bullish Asc. Head and Shoulders')
+
+///////////////////////////////////
+// DESCENDING HEAD AND SHOULDERS //
+///////////////////////////////////
+
+var bear_desc_head_shoulders_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_desc_head_shoulders_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_desc_head_shoulders_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_desc_head_shoulders_line_4 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_desc_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_desc_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_desc_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'BEAR DESC. HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sh and bear_desc_head_shoulders and barstate.isconfirmed
+    if show_bear_desc_head_shoulders
+        line.set_xy1(bear_desc_head_shoulders_line_1, shpbi_2, shp_2)
+        line.set_xy2(bear_desc_head_shoulders_line_1, slpbi_1, slp_1)
+        line.set_xy1(bear_desc_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy2(bear_desc_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy1(bear_desc_head_shoulders_line_3, shpbi_1, shp_1)
+        line.set_xy2(bear_desc_head_shoulders_line_3, slpbi_0, slp_0)
+        line.set_xy1(bear_desc_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy2(bear_desc_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy1(bear_desc_head_shoulders_line_5, shpbi_2, shp_2)
+        line.set_xy2(bear_desc_head_shoulders_line_5, shpbi_1, shp_1)
+        line.set_xy1(bear_desc_head_shoulders_line_6, shpbi_1, shp_1)
+        line.set_xy2(bear_desc_head_shoulders_line_6, shpbi_0, shp_0)
+        label.set_xy(bear_desc_head_shoulders_label_1, shpbi_1, shp_1)
+    if bear_desc_head_shoulders_alert
+        alert('Bearish Desc. Head and Shoulders')
+
+var bull_desc_head_shoulders_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_desc_head_shoulders_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_desc_head_shoulders_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_desc_head_shoulders_line_4 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_desc_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_desc_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_desc_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'BULL DESC. HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sl and bull_desc_head_shoulders and barstate.isconfirmed
+    if show_bull_desc_head_shoulders
+        line.set_xy1(bull_desc_head_shoulders_line_1, slpbi_2, slp_2)
+        line.set_xy2(bull_desc_head_shoulders_line_1, shpbi_1, shp_1)
+        line.set_xy1(bull_desc_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy2(bull_desc_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy1(bull_desc_head_shoulders_line_3, slpbi_1, slp_1)
+        line.set_xy2(bull_desc_head_shoulders_line_3, shpbi_0, shp_0)
+        line.set_xy1(bull_desc_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy2(bull_desc_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy1(bull_desc_head_shoulders_line_5, slpbi_2, slp_2)
+        line.set_xy2(bull_desc_head_shoulders_line_5, slpbi_1, slp_1)
+        line.set_xy1(bull_desc_head_shoulders_line_6, slpbi_1, slp_1)
+        line.set_xy2(bull_desc_head_shoulders_line_6, slpbi_0, slp_0)
+        label.set_xy(bull_desc_head_shoulders_label_1, slpbi_1, slp_1)
+    if bull_desc_head_shoulders_alert
+        alert('Bullish Desc. Head and Shoulders')
+
+////////////////////////
+// HEAD AND SHOULDERS //
+////////////////////////
+
+var bear_head_shoulders_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_head_shoulders_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_head_shoulders_line_3 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_head_shoulders_line_4 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'BEAR HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sh and bear_head_shoulders and barstate.isconfirmed
+    if show_bear_head_shoulders
+        line.set_xy1(bear_head_shoulders_line_1, shpbi_2, shp_2)
+        line.set_xy2(bear_head_shoulders_line_1, slpbi_1, slp_1)
+        line.set_xy1(bear_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy2(bear_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy1(bear_head_shoulders_line_3, shpbi_1, shp_1)
+        line.set_xy2(bear_head_shoulders_line_3, slpbi_0, slp_0)
+        line.set_xy1(bear_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy2(bear_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy1(bear_head_shoulders_line_5, shpbi_2, shp_2)
+        line.set_xy2(bear_head_shoulders_line_5, shpbi_1, shp_1)
+        line.set_xy1(bear_head_shoulders_line_6, shpbi_1, shp_1)
+        line.set_xy2(bear_head_shoulders_line_6, shpbi_0, shp_0)
+        label.set_xy(bear_head_shoulders_label_1, shpbi_1, shp_1)
+    if bear_head_shoulders_alert
+        alert('Bearish Head and Shoulders')
+
+var bull_head_shoulders_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_head_shoulders_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_head_shoulders_line_3 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_head_shoulders_line_4 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_head_shoulders_line_5 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_head_shoulders_line_6 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_head_shoulders_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'BULL HEAD AND SHOULDERS', textcolor = label_colour)
+
+if sl and bull_head_shoulders and barstate.isconfirmed
+    if show_bull_head_shoulders
+        line.set_xy1(bull_head_shoulders_line_1, slpbi_2, slp_2)
+        line.set_xy2(bull_head_shoulders_line_1, shpbi_1, shp_1)
+        line.set_xy1(bull_head_shoulders_line_2, shpbi_1, shp_1)
+        line.set_xy2(bull_head_shoulders_line_2, slpbi_1, slp_1)
+        line.set_xy1(bull_head_shoulders_line_3, slpbi_1, slp_1)
+        line.set_xy2(bull_head_shoulders_line_3, shpbi_0, shp_0)
+        line.set_xy1(bull_head_shoulders_line_4, shpbi_0, shp_0)
+        line.set_xy2(bull_head_shoulders_line_4, slpbi_0, slp_0)
+        line.set_xy1(bull_head_shoulders_line_5, slpbi_2, slp_2)
+        line.set_xy2(bull_head_shoulders_line_5, slpbi_1, slp_1)
+        line.set_xy1(bull_head_shoulders_line_6, slpbi_1, slp_1)
+        line.set_xy2(bull_head_shoulders_line_6, slpbi_0, slp_0)
+        label.set_xy(bull_head_shoulders_label_1, slpbi_1, slp_1)
+    if bull_head_shoulders_alert
+        alert('Bullish Head and Shoulders')
+
+/////////////
+// PENNANT //
+/////////////
+
+var bear_pennant_line_1 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_pennant_line_2 = line.new(na, na, na, na, color = bear_pattern_colour, width = 2)
+var bear_pennant_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bear_pennant_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = 'A', textcolor = label_colour)
+var bear_pennant_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_pennant_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bear_pennant_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bear_pennant_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+
+if sh and bear_pennant and barstate.isconfirmed
+    if show_bear_pennant
+        line.set_xy1(bear_pennant_line_1, shpbi_2, shp_2)
+        line.set_xy2(bear_pennant_line_1, slpbi_1, slp_1)
+        line.set_xy1(bear_pennant_line_2, slpbi_1, slp_1)
+        line.set_xy2(bear_pennant_line_2, slpbi_0, slp_0)
+        line.set_xy1(bear_pennant_line_3, shpbi_1, shp_1)
+        line.set_xy2(bear_pennant_line_3, shpbi_0, shp_0)
+        label.set_xy(bear_pennant_label_1, shpbi_2, shp_2)
+        label.set_xy(bear_pennant_label_2, slpbi_1, slp_1)
+        label.set_xy(bear_pennant_label_3, shpbi_1, shp_1)
+        label.set_xy(bear_pennant_label_4, slpbi_0, slp_0)
+        label.set_xy(bear_pennant_label_5, shpbi_0, shp_0)
+        label.set_text(bear_pennant_label_2, 'B (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bear_pennant_label_3, 'C (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bear_pennant_label_4, 'D (' + str.tostring(math.round(slrr_0, 2)) + ')')
+        label.set_text(bear_pennant_label_5, 'BEAR PENNANT\nE (' + str.tostring(math.round(shrr_0, 2)) + ')')
+    if bear_pennant_alert
+        alert('Bearish Pennant')
+
+var bull_pennant_line_1 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_pennant_line_2 = line.new(na, na, na, na, color = bull_pattern_colour, width = 2)
+var bull_pennant_line_3 = line.new(na, na, na, na, color = dot_colour, style = line.style_dashed)
+var bull_pennant_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = 'A', textcolor = label_colour)
+var bull_pennant_label_2 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_pennant_label_3 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+var bull_pennant_label_4 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_down, text = na, textcolor = label_colour)
+var bull_pennant_label_5 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_label_up, text = na, textcolor = label_colour)
+
+if sl and bull_pennant and barstate.isconfirmed
+    if show_bull_pennant
+        line.set_xy1(bull_pennant_line_1, slpbi_2, slp_2)
+        line.set_xy2(bull_pennant_line_1, shpbi_1, shp_1)
+        line.set_xy1(bull_pennant_line_2, shpbi_1, shp_1)
+        line.set_xy2(bull_pennant_line_2, shpbi_0, shp_0)
+        line.set_xy1(bull_pennant_line_3, slpbi_1, slp_1)
+        line.set_xy2(bull_pennant_line_3, slpbi_0, slp_0)
+        label.set_xy(bull_pennant_label_1, slpbi_2, slp_2)
+        label.set_xy(bull_pennant_label_2, shpbi_1, shp_1)
+        label.set_xy(bull_pennant_label_3, slpbi_1, slp_1)
+        label.set_xy(bull_pennant_label_4, shpbi_0, shp_0)
+        label.set_xy(bull_pennant_label_5, slpbi_0, slp_0)
+        label.set_text(bull_pennant_label_2, 'B (' + str.tostring(math.round(shrr_1, 2)) + ')')
+        label.set_text(bull_pennant_label_3, 'C (' + str.tostring(math.round(slrr_1, 2)) + ')')
+        label.set_text(bull_pennant_label_4, 'D (' + str.tostring(math.round(shrr_0, 2)) + ')')
+        label.set_text(bull_pennant_label_5, 'BULL PENNANT\nE (' + str.tostring(math.round(slrr_0, 2)) + ')')
+    if bull_pennant_alert
+        alert('Bullish Pennant')
+
+/////////////////////
+// ASCENDING WEDGE //
+/////////////////////
+
+var asc_wedge_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var asc_wedge_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var asc_wedge_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'ASC. WEDGE', textcolor = label_colour)
+
+if sh and asc_wedge and barstate.isconfirmed
+    if show_asc_wedge
+        line.set_xy1(asc_wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(asc_wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(asc_wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(asc_wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(asc_wedge_label_1, shpbi_0, shp_0)
+        label.set_style(asc_wedge_label_1, label.style_label_down)
+    if asc_wedge_alert
+        alert('Asc. Wedge')
+
+if sl and asc_wedge and barstate.isconfirmed
+    if show_asc_wedge
+        line.set_xy1(asc_wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(asc_wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(asc_wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(asc_wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(asc_wedge_label_1, slpbi_0, slp_0)
+        label.set_style(asc_wedge_label_1, label.style_label_up)
+    if asc_wedge_alert
+        alert('Asc. Wedge')
+
+///////////////////////
+// DESCENDING WEDGE  //
+///////////////////////
+
+var desc_wedge_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var desc_wedge_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var desc_wedge_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'DESC. WEDGE', textcolor = label_colour)
+
+if sh and desc_wedge and barstate.isconfirmed
+    if show_desc_wedge
+        line.set_xy1(desc_wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(desc_wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(desc_wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(desc_wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(desc_wedge_label_1, shpbi_0, shp_0)
+        label.set_style(desc_wedge_label_1, label.style_label_down)
+    if desc_wedge_alert
+        alert('Desc. Wedge')
+
+if sl and desc_wedge and barstate.isconfirmed
+    if show_desc_wedge
+        line.set_xy1(desc_wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(desc_wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(desc_wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(desc_wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(desc_wedge_label_1, slpbi_0, slp_0)
+        label.set_style(desc_wedge_label_1, label.style_label_up)
+    if desc_wedge_alert
+        alert('Desc. Wedge')
+
+///////////
+// WEDGE //
+///////////
+
+var wedge_line_1 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var wedge_line_2 = line.new(na, na, na, na, color = neutral_pattern_colour, width = 2)
+var wedge_label_1 = label.new(na, na, color = color.rgb(54, 58, 69, 100), style = label.style_none, text = 'WEDGE', textcolor = label_colour)
+
+if sh and wedge and barstate.isconfirmed
+    if show_wedge
+        line.set_xy1(wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(wedge_label_1, shpbi_0, shp_0)
+        label.set_style(wedge_label_1, label.style_label_down)
+    if wedge_alert
+        alert('Wedge')
+
+if sl and wedge and barstate.isconfirmed
+    if show_wedge
+        line.set_xy1(wedge_line_1, slpbi_1, slp_1)
+        line.set_xy2(wedge_line_1, slpbi_0, slp_0)
+        line.set_xy1(wedge_line_2, shpbi_1, shp_1)
+        line.set_xy2(wedge_line_2, shpbi_0, shp_0)
+        label.set_xy(wedge_label_1, slpbi_0, slp_0)
+        label.set_style(wedge_label_1, label.style_label_up)
+    if wedge_alert
+        alert('Wedge')

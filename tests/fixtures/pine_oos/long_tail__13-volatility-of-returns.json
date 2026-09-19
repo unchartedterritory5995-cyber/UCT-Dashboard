@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "13-volatility-of-returns.pine",
+  "title": "Volatility of Returns | NickJoan",
+  "author": "Nick_Joan",
+  "source_url": "https://www.tradingview.com/script/AT3imZhm-Volatility-of-Returns-NickJoan/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "3 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 18,
+  "complexity_bucket": "short",
+  "sha256_source": "7915d57ad942b690b56fb05215eb3e82c5e898f6b3a84dc5a1b3429f63bd39b4",
+  "sha256_normalized": "1da59512a6c97b23ebfd62d2fdd86808c8a459d799ee912108c72c159b867775",
+  "storage": "git"
+}

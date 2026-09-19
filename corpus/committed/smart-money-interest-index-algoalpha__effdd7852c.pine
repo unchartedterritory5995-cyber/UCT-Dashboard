@@ -1,0 +1,39 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AlgoAlpha
+
+//@version=5
+indicator("Smart Money Interest Index [AlgoAlpha]", "AlgoAlpha - 🧠 Smart Money", explicit_plot_zorder = true)
+x = input.int(25, "Index Period", minval = 1)
+rr = input.int(14, "Volume Flow Period", minval = 1)
+peakslen = input.int(500, "Normalization Period", minval = 1)
+thr = input.float(0.9, "High Interest Threshold", minval = 0.01, maxval = 0.99)
+green = input.color(#00ffbb, "Up Color")
+red = input.color(#ff1100, "Down Color")
+
+dumb = ta.pvi-ta.ema(ta.pvi,255)
+smart = ta.nvi-ta.ema(ta.nvi,255)
+
+drsi = ta.rsi(dumb, rr)
+srsi = ta.rsi(smart, rr)
+
+r = srsi/drsi //ratio shows if smart money is buying from dumb money selling and vice versa
+
+sums = math.sum(r, x)
+peak = ta.highest(sums, peakslen)
+
+index = sums/peak
+
+bottom = plot(0, display = display.none)
+top = plot(1, display = display.none)
+thresh = plot(thr, display = display.none)
+i = plot(index, color = green)
+fill(bottom, top, 1, 0, color.new(color.blue, 90), red)
+fill(thresh, top, 1, thr, color.new(color.yellow, 90), color.new(color.yellow, 60))
+fill(bottom, i, index, 0, green, chart.bg_color)
+
+barcolor(index > thr ? green : na)
+
+///Alerts
+
+alertcondition(ta.crossover(index, thr), "High Smart Money Interest")
+alertcondition(ta.crossunder(index, thr), "Smart Money Interest no longer high")

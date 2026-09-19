@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4485a6c4472847f98f1ccdbffe235be3",
+ "title": "CandelaCharts - Equal Highs/Lows (EQH/EQL)",
+ "author": "CandelaCharts",
+ "url": "https://www.tradingview.com/script/sFu4vsq3-candelacharts-equal-highs-lows-eqh-eql/",
+ "agreeCount": 506,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/candelacharts-equal-highslows-eqheql__4485a6c447.pine",
+ "cached_source": "tools/pine_survey/cache/sources/candelacharts-equal-highslows-eqheql__4485a6c447.pine",
+ "our_status": "committed"
+}

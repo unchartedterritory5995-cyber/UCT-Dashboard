@@ -219,7 +219,7 @@ describe('what a member can express', () => {
   it('one bad plot does not take the good ones down with it', () => {
     const script = '//@version=5\nindicator("t")\n'
       + 'plot(ta.sma(close, 5), "Good")\n'
-      + 'plot(request.security(syminfo.tickerid, "D", close), "Bad")\n'
+      + 'plot(request.security(syminfo.tickerid, "60", close), "Bad")\n'
     const out = translatePine(script)
     expect(out.ok).toBe(true)
     expect(out.outputs[0].formula).toBe('sma(close, 5)')
@@ -508,11 +508,16 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['import',
       '//@version=5\nindicator("t")\nimport foo/bar/1 as b\nplot(close)\n',
       'pine:module', 3, 1, 'import'],
+  // ➕ ADDENDUM 2026-09-12 (ruling 3.5): these cases used `"D"` as their example of
+  // an unservable timeframe, and a literal naming the engine's own BASE now folds to
+  // the identity instead of refusing. They are re-pointed at `"60"`, which genuinely
+  // cannot be resampled from daily bars — the claim under test is "request.security
+  // refuses by name at its own token", never "this particular string refuses".
     ['request.security',
-      '//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "D", close))\n',
+      '//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "60", close))\n',
       'pine:request', 3, 6, 'request.security'],
     ['bare v3/v4 security(), which is request.security under another spelling',
-      '//@version=3\nstudy("t")\nplot(security(tickerid, "D", close))\n',
+      '//@version=3\nstudy("t")\nplot(security(tickerid, "60", close))\n',
       'pine:request', 3, 6, 'security'],
     ['an array',
       '//@version=5\nindicator("t")\na = array.new_float(0)\nplot(array.get(a, 0))\n',
@@ -587,9 +592,12 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],
-    ['the modulo operator, which this table has no counterpart for',
-      '//@version=5\nindicator("t")\nplot(close % 2)\n',
-      'pine:operator', 3, 12, '%'],
+    // ⚰️ THIS WAS `plot(close % 2)` → `pine:operator`, AND `%` NO LONGER REFUSES.
+    // C4 Phase 1 (H7/J5.1) lowers it onto `mod`, the call this table has always
+    // owned — so the operator the case was written about now has a counterpart
+    // and the refusal it pinned is gone on purpose. `pine.modulo.test.js` owns
+    // the new ruling, including the negative dividend that distinguishes a
+    // truncated remainder from a floored one.
     ['a JavaScript negation, which is not Pine at all',
       '//@version=5\nindicator("t")\nplot(!(close > open) ? 1 : 0)\n',
       'pine:operator', 3, 6, '!'],
@@ -736,14 +744,17 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
   }
 
   it('a refusal that names a line shows that line with a caret under the token', () => {
-    const r = refusalOf('//@version=5\nindicator("t")\nplot(close % 2)\n')
-    expect(r.excerpt).toBe('plot(close % 2)\n           ^')
+    // ⚰️ THIS USED `plot(close % 2)` UNTIL C4 PHASE 1, when `%` stopped refusing.
+    // The case is about the EXCERPT, not about which construct is unsupported, so
+    // it moved onto a sibling operator refusal rather than being weakened.
+    const r = refusalOf('//@version=5\nindicator("t")\nplot(!(close > open) ? 1 : 0)\n')
+    expect(r.excerpt).toBe('plot(!(close > open) ? 1 : 0)\n     ^')
   })
 
   it('...and the caret is under the token, on a long line, at a two-digit column', () => {
     // ⛔ A CARET AT COLUMN 1 WOULD SATISFY THE CASE ABOVE if the line were short
     // enough. This one is not.
-    const r = refusalOf('//@version=5\nindicator("t")\nplot(ta.sma(close, 5) > ta.sma(request.security(syminfo.tickerid, "D", close), 5) ? 1 : 0)\n')
+    const r = refusalOf('//@version=5\nindicator("t")\nplot(ta.sma(close, 5) > ta.sma(request.security(syminfo.tickerid, "60", close), 5) ? 1 : 0)\n')
     const [line, caret] = r.excerpt.split('\n')
     expect(caret.length - 1).toBe(r.column - 1)
     expect(line.slice(r.column - 1, r.column - 1 + r.token.length)).toBe(r.token)

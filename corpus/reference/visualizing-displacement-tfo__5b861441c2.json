@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5b861441c25a4f2ba75c69cc45bf25fd",
+ "title": "Visualizing Displacement [TFO]",
+ "author": "tradeforopp",
+ "url": "https://www.tradingview.com/script/n6djFgQH-visualizing-displacement-tfo/",
+ "agreeCount": 3380,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/visualizing-displacement-tfo__5b861441c2.pine",
+ "cached_source": "tools/pine_survey/cache/sources/visualizing-displacement-tfo__5b861441c2.pine",
+ "our_status": "committed"
+}

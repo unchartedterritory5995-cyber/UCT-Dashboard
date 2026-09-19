@@ -75,7 +75,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
@@ -99,8 +99,35 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf } from './interpret.js'
 import { memberNumber } from './memberValue.js'
+// ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
+// statements; `objectProgram.js` owns the canonical shape they become. Neither
+// imports this file, so there is no cycle and the object model stays authorable
+// without Pine (the Builder-future-proofing rule this wave was given).
+import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObjects.js'
+import {
+  OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
+  FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP,
+} from './objectProgram.js'
+
+// ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
+// `symbolScope.json` is a fact about the outside world (our symbol store's
+// exchange spellings on one side, TradingView's on the other), and a fact that
+// can change without any code changing does not belong in code.
+import SYMBOL_SCOPE from './symbolScope.json'
+// ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
+// folds a predicate over two LITERALS at translate time and `bind.js` settles the
+// same predicate over a symbol at bind time — one question, two moments — and two
+// copies of "does an empty needle match" is the second-authority defect this repo
+// keeps paying for. The exchange-witness map lives there too: it is consulted per
+// BINDING, which is not a question a door that runs once per script can answer.
+import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+// ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
+// door, the bind stage and the repaint LINTER can all see. See L2 in
+// `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
+import { isBindFoldableLength } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -247,8 +274,16 @@ export const REFUSALS = Object.freeze({
     'this fills a gap by carrying an earlier bar\'s value forward, which needs a '
     + 'per-bar memory this grammar has no node for. `na` and `nz` themselves do '
     + 'translate',
+  // ⭐ RULING 3.4 (owner, 2026-09-11) — the member-facing wording, verbatim.
+  // The refused NAME and LINE travel with the refusal object, so the sentence does
+  // not repeat them; `lowerStmts` now guarantees a line even when the offending
+  // node was synthesized and carried no token of its own.
+  // ⛔ The old sentence — "text cannot be a value in a screened column" — was
+  // true and told a member nothing they could act on: it named a rule instead of
+  // saying what happened to their script.
   'pine:text-value':
-    'text cannot be a value in a screened column',
+    'this script uses a text feature our chart does not render yet. The numeric '
+    + 'plots still run; the text output is skipped and named here',
   'pine:colour-value':
     'a colour cannot be a value in a screened column',
   // ⚰️ "no counterpart in the engine grammar" IS FALSE FOR AT LEAST `%`: the
@@ -267,6 +302,21 @@ export const REFUSALS = Object.freeze({
     + 'number for half the inputs',
   'pine:builtin':
     'this Pine built-in names something the engine grammar does not hold',
+  // ⭐⭐ HOST MODE ONLY. The screener evaluates CLOSED bars, so folding
+  // `barstate.isconfirmed` to true there is exact, not approximate. A chart pane
+  // draws the FORMING bar too, where the same fold is simply wrong — and this
+  // engine has never tested a live bar. So the fold stands for one contract and
+  // is refused for the other, rather than shipping a wrong value on the one bar
+  // a member is actually watching.
+  'pine:live-bar-state':
+    'this Pine built-in answers differently on a forming bar, and a chart pane draws one',
+  // ⭐⭐ ADDED 2026-09-09 WITH THE BARSTATE RULING. No existing guard said this.
+  // `pine:builtin` claims the name is unknown (false — we declare the column) and
+  // `pine:live-bar-state` is about the FORMING bar, a different fact. This one is
+  // about COMPARABILITY: the value is fine, it just is not the same value twice.
+  'pine:window-dependent':
+    'this value depends on how much history was loaded, so the same script would '
+    + 'answer differently for the same stock on the same day',
   'pine:function':
     'this Pine function maps to nothing the engine grammar declares',
   'pine:arity':
@@ -279,10 +329,43 @@ export const REFUSALS = Object.freeze({
     'this Pine input carries a default the engine grammar cannot hold',
   'pine:cycle':
     'this Pine name is defined in terms of itself',
+  'pine:timeout':
+    'this Pine script did not finish translating inside the time budget',
   'pine:undefined':
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⭐⭐ THE OUTCOME OOS-2 HAD NO WAY TO SAY. Two published indicators were
+  // ACCEPTED whose every offered column was the chart's own price bars:
+  // `plotcandle(open, high, low, close, color = <the whole indicator>)` expands
+  // to four columns whose values are literally `open`/`high`/`low`/`close`,
+  // because the payload of that call is its `color=` argument and this door does
+  // not yet carry presentation. Those columns read bars honestly and are
+  // arithmetically right, so nothing hid them — and one of the two had `open`
+  // selected as the member's representative output. Refusing beats offering the
+  // price back as somebody's indicator.
+  'pine:presentation-only':
+    'every column this script would offer is an unchanged price series it draws '
+    + 'with, so its meaning lives in colouring this engine does not carry yet',
+  // ⭐⭐ AND THE SIBLING OUTCOME, WHICH USED TO BE SILENCE. A script whose every
+  // plot folds to the same number on every bar offers a column that can never
+  // move. Before this guard existed the door returned `ok:false` with
+  // `refusal: null` — it declined and said nothing — and FIVE tests in this
+  // directory pinned that silence as the expected shape.
+  'pine:constant-only':
+    'every column this script would offer holds the same number on every bar, so '
+    + 'there is nothing here a chart or a screen could move on',
+  // ⛔⛔ OWNER RULING, 2026-09-12, ON A MEASURED MISTRANSLATION. A Supertrend
+  // script refused on all nine of its visible columns and kept ONE: the author's
+  // untitled `ohlc4` fill edge. The door offered it — selected it, in fact — so an
+  // import produced a saveable definition named after a Supertrend that computes the
+  // average of the bar. ⭐ "A column offered under the script's title that is actually
+  // the author's hidden helper is a mistranslation wearing a label." The engine already
+  // refused the `display.none` spelling of this (`outputHidden`, the Butterworth case);
+  // this is the same class arriving as an untitled `fill()` anchor.
+  'pine:hidden-only':
+    'the only outputs that translate are helper series the author hid; nothing this '
+    + 'script displays can be screened',
   // ⚰️⚰️ THIS SENTENCE STOPPED DESCRIBING ITS OWN GUARD. It read "a displaced
   // plot writes its value at a different bar from the one that produced it" — and
   // `pickOutputArgument`'s own docblock already records that this is "true about
@@ -301,6 +384,28 @@ export const REFUSALS = Object.freeze({
   'pine:roundtrip':
     'the translator wrote formula text it could not read back, so it emitted none',
 })
+
+/** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
+ *  ABOUT THE *OTHER ROWS*, AND THEREFORE CANNOT BE SHARED BETWEEN LANES.
+ *
+ *  ⚰️ `pine:text-value` says *"The numeric plots still run; the text output is
+ *  skipped and named here"*. In THIS translator that is exactly true — the
+ *  refusal lands on one output row and `uncharted-volume-v2.pine` answers
+ *  `ok: true, 5 outputs, 0 refusals` in the host lane. In `buildRuntimeIr` it is
+ *  false: one text statement takes the whole program (`ok: false` at v2 line 153,
+ *  v1 line 151). The sentence and the behaviour cannot both be right, and the
+ *  reassuring half is the one a member reads.
+ *
+ *  ⛔ DECLARED, NEVER SNIFFED OUT OF THE PROSE. A reader that searched these
+ *  sentences for a phrase like "still run" would be a string match over
+ *  member-facing copy — it would break the day somebody rewords a refusal, and it
+ *  would break SILENTLY, which is how a lane goes back to lying. This is the list,
+ *  and `pineRuntimeFrontend.js` is required by rail to carry an override for every
+ *  entry in it: adding a guard here without one fails BY NAME.
+ *
+ *  ⚠️ A guard belongs here when its sentence makes a claim about what happens to
+ *  the REST of the script — not merely because it is worded differently per lane. */
+export const PER_ROW_PROMISE_GUARDS = Object.freeze(['pine:text-value'])
 
 // --------------------------------------------------------------------------- //
 // the namespaces, by what they mean rather than by a list of members
@@ -445,6 +550,13 @@ const OWN_SYMBOL_NAMES = new Set([
  *  so the only thing between it and reading that script was seeing through one
  *  call. A script was being refused for wrapping its own ticker in the function
  *  Pine gives you for exactly that purpose. */
+// ⭐⭐ WAVE 2 (a) — MECHANISM A. An array is a PLAN-TIME VECTOR of expression
+// slots; the module holds the admitted member set, the element types, and every
+// refusal SENTENCE so the wording cannot drift between the sites that need it.
+// ⛔ It imports nothing from here, so there is no cycle: it returns refusal
+// DESCRIPTORS and this file builds the `PineRefusal`.
+import * as VEC from './arrayVectors.js'
+
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
 const NAMESPACE_GUARD = Object.freeze({
@@ -497,7 +609,11 @@ const NAMESPACE_GUARD = Object.freeze({
  *  ⛔ `ta` AND `math` ARE NOT AN ALLOW-LIST OF FUNCTIONS. They are the two places
  *  Pine keeps the kind of thing this table could declare; whether any particular
  *  member exists is `TABLE.functions`'s answer and nothing else's. */
-const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
+// ⭐ EXPORTED NARROWLY FOR THE RUNTIME'S POINTWISE CLASSIFIER (2F-1). The
+// runtime must decide 'is this call pointwise' from AUTHORITATIVE metadata, not
+// from a namespace-stripping heuristic — this set plus `PINE_CALL_SHAPES` IS
+// that authority, and exporting it is cheaper and safer than a second catalog.
+export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
 
 /**
  * ⭐⭐ THE ONE THING THE MANIFEST DOES NOT DECLARE, AND THE ONLY REASON THIS
@@ -530,6 +646,34 @@ const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * are reconciled. Same reasoning holds for `ta.cci`, whose Pine definition is
  * built on an arbitrary `source` rather than on the typical price.
  */
+/** ⭐⭐ PINE SPELLINGS THAT MAY OMIT A LEADING SOURCE, AND THE SERIES THAT FILLS IT.
+ *
+ *  Pine lets `ta.highest(20)` stand for `ta.highest(high, 20)` and `ta.lowest(20)`
+ *  for `ta.lowest(low, 20)`. MEASURED, not assumed — the 1-arg form was read off a
+ *  live chart on 2026-09-10 and agreed with the explicit `high`/`low` form on 397
+ *  of 397 usable bars, with ZERO agreeing with `close` or `hl2`:
+ *  `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`.
+ *
+ *  ⛔⛔ THE ASYMMETRY IS THE WHOLE RISK. `highest` defaults to `high` and `lowest`
+ *  to `low`; reading BOTH off `close` — the obvious guess — would have been
+ *  silently wrong on 97 corpus sites across 33 files. Wrong numbers, right shape,
+ *  no refusal to notice.
+ *
+ *  ⚰️⚰️ AND IT DOES NOT BELONG IN `PINE_NAMESPACED_TREE`, WHICH IS WHERE IT WAS
+ *  PUT FIRST AND REVERTED FROM. Membership of that map is itself a signal:
+ *  `pineRuntimeFrontend.js`'s `windowTarget` and `carriedTarget` both open with
+ *  `if (tree[name]) return null`, so a name rewritten there is by definition NOT a
+ *  carried/windowed builtin — and `highest`/`lowest` are both. Adding them broke
+ *  the TWO-argument form in the runtime lane, which had always worked.
+ *
+ *  ⭐ THIS FILLS A SLOT INSTEAD, through the same `{series: …}` plan entries
+ *  `ta.atr(14)` → `atr(high, low, close, 14)` has always used. The two-argument
+ *  form takes the identical path it did before this existed. */
+export const PINE_SHORT_FORM = Object.freeze({
+  highest: Object.freeze({ fills: Object.freeze(['high']) }),
+  lowest: Object.freeze({ fills: Object.freeze(['low']) }),
+})
+
 export const PINE_CALL_SHAPES = Object.freeze({
   // Two series, and the ORDER MEANS SOMETHING: `ta.crossover(a, b)` is "a crossed
   // above b", and so is this table's `crossOver(a, b)`. Railed.
@@ -785,12 +929,19 @@ export function derivedSeriesTree(name, table) {
  *  it. Before the offset it could not be said at all; `DERIVED_SERIES` could not
  *  hold it either, because that map builds a mean and this is not one.
  *
- *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. On the
- *  first bar `close[1]` does not exist, so this expansion is NOT COMPUTABLE
- *  there, like every other lookback in this engine. `ta.tr(true)` asks for Pine's
- *  fallback — bar 0's range as `high - low` — and is refused rather than silently
- *  given this one: the extra NaN is a bar the member can see, and a fabricated
- *  first bar is not.
+ *  ⚠️ ONE BAR DIFFERS FROM PINE ON THIS TREE, AND IT DIFFERS IN THE SAFE
+ *  DIRECTION. On the first bar `close[1]` does not exist, so `tr` is NOT
+ *  COMPUTABLE there, like every other lookback in this engine — which is exactly
+ *  what `ta.tr(false)` does, measured (T1, 2026-09-12).
+ *
+ *  ⭐⭐ AND `ta.tr(true)` IS NO LONGER A REFUSAL — IT IS `trGuarded`, READ FROM THE
+ *  VENDOR RATHER THAN GUESSED. `tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`
+ *  is the capture: on NASDAQ:CRWV 1D, whose whole 366-bar history fits inside the
+ *  study's output window, bar 0 carries `4.48` with `subject_is_na = 0` and
+ *  `subject_eq_highlow = 1`, while `ta.tr(false)` is `na` on that same bar. Away
+ *  from bar 0 all four channels agree to EXACT zero over 2,244 SPY daily bars.
+ *  So the guarded form is an IDENTITY too, and the rule below is satisfied: it
+ *  needed a reading rather than a judgement, and it now has one.
  *
  *  ⚰️ THIS PARAGRAPH SAID THE FALLBACK WAS THE **BARE** `ta.tr`, and it is the
  *  other way round. Three sources in this repo agree it is `ta.tr(true)` that
@@ -812,6 +963,21 @@ const BUILTIN_SERIES_TREE = Object.freeze({
       cCall('max', [gap('high'), gap('low')]),
     ]);
   },
+  /** `ta.tr(true)` — the same column with Pine's first-bar fallback, taken from
+   *  the vendor capture rather than assumed by this file.
+   *
+   *  ⛔ THE GUARD IS `na(close[1])`, NOT `bar_index == 0`. On a clean series they
+   *  pick out the same bar, and they are not the same claim: what is missing is
+   *  the OFFSET, so a hole anywhere else in `close` gets the answer Pine gives it
+   *  rather than a different one. Writing the bar number would put a second
+   *  authority on "where does history start".
+   *
+   *  ⭐ The else-branch reuses `tr()`, so the three-term max is written once. */
+  trGuarded: () => cOp('?:', [
+    cCall('na', [{ type: 'offset', value: 1, args: [cSeries('close')] }]),
+    cOp('-', [cSeries('high'), cSeries('low')]),
+    BUILTIN_SERIES_TREE.tr(),
+  ]),
 })
 
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
@@ -834,12 +1000,46 @@ const BUILTIN_SERIES_TREE = Object.freeze({
  *  A boolean is a `number` 1/0 in this table (see the `true` literal in `atom`),
  *  so all four cost the closed table exactly zero new names.
  */
+/** ⭐⭐ PURE MATHEMATICAL CONSTANTS — AND THEY ARE NOT IN `BUILTIN_CONSTANT_TREE`.
+ *
+ *  ⛔ THAT TABLE IS STRICT-GATED, and correctly: it folds `barstate.*`, whose
+ *  value depends on HOW THIS ENGINE FETCHED — so the pane contract must not
+ *  accept the fold the screener contract can. π depends on nothing. Folding it
+ *  under one contract and refusing it under the other would be a refusal with no
+ *  reason behind it, so it lives here and is consulted in BOTH modes.
+ *
+ *  ⭐ Confirmed against the vendor 2026-09-11 as the IEEE-754 double
+ *  3.141592653589793, constant across all 400 bars
+ *  (`tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json`). There was no
+ *  vendor QUESTION here — it is π — but there was a vendor CONFIRMATION, which is
+ *  a different thing: the row is backed by their constant rather than by
+ *  arithmetic we already believed. 8 sites in 1 script. */
+export const PINE_MATH_CONSTANTS = Object.freeze({
+  'math.pi': () => cNum(Math.PI),
+})
+
 export const BUILTIN_CONSTANT_TREE = Object.freeze({
   'barstate.isconfirmed': () => cNum(1),
   'barstate.ishistory': () => cNum(1),
-  'barstate.isnew': () => cNum(1),
   'barstate.isrealtime': () => cNum(0),
+  // ⚰️ `barstate.isnew` WAS HERE AND FOLDED TO 1, AND THE FOLD WAS A
+  // RESTATEMENT OF THE QUESTION. It is true on the FIRST EXECUTION of each bar —
+  // a fact about how many times the script ran, not about the bar — and this
+  // engine executes a static fetch exactly once, so every bar is "new" and the
+  // constant carried no information. The other three fold to something a member
+  // can act on; this one folded to a tautology wearing a value. Refused by name
+  // now, on both contracts, with the reason in
+  // `closedTable.json::_barstate.refused`. ⚠️ THAT IS A SHIPPED-BEHAVIOUR CHANGE
+  // for a screen that spelled it: it translated before and refuses now.
 })
+
+/* ⚰️ `barstate.isnew` WAS IN THE MAP ABOVE, FOLDING TO 1, AND IT WAS WRONG IN THE
+ * WAY THAT IS HARDEST TO SEE. `isnew` is true on the FIRST TICK of a bar. On a
+ * once-per-bar model every evaluation is arguably "the first", so 1 looked
+ * defensible — and was unfalsifiable, because nothing here ever observes a second
+ * tick that would make it false. It refuses by name now (`BUILTIN_BARSTATE_REFUSED`,
+ * read off `closedTable.json::_barstate.refused`), which
+ * is the honest answer to a question about an event we do not watch. */
 
 /** ⭐⭐ `dayofweek.<name>` — THE CALENDAR NAMES, IN THEIR OWN MAP.
  *
@@ -877,23 +1077,195 @@ export const BUILTIN_CALENDAR_TREE = Object.freeze({
   'dayofweek.saturday': () => cNum(7),
 })
 
-/** The look-alikes of the four above — REFUSED, and refused with the reason.
+/** ⭐⭐ `timeframe.<predicate>` — A NAMESPACED ALIAS ONTO A COLUMN THE TABLE
+ *  ALREADY DECLARES, which makes it a THIRD kind of dotted name and not a
+ *  variation on the two above.
  *
- *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
- *  no home for that name" is false: it has a home for its three siblings. The true
- *  sentence is that the answer would change with the request, and a member who
- *  reads it knows to rewrite the script rather than wait for us to add the name.
+ *  `BUILTIN_CONSTANT_TREE` folds a name to a CONSTANT because of how this engine
+ *  evaluates. `BUILTIN_CALENDAR_TREE` folds one to a CONSTANT because of what a
+ *  calendar is. These fold to NOTHING — they resolve to the clock series the
+ *  manifest already ships, so the value is decided per bar by the engine exactly
+ *  as the bare spelling is. There is no judgement in this map and no new
+ *  capability behind it; the gap was purely that the Pine door never mapped the
+ *  dotted spelling.
+ *
+ *  ⭐ THE MEANING IS THE MANIFEST'S, WORD FOR WORD. `closedTable.json::clock
+ *  .isdaily` reads *"1 when the chart's timeframe is daily, otherwise 0"*, which
+ *  is `timeframe.isdaily`'s definition. Vendor-witnessed on the daily row:
+ *  `isdaily 1 / isweekly 0 / ismonthly 0` on a 1D SPY chart, 2026-09-08.
+ *  ⚠️ THE **TRUE** CASE OF `isweekly`/`ismonthly` IS NOT OBSERVED — the capture
+ *  was taken on a 1D chart. What is witnessed is that the predicates read off the
+ *  chart's own declared timeframe, which this engine already holds; the untested
+ *  half is recorded in the fixture's own `_coverage` block rather than papered
+ *  over here.
+ *
+ *  ⛔ EACH VALUE IS A DECLARED CLOCK NAME AND A RAIL ASSERTS IT, in both
+ *  directions: no alias may point at a column the manifest does not declare, and
+ *  no clock predicate may ship WITHOUT an alias — which is the direction that
+ *  actually rots, because adding `clock.isseconds` and forgetting this map is
+ *  invisible until a member pastes a script.
  */
-export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
-  'barstate.islast':
-    'which bar is the last one depends on how many bars were asked for, so this '
-    + 'would answer differently for the same stock on the same day',
-  'barstate.isfirst':
-    'which bar is the first one depends on how far back the request reached, so '
-    + 'this would answer differently for the same stock on the same day',
-  'barstate.islastconfirmedhistory':
-    'this names a bar relative to the end of the request, so it would answer '
-    + 'differently for the same stock on the same day',
+export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
+  'timeframe.isdaily': 'isdaily',
+  'timeframe.isweekly': 'isweekly',
+  'timeframe.ismonthly': 'ismonthly',
+  'timeframe.isintraday': 'isintraday',
+})
+
+/** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
+ *  the roster is READ OFF `closedTable.json::_barstate` rather than typed here.
+ *
+ *  ⚰️ THESE WERE CONSTANTS, AND THAT WAS ONLY EVER TRUE FOR ONE CONTRACT. The
+ *  screener evaluates CLOSED bars, so `barstate.isconfirmed` is genuinely 1 on
+ *  every bar it will ever see and the fold is exact there. A PANE DRAWS THE
+ *  FORMING BAR, and on the one bar a member is actually watching the same
+ *  constant is false — which is why host mode refused these outright rather than
+ *  shipping a confident wrong value. The refusal was the right answer to a
+ *  missing capability and is the wrong answer to one that exists: `computeClock`
+ *  now decides them per bar from the CLOCK and the FETCH.
+ *
+ *  ⛔ THE SCREENER FOLD IS RETAINED, UNCHANGED, WITH ITS TESTS. Two contracts,
+ *  two answers, each true where it is given — and neither derived from the
+ *  other. A screener that started evaluating these per bar would be recomputing,
+ *  at cost, a constant it can prove. */
+export const BUILTIN_BARSTATE_SERIES = Object.freeze(Object.fromEntries(
+  [...((TABLE._barstate || {}).extent || []),
+    ...((TABLE._barstate || {}).realtime || [])]
+    .map((name) => [`barstate.${name}`, name]),
+))
+
+/** The `barstate.*` names refused BY NAME, with their reasons — the same data
+ *  file, so the roster and its sentences have one owner. */
+export const BUILTIN_BARSTATE_REFUSED = Object.freeze(Object.fromEntries(
+  Object.entries(((TABLE._barstate || {}).refused) || {})
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([k, why]) => [`barstate.${k}`, String(why)]),
+))
+
+/** ⚰️⚰️ THE REQUEST-DEPENDENT REFUSAL, WITHDRAWN BY OWNER RULING 2026-09-09,
+ *  AND KEPT HERE EMPTY SO THE ARGUMENT IS NOT LOST.
+ *
+ *  It held `barstate.islast`, `barstate.isfirst` and
+ *  `barstate.islastconfirmedhistory`, and its sentence was that each one "would
+ *  answer differently for the same stock on the same day" because its value is
+ *  decided by HOW MANY BARS WERE ASKED FOR. ⭐ THAT ARGUMENT WAS HALF RIGHT, AND
+ *  THE HALF IT GOT WRONG IS THE INTERESTING ONE: widen the fetch and the OLDEST
+ *  bar moves, but the NEWEST bar is the newest bar however much history was
+ *  requested. So `islast` was never request-dependent at all, and
+ *  `islastconfirmedhistory` is request-dependent only through the clock, which
+ *  is a different question with a different answer.
+ *
+ *  ⛔ AND `isfirst` REALLY IS REQUEST-DEPENDENT — it just does not need a REFUSAL
+ *  any more. The containment mechanism it wanted did not exist when this map was
+ *  written; it does now, on the DEFINITION rather than on the name
+ *  (`_requirement_tags.window_dependent`), so `isfirst` is served on a pane with
+ *  a disclosure and refused BY NAME at the screener, the sweep, an alert, a share
+ *  and a listing. A refusal at the grammar was the right answer to a missing
+ *  mechanism and is the wrong answer to one that exists.
+ *
+ *  ⚠️ THE MAP IS EMPTY AND NOT DELETED. Its consult site is gone, so nothing here
+ *  can fire; what remains is the reasoning, which the next name of this shape
+ *  will need. A future entry must also add its own test — the loop that drove
+ *  this map is now a withdrawal record and no longer a live rail.
+ */
+export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({})
+
+/* ⚰️⚰️ THIS MAP HELD THREE NAMES AND NOW HOLDS NONE. THE RULING IS WITHDRAWN
+ * BECAUSE ITS REASONING WAS WRONG ABOUT WHICH END OF THE SERIES MOVES.
+ *
+ * It refused `barstate.islast` on the grounds that "a scan over 500 bars and the
+ * same scan over 5,000 disagree about which bar is the last one". They do not. A
+ * fetch reaches BACKWARDS FROM NOW, so deepening it adds bars to the OLD end and
+ * never changes which bar is newest:
+ *
+ *     500-bar fetch:           [older ....................... NEWEST]
+ *     5,000-bar fetch:  [much older ......................... NEWEST]   <- same bar
+ *
+ * So `islast` and `islastconfirmedhistory` are NOT request-dependent and are served
+ * on both contracts. `isfirst` genuinely IS — it names the OLDEST delivered bar,
+ * which moves with every change of depth — so it keeps the constraint, but as the
+ * `window_dependent` tag on the DEFINITION rather than as a door refusal: the five
+ * comparability consumers decline it by name and a pane may draw it.
+ *
+ * ⭐ WHAT THE ERROR ACTUALLY WAS: one sentence covering both ends of a series, when
+ * only one end moves. The three names read as siblings and only one of them was.
+ * Recorded rather than quietly reversed — `docs/pine/barstate.md`.
+ *
+ * ⚠️ THE MAP IS KEPT (empty) rather than deleted: the door still consults it, and an
+ * empty map is a place for the NEXT genuinely request-dependent name to land with
+ * its own sentence. */
+
+/** ⭐⭐ `syminfo.<field>` — THE FOURTH KIND OF DOTTED PINE NAME: constant for
+ *  one BINDING, not for the engine, not for the calendar, and not per bar.
+ *
+ *  The three maps above answer, in order: because of how this engine EVALUATES
+ *  (`barstate.*`), because of what a CALENDAR is (`dayofweek.*`), and because the
+ *  manifest already ships the column under another spelling (`timeframe.*`).
+ *  These answer for a fourth reason: **because a symbol was chosen.** Within one
+ *  binding the value never moves; across bindings it does — which is exactly the
+ *  shape `_bind_time_constants` describes and `fold_bound` resolves.
+ *
+ *  ⛔⛔ THEY ARE TEXT, AND TEXT NEVER REACHES THE RUNTIME. `symtext` is not in
+ *  `interpret.js`'s node switch and must not be: the closed table's value model is
+ *  numbers (booleans as 1/0), and adding a string kind to it would put a second
+ *  value system inside every walk that prices, lints and evaluates a tree. A
+ *  `symtext` node exists ONLY to be folded — `str.contains(syminfo.ticker, "/")`
+ *  becomes 1 or 0 at bind time, and a `symtext` that survives the fold is a
+ *  refusal naming the operand, never a column.
+ *
+ *  ⛔⛔ ALL THREE ARE NAMES HERE; THE VENDOR GATE IS IN THE FOLD, NOT THIS DOOR.
+ *  `syminfo.ticker` is the plain symbol — the string our own store is keyed by — so
+ *  there is no vendor question in it. `tickerid` and `exchange` are TRADINGVIEW
+ *  strings, and a member compares them with `==` and `str.contains`, where a
+ *  plausible-but-unmeasured spelling does not degrade the answer, it INVERTS it.
+ *  ⭐ SO THE GATE IS PER-BINDING AND IT BELONGS WHERE THE SYMBOL IS KNOWN:
+ *  `symbolScope.json::confirmed` names the exchange spellings actually WITNESSED on
+ *  a TradingView chart, and the fold resolves these two only for a symbol whose
+ *  exchange is in it. A door runs once per script and cannot decide a question
+ *  whose answer is "it depends which symbol". It also means a capture turns these
+ *  on with NO CODE CHANGE — built, railed and reachable today, measurement pending. */
+export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
+  'syminfo.ticker': 'ticker',
+  'syminfo.tickerid': 'tickerid',
+  'syminfo.prefix': 'prefix',
+})
+
+/** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
+ *  `symbolScope.json::unserved` so the roster has ONE owner.
+ *
+ *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE FALSE ABOUT ITS OWN NEIGHBOURS. The
+ *  sentence is *"the engine grammar does not hold this name"*, and one line above
+ *  `syminfo.ticker` resolves. A refusal that is false about the name next to it
+ *  teaches a reader to distrust every refusal in the file. */
+export const BUILTIN_SYMBOL_UNSERVED = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.unserved) || {})
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([k, why]) => [`syminfo.${k}`, String(why)]),
+))
+
+/** ⭐ THE `str.*` PREDICATES THAT ARE DECIDABLE OVER BIND-TIME TEXT, by arity.
+ *
+ *  ⛔⛔ THIS IS NOT "STRINGS AS VALUES" AND THE LINE IS THE SAME ONE
+ *  `stringValueOf` DRAWS. A string still never becomes a column, never reaches
+ *  `parse.js`, never reaches the interpreter and never reaches a saved
+ *  definition — `resolve` still refuses a bare one at `pine:text-value`. What
+ *  these do is answer a QUESTION about text with a NUMBER: `str.contains` is 1
+ *  or 0, `str.length` is a count. The text is consumed inside the fold and
+ *  nothing textual survives it.
+ *
+ *  ⭐ THEY ARE ADMISSIBLE ONLY BECAUSE BOTH OPERANDS ARE BIND-TIME. A literal is
+ *  fixed when the script is written; `syminfo.*` is fixed when a symbol is
+ *  chosen. Neither moves bar to bar, so the answer is constant for the binding —
+ *  which is what makes it foldable rather than a value kind the engine carries.
+ *
+ *  ⚠️ `str.tostring`, `str.format` and `str.split` are NOT here and must not
+ *  drift in: each PRODUCES text from something else, and a producer is the step
+ *  that would make text a value. These four only consume. */
+export const PINE_TEXT_PREDICATE = Object.freeze({
+  'str.contains': 2,
+  'str.startswith': 2,
+  'str.endswith': 2,
+  'str.length': 1,
 })
 
 /** Pine CALLS that take arguments and are an EXACT expansion in this table's own
@@ -932,7 +1304,7 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
  *  bare `pivothigh(...)` still resolves to this table's own function, unshifted,
  *  because a member typing the bare name in OUR box means OUR vocabulary — the
  *  same rule `ta.barssince` established. */
-const PINE_NAMESPACED_TREE = Object.freeze({
+export const PINE_NAMESPACED_TREE = Object.freeze({
   'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
   'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
   // ⭐⭐ THE SIGN FLIP, AND IT IS A NODE THIS TABLE HAS HAD ALL ALONG. Pine's
@@ -950,6 +1322,32 @@ const PINE_NAMESPACED_TREE = Object.freeze({
   // actionable refusal is only worth what it costs to RE-READ it.
   'ta.highestbars': (a) => negatedBars('highestbars', a),
   'ta.lowestbars': (a) => negatedBars('lowestbars', a),
+  // ⚰️⚰️ `ta.highest` / `ta.lowest` WERE ADDED HERE ON 2026-09-11 AND REVERTED THE
+  // SAME NIGHT. The measurement behind them stands and is committed
+  // (`tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`: the 1-arg
+  // form defaults to `high` / `low`, 397 of 397 usable bars, zero for `close`), but
+  // THIS IS THE WRONG DOOR FOR IT.
+  //
+  // ⛔ MEMBERSHIP OF THIS MAP IS ITSELF A SIGNAL. `pineRuntimeFrontend.js`'s
+  // `windowTarget` and `carriedTarget` both open with `if (tree[name]) return null`
+  // — a name rewritten here is, by that test, NOT a carried/windowed builtin. So
+  // adding these two silently reclassified them and the runtime lane began refusing
+  // `runtime:call-windowed-state: a WINDOWED builtin fed by a mutable variable` for
+  // the TWO-argument form, which had worked all along. Four `finiteWindow` tests and
+  // one `executionShapeCensus` script went red.
+  //
+  // ⭐ AND THE GUARD THAT CAUGHT IT SAYS SO IN ADVANCE: `carriedTarget`'s own
+  // comment calls that line "UNFALSIFIABLE AGAINST THE SHIPPED TABLES … deleting
+  // this line changes no answer and a mutation run would report it surviving. It is
+  // kept because `ta.highestbars` proved what a dropped namespaced transform costs."
+  // This change is the first thing that ever falsified it, and it fired correctly.
+  //
+  // ⭐ THE DIFFERENCE FROM ITS NEIGHBOURS IS REAL: `ta.highestbars` and
+  // `ta.pivothigh` need a TRANSFORM (a negation, a shift), which is what this map
+  // is for. `ta.highest` needs only a DEFAULT ARGUMENT, and supplying one by
+  // rewriting the tree drags the name across a classification boundary it should
+  // never have crossed. The default belongs where arity is resolved — a facility
+  // this engine does not have yet. Routed in `requests.md`.
 })
 
 /** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance.
@@ -1107,6 +1505,43 @@ const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
+  // Channel Width. TradingView's own published `f_kcw` reference-manual
+  // source, verbatim:
+  //   basis    = ta.ema(src, length)
+  //   span     = useTrueRange ? ta.tr : (high - low)
+  //   rangeEma = ta.ema(span, length)
+  //   kcw      = ((basis + rangeEma*mult) - (basis - rangeEma*mult)) / basis
+  //            = 2 * mult * rangeEma / basis
+  // A RATIO — never multiplied by 100 (the plausible-but-wrong percent
+  // convention `ta.bbw` might suggest by analogy). Verified against a real
+  // TradingView capture (tests/fixtures/vendor/observations/
+  // ta-kcw-close20-2-2026-09-06.json): exact match on 15 real SPY trading
+  // days, including that the candidate's *100 sibling is 100x off on every
+  // one. Composes from primitives this table already declares (`ema`, and
+  // `tr`'s own expansion above) — costs the manifest nothing, exactly like
+  // `vwma`/`linreg` above.
+  //
+  // ⛔ `useTrueRange` MUST BE A LITERAL 1/0 to be read here — a resolved
+  // boolean is a `num` node with value 1 or 0 (see the `bare === 'tr'` guard
+  // above for the same convention). Anything else declines to `null` and
+  // falls through to the ordinary refusal rather than being guessed at.
+  kcw: (a) => {
+    const [src, length, mult, flag] = a
+    let useTrueRange = true
+    if (flag !== undefined) {
+      if (!flag || flag.type !== 'num') return null
+      const v = Number(flag.value)
+      if (v !== 0 && v !== 1) return null
+      useTrueRange = v === 1
+    }
+    const span = useTrueRange
+      ? BUILTIN_SERIES_TREE.tr()
+      : cOp('-', [{ type: 'series', name: 'high' }, { type: 'series', name: 'low' }])
+    const basis = cCall('ema', [src, length])
+    const rangeEma = cCall('ema', [span, length])
+    return cOp('/', [cOp('*', [cNum(2), cOp('*', [mult, rangeEma])]), basis])
+  },
   cross: (a) => cOp('||', [
     cCall('crossOver', [a[0], a[1]]),
     cCall('crossUnder', [a[0], a[1]]),
@@ -1145,18 +1580,19 @@ const BUILTIN_RULED = Object.freeze({
     + 'symbol. What has no spelling here is another ticker — a comparison against '
     + 'SPY, a sector proxy, or a relative-strength line — because that needs a '
     + 'second feed rather than a wider vocabulary.',
-  'syminfo.mintick':
-    "It is the symbol's minimum price increment, which differs per symbol and is "
-    + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
-    + '`math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar '
-    + 'whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero '
-    + 'denominator is reported as NOT COMPUTABLE for that symbol rather than '
-    + 'quietly replaced, so write `(close - low) / (high - low)` and a halted, '
-    + 'zero-range bar is left unanswered instead of being scored as though it '
-    + 'closed on its low. ⚠️ That is a REAL difference, not a simplification: '
-    + 'Pine answers 0 on such a bar and this engine answers nothing, which is why '
-    + 'the edit is yours to make rather than one taken silently on your behalf.',
+  // ⚰️ `syminfo.mintick` WAS A ROW HERE AND HAS MOVED, WHOLE, INTO
+  // `symbolScope.json::unserved`. It did not change meaning — what changed is
+  // that Kind 4 gave the `syminfo.*` fields a roster of their own, and leaving a
+  // copy here would have been a SECOND AUTHORITY over one member-facing sentence:
+  // two places to edit, one of which somebody would miss. This map keeps the
+  // names that are not symbol-scoped.
 })
+
+// ⭐ RE-EXPORTED, NOT REDEFINED. The predicate is pure manifest logic and it
+// lives in `parse.js` — `doorCoverage.js` needs it too and is deliberately
+// decoupled from this module (it takes its doors as parameters). One
+// authority, two importers.
+export { hostAdmissible }
 
 export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
@@ -1226,6 +1662,24 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // construction. So `cum` still does not translate. What changes is that the
   // door hands back the call that DOES work and leaves the anchor where it
   // belongs: with the member, visible in their own script.
+  // ⭐⭐ AMENDED 2026-09-09 — THIS IS A SCREENER REFUSAL NOW, NOT A UNIVERSAL ONE.
+  // `cum` is DECLARED in the table and HOST mode serves it; the sentence below is
+  // what a member gets when they aim it at a SCREEN, which is still refused and
+  // for the reason it always was. `_functions_cumulative` carries the ruling and
+  // `_requirement_tags.window_dependent` is the mechanism that made the split
+  // safe: the pane accepts it, the screener/sweep/alert/share/listing refuse it
+  // BY NAME, so the fetch-dependent level cannot leak past the one surface that
+  // can hold it honestly.
+  // ⭐ THE PAIR THE `cum` RAIL DEMANDS: a host-admissible name must still be
+  // refused for a screen, or the exemption stops being a ruling and becomes a
+  // hole. `isfirst` names the OLDEST DELIVERED BAR, which moves every time the
+  // fetch depth changes — so on a screen it is the `cum` defect exactly: a
+  // finite, plausible number that is different tomorrow.
+  isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
+    + 'reaches further back — so on a screen it would answer differently for the '
+    + 'same stock on the same day. `barstate.islast` is the other end and IS '
+    + 'servable, because a fetch reaches backwards from now and the newest bar is '
+    + 'the same bar at any depth. A pane may draw `barstate.isfirst`.',
   cum: 'a running total from the first bar, and `cum` names no anchor — a '
     + 'translator that picked one would be inventing the single number the whole '
     + 'answer turns on, and the value would then change with how many bars the '
@@ -1395,7 +1849,35 @@ const DIGIT = /[0-9]/
  * off a stream with separators in it.
  */
 export function lexPine(src) {
-  const text = String(src == null ? '' : src).replace(/\r\n?/g, '\n')
+  const raw = String(src == null ? '' : src)
+  // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
+  // CONTRACT. Pine's line/continuation rules are simplest against LF-only
+  // text, so every token is still produced against a `\r\n?`-collapsed copy
+  // (`text`, below). But `translatePine`'s own `source` parameter — and
+  // whatever an offer's `span` is eventually spliced into — is the ORIGINAL,
+  // un-normalized string. `rawOffsetMap[n]` is the raw-string offset
+  // immediately after the raw bytes that produced the first `n` characters of
+  // `text`, so it translates ANY normalized-space offset (a token's `.index`,
+  // or a `spanOfNode(...)` result built from token indices) back into the
+  // coordinate space of the string an edit is actually applied to. Built in
+  // the SAME pass that performs the normalization, so the two can never drift
+  // into two competing ideas of "where `\r\n` collapsed" — see
+  // `Resolver.toRawSpan`, the one place that consumes this.
+  let text = ''
+  const rawOffsetMap = [0]
+  {
+    let r = 0
+    while (r < raw.length) {
+      if (raw[r] === '\r') {
+        text += '\n'
+        r += raw[r + 1] === '\n' ? 2 : 1
+      } else {
+        text += raw[r]
+        r += 1
+      }
+      rawOffsetMap.push(r)
+    }
+  }
   const tokens = []
   const lines = text.split('\n')
   const indents = lines.map((line) => {
@@ -1495,7 +1977,7 @@ export function lexPine(src) {
     throw new PineRefusal('pine:character', REFUSALS['pine:character'], at(i, line, col, ch))
   }
 
-  return { tokens, indents, version, lines }
+  return { tokens, indents, version, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -1567,7 +2049,7 @@ const danglesIntoNextLine = (tok) => {
  * ⚠️ `else` IS A SEPARATE STATEMENT AT THE SAME INDENT, not part of the `if`.
  * Pine writes it that way and so does this; `ifBranches` re-joins them.
  */
-function blockStatements(toks, indents, indent) {
+export function blockStatements(toks, indents, indent) {
   const out = []
   let i = 0
   while (i < toks.length) {
@@ -1650,7 +2132,7 @@ function blockStatements(toks, indents, indent) {
   return out
 }
 
-const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
+export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
 
 /** Is this token run `… name = expression`, i.e. one binding?
  *
@@ -2072,6 +2554,74 @@ function containsFreeSelfSeries(node, table) {
   return walk(node)
 }
 
+/** ⭐⭐ IS THIS UPDATE A MONOTONE FOLD OVER ITS OWN PAST? (ruling R-A2, 2026-09-12)
+ *
+ *  `var x := math.max(x, y)` / `math.min` / `x + y` — the shapes a member writes for
+ *  "the highest/lowest/total ever". They are exactly the shapes this engine HAS a
+ *  bounded equivalent for, so the refusal can name it instead of just saying no.
+ *
+ *  ⛔ IT DOES NOT UNLOCK A FOLD, AND THAT IS MEASURED RATHER THAN ASSUMED. R-A2 asked
+ *  for the fold to an anchored-at-window-start form and set a stop condition: build it
+ *  only if `maxLookback` stays a plan-time constant and the repaint verdict stays
+ *  decidable. Measured 2026-09-12 on the engine's own already-shipped unbounded
+ *  accumulator:
+ *
+ *      cum(volume)            maxLookback = 0      repaint = repaints
+ *                                                  "unanalysable: `cum` declares a
+ *                                                   window this linter cannot bound"
+ *      accum(0, volume, 250)  maxLookback = 250    repaint = non-repainting, back 250
+ *      highest(volume, 5000)  maxLookback = 5000   repaint = non-repainting, back 5000
+ *
+ *  So an unbounded form is undecidable in BOTH dimensions TODAY — and it under-claims
+ *  its lookback as 0, which `maxLookback`'s own comment calls the one direction a
+ *  budget must never fail in. A STATED window is fully decidable. The only decidable
+ *  fold therefore requires choosing the window, which is choosing the member's number
+ *  for them — the exact trade the `cum` ruling refuses. The stop condition fired, so
+ *  this returns a SENTENCE, never a translation.
+ *
+ *  ⭐ AND THE GUIDANCE RIDES IN THE MESSAGE, NOT IN `suggest`, for the same reason
+ *  `cum`'s does: the member has to pick the window, so there is a hole in the text and
+ *  `suggest` means "the exact text that works" everywhere else in this door.
+ */
+function monotoneFoldOffer(update, table) {
+  const spec = table.functions && table.functions.accum
+  const bind = spec && spec.recurrence && spec.recurrence.binds
+  if (!bind) return null
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
+  // ⚠️ A WALK, NOT A SHAPE MATCH. Two assumptions cost a cycle each: `cOp`
+  // puts the operator on `name`, not `op`; and there is no `ternary` node type at all
+  // (`NODE_TYPES` has eleven and that is not one), so an `if`-wrapped reassignment
+  // hides the fold one level down in whatever a conditional canonicalises to. A walk
+  // is indifferent to both.
+  const stack = [update]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (Array.isArray(n)) { for (const c of n) stack.push(c); continue }
+    const args = n.args || []
+    const selves = args.filter(isSelf).length
+    const others = args.filter((a) => !isSelf(a))
+    // Exactly one self and one other: `max(self, y)`, never `max(self, self)`.
+    if (selves === 1 && others.length === 1) {
+      if (n.type === 'call' && n.name === 'max') {
+        return '`highest(<that value>, <bars>)` — the highest over a window you name'
+      }
+      if (n.type === 'call' && n.name === 'min') {
+        return '`lowest(<that value>, <bars>)` — the lowest over a window you name'
+      }
+      if (n.type === 'op' && n.name === '+') {
+        return '`cumFrom(<that value>, <anchor>, <bars>)` — the same running total '
+          + 'with the starting instant STATED'
+      }
+    }
+    for (const a of args) stack.push(a)
+    for (const k of ['test', 'yes', 'no', 'left', 'right', 'arg', 'value']) {
+      if (n[k]) stack.push(n[k])
+    }
+  }
+  return null
+}
+
 function containsSelfSeries(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -2321,10 +2871,29 @@ export function forgetsItsSeed(node, table, warmup) {
     if (isSelf(n)) return true
     if (!carries(n)) return true
     const args = n.args || []
-    if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
-      const withSelf = args.filter(carries)
-      return withSelf.length === 1 && ok(withSelf[0], true)
-    }
+    // ⚰️⚰️ R-F (owner, 2026-09-12) — `min`/`max` ARE OUT OF THE ADMIT SET, AND THIS
+    // ARM IS WHY THEY WERE IN IT. It read `withSelf.length === 1 && ok(withSelf[0], true)`,
+    // and `ok` returns TRUE for bare `self` — so `max(self, y)` was declared
+    // seed-forgetting. A running max NEVER forgets its seed: the seed stands until
+    // something exceeds it. `accum` re-seeds `PINE_STATE_WARMUP` bars back, so the
+    // column answered "the highest of the last 250 bars" to a member who wrote "the
+    // highest ever" — ok:true, no refusal, no disclosure, no window shown.
+    //
+    //     var float m = na / m := math.max(m, volume)
+    //       -> accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)   ok = true
+    //
+    // ⛔ THAT IS THE SECOND INSTANCE OF THE OBV CLASS. The convergence gate above
+    // cites the first: "a 250-bar ROLLING SUM presented as OBV, on every bar, drawing
+    // a line nobody would question". The gate caught `+` and this arm admitted
+    // `min`/`max`, so the same defect walked through the door beside it.
+    //
+    // ⚠️ AND IT DELIBERATELY OVER-REFUSES ONE SHAPE. A DECAYING max — `m := max(m *
+    // 0.9, close)` — really does forget, and it refuses now too. That is the safe
+    // direction (a refusal a member can read, never a plausible wrong number), and it
+    // is one line to narrow if it ever shows up in a real script: swap `ok` for
+    // `contracts` in a restored arm, which admits a self operand only when its
+    // coefficient contracts over the warmup. Not done on spec — no corpus script
+    // writes it.
     if (n.type === 'call' && n.name === 'nz') return args.every((a) => ok(a, true))
     if (n.type === 'op' && n.name === '?:') return ok(args[1], true) && ok(args[2], true)
     return contracts(n, switched)
@@ -2332,7 +2901,7 @@ export function forgetsItsSeed(node, table, warmup) {
   return ok(node, false)
 }
 
-function findTop(toks, pred) {
+export function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
     const tok = toks[i]
@@ -2418,7 +2987,7 @@ function spanOfNode(node) {
   return lo !== Infinity && lo < hi ? [lo, hi] : null
 }
 
-const locate = (tok) => (tok
+export const locate = (tok) => (tok
   ? { line: tok.line, column: tok.column, index: tok.index, token: String(tok.raw ?? tok.value) }
   : null)
 
@@ -2475,6 +3044,17 @@ function isBareObv(node) {
     : (node.type === 'call' && (!node.args || node.args.length === 0)) ? node.name
       : null
   return named === 'ta.obv' || named === 'obv'
+}
+
+/** True when `node` names Pine's cumulative PVT with no `[…]` applied.
+ *  Mirrors `isBareObv` exactly — `ta.pvt` is the same unseeded-cumulative
+ *  shape as `ta.obv`. See `_functions_excluded.pvt`. */
+function isBarePvt(node) {
+  if (!node) return false
+  const named = node.type === 'name' ? node.name
+    : (node.type === 'call' && (!node.args || node.args.length === 0)) ? node.name
+      : null
+  return named === 'ta.pvt' || named === 'pvt'
 }
 
 /** `ta.sma(ta.obv, n)` — an average of OBV over its OWN window. Returns the
@@ -2610,6 +3190,53 @@ function oneArgBarssince(node) {
   return arg.value || null
 }
 
+/** RISK-004 REMEDIATION (2026-09-06) — `nz(<one-arg barssince>, S)`: the
+ *  CONDITION plus the member's own SENTINEL node (unresolved — a literal in
+ *  the inline shape, an input behind a binding in the through-binding shape),
+ *  or null. Positional only, same discipline as `oneArgBarssince` above. */
+function nzWrappedBarssince(node) {
+  if (!node || node.type !== 'call' || node.name !== 'nz') return null
+  const args = node.args || []
+  if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+  const cond = oneArgBarssince(args[0].value)
+  if (!cond) return null
+  return { cond, sentinel: args[1].value }
+}
+
+/** RISK-004 REMEDIATION — is `nz(barssince(cond), S) <cmp> K` the SAME
+ *  screen as the bare, capped `barssince(c) <cmp> K` identity below?
+ *
+ *  ⛔⛔ THE KERNEL CANNOT TELL "NEVER OCCURRED" FROM "OCCURRED BEYOND THE
+ *  WINDOW" — `interpret.js`'s `barsSince` is a SATURATING counter: once `n`
+ *  readable bars have passed without a hit, it answers exactly `n`, whether
+ *  the condition happened `n + 1` bars ago or has never happened at all in
+ *  the whole series. A member's `nz(ta.barssince(cond), S)` supplies an
+ *  EXPLICIT value for that same bucket — but only when S produces the SAME
+ *  boolean under `<cmp> K` as the capped window itself would (`window <cmp>
+ *  K`, which the operator alone decides: `<`/`<=` → false, `>`/`>=` → true)
+ *  is the member's choice provably redundant rather than a DIFFERENT answer
+ *  this engine would silently overwrite.
+ *
+ *  ⭐ MEASURED AGAINST THE REAL CORPUS: `nz(ta.barssince(squeeze), 1000) <= 3`
+ *  is SOUND (`1000 <= 3` is false, matching `<=`'s implied false) — the
+ *  member's sentinel and the cap agree, so the rewrite is an identity.
+ *  `nz(ta.barssince(cond), 0) >= baseLen` is NOT (`0 >= baseLen` is false,
+ *  but `>=`'s implied truth is TRUE) — the member explicitly wants "never
+ *  occurred" to read as NOT matured, while this engine's cap would read the
+ *  same bucket as matured. Forcing that rewrite would be a confident wrong
+ *  answer on exactly the bars it matters most (a symbol with no pivot yet),
+ *  so this returns false and the script stays honestly refused. */
+function nzSentinelSound(op, sentinel, k) {
+  const impliedTrue = op === '>' || op === '>='
+  let actual
+  if (op === '<') actual = sentinel < k
+  else if (op === '<=') actual = sentinel <= k
+  else if (op === '>') actual = sentinel > k
+  else if (op === '>=') actual = sentinel >= k
+  else return false
+  return actual === impliedTrue
+}
+
 const FLIP = Object.freeze({ '<': '>', '>': '<', '<=': '>=', '>=': '<=' })
 
 /**
@@ -2630,17 +3257,32 @@ function contextBoundedPlan(node) {
   // ⭐ NORMALISE THE SIDES FIRST. Members write `5 > ta.barssince(x)` as readily
   // as `ta.barssince(x) < 5`, and a rewrite that only saw one order would be a
   // coin-flip on whether a script translated.
-  if (own(FLIP, op) && litInt(left) !== null && oneArgBarssince(right)) {
+  if (own(FLIP, op) && litInt(left) !== null
+      && (oneArgBarssince(right) || nzWrappedBarssince(right))) {
     [op, left, right] = [FLIP[op], right, left]
   }
 
-  const cond = oneArgBarssince(left)
   const k = litInt(right)
-  if (cond && k !== null && own(FLIP, op)) {
-    // `< K` and `>= K` split at K, so K bars of window put the sentinel exactly
-    // on the boundary; `<= K` and `> K` split at K+1 and need one bar more.
-    const window = (op === '<' || op === '>=') ? k : k + 1
-    if (window >= 1) return { kind: 'barssince', op, cond, window, k }
+  if (k !== null && own(FLIP, op)) {
+    const cond = oneArgBarssince(left)
+    if (cond) {
+      // `< K` and `>= K` split at K, so K bars of window put the sentinel
+      // exactly on the boundary; `<= K` and `> K` split at K+1 and need one
+      // bar more.
+      const window = (op === '<' || op === '>=') ? k : k + 1
+      if (window >= 1) return { kind: 'barssince', op, cond, window, k }
+    }
+    // ⭐⭐ RISK-004 REMEDIATION — `nz(barssince(cond), S) <cmp> K`, inline (the
+    // member wrote both halves in one expression). Sound ONLY when `S` agrees
+    // with the capped window's own answer — see `nzSentinelSound`.
+    const wrapped = nzWrappedBarssince(left)
+    if (wrapped) {
+      const s = litInt(wrapped.sentinel)
+      if (s !== null && nzSentinelSound(op, s, k)) {
+        const window = (op === '<' || op === '>=') ? k : k + 1
+        if (window >= 1) return { kind: 'barssince', op, cond: wrapped.cond, window, k }
+      }
+    }
   }
 
   // `obv <cmp> obv[k]` and `obv - obv[k]`.
@@ -2648,6 +3290,17 @@ function contextBoundedPlan(node) {
       && right && right.type === 'offset' && isBareObv(right.arg)) {
     const lag = Number(right.n)
     if (Number.isInteger(lag) && lag >= 1) return { kind: 'obv', op, lag }
+  }
+
+  // ⭐⭐ `pvt <cmp> pvt[k]` and `pvt - pvt[k]` — THE SAME IDENTITY AS `obv`'s,
+  // for the same reason: `ta.pvt` is an unseeded cumulative and the arbitrary
+  // seed CANCELS in a windowed difference. See `_functions_excluded.pvt` and
+  // `isBarePvt`. This is what actually unlocks `volume-obv-accumulation-
+  // divergence`'s `pvtRising = ta.pvt > ta.pvt[10]`.
+  if ((own(FLIP, op) || op === '-') && isBarePvt(left)
+      && right && right.type === 'offset' && isBarePvt(right.arg)) {
+    const lag = Number(right.n)
+    if (Number.isInteger(lag) && lag >= 1) return { kind: 'pvt', op, lag }
   }
 
   return null
@@ -2900,6 +3553,42 @@ function parsePrimary(cur) {
     // "B"])`, an argument this translator never even looks at — refuse the whole
     // script from a line no column depends on. Now it refuses only if something
     // actually reads it, at `resolve`, with the same guard and the same token.
+    //
+    // ⭐⭐ R18 (2026-09-15) — THE ELEMENTS ARE KEPT WHEN THEY PARSE. A `collection`
+    // was a PLACEHOLDER: the loop below consumed the contents to find the matching
+    // `]` and threw them away, so `[a, b] = request.security(s, tf, [x, y])` reached
+    // `destructureBindings` with nothing to hand out and refused `pine:tuple`. Under
+    // Mechanism A those elements ARE the slots, so the parser keeps them.
+    //
+    // ⛔ `collection` IS A PARSE-TREE TYPE AND STAYS ONE. `NODE_TYPES` is the OUTPUT
+    // vocabulary and is untouched — a collection never becomes a node in a saved
+    // tree; it is taken apart into per-slot calls before anything persists. No 12th
+    // type, no statement form.
+    //
+    // ⛔⛔ AND THE FALLBACK IS THE WHOLE SAFETY OF IT. The comment above records why
+    // this site must not throw: `input(…, options=["A","B"])` is carried by most
+    // published scripts and nothing reads it. So the element parse is attempted on a
+    // SAVED CURSOR POSITION and any failure rewinds to it and takes the original
+    // skip — a collection this parser cannot read behaves exactly as it did, and the
+    // note it produces is unchanged.
+    const startI = cur.i
+    let elements = null
+    try {
+      const parts = []
+      if (!isPunct(cur.peek(), ']')) {
+        for (;;) {
+          parts.push(parseExpression(cur, 0))
+          if (cur.eat(',')) continue
+          break
+        }
+      }
+      cur.expect(']')
+      elements = parts
+    } catch {
+      cur.i = startI
+      elements = null
+    }
+    if (elements) return { type: 'collection', tok, elements }
     let depth = 1
     while (depth > 0) {
       const t = cur.next()
@@ -2957,7 +3646,7 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
-function parseWholeExpression(toks) {
+export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
   const rest = cur.peek()
@@ -3135,7 +3824,35 @@ function declaredInputNames(node, out = new Set()) {
 
 function foldWindow(node) {
   const v = constantValueOf(node)
-  return (v !== null && Number.isInteger(v) && v >= 0) ? cNum(v) : node
+  if (v === null || !Number.isInteger(v) || v < 0) return node
+  const out = cNum(v)
+  // ⭐⭐ TRACK F (DEC-006) — CARRY A PARAMETER TAG THROUGH THE FOLD, WHEN THE
+  // NODE HANDED IN ALREADY WAS ONE. `foldWindow` exists to turn an expression
+  // that REDUCES to a whole number into a fresh literal node for the window
+  // guard below — and when `node` is ALREADY a bare `num` a `resolveInput`
+  // fold tagged (`sma(close, len)`, `len`'s value landing directly in the
+  // window slot with nothing else combined), `cNum(v)` above rebuilds an
+  // otherwise-identical node that drops the tag purely as a byproduct of
+  // being a NEW object — silently making every window-bound Pine input (a
+  // length, the single most common `input.int` use and RISK-013's own
+  // motivating case) ineligible for a reason invisible anywhere near
+  // `resolveInput` itself. Regression: `pine.paramManifest.test.js`'s first
+  // case, which failed exactly this way before this fix.
+  //
+  // ⛔ ONLY WHEN `node` ITSELF CARRIES THE TAG — never derived from a deeper
+  // sub-node. `len / 2` reaches here as an `op` node whose OWN
+  // `__uctParamId` is (correctly) undefined, even though `len`'s inner
+  // literal has one two levels down — and that is exactly right: the value
+  // landing in the window is a COMPUTED function of the input, not the
+  // input's own value, so it correctly stays ineligible (there is no way to
+  // reconstruct "what would `len` need to be" from a later edit to a folded
+  // `7`). This check cannot accidentally widen eligibility beyond a bare,
+  // direct pass-through.
+  if (node && typeof node === 'object' && node.__uctParamId !== undefined) {
+    Object.defineProperty(out, '__uctParamId',
+      { value: node.__uctParamId, enumerable: false, configurable: true })
+  }
+  return out
 }
 
 /** The extra half of a `pine:window` sentence, for the one case where the length
@@ -3293,6 +4010,7 @@ function printNumber(value) {
 /** A canonical tree → UCT formula text, with the fewest parentheses that survive
  *  a round trip through `parseFormula`. */
 export function printFormula(node, parentBp = 0) {
+  tickTranslateBudget()
   if (!node || typeof node !== 'object') {
     throw new PineRefusal('pine:roundtrip', REFUSALS['pine:roundtrip'], null)
   }
@@ -3317,6 +4035,26 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'str':
+      // ⛔ SINGLE-QUOTED, AND ESCAPED THROUGH JSON. `tf` and `sym` hand-roll
+      // `'${value}'` because a timeframe code and a ticker are both shape-checked
+      // to characters that cannot break out of the quotes. A member's text is
+      // arbitrary — it can contain a quote, a backslash or a newline — so the
+      // escaping has to be real or the round trip is a parse error the member
+      // cannot act on.
+      return `'${JSON.stringify(node.value).slice(1, -1).replace(/'/g, "\\'")}'`
+    case 'symtext':
+      // ⭐ THE FIELD IS QUOTED because it is a FIELD on the node, not an
+      // expression — the same surface `tf` and `sym` use for the same reason.
+      return `syminfo('${node.name}')`
+    case 'textop':
+      // ⭐ `text_eq` RATHER THAN `==`, and deliberately not the operator. `==`
+      // over two numbers is already a canonical `op`, and printing text equality
+      // the same way would give ONE SURFACE TWO MEANINGS decided by what the
+      // operands happen to be — which is exactly the ambiguity a member reading
+      // their own formula back cannot resolve. A distinct spelling says "this
+      // comparison is about text" without anybody having to infer it.
+      return `text_${node.name}(${node.args.map((a) => printFormula(a, 0)).join(', ')})`
     case 'sym':
       // ⭐ THE SEVENTH NODE TYPE, and the TICKER COMES FIRST — `sym('SPY', expr)`
       // — because that is the order this engine's own parser reads, which is in
@@ -3485,13 +4223,193 @@ function foldLogicalIdentity(op, left, right, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
-class Resolver {
+/**
+ * ⭐⭐ THE WALL-CLOCK BUDGET — a hang becomes a refusal, and never takes the batch.
+ *
+ * ⛔ A HANG IS A WORSE FAILURE THAN A REFUSAL. A refused script is one datum; a
+ * script that never returns kills the whole run and reports nothing, so the batch
+ * cannot even say which file did it. That is not hypothetical — a published
+ * Parabolic SAR (70 lines) does exactly this, and it was found only because the
+ * survey runner names each file on disk BEFORE entering the translator.
+ *
+ * ⭐ THE NUMBER IS MEASURED, NOT GUESSED. Across 434 scripts — the committed
+ * corpus plus every fixture corpus — translate wall-clock is p50 2.8ms, p90 16ms,
+ * p99 73ms, and the slowest legitimate script is 322ms
+ * (`tools/pine_survey/r11_translate_timings.json`). 10s is ~30× that worst case,
+ * which leaves room for a loaded CI box an order of magnitude slower than this one
+ * and still bounds a non-terminating script.
+ *
+ * ⛔ THIS GUARD IS PERMANENT. It is not scaffolding for the cycle bug below it:
+ * a budget is the only thing that holds when the NEXT unbounded shape arrives, and
+ * that one will not be known in advance either.
+ */
+export const PINE_TRANSLATE_BUDGET_MS = 10000
+
+/**
+ * ⭐⭐ AND A STEP CAP, BECAUSE WALL-CLOCK ALONE DOES NOT CATCH THIS SHAPE.
+ *
+ * ⛔ MEASURED, NOT ASSUMED. The script that hangs expands `resolve` at roughly a
+ * MILLION CALLS PER SECOND for the first ~150ms and then the process falls into
+ * GC thrashing near the heap limit, where JS effectively stops executing — so a
+ * deadline that is only consulted from JS never gets consulted again. Profiled:
+ * 47% node.exe, 36% ntdll, ~2% JS; no OOM even at a 1GB cap after 150 seconds.
+ * A wall-clock guard cannot fire in a process that has stopped running JS.
+ *
+ * A STEP COUNT CAN, because it trips during the explosion itself, before the
+ * heap gets anywhere near full. It is also deterministic — the same script fails
+ * the same way on a fast machine and a slow one, which a timeout never is.
+ *
+ * ⭐ THE NUMBER IS MEASURED. Across 396 scripts (the committed corpus plus every
+ * fixture corpus), the most resolution-hungry legitimate script — Artemis
+ * Oscillator Pro — takes **167,336** steps. 5,000,000 is ~30× that, the same
+ * headroom ratio as the wall-clock budget above.
+ */
+export const PINE_TRANSLATE_MAX_STEPS = 5000000
+
+/** ⭐⭐ THE THIRD LIMB OF `pine:timeout`, AND IT FIXES A CORRECTNESS BUG RATHER
+ *  THAN A SLOW SCRIPT. Resolution recurses, and on a published Parabolic SAR it
+ *  recursed 1,281 deep and blew the JavaScript stack — a `RangeError: Maximum
+ *  call stack size exceeded` that a `catch` upstream swallowed and retried,
+ *  1,117,654 times in a single translation. That is the hang, measured.
+ *
+ *  ⛔⛔ THE DEFECT IS NOT THE TIME, IT IS WHAT THE ANSWER DEPENDED ON. With the
+ *  overflow swallowed, what this door replies was a function of the HOST'S STACK
+ *  SIZE — node version, `--stack-size`, how deep the caller already was — and not
+ *  of the member's script. The same file could translate here and refuse on a
+ *  colleague's machine, and neither run would say why. A bound stated in the
+ *  engine makes the answer a property of the script again.
+ *
+ *  ⭐ 20x THE MEASURED MAXIMUM, the same convention as the clock and the step cap.
+ *  Deepest legitimate resolution across the 51 published scripts in both corpora
+ *  is 20 (`07-rsi`); every other script sits at 8-10. So 400 is far above any real
+ *  script and far below where the host stack actually breaks. */
+export const PINE_TRANSLATE_MAX_DEPTH = 400
+
+/**
+ * ⭐⭐ THE SAME DEADLINE, REACHABLE FROM THE NON-CLASS HELPERS.
+ *
+ * ⛔ THE RESOLVER'S OWN CHECK IS NOT ENOUGH, AND THE MEASUREMENT SAYS SO. On the
+ * script that hangs, `resolve` is entered FEWER THAN 200,000 TIMES IN 30 SECONDS
+ * while 83% of the process sits in native code — so a budget checked only inside
+ * `resolve` never fires. The tree comes back exponentially large and the time
+ * goes into `printFormula` stringifying it and `verifyRoundTrip` re-parsing the
+ * result, neither of which is a resolver method.
+ *
+ * ⚠️ A guard placed where the author ASSUMED the loop was is a guard that reports
+ * a clean pass on the exact input it was written for.
+ */
+let TRANSLATE_DEADLINE = Infinity
+let TRANSLATE_PATH = null
+let TRANSLATE_BUDGET = 0
+let printSteps = 0
+
+export function beginTranslateBudget(budgetMs, sourcePath) {
+  TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
+  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? Date.now() + TRANSLATE_BUDGET : Infinity
+  TRANSLATE_PATH = typeof sourcePath === 'string' ? sourcePath : null
+  printSteps = 0
+}
+
+export function endTranslateBudget() {
+  TRANSLATE_DEADLINE = Infinity
+  TRANSLATE_PATH = null
+  TRANSLATE_BUDGET = 0
+}
+
+/** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
+ *  counter, with `Date.now()` only every 4096th call. */
+/**
+ * ⭐⭐ THE PER-SCRIPT DEADLINE, ASKED DIRECTLY.
+ *
+ * ⛔ THE INNER CHECK IS NOT ENOUGH ON ITS OWN, MEASURED. A budget consulted only
+ * from inside `resolve` depends on `resolve` continuing to be entered, and on the
+ * pathological script it demonstrably stops being entered often enough to matter:
+ * with the step cap disabled and a 2s budget, the call still never returned.
+ *
+ * So the OUTPUT LOOP asks this before each output. That bounds the whole
+ * `translatePine` call rather than each Resolver inside it, which is the
+ * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
+ */
+export function translateBudgetExpired() {
+  return TRANSLATE_DEADLINE !== Infinity && Date.now() > TRANSLATE_DEADLINE
+}
+
+export function translateBudgetMs() { return TRANSLATE_BUDGET }
+
+export function tickTranslateBudget() {
+  if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
+  if (Date.now() <= TRANSLATE_DEADLINE) return
+  throw new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
+    + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+/** Checked every 4096th `resolve` — `Date.now()` on every node would itself be a
+ *  measurable cost on a 2,000-line script, and 4096 nodes is far below the budget. */
+const BUDGET_CHECK_MASK = 4095
+
+/** ⭐ TRACK F (DEC-006) parameter-manifest eligibility — the `input.*` kinds
+ *  `builderInputs.js`'s `FOLDED_INPUT_TYPES` already treats as a real type
+ *  decision (`input.int`→'int', `input.float`→'float', bare `input`→decide
+ *  by the default's integrality, `input.bool`→'bool'). Declared independently
+ *  here rather than imported — `builderInputs.js` sits ABOVE this module and
+ *  injects `translate` rather than importing it for exactly the reason its
+ *  own header gives ("importing `pine.js` here would put a second edge into
+ *  the translator from a layer that only ever reads its output"); the
+ *  reverse import (this file reaching UP into `builder/`) would be the same
+ *  mistake the other way round. Pinned against drifting from
+ *  `FOLDED_INPUT_TYPES` by `pine.paramManifest.test.js`, which asserts the
+ *  two name the same kinds, so a change to either without the other fails
+ *  loudly rather than silently.
+ *
+ *  ⭐⭐ `bool` PROMOTED (Compatibility Remediation Tranche 1 → Track F v1.1,
+ *  2026-09-06) — real public-script corpus evidence (`18-minervini-trend-
+ *  template.pine`, `27-support-resistance-channels.pine`) showed a plain
+ *  `input.bool` gate is a common, real idiom this engine already folds
+ *  byte-identically to a bare `input(true/false)` (which was ALREADY
+ *  eligible via the `input` kind) — the exclusion had no execution-model
+ *  reason behind it once `resolveInput`'s own NUMERIC bucket is read: a
+ *  boolean's fold is always a plain `{type:'num', value: 0|1}`, exactly the
+ *  shape this mechanism already handles for `int`/`float`. `source`/`price`/
+ *  `string`/anything else remains deliberately excluded — each is a
+ *  DIFFERENT representation (a column reference, a schema-reserved future
+ *  type, free text), not a plain number, and `resolveInput`'s existing
+ *  refusal path already handles every kind this set does not name. */
+const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float', 'bool']))
+
+export class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
+    /** ⭐⭐ HOST MODE. `true` when the caller is drawing a chart pane rather
+     *  than serving screener columns. The only thing it changes in here is
+     *  whether the closed-bar `barstate.*` folds are allowed — see the
+     *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
+     *  identical, which is the point: two contracts, one reading. */
+    this.strict = opts.strict === true
+    /** ⭐ A NOTE SINK, DEFAULTING TO A NO-OP. The walk owns `notes`; the
+     *  Resolver never needed to add one before, so every other caller keeps
+     *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
+     *  resolver cannot accidentally share another's note list. */
+    this.noteSink = typeof opts.noteSink === 'function' ? opts.noteSink : () => {}
+    /** ⭐⭐ THE BARS THIS TRANSLATION IS FOR. `interpret.js`'s 2026-09-01 ruling on
+     *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
+     *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
+     *  below is PROVABLE rather than merely present. */
+    this.basePeriod = typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF
+    /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
+     *  identity fold on an intraday base; never to produce a value. */
+    this.newestBarIsForming = opts.newestBarIsForming === true
     /** The member's own script, when the caller passed it — an offer quotes
      *  their text back rather than re-printing a tree, so what lands in the box
      *  is what they wrote. */
     this.source = typeof opts.source === 'string' ? opts.source : null
+    /** ⭐⭐ RISK-004 FIX — `lexPine`'s normalized-index → raw-index map (see its
+     *  own comment). `null` when a caller builds a Resolver directly without
+     *  going through `translatePine`/`lexPine` — `toRawSpan` is the identity
+     *  in that case, so direct-construction callers are unaffected. */
+    this.rawOffsetMap = Array.isArray(opts.rawOffsetMap) ? opts.rawOffsetMap : null
     this.table = table
     this.types = types || new Map()
     this.index = functionIndex(table)
@@ -3501,9 +4419,37 @@ class Resolver {
     // call every reassignment a cycle; an identity-keyed one still catches the
     // real thing (`a = b` / `b = a` re-enters the same object).
     this.stack = new Set()
+    /** ⭐ THE WALL-CLOCK DEADLINE. See `PINE_TRANSLATE_BUDGET_MS`. A caller may
+     *  pass `budgetMs: 0` to disable it, which is for tests that deliberately
+     *  measure a slow path — never for a batch run over untrusted scripts. */
+    this.budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : PINE_TRANSLATE_BUDGET_MS
+    this.deadline = this.budgetMs > 0 ? Date.now() + this.budgetMs : Infinity
+    /** Named in the refusal so a batch says WHICH file, not just that one hung. */
+    this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
+    this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
+    this.budgetSteps = 0
+    /** Current and peak resolution nesting. See `PINE_TRANSLATE_MAX_DEPTH`. */
+    this.depth = 0
+    this.peakDepth = 0
+    this.maxDepth = Number.isFinite(opts.maxDepth) ? opts.maxDepth : PINE_TRANSLATE_MAX_DEPTH
+    /** ⛔ STICKY, AND PER RESOLVER ON PURPOSE. The depth refusal is swallowed by
+     *  the same `catch` that swallowed the stack overflow, and the caller then
+     *  tries a different expansion — which is why bounding the depth ALONE left the
+     *  SAR file at 11.3s instead of 28ms. Once a resolver has hit the bound it has
+     *  PROVEN it cannot expand this tree, so every later question gets the same
+     *  answer at once rather than re-descending 400 levels to rediscover it.
+     *  Scoped to the Resolver, not the script, so one unexpandable output cannot
+     *  refuse the others: `translatePine` builds one Resolver per output. */
+    this.depthTripped = false
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
+    /** ⭐ RULING 3.5(c) — every `request.security` timeframe literal folded to the
+     *  identity because it named this engine's own base. Same layering as
+     *  `usedInputs`/`inputsFolded`: recorded here, surfaced on the output, so a member
+     *  can see their `'D'` became the chart's own series. A fold nobody is told about
+     *  is a script that quietly stopped being the one they pasted. */
+    this.baseFolds = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -3526,6 +4472,22 @@ class Resolver {
     /** Bound input names that reached an `int` slot on this run — collected so a
      *  caller can refuse them rather than hand back a half-applied knob. */
     this.windowBoundInputs = new Set()
+    /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
+     *  per-Resolver) parameter-identity table: `{ counter, byNode: Map<node,
+     *  entry>, metadata: entry[] }`, or `null` for every existing caller —
+     *  the same "opt-in, off by default, byte-identical otherwise" contract
+     *  `declareInputs`/`inputValues` above already keep.
+     *
+     *  ⛔⛔ IT MUST BE SHARED ACROSS RESOLVERS, NOT OWNED BY ONE, which is why
+     *  it is threaded in via `opts` rather than initialized here the way
+     *  `usedInputs`/`windowBoundInputs` are. `translatePine` builds a FRESH
+     *  `Resolver` per output (see its own per-output loop) — a Resolver-
+     *  owned table would mint a SEPARATE id for the same original Pine input
+     *  every time a second plot referenced it, exactly the "two independent
+     *  bindings for one member decision" mistake `TRACK_F_PARAMETER_ADR_V2_2
+     *  .md` §1 corrects. See `resolveInput`'s own comment for why it is keyed
+     *  on the ORIGINAL CALL NODE'S IDENTITY rather than on `boundName`. */
+    this.paramMint = opts.paramMint || null
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -3603,6 +4565,34 @@ class Resolver {
   }
 
   resolveBinding(bound, tok, name) {
+    // ⭐⭐ THE ONE CHOKE POINT EVERY BINDING READ GOES THROUGH, so the mark is
+    // taken here and nowhere else. `case 'bound'` and `resolveName` both funnel
+    // in, and the binding OBJECTS are shared out of `env`, so a mark set by one
+    // output's Resolver is visible to the closing pass over all of them.
+    // ⛔ It is set before the depth guard on purpose: a binding that was reached
+    // and refused for being too deep HAS been read, and re-resolving it in the
+    // closing pass would report the same exhaustion twice under a worse name.
+    if (bound && typeof bound === 'object') bound.read = true
+    // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
+    // frame that still has stack left to build it — a guard that overflows while
+    // reporting an overflow reports nothing at all.
+    if (bound && this.maxDepth > 0 && (this.depthTripped || this.depth >= this.maxDepth)) {
+      this.depthTripped = true
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — resolving \`${name || 'an expression'}\` nested past `
+        + `${this.maxDepth} levels${this.sourcePath ? ` in ${this.sourcePath}` : ''}. `
+        + 'That is a translator defect, not a limit on the script: this door expands a '
+        + 'variable by re-reading its definition, and a definition that reaches its own '
+        + 'previous bar can be re-entered without end. The deepest legitimate script '
+        + 'measured needs 20 levels.',
+        locate(tok))
+    }
+    this.depth += 1
+    if (this.depth > this.peakDepth) this.peakDepth = this.depth
+    try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
+  }
+
+  resolveBindingInner(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
       // is not a name the member failed to define.
@@ -3689,7 +4679,17 @@ class Resolver {
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
             + 'started, so folding it would draw a rolling window over the last '
-            + PINE_STATE_WARMUP + ' bars rather than a running total',
+            + PINE_STATE_WARMUP + ' bars rather than a running total'
+            // ⭐ R-A2 (owner, 2026-09-12): NAME THE BOUNDED FORM. The refusal stands
+            // — `monotoneFoldOffer`'s comment carries the decidability measurement that
+            // is why — but a member writing "the highest ever" is told which call does say
+            // it, with the window left where it belongs: with them.
+            + (monotoneFoldOffer(update, this.table)
+              ? '. THIS ENGINE DOES DECLARE A BOUNDED FORM: '
+                + monotoneFoldOffer(update, this.table)
+                + '. Stating the window is what makes the answer the same tomorrow'
+                + ' — an all-time value moves with however many bars were fetched.'
+              : ''),
             bound.at || locate(tok))
         }
         const args = []
@@ -3757,6 +4757,52 @@ class Resolver {
         return this.resolve({
           type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
         })
+      } finally { this.env = prevEnv }
+    }
+    // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
+    // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
+    // lookahead = barmerge.lookahead_off)` — eight daily values fetched in one
+    // request, which is the efficient idiom and the one the corpus actually writes
+    // (42 of 63 destructures bind this call).
+    //
+    // ⭐ IT RESOLVES ELEMENT k AND THEN HANDS IT TO `securityAsNode` TO WRAP. The
+    // wrapping is not re-derived here: whose bars, which period, lookahead, and the
+    // rule that `sym` must sit OUTSIDE `tf` are all decided by the same method the
+    // single-value form uses. A tuple request cannot therefore mean something a
+    // scalar request would not.
+    //
+    // ⛔ A SHAPE `securityAsNode` WON'T TAKE STILL REFUSES, by its own null. An
+    // unrecognised lookahead spelling, a computed timeframe, a symbol that is
+    // neither the chart's nor a nameable ticker — each returns null there and
+    // becomes `pine:request` here, which is the sentence the namespace already
+    // publishes rather than a second one invented for tuples.
+    if (bound.kind === 'securityTuplePart') {
+      if (this.frames.length >= MAX_CALL_DEPTH) {
+        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+      }
+      const part = bound.fn.value.parts[bound.index]
+      if (!part) {
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+          + `${bound.fn.value.parts.length}-part result`, locate(tok))
+      }
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try {
+        const out = this.securityAsNode(bound.call, () => {
+          // The inner call's own scope: its arguments become a frame, and the part
+          // resolves in the environment the function closed over — exactly as the
+          // plain `tuplePart` arm does it.
+          this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+          const innerEnv = this.env
+          this.env = part.env || innerEnv
+          try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
+        })
+        if (!out) {
+          throw new PineRefusal('pine:request',
+            `${REFUSALS['pine:request']} — \`${name}\``, bound.at || locate(tok))
+        }
+        return out
       } finally { this.env = prevEnv }
     }
     if (bound.kind === 'tuplePart') {
@@ -3969,11 +5015,30 @@ class Resolver {
 
     return this.throughBinding(binding, (b) => {
       const cond = oneArgBarssince(b.node)
-      if (!cond) return null
-      return cOp(tableOp, [
-        cCall('barssince', [this.resolve(cond), cNum(window)]),
-        cNum(k),
-      ])
+      if (cond) {
+        return cOp(tableOp, [
+          cCall('barssince', [this.resolve(cond), cNum(window)]),
+          cNum(k),
+        ])
+      }
+      // ⭐⭐ RISK-004 REMEDIATION — `barsSincePivot = nz(ta.barssince(cond), S)`
+      // on one line, compared on another. Resolved in the SAME swapped `env`
+      // `throughBinding` already set up, so `S` (which may itself be an input
+      // behind a binding, not a literal) folds in the scope it was written in.
+      // Sound only when `S` agrees with the capped window — see
+      // `nzSentinelSound`; when it does not, this returns null and the
+      // ordinary path produces the real, honest refusal.
+      const wrapped = nzWrappedBarssince(b.node)
+      if (wrapped) {
+        const s = this.constIntOf(wrapped.sentinel)
+        if (s !== null && nzSentinelSound(op, s, k)) {
+          return cOp(tableOp, [
+            cCall('barssince', [this.resolve(wrapped.cond), cNum(window)]),
+            cNum(k),
+          ])
+        }
+      }
+      return null
     })
   }
 
@@ -4233,6 +5298,40 @@ class Resolver {
     return null
   }
 
+  /** A node as BIND-TIME TEXT: a `string` node for something already known, or a
+   *  `symtext` node for something a symbol will decide. Null when the node is not
+   *  text at all, so every caller falls through to its ordinary refusal.
+
+   *  ⭐ THE TWO CASES DIFFER IN EXACTLY ONE WAY — WHEN they are known — which is
+   *  why they share a return type. A literal is known now, a `syminfo.*` field is
+   *  known once a symbol is chosen, and the fold is the single pass that treats
+   *  "now" and "at bind time" as the same moment. */
+  textOperandOf(node) {
+    if (!node || typeof node !== 'object') return null
+    const lit = this.stringValueOf(node)
+    if (lit !== null) return { type: 'str', value: lit }
+    // ⚰️ THIS RETURNED NULL FOR AN UNSERVED FIELD AND THE MEMBER GOT THE WRONG
+    // SENTENCE. `str.length(syminfo.mintick)` fell out of the text branch, hit
+    // the `str` namespace guard, and refused *"`str.length`"* — naming the one
+    // part of the line that was fine. The specific refusal has to win: it is the
+    // difference between a member deleting a call they could have kept and a
+    // member reading why the FIELD is unavailable.
+    if (node.type === 'name' && own(BUILTIN_SYMBOL_UNSERVED, node.name)) {
+      throw new PineRefusal('pine:builtin',
+        `\`${node.name}\` is a Pine built-in this engine holds no VALUE for, though it `
+        + `holds its sibling \`syminfo.ticker\`: ${BUILTIN_SYMBOL_UNSERVED[node.name]}`,
+        locate(node.tok))
+    }
+    if (node.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, node.name)) {
+      // ⛔ NOT `this.resolveName(node)` — that would re-run the type and
+      // namespace guards for a name already decided, so a member who had written
+      // `syminfo = 5` would get a confusing refusal from inside a text predicate.
+      // The map is the authority; ask it directly.
+      return { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[node.name] }
+    }
+    return null
+  }
+
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
    *  saying `pine:builtin` about either would name the wrong thing. A dotted name
    *  whose first segment is a type the script DECLARED, or a local the script
@@ -4247,7 +5346,393 @@ class Resolver {
       this.types.get(head) || locate(tok))
   }
 
+  /**
+   * ⭐ THE BUDGET CHECK. Cheap by construction: a bitmask test on every node, a
+   * `Date.now()` only on every 4096th. Placed in `resolve` because every
+   * unbounded shape — runaway recursion AND exponential re-expansion — passes
+   * through here, so one check covers both without knowing which it is.
+   */
+  checkBudget(tok) {
+    this.budgetSteps += 1
+    // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
+    // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
+    // that cannot fire. A control asking a normal script to stop at 100 steps is
+    // what caught it; the cap itself looked perfectly correct in review.
+    if (this.maxSteps > 0 && this.budgetSteps > this.maxSteps) {
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — expansion passed ${this.maxSteps} resolution steps`
+        + (this.sourcePath ? ' translating `' + this.sourcePath + '`' : '')
+        + '. This is a translator defect, not a limit on the script: report it with the file.',
+        tok ? locate(tok) : null)
+    }
+    if ((this.budgetSteps & BUDGET_CHECK_MASK) !== 0) return
+    const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
+    const tail = '. This is a translator defect, not a limit on the script: '
+      + 'report it with the file.'
+    // ⭐⭐ THE CLOCK IS PER SCRIPT, NOT PER RESOLVER, AND THAT DISTINCTION IS THE
+    // WHOLE POINT OF THE MODULE-LEVEL DEADLINE. `translatePine` builds one
+    // Resolver per output plus one for the object pass, so a per-Resolver clock
+    // gives a 45-output script like Uncharted Clouds 46 × 10s = SEVEN AND A HALF
+    // MINUTES while every individual guard reports itself satisfied. The step cap
+    // stays per-Resolver deliberately — it bounds one resolution's expansion —
+    // but the wall clock bounds the CALL.
+    //
+    // `this.deadline` is the fallback for a Resolver constructed directly,
+    // outside `translatePine`, where no window was ever opened.
+    const deadline = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_DEADLINE : this.deadline
+    if (Date.now() <= deadline) return
+    const budget = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_BUDGET : this.budgetMs
+    throw new PineRefusal('pine:timeout',
+      `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
+      + where + tail,
+      tok ? locate(tok) : null)
+  }
+
+  /**
+   * ⭐⭐ WAVE 2 (a) — READ A PLAN-TIME VECTOR. Returns a node, or `null` to let
+   * the caller fall through to the refusal it always had.
+   *
+   * ⛔ EVERY REFUSAL HERE IS A THROW WITH A SENTENCE FROM `arrayVectors.js`, so
+   * the wording has one owner and cannot drift between the sites that need it.
+   */
+  /**
+   * ⭐⭐ a3 — UNROLL A RECORDED `for` INTO THIS VECTOR'S SLOTS.
+   *
+   * ⛔ THE BOUND FOLDS THROUGH `this.resolve` — the one folder — so a loop bound
+   * and a `ta.sma` window cannot disagree about what "constant" means, and R-J's
+   * input rule reaches loop bounds the day item (b) flips it, for free.
+   */
+  applyUnrolls(vec) {
+    const pending = vec.pending || []
+    vec.pending = null
+    for (const loop of pending) {
+      const prevEnv = this.env
+      this.env = new Map(loop.env)
+      try {
+        // ⭐ RESOLVE THROUGH THE ONE RESOLVER, THEN EVALUATE THROUGH THE ONE
+        // EVALUATOR. `resolve` builds a tree — `numLayers - 1` comes back as
+        // `op('-', [num 21, num 1])`, not a `num` — and `foldScalar` is what
+        // this engine already uses to turn such a tree into a window length.
+        // ⭐⭐ THREE FACTS THE LAST FOUR HOURS ESTABLISHED, recorded where the
+        // next reader needs them:
+        //  1. `this.resolve` BUILDS A TREE; it does not evaluate one.
+        //     `numLayers - 1` comes back as `op('-', [num 21, num 1])`.
+        //     `bind.js::foldScalar` is the evaluator this engine already uses
+        //     for a window length, and it is the one used here.
+        //  2. `this.resolveBinding(exprBinding(node, env, at), …)` IS NOT A
+        //     MID-RESOLUTION ENTRY POINT — it throws `pine:statement` even for
+        //     a plain `{type:'num'}`. The internal route is `this.resolve` with
+        //     `this.env` swapped, which is what this does.
+        //  3. (in `pendingUnrollFrom`) an array call's ARGUMENTS START AT TOKEN
+        //     4, not 3; token 3 is the comma after the target name.
+        const foldIn = (n, envMap) => {
+          if (!n) return null
+          const prev = this.env
+          if (envMap) this.env = envMap
+          try {
+            const v = foldScalar(this.resolve(n), {})
+            return Number.isFinite(v) ? Math.trunc(v) : null
+          } catch { return null } finally { this.env = prev }
+        }
+        const fold = (n) => foldIn(n, loop.env)
+        const lo = fold(loop.lo)
+        const hi = fold(loop.hi)
+        const step = loop.step ? fold(loop.step) : 1
+        if (lo === null || hi === null || step === null || step === 0) {
+          // ⛔⛔ THE FORECLOSURE, BY NAME. A bound this lane cannot settle is not
+          // "unsupported" — it is the IR lane's, and the sentence says which.
+          throw new PineRefusal('pine:collection',
+            `${REFUSALS['pine:collection']} — `
+            + VEC.seriesDependentMessage(`the bound of the loop filling \`${vec.arrayName}\``,
+              'its \`to\` expression', loop.line),
+            loop.at)
+        }
+        const count = Math.floor((hi - lo) / step) + 1
+        if (count <= 0) continue
+        // ⭐ THE CEILING IS IN UNROLLED NODES, derived in a1 from the corpus.
+        const cost = count * Math.max(1, loop.body.length)
+        if (cost > VEC.MAX_UNROLLED_NODES) {
+          throw new PineRefusal('pine:collection',
+            `${REFUSALS['pine:collection']} — the loop filling \`${vec.arrayName}\` would`
+            + ` unroll to ${cost} expression nodes and this engine unrolls at most`
+            + ` ${VEC.MAX_UNROLLED_NODES}`,
+            loop.at)
+        }
+        for (let v = lo; step > 0 ? v <= hi : v >= hi; v += step) {
+          // ⭐ THE LOOP VARIABLE IS SUBSTITUTED, NOT BOUND.
+          const iterEnv = new Map(loop.env)
+          const S = (n) => substConst(n, loop.varName, v)
+          for (const st of loop.body) {
+            if (st.kind === 'bind') {
+              iterEnv.set(st.name, exprBinding(S(st.node), new Map(iterEnv), loop.at))
+              continue
+            }
+            if (st.target !== vec.arrayName) continue
+            if (st.member === 'set') {
+              const idx = foldIn(S(st.args[0]), iterEnv)
+              if (idx === null || idx < 0 || idx >= vec.slots.length) continue
+              vec.slots[idx] = exprBinding(S(st.args[1]), new Map(iterEnv), loop.at)
+            } else if (st.member === 'push') {
+              if (vec.slots.length < VEC.MAX_VECTOR_SLOTS) {
+                vec.slots.push(exprBinding(S(st.args[0]), new Map(iterEnv), loop.at))
+              }
+            }
+          }
+        }
+      } finally { this.env = prevEnv }
+    }
+  }
+
+  /** ⭐⭐ THE ONE PLACE A VECTOR'S SIZE IS SETTLED. Returns the slot count, or throws
+   *  the foreclosure by name.
+   *
+   *  Factored out at R8 so the loop's refusal path and the read's can share it. ⛔ It
+   *  is a FACTORING, not a copy: a second constant-folder over the same tokens is the
+   *  defect this engine keeps paying for, and the two callers must never be able to
+   *  disagree about whether a size is settleable. */
+  foldVectorSize(vec) {
+    const prevEnv = this.env
+    this.env = vec.env || this.env
+    let n = null
+    try {
+      const r = this.resolve(vec.sizeNode)
+      if (r && r.type === 'num' && Number.isFinite(r.value)) n = Math.trunc(r.value)
+    } catch (err) {
+      // ⛔⛔ A SIZE THAT WILL NOT FOLD IS THE FORECLOSURE, AND IT SAYS SO BY
+      // NAME — the dependency, its line, and the item that will take it. Never
+      // "not supported", because that would be false: the IR lane has
+      // statements, and item (c) is the route.
+      const r2 = fromError(err)
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — `
+        + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+          r2.token || 'a series', vec.line),
+        vec.at)
+    } finally { this.env = prevEnv }
+    if (n === null || n < 0) {
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — `
+        + VEC.seriesDependentMessage(`the size of \`${vec.arrayName}\``,
+          'its size argument', vec.line),
+        vec.at)
+    }
+    if (n > VEC.MAX_VECTOR_SLOTS) {
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — \`${vec.arrayName}\` asks for ${n} slots and`
+        + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
+        vec.at)
+    }
+    vec.slots = new Array(n).fill(null)
+    vec.sizeFolded = true
+    return n
+  }
+
+  resolveVectorRead(name, node) {
+    const member = name.slice('array.'.length)
+    const args = (node.args || []).filter((a) => !a.name)
+      .map((a) => (a && a.value !== undefined ? a.value : a))
+    // ⚠️ THE ARGUMENT IS A `name` NODE AT THIS POINT, NOT A `bound` ONE — the
+    // parser makes `{ type: 'name', name, tok }` (pine.js:3585) and the binding
+    // lookup happens INSIDE `resolve` via `this.env.get(name)`. Reading
+    // `head.binding` first assumed the substituted shape and silently matched
+    // nothing, so every read fell through to the old refusal and all four rails
+    // failed identically — which is what made it look like the hook was in the
+    // wrong place rather than reading the wrong field.
+    const head = args[0]
+    const headName = head && (head.type === 'name' ? head.name
+      : head.type === 'bound' ? head.name : null)
+    const vec = head && head.type === 'bound'
+      ? head.binding
+      : (headName ? this.env.get(headName) : null)
+    // ⛔ THE READ RAIL (F2's other half). A name read as an array that has no
+    // recorded creation is a GUARD, never `na`: a silent `na` from a read that
+    // SUCCEEDED is indistinguishable from a member's own empty array.
+    if (!vec || vec.kind !== 'vector') {
+      if (!VEC.HANDLED.has(member)) return null
+      // ⛔⛔ AN OPAQUE BINDING ALREADY CARRIES THE RIGHT SENTENCE, AND IT IS NOT
+      // THIS ONE. When the block that FILLS an array is one this walk gave up
+      // on, `forceOpaque` has already recorded why, naming that block's line.
+      // Answering "nothing in this script creates it" there would be FALSE —
+      // the creation is at line 57 and recorded — and it would send a member
+      // looking for a missing declaration instead of at the loop. Measured on
+      // `uncharted-clouds.pine` the first time reads folded.
+      // ⏭️ AND IT FALLS THROUGH RATHER THAN THROWING ITS OWN, ON PURPOSE.
+      // Throwing the opaque binding's refusal gives the member a far better
+      // sentence — `pine:reassign` at line 59, naming `layerArray`, pointing at
+      // the loop that actually blocks the read instead of at the read. It was
+      // built, measured and then BACKED OUT of this commit: it moves Clouds from
+      // `pine:collection` ×21 at 64–84 to `pine:reassign` ×21 at 59, which turns
+      // five snapshot rails red (`pine.community.guards`, `pine.guardCensus`,
+      // `pineStrictMode` ×3).
+      // ⛔ Those rails are the "snapshot regen with movers stated" work item, and
+      // a3 unrolls line 59 — removing this refusal for Clouds entirely. Moving
+      // them twice, once for a message and once for the real change, is churn
+      // that makes the second diff unreadable. The better sentence lands with
+      // the regen.
+      // ⭐⭐ a4 — THE OPAQUE BINDING'S OWN REFUSAL, AT ITS OWN LINE.
+      //
+      // When the block that FILLS an array is one this walk gave up on, the
+      // binding was already replaced by an `opaque` carrying the right sentence
+      // and the LOOP's location. Returning null here threw that away and let the
+      // read refuse instead — `array.get` at the read's line, which is the one
+      // construct in the script that is not the problem.
+      //
+      // ⚰️ a3 BUILT THIS, MEASURED IT AND BACKED IT OUT, because it moves Clouds
+      // from `pine:collection` ×21 at 64–84 to one refusal at 59 and turned five
+      // snapshot rails red. The comment it left said the better sentence lands
+      // with the regen. This is the regen: rulings R1 and R2 make the loop line
+      // the place the sentence belongs, and the rails are re-baselined beside it.
+      //
+      // ⭐ THE REFUSAL COUNT DOES NOT MOVE — one cause, one refusal, relocated.
+      // That is what keeps `bothLanesAreTwoLanes`'s equal-facts case true by
+      // construction and the lenient verdict unchanged: this is an ordinary
+      // per-output refusal, never a `hardRefusal`, so `blocked` is untouched.
+      //
+      // ⛔⛔ DO NOT ADD A SECOND REFUSAL HERE, and the temptation is real: it looks
+      // like the READ should also say something, since that is where the member's
+      // eye lands. It must not. Two refusals for one cause is the second-authority
+      // defect this repo keeps paying for — and mechanically, an added refusal
+      // changes `refusals.length`, which re-baselines every fixture that counts
+      // them and breaks the equal-facts agreement the two lanes rely on. Measured
+      // at a4: with the relocation in place `refusals.length` stays 1 on both the
+      // `while` and the `for … in` fixtures. If a read needs to say more, it says
+      // it in the ONE refusal's message, not in a second refusal.
+      if (vec && vec.kind === 'opaque') {
+        // ⭐⭐ R8 — THE DEPENDENCY OUTRANKS THE BLOCK. If the array this opaque
+        // binding replaced had a size that was never settled, THAT is the fact the
+        // member needs: it names the series the size depends on, its line, and routes
+        // to item (c). The loop's sentence is true but downstream — the array was
+        // already unusable before the loop was reached.
+        //
+        // ⚰️ a4 shipped without this and lost the routing for exactly this shape: the
+        // loop's opaque replacement fired first, the size never folded, and a
+        // series-dependent array got a generic "filled by a block this engine could
+        // not read" with no route. Measured at R8 on both candidate fixes; this is
+        // candidate (i), chosen because the refusal it produces names the line where
+        // the DEPENDENCY is, which is what R4 already ruled for the un-iterated case.
+        //
+        // ⛔ Still exactly ONE refusal — this REPLACES the loop's, never adds to it.
+        // ⚖️ CANDIDATE (ii) WAS BUILT AND MEASURED HERE AND REJECTED, so the next
+        // reader does not re-propose it: catching this throw and re-locating it to
+        // `vec.at` puts the refusal on the LOOP line while its own sentence still
+        // says "`int` at line 4". Both candidates gave one refusal, the routing, and
+        // unchanged verdicts — the tiebreak is that (ii)'s line and text disagree.
+        if (vec.vector && vec.vector.sizeNode && !vec.vector.sizeFolded) {
+          this.foldVectorSize(vec.vector)   // throws the foreclosure, or settles it
+        }
+        throw new PineRefusal(vec.guard, vec.message, vec.at || locate(node.tok))
+      }
+      const d = VEC.refuseUncreated(headName || 'this name')
+      throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
+    }
+
+    // The size folds through the ONE folder, with the whole environment in hand.
+    let size = vec.slots.length
+    if (vec.sizeNode && !vec.sizeFolded) size = this.foldVectorSize(vec)
+
+    // ⭐⭐ a3 — APPLY EVERY PENDING UNROLL BEFORE ANY SLOT IS READ.
+    if (vec.pending && vec.pending.length) this.applyUnrolls(vec)
+
+    // ⚰⚰ AND RE-READ THE SIZE, BECAUSE `push` GROWS THE VECTOR.
+    // `size` above is the CREATION size; an unrolled `array.push` appends, so
+    // after the unroll the array's size is `slots.length` and nothing else.
+    // Reading it before this line refused every read of the corpus's DOMINANT
+    // idiom — `array.new<float>(0)` then push-in-a-loop, which the census
+    // measured as the MEDIAN creation shape — with `holds 0 slots and this
+    // reads index 0`, a sentence that is both true of the creation and wrong
+    // about the array. `set` was immune because its slots already existed, so
+    // the bug was invisible on Clouds and on every fixture written from it.
+    size = vec.slots.length
+
+    if (member === 'size') return cNum(size)
+
+    if (member === 'get' || member === 'first' || member === 'last') {
+      let k = member === 'first' ? 0 : (member === 'last' ? size - 1 : null)
+      if (k === null) {
+        const idx = this.resolve(args[1])
+        if (!idx || idx.type !== 'num' || !Number.isInteger(idx.value)) return null
+        k = idx.value
+      }
+      if (k < 0 || k >= size) {
+        const d = VEC.refuseOutOfRange(vec.arrayName, k, size)
+        throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
+      }
+      // ⭐ AN UNWRITTEN SLOT IS `na`, WHICH IS PINE'S OWN ANSWER for a sized
+      // creation nothing has filled — and it is distinguishable from a slot
+      // written with `na`, because `null` means "never written".
+      // ⛔ AND AN UNWRITTEN SLOT IS RECORDED. A plot that draws nothing because
+      // the array was never filled looks exactly like a plot that draws nothing
+      // because the data is missing, and only one of those is the member's own
+      // doing. Pine answers `na` here and so do we — the note is the difference
+      // between reproducing Pine and leaving a member guessing.
+      if (!vec.slots[k]) {
+        this.noteSink(VEC.UNWRITTEN_NOTE,
+          VEC.unwrittenSlotMessage(vec.arrayName, k, vec.line), node.tok)
+        return cOp('/', [cNum(0), cNum(0)])
+      }
+      // ⭐ A SLOT HOLDS A BINDING, NOT A FINISHED NODE — so it resolves in the
+      // environment the loop iteration had, which is what makes `i` inside the
+      // body mean that iteration's constant.
+      return this.resolveBinding(vec.slots[k], node.tok, vec.arrayName)
+    }
+
+    // ⭐⭐ R9 — A RETIRED REDUCE REFUSES AT ITS OWN CALL, CARRYING ITS NUMBER.
+    //
+    // These reach `resolveVectorRead` because the receiver IS a plan-time vector; what
+    // they lack is a fold. Letting them fall through to the generic collection refusal
+    // would say "an array is outside the expression grammar" about a member whose
+    // receiver this lane understands perfectly — true of the family and wrong about
+    // the case. The sentence names the member, its census number, and the constraint
+    // that decided it (the CONSUMER: none of these reach a plot).
+    {
+      const retired = VEC.reduceRetiredMessage(member)
+      if (retired) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — ${retired}`, locate(node.tok))
+      }
+    }
+
+    if (member === 'sum' || member === 'max' || member === 'min' || member === 'avg') {
+      // ⚰️⚰️ EACH SLOT IS RESOLVED FIRST, AND SKIPPING THAT MADE EVERY REDUCE
+      // UNUSABLE. A slot holds a BINDING, not a finished node — the `get` branch
+      // four lines above says so and calls `resolveBinding`. This branch fed the raw
+      // bindings into `cOp`/`cCall`, so the output tree carried binding objects where
+      // canonical nodes belong, the printer wrote text it could not read back, and
+      // EVERY `array.sum` / `max` / `min` came back `pine:roundtrip` with no formula
+      // at all — for any slot content, literal or series. Measured at R9, 2026-09-14.
+      //
+      // ⛔ SAME CLASS AS BUG 1 — an object of the wrong language spliced into a tree,
+      // failing silently downstream rather than at the splice. There the parse and
+      // output languages were four letters apart; here it is a binding versus the
+      // node it resolves to. The lesson is the same: `vec.slots` is not a node array,
+      // and anything reading it goes through `resolveBinding`.
+      const written = vec.slots.filter(Boolean)
+        .map((slot) => this.resolveBinding(slot, node.tok, vec.arrayName))
+      if (!written.length) return cOp('/', [cNum(0), cNum(0)])
+      if (member === 'sum') return written.reduce((a, b) => cOp('+', [a, b]))
+      // ⭐⭐ R9a — `avg` IS THE SUM OVER THE WRITTEN COUNT, and the divisor is the
+      // load-bearing half. It divides by how many slots were WRITTEN, not by the
+      // array's declared size, because `written` has already dropped the unwritten
+      // (`na`) ones — and the vendor's mean does the same. Measured, not assumed:
+      // `divergences.json::finite-window-propagates-na-instead-of-skipping-it`,
+      // confirmed 2026-09-08 — `ta.sma(gappy, 10)` is "the mean of the last 10 FINITE
+      // values … an `na` is SKIPPED", 370 matches / 0 mismatches over a 400-bar SPY
+      // capture with 133 `na` bars.
+      // ⚠️ That measurement is `ta.sma` over a gappy SERIES, not `array.avg` over a
+      // sparse ARRAY. Same question, measured answer, best evidence until the owed
+      // vendor capture confirms it on an array directly.
+      if (member === 'avg') {
+        return cOp('/', [written.reduce((a, b) => cOp('+', [a, b])), cNum(written.length)])
+      }
+      const fn = member === 'max' ? 'max' : 'min'
+      return written.reduce((a, b) => cCall(fn, [a, b]))
+    }
+
+    return null
+  }
+
   resolve(node) {
+    this.checkBudget(node && node.tok)
     switch (node.type) {
       case 'number': return cNum(node.value)
       case 'string':
@@ -4287,7 +5772,10 @@ class Resolver {
                 cNum(bounded.k),
               ])
             }
-            const change = cCall('obvN', [cNum(bounded.lag)])
+            // ⭐ `obv` AND `pvt` ARE THE SAME REWRITE onto their own bounded-delta
+            // primitive — see `contextBoundedPlan`'s pvt branch and
+            // `_functions_excluded.pvt`.
+            const change = cCall(bounded.kind === 'pvt' ? 'pvtN' : 'obvN', [cNum(bounded.lag)])
             // ⛔ THE DIFFERENCE IS THE VALUE, so `-` returns it directly rather
             // than comparing it to anything.
             return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
@@ -4333,6 +5821,49 @@ class Resolver {
               return cNum(((left === right) === (node.op === '==')) ? 1 : 0)
             }
           }
+        }
+        // ⭐⭐ ...AND ONE SIDE MAY BE SYMBOL-SCOPED, in which case the answer is a
+        // constant for the BINDING rather than for the script. `syminfo.ticker ==
+        // "SPY"` is not knowable here — no symbol has been chosen — but it is
+        // knowable the moment one is, so it DEFERS into a `textop` the fold
+        // settles, instead of refusing `pine:text-value` for a question that has
+        // a perfectly good answer one step later.
+        // ⛔ BOTH SIDES MUST BE TEXT. A `symtext` compared against a NUMBER is a
+        // script bug, and quietly answering 0 would hide it: `textOperandOf`
+        // returns null for the number and this falls through to the ordinary
+        // refusal, which names the operand.
+        if (node.op === '==' || node.op === '!=') {
+          const lt = this.textOperandOf(node.left)
+          const rt = lt ? this.textOperandOf(node.right) : null
+          if (lt && rt && (lt.type === 'symtext' || rt.type === 'symtext')) {
+            return { type: 'textop', name: node.op === '==' ? 'eq' : 'ne', args: [lt, rt] }
+          }
+        }
+        // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
+        //
+        // C3B-CLOSE measured `bar_index % 50 == 0` refusing and filed it as a
+        // VALUE-lane grammar gap (H7/J5.1). The obvious repair — add `%` to
+        // `closedTable.operators`, give it a precedence in `parse.js`, implement
+        // it in `interpret.js` and again in `ast_interpret.py` — would have minted
+        // a SECOND AUTHORITY OVER ONE ARITHMETIC in a repo whose most-repeated
+        // defect is exactly that. The table ALREADY owns this arithmetic, as the
+        // function `mod`: truncated, sign following the dividend, NaN on a zero
+        // divisor and NaN on a non-finite quotient. Both kernels implement it, and
+        // `_guarded_mod`'s docstring names the trap the second implementation
+        // would have walked into — `-7 % 2` is `-1` in JS and `1` in Python, so a
+        // borrowed `%` would have made the chart and the screener disagree about a
+        // negative dividend with every test green in both lanes.
+        //
+        // So the SURFACE SYNTAX lowers onto the settled semantics and nothing new
+        // is declared: no node type, no precedence entry, no second numeric
+        // authority, no new refusal. The screener understands `%` the same day the
+        // chart does, because it is reading a call it has always known.
+        //
+        // ⛔ ASKED BEFORE `PINE_OP_TO_TABLE`, which has no `%` and must not gain
+        // one — an entry there would route `%` to an operator the table does not
+        // declare and land back on the refusal below.
+        if (node.op === '%') {
+          return cCall('mod', [this.resolve(node.left), this.resolve(node.right)])
         }
         const mapped = PINE_OP_TO_TABLE[node.op]
         if (!mapped || !own(this.table.operators, mapped)) {
@@ -4652,25 +6183,135 @@ class Resolver {
       // The request-dependent siblings are named FIRST, so a future edit that adds
       // `barstate.islast` to the constant map contradicts itself here rather than
       // silently shipping a number that changes with the bar count.
-      if (own(BUILTIN_REQUEST_DEPENDENT, name)) {
-        // ⚰️⚰️ THE GENERIC PREFIX WAS INTERPOLATED HERE AND THIS FILE ALREADY
-        // CALLED IT FALSE. `BUILTIN_REQUEST_DEPENDENT`'s own docblock, forty lines
-        // up, reads: "⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE.
-        // 'This engine has no home for that name' is false: it has a home for its
-        // three siblings." And `REFUSALS['pine:builtin']` is exactly that sentence.
-        // MEASURED: `barstate.islast` refused with "the engine grammar does not
-        // hold" while `barstate.isconfirmed` translates to `close` on the same run.
-        // ⭐ THE TRUE REASON WAS ALREADY IN THE TAIL. It is now the whole sentence,
-        // and it says what the docblock says it should: not that the name is
-        // unknown, but that its answer moves with the request — which tells a
-        // member to rewrite rather than wait for us to add it.
+      // ⭐⭐ BARSTATE, AND THE CONTRACT DECIDES. Asked BEFORE the
+      // request-dependent roster and before the constant fold, because both of
+      // those hold names this now serves and the first match would win.
+      if (own(BUILTIN_BARSTATE_REFUSED, name)) {
         throw new PineRefusal('pine:builtin',
           `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
-          + `holds its siblings: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
+          + `holds its siblings: ${BUILTIN_BARSTATE_REFUSED[name]}`,
           locate(node.tok))
       }
-      if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
+      if (own(BUILTIN_BARSTATE_SERIES, name)) {
+        // ⛔ THE HOST GETS THE COLUMN; THE SCREENER KEEPS ITS FOLD WHERE IT HAS
+        // ONE. `isconfirmed`, `ishistory` and `isrealtime` are PROVABLE
+        // constants for a lane that only ever evaluates closed bars, and
+        // recomputing a value you can prove is cost without truth. The three
+        // names with no fold — `islast`, `isfirst`, `islastconfirmedhistory` —
+        // are real columns on both contracts.
+        if (!this.strict && own(BUILTIN_CONSTANT_TREE, name)) {
+          return BUILTIN_CONSTANT_TREE[name]()
+        }
+        const col = BUILTIN_BARSTATE_SERIES[name]
+        // ⛔⛔ THE `cum` BARGAIN, APPLIED TO A NAME — AND IT REFUSES AT THE DOOR,
+        // not only on the saved definition. A `window_dependent` column is
+        // servable on a pane (one symbol, one fetch, the member can see where the
+        // data starts) and never on a screen, where the same number would mean
+        // something different tomorrow. Derived from the manifest's own tag, so a
+        // second window-dependent column is covered the day it lands.
+        //
+        // ⚰️ THIS GUARD WAS LOST FOR ONE COMMIT IN THE 2026-09-09 MERGE. Two
+        // implementations of one ruling met: the other contained `isfirst`
+        // through `_requirement_tags.window_dependent` stamped at SAVE time, this
+        // one refuses at TRANSLATE time, and taking the other's dispatch wholesale
+        // dropped the door check — a screener was handed `barstate.isfirst` with
+        // no refusal at all. Both containments are wanted; this is the one a
+        // member sees immediately.
+        if (!this.strict && hostAdmissible(this.table).has(col)) {
+          throw new PineRefusal('pine:window-dependent',
+            `${REFUSALS['pine:window-dependent']} — \`${name}\` is `
+            + `${PINE_INEXPRESSIBLE[col]}`, locate(node.tok))
+        }
+        return { type: 'series', name: col }
+      }
+      if (own(BUILTIN_CONSTANT_TREE, name)) {
+        // ⛔⛔ THE FOLD IS EXACT FOR ONE CONTRACT AND WRONG FOR THE OTHER.
+        // The map above argues, correctly, that `barstate.isconfirmed` IS true on
+        // every bar this engine evaluates — because the screener evaluates only
+        // CLOSED bars. A chart pane draws the FORMING bar as well, and there the
+        // same constant is false exactly once, on the one bar the member is
+        // watching.
+        //
+        // ⭐⭐ REALTIME HAS NOW BEEN MEASURED, and it is worse than "answers
+        // differently on a forming bar" — it repaints. Read off a live chart across
+        // the 2026-09-09 US open; fixture
+        // `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json`.
+        //
+        //   1. THE CURRENT BAR FLIPS AT THE OPEN. Pre-open on SPY 1D the newest bar
+        //      is YESTERDAY'S and carries isconfirmed=1, islast=1 and ishistory=1
+        //      SIMULTANEOUSLY. At 09:30:14 a new bar appears and both isconfirmed
+        //      and ishistory go to 0. So `islast` does not imply "forming" and
+        //      `ishistory` does not imply "not the last bar" — a fold that treats
+        //      either as the other's negation is wrong for the whole pre-open
+        //      window, which is exactly when a screener runs.
+        //
+        //   2. ⛔ A CLOSED BAR IS NOT STABLE. On 1m, 46 seconds AFTER the 09:31 bar
+        //      closed it still read isconfirmed=1, islast=1, ishistory=0, while the
+        //      09:30 bar — which arrived as server-side history — read 1, 0, 1. A
+        //      bar that formed live KEEPS its realtime barstate after closing. So
+        //      these flags on a closed bar are a function of WHEN THE VIEWER
+        //      ARRIVED, not of the bar: two members opening the same script minutes
+        //      apart get different columns for the same historical bar.
+        //
+        // Reason 2 is independent of reason 1 and is the stronger one, because it
+        // makes the value unstable even on the closed bars the screener DOES fold.
+        // ⚠️ Bounded claim: one symbol, one session, ~90s, no vendor recompute seen
+        // in that window. It does not prove a recompute never happens — it proves a
+        // closed bar can carry realtime values well after closing.
+        // So host mode refuses rather than shipping a confident wrong value.
+        // ⭐ NOT `pine:builtin` — that sentence would say the name is unknown, and
+        // it is known; what is unavailable is a live-bar ANSWER for it.
+        // ⭐⭐ THE HOST NO LONGER REFUSES — IT EVALUATES. This threw
+        // `pine:live-bar-state` for a pane because realtime had never been
+        // measured. It has been now (see the block above), and the answer was
+        // that the vendor's flags REPAINT, so there was never a vendor value to
+        // match. The pane gets the clock column instead, defined from our own
+        // fetch: `isrealtime` is true only on a newest bar whose scheduled close
+        // has not passed. The SCREENER keeps the fold, because on a sweep every
+        // delivered bar really is closed and 1 is the exact answer, not a
+        // near-enough one.
+        if (!this.strict) return BUILTIN_CONSTANT_TREE[name]()
+      }
+      // ⚰️⚰️ A SECOND BARSTATE DISPATCH STOOD HERE AND WAS UNREACHABLE.
+      // Two implementations of one ruling met in the merge: this one keyed
+      // off hand-typed maps (`BUILTIN_BARSTATE_ALIAS` / `PINE_LIVE_ONLY`),
+      // the surviving one keys off `closedTable.json::_barstate`. Both are
+      // correct; only one may be REACHED, and the manifest-derived one is
+      // asked first, so every one of the six names had already been served
+      // or refused before control arrived here. ⛔ THE MANIFEST IS THE
+      // AUTHORITY — a second literal roster is the defect this engine keeps
+      // paying for, and it is worse when it is also dead code.
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ THE DOTTED SPELLING OF A COLUMN THIS ENGINE ALREADY HAS. No fold, no
+      // constant — it becomes the same `series` node the bare name does, so both
+      // contracts serve it and both lanes evaluate it identically. This is the
+      // repair `dayofweek.friday` got on 2026-08-27, one namespace over: the bare
+      // lane was swept when the clock landed and the dotted lane was not.
+      if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
+      }
+      // ⭐⭐ KIND 4 — SYMBOL-SCOPED, AND TEXT. This is the only place in the
+      // translator that mints a `symtext` node, and it is deliberately a dead end
+      // for everything except the bind-time fold: `interpret.js` has no case for
+      // it, so a `symtext` that survives to evaluation is a refusal rather than a
+      // silently wrong column. `str.contains(syminfo.ticker, "/")` folds to 1 or 0
+      // the moment a symbol is chosen; without a symbol it does not fold and the
+      // check downstream refuses NAMING the operand.
+      if (own(BUILTIN_SYMBOL_SCOPED, name)) {
+        return { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[name] }
+      }
+      // ⛔ THE RULED FIELDS, EACH WITH ITS OWN SENTENCE. Checked before the
+      // namespace shrug for the same reason `BUILTIN_RULED` is: a name we have
+      // actually thought about gets the thinking. And the prefix is NOT
+      // `REFUSALS['pine:builtin']` — that sentence says the grammar has no home
+      // for the name, which is false three lines above where `syminfo.ticker`
+      // resolves. This is the mistake `barstate.islast` shipped with for weeks.
+      if (own(BUILTIN_SYMBOL_UNSERVED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `\`${name}\` is a Pine built-in this engine holds no VALUE for, though it `
+          + `holds its sibling \`syminfo.ticker\`: ${BUILTIN_SYMBOL_UNSERVED[name]}`,
+          locate(node.tok))
+      }
       // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
       // shrug — the same precedence `_functions_excluded` takes over the
       // sixty-four-name dump one layer down.
@@ -4678,6 +6319,14 @@ class Resolver {
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
           locate(node.tok))
+      }
+      // ⭐⭐ WAVE 2 (a) — AND THE SAME READ ON THIS PATH. A call arrives here as
+      // well as at the site further down, and a hook on only one of them is a
+      // capability that works in some expressions and not others. Measured:
+      // `plot(array.get(a, 0))` reaches THIS one.
+      if (ns === 'array') {
+        const folded = this.resolveVectorRead(name, node)
+        if (folded) return folded
       }
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
@@ -4702,6 +6351,12 @@ class Resolver {
         // name a script can bind, so there is nothing to lose to and no order to
         // get wrong.
         if (own(BUILTIN_SERIES_TREE, short)) return BUILTIN_SERIES_TREE[short]()
+        // ⭐ A NAMESPACED CONSTANT IS A VALUE, NOT A ZERO-ARGUMENT CALL. `math.pi`
+        // reached `resolveTableCall` and was told "this Pine function maps to
+        // nothing the engine grammar declares" — a true sentence about functions,
+        // asked of something that is not one. Unconditional: see
+        // `PINE_MATH_CONSTANTS` for why this one is not strict-gated.
+        if (own(PINE_MATH_CONSTANTS, name)) return PINE_MATH_CONSTANTS[name]()
         return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',
@@ -4796,14 +6451,34 @@ class Resolver {
     const keep = isMintick(args[0].value) ? args[1].value
       : isMintick(args[1].value) ? args[0].value : null
     if (!keep) return null
-    const callSpan = spanOfNode(node)
-    const keepSpan = spanOfNode(keep)
+    // `spanOfNode` returns offsets into `lexPine`'s LF-normalized token
+    // stream. `this.source` is the member's RAW script — CRLF intact when
+    // that's what they pasted. `toRawSpan` is the one bridge between the two;
+    // without it, `callSpan` covers the wrong bytes of `this.source` on any
+    // CRLF-authored script whose flagged call sits past line 1 (RISK-004).
+    const callSpan = this.toRawSpan(spanOfNode(node))
+    const keepSpan = this.toRawSpan(spanOfNode(keep))
     if (!callSpan || !keepSpan || !this.source) return null
     const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
     if (!text) return null
     return new PineRefusal('pine:builtin',
-      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_RULED['syminfo.mintick']}`,
+      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_SYMBOL_UNSERVED['syminfo.mintick']}`,
       locate(node.tok), `(${text})`, callSpan)
+  }
+
+  /** ⭐⭐ RISK-004 FIX — translates a `spanOfNode(...)` result (normalized-text
+   *  index space) into `this.source`'s own coordinate space (the raw string,
+   *  `\r\n` intact) via `lexPine`'s `rawOffsetMap`. THE INVARIANT THIS
+   *  RESTORES: the span used for an edit must refer to the exact source
+   *  string the edit is applied to. Identity when no map is available (a
+   *  Resolver built directly, without `translatePine`/`lexPine`, e.g. in a
+   *  unit test) or when the map doesn't cover the requested offset. */
+  toRawSpan(span) {
+    if (!span) return span
+    const map = this.rawOffsetMap
+    if (!map) return span
+    const at = (n) => (Number.isInteger(n) && n >= 0 && n < map.length ? map[n] : n)
+    return [at(span[0]), at(span[1])]
   }
 
   resolveCall(node) {
@@ -5015,6 +6690,43 @@ class Resolver {
         const asTf = this.securityAsNode(node)
         if (asTf) return asTf
       }
+    }
+    // ⭐⭐ THE TEXT PREDICATES, TRIED BEFORE THE `str` NAMESPACE GUARD and falling
+    // through to it — the shape `request.security` established directly above. A
+    // `str.contains` whose operands are not both bind-time text is NOT a special
+    // case with a message of its own; it is an ordinary `pine:builtin` refusal
+    // naming `str.contains`, which is the true sentence for the shapes this door
+    // does not take.
+    // ⛔ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME, for the reason the
+    // `security` carve-out records above: consult what the script SAID before
+    // what the table knows.
+    if (own(PINE_TEXT_PREDICATE, name) && !this.shadowedByDefinition(name)) {
+      const want = PINE_TEXT_PREDICATE[name]
+      const raw = (node.args || []).filter((a) => !a.name)
+        .map((a) => (a && a.value !== undefined ? a.value : a))
+      if (raw.length === want) {
+        const parts = raw.map((a) => this.textOperandOf(a))
+        if (parts.every(Boolean)) {
+          const bare = name.slice(4)
+          // ⭐ WHEN NOTHING IS SYMBOL-SCOPED THE ANSWER IS KNOWN RIGHT HERE, and
+          // folding it now keeps the tree free of a node whose value never
+          // depended on the binding — the same judgement `stringValueOf` already
+          // makes for `==` over two literals.
+          if (parts.every((p) => p.type === 'str')) {
+            return cNum(TEXT_PREDICATE_FN[bare](...parts.map((p) => p.value)))
+          }
+          return { type: 'textop', name: bare, args: parts }
+        }
+      }
+    }
+    // ⭐⭐ WAVE 2 (a) — A PLAN-TIME VECTOR IS READ HERE, BEFORE THE NAMESPACE
+    // GUARD. `array.size` folds to the bound, `array.get(v, k)` folds to slot k's
+    // TREE. Anything this cannot fold falls through to the guard below and keeps
+    // the refusal it always had, which is why this is an early return and never a
+    // catch.
+    if (ns === 'array') {
+      const folded = this.resolveVectorRead(name, node)
+      if (folded) return folded
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
@@ -5471,7 +7183,7 @@ class Resolver {
    *  Translating it as if it were `off` would silently turn a look-ahead script into
    *  a look-behind one and backtest beautifully.
    */
-  securityAsNode(node) {
+  securityAsNode(node, resolveInner) {
     const args = node.args || []
 
     // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
@@ -5511,7 +7223,40 @@ class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
-      if (!code || !TF_RESAMPLABLE.includes(code)) return null
+      if (!code) return null
+
+      // ⭐⭐ A LITERAL THAT NAMES THE ENGINE'S OWN BASE IS THE IDENTITY (ruling 3.5,
+      // 2026-09-11). `request.security(own, 'D', expr)` on daily bars asks for the
+      // bars already in hand, and `request.security(own, timeframe.period, expr)`
+      // has folded to exactly that for months — the same request in two spellings.
+      //
+      // ⛔⛔ THIS IS NOT THE THING THE 2026-09-01 RULING REJECTED, AND THE
+      // DIFFERENCE IS THE WHOLE POINT. That ruling refused to put `D` in
+      // `TF_RESAMPLABLE`, which would make this a RESAMPLE — and a `tf` node reads
+      // the last CLOSED period, so `tf(close,'D')` on a daily base answers
+      // YESTERDAY (measured: `[null,10,11,12,…]` against `[10,11,12,13,…]`). That
+      // one-bar step-back is why it was reverted after the corpus moved 43 → 44.
+      // The identity has no step-back: it emits the child unwrapped. `D` stays out
+      // of `TF_RESAMPLABLE`; what changed is that a literal naming the base is
+      // recognised as the base instead of as a resample of it.
+      if (code === this.basePeriod) {
+        // ⛔ THE GUARD THE RULING ASKS FOR, AND IT CAN FIRE. On an INTRADAY base a
+        // literal `'D'` is genuinely the last completed SESSION, not the bars in
+        // hand — so the identity would be off by a session, and if the newest bar
+        // is still forming the difference is live. Refuse rather than fold; the
+        // one-bar difference must never appear silently.
+        if (isIntradayTf(this.basePeriod) && this.newestBarIsForming) return null
+        this.baseFolds.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
+          line: node.tok ? node.tok.line : null,
+          column: node.tok ? node.tok.column : null,
+          requested: code,
+          base: this.basePeriod,
+          foldedTo: 'the chart\u2019s own series',
+        })
+        code = null
+      } else if (!TF_RESAMPLABLE.includes(code)) {
+        return null
+      }
     }
 
     // 3. `lookahead`, wherever it appears.
@@ -5547,7 +7292,12 @@ class Resolver {
     if (live && !code) live = false
 
     // 4. compose, innermost first.
-    let out = this.resolve(positional[2])
+    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
+    // inner call instead of the whole expression, and then wants EXACTLY this
+    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
+    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
+    // the tuple form from becoming a second authority on what a request means.
+    let out = resolveInner ? resolveInner() : this.resolve(positional[2])
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
     if (other) out = { type: 'sym', value: other, args: [out] }
     return out
@@ -5615,6 +7365,62 @@ class Resolver {
     } finally { this.frames.pop(); this.env = prevEnv }
   }
 
+  /** ⭐⭐ R2 STEP 2 — RESOLVE A NODE *INSIDE* A USER FUNCTION'S CALL FRAME.
+   *
+   *  ⛔⛔ THE TEXT READER USED TO HAND-ROLL THIS AND IT COULD NOT WORK. Its frame
+   *  was a scope Map with each parameter overwritten by the caller's argument —
+   *  which reaches a parameter read DIRECTLY in the body and nothing deeper.
+   *  Every ordinary local inside the function (`a = math.abs(_v)`) captured its
+   *  OWN env snapshot at bind time, and that snapshot still holds `_v` as a
+   *  `param` binding; a param is resolved from `this.frames`, which an ad-hoc Map
+   *  does not have. So `f_getVolumeUnit`'s three arm conditions all failed to
+   *  resolve and the tuple part came back null with `unresolvedValues` counting
+   *  it — the substitution looked right and reached exactly one level.
+   *
+   *  ⭐ THIS IS `inlineUserFunction`'S OWN FRAME PROTOCOL, lifted to a method so
+   *  there is ONE substitution mechanism in this file rather than two that agree
+   *  until they do not. Same push, same env swap, same `finally`.
+   *
+   *  @param {object} bound the `kind:'fn'` binding
+   *  @param {object[]} args the call's argument wrappers, in the caller's scope
+   *  @param {Map} callerEnv the scope those arguments read
+   *  @param {object} node the node to resolve, from inside the function
+   */
+  resolveInFrame(inline, node) {
+    // ⛔ EXACTLY ONE FRAME, because exactly one level is inlined. A text
+    // expression that calls a helper from inside another helper is REFUSED BY
+    // NAME in `textNodeOf` before it ever reaches here (see
+    // `nestedTextHelpers`), so this never has a chain to push. ⚰️ An earlier cut
+    // pushed the whole `parent` chain outermost-first — which is the shape
+    // `resolveBinding`'s `param` arm implies, since it pops the top frame while
+    // evaluating an argument — and it still did not resolve the inner call. That
+    // is an open question, not a shipped behaviour: refusing it by name costs a
+    // capability nothing in this corpus uses yet and keeps the cell honest.
+    if (this.frames.length >= MAX_CALL_DEPTH) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — a text expression`, null)
+    }
+    this.frames.push((inline.args || []).map((a) => ({
+      kind: 'expr', node: a && a.value !== undefined ? a.value : a, env: inline.callerEnv,
+    })))
+    const bound = inline.bound
+    const bodyEnv = inline.bodyEnv
+    const chain = [inline]
+    const prevEnv = this.env
+    // ⛔ THE BODY'S OWN ENV, AND IT IS NOT ALWAYS `bound.value.env`. A function
+    // whose value is a TUPLE has no single `expr` binding to read an env off —
+    // each part carries its own, captured by `foldIfChain` inside the function —
+    // so the caller supplies it. ⚰️ Without this the fallback was the OBJECT
+    // PASS's scope, which does not hold the function's locals, and every arm
+    // condition of `f_getVolumeUnit` failed to resolve while looking correct.
+    this.env = bodyEnv || (bound.value && bound.value.env) || prevEnv
+    try {
+      return this.resolve(node)
+    } finally {
+      for (let k = 0; k < chain.length; k += 1) this.frames.pop()
+      this.env = prevEnv
+    }
+  }
+
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
    *  value namespace stripped; the MANIFEST decides whether the name exists, how
    *  many arguments it takes and what kind each one is. The only thing this
@@ -5653,19 +7459,31 @@ class Resolver {
         // default, `false`, is the column this expansion already builds. It is
         // an identity, and identities are the only expansions this door admits.
         //
-        // ⛔ `ta.tr(true)` IS A DIFFERENT COLUMN AND STAYS REFUSED. It asks for a
-        // first bar whose true range is not defined — `close[1]` does not exist
-        // there — and fabricating one is the invention this lane refuses. The
-        // extra NaN is a bar the member can SEE; a made-up first bar is not.
+        // ⭐⭐ `ta.tr(true)` TRANSLATES SINCE T1 (2026-09-12), AND IT IS STILL A
+        // DIFFERENT COLUMN — both halves matter. It was refused here on the ground
+        // that its first bar "asks for a bar whose true range is not defined" and
+        // that supplying one would be an invention. That was the right refusal
+        // while the vendor's answer was unread. It is not an invention now that it
+        // is measured: bar 0 carries `high - low`, `ta.tr(false)` carries `na`, and
+        // away from bar 0 the two agree to exact zero over 2,244 bars
+        // (`tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`).
+        // ⛔ THE TWO FORMS MAY STILL NOT BE COLLAPSED INTO ONE. Serving `true` with
+        // the unguarded tree would answer not-computable where the member's chart
+        // shows a number, on the first bar of every symbol's history.
         const flag = built.length === 1 && built[0] && built[0].type === 'num'
           ? Number(built[0].value) : null
         if (flag === 0) return BUILTIN_SERIES_TREE.tr()
+        if (flag === 1) return BUILTIN_SERIES_TREE.trGuarded()
+        // ⚠️ A NON-LITERAL FLAG STAYS REFUSED, and that is not caution for its own
+        // sake: the two forms are different columns, so a flag this door cannot
+        // fold is a question about which of them the member meant.
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
-          + '`ta.tr` and `ta.tr(false)` are the same column and both translate; '
-          + '`ta.tr(true)` asks for the Pine fallback, bar 0 as `high - low`, on a '
-          + 'bar where no true range is defined, and this engine leaves that bar '
-          + 'not-computable rather than inventing it — TO UNBLOCK: write `ta.tr`',
+          + '`ta.tr`, `ta.tr(false)` and `ta.tr(true)` all translate, but the '
+          + 'argument decides WHICH column: `true` fills the first bar with '
+          + '`high - low`, and the other two leave it not-computable. This flag is '
+          + 'not a written `true` or `false`, so which column it asks for would '
+          + 'depend on the bar — TO UNBLOCK: write the flag as a literal',
           locate(tok))
       }
       if (bare === 'avg' && built.length < 2) {
@@ -5679,6 +7497,11 @@ class Resolver {
         // about the wrong subject.
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` crosses one series with another, and needs both`, locate(tok))
+      }
+      if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
+        throw new PineRefusal('pine:arity',
+          `\`${pineName}\` takes a source, a length, a multiplier and an `
+          + 'optional useTrueRange flag', locate(tok))
       }
       if (bare === 'linreg') {
         // ⛔ THE DOMAIN, CHECKED BEFORE THE EXPANSION AND NAMED. A regression needs
@@ -5765,7 +7588,29 @@ class Resolver {
         + 'engine has to know that number when it builds the formula — write it '
         + 'as a plain whole number', locate(tok))
     }
-    if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
+    // ⛔ THE HOST EXEMPTION IS NARROW BY CONSTRUCTION AND EVERY CLAUSE EARNS ITS
+    // PLACE: `this.strict` (host mode only — a screen never gets it), `key` (the
+    // table really declares the name, so we are not waving through something we
+    // cannot compute), and the manifest-derived set (the ruling covers THIS
+    // name). Drop any one and the exemption stops being the ruling and starts
+    // being a hole.
+    const hostOnly = hostAdmissible(this.table).has(bare)
+    const hostServes = this.strict && key && hostOnly
+    // ⛔⛔ `|| hostOnly` IS LOAD-BEARING AND A CORPUS SCRIPT PROVED IT. The
+    // `pineName !== base || !key` test is a SPELLING carve-out: it lets a member
+    // write a DECLARED table name directly without meeting the refusal aimed at
+    // the Pine construct of the same name. That is right in general and WRONG for
+    // a host-only name, because what makes `cum` unfit for a screen is not how it
+    // was spelled — it is that the value moves with the fetch, whichever door it
+    // came through.
+    // ⚰️ MEASURED: `tests/fixtures/pine/09-on-balance-volume.pine` writes the v3
+    // BARE form `cum(sign(change(src)) * volume)`. The moment `cum` became
+    // declared, `key` resolved, the carve-out fired, and that script — the one
+    // `_functions_cumulative` names BY PATH as the level that "must stay refused"
+    // — started translating for a SCREEN. Caught by the corpus snapshot, not by
+    // review.
+    if (own(PINE_INEXPRESSIBLE, bare) && !hostServes
+        && ((pineName !== base || !key) || hostOnly)) {
       // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
       // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
       // and `time(timeframe, session)`, the session read. The entry describes the
@@ -5901,7 +7746,24 @@ class Resolver {
           + `(${signatureOf(key, spec)}) and no measured order maps \`${pineName}\` onto them`,
           locate(tok))
       }
-      if (args.length !== declaredArgs.length) {
+      // ⭐⭐ THE SHORT FORM, FILLED BEFORE THE COUNT IS JUDGED. `ta.highest(20)` is
+      // a legal Pine call and this table declares two arguments, so without this
+      // the member meets `pine:arity` for a script that is correct — measured on
+      // 97 corpus sites. The fill is a `{series: …}` plan entry, the same one
+      // `ta.atr(14)` rides, so everything downstream is unchanged.
+      // ⛔ NAMED ARGUMENTS ARE NOT ELIGIBLE. `ta.highest(length = 20)` names the
+      // slot it fills, and `PINE_ARG_NAMES` deliberately carries no evidenced
+      // names for these — so a named call still meets the refusal it met before,
+      // rather than being quietly given a source the member did not ask for.
+      const shortForm = own(PINE_SHORT_FORM, key) ? PINE_SHORT_FORM[key] : null
+      if (shortForm
+          && args.length === declaredArgs.length - shortForm.fills.length
+          && !args.some((a) => a && a.name)) {
+        plan = [
+          ...shortForm.fills.map((series) => ({ series })),
+          ...args.map((_, i) => ({ pine: i })),
+        ]
+      } else if (args.length !== declaredArgs.length) {
         // ⭐⭐ A COUNT MISMATCH WITH A KNOWN WAY ROUND IT SAYS SO. `ta.change(src)`
         // is declared and `ta.change(src, n)` is not — recorded in
         // `pine.derived.test.js::TA_VETTED` as *"the n-arg form is refused by
@@ -5917,8 +7779,9 @@ class Resolver {
           + args.length + ' argument' + (args.length === 1 ? '' : 's')
           + '; this table takes ' + declaredArgs.length + ' — '
           + signatureOf(key, spec) + hint, locate(tok))
+      } else {
+        plan = declaredArgs.map((_, i) => ({ pine: i }))
       }
-      plan = declaredArgs.map((_, i) => ({ pine: i }))
     }
 
     const out = []
@@ -5956,6 +7819,39 @@ class Resolver {
         // fails closed to `repaints` and the save door refuses it. Refusing here
         // names the length; refusing there would name the badge.
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
+          // ⭐⭐⭐ THE BIND-TIME ESCAPE, AND IT IS THE ONLY WAY LINE 233 EVER OPENS.
+          // `ta.sma(v, isWeekly ? lenWeekly : lenDaily)` cannot reduce HERE — there
+          // is no chart yet, so `timeframe.isweekly` is not a value — and refusing
+          // it says "a Pine length has to reach the engine as a plain whole number"
+          // about a length that IS a plain whole number the moment a symbol and a
+          // timeframe are chosen. The refusal was true of this MOMENT and false of
+          // the script.
+          //
+          // ⛔⛔ WIRED ONLY ONCE THE LINTER COULD BOUND IT, AND THE FIRST ATTEMPT
+          // PROVED WHY. On 2026-09-10 this was gated on the predicate alone: the
+          // door duly stopped refusing, and `07-hull-suite.pine` moved from
+          // "refused at translate" to "TRANSLATES BUT CANNOT BE SAVED", because
+          // `lint.js` still answered UNKNOWN for a non-literal window, that becomes
+          // `repaints`, and `canSaveFormula` refuses `repaints` outright. A precise
+          // sentence naming the length was traded for a badge naming nothing, and
+          // the wiring came back out the same day. `lint.js::resolveDeclaration`
+          // now bounds a bind-foldable window at the MAXIMUM over its arms, so all
+          // three gates carry the same lengths.
+          //
+          // ⛔ THE PREDICATE IS SHARED, NOT A SECOND OPINION. `parse.js` owns the
+          // one walk; this door, the bind stage and the linter all ask it. A copy
+          // here could admit a length the linter then refuses, which is exactly the
+          // gap above wearing different clothes.
+          //
+          // ⚠️ DEFERRED IS NOT ACCEPTED. A length that folds to 2.5 or to 0 for a
+          // given binding still refuses — at the STAGE, where the binding is known,
+          // through `assertUsableWindow`, which names the value AND the source
+          // expression the member wrote. That is a better sentence than this one
+          // could ever have been, because it can quote a number.
+          if (isBindFoldableLength(resolved)) {
+            out.push(resolved)
+            continue
+          }
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
           // ⭐⭐ THE ADVICE RIDES AS `suggest`, NOT ONLY AS PROSE IN THE MESSAGE.
           // `PineBox` renders `refusal.suggest` as a code block a member can copy;
@@ -5995,9 +7891,59 @@ class Resolver {
       else if (!arg.name && defval === null && i === 0) defval = arg.value
       else if (!arg.name && title === null && i === 1) title = arg.value
     }
+    // ⭐⭐ R16 — EACH RETIRED KIND SAYS ITS OWN NUMBER AND WHERE IT ROUTES.
+    //
+    // Item (b) retired six time-shaped input kinds on measurement (R15/R16,
+    // 2026-09-15). Retiring here means the member is told WHICH kind, HOW MANY uses
+    // it has in the measured corpus, and WHERE the work went — never "not
+    // supported", and never one generic sentence for eight different situations.
+    //
+    // ⛔⛔ THIS IS ONE SITE SERVING TWO PATHS, which is why the sentences live here
+    // and not at four call sites. It throws as a REFUSAL when an output reads the
+    // input, and the throw is caught as a NOTE by the closing pass over `env` (R13)
+    // when nothing reads it — which is where Clouds' eight `pine:input-kind` lines
+    // come from. ⚰️ R16's own wording said "six sentences at the existing sites
+    // (7754/7758/7780/7793)" and that "all 277 refuse today"; measured, only
+    // `input.time` refuses on the READ path and `input.int` as a timestamp emits
+    // nothing at all, because it is NUMERIC and folds. Corrected in place rather
+    // than built as written.
+    //
+    // ⭐ `input.timeframe` IS NOT RETIRED EVERYWHERE, and the sentence says so: in a
+    // TIMEFRAME POSITION `timeframeLiteralOf` still folds it, which is how 97 of its
+    // 158 uses reach the member. Only the value-position residue is retired. A
+    // retirement that took those 97 with it would be removing a working capability,
+    // which a threshold gives no authority to do.
+    const RETIRED_INPUT_KIND = {
+      timeframe:
+        '158 uses across 61 files, of which 97 reach `request.security` — '
+        + 'multi-timeframe reads are item (c)\'s. In a timeframe position this '
+        + 'still folds to its default; only the 9-use value-position residue is '
+        + 'retired, which is under the threshold',
+      session:
+        'a session string has no carrier in this lane\'s grammar — `str` exists '
+        + 'only as a `textop` operand, and a session feeding a time-in-range '
+        + 'comparison is not one. 70 uses across 23 files, and nothing routes '
+        + 'them: this is a grammar limit, not a threshold',
+      // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
+      // does. Without it a member is told their expression default will be handled
+      // and not told it cannot reach a pane while D2 stands.
+      // ⛔ R21 — two facts, both measured: no IR path today, AND no IR result on a
+      // pane while D2 stands. The D2 half alone reads as "it will be carried, just
+      // not drawn here", which the IR measurement contradicts.
+      time:
+        '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
+        + 'are expressions are item (c)\'s — and the IR lane has no path for them '
+        + 'yet, nor does any IR result reach a pane while ruling D2 stands. '
+        + '6 reach a column, under the threshold',
+      string:
+        'in a timeframe position this folds exactly as `input.timeframe` does and '
+        + 'adds no separate mechanism — 14 uses across 3 files',
+    }
     if (!NUMERIC.has(kind)) {
+      const why = RETIRED_INPUT_KIND[kind]
       throw new PineRefusal('pine:input-kind',
-        `${REFUSALS['pine:input-kind']} — \`${name}\``, locate(node.tok))
+        `${REFUSALS['pine:input-kind']} — \`${name}\`${why ? ` — ${why}` : ''}`,
+        locate(node.tok))
     }
     if (defval === null) {
       throw new PineRefusal('pine:input-kind',
@@ -6117,6 +8063,70 @@ class Resolver {
       // — and a member input resolves to one finite value. Falling through to the
       // folded expression is the honest answer, and `inputsFromFolded` already
       // refuses that entry by name ("the fold printed an EXPRESSION").
+    }
+    // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID, THEN TAG
+    // THE LITERAL THAT SURVIVES INTO THE TREE. Opt-in (`this.paramMint`,
+    // threaded from `translatePine({ paramManifest: true })`), off by
+    // default, so every existing caller and every committed corpus digest is
+    // untouched — this runs AFTER the `declared` branch above and never for
+    // it (that branch already returned a `series` leaf, not `resolved`).
+    //
+    // ⛔ THIS RUNS REGARDLESS OF WINDOW-BOUNDEDNESS, unlike `declareInputs`
+    // above. That is the whole point: `declareInputs` puts an IDENTIFIER into
+    // the tree, which `windowLiteral` correctly refuses in a window/length
+    // slot (`builderInputs.js::windowRefusal`) — this mechanism never does
+    // that. `resolved` here is ALWAYS the plain literal fold, exactly as the
+    // non-`declareInputs` path has always produced, so a length argument
+    // stays a literal at every step, satisfying `_no_offset`/`windowLiteral`
+    // continuously. "Adjustable" means a LATER save writes a DIFFERENT
+    // literal at the same spot, never that this AST holds an identifier
+    // there — see `this.paramMint`'s own comment, and `param_manifest.py`'s
+    // module docstring, for the rest of this design.
+    if (this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
+        && resolved && resolved.type === 'num' && Number.isFinite(resolved.value)) {
+      // ⛔⛔ KEYED ON THE ORIGINAL CALL NODE'S IDENTITY, NEVER ON `boundName`.
+      // See `this.paramMint`'s own comment on the Resolver field for why —
+      // the short version: `translatePine` builds one fresh `Resolver` per
+      // output, so only object identity (shared via `env`, never recreated
+      // per output) survives across "the same input feeds two plots."
+      let entry = this.paramMint.byNode.get(node)
+      if (!entry) {
+        this.paramMint.counter += 1
+        const type = kind === 'input'
+          ? (Number.isInteger(resolved.value) ? 'int' : 'float')
+          : kind
+        entry = {
+          id: `__uct_param_${this.paramMint.counter}`,
+          sourceName: boundName,
+          title: title && title.type === 'string' ? title.value : boundName,
+          type,
+          default: resolved.value,
+          min: bound('minval'),
+          max: bound('maxval'),
+          // ⚠️ `options` (a numeric enum, e.g. `input.int(1, options=[1,2,5])`)
+          // is NOT populated. Verified, not assumed: this parser has no array-
+          // literal node type at all today (`options=[...]` is unparsed Pine
+          // grammar this translator does not yet support in ANY position, not
+          // a Track F gap specifically) — inventing one here would be new
+          // parser surface far outside "the smallest v1," so this is an
+          // honest `null`, not a silently-dropped feature. Logged as a known
+          // limitation rather than attempted.
+          options: null,
+          step: bound('step'),
+        }
+        this.paramMint.byNode.set(node, entry)
+        this.paramMint.metadata.push(entry)
+      }
+      // ⛔ NON-ENUMERABLE, EXACTLY THE `declared`-LEAF IDIOM ABOVE (this
+      // file's own words, a few lines up): `astHash` walks a node's OWN
+      // ENUMERABLE KEYS, so a plain key here would widen the canonical
+      // grammar by one byte and break `assertCanonical`'s "key set is byte-
+      // equal to CANONICAL_KEYS" check. This tag must be invisible to
+      // hashing, `JSON.stringify`, and every persisted copy, and visible only
+      // to the walker that looks for it BY NAME
+      // (`pineParamManifest.js::collectParamLocators`).
+      Object.defineProperty(resolved, '__uctParamId',
+        { value: entry.id, enumerable: false, configurable: true })
     }
     return resolved
   }
@@ -6427,6 +8437,24 @@ const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
 // the program walk
 // --------------------------------------------------------------------------- //
 
+/** ⛔⛔ `pine:chart-only` IS A NOTE CODE, NOT A REFUSAL CODE.
+ *
+ *  It has NO entry in `REFUSALS` (the frozen 41-code table above) and is never
+ *  thrown — every use is `noteOf('pine:chart-only', chartOnlyNote(word), tok)`,
+ *  pushed onto `notes`. A `fill` or a `bgcolor` does not stop a translation; it
+ *  is a line this lane does not draw, recorded with its own line number so the
+ *  member can see what was left behind.
+ *
+ *  ⚰️ Recorded here because a 2026-09-14 hand-off listed it among the refusal
+ *  codes and asked for its 'emitting refusal site'. Nothing in this repo makes
+ *  that mistake — `WAVE2-A-CENSUS.md:514` says "carried as `pine:chart-only`, not
+ *  refused", and `pine.presentation.test.js` and `pine.test.js` both assert it
+ *  arrives in `notes` — so this is a note at the definition rather than a
+ *  correction anywhere. ⭐ The distinction is load-bearing for item (a): Clouds'
+ *  twenty `fill` calls at 118-137 are the script's whole visible artifact, and
+ *  reading them as refusals would say the translation FAILED where it in fact
+ *  succeeded and declined to draw.
+ */
 const chartOnlyNote = (word) => `\`${word}\` paints on a chart; TradingView's own screener `
   + 'reads plot() and alertcondition() and nothing else, so this line is ignored here too'
 
@@ -6466,7 +8494,7 @@ function reassignedNames(tokens) {
 /** The name a declaration binds — the identifier immediately before the `=`,
  *  unless that identifier is one of Pine's type words (`float x = 0.0`, where the
  *  walk-back has already passed `x`). */
-function boundName(toks, eqIndex) {
+export function boundName(toks, eqIndex) {
   const tok = toks[eqIndex - 1]
   if (!tok || tok.kind !== 'ident' || TYPE_WORDS.has(tok.value)) return null
   return tok
@@ -6498,6 +8526,15 @@ function boundName(toks, eqIndex) {
 
 /** A binding wrapper so a Pine sub-tree can carry the environment it was written
  *  in. `{type:'bound'}` is the only Pine node this module manufactures. */
+/** ⭐ HOW DEEP A TEXT EXPRESSION MAY NEST BEFORE `textNodeOf` gives up.
+ *
+ *  ⚰️ It was 12 and silently cost `uncharted-volume-v2.pine` its Volume cell at
+ *  depth 13. Measured 2026-09-13: the deepest text expression across the
+ *  59-script `pine_oos` corpus is 10; v2's is 13. Sixty-four leaves ~5x headroom
+ *  over the deepest real shape while still bounding a cyclic binding, and
+ *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
+const TEXT_MAX_DEPTH = 64
+
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
 /** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
@@ -6637,6 +8674,28 @@ function ifBranches(stmts, i) {
  *  ⛔ A NAME A BRANCH DECLARES FRESH DOES NOT ESCAPE IT. Only names that already
  *  existed before the `if` are rebound — `float entry = close` inside a branch is
  *  a local, and letting it leak would invent a binding Pine does not have. */
+/** ⭐⭐ R2 STEP 3 — WHAT AN `if` CHAIN REASSIGNS, RECORDED AGAINST THE CHAIN.
+ *
+ *  ⚰️ MEASURED 2026-09-13. `uncharted-volume-v2.pine`'s Range table declares
+ *  `string atrMultText = ''` and then fills it with `:=` inside an `if`. The
+ *  object pass read the binding recorded for the DECLARING statement — the empty
+ *  string — and rendered a cell containing `""`. ⛔ THAT IS WORSE THAN THE DROP
+ *  IT REPLACED: a blank cell where the author wrote a number reads as "the value
+ *  is empty", which is a claim they never made, and nothing anywhere said so.
+ *
+ *  ⛔ THE VALUE IS `foldIfChain`'S OWN, not a second reading. This records the
+ *  binding the `touched` loop directly above has just installed — the ternary
+ *  over the branch value and the value before the chain — keyed by the `if`
+ *  statement, which is the statement `collectObjectOps` also sees. One reader,
+ *  one value, joined by identity.
+ */
+function recordReassign(ctx, stmt, name, env) {
+  if (!ctx || !ctx.bindingByStatement || !stmt || !env.has(name)) return
+  let byName = ctx.bindingByStatement.get(stmt)
+  if (!byName) { byName = new Map(); ctx.bindingByStatement.set(stmt, byName) }
+  byName.set(name, env.get(name))
+}
+
 function foldIfChain(stmts, i, ctx, env) {
   const chain = ifBranches(stmts, i)
   if (!chain) throw new PineRefusal('pine:block', REFUSALS['pine:block'], locate(stmts[i].header[0]))
@@ -6693,6 +8752,7 @@ function foldIfChain(stmts, i, ctx, env) {
       }
       env.set(name, stateBinding(
         wasState.seed, wasState.seedEnv, update, new Map(before), wasState.at))
+      recordReassign(ctx, stmts[i], name, env)
       continue
     }
 
@@ -6704,11 +8764,58 @@ function foldIfChain(stmts, i, ctx, env) {
       node = { type: 'ternary', test: arms[k].cond, yes: armBinding(arms[k]), no: node, tok: arms[k].tok }
     }
     env.set(name, exprBinding(node, before, locate(chain.branches[0].tok)))
+    recordReassign(ctx, stmts[i], name, env)
   }
 
   // The chain's own value — only ever read by `x = if …`.
   let value = null
   const arm0 = arms[0]
+
+  // ⭐⭐ R2 STEP 2 — EVERY ARM A TUPLE OF THE SAME ARITY IS A TUPLE OF TERNARIES,
+  // NOT A TERNARY OVER TUPLES.
+  //
+  // ⚰️ MEASURED ON `uncharted-volume-v2.pine`: `f_getVolumeUnit` is an
+  // `if/else if/else` chain whose every arm is `['B', 1e9]` / `['M', 1e6]` /
+  // `['K', 1e3]` / `['', 1.0]`, and the scalar path below collapsed it to one
+  // value. `destructureBindings` then refused the perfectly ordinary
+  // `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)` with *"returns one
+  // value, and 2 names were given"* — a sentence about the FOLD, not about the
+  // script. Nine locals downstream of it were stranded and both Volume cells
+  // with them.
+  //
+  // ⛔ ELEMENT-WISE IS THE ONLY CORRECT SHAPE. `cond ? ['B',1e9] : ['M',1e6]`
+  // has no meaning here — a tuple is not a value this engine carries — whereas
+  // `[cond ? 'B' : 'M', cond ? 1e9 : 1e6]` is two ordinary selections, each of
+  // which the existing machinery already resolves. Same `boundNode`, same
+  // ternary construction, same order as the scalar path directly below; the only
+  // difference is that it runs once per element.
+  //
+  // ⛔ ARITY MUST MATCH ACROSS EVERY ARM, and `> 1` because `[x]` is a
+  // one-element list rather than a tuple — the same two checks `foldStatements`
+  // makes when it builds a bare tuple return. An arm of a different width is a
+  // script this engine must keep refusing: handing out a part from the wrong arm
+  // is the silent-wrong-answer the `kind === 'tuple'` check exists to prevent.
+  const tupleArity = (b) => (b && b.kind === 'tuple' && Array.isArray(b.parts) ? b.parts.length : -1)
+  if (hasElse && arms.every((a) => a.value) && tupleArity(arm0.value) > 1
+      && arms.every((a) => tupleArity(a.value) === tupleArity(arm0.value))) {
+    const width = tupleArity(arm0.value)
+    const parts = []
+    for (let pIdx = 0; pIdx < width; pIdx += 1) {
+      let node = boundNode(arms[arms.length - 1].value.parts[pIdx], null, arm0.tok)
+      for (let k = arms.length - 2; k >= 0; k -= 1) {
+        node = {
+          type: 'ternary',
+          test: arms[k].cond,
+          yes: boundNode(arms[k].value.parts[pIdx], null, arms[k].tok),
+          no: node,
+          tok: arms[k].tok,
+        }
+      }
+      parts.push(exprBinding(node, before, locate(arm0.tok)))
+    }
+    return { value: { kind: 'tuple', parts, at: locate(arm0.tok) }, next: chain.next }
+  }
+
   if (hasElse ? arms.every((a) => a.value) : false) {
     value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
     for (let k = arms.length - 2; k >= 0; k -= 1) {
@@ -6733,14 +8840,53 @@ function consumeMutators(ctx, toks) {
 /** Every name a token span reassigns. */
 function mutatorTargets(toks) {
   const out = new Set()
-  for (let i = 1; i < toks.length; i += 1) {
+  // ⚰️⚰️ THE SCAN STARTS AT 0, NOT AT 1, AND THE `1` WAS A REAL DEFECT.
+  //
+  // The scalar form below reads `toks[i - 1]`, so it needs `i >= 1` and
+  // guards for it itself. The ARRAY form reads `toks[i + 2]`, and starting the
+  // whole loop at 1 meant an `array.set(...)` that is the FIRST token of a
+  // body was never examined at all.
+  //
+  // ⚰️ Measured 2026-09-14 by dumping both bodies side by side:
+  //   fixture  `array.set ( a , i , close )`            -> targets []
+  //   Clouds   `ratio = … layerValue = … array.set (…)` -> targets [layerArray]
+  // Clouds' body carries two assignments before the write, so it was
+  // accidentally immune. ⭐ The MINIMAL repro was more minimal than the real
+  // script, which is the only reason this surfaced.
+  for (let i = 0; i < toks.length; i += 1) {
     const tok = toks[i]
-    if (tok.kind === 'punct' && MUTATORS.has(tok.value) && toks[i - 1].kind === 'ident') {
+    if (i >= 1 && tok.kind === 'punct' && MUTATORS.has(tok.value)
+        && toks[i - 1].kind === 'ident') {
       out.add(toks[i - 1].value)
+    }
+    // ⭐⭐ WAVE 2 (a) — AN ARRAY IS MUTATED BY A CALL, NOT BY `:=`, AND THAT IS
+    // A SILENT-WRONG-RESULT HOLE THE MOMENT READS FOLD.
+    //
+    // ⚰️ MEASURED 2026-09-14, and it is why this exists. As soon as
+    // `array.get(v, k)` folded to a slot, `uncharted-clouds.pine` went from 21
+    // honest refusals to **ZERO refusals and 21 plots reading `na`** — because
+    // the `for` at line 59 that FILLS the array is a block this walk gives up
+    // on, and nothing connected the two. A member would have seen 21 blank
+    // plots and no sentence anywhere saying why.
+    //
+    // ⛔ `na` IS ONLY THE RIGHT ANSWER WHEN THE SCRIPT GENUINELY NEVER WRITES
+    // THE SLOT. When the writer is a block this lane could not read, the right
+    // answer is the refusal the block already earned — so the array joins the
+    // scalars this function forces opaque, and the read refuses by name.
+    if (tok.kind === 'ident' && String(tok.value).startsWith('array.')
+        && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
+        && toks[i + 1] && isPunct(toks[i + 1], '(')
+        && toks[i + 2] && toks[i + 2].kind === 'ident') {
+      out.add(toks[i + 2].value)
     }
   }
   return out
 }
+
+/** The `array.*` members that WRITE, for `mutatorTargets`. Derived from the one
+ *  set in `arrayVectors.js` so a member added there is covered here the same day
+ *  — a second hand-typed list is the drift this engine keeps paying for. */
+const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
 
 /** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
 function functionParams(toks, arrow) {
@@ -6823,6 +8969,170 @@ function rulingLead(text) {
   return stop > 0 ? body.slice(0, stop + 1) : body.slice(0, 220)
 }
 
+/** ⭐⭐ `[a, b] = rhs` — ONE DESTRUCTURE READER FOR BOTH WALKS (2026-09-11).
+ *
+ *  Returns `{ names, bindings }` when the parts can be handed out, or
+ *  `{ names, why }` when they cannot, or `null` when this is not a destructure
+ *  at all. The CALLER decides what a refusal looks like, because the two walks
+ *  spell it differently: the top-level walk marks each name opaque and carries
+ *  on, a block folder throws so the whole chain stays unfolded.
+ *
+ *  ⚰️ WHY THIS IS A FUNCTION AND NOT A SECOND COPY. The top-level walk has read
+ *  destructures since Kind 4; `foldStatements` — the folder for the INSIDE of an
+ *  `if` — never learned them at all, so `[a, b] = f()` within a branch fell
+ *  through to "a bare expression", `parseWholeExpression` choked on the `=`, the
+ *  chain refused, and every outer `var` the branch assigned was forced opaque as
+ *  `pine:reassign`. That is `uncharted-volume.pine` lines 247-261 exactly, and
+ *  the refusal named `volD` — a name whose own statement is fine. Measured:
+ *    destructure inside `if` then reassign  -> pine:reassign   (refused)
+ *    same destructure at TOP level          -> ok
+ *    reassign from a plain call inside `if` -> ok
+ *  Two walks disagreeing about one construct is the defect this repo has paid
+ *  for three times in a week; one reader is the fix, not a second branch.
+ *
+ *  ⛔ THE `kind === 'tuple'` CHECK IS CARRIED OVER UNCHANGED AND IS THE WHOLE
+ *  SAFETY OF THE FEATURE. `request.security` is 42 of the 63 destructures in
+ *  this corpus; without that check it would hand its FIRST element to a name
+ *  expecting its third — a translation that parses, lints, saves, scans and is
+ *  silently WRONG. Anything this engine cannot take apart keeps refusing by name.
+ */
+function destructureBindings(toks, env, first) {
+  if (!isPunct(toks[0], '[')) return null
+  const close = toks.findIndex((t) => isPunct(t, ']'))
+  if (close < 0) return null
+  const names = toks.slice(1, close)
+    .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
+
+  const dmi = eqAtDmi(toks, close) >= 0 ? dmiParts(toks, close, names, env, first) : null
+  if (dmi) return { names, bindings: dmi }
+
+  const builtin = builtinTupleParts(toks, close, names, env, first)
+  if (builtin) return { names, bindings: builtin }
+
+  const eq = close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '='))
+  let parsedRhs = null
+  if (eq > close && names.length > 0) {
+    const rhs = toks.slice(eq + 1)
+    let call = null
+    try { call = parseWholeExpression(rhs) } catch { call = null }
+    parsedRhs = call
+    const callee = call && call.type === 'call' ? env.get(call.name) : null
+    const value = callee && callee.kind === 'fn' ? callee.value : null
+    if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+      const callerEnv = new Map(env)
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'tuplePart', fn: callee, args: call.args, index: k,
+          env: callerEnv, at: locate(n),
+        })),
+      }
+    }
+  }
+  // ⭐⭐ A TUPLE `request.security` — Volume's line 259, and the corpus's commonest
+  // destructure by a wide margin. The parts are held here and WRAPPED at resolve
+  // time by `securityAsNode`, so this site decides only one thing: that the inner
+  // expression really is a call answering enough values to hand out.
+  //
+  // ⛔ THE `kind === 'tuple'` AND LENGTH CHECKS ARE THE SAME TWO THIS FUNCTION
+  // ALREADY MAKES FOR A PLAIN USER CALL, and they are the whole safety of the
+  // feature. Everything about WHICH bars and WHICH period stays with
+  // `securityAsNode`, which returns null for a shape it will not take — and that
+  // null becomes `pine:request` at resolve time, not a guess here.
+  if (eq > close && names.length > 0 && parsedRhs && parsedRhs.type === 'call'
+      && (parsedRhs.name === 'request.security' || parsedRhs.name === 'security')) {
+    const placed = positionaliseSecurityArgs(parsedRhs.args || [])
+    // ⚠️ `positionaliseSecurityArgs` RETURNS NODES, NOT `{name, value}` WRAPPERS
+    // — `slots[at] = a.value` is the unwrap. Reading `.value` off one again cost a
+    // debug cycle: every condition below went quietly false and the refusal looked
+    // like a capability gap rather than my own typo.
+    const expr = placed && placed[2] ? placed[2] : null
+    const inner = expr && expr.type === 'call' ? env.get(expr.name) : null
+    const value = inner && inner.kind === 'fn' ? inner.value : null
+    if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+      const callerEnv = new Map(env)
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'securityTuplePart',
+          call: parsedRhs,
+          fn: inner,
+          args: expr.args || [],
+          index: k,
+          env: callerEnv,
+          at: locate(n),
+        })),
+      }
+    }
+
+    // ⭐⭐ R18 — THE ARRAY-LITERAL ARGUMENT: THE SECOND ENTRANCE TO THE SAME PATH.
+    //
+    // `[a, b] = request.security(s, tf, [x, y])` is two SLOTS — slot 0 is
+    // `security(s, tf, x)`, slot 1 is `security(s, tf, y)` — which is Mechanism A
+    // applied to a tuple exactly as it is applied to an array.
+    //
+    // ⛔ IT BUILDS THE SAME `securityTuplePart` BINDING THE UDF FORM ABOVE BUILDS,
+    // with a synthesised carrier, so `resolveBinding` resolves it UNCHANGED through
+    // `securityAsNode`. One path, two entrances. A parallel path would be a second
+    // authority on which bars and which period a request reads, which is the one
+    // decision this file keeps in a single place.
+    //
+    // ⭐ `args: []` is correct and not an omission: the UDF form pushes the inner
+    // call's arguments as a frame because its parts resolve inside the function's
+    // scope. An array literal's elements are written in the CALLER's scope and
+    // close over `callerEnv`, so there is no frame to push.
+    if (expr && expr.type === 'collection' && Array.isArray(expr.elements)
+        && expr.elements.length >= names.length) {
+      const callerEnv = new Map(env)
+      const declared = new Set(names.map((n) => n.value))
+      // ⛔ THE ONE SHAPE THAT CANNOT BE SLOTS — an element that reads a SIBLING
+      // destructured name. The slots are independent calls, so element 1 cannot see
+      // element 0's result; expanding it would silently read whatever that name held
+      // BEFORE the destructure. ⚰️ Measured: the corpus contains ZERO of these — the
+      // census reported one and it was `\blog\b` matching `math.log(...)`, a method
+      // name. So this is a GUARD against a shape nobody writes, not a fix for a
+      // measured use, and its fixture is synthetic.
+      const readsSibling = expr.elements.some((el) => {
+        const stack = [el]
+        while (stack.length) {
+          const nd = stack.pop()
+          if (!nd || typeof nd !== 'object') continue
+          if (nd.type === 'name' && declared.has(String(nd.name))) return true
+          for (const k of Object.keys(nd)) {
+            const v = nd[k]
+            if (Array.isArray(v)) stack.push(...v)
+            else if (v && typeof v === 'object' && v.type) stack.push(v)
+            else if (v && typeof v === 'object' && v.value) stack.push(v.value)
+          }
+        }
+        return false
+      })
+      if (readsSibling) {
+        return {
+          names,
+          why: 'an element of a security tuple reads another element of the same '
+            + 'tuple. The elements become INDEPENDENT requests — one per slot — so '
+            + 'none of them can see another\'s result',
+        }
+      }
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'securityTuplePart',
+          call: parsedRhs,
+          fn: { kind: 'fn', value: { kind: 'tuple', parts: expr.elements.map((el) => ({ node: el, env: callerEnv })) } },
+          args: [],
+          index: k,
+          env: callerEnv,
+          at: locate(n),
+        })),
+      }
+    }
+  }
+
+  return { names, why: tupleRefusalTail(parsedRhs, names, env) }
+}
+
 function tupleRefusalTail(call, names, env) {
   if (!call) return 'the right-hand side is not an expression this engine could read'
   if (call.type !== 'call') {
@@ -6865,6 +9175,276 @@ function tupleRefusalTail(call, names, env) {
     + '. Writing it WITHOUT the brackets says more about why'
 }
 
+/**
+ * ⭐⭐ WAVE 2 (a) — `array.new…(n)` READ AS A PLAN-TIME VECTOR, in ONE place.
+ *
+ * Called from BOTH statement branches that can bind one — the `var` branch and
+ * the ordinary-assignment branch — because they are genuinely different code
+ * paths in this walk and a second copy of this reading is exactly the drift this
+ * engine keeps paying for.
+ *
+ * @returns the vector binding · `false` when it refused and recorded · `null`
+ *          when this is not an array creation at all and the caller should carry
+ *          on as before.
+ */
+/**
+ * ⭐⭐ a3 — READ A `for` INTO A PENDING UNROLL, or answer `null`.
+ *
+ * Shape: `for <i> = <lo> to <hi> [by <step>]`, with a body of statements that are
+ * each either `name = expr` or `array.<write>(NAME, …)`.
+ *
+ * ⛔ THE BOUNDS ARE PARSED, NOT FOLDED. Folding needs the Resolver's folder, and
+ * there is exactly one of those. What comes back is a record the first read of an
+ * affected vector applies.
+ */
+/** ⭐ Replace one NAME with a constant throughout a PARSE tree.
+ *
+ *  ⛔ A pure rewrite, not an evaluator. In an unrolled body the loop variable is
+ *  not a variable — it is this iteration's number — so saying that structurally
+ *  is both simpler and more honest than teaching the resolver to find it in a
+ *  scope it never had.
+ *
+ *  ⚰⚰ THE NODE IT WRITES IS `number`, NOT `num`. THIS MODULE HAS TWO TREE
+ *  LANGUAGES AND THEY BOTH SPELL A LITERAL WITH FOUR LETTERS OF EACH OTHER:
+ *
+ *    parse tree   `{ type: 'number', value, tok }`   what `parsePrimary` emits
+ *                 `{ type: 'unary', op: '-', arg }`   and what `resolve` READS
+ *    output tree  `{ type: 'num', value }`            what `cNum` emits
+ *                 `{ type: 'op', name: 'u-', args }`  and what `foldScalar` reads
+ *
+ *  `resolve`'s switch has `case 'number'` and no `case 'num'`, so a canonical
+ *  node spliced into a parse tree falls off the end of that switch and throws
+ *  `pine:statement`. The a3 unroll shipped that bug for a whole session: every
+ *  `array.set` index folded to null, every slot stayed unwritten, and all 21 of
+ *  Clouds' layers rendered `na` while the translation reported `ok, 0 refusals`.
+ *  ⭐ The probe that found it printed `arg0type=num` — the type THIS FUNCTION had
+ *  just written. An instrument reading back its own substitution says nothing
+ *  about the language on the other side of the call.
+ *
+ *  The original name's `tok` is carried onto the replacement so a refusal raised
+ *  further in still names the member's line and not the loop header.
+ */
+function substConst(node, varName, value) {
+  if (!node || typeof node !== 'object') return node
+  if (Array.isArray(node)) return node.map((x) => substConst(x, varName, value))
+  if (node.type === 'name' && node.name === varName) {
+    const lit = { type: 'number', value: Math.abs(value), tok: node.tok }
+    return value < 0 ? { type: 'unary', op: '-', arg: lit, tok: node.tok } : lit
+  }
+  const out = {}
+  for (const k of Object.keys(node)) {
+    const v = node[k]
+    out[k] = (v && typeof v === 'object') ? substConst(v, varName, value) : v
+  }
+  return out
+}
+
+/** ⭐⭐ a4 — WHY THIS LOOP WAS NOT READ, IN THE MEMBER'S OWN VOCABULARY.
+ *
+ *  Rulings R1 and R2 (owner, 2026-09-14) retired three iteration forms from item (a)
+ *  on the corpus numbers, under the same F4 threshold that retired `while`:
+ *
+ *      for x in         13 of 92 bodies write a slot   -> retired
+ *      for [i, x] in     0 of 34                       -> retired
+ *      while            15 of 116 guards admissible    -> retired (F4)
+ *
+ *  ⛔ THE NUMBER IS IN THE SENTENCE ON PURPOSE. "This form is not read" invites the
+ *  member to ask why; "13 of 92 uses in the reference corpus could be read, which is
+ *  below the threshold" tells them it was a measurement and not an oversight, and it
+ *  tells the next engineer which number to re-measure before reopening it.
+ *
+ *  ⛔ AND ONLY THE SERIES CASE ROUTES TO ITEM (c). A plan-time source is not a runtime
+ *  array, so pointing its author at the IR lane would be a FALSE sentence — it would
+ *  send them to wait for a lane that was never going to serve them. The routing
+ *  belongs to `seriesDependentMessage`, which composes it where it is true.
+ */
+/** ⭐⭐ R7 — WHY A COUNTED `for`'s ACCUMULATOR IS NOT FOLDED, with its number.
+ *
+ *  `s := s + close[i]` over a bounded loop IS plan-time expressible in principle —
+ *  `((0 + close[0]) + close[1]) + close[2]`, Mechanism A applied to a scalar instead
+ *  of a vector — and 379 of 1,004 counted-`for` bodies in the corpus have this shape,
+ *  more than every other admitted shape combined. It is still not built, because
+ *  being expressible in principle is not the threshold: **1 of 379** of those bodies
+ *  is admissible once seed, shape, bound and escape all have to hold at once, and
+ *  that one runs a single iteration (ruling R7, on the F4 logic that retired `while`
+ *  at 15 of 116 and `for … in` at 13 of 92).
+ *
+ *  ⛔ THE SENTENCE NAMES THE BINDING CONSTRAINT, NOT JUST THE VERDICT. Only **63 of
+ *  379** of these loops have an iteration count this engine could settle, and that —
+ *  not the accumulator's shape — is what a reopening would have to change. Dropping
+ *  the other three requirements one at a time leaves 7, 50 and 9 admissible; dropping
+ *  the bound requirement leaves 106, but those are precisely the loops nothing can
+ *  unroll. Telling a member "this is not folded" without that is telling them a
+ *  verdict they cannot act on.
+ */
+function accumulatorNote(stmt) {
+  const hdr = stmt.header || []
+  if (!hdr[0] || hdr[0].value !== 'for') return null
+  if (hdr.some((tok) => tok && tok.kind === 'ident' && tok.value === 'in')) return null
+  return 'a running total built inside a `for` is not folded into one expression on'
+    + ' this lane — of 1,004 counted `for` loops in the reference corpus 379 do this,'
+    + ' and only 1 of 379 has a seed, an update shape, an iteration count and a scope'
+    + ' this engine can settle all at once (ruling R7). The binding constraint is the'
+    + ' ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs'
+}
+
+function loopFormNote(stmt) {
+  const hdr = stmt.header || []
+  const word = hdr[0] && hdr[0].value
+  if (word === 'while') {
+    return 'a `while` loop is not unrolled on this lane — only 15 of 116 `while` uses'
+      + ' in the reference corpus have a bound this engine could settle before the'
+      + ' chart runs, below the threshold the form has to clear (ruling F4)'
+  }
+  if (word === 'for') {
+    const inAt = hdr.findIndex((tok) => tok && tok.kind === 'ident' && tok.value === 'in')
+    if (inAt > 0) {
+      const paired = hdr[1] && hdr[1].value === '['
+      const src = hdr.slice(inAt + 1).map((tok) => String(tok.value)).join('')
+      return `a \`for ${paired ? '[i, x]' : 'x'} in\` loop is not unrolled on this lane`
+        + (src ? ` — its source is \`${src}\`` : '')
+        + ' — only 13 of 92 `for x in` uses and 0 of 34 `for [i, x] in` uses in the'
+        + ' reference corpus have a body this lane could express (ruling R1); the rest'
+        + ' iterate drawing objects or user-defined types, which answer with no number'
+    }
+  }
+  return null
+}
+
+function pendingUnrollFrom(stmt, env) {
+  const hdr = stmt.header || []
+  if (!hdr.length || hdr[0].value !== 'for') return null
+  const eq = findTop(hdr, (x) => isPunct(x, '='))
+  if (eq !== 2 || !hdr[1] || hdr[1].kind !== 'ident') return null
+  const toIdx = hdr.findIndex((x, k) => k > eq && x.kind === 'ident' && x.value === 'to')
+  if (toIdx < 0) return null
+  const byIdx = hdr.findIndex((x, k) => k > toIdx && x.kind === 'ident' && x.value === 'by')
+  const hiEnd = byIdx > 0 ? byIdx : hdr.length
+  let lo = null
+  let hi = null
+  let step = null
+  try {
+    lo = parseWholeExpression(hdr.slice(eq + 1, toIdx))
+    hi = parseWholeExpression(hdr.slice(toIdx + 1, hiEnd))
+    step = byIdx > 0 ? parseWholeExpression(hdr.slice(byIdx + 1)) : null
+  } catch { return null }
+  if (!lo || !hi) return null
+
+  // ⛔ THE BODY IS CLASSIFIED NOW, so an unrecordable statement refuses the whole
+  // loop HERE rather than half-unrolling it later.
+  const body = []
+  for (const sub of (stmt.sub || [])) {
+    const toks = sub.header || []
+    if (!toks.length) continue
+    const head = toks[0]
+    if (head.kind === 'ident' && String(head.value).startsWith('array.')
+        && VEC.WRITE_MEMBERS.has(String(head.value).slice('array.'.length))
+        && isPunct(toks[1], '(') && toks[2] && toks[2].kind === 'ident') {
+      // array.<write>(NAME, a, b)
+      // ⚰️ THE ARGUMENTS START AT 4, NOT 3. Token 3 is the comma after the
+      // target name; slicing from there put an empty leading part into the
+      // splitter and `parseWholeExpression([])` threw into the catch, rejecting
+      // the whole loop with no reason printed. Measured 2026-09-14 on
+      // `array.set ( layerArray , i , layerValue )`.
+      const inner = toks.slice(4, toks.length - 1)
+      const parts = []
+      let depth = 0
+      let cur = []
+      for (const tk of inner) {
+        if (isPunct(tk, '(') || isPunct(tk, '[')) depth += 1
+        if (isPunct(tk, ')') || isPunct(tk, ']')) depth -= 1
+        if (depth === 0 && isPunct(tk, ',')) { parts.push(cur); cur = [] } else cur.push(tk)
+      }
+      if (cur.length) parts.push(cur)
+      let args = null
+      if (!parts.length || parts.some((p) => !p.length)) return null
+      try { args = parts.map((p) => parseWholeExpression(p)) } catch { return null }
+      body.push({ kind: 'write', member: String(head.value).slice('array.'.length),
+        target: toks[2].value, args, tok: head })
+      continue
+    }
+    const e = findTop(toks, (x) => isPunct(x, '='))
+    if (e > 0 && toks[e - 1] && toks[e - 1].kind === 'ident'
+        && !MUTATORS.has(String(toks[e].value))) {
+      let node = null
+      try { node = parseWholeExpression(toks.slice(e + 1)) } catch { return null }
+      body.push({ kind: 'bind', name: toks[e - 1].value, node, tok: toks[e - 1] })
+      continue
+    }
+    return null   // a shape this recorder does not read -> no unroll at all
+  }
+  if (!body.length) return null
+  const targets = new Set(body.filter((b) => b.kind === 'write').map((b) => b.target))
+  if (!targets.size) return null
+  return { varName: hdr[1].value, lo, hi, step, body, targets,
+    at: locate(hdr[0]), line: locate(hdr[0]) && locate(hdr[0]).line, env: new Map(env) }
+}
+
+function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
+  if (!rhs || !rhs.length || !nameTok) return null
+  const head = rhs[0]
+  // ⚠️ MEASURED: the tokeniser gives `array.new` as ONE ident, not three tokens.
+  if (!head || head.kind !== 'ident' || !String(head.value).startsWith('array.')) return null
+  const member = String(head.value).slice('array.'.length)
+
+  if (VEC.DRAWING_MEMBERS.has(member)) {
+    // ⛔ A TYPED DRAWING ARRAY IS DRAWING, NOT DATA — refused at CREATION.
+    // `array.new_label(64)` is a request for sixty-four labels; admitting the
+    // container and refusing the draw would accept a shape whose only purpose is
+    // the thing this item does not do. 299 calls across 60 files in the census.
+    markOpaque(nameTok.value, 'pine:drawing', locate(head), `\`${nameTok.value}\``)
+    notes.push(noteOf('pine:drawing',
+      `${REFUSALS['pine:drawing']} — \`array.${member}\` makes an array OF drawings,`
+      + ' which is the drawing layer rather than a value a column can read',
+      head))
+    return false
+  }
+  if (!VEC.CREATE_MEMBERS.has(member)) return null
+
+  let argStart = 1
+  let generic = null
+  if (rhs[argStart] && isPunct(rhs[argStart], '<')) {
+    const close = rhs.findIndex((t, i) => i > argStart && isPunct(t, '>'))
+    if (close > 0) {
+      generic = rhs.slice(argStart + 1, close).map((t) => t.value).join('')
+      argStart = close + 1
+    }
+  }
+  if (!rhs[argStart] || !isPunct(rhs[argStart], '(')) return null
+  const inner = rhs.slice(argStart + 1, rhs.length - 1)
+  let sizeNode = null
+  // ⭐ THE SIZE IS STORED UNRESOLVED. Folding it here would be a second
+  // constant-folder over the same tokens; the Resolver already has the one this
+  // engine uses, and it runs with the whole environment in hand.
+  try { sizeNode = inner.length ? parseWholeExpression(inner) : null } catch { sizeNode = null }
+  const at = locate(nameTok)
+  // ⛔⛔ F2 — THE CREATION IS RECORDED, WHATEVER HAPPENS NEXT. Before this, a
+  // `var x = array.new<float>(21)` produced NOTHING: not a refusal, not a note,
+  // no line in the result. The lane's own contract is that a statement nothing
+  // reaches is "a NOTE, listed, never silently dropped", and the IR lane already
+  // named this line while this one said nothing at all. A binding that lives only
+  // in `env` is invisible to every reader of the result, so the note is what makes
+  // the plan record real.
+  notes.push(noteOf('pine:vector',
+    `\`${nameTok.value}\` is an array this engine reads as a PLAN-TIME VECTOR of`
+    + ` \`${VEC.elementTypeOf(member, generic)}\` slots, ${isVar ? 'persisting across bars' : 'rebuilt each bar'}`
+    + ' — its size and every index must be known before the chart runs',
+    nameTok))
+  return {
+    ...VEC.makeVector({
+      size: 0,
+      elemType: VEC.elementTypeOf(member, generic),
+      persists: !!isVar,
+      at,
+      line: at && at.line,
+      env: new Map(env),
+    }),
+    sizeNode,
+    member,
+    arrayName: nameTok.value,
+  }
+}
+
 function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   const arms = []
   let fallback = null
@@ -6894,6 +9474,17 @@ function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
 function foldStatements(stmts, ctx, env) {
   let value = null
   let i = 0
+  /** ⭐⭐ R2 STEP 1 — THE WALK RECORDS WHAT IT BOUND, PER STATEMENT.
+   *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
+   *  local's value. See `scopeFor`'s header for the defect this replaces. */
+  const record = (st2, name) => {
+    if (!ctx || !ctx.bindingByStatement || !env.has(name)) return
+    // ⭐ A STATEMENT CAN BIND MORE THAN ONE NAME — `[u, d] = f()` binds two —
+    // so the record is a per-statement MAP, not a single binding. R2 step 2.
+    let byName = ctx.bindingByStatement.get(st2)
+    if (!byName) { byName = new Map(); ctx.bindingByStatement.set(st2, byName) }
+    byName.set(name, env.get(name))
+  }
   while (i < stmts.length) {
     const st = stmts[i]
     const toks = st.header
@@ -6955,6 +9546,31 @@ function foldStatements(stmts, ctx, env) {
       throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(first))
     }
 
+    // ⭐⭐ A TUPLE DESTRUCTURE INSIDE A BRANCH (2026-09-11). `[a, b] = f()` is
+    // ordinary inside an `if`, and this folder could not read one: it fell to the
+    // bare-expression arm, `parseWholeExpression` met the `=`, the chain refused,
+    // and every outer `var` the branch assigned came out `pine:reassign` naming a
+    // name whose own statement was fine. Same reader as the top-level walk.
+    //
+    // ⛔ A REFUSAL HERE MUST THROW, not mark-and-continue. The caller is a fold;
+    // carrying on would leave the branch half-read and hand the chain an
+    // environment in which some names silently kept their pre-branch value.
+    if (isPunct(first, '[') && findTop(toks, (t) => isPunct(t, '=')) > 0) {
+      const d = destructureBindings(toks, env, first)
+      if (d && d.bindings) {
+        d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        // ⭐ R2 STEP 2 — and the record keeps BOTH names, so the object pass can
+        // read a destructured local the same way it reads any other.
+        d.names.forEach((n) => record(st, n.value))
+        i += 1
+        continue
+      }
+      if (d) {
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — ${d.why}`, locate(first))
+      }
+    }
+
     const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
     if (mut > 0) {
       const nameTok = toks[mut - 1]
@@ -6984,6 +9600,7 @@ function foldStatements(stmts, ctx, env) {
           tok: toks[mut],
         }
       env.set(nameTok.value, exprBinding(node, new Map(env), locate(nameTok)))
+      record(st, nameTok.value)
       ctx.consumed.add(toks[mut].index)
       i += 1
       continue
@@ -7006,12 +9623,14 @@ function foldStatements(stmts, ctx, env) {
             locate(rhs[0]))
         }
         env.set(nameTok.value, folded.value)
+        record(st, nameTok.value)
         i = folded.next
         continue
       }
       env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
+      record(st, nameTok.value)
       i += 1
       continue
     }
@@ -7075,16 +9694,881 @@ function foldStatements(stmts, ctx, env) {
  *   refusals: Array<object>,
  * }}
  */
+// ─── ⭐⭐ C3B — PINE'S OBJECT STATEMENTS → A CANONICAL OBJECT PROGRAM ────────
+//
+// ⛔ THE TREES COME OUT SEPARATELY, ON PURPOSE. Ops carry `{v:'tree', i}`, not a
+// copied AST, and the document writer turns those indices into V2 graph node
+// references. Inlining the trees here would work and would silently undo C2C's
+// ×48 compaction — a line whose y-coordinate is `close` must be an integer in
+// the saved document, not a second copy of a tree a plot already stores.
+const OBJECT_ENUM_VALUES = Object.freeze({
+  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
+  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
+  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
+  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
+  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
+  'line.style_arrow_both': 'arrow_both',
+  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
+  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
+  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
+  'text.align_top': 'top', 'text.align_bottom': 'bottom',
+  'position.top_left': 'top_left', 'position.top_center': 'top_center',
+  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
+  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
+  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
+  'position.bottom_right': 'bottom_right',
+})
+
+/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
+ *  decides what a style draws; this door only has to carry what was written. */
+const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
+const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
+
+function objectEnumValue(name) {
+  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
+  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
+  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
+  return undefined
+}
+
+function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement) {
+  const collected = collectObjectOps(stmts,
+    { isPunct, findTop, parseArguments, Cursor, boundName })
+  const diagnostics = {
+    loopBlocked: collected.diagnostics.loopBlocked.length,
+    loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
+    getters: [...new Set(collected.diagnostics.getters)].sort(),
+    unsupported: [...new Set(collected.diagnostics.unsupported)].sort(),
+    outOfScope: [...new Set(collected.diagnostics.outOfScope)].sort(),
+    unresolvedValues: 0,
+    droppedOps: 0,
+    // ⛔ A COUNT WITHOUT A REASON IS NOT A DIAGNOSTIC. "16 ops dropped" cannot
+    // tell an engineer whether the guard, the handle or the content was the
+    // gate that refused, and those are three different pieces of work.
+    dropReasons: {},
+  }
+  const dropped = (why) => {
+    diagnostics.droppedOps += 1
+    diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
+  }
+  if (!collected.ops.length) return { program: null, diagnostics }
+
+  const trees = []
+  const byFormula = new Map()
+  /** ⭐ THE SCOPE IN FORCE FOR THE OP BEING BUILT. Set per op from its own
+   *  block-local bindings; `env` when there are none. */
+  let scopeEnv = env
+  const GETTER_RE = /^(line|label|box|table|linefill)\.get_[a-z_0-9]+$/
+  /** Is an object GETTER anywhere in this parse subtree?
+   *
+   *  ⛔⛔ A GETTER READS RUNTIME OBJECT STATE BACK INTO A VALUE, and the V2
+   *  computation graph is pure by construction — there is no node that means
+   *  "whatever that line's x1 is now", and there never can be without making
+   *  the graph depend on the object program that depends on it. So it is
+   *  refused BY NAME, at the value door, wherever it appears — including nested
+   *  inside `str.tostring(line.get_x1(l))`, which is how the corpus writes it.
+   *  Reported rather than folded, because a coordinate quietly replaced by
+   *  `NaN` draws a different chart and says nothing. */
+  const findGetter = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'call' && GETTER_RE.test(String(node.name || ''))) return node.name
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+      const hit = findGetter(node[k], depth + 1)
+      if (hit) return hit
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        const hit = findGetter(a && a.value !== undefined ? a.value : a, depth + 1)
+        if (hit) return hit
+      }
+    }
+    return null
+  }
+  /** A parse node → its canonical tree, or null if this door cannot say it. */
+  /** A parse node → its canonical tree, or null if this door cannot say it.
+   *
+   *  ⭐ R2 — THE SCOPE IS A PARAMETER NOW, AND THAT IS WHAT MAKES INLINING
+   *  POSSIBLE. It defaulted to the closure's `scopeEnv`, which is right for an
+   *  op's own arguments and WRONG the moment a text expression steps inside a
+   *  user function: `f_formatVolume(_vol, …)`'s body reads `_vol`, a name that
+   *  exists only in the frame the caller built. Resolving that against the
+   *  caller's scope answers `undefined` for the parameter and refuses the cell.
+   *  Every existing call site passes nothing and behaves exactly as before. */
+  const canonicalOf = (node, inline, envOverride) => {
+    const getter = findGetter(node)
+    if (getter) { diagnostics.getters.push(getter); return null }
+    try {
+      // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
+      // `inline` is `{bound, args, callerEnv}`, set only while walking a user
+      // function's body, and it routes through the Resolver's OWN frame protocol
+      // so a parameter read three bindings deep resolves exactly as it does for
+      // the numeric lane. See `Resolver.resolveInFrame`.
+      if (inline) {
+        return makeResolver(scopeEnv).resolveInFrame(inline, node)
+      }
+      // ⭐⭐ R2 STEP 1 — THE SCOPE IS HONOURED NOW, because it is finally
+      // trustworthy. `scopeFor` reads the WALK's binding for every block local
+      // and re-parses nothing, so the Resolver built over it sees exactly the
+      // nodes the walk stamped — `boundName` included. Before that fix, handing
+      // this the block scope silently welded a member's `input.int` shut inside
+      // an object coordinate (`objectParams.test.js`), which is why the first
+      // cut of this wave passed `frame` alone and left the block scope unused.
+      // ⛔ `frame` STILL WINS: an inlined user-function body must resolve its
+      // parameters against the caller's arguments, and that frame is layered on
+      // top of whichever scope the op already had.
+      // ⭐⭐ R2 STEP 3 — THE BINDING'S OWN ENV WHEN THE READER IS INSIDE ONE.
+      // A `bound` node followed out of an `if` arm carries the BRANCH's scope,
+      // and the numeric leaves under it (`atrMult`, declared inside that branch)
+      // exist nowhere else. Resolving them against the op's scope answered
+      // "undefined name" and dropped the cell. ⛔ Safe only because `scopeFor`
+      // no longer re-parses — an earlier attempt at this welded a member's input
+      // shut (`objectParams.test.js`), and the re-parse was why.
+      return makeResolver(envOverride || scopeEnv).resolve(node)
+    } catch {
+      diagnostics.unresolvedValues += 1
+      return null
+    }
+  }
+  /** A canonical tree → a `{v:'tree', i}` reference, deduped by formula.
+   *  ⭐ INTERNING HERE IS THE FIRST SHARING PASS; `buildGraph` does the second
+   *  by content digest. Two passes are not redundant: this one keeps the tree
+   *  LIST short, which is what the document actually carries. */
+  const internTree = (ast) => {
+    if (!ast) return null
+    const f = printFormula(ast)
+    if (byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
+    const i = trees.length
+    trees.push(ast)
+    byFormula.set(f, i)
+    return { v: 'tree', tree: i }
+  }
+  const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
+
+  /** A bound name → the expression it holds, so `stateText` can be opened the
+   *  way `staticColourOf` already opens a colour behind a name. */
+  const openName = (node, scope, depth) => {
+    if (!node || node.type !== 'name' || depth > 8) return null
+    const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope }
+    return null
+  }
+
+  /**
+   * ⭐⭐ A TEXT EXPRESSION — the half of the reachable corpus a numeric model
+   * could not reach. See `objectProgram.js`'s own note: 19 of the 27 reachable
+   * scripts are table-driven and a table is made of strings.
+   *
+   * ⛔ IT NEVER INVENTS CONTENT. A piece it cannot read returns null, the
+   * property is refused, and (for a cell's text, which IS the cell) the whole
+   * operation is dropped and counted. A blank cell where the author wrote a
+   * number reads as a working dashboard and is not one.
+   */
+  /** ⭐⭐ R2 STEP 6 — ENUM LEAVES, FOR ENUM SLOTS ONLY.
+   *
+   *  `textNodeOf` refuses a bare `name` it cannot open, which is right in a TEXT
+   *  slot: `position.top_left` is not a caption. In a `position` slot it is the
+   *  whole answer, and `uncharted-volume-v2.pine` reaches it the long way —
+   *  `table.new(f_getTablePos(atrTablePosition), 4, 1)`, a user function whose
+   *  body is a chain of ternaries over an `input.string`, with a `position.*`
+   *  constant at every leaf. Every step of that walk already exists here (step
+   *  2a taught the reader to inline a helper, step 3 to follow a bound node);
+   *  the only thing missing was what to do at the leaf.
+   *
+   *  ⛔ A FLAG AND NOT A PARAMETER, deliberately: `textNodeOf` recurses from
+   *  nine places and threading a sixth positional argument through all of them
+   *  is nine chances to drop it in the one branch that mattered. It is set only
+   *  around `enumNodeOf`'s single call and cleared in a `finally`, so a text
+   *  slot's read is byte-identical to what it was — which is the property
+   *  `textEnumSlot.test.js`'s control asserts. */
+  let enumLeaves = false
+
+  const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
+    if (!node) return null
+    // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
+    //
+    // ⚰️ MEASURED 2026-09-13. The cap was 12, chosen when this reader walked
+    // literals, `+` chains and one ternary. It now also steps into user-function
+    // bodies, tuple parts and `bound` nodes — each of which costs levels — and
+    // `uncharted-volume-v2.pine`'s Volume cell needs THIRTEEN. One level over,
+    // and the cell was dropped with `cell:text`, which reads as "we cannot read
+    // this text" rather than "we stopped early". Its sibling AVol cell is one
+    // concatenation shorter and rendered perfectly, so the two sat side by side
+    // in the same table with no way to tell why only one of them worked.
+    //
+    // ⭐ THE NUMBER IS DERIVED FROM WHAT REAL SCRIPTS NEED, not picked: the
+    // deepest text expression in the 59-script `pine_oos` corpus is 10, and v2's
+    // is 13. `TEXT_MAX_DEPTH` is 64 — roughly five times the deepest measured
+    // shape — so it remains a guard against a cyclic binding while no honest
+    // script can reach it.
+    //
+    // ⛔ AND HITTING IT IS NAMED NOW, never a silent null. A script that does is
+    // recorded with its line, so the next time this number is wrong it says so
+    // instead of dropping a cell and calling it unreadable text.
+    if (depth > TEXT_MAX_DEPTH) {
+      diagnostics.textTooDeep = diagnostics.textTooDeep || []
+      const at = node.tok ? locate(node.tok) : null
+      const entry = `depth>${TEXT_MAX_DEPTH}@${at ? at.line : '?'}`
+      if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+      return null
+    }
+    if (node.type === 'string') return { t: 'lit', s: String(node.value) }
+    if (node.type === 'number') {
+      const ref = internTree({ type: 'num', value: Number(node.value) })
+      return ref ? { t: 'num', tree: ref.tree } : null
+    }
+    if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
+      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
+      if (!ast) return null
+      const ref = internTree(ast)
+      const fmtNode = node.args && node.args[1] && node.args[1].value
+      const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
+      return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+    }
+    // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
+    // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
+    // comes back from a folded tuple part is made of `bound` nodes rather than
+    // `name` nodes and `openName` never sees them. ⛔ ONLY the `expr` kind is
+    // followed: a `state`, `tuplePart` or `opaque` binding reached this way is not
+    // a text expression, and following one blindly would be this reader inventing
+    // a value for a binding kind it does not understand.
+    if (node.type === 'bound' && node.binding && node.binding.kind === 'expr'
+      && node.binding.node) {
+      const viaBinding = textNodeOf(node.binding.node, node.binding.env || scope, depth + 1, inline,
+        node.binding.env || envAt)
+      if (viaBinding) return viaBinding
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const a = textNodeOf(node.left, scope, depth + 1, inline, envAt)
+      const b = textNodeOf(node.right, scope, depth + 1, inline, envAt)
+      if (!a || !b) return null
+      return { t: 'cat', args: [a, b] }
+    }
+    if (node.type === 'ternary') {
+      const cond = resolveTree(node.test, inline, envAt)
+      const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
+      const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
+      if (!cond || !then || !other) return null
+      return { t: 'if', cond, then, else: other }
+    }
+    if (node.type === 'name') {
+      // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
+      // `valueRef` already produces for a table written with a literal position,
+      // so a script that computes its position and one that types it reach the
+      // render state through one vocabulary (`OBJECT_ENUM_VALUES`).
+      if (enumLeaves) {
+        const enumLit = objectEnumValue(node.name)
+        if (enumLit !== undefined) return { t: 'lit', s: String(enumLit) }
+      }
+      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
+      // The Resolver reads one out of `this.frames`; this reader has the same
+      // information in `inline` and answers from the caller's own argument node,
+      // in the caller's own scope. Without it a text parameter (`_unit`) is an
+      // unknown name and the whole cell is dropped.
+      const inFn = inline && inline.bound && Array.isArray(inline.bound.params)
+        ? inline.bound.params.indexOf(node.name) : -1
+      if (inFn >= 0 && inline.args[inFn]) {
+        const argNode = inline.args[inFn].value !== undefined
+          ? inline.args[inFn].value : inline.args[inFn]
+        return textNodeOf(argNode, inline.callerEnv || scope, depth + 1, null)
+      }
+      // ⭐⭐ R2 STEP 2 — A TEXT TUPLE PART. `[tableUnit, tableDivisor] =
+      // f_getVolumeUnit(volDisplay)` binds each name to a `tuplePart` — the
+      // callee, the caller's arguments and an index — exactly as
+      // `destructureBindings` hands it to the numeric lane. The DIVISOR needs
+      // nothing new: it is a number and the ordinary resolver already inlines the
+      // call for it. The UNIT is text, and this is the branch that reads it.
+      if (bound && bound.kind === 'tuplePart' && bound.fn && bound.fn.value
+        && bound.fn.value.kind === 'tuple' && Array.isArray(bound.fn.params)
+        && bound.fn.params.length === (bound.args || []).length
+        && !(bound.args || []).some((a) => a && a.name)) {
+        const held = bound.fn.value.parts[bound.index]
+        if (held && held.node) {
+          const asText = textNodeOf(held.node, scope, depth + 1, {
+            bound: bound.fn, args: bound.args, callerEnv: bound.env || scope,
+            bodyEnv: held.env,
+          })
+          if (asText) return asText
+        }
+      }
+    }
+    // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
+    //
+    // ⚰️ MEASURED ON `uncharted-volume-v2.pine`, 2026-09-13: this branch's
+    // absence dropped BOTH Volume-table cells. The give-up node was
+    // `call|f_formatVolume` at lines 495 and 502 — a three-line helper reading
+    // `str.tostring(_vol / _divisor, '0.00') + _unit`, every piece of which this
+    // reader already understood. What it could not do was step over the call.
+    //
+    // ⛔ IT IS THE RESOLVER'S OWN FRAME, NOT A SECOND SUBSTITUTION. `inline`
+    // carries the callee, the caller's arguments and the caller's scope, and
+    // every value underneath resolves through `Resolver.resolveInFrame` — so a
+    // parameter read three bindings deep behaves exactly as it does for numbers.
+    //
+    // ⛔ NAMED ARGUMENTS AND ARITY ARE REFUSED, NOT GUESSED. Binding positionally
+    // through a named call would silently pair the wrong argument with the wrong
+    // parameter and render a cell that is confidently wrong — the one outcome a
+    // dashboard must never produce.
+    if (node.type === 'call' && node.name) {
+      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
+      //
+      // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
+      // another INSIDE a text expression. One level is inlined through the
+      // Resolver's own frame; two would need the frame CHAIN, and the attempt at
+      // that (push every `parent` outermost-first, which is what
+      // `resolveBinding`'s `param` arm implies) did not resolve. Rather than
+      // ship a half-working chain or let it fail into `unresolvedValues` — a
+      // number with no name on it — the outer call is refused here, recorded
+      // with its own line, and the cell is dropped and counted.
+      //
+      // ⭐ NOTHING IN THE CORPUS NEEDS IT YET: v2's `f_formatVolume` calls no
+      // helper. `nestedTextHelpers` in `objectDiagnostics` is how that stays a
+      // MEASUREMENT — a script that hits this is named, so the item's priority
+      // is a count rather than a guess.
+      if (inline && bound && bound.kind === 'fn') {
+        diagnostics.nestedTextHelpers = diagnostics.nestedTextHelpers || []
+        const at = node.tok ? locate(node.tok) : null
+        const entry = `${node.name}@${at ? at.line : '?'}`
+        if (!diagnostics.nestedTextHelpers.includes(entry)) {
+          diagnostics.nestedTextHelpers.push(entry)
+        }
+        return null
+      }
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.node
+        && Array.isArray(bound.params)
+        && bound.params.length === (node.args || []).length
+        && !(node.args || []).some((a) => a && a.name)) {
+        const inlined = textNodeOf(bound.value.node, scope, depth + 1, {
+          bound, args: node.args, callerEnv: scope,
+        })
+        if (inlined) return inlined
+      }
+    }
+    const opened = openName(node, scope, depth)
+    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+    // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
+    // required a string, so this is a value the author already stringified some
+    // way this door cannot read — carrying the NUMBER is closer to the truth
+    // than carrying nothing, and it is the only branch here that guesses.
+    const ast = canonicalOf(node, inline, envAt)
+    if (!ast) return null
+    const ref = internTree(ast)
+    return ref ? { t: 'num', tree: ref.tree } : null
+  }
+
+  /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
+   *  reachable table scripts colour conditionally far more often than not. */
+  const colorNodeOf = (node, scope, depth = 0) => {
+    if (!node || depth > 12) return null
+    const hex = staticColourOf(node, scope)
+    if (hex) return { c: 'lit', hex }
+    if (node.type === 'ternary') {
+      const cond = resolveTree(node.test)
+      const then = colorNodeOf(node.yes, scope, depth + 1)
+      const other = colorNodeOf(node.no, scope, depth + 1)
+      if (!cond || !then || !other) return null
+      return { c: 'if', cond, then, else: other }
+    }
+    const opened = openName(node, scope, depth)
+    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1)
+    return null
+  }
+
+  const TEXT_SLOTS = new Set(['text', 'tooltip'])
+  const isColourSlot = (k) => k === 'bgcolor' || k.includes('color')
+
+  /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
+   *  enum a reachable script COMPUTES rather than types — measured on the 27:
+   *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
+   *  other enum slot (`style`, `xloc`, `extend`, `text_halign`, …) is written as
+   *  a literal, so widening this set would buy nothing and would put a reader
+   *  that can now produce a LITERAL from a name in front of slots whose current
+   *  refusal is load-bearing. Add a slot here when a script needs it, with the
+   *  script named. */
+  const ENUM_SLOTS = new Set(['position'])
+
+  /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
+   *  Returns a `text` template because that is what the object runtime already
+   *  evaluates per bar — and a position genuinely can vary per bar, since
+   *  `table.set_position` is an ordinary op. */
+  const enumNodeOf = (node, scope) => {
+    enumLeaves = true
+    try { return textNodeOf(node, scope) } finally { enumLeaves = false }
+  }
+
+  const valueRef = (node, slot) => {
+    if (!node) return null
+    if (slot && TEXT_SLOTS.has(slot)) {
+      const t = textNodeOf(node, scopeEnv)
+      return t ? { v: 'text', node: t } : null
+    }
+    if (slot && isColourSlot(slot)) {
+      const c = colorNodeOf(node, scopeEnv)
+      return c ? { v: 'color', node: c } : null
+    }
+    // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
+    // plain `position.top_right`, so nothing that resolved before changes shape;
+    // this is only reached for the name a script COMPUTED, which used to be a
+    // dropped prop and a table silently anchored to `top_right`, Pine's default,
+    // in the opposite corner from the one the author asked for.
+    if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
+      const e = enumNodeOf(node, scopeEnv)
+      if (e) return { v: 'text', node: e }
+    }
+    if (node.type === 'string') return { v: 'const', value: node.value }
+    if (node.type === 'colour') return { v: 'const', value: node.value }
+    if (node.type === 'name') {
+      if (node.name === 'bar_index') return { v: 'bar' }
+      if (node.name === 'time') return { v: 'time' }
+      const e = objectEnumValue(node.name)
+      if (e !== undefined) return { v: 'const', value: e }
+      const opened = openName(node, scopeEnv, 0)
+      if (opened) {
+        const e2 = opened.node.type === 'name' ? objectEnumValue(opened.node.name) : undefined
+        if (e2 !== undefined) return { v: 'const', value: e2 }
+      }
+    }
+    const hex = staticColourOf(node, scopeEnv)
+    if (hex) return { v: 'const', value: hex }
+    if (node.type === 'number') return { v: 'const', value: Number(node.value) }
+    return resolveTree(node)
+  }
+
+  /** ⛔⛔ A COUNT IS NOT A DIAGNOSTIC, AND A DROPPED PROP IS NOT ALL THE SAME
+   *  THING. `droppedProps: 10` cannot tell an engineer that ONE of those ten was
+   *  a table's `position` — the property that decides which corner of the
+   *  member's chart a dashboard lands in, and the one place where a fallback is
+   *  an invented answer rather than Pine's own default.
+   *
+   *  ⚰️ MEASURED ON `uncharted-volume-v2.pine`: `table.new(f_getTablePos(volPosName), …)`
+   *  where `volPosName = hasRecentHV ? 'Top Center' : volTablePosition` — a
+   *  string chosen at RUNTIME, so the comparison inside the helper cannot fold to
+   *  a numeric condition and the whole enum read refuses. The renderer then uses
+   *  `OBJECT_DEFAULTS.table.position`, which is `top_right`; for v2's Volume
+   *  table that happens to be the corner the vendor draws, and a coincidence is
+   *  not a result. Named here so it reads as the approximation it is.
+   *  ⏭ ROUTED: distributing a call over a ternary ARGUMENT (`f(c ? a : b)` →
+   *  `c ? f(a) : f(b)`) is what would resolve it, and it is its own capability. */
+  const dropProp = (family, k, node) => {
+    diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.droppedPropNames = diagnostics.droppedPropNames || []
+    if (!diagnostics.droppedPropNames.includes(entry)) {
+      diagnostics.droppedPropNames.push(entry)
+    }
+  }
+
+  /** ⛔ GEOMETRY IS REQUIRED, STYLING IS NOT. A line with no `y1` is not a line
+   *  and must be dropped; a line with no `style` is a line drawn solid, which is
+   *  Pine's own default. Conflating the two either loses whole objects to a
+   *  colour this door cannot read, or draws objects at coordinate zero. */
+  const REQUIRED = {
+    line: new Set(['x1', 'y1', 'x2', 'y2']),
+    label: new Set(['x', 'y']),
+    box: new Set(['left', 'top', 'right', 'bottom']),
+    table: new Set(),
+    linefill: new Set(['line1', 'line2']),
+  }
+
+  /** ⛔⛔ CONTENT IS NOT STYLING. If the author WROTE a caption and this door
+   *  cannot carry it, the object is dropped rather than drawn empty — a
+   *  captionless label at the right price reads as "the author labelled nothing
+   *  here", which is a claim they never made. Same rule as a table cell, whose
+   *  text IS the cell. An ABSENT caption is fine: `label.new(x, y)` is a legal
+   *  Pine marker and stays one. */
+  const CONTENT = { label: new Set(['text']), box: new Set(['text']) }
+
+  // ── registers and collections, with GENERATED ids ─────────────────────────
+  // ⛔ A PINE NAME IS NOT AN ID. `assertObjectProgram` requires `^[a-z][a-z0-9_]*$`
+  // and Pine names are freely cased, so the mapping is explicit rather than a
+  // lowercase() that would collide `Box` with `box`.
+  const regId = new Map()
+  const collId = new Map()
+  const regs = []
+  const colls = []
+  const locals = []
+  for (const [name, d] of collected.decls) {
+    if (d.kind === 'coll') {
+      const id = `c${colls.length}`
+      collId.set(name, id)
+      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP })
+    } else {
+      const id = `r${regs.length}`
+      regId.set(name, id)
+      regs.push({ id, family: d.family })
+      if (d.kind === 'local') locals.push(id)
+    }
+  }
+
+  const targetRef = (argNode) => {
+    const v = argNode && argNode.value
+    if (!v) return null
+    if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
+    if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
+      const cn = v.args[0] && v.args[0].value
+      if (cn && cn.type === 'name' && collId.has(cn.name)) {
+        const idx = valueRef(v.args[1] && v.args[1].value)
+        if (idx) return { r: 'coll', id: collId.get(cn.name), index: idx }
+      }
+    }
+    return null
+  }
+
+  /**
+   * The guard stack → ONE canonical tree, then one reference to it.
+   *
+   * ⛔⛔ THE COMBINATION HAPPENS IN THE TREE, NOT IN THE VALUE VOCABULARY. It
+   * would have been easy to invent `{v:'and', …}` / `{v:'not', …}` reference
+   * kinds; that would put a second boolean algebra in the repo, one the V2
+   * graph could not share, could not hash, and could not fold. `a and not b` is
+   * an ordinary canonical expression, so it interns, dedupes and evaluates
+   * through exactly the machinery every plot already uses.
+   *
+   * ⚠️ An `else` branch is `!(previous condition)`, which is the honest reading
+   * of Pine's own semantics and NOT the same as "the condition is false" when
+   * the condition is `na` — `!` on `na` stays `na`, and `evaluateObjects` treats
+   * a non-finite guard as "did not fire". A drawing that appears during warmup
+   * is worse than one that appears a bar late.
+   */
+  /** `na(x)` / `not na(x)` over a bare name → `{name, negated}`, else null. */
+  const readNaGuard = (node) => {
+    if (!node) return null
+    if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
+      const inner = readNaGuard(node.arg)
+      return inner ? { ...inner, negated: !inner.negated } : null
+    }
+    if (node.type === 'call' && node.name === 'na' && node.args && node.args.length === 1) {
+      const a = node.args[0] && node.args[0].value
+      if (a && a.type === 'name') return { name: a.name, negated: false }
+    }
+    return null
+  }
+
+  const guardOf = (guards) => {
+    let acc = null
+    let lastBarOnly = false
+    let requiresLive = null
+    let requiresEmpty = null
+    for (const g of guards) {
+      let node
+      try { node = parseWholeExpression(g.toks) } catch { return undefined }
+      // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
+      // `BUILTIN_CONSTANT_TREE` deliberately refuses it, and that ruling is
+      // right for a SCAN: "the last bar" depends on how many bars were asked
+      // for, so a screener column built on it would disagree with itself
+      // between a 500-bar and a 5,000-bar request. An OBJECT PROGRAM is not a
+      // column — it is a picture of the chart as it stands, and the chart has
+      // exactly one last bar. `if barstate.islast` is the corpus's own idiom
+      // for "draw the dashboard once", used by most of the reachable table
+      // scripts, so refusing it here would cost the population C3B targets for
+      // a reason that does not apply to it.
+      // ⛔ IT NEVER BECOMES A GRAPH NODE. It is lifted OUT of the expression
+      // into a flag on the operation, so no tree, no hash and no screener
+      // column can ever contain it.
+      if (!g.negate) {
+        const split = splitLastBar(node)
+        if (split.isLast) {
+          lastBarOnly = true
+          if (!split.rest) continue
+          node = split.rest
+        }
+      }
+      // ⭐⭐ `na(l)` ON AN OBJECT REFERENCE IS A LIVENESS TEST, NOT ARITHMETIC.
+      // The V2 graph has no node for "is that handle empty", and it must not —
+      // that is object state, and a pure graph cannot read it. But the two
+      // idioms the corpus writes are exactly answerable by the RUNTIME, which
+      // holds the register:
+      //
+      //   if not na(l)   → run only while the handle is live
+      //   if na(l)       → run only while it is empty (the "create one if we
+      //                     haven't got one" idiom)
+      //
+      // Lifted out of the expression into flags for the same reason
+      // `barstate.islast` is: so no tree, hash or screener column can ever
+      // contain them.
+      const naRef = readNaGuard(node)
+      if (naRef && regId.has(naRef.name)) {
+        if (g.negate ? naRef.negated : !naRef.negated) requiresEmpty = regId.get(naRef.name)
+        else requiresLive = regId.get(naRef.name)
+        continue
+      }
+      const ast = canonicalOf(node)
+      if (!ast) return undefined
+      const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
+      acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
+    }
+    const extra = {
+      ...(lastBarOnly ? { lastBarOnly: true } : {}),
+      ...(requiresLive ? { requiresLive } : {}),
+      ...(requiresEmpty ? { requiresEmpty } : {}),
+    }
+    if (acc === null) return { when: null, extra }
+    const ref = internTree(acc)
+    return ref === null ? undefined : { when: ref, extra }
+  }
+
+  const namedOrPositional = (args, order) => {
+    const out = {}
+    const positional = args.filter((a) => !a.name)
+    positional.forEach((a, i) => { if (order[i]) out[order[i]] = a.value })
+    for (const a of args) if (a.name) out[a.name] = a.value
+    return out
+  }
+
+  /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
+   *  conjuncts are lifted; anything else stays in the expression and refuses. */
+  const splitLastBar = (node) => {
+    if (!node) return { rest: node, isLast: false }
+    if (node.type === 'name' && node.name === 'barstate.islast') return { rest: null, isLast: true }
+    if (node.type === 'binary' && (node.op === 'and' || node.op === '&&')) {
+      const a = splitLastBar(node.left)
+      const b = splitLastBar(node.right)
+      if (!a.isLast && !b.isLast) return { rest: node, isLast: false }
+      const rest = a.rest && b.rest
+        ? { type: 'binary', op: node.op, left: a.rest, right: b.rest, tok: node.tok }
+        : (a.rest || b.rest)
+      return { rest, isLast: true }
+    }
+    return { rest: node, isLast: false }
+  }
+
+  /** An op's block-local bindings → a resolver scope layered over `env`.
+   *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
+   *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
+  const scopeCache = new Map()
+  /** An op's block-local bindings → a resolver scope layered over `env`.
+   *
+   *  ⛔⛔ IT READS THE WALK'S OWN BINDING AND RE-PARSES NOTHING. ⚰️ MEASURED
+   *  2026-09-13: this used to rebuild every name from its tokens
+   *  (`parseWholeExpression(b.toks)`), which is a SECOND reader of the same
+   *  source — and the two disagreed invisibly. `stampInputName` marks an
+   *  `input.*` call node with the name it was bound to, and only the WALK does
+   *  that; a re-parse hands back a fresh node without it, so `declareInputs`
+   *  found nothing to mint and a member's knob folded to its literal DEFAULT.
+   *  The plot on the same document honoured the knob and the object coordinate
+   *  did not, from one line of duplicated reading.
+   *
+   *  ⭐ Joined on the STATEMENT OBJECT, which both walks share, so two locals of
+   *  the same name in sibling blocks can never be mistaken for each other.
+   *
+   *  ⚠️ `unboundLocals` COUNTS WHAT THE WALK NEVER BOUND rather than guessing at
+   *  it. A true block local inside a block `foldIfChain` refused has no walk
+   *  binding to read, and this reports the residue instead of quietly inventing
+   *  one — the number is in `objectDiagnostics`, so "the walk covers everything"
+   *  is a measurement and not a hope.
+   *
+   *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
+   *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
+  const scopeFor = (locals) => {
+    if (!locals || !locals.length) return env
+    if (scopeCache.has(locals)) return scopeCache.get(locals)
+    const scoped = new Map(env)
+    for (const b of locals) {
+      const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
+      const bound = byName ? byName.get(b.name) : null
+      if (bound) { scoped.set(b.name, bound); continue }
+      // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
+      // widened what the collector records (typed declarations, `:=` targets),
+      // and the counter promptly read 98 over 14 names — every one of them a
+      // TOP-LEVEL `var float volD = na` the walk binds perfectly well as state,
+      // just not through `recordTop`. The copied `env` already carries those, so
+      // the object pass was never short of them; the number was measuring the
+      // record's coverage rather than the resolver's. A diagnostic that cries
+      // wolf gets muted, and this one is load-bearing for steps 2 and 3.
+      if (scoped.has(b.name)) continue
+      diagnostics.unboundLocals = (diagnostics.unboundLocals || 0) + 1
+      diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
+      if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)
+    }
+    scopeCache.set(locals, scoped)
+    return scoped
+  }
+
+  const ops = []
+  // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
+  // register would let yesterday's object survive into a bar where Pine had `na`.
+  // Clearing them first, every bar, is exactly what Pine does.
+  for (const id of locals) ops.push({ k: 'setreg', reg: id, value: null, when: null })
+
+  for (const op of collected.ops) {
+    scopeEnv = scopeFor(op.locals)
+    const g = guardOf(op.guards)
+    if (g === undefined) { dropped(`guard:${op.k}`); continue }
+    const when = g.when
+    const lastBarOnly = g.extra
+    if (op.k === 'create') {
+      const order = CREATE_POSITIONAL[op.family] || []
+      const raw = namedOrPositional(op.args, order)
+      const props = {}
+      let bad = false
+      const required = REQUIRED[op.family] || new Set()
+      for (const [k, node] of Object.entries(raw)) {
+        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) continue
+        if (op.family === 'linefill' && (k === 'line1' || k === 'line2')) {
+          const r = targetRef({ value: node })
+          if (!r) { bad = true; break }
+          props[k] = r
+          continue
+        }
+        const v = valueRef(node, k)
+        if (!v) {
+          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) { bad = true; break }
+          dropProp(op.family, k, node)
+          continue
+        }
+        props[k] = v
+      }
+      // ⛔ AND A REQUIRED PROPERTY THAT WAS NEVER WRITTEN IS ALSO FATAL.
+      // `label.new(x, y)` with `y` absent is not a label at a default height —
+      // Pine has no default there, so neither may this.
+      if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
+      if (bad) { dropped(`create:${op.family}`); continue }
+      ops.push({
+        k: 'create',
+        family: op.family,
+        site: op.site,
+        into: op.into && regId.has(op.into) ? regId.get(op.into) : null,
+        when,
+        ...(op.once ? { once: true } : {}),
+        ...lastBarOnly,
+        props,
+      })
+    } else if (op.k === 'update') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('update:target'); continue }
+      const props = {}
+      let bad = false
+      op.props.forEach((name, i) => {
+        const node = op.args[i] && op.args[i].value
+        const v = node ? valueRef(node, name) : null
+        if (!v) bad = true
+        else props[name] = v
+      })
+      if (bad || !Object.keys(props).length) { dropped('update:props'); continue }
+      ops.push({ k: 'update', target, when, ...lastBarOnly, props })
+    } else if (op.k === 'delete') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('delete:target'); continue }
+      ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    } else if (op.k === 'cell') {
+      const target = targetRef(op.target)
+      const col = op.col ? valueRef(op.col.value) : null
+      const row = op.row ? valueRef(op.row.value) : null
+      if (!target) { dropped('cell:target'); continue }
+      if (!col || !row) { dropped('cell:address'); continue }
+      const raw = namedOrPositional(op.args, CELL_POSITIONAL)
+      const props = {}
+      let badCell = false
+      for (const [k, node] of Object.entries(raw)) {
+        if (!OBJECT_CELL_PROPS.includes(k)) continue
+        const v = valueRef(node, k)
+        if (!v) {
+          // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
+          // is dropped, never emitted blank: an empty cell in a dashboard reads
+          // as "the value is empty", which is a different and worse claim than
+          // "we could not import this row".
+          if (k === 'text') { badCell = true; break }
+          dropProp('cell', k, node)
+          continue
+        }
+        props[k] = v
+      }
+      if (badCell) { dropped('cell:text'); continue }
+      ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k.startsWith('coll_')) {
+      const id = collId.get(op.coll)
+      if (!id) { dropped('coll:unknown'); continue }
+      const method = op.k.slice('coll_'.length)
+      if (method === 'push') {
+        const value = targetRef(op.args[0])
+        if (!value) { dropped('coll:push'); continue }
+        ops.push({ k: 'push', coll: id, value, when, ...lastBarOnly })
+      } else if (method === 'set') {
+        const index = op.args[0] ? valueRef(op.args[0].value) : null
+        const value = targetRef(op.args[1])
+        if (!index || !value) { dropped('coll:set'); continue }
+        ops.push({ k: 'collset', coll: id, index, value, when, ...lastBarOnly })
+      } else if (method === 'remove') {
+        const index = op.args[0] ? valueRef(op.args[0].value) : null
+        if (!index) { dropped('coll:remove'); continue }
+        ops.push({ k: 'collremove', coll: id, index, when, ...lastBarOnly })
+      } else if (method === 'shift') {
+        ops.push({ k: 'collremove', coll: id, index: { v: 'const', value: 0 }, when, ...lastBarOnly })
+      } else if (method === 'clear') {
+        ops.push({ k: 'collclear', coll: id, when, ...lastBarOnly })
+      } else {
+        diagnostics.unsupported.push(`array.${method}`)
+        dropped(`coll:${method}`)
+      }
+    }
+  }
+
+  // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
+  // envelope is read rather than invented — and clamped to ours, because a
+  // script asking for 500 boxes must not be able to ask for 50,000.
+  const limits = {}
+  for (const m of String(source).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
+    const fam = { lines: 'line', labels: 'label', boxes: 'box' }[m[1]]
+    if (fam) limits[fam] = Math.min(Number(m[2]), DEFAULT_OBJECT_LIMITS[fam])
+  }
+
+  // ⛔ EVERY REGISTER AND COLLECTION THAT NOTHING USES IS DROPPED. A declared
+  // `var line l = na` whose every write was refused would otherwise ship as a
+  // register that can never hold anything — shape without meaning.
+  const usedRegs = new Set()
+  const usedColls = new Set()
+  for (const o of ops) {
+    if (o.into) usedRegs.add(o.into)
+    if (o.reg) usedRegs.add(o.reg)
+    if (o.coll) usedColls.add(o.coll)
+    for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
+      if (r && r.r === 'reg') usedRegs.add(r.id)
+      if (r && r.r === 'coll') usedColls.add(r.id)
+    }
+  }
+  const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
+  if (!keptOps.some((o) => o.k === 'create')) return { program: null, diagnostics }
+
+  return {
+    program: {
+      programVersion: OBJECT_PROGRAM_VERSION,
+      regs: regs.filter((r) => usedRegs.has(r.id)),
+      colls: colls.filter((c) => usedColls.has(c.id)),
+      ops: keptOps,
+      trees,
+      ...(Object.keys(limits).length ? { limits } : {}),
+    },
+    diagnostics,
+  }
+}
+
 export function translatePine(source, opts = {}) {
   const table = opts.table || TABLE
   const blank = {
     ok: false, version: null, declaration: null, title: null,
     outputs: [], selected: -1, notes: [], refusal: null, refusals: [],
+    inputParams: [],
   }
 
   if (typeof source !== 'string' || source.trim() === '') {
     return { ...blank, refusal: refusalValue('pine:empty', REFUSALS['pine:empty'], null), refusals: [refusalValue('pine:empty', REFUSALS['pine:empty'], null)] }
   }
+
+  // ⭐ THE BUDGET WINDOW OPENS HERE and closes in the `finally` at the end of
+  // this function, so every phase — resolve, print, round-trip, object pass —
+  // is inside it. Opening it any later would leave the phase that actually hangs
+  // outside the guard, which is the mistake this guard was written to correct.
+  beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  try {
+  // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
+  let overlay = null
+  const levels = []
+  /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
+   *  Resolved to output indexes after the outputs are known, because a fill may
+   *  legally appear before either plot it joins. */
+  const fills = []
 
   let lexed
   try {
@@ -7094,7 +10578,7 @@ export function translatePine(source, opts = {}) {
     return { ...blank, refusal: r, refusals: [r] }
   }
 
-  const { tokens, indents, version, lines } = lexed
+  const { tokens, indents, version, lines, rawOffsetMap } = lexed
   if (tokens.length === 0) {
     const r = refusalValue('pine:empty', REFUSALS['pine:empty'], null)
     return { ...blank, version, refusal: r, refusals: [r] }
@@ -7107,6 +10591,13 @@ export function translatePine(source, opts = {}) {
   let declaration = null
   let title = null
   const hardRefusals = []
+  // ⭐⭐ TRACK F (DEC-006) — created ONCE per `translatePine` call (never per
+  // output/per-Resolver, see `Resolver.paramMint`'s own comment for why),
+  // `null` unless `opts.paramManifest` asked for it — the same opt-in, off-
+  // by-default contract `declareInputs`/`inputValues` already keep.
+  const paramMint = opts.paramManifest
+    ? { counter: 0, byNode: new Map(), metadata: [] }
+    : null
 
   // ⭐ EVERY REASSIGNMENT FIRST, over raw tokens, before a single statement is
   // read. See `reassignedNames` — the walk folds what it can and this map is what
@@ -7116,7 +10607,69 @@ export function translatePine(source, opts = {}) {
    *  name. Filled as each `f(…) =>` body is folded, read by
    *  `Resolver.guardOffsetOfMutable`. See that guard for the measurement. */
   const finalLocals = new Set()
-  const ctx = { consumed: new Set() }
+  /** ⭐⭐ R2 STEP 1 — STATEMENT → THE BINDING THIS WALK MADE FOR IT.
+   *
+   *  ⛔⛔ THE ONE AUTHORITY FOR A BLOCK LOCAL'S VALUE. `buildObjectProgram`'s
+   *  `scopeFor` used to rebuild every name it needed by re-parsing the
+   *  statement's tokens, which is a SECOND reader of the same source and it
+   *  disagreed with this one in a way nothing could see: a re-parsed
+   *  `off = input.int(5, "Offset")` is a fresh call node with no `boundName`
+   *  stamped on it, so `declareInputs` could not mint an identifier and the
+   *  member's knob folded to the literal 5 — inside object coordinates only,
+   *  while every plot on the same document honoured it.
+   *
+   *  Keyed by the STATEMENT OBJECT, which both walks share (`blockStatements`
+   *  runs once and the same array reaches `buildObjectProgram`), so the join
+   *  needs no name matching and cannot mis-pair two locals of the same name in
+   *  sibling blocks. */
+  const bindingByStatement = new Map()
+  /** The same per-statement record the block folder keeps — see `record` inside
+   *  `foldStatements`. One statement may bind several names (`[u, d] = f()`). */
+  const recordTop = (stmt2, name) => {
+    if (!env.has(name)) return
+    let byName = bindingByStatement.get(stmt2)
+    if (!byName) { byName = new Map(); bindingByStatement.set(stmt2, byName) }
+    byName.set(name, env.get(name))
+  }
+  const ctx = { consumed: new Set(), bindingByStatement }
+
+  /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
+   *  LOCALS ARE BOUND BY SOMEBODY.
+   *
+   *  ⛔ THIS IS A SCHEDULER, NOT A SECOND READER. Every binding is still made by
+   *  `foldStatements` — the one function that reads the inside of an `if` — with
+   *  its own `exprBinding`, its own `stampInputName` and its own refusals. All
+   *  this adds is WHERE to point it: one call per block level, because
+   *  `foldStatements` stops at the first construct it cannot fold and the corpus
+   *  nests its dashboards two deep (`if barstate.islast` → `if showTable` → the
+   *  cells). Without the recursion the outer call throws on the inner `if` and
+   *  nothing inside it is ever bound — measured on v2 as 41 unbound locals across
+   *  20 names, every one of them a table cell's content.
+   *
+   *  ⛔ `env` IS NEVER TOUCHED. Each level folds into a CHILD map, so a block
+   *  local cannot leak to a scope the member cannot see it from; the child is
+   *  passed down so an inner block still reads its outer block's names.
+   *
+   *  ⚠️ THROWING IS THE NORMAL CASE and is swallowed on purpose — the chain was
+   *  already refused and its refusal already reported. What is kept is whatever
+   *  was bound before the throw, which is exactly as authoritative as a binding
+   *  from a chain that folded: same reader, same constructor. */
+  const harvestBlockLocals = (list, baseEnv) => {
+    if (!list || !list.length) return
+    const scope = new Map(baseEnv)
+    // ⛔⛔ ITS OWN `consumed` SET, SHARING ONLY THE RECORD. ⚰️ MEASURED: with the
+    // walk's own ctx, the harvest marked mutator tokens consumed that the walk
+    // had deliberately left alone, and two corpus rails moved —
+    // `pine.boolcast` ("the fold still fires inside it") and
+    // `pine.community.guards` ("every refusing script refuses at exactly this
+    // guard, line and token"). A harvest whose only job is to BIND names must
+    // not be able to change which guard a script refuses at.
+    const harvestCtx = { consumed: new Set(), bindingByStatement }
+    try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
+    for (const st2 of list) {
+      if (st2 && st2.sub && st2.sub.length) harvestBlockLocals(st2.sub, scope)
+    }
+  }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
   const unfoldable = new Map()
@@ -7148,6 +10701,12 @@ export function translatePine(source, opts = {}) {
       isFunction: false,
       message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
       at: at || null,
+      // ⭐ R7a — THE EXTRA IS KEPT ALONGSIDE THE COMPOSED MESSAGE. A later marker
+      // that must re-place this refusal at a different LINE can then carry the same
+      // REASON forward instead of falling back to the bare guard text. Without it,
+      // re-forcing means re-composing, and re-composing means losing whatever the
+      // first caller knew.
+      reason: extra || null,
     })
   }
 
@@ -7171,73 +10730,23 @@ export function translatePine(source, opts = {}) {
     const toks = stmt.header
     const first = toks[0]
 
-    // `[a, b] = f()` — a tuple destructure.
+    // `[a, b] = f()` — a tuple destructure, read by the SHARED reader so this
+    // walk and `foldStatements` can never disagree about one construct.
     if (isPunct(first, '[')) {
-      const close = toks.findIndex((t) => isPunct(t, ']'))
-      const names = toks.slice(1, close < 0 ? toks.length : close)
-        .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
-
-      // ⭐⭐ `ta.dmi(diLen, adxLen)` — THE ONE BUILTIN TUPLE IN THE CORPUS, and it
-      // is an exact mapping rather than a judgement: Pine answers
-      // `[+DI, -DI, ADX]` and this table declares all three by name.
-      //
-      // ⛔ THE TWO PERIODS MUST MATCH. Pine smooths the ADX over its SECOND
-      // argument while the DI legs use the first; this table's `adx` takes one
-      // period for both. `ta.dmi(14, 20)` therefore refuses rather than quietly
-      // returning a 14/14 ADX — the identical decision `ADX14.20` already makes
-      // on the TC2000 side, and the same reason: a member who asked for 14/20
-      // must not be shown a number that is not the indicator they asked for.
-      const dmi = close >= 0 && eqAtDmi(toks, close) >= 0
-        ? dmiParts(toks, close, names, env, first)
-        : null
-      // ⭐ AND THE OTHER BUILT-IN TUPLES, ASKED THE SAME WAY. `ta.bb` and
-      // `ta.macd` are the two a screener actually destructures.
-      const builtinTuple = close >= 0 && !dmi
-        ? builtinTupleParts(toks, close, names, env, first)
-        : null
-      if (builtinTuple) {
-        names.forEach((n, k) => env.set(n.value, builtinTuple[k]))
+      const d = destructureBindings(toks, env, first)
+      if (d && d.bindings) {
+        d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        // ⭐ R2 STEP 2 — both names recorded, same as the block folder's site.
+        d.names.forEach((n) => recordTop(stmt, n.value))
         continue
       }
-      if (dmi) {
-        names.forEach((n, k) => env.set(n.value, dmi[k]))
-        continue
-      }
-
-      // ⭐ A TUPLE-RETURNING USER FUNCTION HANDS OUT ITS PARTS BY POSITION.
-      // `[a, b] = f(x)` makes `a` element 0 of that call and `b` element 1; the
-      // call itself is inlined per part by `resolveBinding`'s `tuplePart` arm.
-      //
-      // ⛔⛔ THE `kind === 'tuple'` CHECK IS THE WHOLE SAFETY OF THIS FEATURE.
-      // Without it `request.security` — 42 of the 63 destructures in this corpus
-      // — would hand its FIRST element to a name expecting its third: a
-      // translation that parses, lints, saves, scans and is silently WRONG.
-      // Anything this engine cannot take apart must keep refusing by name.
-      const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
-      let parsedRhs = null
-      if (close >= 0 && eq > close && names.length > 0) {
-        const rhs = toks.slice(eq + 1)
-        let call = null
-        try { call = parseWholeExpression(rhs) } catch { call = null }
-        parsedRhs = call
-        const callee = call && call.type === 'call' ? env.get(call.name) : null
-        const value = callee && callee.kind === 'fn' ? callee.value : null
-        if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
-          const callerEnv = new Map(env)
-          names.forEach((n, k) => env.set(n.value, {
-            kind: 'tuplePart', fn: callee, args: call.args, index: k,
-            env: callerEnv, at: locate(n),
-          }))
-          continue
+      if (d) {
+        for (const n of d.names) {
+          markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${d.why}`)
         }
+        notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${d.why}`, first))
+        continue
       }
-
-      const why = tupleRefusalTail(parsedRhs, names, env)
-      for (const n of names) {
-        markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${why}`)
-      }
-      notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${why}`, first))
-      continue
     }
 
     if (first.kind !== 'ident') {
@@ -7252,6 +10761,9 @@ export function translatePine(source, opts = {}) {
       declaration = word
       const firstString = toks.find((t) => t.kind === 'string')
       title = firstString ? firstString.value : null
+      // ⭐⭐ WAVE B: THE AUTHOR'S PANE INTENT IS NOW READ. It always sat right
+      // here in the tokens and was walked past.
+      overlay = declarationOverlay(toks)
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
@@ -7279,6 +10791,20 @@ export function translatePine(source, opts = {}) {
       // ⭐ THE SAME BINDING THE BODY WALKER MAKES — see `stateBinding`. ⛔ And the
       // same `varip` exclusion, for the same reason: it persists across INTRABAR
       // TICKS, which a closed-bar engine cannot reproduce at all.
+      // ⭐⭐ WAVE 2 (a) — AND THIS IS WHERE `var x = array.new…(n)` REALLY GOES.
+      //
+      // ⚰️ It was invisible before, and not for the reason anyone guessed: the
+      // parser makes an ordinary call node for `array.new(...)` — only RESOLVE
+      // refuses a collection — so `stateBinding` accepted it silently, stored it
+      // as state, and nothing was refused, noted or recorded. The lane's own
+      // contract says a statement nothing reaches is "a NOTE, listed, never
+      // silently dropped"; this one was dropped. Measured on
+      // `uncharted-clouds.pine` line 57 by instrumenting the walk, 2026-09-14.
+      if (word === 'var' && nameTok && eq > 0) {
+        const vec = vectorFromRhs(toks.slice(eq + 1), nameTok, true, env, notes, markOpaque)
+        if (vec) { env.set(nameTok.value, vec); continue }
+        if (vec === false) continue
+      }
       if (word === 'var' && nameTok && eq > 0) {
         try {
           env.set(nameTok.value, stateBinding(
@@ -7332,12 +10858,123 @@ export function translatePine(source, opts = {}) {
             if (!unfoldable.has(name)) unfoldable.set(name, r)
           }
         }
+        // ⭐⭐ R2 STEP 1 — A REFUSED CHAIN STILL YIELDS ITS BLOCK LOCALS, THROUGH
+        // THE SAME READER.
+        //
+        // `foldIfChain` refuses a block that contains object statements, which is
+        // every table-populating block in the corpus — and until now the names
+        // those blocks declare (`rangeText`, `volCellText`, …) were bound by
+        // NOBODY. `buildObjectProgram` filled the hole by re-parsing their tokens,
+        // and that second reader is what silently stripped `boundName` off an
+        // `input.*` node. Measured on `uncharted-volume-v2.pine`: 41 locals across
+        // 20 names had no walk binding at all.
+        //
+        // ⛔ IT REUSES `foldStatements` RATHER THAN WALKING THE BLOCK AGAIN. That
+        // function IS this walk's reader for the inside of an `if`, it already
+        // records every binding it makes, and a second traversal here would be
+        // the very duplication this step exists to delete. It is expected to
+        // throw — that is why the chain was refused — and every binding it made
+        // before throwing is already recorded and is exactly as authoritative as
+        // one from a chain that folded.
+        //
+        // ⛔ THE VALUE IS DISCARDED AND `env` IS NEVER TOUCHED: a block local is
+        // not visible outside its block, and leaking one here would let a name
+        // the member cannot see resolve at the top level.
+        for (let k = si - 1; k < last; k += 1) harvestBlockLocals(stmts[k].sub, env)
         si = last
       }
       continue
     }
     if (BLOCK_KEYWORDS.has(word)) {
+      // ⭐⭐ a3 — AN UNROLLABLE `for` IS RECORDED AGAINST THE VECTORS IT WRITES,
+      // and this branch is left entirely alone otherwise. A loop whose body this
+      // recorder cannot read, or that writes no vector, falls through to the
+      // note and the opaque forcing exactly as before — including every `while`
+      // and `switch`, which are not unrolled at all (F4: 15 of 116 `while`
+      // guards are admissible, below the pre-committed ~20, so `while` is out).
+      const pending = word === 'for' ? pendingUnrollFrom(stmt, env) : null
+      if (pending) {
+        let attached = 0
+        for (const name of pending.targets) {
+          const prior = env.get(name)
+          if (prior && prior.kind === 'vector') {
+            prior.pending = (prior.pending || []).concat([pending])
+            attached += 1
+          }
+        }
+        if (attached === pending.targets.size) continue
+      }
       notes.push(noteOf('pine:block', REFUSALS['pine:block'], first))
+      // 🔴🔴 SILENT_WRONG_RESULT GUARD — a top-level `for`/`while`/switch this
+      // walker cannot fold is exactly the case the closing pass (below) exists
+      // to catch, but the closing pass runs ONCE, after every statement has
+      // already been walked. Any ordinary binding built *before* it runs
+      // (`screen = ... and distDays <= 3 and ...`) captures `new Map(env)` —
+      // a SNAPSHOT — at that moment, and the Resolver later reads a name
+      // through such a binding using ITS OWN stored snapshot
+      // (`this.env = bound.env`, not the live env) — so a correction the
+      // closing pass makes afterward can never reach it. Forcing the block's
+      // mutated names opaque HERE, the instant the walk gives up on them,
+      // means every snapshot taken from this point on already sees the
+      // refusal. Confirmed reproduction: `volume-dollar-volume-money-flow.pine`
+      // silently folded `distDays` (mutated only inside this loop) to its
+      // pre-loop value `0` inside `screen`'s formula instead of refusing.
+      for (const name of mutatorTargets(stmt.body)) {
+        // ⚰️⚰️ READ THE BINDING BEFORE OVERWRITING IT. `forceOpaque` sets
+        // `env[name] = {kind:'opaque', …}`, so the `prior.kind === 'vector'` test
+        // below — the whole reason the vector-specific sentence exists — was reading
+        // the binding this line had ALREADY replaced. It was never once true, and the
+        // better message under it was dead code from the day it was written.
+        // Measured 2026-09-14 at a4: a `while`-filled array refused
+        // `pine:reassign — a name that is reassigned later cannot be folded into one
+        // expression — a`, which is true of a scalar and says nothing about an array
+        // whose slots are unknown.
+        const prior = env.get(name)
+        // ⭐ R7 — a SCALAR accumulator gets the reason, not just the verdict. A vector
+        // target takes the array sentence a few lines down; this is the other branch,
+        // and `accumulatorNote` returns null for anything that is not a counted `for`,
+        // so an `if`/`switch`/`while` target keeps the plain sentence it had.
+        const accWhy = prior && prior.kind === 'vector' ? null : accumulatorNote(stmt)
+        forceOpaque(name, 'pine:reassign', locate(first),
+          accWhy ? `\`${name}\` — ${accWhy}` : name)
+        // ⛔⛔ AND A VECTOR IS REPLACED OUTRIGHT, NOT MERELY MARKED.
+        //
+        // ⚰️ `forceOpaque` records the refusal for the SCALAR path, and the
+        // vector binding survived it in `env` — so `array.get(a, k)` still
+        // found a vector and still folded slot k to `na`. Measured
+        // 2026-09-14: a fixture whose array is filled by a `for` came back
+        // **0 refusals, ok=true**, with nothing but a `pine:block` note to
+        // connect the empty plot to the loop. That is the silent-`na` hole
+        // `vectorSilentNa.test.js` is named for.
+        //
+        // ⭐ A vector whose writer this walk could not read is not a vector.
+        // It becomes opaque, and every read of it refuses by name.
+        if (prior && prior.kind === 'vector') {
+          // ⭐ a4 — the sentence names the FORM when the form is why, and falls back
+          // to the general one otherwise (an `if` or a `switch` reaches here too).
+          const why = loopFormNote(stmt)
+          env.set(name, {
+            kind: 'opaque',
+            guard: 'pine:collection',
+            message: `${REFUSALS['pine:collection']} — `
+              + `\`${name}\` is filled by a block this engine could not read, so`
+              + ' its slots are unknown rather than empty. '
+              // ⛔ R20 — the same promise as `seriesDependentMessage`'s, and it gets
+              // the same limit. Qualifying one branch and not the other would put two
+              // authorities on one sentence, which is the defect this repo names most.
+              // ⛔ R21 — corrected with its sibling: two facts, both measured.
+              + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
+                + ' depends on a series is the IR lane\'s, item (c) — and the IR'
+                + ' lane has no path for it yet, nor does any IR result reach a'
+                + ' pane while ruling D2 stands.'),
+            at: locate(first),
+            // ⭐ R8 — THE VECTOR THIS REPLACED IS KEPT, so the read can settle its
+            // size before speaking. A series-dependent size is a fact about the
+            // ARRAY that predates the loop, and it outranks the loop's sentence.
+            vector: prior,
+          })
+        }
+      }
       continue
     }
 
@@ -7472,7 +11109,12 @@ export function translatePine(source, opts = {}) {
       // COLUMN is what the screener wants, and it is right there.
       if (rhs[0].kind === 'ident' && own(OUTPUT_CALLS, rhs[0].value)
           && isPunct(rhs[1], '(')) {
-        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0] })
+        // ⭐⭐ C1-B — THE HANDLE NAME IS KEPT. `fill(p1, p2, …)` joins two plot
+        // HANDLES, so a band cannot be read at all without knowing which output
+        // each handle names. It was discarded here; the binding stays opaque
+        // (nothing can read a chart object as a number), and this is only a
+        // label for the fill reader below.
+        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0], handle: nameTok.value })
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
           `\`${nameTok.value}\` holds a plot handle, which is a chart object rather than a number`)
         continue
@@ -7519,12 +11161,42 @@ export function translatePine(source, opts = {}) {
       // and the member is told a block "spans several statements", which is true
       // of the shape and useless about the cause: the reducer one function away
       // handles this exact case and is commented for it.
-      // ⛔ IT STAYS AHEAD OF THE CATCH-ALL AND FALLS INTO IT. `switchBinding`
-      // returns null for a shape it cannot take, so a malformed `switch` gets the
-      // refusal it always got rather than a new one.
+      // ⚰️ THIS SAID `switchBinding` "returns null for a shape it cannot take, so a
+      // malformed `switch` gets the refusal it always got rather than a new one" —
+      // AND IT IS MEASURED FALSE. It does not always return null: on
+      // `corpus/committed/smart-money-breakouts-chartprime__ea79c79a67.pine` it THROWS
+      // a `pine:statement` PineRefusal out of `parseWholeExpression`, and that throw
+      // escapes `translatePine` entirely — in BOTH lanes. `translatePine`'s contract is
+      // to RETURN refusals, so a caller without a try/catch gets an exception where a
+      // refusal belongs. Found 2026-09-11 by the first harness to run all 266 scripts
+      // through host mode; recorded as `THREW` in `tools/corpus_metric.json`.
+      // ⛔ NOT FIXED HERE ON PURPOSE: the right repair may be inside `switchBinding`
+      // rather than a catch at this call site, and guessing at a crash path is how a
+      // swallowed error becomes a confident finding. Routed as a corpus item.
+      // ⭐ The comment is corrected rather than deleted because a comment that is
+      // measured false is worse than no comment: it tells the next reader the shape is
+      // already safe.
       if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
         const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
         if (built) { env.set(nameTok.value, built); continue }
+      }
+      // ⭐⭐ WAVE 2 (a) — `name = array.new…(n)` BECOMES A PLAN-TIME VECTOR.
+      //
+      // ⛔⛔ AND IT IS RECORDED HERE WHATEVER HAPPENS NEXT (F2). Before this, a
+      // `var x = array.new<float>(21)` produced NOTHING — not a refusal, not a
+      // note, no line in the result — while the lane's own contract says a
+      // statement nothing reaches is "a NOTE, listed, never silently dropped".
+      // The IR lane already named that line; this lane did not. Measured on
+      // `uncharted-clouds.pine` line 57, 2026-09-14.
+      //
+      // ⭐ THE SIZE IS STORED UNRESOLVED AND FOLDED LATER, by the one folder the
+      // Resolver already uses. Folding it here would be a second constant-folder
+      // over the same tokens, which is the rule this engine keeps paying for.
+      // ⭐⭐ WAVE 2 (a) — a non-`var` `name = array.new…(n)` becomes a vector.
+      {
+        const vec = vectorFromRhs(rhs, nameTok, false, env, notes, markOpaque)
+        if (vec) { env.set(nameTok.value, vec); recordTop(stmt, nameTok.value); continue }
+        if (vec === false) continue   // refused and recorded (a drawing array)
       }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)
@@ -7535,6 +11207,12 @@ export function translatePine(source, opts = {}) {
         env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
+        // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
+        // that actually mattered. `scopeFor` used to re-parse EVERY name the
+        // object collector had walked past — including top-level ones — and a
+        // re-parse produces a fresh node with no `stampInputName` on it. That is
+        // how a member's `input.int` knob went dead inside an object coordinate.
+        recordTop(stmt, nameTok.value)
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN
@@ -7561,6 +11239,77 @@ export function translatePine(source, opts = {}) {
     if (isPunct(toks[1], '(')) {
       const dot = word.indexOf('.')
       const ns = dot > 0 ? word.slice(0, dot) : null
+      // ⭐⭐ WAVE B: `hline` IS A LEVEL, AND THE SCHEMA HAS HAD ONE ALL ALONG.
+      // `defSchema` carries a first-class `hlines` plot with a `levels` array and
+      // `binder.js` draws each as a real price line. This door recorded the call
+      // as an ignored line and threw the number away. Ten of the sixty OOS
+      // scripts draw levels, and an RSI import arriving without 70 and 30 is not
+      // the indicator the member pasted.
+      // ⛔ IT STILL EMITS THE CHART-ONLY NOTE. The level is now CARRIED, but the
+      // call is still not a column, and the member's disclosure list should keep
+      // saying so.
+      if (word === 'hline') {
+        try {
+          const hargs = parseArguments(new Cursor(toks.slice(2)))
+          const positional = hargs.filter((a) => !a.name)
+          const priceArg = hargs.find((a) => a.name === 'price') || positional[0]
+          const titleArg = hargs.find((a) => a.name === 'title') || positional[1]
+          const v = numberValue(priceArg && priceArg.value)
+          if (v !== null) {
+            levels.push({
+              value: v,
+              title: titleArg && titleArg.value && titleArg.value.type === 'string'
+                ? titleArg.value.value : null,
+              ...outputPresentation(hargs),
+            })
+          }
+        } catch { /* a level this grammar cannot fold stays an ignored line */ }
+        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        continue
+      }
+      // ⭐⭐ C1-B — `fill(handleA, handleB, color = …)` IS THE BAND.
+      //
+      // Measured over the frozen 60: 35 `fill()` calls across 18 scripts, and
+      // **33 of the 35 join two PLOT handles**. Exactly one joins two `hline`s.
+      // That measurement is why this reads handles rather than levels, and why
+      // the renderer it feeds is a series primitive rather than a baseline.
+      //
+      // ⛔ IT STILL EMITS THE CHART-ONLY NOTE, like `hline` above: the band is
+      // now carried, but the call is still not a column, and the member's
+      // disclosure list should go on saying so.
+      if (word === 'fill') {
+        try {
+          const fargs = parseArguments(new Cursor(toks.slice(2)))
+          const positional = fargs.filter((a) => !a.name)
+          const a = positional[0] && positional[0].value
+          const b = positional[1] && positional[1].value
+          if (a && b && a.type === 'name' && b.type === 'name') {
+            // ⭐⭐ (j) j.3b — THE PRESENTATION IS READ LATER, AND IT HAS TO BE.
+            //
+            // This used to call `outputPresentation(fargs, { env })` right here, and
+            // that is why a fill could never carry a CONDITIONAL colour: the
+            // `Resolver` does not exist yet. It is constructed ~160 lines below
+            // (`const resolver = new Resolver(...)`), because a `fill()` may legally
+            // name plots declared after it and the walk has to finish first. With no
+            // resolver, `colourConditional` cannot turn the test into a canonical
+            // tree, so `carried` stayed false for every conditional fill in the
+            // corpus — 254 fill colour positions, 0 of them conditional.
+            //
+            // ⛔ SO THE ARGUMENTS ARE STASHED AND READ ONCE, LATER, WITH THE
+            // RESOLVER — not read twice. A second `outputPresentation` call here for
+            // the flat case would be a less-informed answer to the same question
+            // sitting beside the better one, and the two would drift the first time
+            // either changed. `resolveFillHandles` is the one reader.
+            //
+            // ⛔ `env` TRAVELS WITH THE ARGUMENTS. The colour expression must be read
+            // in the scope it was WRITTEN in, not in whatever scope the walk happens
+            // to be holding when the fills are finally resolved.
+            fills.push({ a: a.name, b: b.name, args: fargs, env })
+          }
+        } catch { /* a fill this grammar cannot read stays an ignored line */ }
+        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        continue
+      }
       if (CHART_ONLY_CALLS.has(word)) {
         notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
         continue
@@ -7594,7 +11343,50 @@ export function translatePine(source, opts = {}) {
     const missed = toks.find((t) => !ctx.consumed.has(t.index))
     const why = unfoldable.get(name)
     if (missed) {
-      forceOpaque(name, 'pine:reassign', locate(missed), `\`${name}\``)
+      // ⭐⭐ R7a — RE-PLACE THE LINE, KEEP THE REASON.
+      //
+      // ⚰️ THIS OVERWRITE IS THE FOURTH READ/OVERWRITE ORDERING DEFECT OF THE SAME
+      // SHAPE IN THIS PROGRAMME (a3 size-before-unroll · a4 forceOpaque/prior.kind ·
+      // R7 forceOpaque/mutator · this). It is deliberate and the comment above says
+      // why it must overwrite — but overwriting the LOCATION was never a reason to
+      // discard the REASON. A counted-`for` accumulator was forced opaque a moment
+      // ago carrying ruling R7's sentence (the census numbers and the binding
+      // constraint), and this line replaced it with the bare "a name that is
+      // reassigned later cannot be folded into one expression".
+      //
+      // ⭐ The line it picks is right and is kept: `missed` is the `:=` token, and
+      // the reassignment fact lives exactly there. So the refusal now names the
+      // line where the reassignment is AND carries the reason that explains it —
+      // line and sentence agreeing about the same fact, which is the criterion R8
+      // was decided on.
+      //
+      // ⭐⭐ (g) — AND THE SECOND FALLBACK IS `why`, WHICH THIS BRANCH HAS ALWAYS
+      // HAD AND NEVER READ. R7a closed the case where the binding was already
+      // opaque CARRYING a reason (`held.reason`). It could not close this one: when
+      // the fold stopped inside an `if` chain, the catch records the reason in
+      // `unfoldable` and does NOT write it onto `env`, so `held` has nothing and the
+      // sentence fell through to the bare name. `why` is computed four lines above
+      // and was used only in the `else if` below.
+      //
+      // ⚰️ MEASURED ON A REAL SCRIPT, NOT IMAGINED:
+      // `bolingger-bands-inside-bar-boxes__3294017d4f` declares `varip int barIndex`
+      // at :97, which goes opaque `pine:state`; `barIndex += 1` inside an `if`
+      // throws it; and the member was then told *"a name that is reassigned later
+      // cannot be folded into one expression — `boxH`"* at line 127. True about the
+      // line, silent about the cause, and the cause is thirty lines earlier.
+      //
+      // ⛔ THE LINE STILL WINS, THE SENTENCE IS WHAT GROWS. R8's criterion is that
+      // line and sentence agree about the same fact; the reassignment fact lives at
+      // `missed`, and the reason for it lives at `why`. Naming both is the only way
+      // the member can act — and `why.at` is included so the earlier line is
+      // reachable without hunting for it.
+      const held = env.get(name)
+      const carried = held && held.kind === 'opaque' && held.reason ? held.reason : null
+      const fromChain = why && why.message
+        ? `\`${name}\` — and the fold stopped before it, at line ${why.line}: ${why.message}`
+        : null
+      const reason = carried || fromChain || `\`${name}\``
+      forceOpaque(name, 'pine:reassign', locate(missed), reason)
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
       forceOpaque(name, why.guard,
         { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
@@ -7611,26 +11403,118 @@ export function translatePine(source, opts = {}) {
    *  exactly one question — `Resolver.guardOffsetOfMutable`'s — and it must be
    *  taken here rather than derived during resolution, because "is this binding
    *  the final one" is a fact about the PROGRAM and not about the read. */
+  // ─── ⭐⭐ R22b / d1′ — A CHART-ONLY CALL INSIDE A BLOCK IS NOTED TOO ───────
+  //
+  // ⚰️ MEASURED: `alert()` at TOP LEVEL has always been noted `pine:chart-only`
+  // (`alert` is in `CHART_ONLY_CALLS`), and the same call one indent deeper produced
+  // **nothing** — no output, no refusal, no note. So did `bgcolor`, `plotshape` and
+  // the other four. The member wrote a line and the engine said nothing about it,
+  // which is the silence R22 rules is a defect.
+  //
+  // ⛔⛔ THIS PASS IS READ-ONLY AND THAT IS THE WHOLE OF ITS SAFETY (R22b). It reads
+  // `stmts` and pushes notes. It touches no binding, creates none, reads none through
+  // `env`, calls no resolver, and moves no refusal — so `refusals.length`, the refusal
+  // codes IN ORDER, and the output count are byte-identical with and without it, which
+  // the acceptance asserts on every specimen rather than taking on trust.
+  //
+  // ⭐ IT RUNS AFTER THE WALK, BESIDE IT, over the same `stmts` array — never inside
+  // it. The block walk is where TWO members of the read/overwrite ordering class live
+  // (`foldStatements` never learned destructures; every outer `var` a branch assigned
+  // went opaque as `pine:reassign`), and a note pass reaching into that machinery would
+  // be re-entering a defect class this programme has already paid for twice.
+  //
+  // ⭐ `sub` IS THE BLOCK TREE and it nests to arbitrary depth, so the recursion needs
+  // no depth limit of its own beyond the structure. Recursion starts at each top-level
+  // statement's `sub`, so a top-level call is never re-noted — and a line:column dedup
+  // sits behind that as belt and braces, because "exactly one note per call site" is
+  // the property a member actually experiences.
+  {
+    const seen = new Set()
+    for (const n of notes) {
+      if ((n.code || n.guard) === 'pine:chart-only') seen.add(`${n.line}:${n.column}`)
+    }
+    const visitNested = (list) => {
+      for (const s of (list || [])) {
+        const h = s.header || []
+        if (h[0] && h[0].kind === 'ident' && CHART_ONLY_CALLS.has(h[0].value)
+            && isPunct(h[1], '(')) {
+          const at = locate(h[0])
+          const key = at ? `${at.line}:${at.column}` : null
+          if (key && !seen.has(key)) {
+            seen.add(key)
+            notes.push(noteOf('pine:chart-only', chartOnlyNote(h[0].value), h[0]))
+          }
+        }
+        visitNested(s.sub)
+      }
+    }
+    for (const s of stmts) visitNested(s.sub)
+  }
+
   const finalBindings = new Map(env)
 
+  /** ⭐ EVERY HANDLE `fill()` JOINS — the author's own statement that a plot is a
+   *  band EDGE rather than a column. Taken here because a `fill` may legally appear
+   *  before either plot it joins, so it is only complete once the walk is over. */
+  const fillHandles = new Set(fills.flatMap((f) => [f.a, f.b]).filter(Boolean))
+
   // ── resolve each output, independently ───────────────────────────────────
-  const resolved = []
-  for (const out of outputs) {
-    const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned, source })
+  /**
+   * ⭐⭐ (j) j.3b — ONE PLACE A RESOLVER IS BUILT, extracted rather than copied.
+   *
+   * A resolver is constructed PER OUTPUT (it carries per-resolution state), and the
+   * fill-colour pass below needs one too. That would have been a THIRD construction
+   * site — and this code already warns, at the budget line, that *"the budget reaches
+   * both resolvers or it protects neither"*, which is a drift risk written down and
+   * left in place. A factory makes the warning structural: every caller gets the same
+   * options, including the budget, because there is one argument list.
+   *
+   * ⛔ A FRESH INSTANCE PER CALL, NEVER A SHARED ONE. `Resolver` holds frames and a
+   * step budget across a resolution; handing the same object to every output would
+   * make each one's limits depend on how much the previous output spent.
+   */
+  const makeResolver = () => {
+    const r = new Resolver(env, table, declaredTypes,
+      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
+        strict: opts.strict === true,
+        noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
+        // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
+        // pass below builds its own, and a hang there is just as fatal.
+        basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
+        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
     // ⭐ `opts.inputValues` is `{ boundName: number }` — the member's knob positions.
     if (opts.inputValues && typeof opts.inputValues === 'object') {
-      resolver.inputValues = opts.inputValues
+      r.inputValues = opts.inputValues
     }
     if (opts.declareInputs) {
-      resolver.declareInputs = opts.declareInputs === 'all'
+      r.declareInputs = opts.declareInputs === 'all'
         ? 'all' : new Set(opts.declareInputs)
     }
+    return r
+  }
+
+  const resolved = []
+  for (const out of outputs) {
+    const resolver = makeResolver()
     let row
     try {
+      // ⛔ THE CALL IS BOUNDED HERE, NOT JUST EACH RESOLVER. One output that ate
+      // the whole budget must not buy the next output a fresh one — a 45-output
+      // script like Uncharted Clouds would otherwise get 46 × the budget while
+      // every individual guard reported itself satisfied. Inside the try on
+      // purpose: this becomes a per-output refusal like any other, rather than an
+      // exception escaping `translatePine`.
+      if (translateBudgetExpired()) {
+        throw new PineRefusal('pine:timeout',
+          `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+          + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
+          + '. This is a translator defect, not a limit on the script: report it with the file.',
+          null)
+      }
+
       const cur = new Cursor(out.toks.slice(2))
       const args = parseArguments(cur)
       const rest = cur.peek()
@@ -7652,13 +11536,57 @@ export function translatePine(source, opts = {}) {
       // Asked ONCE each, because both answers are needed twice below.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)
+      // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
+      // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
+      // author gave NO TITLE and then handed to `fill()` as a band edge —
+      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
+      //     fill(mPlot, pPlot, …)
+      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // that made this a ruling. Both facts are required: an untitled plot that nothing
+      // fills is still a column, and a NAMED plot handed to `fill()` is a series the
+      // author labelled and may well want screened.
+      // ⛔ The two tests are ANDed rather than either alone because each on its own
+      // over-refuses a real column — measured against the committed corpus, and the
+      // control in `pine.hiddenOnly.test.js` pins it.
+      // ⚰ AND THE THIRD TEST IS THE ONE MEASUREMENT ADDED. Untitled + filled ALONE
+      // cost `rvol__05fcd9e160.pine` its only column: `pvol = plot(rv)` with
+      // `fill(pvol, pth, …)` against a threshold line, where `rv` is
+      // `volume / sma(volume, 21)` — the indicator itself, merely unnamed. That is an
+      // over-refusal of exactly the kind this door is not allowed to make silently.
+      // ⭐ What separates it from the scaffolding cases is what is PLOTTED: `ohlc4`
+      // and `hl2` are unchanged price sources the script draws WITH, which is the same
+      // thing `pine:presentation-only` already says in words. So the anchor test reads
+      // the argument's SPELLING — a bare price-source name — rather than the folded
+      // tree, because `ohlc4` folds to arithmetic and matching that shape would be
+      // brittle in both directions.
+      // ⚠ UNDER-REFUSES ON PURPOSE: `src = ohlc4` then `plot(src)` is not caught. A
+      // column wrongly OFFERED is visible to the member and to this corpus; a column
+      // wrongly refused is invisible, which is the worse direction to guess in.
+      const plottedName = seriesArg && seriesArg.value && seriesArg.value.type === 'name'
+        ? seriesArg.value.name : null
+      const fillAnchor = !outputTitle(args, out.kind, out.role)
+        && !!out.handle && fillHandles.has(out.handle)
+        && !!plottedName && PLOT_SOURCE_NAMES.has(plottedName)
+      // ⛔⛔ A CANDLE'S FOUR ARGUMENTS ARE STRUCTURE, NOT CONTENT.
+      // `plotcandle`/`plotbar` take open/high/low/close and say what they MEAN
+      // in `color=`. When those four arguments are the unchanged price series,
+      // the call draws the chart's own candles and the indicator lives entirely
+      // in a colour this door drops — so the four columns it expands to carry
+      // nothing from the script. `plot(close)` is untouched by this: the value
+      // of a `plot` IS its payload, and a member who plots the close meant to.
+      // Scoped to the multi-output roles for exactly that reason.
+      const bareRole = !!out.role && isBareSource(ast)
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
+        // ⭐ R22a / d2 — beside `title`, same carriage, no second one. `null` for every
+        // kind but `alertcondition`, and for a message this lane cannot carry.
+        message: outputMessage(args, out.kind),
         line: out.tok.line,
         column: out.tok.column,
         formula,
         ast,
+        baseTimeframeFolds: [...resolver.baseFolds.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => (
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -7685,7 +11613,15 @@ export function translatePine(source, opts = {}) {
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
         displace: shift < 0 ? shift : 0,
-        hidden: authorHid || flat,
+        // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
+        // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
+        // be resolved into a real tree here rather than guessed at downstream.
+        presentation: outputPresentation(args, { env, resolver, kind: out.kind }),
+        // ⭐ THE HANDLE TRAVELS WITH THE ROW so a hidden column can be labelled by the
+        // name its author gave it (`mPlot`) rather than by the SCRIPT's title, which is
+        // the label that made this a mistranslation in the first place.
+        handle: out.handle || null,
+        hidden: authorHid || flat || fillAnchor,
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
         // one definition of usable column, as the paragraph above argues. But a
@@ -7694,9 +11630,14 @@ export function translatePine(source, opts = {}) {
         // author made, the other is a fact about the column. Deriving it at the
         // renderer would put a third authority on a question this row has already
         // answered twice (`lesson_a_second_authority_over_one_value`).
-        hiddenReason: authorHid ? 'author' : flat ? 'constant' : null,
+        // ⛔ ORDERED BY WHOSE STATEMENT IT IS: the author's explicit `display.none`
+        // first, then the author's untitled fill anchor, and only then this engine's
+        // own judgement that the column cannot move.
+        hiddenReason: authorHid ? 'author' : fillAnchor ? 'fill-anchor' : flat ? 'constant' : null,
         refusal: null,
       }
+      Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,
@@ -7714,7 +11655,160 @@ export function translatePine(source, opts = {}) {
         refusal: fromError(err),
       }
     }
+    // ⭐⭐ R22a / d2 — A MESSAGE THIS LANE CANNOT CARRY IS SAID, NOT DROPPED.
+    //
+    // ⛔ A NOTE, NEVER A REFUSAL. The offer translates and must keep translating —
+    // **a threshold never removes what works** — so this reports what was left behind
+    // without taking the column with it. Silence is the defect (R22); an expression
+    // message that vanished with no line and no sentence is exactly that.
+    //
+    // ⚰️ Measured: only **2** of the corpus's 555 messages are expressions, which is
+    // why this folded into d2 instead of standing as its own step (R22a). The count
+    // is small; the silence was not acceptable at any count.
+    try {
+      const margs = parseArguments(new Cursor(out.toks.slice(2)))
+      if (hasUncarriedMessage(margs, out.kind)) {
+        notes.push(noteOf('pine:alert-message',
+          'this alert\'s message is an expression, and a message rides this lane as '
+          + 'text rather than as a computed value — so the alert still fires and the '
+          + 'column still translates, but the message TradingView shows will be the '
+          + 'one you set there, not this one', out.tok))
+      }
+    } catch { /* a message this grammar cannot read is the resolver's to refuse */ }
     resolved.push(row)
+  }
+
+  // ─── ⭐⭐ THE CLOSING PASS OVER `env` ─────────────────────────────────────
+  //
+  // ⛔⛔ RECORDED OR REFUSED — NEVER ONLY IN `env`. A name can be bound by any of
+  // several statement branches (`STATE_KEYWORDS`, the `switch` reducer, the
+  // `if`-chain folder, the vector hook, the ordinary assignment path) and, if
+  // nothing ever reads it, never be resolved — so a right-hand side this lane
+  // cannot read produces NO refusal, NO note and NO line, and the script
+  // translates with a silent hole in it. `bindingsAreVisible.test.js` found the
+  // second instance of that class the day it was written.
+  //
+  // ⭐ WHAT IT DOES NOT DO IS THE LOAD-BEARING HALF. It does not report unread
+  // names: an unread but perfectly READABLE `len = 14` needs no note, and
+  // demanding one would put a line in the result for every helper a real script
+  // carries. It RESOLVES each leftover once and reports only what refuses — so
+  // the note means "this lane cannot read line N", which is the lane's own
+  // contract, and not "nothing used line N", which is the author's business.
+  //
+  // ⚰️⚰️ AND THAT PARAGRAPH WAS MEASURED FALSE — TRUE OF NOTES, FALSE OF
+  // PARAMETERS (R13, 2026-09-14). It is corrected in place rather than rewritten,
+  // because the sentence was not wrong about its INTENT; it was wrong about the
+  // pass's REACH. "Reports only what refuses" describes the note channel, and the
+  // probe below was built with the live `paramMint`, so resolving an unread
+  // binding ALSO minted a Track F parameter — a member-visible control — through
+  // a channel this comment never mentioned and nobody checked.
+  //
+  // ⛔ Measured on `mid_engagement__22-rsi-levels-regime-map`: **5 parameters
+  // minted by the output loop, 19 by this pass**, three of them (`bullFloor`,
+  // `regTol`, `bearCeil`) DECLARED member inputs that thereby acquired a second
+  // authority. Caught by `paramSingleTranslation.test.js`, the rail written for
+  // exactly that, and bisected to `bdc1050ad` — this commit.
+  //
+  // ⭐ THE RESTRAINT NOW HOLDS IN BOTH CHANNELS: the probe takes
+  // `paramMint: null`. A comment claiming a restraint is a claim about a run;
+  // this one is now pinned by `closingPassDoesNotMint.test.js`, which asserts
+  // BOTH that the mint stops AND that this pass keeps its notes product on
+  // Clouds, so the fix cannot be bought by silencing the pass.
+  //
+  // ⭐ IT RUNS AFTER THE OUTPUT LOOP because a binding an output read is read,
+  // and the marks are only complete once every output has resolved.
+  {
+    // A line already accounted for anywhere is left alone: the branch that
+    // recorded it gave a reason specific to the shape, and a second generic note
+    // on the same line would overwrite that reason in the reader's eye.
+    const accountedFor = new Set()
+    for (const n of notes) if (typeof n.line === 'number') accountedFor.add(n.line)
+    for (const r of resolved) {
+      if (typeof r.line === 'number') accountedFor.add(r.line)
+      if (r.refusal && typeof r.refusal.line === 'number') accountedFor.add(r.refusal.line)
+    }
+    for (const [, bound] of finalBindings) {
+      if (!bound || typeof bound !== 'object' || bound.read) continue
+      // `opaque` already carries its own sentence and its own line; `fn` and
+      // `param` are not values; a `vector` was noted at its creation (F2).
+      if (bound.kind !== 'expr' && bound.kind !== 'state') continue
+      const at = bound.at
+      if (!at || typeof at.line !== 'number' || accountedFor.has(at.line)) continue
+      // ⛔ THE BUDGET IS SHARED, NOT REFRESHED. This pass must never be able to
+      // buy a script a second translation's worth of work.
+      if (translateBudgetExpired()) break
+      const node = bound.kind === 'state' ? bound.seed : bound.node
+      if (!node) continue
+      // ⛔⛔ R13 — `paramMint: null`. THIS PASS RESOLVES; IT DOES NOT MINT.
+      //
+      // The restraint stated at the head of this pass — *"it resolves each
+      // leftover once and reports only what refuses"* — was true of NOTES and
+      // false of PARAMETERS while this read `paramMint`. Resolving an unread
+      // binding walks its `input.*` calls, and the mint at
+      // `Resolver.resolveCall` is a side effect of that walk, so every unread
+      // input minted a Track F parameter: a member-visible control, created
+      // silently, for a statement no output reads.
+      //
+      // ⚰️ MEASURED on `mid_engagement__22-rsi-levels-regime-map`: 5 parameters
+      // minted by the output loop and **19 by this pass**, three of which
+      // (`bullFloor`, `regTol`, `bearCeil`) are DECLARED member inputs and so
+      // ended up with two authorities over one input — the exact defect
+      // `paramSingleTranslation.test.js` exists to catch, and what it caught.
+      //
+      // ⭐ A Track F parameter is a literal that survives into a RENDERED
+      // OUTPUT'S tree. A binding no output reads contributes no tree, so it has
+      // no literal to adjust and must mint nothing. The loop guard above is
+      // `bound.read`, so everything reaching here is by definition unread.
+      //
+      // ⭐ The object-pass factory below has passed `paramMint: null` for the
+      // same reason since it was written; this was the site that did not.
+      const probe = new Resolver(env, table, declaredTypes,
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
+          paramMint: null,
+          strict: opts.strict === true,
+          basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
+          sourcePath: opts.sourcePath })
+      probe.env = (bound.kind === 'state' ? bound.seedEnv : bound.env) || env
+      try {
+        probe.resolve(node)
+      } catch (err) {
+        const r = fromError(err)
+        // The refusal's OWN sentence, at the BINDING's line — the refusal may
+        // locate itself at a token inside the right-hand side, and what the
+        // member needs named is the statement that is going unread.
+        notes.push({ ...r, code: r.guard, line: at.line, column: at.column,
+          index: at.index, token: at.token })
+        accountedFor.add(at.line)
+      }
+    }
+  }
+
+  // ⛔⛔ A CANDLE IS PASSTHROUGH ONLY IF **ALL FOUR** OF ITS ROLES ARE.
+  //
+  // Judged per STATEMENT, not per row, and that is the conservative choice on
+  // purpose. `plotcandle(open, high, low, cum(close))` is a real indicator whose
+  // close arm is computed — hiding its three raw arms would silently break the
+  // deliberate "one statement, four columns" contract this file expanded
+  // `plotcandle` to provide. Only when every arm is the unchanged price series
+  // does the call carry nothing: it redraws the chart's own candles, and whatever
+  // the script meant lives in the `color=` argument this door does not read.
+  // The four rows of one statement share the same token array, which is what
+  // groups them.
+  const byStatement = new Map()
+  for (const r of resolved) {
+    if (!r._stmt) continue
+    if (!byStatement.has(r._stmt)) byStatement.set(r._stmt, [])
+    byStatement.get(r._stmt).push(r)
+  }
+  for (const group of byStatement.values()) {
+    if (group.length < 2) continue
+    if (!group.every((r) => r._bareRole)) continue
+    for (const r of group) {
+      if (r.hidden) continue
+      r.hidden = true
+      r.hiddenReason = 'passthrough'
+    }
   }
 
   // ⛔ A HIDDEN OUTPUT IS NOT A COLUMN THE MEMBER GOT. Counting it made `ok`
@@ -7722,18 +11816,44 @@ export function translatePine(source, opts = {}) {
   // Butterworth script is the proof: four refusals, one hidden `hlc3`, verdict
   // `translates: true`.
   const usable = resolved.filter((r) => r.refusal === null && !r.hidden)
+
+  // ⛔⛔ RULING 1.2 (owner, 2026-09-12) — A HELPER IS NOT A COLUMN, AND SILENCE
+  // ABOUT IT IS WORSE THAN A REFUSAL. When every visible column refused and the only
+  // survivors are series the AUTHOR hid — `display.none`, or an untitled `fill()`
+  // anchor — the door does not offer them: an offer under the script's title is a
+  // mistranslation wearing a label, which is exactly what a Supertrend script did when
+  // it came back as `(open + high + low + close) / 4`.
+  // ⭐ IT IS ADDED TO the visible plots' refusals, never instead of them. The member
+  // needs both halves: what failed, and why the thing that survived is not on offer.
+  // ⚠ Scoped to the AUTHOR's own reasons. A `constant` or `passthrough` survivor is
+  // this engine's judgement about screening and already has its own sentence
+  // (`pine:constant-only`, `pine:presentation-only`), which is the better one to show.
+  const authorHiddenSurvivors = resolved.filter((r) => r.refusal === null && r.hidden
+    && (r.hiddenReason === 'author' || r.hiddenReason === 'fill-anchor'))
+  const helperOnly = usable.length === 0 && authorHiddenSurvivors.length > 0
+  const helperOnlyRefusal = helperOnly
+    ? refusalValue('pine:hidden-only', REFUSALS['pine:hidden-only'],
+      authorHiddenSurvivors[0].line != null
+        ? { line: authorHiddenSurvivors[0].line, column: authorHiddenSurvivors[0].column,
+          index: null, token: null }
+        : null)
+    : null
+
   const refusals = [
     ...hardRefusals,
     ...resolved.filter((r) => r.refusal).map((r) => r.refusal),
+    ...(helperOnlyRefusal ? [helperOnlyRefusal] : []),
   ].sort(byPosition)
 
   if (resolved.length === 0) {
     const r = refusalValue('pine:no-output', REFUSALS['pine:no-output'], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
+      presentation: { overlay, levels },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
+      inputParams: [],
     }
   }
 
@@ -7744,16 +11864,215 @@ export function translatePine(source, opts = {}) {
   // than the one the member pasted. Same for a `library()` and for an `import`,
   // whose behaviour depends on code that never arrived.
   const blocked = hardRefusals.length > 0
+
+  // ⭐⭐ NEVER DECLINE WITHOUT SAYING WHY, AND NAME THE REAL REASON.
+  //
+  // Two failures met here, both found by OOS-2. A script whose only usable
+  // columns were price passthrough was ACCEPTED (now they are hidden, so it is
+  // not) — and a script whose every output was hidden could return `ok:false`
+  // with `refusal: null`, i.e. decline in silence, which one real published
+  // indicator did because its only `plot()` was the `plot(0)` placeholder that
+  // table-drawing scripts conventionally carry.
+  //
+  // So when nothing usable survives and no refusal has been raised to explain
+  // it, the reason is derived from WHY the rows were hidden, and stated.
+  // ── ⭐⭐ C3B: THE OBJECT PROGRAM ────────────────────────────────────────
+  // ⛔ RUN AFTER THE WALK, ON THE FINISHED `env`. An object's coordinates are
+  // ordinary expressions and must resolve through exactly the bindings a plot
+  // would see — including the closing pass's corrections, which is why this
+  // cannot run during the walk. And it CONSUMES NOTHING: the value walk has
+  // already finished, so adding this could not move a single existing output.
+  // ⚠️ Wrapped, because a script that defeats the object reader must still get
+  // its columns. A thrown object pass would otherwise cost a member the whole
+  // translation for the sake of a drawing.
+  let objectPass = { program: null, diagnostics: null }
+  try {
+    // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
+    // builds its own Resolver, so without this it buys a fresh step budget after
+    // the output loop has already spent the script's whole wall clock.
+    if (translateBudgetExpired()) {
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+        + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
+        + '. This is a translator defect, not a limit on the script: report it with the file.',
+        null)
+    }
+    objectPass = buildObjectProgram(stmts, source, env, (scope) => {
+      // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
+      //
+      // ⚰️ MEASURED 2026-09-13. The signature was `() => …`: every caller has
+      // been passing `scopeFor(op.locals)` since C3B and every one of them was
+      // ignored, so `canonicalOf` resolved against the TOP-LEVEL env no matter
+      // whose block it was reading. That was invisible while the only thing
+      // asked of it was a global name — and it is exactly what made a user
+      // function returning text unreachable: the body reads `_v`, a name that
+      // exists ONLY in the frame the caller builds, and the resolver was handed
+      // a scope that could not see it. `unresolvedValues` counted the misses and
+      // nothing named them.
+      //
+      // ⛔ `scope || env` KEEPS EVERY EXISTING CALLER BYTE-IDENTICAL. A factory
+      // invoked with nothing still gets the top-level env, which is what every
+      // call site outside the text reader passes today.
+      const r = new Resolver(scope || env, table, declaredTypes,
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
+          strict: opts.strict === true,
+          basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
+      // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
+      // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
+      // `input.int(5, "Offset")` from a welded literal into an identifier the
+      // member can move; the output loop set it and this factory did not, so one
+      // translation produced a plot reading `close * (1 + off / 100)` and a line
+      // whose y-coordinate read `close * (1 + 5 / 100)` — same document, same
+      // expression, one of them deaf to the knob.
+      //
+      // ⚰ MEASURED, NOT REASONED. `objectParams.test.js` prints both formulas off
+      // ONE `translatePine(src, { declareInputs: 'all' })` call; before this the
+      // object tree carried the literal on every pass, including the one
+      // `memberInputTranslation` annotates and `BuilderSheet` saves. So an
+      // imported script's drawing could never respond to its own declared input,
+      // while the plot beside it always did — and no rail could see it, because
+      // every object test builds its trees out of literals.
+      //
+      // ⛔ OFF BY DEFAULT HERE TOO. `opts.declareInputs` is opt-in, so a caller
+      // that asks for nothing gets byte-identical object trees to the ones every
+      // saved definition already holds.
+      if (opts.inputValues && typeof opts.inputValues === 'object') r.inputValues = opts.inputValues
+      if (opts.declareInputs) {
+        r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
+      }
+      return r
+    }, bindingByStatement)
+  } catch (err) {
+    // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
+    // object reader and nothing about how, which is a diagnostic that cannot be
+    // acted on — the exact shape this repo keeps rediscovering.
+    objectPass = { program: null, diagnostics: { failed: true, error: String(err && err.message) } }
+  }
+
+  let noContent = null
+  if (!blocked && usable.length === 0 && refusals.length === 0) {
+    // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
+    // Ordered most-specific first: a passthrough says the meaning was in
+    // presentation, a constant says the column cannot move, and only an
+    // author-hidden-everything script genuinely offers no plot at all.
+    const reasons = new Set(resolved.filter((r) => r.hidden).map((r) => r.hiddenReason))
+    const guard = reasons.has('passthrough') ? 'pine:presentation-only'
+      : reasons.has('constant') ? 'pine:constant-only'
+        : 'pine:no-output'
+    noContent = refusalValue(guard, REFUSALS[guard], null)
+  }
+
+  // ─── ⭐⭐⭐ TWO CALLERS, TWO CONTRACTS, ONE TRANSLATION ────────────────────
+  //
+  // ⛔⛔ `ok` MEANT "SOMETHING SURVIVED", AND FOR ONE CALLER THAT IS A LIE.
+  //
+  // The SCREENER asks *"which columns can you serve me?"* — offering the two it
+  // can out of a script's twenty-three is a useful answer, and the twenty-one it
+  // cannot are listed in `refusals` for the member to read. That is LENIENT mode
+  // and it stays the default, because it is right for that question.
+  //
+  // HOSTING AN INDICATOR asks a different question — *"can you draw this?"* —
+  // and there "two of twenty-three" is a NO. Measured on a real script
+  // (Uncharted Clouds, 2026-09-08): `ok: true`, two moving averages translated,
+  // and all twenty-one plots that make up its cloud came back with a `null`
+  // formula. Every reason was already sitting in `refusals` with a guard, a line
+  // and a column — the information was never lost, only the verdict was wrong.
+  //
+  // ⛔ SO THIS IS ENFORCED IN CODE, NOT IN A CONVENTION A CALLER MUST REMEMBER.
+  // The engine's own doctrine is that a silent mistranslation is worse than a
+  // refusal; a partial success reported as success IS that, in a return value.
+  //
+  // ⭐ A HIDDEN OUTPUT IS NOT A FAILURE and strict mode does not treat it as one.
+  // `display = display.none` is an author's choice — Clouds' layer plots are
+  // hidden ON PURPOSE, they exist only as `fill` anchors — and a passthrough or
+  // constant column is this engine's judgement about SCREENING, not about
+  // drawing. The strict test is therefore "did anything fail to translate",
+  // which is exactly `refusals.length === 0`, not "is everything usable".
+  // ⭐⭐ THIS LINE IS THE LANE. `opts.strict === true` is the ONLY thing that
+  // chooses between the two contracts — not `opts.mode` (which does not exist),
+  // and not `opts.host` (which belongs to `chooseOutput` and decides whether an
+  // alertcondition may be the first offer). See the `mode:` field below for the
+  // round of evidence that was voided by getting this wrong.
+  const strict = opts.strict === true
+  const lenientOk = usable.length > 0 && !blocked
+  const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
+  const ok = strict ? strictOk : lenientOk
+
   return {
-    ok: usable.length > 0 && !blocked,
+    ok,
+    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
+    // saved definition, a log, a test fixture) must not be ambiguous about which
+    // question it answered.
+    //
+    // ⚰️⚰️ AND IT IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.** The
+    // string does not appear in this function's option handling at all, so
+    // `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
+    // LENIENT lane — and so does `{ mode: 'screener' }`.
+    //
+    // ⛔ That is not hypothetical: a session took every "both lanes agree"
+    // reading for item (a) by calling those two spellings, got perfect agreement
+    // because both calls were the same lane, and reported it as cross-lane
+    // evidence. The whole round was void. **An instrument that cannot
+    // distinguish its two inputs agrees with itself**, and this field is the
+    // thing that makes the mistake look reasonable: a reader sees `mode: 'host'`
+    // come OUT of a result and passes it back IN.
+    //
+    // ⭐ THE LANE SELECTOR IS `opts.strict === true`, read once, ~10 lines above.
+    // The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the false
+    // call verbatim rather than describing it, so the next reader who writes it
+    // again meets the test instead of the bug.
+    mode: strict ? 'host' : 'screener',
     version,
     declaration,
     title,
+    // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, alongside its calculations.
+    // `overlay` is the author's pane intent, read from the declaration this door
+    // previously only glanced at for a title. `levels` are the `hline` values it
+    // used to discard. Per-output styling rides on each row's `presentation`.
+    // ⭐⭐ C1-B — the bands, resolved from plot HANDLES to output INDEXES here,
+    // because that is the first point at which both are known. A fill whose two
+    // handles do not both name a surviving output is DROPPED rather than
+    // half-carried: a band with one edge is not a band.
+    presentation: {
+      overlay,
+      levels,
+      // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
+      // not exist at collection time, which is why a conditional fill colour was
+      // uncarried for the whole of a6.
+      fills: resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver() }),
+    },
+    // ⭐⭐ C3B — THE OBJECT PROGRAM, beside the columns and never inside them.
+    // `null` when the script draws no graphical objects, which is 14 of the
+    // frozen 60. `diagnostics` is ALWAYS present, because "this script draws
+    // objects inside a loop and we refuse loops" is a fact a member must be
+    // able to read even when the program is null.
+    objects: objectPass.program,
+    objectDiagnostics: objectPass.diagnostics,
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
-    selected: blocked ? -1 : chooseOutput(resolved, table),
+    selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
-    refusal: (usable.length > 0 && !blocked) ? null : withExcerpt(refusals[0] || null, lines),
-    refusals: withExcerpts(refusals, lines),
+    // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
+    // position order carries the guard, line, column and caret excerpt, exactly
+    // as a top-level refusal does — a host caller reads the same shape whether
+    // the script died at the lexer or at its twenty-first plot.
+    refusal: ok ? null : withExcerpt(refusals[0] || noContent || null, lines),
+    refusals: withExcerpts(noContent ? [noContent, ...refusals] : refusals, lines),
+    // ⭐⭐ TRACK F (DEC-006) — the per-declaration IMMUTABLE metadata this call
+    // minted (empty unless `opts.paramManifest` was set). Deliberately
+    // METADATA ONLY, no `{treeIndex, astPath}` locators: this function has no
+    // notion of "trees" or which outputs a caller will keep as saved plots —
+    // that is `pineParamManifest.js`'s job, walking `outputs[i].ast` (which
+    // this same return already carries) for the `__uctParamId`-tagged nodes
+    // `resolveInput` left behind. Same layering `usedInputs`/`inputsFolded`
+    // already use: this module records raw facts, the builder layer turns
+    // them into a shape a save can submit.
+    inputParams: paramMint ? paramMint.metadata : [],
+  }
+  } finally {
+    // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
+    // `printFormula` call — a test, a preview — throw a timeout it never earned.
+    endTranslateBudget()
   }
 }
 
@@ -7764,8 +12083,29 @@ export function translatePine(source, opts = {}) {
  *  0/1 column and a scan is `<tree> != 0` — so it is the one that screens.
  *  Otherwise the first plot that translated at all. ⛔ A member can always choose
  *  another; this decides what is on screen first, never what is possible. */
-function chooseOutput(rows, table) {
+function chooseOutput(rows, table, opts = {}) {
+  // ⛔⛔ RULING D1 (2026-09-12, option C) — A PANE DOES NOT SELECT AN ALERT.
+  // `alertcondition` DRAWS NOTHING in Pine: it registers a condition the platform
+  // offers under Alerts. This engine's two lanes disagreed about that — here it
+  // was the PREFERRED offer, while `buildRuntimeIr` classified it as PRESENTATION
+  // and emitted no series for it — so the output a host target selected was
+  // exactly the one the runtime lane had nothing to draw. Volume v2 is the case:
+  // `selected` was index 4, "HVE Trigger", beside four volume plots the pane
+  // could actually render.
+  //
+  // ⭐ THE SCREEN IS UNCHANGED AND THAT IS THE POINT OF A SPLIT RATHER THAN A
+  // DELETION. A scan asks "when is this true", and an alertcondition IS a
+  // condition by construction — it is still the right first offer THERE. What
+  // changes is only the lane that has to put a line on a chart.
+  // ⚠️ THIS `host` IS NOT THE LANE, AND THE NAME INVITES THE MISREADING.
+  // `chooseOutput`'s option decides whether an `alertcondition` may be the first
+  // offer. The LANE is `translatePine`'s `opts.strict`, and the word 'host' also
+  // appears there as an OUTPUT value (`mode: strict ? 'host' : 'screener'`),
+  // which is what made a session pass `{mode:'host'}` back into `translatePine`
+  // and read one lane twice. Neither of those is this flag.
+  const host = opts.host === true
   const ok = (r) => r.refusal === null && !r.hidden
+      && !(host && r.kind === 'alertcondition')
   // ⛔ A CONSTANT IS NEVER THE FIRST OFFER, AND THAT IS MEASURED TOO. A published
   // indicator plots a hidden zero baseline so `fill()` has something to fill
   // against (`06-adx-advanced.pine` line 175: `pZero = plot(0.0,
@@ -7783,8 +12123,28 @@ function chooseOutput(rows, table) {
   ].reduce((found, pred) => (found >= 0 ? found : pick(pred)), -1)
 }
 
-/** Does this tree read the tape at all? A `series` leaf or a `call` — anything
- *  else is arithmetic on literals and is the same number for every symbol. */
+/** Does this tree read the tape at all?
+ *
+ *  ⚰️ THIS SAID "A `series` LEAF OR A `call`", AND THE `call` HALF WAS UNSOUND.
+ *  Any call returned true without ever looking at its arguments, so
+ *  `max(8, 42)` — arithmetic on two literals — was reported as reading bars.
+ *  That is not a cosmetic slip: `hidden = authorHid || !readsBars(ast)` is the
+ *  one guard that stops a column which can never fire being offered, and
+ *  `chooseOutput` uses the same predicate to decide what a member sees FIRST.
+ *  A constant-valued call walked through both, counted as usable, and could
+ *  therefore make a whole script `ok: true` on the strength of nothing that
+ *  varies. OOS-2 found one real published indicator accepted exactly that way,
+ *  on the constants -12 and -88, after every series it actually computes had
+ *  been correctly refused.
+ *
+ *  ⛔ IT IS THE SAME BLIND SPOT `pine.community.test.js` ALREADY DOCUMENTED for
+ *  scripts 27 and 28 — "`X && 0` LOOKS like it reads bars: it contains a call".
+ *  That was closed for the and/or folding case only; the general case is this.
+ *
+ *  The rule now: a tree reads the tape if it contains a `series` node (which is
+ *  every identifier — price, clock and scalar), or a call the manifest declares
+ *  `reads: 'bars'`. Everything else is arithmetic on literals and is the same
+ *  number for every symbol on every bar. */
 /** ⭐ EXPORTED so a rail can ask THE ENGINE whether a tree touches a bar, rather
  *  than carrying its own copy of the walk. A test that re-implements this is a
  *  second authority over the one predicate that decides whether a column is a
@@ -7792,12 +12152,916 @@ function chooseOutput(rows, table) {
  *  mattered. `thinkscript.js` keeps its own `readsTheBar` because it walks its
  *  own node shapes before they become this engine's; that is a different tree,
  *  not a second opinion about the same one. */
-export function readsBars(node) {
+/** Is this tree an unchanged price series and nothing else — `close`, not
+ *  `close * 2` and not `sma(close, 20)`?
+ *
+ *  ⛔ THE TEST IS "UNTOUCHED", NOT "CONTAINS A SOURCE". A single `series` node
+ *  naming one of the five price fields, with no operation over it, is the only
+ *  shape that means "the caller handed this call the bar's own value". Anything
+ *  built ON a source is the script's own arithmetic and is content. */
+const PRICE_SOURCES = new Set(['open', 'high', 'low', 'close', 'volume'])
+
+/** ⭐ THE NAMES PINE CALLS A "SOURCE" — the five bars plus the four averages every
+ *  `input.source` menu offers. Used by the fill-anchor test in `translatePine`, which
+ *  asks what the author PLOTTED rather than what it folded to: `ohlc4` folds to
+ *  `(open + high + low + close) / 4`, and matching that arithmetic would refuse a
+ *  member who computed the same average deliberately. */
+const PLOT_SOURCE_NAMES = new Set([...PRICE_SOURCES, 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+export function isBareSource(node) {
+  return !!node && node.type === 'series' && PRICE_SOURCES.has(node.name)
+}
+
+
+// ─── WAVE B: PRESENTATION CARRIAGE ──────────────────────────────────────────
+//
+// ⭐⭐ THIS DOOR USED TO READ EXACTLY ONE PRESENTATION ARGUMENT. The string
+// `overlay` appeared ZERO times in this file, and the only styling argument read
+// at all was `display`, used solely to hide. Everything a Pine author says about
+// how their indicator LOOKS — which pane, what colour, how thick, what shape,
+// which levels — was parsed past and dropped, and the receiving plot row was
+// born `style:'line'`, default colour, default width.
+//
+// ⛔ THE RENDERER WAS NEVER THE LIMIT. `defSchema` already expresses eight plot
+// styles, per-plot colour, width, line style, opacity, precision, legend, levels
+// and placement, and `binder.js` already draws them. The loss began HERE, at the
+// import boundary, which is why carrying it is worth more per line than any
+// renderer work.
+//
+// ⚠️ WHAT IS NOT CLAIMED: this reads the presentation a Pine author WROTE. It
+// does not promise UCT draws every one of them — a style with no counterpart is
+// reported and left unset rather than silently mapped onto a near neighbour.
+
+/** TradingView's own published constants. ⛔ THESE ARE THE VENDOR'S HEX VALUES,
+ *  not our palette: an imported indicator that comes back a different red has
+ *  not been imported faithfully, and "close enough" is the whole failure this
+ *  wave exists to stop.
+ *
+ *  ⚰️ `color.red` READ `#F23645` UNTIL 2026-09-07, AND THAT IS THE CHART'S
+ *  DOWN-CANDLE RED, NOT PINE'S. The comment directly above has said "these are
+ *  the vendor's hex values" since the table was written, and nothing in the repo
+ *  could falsify it: every rail that touched a colour asserted OUR constant, so
+ *  the wrong red was the expected red everywhere. What caught it was the first
+ *  observation ever taken of TradingView's own resolved marker styles
+ *  (`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`),
+ *  where a `color = color.red` plotshape came back `#FF5252`. Six of the seven
+ *  colours that observation reaches — aqua, blue, fuchsia, green, orange,
+ *  purple — matched this table exactly; red was the one that did not.
+ *  ⭐ `vendorMarkerParity.test.js` now pins every one of the seven to the
+ *  vendor's own answer, so this table can no longer drift undetected. */
+const PINE_COLOURS = Object.freeze({
+  'color.aqua': '#00BCD4', 'color.black': '#363A45', 'color.blue': '#2962FF',
+  'color.fuchsia': '#E040FB', 'color.gray': '#787B86', 'color.grey': '#787B86',
+  'color.green': '#4CAF50', 'color.lime': '#00E676', 'color.maroon': '#880E4F',
+  'color.navy': '#311B92', 'color.olive': '#808000', 'color.orange': '#FF9800',
+  'color.purple': '#9C27B0', 'color.red': '#FF5252', 'color.silver': '#B2B5BE',
+  'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
+})
+
+/**
+ * ⭐⭐ THE SAME EIGHTEEN COLOURS UNDER THEIR PINE v3/v4 SPELLING — `red`, not
+ * `color.red`.
+ *
+ * ⚰️ MEASURED, AND IT WAS A LARGE SILENT LOSS. Wave B read `color.x` only, so
+ * every v3/v4 script's colour argument fell through to "an expression this door
+ * cannot say" — including plain `color=aqua`, which is not an expression at all.
+ * In the frozen 60 that is most of `cm-ultimate-rsi-mtf` (`aqua`, `red`, `lime`,
+ * `gray`, `orange`) and both of `waddah-attar`'s conditionals (`lime`/`green`,
+ * `orange`/`red`). The colour was simply not read.
+ *
+ * ⛔ DERIVED FROM THE `color.` TABLE, NEVER RE-TYPED. Two hand-written tables of
+ * the same eighteen hexes is the second-authority defect this file names
+ * elsewhere; the day a vendor hex moves, one of them would keep the old value.
+ *
+ * ⚠️ `grey`/`gray` both survive the strip, which is correct — Pine accepts both.
+ */
+const PINE_COLOURS_BARE = Object.freeze(Object.fromEntries(
+  Object.entries(PINE_COLOURS).map(([k, v]) => [k.slice('color.'.length), v]),
+))
+
+/** Pine plot style → the name `defSchema.PLOT_STYLES` already validates.
+ *  ⛔ A STYLE WITH NO COUNTERPART IS ABSENT FROM THIS MAP ON PURPOSE, so it is
+ *  REPORTED as uncarried rather than mapped onto something that draws a
+ *  different picture. `plot.style_cross` is the live example: `defSchema`
+ *  reserves `cross` and refuses it because LWC draws circle/square/arrow markers
+ *  only, so silently sending `markers` would put dots where a member wrote
+ *  crosses and call it fidelity. */
+/** ⭐⭐ C3A — PINE'S MARKER SHAPES, AND WHAT THIS RENDERER CAN ACTUALLY DRAW.
+ *
+ *  Lightweight-charts 5.2 draws FOUR marker shapes: circle, square, arrowUp,
+ *  arrowDown. Pine names twelve. So every entry here carries BOTH: the shape
+ *  the author asked for and the shape that will be drawn.
+ *
+ *  ⛔⛔ AN APPROXIMATION IS RECORDED AS ONE, NEVER PRESENTED AS THE THING. The
+ *  wave's own instruction is "do not flatten everything into one dot", and the
+ *  honest reading of that is not "refuse nine of twelve" — a triangle drawn as
+ *  an arrow at the right bar is the author's signal; a triangle DROPPED is not.
+ *  It is "say which ones you changed", which is what `approx` is for: the
+ *  import disclosure can then name them instead of the member discovering it on
+ *  the chart.
+ *
+ *  ⚠️ `flag`, `labelup`, `labeldown` ARE DIRECTIONAL IN PINE and are mapped to
+ *  the arrow that points the same way, not to a circle: a member reading a
+ *  "labeldown" as an up-arrow would be reading the opposite signal, which is
+ *  worse than reading a different glyph. */
+const PINE_MARKER_SHAPES = Object.freeze({
+  'shape.circle': { shape: 'circle', approx: false },
+  'shape.square': { shape: 'square', approx: false },
+  'shape.arrowup': { shape: 'arrowUp', approx: false },
+  'shape.arrowdown': { shape: 'arrowDown', approx: false },
+  'shape.triangleup': { shape: 'arrowUp', approx: true },
+  'shape.triangledown': { shape: 'arrowDown', approx: true },
+  'shape.labelup': { shape: 'arrowUp', approx: true },
+  'shape.labeldown': { shape: 'arrowDown', approx: true },
+  'shape.flag': { shape: 'arrowUp', approx: true },
+  'shape.diamond': { shape: 'square', approx: true },
+  'shape.cross': { shape: 'square', approx: true },
+  'shape.xcross': { shape: 'square', approx: true },
+})
+
+/** Pine's `location.*` against LWC's three marker positions.
+ *
+ *  ⚠️ `location.top` / `location.bottom` ARE PANE-RELATIVE and LWC has no such
+ *  position — a marker there is anchored to the PANE, not to a bar's price.
+ *  They are mapped to the nearest bar-anchored position and flagged `approx`,
+ *  because the BAR is the fact the member reads and the height is the styling.
+ *  `location.absolute` is `inBar`: the marker sits at the series' own value,
+ *  which is exactly what "absolute" means. */
+const PINE_MARKER_LOCATIONS = Object.freeze({
+  'location.abovebar': { position: 'aboveBar', approx: false },
+  'location.belowbar': { position: 'belowBar', approx: false },
+  'location.absolute': { position: 'inBar', approx: false },
+  'location.top': { position: 'aboveBar', approx: true },
+  'location.bottom': { position: 'belowBar', approx: true },
+})
+
+/** Pine's five named sizes as an LWC marker size multiplier (1 = default). */
+const PINE_MARKER_SIZES = Object.freeze({
+  'size.tiny': 0.5,
+  'size.small': 0.8,
+  'size.normal': 1,
+  'size.large': 1.5,
+  'size.huge': 2,
+  'size.auto': 1,
+})
+
+/** The calls whose `style=` argument names a MARKER SHAPE rather than a plot
+ *  style. Read as a set so `outputPresentation` asks one question instead of
+ *  carrying two parallel branches. */
+const MARKER_CALLS = Object.freeze(new Set(['plotshape', 'plotchar']))
+
+const PINE_PLOT_STYLES = Object.freeze({
+  'plot.style_line': 'line',
+  'plot.style_linebr': 'line',
+  'plot.style_stepline': 'stepline',
+  'plot.style_histogram': 'histogram',
+  'plot.style_columns': 'histogram',
+  'plot.style_area': 'area',
+  'plot.style_areabr': 'area',
+  'plot.style_circles': 'markers',
+})
+
+// ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
+// the script has bound that name to something else — a member's own variable
+// called `green` must not silently become a colour. The bound-name check is the
+// caller's (`staticColourOf` is handed a node the env has already been asked
+// about); here the question is only whether the SPELLING names a Pine colour.
+const isColourName = (v) => !!v && v.type === 'name'
+  && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
+const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)
+  ? PINE_COLOURS[v.name] : PINE_COLOURS_BARE[v.name])
+
+// ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
+// vocabularies, one letter apart, and the wrong one fails SILENTLY — every
+// literal simply reads as absent, so `linewidth = 2` was dropped and every
+// `hline` produced an empty level list while the code looked correct. Read
+// `parsePrimary`: `{ type: 'number' }`, `{ type: 'string' }`, `{ type: 'colour' }`.
+const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
+
+/** The presentation ONE output call declares. Returns only what was actually
+ *  written — an absent argument is absent, never a default invented here, so a
+ *  consumer can tell "the author said line" from "the author said nothing". */
+/** A parse node that IS a static colour → its hex, else null.
+ *
+ *  ⛔ THE SAME THREE FORMS `outputPresentation` ALREADY READS for a literal
+ *  colour — a named `color.x`, a `#RRGGBB` literal, and `color.new(base, t)` —
+ *  factored out rather than re-typed, so the branches of a conditional and a
+ *  plain `color=` can never disagree about what counts as a colour. */
+function staticColourOf(node, env, depth = 0, ctx = null) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    // ⭐⭐ R35c — A PARAMETER IS THE CALLER'S ARGUMENT, read from the frame this
+    // walk pushed. The frame entry is `{kind:'expr', node, env}` — the SAME
+    // binding shape the branch below already follows — so a parameter needs no
+    // new vocabulary here, only the frame it lives in.
+    const par = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (par && par.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[par.index]
+      const v = a && a.value !== undefined ? a.value : a
+      // ⛔ THE ARGUMENT IS EVALUATED IN THE CALLER'S SCOPE, and the frame comes
+      // OFF while it is — the same rule `resolveBinding`'s own `param` arm
+      // states, for the same reason: leaving it on reads a nested call's
+      // arguments out of the outer call's frame.
+      return staticColourOf(v, ctx.inline.callerEnv || env, depth + 1,
+        { ...ctx, inline: null })
+    }
+    // ⛔⛔ A NAME IS FOLLOWED, AND THE SCRIPT'S OWN BINDING WINS.
+    // ⚰️ Measured: without this, `C = #5C8E33` followed by `plot(x, color = C)`
+    // — a plain STATIC colour behind a name, and one of the commonest things in
+    // the corpus — read as "an expression this door cannot say" and the plot drew
+    // in the builder's default. The name was never opened.
+    // And the precedence matters in the other direction too: Pine v3/v4 colour
+    // names like `red` live in the global namespace, so a member writing
+    // `green = ta.sma(close, 20)` must get their average, not a colour.
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return staticColourOf(bound.node, bound.env || env, depth + 1, ctx)
+    }
+    // Bound to something this door cannot open (an opaque binding) — then a bare
+    // colour spelling is the member's variable, not Pine's constant.
+    if (bound && Object.hasOwn(PINE_COLOURS_BARE, node.name)
+        && !Object.hasOwn(PINE_COLOURS, node.name)) return null
+    return isColourName(node) ? colourHexOf(node) : null
+  }
+  if (node.type === 'colour') return String(node.value)
+  // ⭐ `color.rgb(r, g, b)` IS A STATIC COLOUR when its channels are literals —
+  // an author spelling the same fixed colour a different way. Alpha, when given,
+  // is Pine's fourth argument and is a TRANSPARENCY like `color.new`'s.
+  if (node.type === 'call' && node.name === 'color.rgb') {
+    const ch = (node.args || []).slice(0, 3).map((a) => numberValue((a || {}).value))
+    if (ch.length === 3 && ch.every((v) => v !== null && v >= 0 && v <= 255)) {
+      const hex = ch.map((v) => Math.round(v).toString(16).padStart(2, '0').toUpperCase()).join('')
+      const a4 = (node.args || [])[3]
+      if (a4 !== undefined && alphaNumberOf(a4.value, env, ctx) === null) return null
+      return `#${hex}`
+    }
+    return null
+  }
+  // ⭐ `input.color(<default>, …)` — the author's own colour picker. Its DEFAULT
+  // is a real static colour and showing it is strictly better than showing the
+  // builder's. ⚠️ The KNOB does not come across (`input.color` is not a Track F
+  // kind), and that loss is already reported by `skippedInputs` — this carries
+  // the value without claiming the control.
+  if (node.type === 'call' && node.name === 'input.color') {
+    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+  }
+  if (node.type === 'call' && node.name === 'color.new') {
+    // ⛔⛔ A DYNAMIC TRANSPARENCY MAKES THE WHOLE COLOUR DYNAMIC.
+    // `color.new(color.red, close)` fades the line bar by bar; reading only the
+    // BASE and calling it static hands the member one flat red and loses the
+    // entire effect — silently, which is the failure C1 exists to stop. Caught
+    // by `pine.presentation.test.js`'s own "never guessed" case, which is the
+    // only reason this branch is strict.
+    const t = ((node.args || [])[1] || {}).value
+    if (t !== undefined && alphaNumberOf(t, env, ctx) === null) return null
+    // ⭐⭐ R33a — THE BASE IS RESOLVED LIKE EVERY OTHER COLOUR, BY RECURSION.
+    //
+    // ⛔ THIS REMOVES AN ASYMMETRY; IT ADDS NO CAPABILITY. Two lines up, a bare
+    // `name` is already followed through its binding, and `input.color` already
+    // recurses into its default — so `color = bullColor` has always carried. Only
+    // `color.new`'s BASE asked a different, narrower question (`isColourName`: is
+    // this a Pine built-in colour NAME?) and never recursed.
+    //
+    // ⚰️ MEASURED BEFORE THE CHANGE, and the fourth row is what named the defect:
+    //     color = bullColor                 -> #00897B       carried
+    //     color = color.new(bullColor, 30)  -> colorDynamic  NOT carried
+    //     color = color.new(#123456, 30)    -> #123456       carried
+    //     color = color.new(litColor, 30)   -> colorDynamic  NOT carried
+    // `litColor` is a name bound to a PLAIN HEX LITERAL, so this was never about
+    // `input.color`. One reader for "what colour is this?", not two.
+    //
+    // ⛔ THE RECURSION SUBSUMES BOTH OLD CASES rather than sitting beside them: a
+    // built-in colour name and a literal colour node are the first two branches of
+    // the very function being called. Keeping the old checks as well would be two
+    // authorities over one question, which is the defect this file records most.
+    //
+    // ⛔ AND IT CANNOT FLATTEN A DYNAMIC COLOUR. The alpha guard above already
+    // refuses a non-literal transparency, and a base bound to a SERIES folds to
+    // null here exactly as it does anywhere else — `color.new(c, 30)` where
+    // `c = cond ? green : red` stays dynamic, which its control pins.
+    const base = ((node.args || [])[0] || {}).value
+    return staticColourOf(base, env, depth + 1, ctx)
+  }
+  // ⭐⭐ R35c — A SINGLE-EXPRESSION USER COLOUR HELPER IS SUBSTITUTED AND RE-WALKED.
+  // The body is re-entered through THIS function, so every colour form it already
+  // understands — a name, a literal, `color.new`, `input.color`, R33a's base
+  // recursion — works inside a helper exactly as it does outside one. That is the
+  // whole branch: no second colour vocabulary, and nothing here interprets.
+  const helper = openColourHelper(node, env, ctx)
+  if (helper) {
+    return staticColourOf(helper.node, helper.env, depth + 1,
+      { ...ctx, inline: helper.inline })
+  }
+  return null
+}
+
+/** The opacity a colour helper asks for, or null.
+ *
+ *  ⭐⭐ a6.0 / H.1 — `color.rgb(r, g, b, t)` CARRIES ITS FOURTH ARGUMENT TOO.
+ *
+ *  ⚰️ It did not, and the loss was silent and visual. `staticColourOf` parses that
+ *  argument and validates it — it returns null for a DYNAMIC one, deliberately — and
+ *  then hands back a 3-channel `#RRGGBB` with nowhere to put a literal one. So a band
+ *  authored at 80% transparent rendered fully opaque. Measured on
+ *  `atr-bands__ad60b125e6.pine:120`, whose take-profit band is
+ *  `color.rgb(255, 255, 255, 80)`: a series whose whole job is to sit behind the price,
+ *  drawn as the loudest thing on the chart. 56 of 328 corpus scripts feed a colour
+ *  helper into a `plot()`.
+ *
+ *  ⭐ ONE ARITHMETIC FOR THREE PATHS. `color.new`'s transparency, `color.rgb`'s fourth
+ *  argument and the legacy `transp=` argument all mean the same thing and all become
+ *  `1 - t / 100` here, so they cannot drift apart.
+ *
+ *  ⛔ NO NEW FIELD WAS NEEDED, and measuring the consumers before choosing is what
+ *  established that: `presentation.opacity` already exists, is already validated by
+ *  `defSchema`, and is already read by the renderer — it was added after Volume v2's
+ *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
+ *  dropped (`memberPaneDefinition.js:139`).
+ */
+function colourHelperAlpha(node, env, ctx) {
+  if (!node || node.type !== 'call') return null
+  // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
+  // but whose transparency does not would render Clouds' twenty bands at one flat
+  // alpha, which is the feature inverted rather than merely missing.
+  const helper = openColourHelper(node, env, ctx)
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
+  const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
+  if (arity === null) return null
+  const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
+  return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
+}
+
+/** ⭐⭐ R35d — THE TRANSPARENCY OF A COLOUR THAT FOLDS, 0-100, or null.
+ *
+ *  ⛔⛔ THIS LIVES BESIDE `staticColourOf` AND NOT IN THE `Resolver`, and the
+ *  reason is not tidiness. `color.` is mapped to `pine:colour-value` wholesale
+ *  (`NAMESPACE_REFUSALS`) and `Resolver.resolve` throws for a `colour` node in a
+ *  value position — *"a colour cannot be a value in a screened column"*. That
+ *  refusal is CORRECT for a screened column: a colour is not a number there.
+ *  Teaching the Resolver colours to reach one number would make it wrong about
+ *  the thing it is right about. Colour knowledge belongs to the colour authority.
+ *
+ *  ⚰️ WHY IT EXISTS AT ALL, MEASURED: of the five colour-returning helpers in the
+ *  corpus — Clouds' two and `colorWithTransparency` ×3 — **all five**, across
+ *  **43 of 43 call sites**, reach their alpha through `color.t`. Clouds binds
+ *  `bullUserTransparency = color.t(bullColor)`. Without this leaf the whole
+ *  user-function fold above carries nothing, which is machinery with no consumer.
+ *
+ *  ⛔ IT FOLDS ONLY WHAT `staticColourOf` ALREADY FOLDS. A per-bar colour has no
+ *  plan-time transparency, and inventing one paints a flat band where the author
+ *  drew a changing one — so the first thing this asks is whether the colour is
+ *  static at all, and a null there is a null here.
+ */
+function colourTransparencyOf(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⛔ THE GATE: no static colour, no static transparency. Same question, one
+  // authority, so the two answers cannot disagree about what counts as a colour.
+  if (staticColourOf(node, env, depth) === null) return null
+
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return colourTransparencyOf(bound.node, bound.env || env, depth + 1)
+    }
+    // A bare Pine colour name (`color.teal`, or v3/v4 `teal`) is OPAQUE.
+    return 0
+  }
+  if (node.type === 'colour') {
+    // ⭐ `#RRGGBBAA`'s last byte is OPACITY, not transparency — Pine's `color.t`
+    // answers the inverse, so the conversion belongs here rather than at a call
+    // site that would have to remember which way round it goes.
+    const v = String(node.value)
+    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(v)
+    if (m) return Math.round((1 - parseInt(m[1], 16) / 255) * 100)
+    return 0
+  }
+  if (node.type === 'call' && node.name === 'input.color') {
+    // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
+    // moves the colour picker's alpha still gets the default rendering, and for
+    // Uncharted Clouds that governs the entire cloud opacity.
+    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, depth + 1)
+  }
+  if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
+    const opacity = colourHelperAlpha(node, env, null)
+    return opacity === null ? null : (1 - opacity) * 100
+  }
+  return null
+}
+
+/** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
+ *
+ *  ⭐ ONE READER FOR EVERY ALPHA SLOT — `color.new`'s second argument,
+ *  `color.rgb`'s fourth, and `colourHelperAlpha`'s own read all come through
+ *  here, so a transparency this engine can resolve cannot be accepted by one of
+ *  them and refused by another. Three readers of one question is the defect this
+ *  file records most often. */
+function alphaNumberOf(node, env, ctx) {
+  if (node === undefined || node === null) return null
+  const lit = numberValue(node)
+  if (lit !== null) return lit
+  if (node.type === 'call' && node.name === 'color.t') {
+    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, 0)
+  }
+  // ⭐⭐ R35c — ANYTHING ELSE IS ARITHMETIC, AND ARITHMETIC IS NOT OURS. The
+  // expression goes to the SAME two authorities the series path uses:
+  // `resolveInFrame`/`resolve` to substitute, `constantValueOf` to fold. This
+  // function owns no arithmetic of its own, which is why `95 - 2.5 * k` cannot
+  // mean one thing on a plot and another in a colour.
+  if (!ctx || !ctx.resolver) return null
+  const numeric = foldColourLeaves(node, env, 0)
+  if (numeric === null) return null
+  // ⛔⛔ R36 — THIS FOLD RESOLVES; IT DOES NOT MINT. `__uct_param_N` ids ADDRESS
+  // SAVED MEMBER DEFINITIONS, and the mint at `Resolver.resolveCall` is a SIDE
+  // EFFECT of walking an `input.*` call — so reading an input's default to colour
+  // a band was silently creating a member-visible control and RENUMBERING every
+  // parameter after it.
+  //
+  // ⚰️ MEASURED on `uncharted-volume-v2`: `avg_transp = input.int(90, 'Avg Vol
+  // Line Opacity')` feeding `color.new(color.white, avg_transp)` took the script
+  // from 3 declared parameters to 4 and moved `HVE lookback (bars)` from
+  // `__uct_param_3` to `__uct_param_4`.
+  //
+  // ⚰️ AND THE SEVERITY WAS OVERSTATED FIRST, WHICH IS WORTH KEEPING. This said
+  // *"a saved definition pinning `_3` would have addressed a different knob"* —
+  // silent corruption. Reading the CONSUMER says otherwise: a saved definition
+  // carries its own `compute.paramManifest` and reads values by walking its own
+  // tree at `locators[].astPath`, and `user_definitions.save()` canonicalises
+  // against the member's PRIOR save under *"an edit may never mint a new
+  // identity"*. So a shift does not re-point anything silently — it makes the
+  // next EDIT of a parameterised definition disagree with its own prior roster
+  // and the save is REFUSED. Still member-visible, still exactly what this
+  // withholding prevents, but it fails LOUDLY. The hazard was reasoned from the
+  // SHAPE OF AN IDENTIFIER rather than from the code that consumes it.
+  //
+  // ⭐ THE SAME RESTRAINT R13 ALREADY RULED FOR THE CLOSING PASS — *"THIS PASS
+  // RESOLVES; IT DOES NOT MINT"* — and R13 states the general form: a Track F
+  // parameter is a literal that survives into a RENDERED OUTPUT'S TREE. A
+  // presentation fold contributes no tree; its answer becomes a colour or an
+  // opacity, so it has no literal to adjust and must mint nothing.
+  //
+  // ⛔ WITHHELD AROUND THE CALL RATHER THAN IN A SECOND RESOLVER, because there
+  // is exactly ONE site where a presentation fold asks the Resolver anything. A
+  // parallel non-minting factory would be a second policy to keep in step.
+  // ⚠️ `finally`, not a trailing restore: `resolve` throws for anything that is
+  // not plan-time, which is the ORDINARY case here, and a mint left disabled
+  // would silently stop the output loop minting for the rest of the output.
+  const minted = ctx.resolver.paramMint
+  ctx.resolver.paramMint = null
+  try {
+    const tree = ctx.inline
+      ? ctx.resolver.resolveInFrame(ctx.inline, numeric)
+      : ctx.resolver.resolve(numeric)
+    const v = constantValueOf(tree)
+    return v !== null && Number.isFinite(v) ? v : null
+  } catch { return null } finally { ctx.resolver.paramMint = minted }
+}
+
+/** ⭐⭐ R35c's LEAF BRIDGE — fold the COLOUR-derived numbers before the Resolver
+ *  ever sees them.
+ *
+ *  ⛔⛔ THIS IS WHY THE RESOLVER IS NOT TAUGHT COLOURS. Clouds binds
+ *  `bullUserTransparency = color.t(bullColor)` at top level and uses that NAME
+ *  inside an arithmetic helper. Handed the expression raw, the Resolver follows
+ *  the binding, meets `color.t`, and throws `pine:colour-value` — correctly, for
+ *  a screened column. So the colour authority answers the colour question first
+ *  and hands on pure arithmetic. Each side does only what it owns.
+ *
+ *  ⛔ FAIL-CLOSED: a `color.t` that does not fold returns null for the whole
+ *  expression rather than leaving the call in the tree for the Resolver to refuse
+ *  with a message about a screened column, which is not what went wrong. */
+function foldColourLeaves(node, env, depth = 0) {
+  if (depth > 24 || node === null || typeof node !== 'object') return node
+  if (Array.isArray(node)) {
+    const out = []
+    for (const v of node) {
+      const r = foldColourLeaves(v, env, depth + 1)
+      if (r === null && v !== null) return null
+      out.push(r)
+    }
+    return out
+  }
+  if (node.type === 'call' && node.name === 'color.t') {
+    const t = colourTransparencyOf(((node.args || [])[0] || {}).value, env, 0)
+    return t === null ? null : { type: 'number', value: t }
+  }
+  // ⭐ A NAME BOUND TO `color.t(...)` IS THE SHAPE CLOUDS ACTUALLY USES — the
+  // call is in the BINDING, not in the expression, so a walk that only looked at
+  // the expression would find nothing and the Resolver would still throw.
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node
+        && b.node.type === 'call' && b.node.name === 'color.t') {
+      const t = colourTransparencyOf(((b.node.args || [])[0] || {}).value, b.env || env, 0)
+      if (t !== null) return { type: 'number', value: t }
+    }
+    return node
+  }
+  const out = {}
+  for (const k of Object.keys(node)) {
+    const r = foldColourLeaves(node[k], env, depth + 1)
+    if (r === null && node[k] !== null) return null
+    out[k] = r
+  }
+  return out
+}
+
+/** ⭐⭐ R35c — OPEN A SINGLE-EXPRESSION USER COLOUR HELPER, or null.
+ *
+ *  The branch `colorNodeOf` was missing. `textNodeOf` (`pine.js`, the TEXT lane)
+ *  already ships exactly this for a text value — recurse on `bound.value.node`
+ *  with `{bound, args, callerEnv}` — and its own comment calls the colour walker
+ *  "THE SAME SHAPE, ONE BRANCH SHORTER". This is that branch, and nothing about
+ *  the substitution is new: the frame it builds is the Resolver's own.
+ *
+ *  ⛔⛔ SINGLE EXPRESSION ONLY, AND THE REFUSAL IS THE POINT. A body that is a
+ *  statement sequence is declined here, by name, so a narrow fold cannot drift
+ *  into the general evaluator (ii) one accepted body at a time. Measured: every
+ *  colour-returning helper in the corpus — 27 of them, 43 call sites — is a
+ *  single expression, so the refusal costs nothing real today and is the only
+ *  thing keeping the boundary where the ruling put it. */
+function openColourHelper(node, env, ctx) {
+  if (!node || node.type !== 'call' || !ctx || !ctx.resolver) return null
+  const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+  if (!bound || bound.kind !== 'fn') return null
+  const args = node.args || []
+  if (args.some((a) => a && a.name)) return null
+  if (!Array.isArray(bound.params) || bound.params.length !== args.length) return null
+  // ⛔ THE BOUNDARY. `kind: 'expr'` with a `.node` IS "one expression"; a tuple,
+  // an if-chain folded into parts, anything else — declined.
+  if (!bound.value || bound.value.kind !== 'expr' || !bound.value.node) return null
+  const inline = { bound, args, callerEnv: env, bodyEnv: bound.value.env }
+  return { node: bound.value.node, env: bound.value.env || env, inline }
+}
+
+/**
+ * ⭐⭐ C1-A: A COLOUR EXPRESSION → `{test, up, down}`, OR NULL.
+ *
+ * Pine's commonest visual idiom, and the whole of C1-A's demand: measured over
+ * the frozen 60, **49 scripts** colour a plot from an expression. The two shapes
+ * that dominate are the conditional itself and a NAME bound to one —
+ *
+ *     plot(x, color = close > ma ? color.green : color.red)
+ *     col = close > ma ? color.green : color.red
+ *     plot(x, color = col)                                  ← 217 occurrences
+ *
+ * — so a reader that only understood the inline form would carry a small
+ * minority of the real corpus. This follows a bound name through the same `env`
+ * the value expression resolves against.
+ *
+ * ⛔ BOTH BRANCHES MUST BE STATIC COLOURS. `cond ? a : someOtherExpression` is a
+ * colour this door still cannot say, and guessing one of the two would be worse
+ * than declining: the member would get a confident wrong picture. It falls
+ * through to `colorDynamic`, which is the honest "demanded and uncarried".
+ *
+ * ⛔ AND THE DEPTH IS BOUNDED. `a = b`, `b = a` is a legal thing to write and an
+ * unbounded chase would hang the import on it.
+ */
+/** How many DISTINCT static colours a nested colour conditional wants, or 0 when
+ *  any leaf is not a static colour. Bounded like every other chase here. */
+function staticColourArity(node, env, depth = 0, seen = new Set()) {
+  if (!node || depth > 8) return 0
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen)
+  }
+  if (node.type === 'ternary') {
+    const y = staticColourArity(node.yes, env, depth + 1, seen)
+    const n = staticColourArity(node.no, env, depth + 1, seen)
+    return (y && n) ? seen.size : 0
+  }
+  const hex = staticColourOf(node, env)
+  if (!hex) return 0
+  seen.add(hex)
+  return seen.size
+}
+
+function colourConditional(node, env, depth = 0, ctx = null) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return colourConditional(bound.node, bound.env || env, depth + 1, ctx)
+    }
+    return null
+  }
+  if (node.type !== 'ternary') return null
+  const up = staticColourOf(node.yes, env, 0, ctx)
+  const down = staticColourOf(node.no, env, 0, ctx)
+  if (!up || !down) {
+    // ⭐⭐ AN N-WAY COLOUR CHAIN IS MEASURED, NOT JUST DECLINED.
+    // `rising ? bull : falling ? bear : neutral` and
+    // `a ? (b ? c1 : c2) : (b ? c3 : c4)` are real and common — `ttm-squeeze`
+    // wants FOUR colours, `coppock-curve` THREE. A plot carries exactly two
+    // (`colorUp`/`colorDown`), so these cannot be said without new schema, which
+    // this wave is not authorized to add.
+    //
+    // ⛔ SO THE ANSWER IS THE ARITY, NOT SILENCE. "Dynamic colour is uncarried"
+    // is a fact nobody can act on; "this rule needs 4 colours and the schema
+    // holds 2" names the exact capability the gap register should carry, and it
+    // is measured per output rather than estimated once.
+    // ⭐ `cond ? <colour> : na` IS A VISIBILITY GATE WEARING A COLOUR ARGUMENT,
+    // and it is the single largest uncarried class in the corpus. Pine hides the
+    // plot on those bars; this schema has no per-point visibility for a line, and
+    // carrying only the INNER colour would draw a line exactly where the author
+    // hid one — a confident wrong picture, which is worse than declining.
+    // Reported under its own name so the gap register can carry the capability
+    // rather than the symptom.
+    const isNa = (n) => !!n && ((n.type === 'name' && n.name === 'na')
+      || (n.type === 'call' && n.name === 'na'))
+    if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
+    const arity = staticColourArity(node, env)
+    return arity > 2 ? { arity } : null
+  }
+  // The transparency of either branch, if they agree on one. Two DIFFERENT
+  // opacities are a per-point alpha this schema has no field for; carrying one of
+  // them would silently apply it to both.
+  const a = colourHelperAlpha(node.yes, env, ctx)
+  const b = colourHelperAlpha(node.no, env, ctx)
+  const opacity = (a !== null && b !== null && a === b) ? a : null
+  return { test: node.test, up, down, opacity }
+}
+
+/**
+ * `fill(a, b, …)` by HANDLE → by output INDEX.
+ *
+ * ⛔ BOTH EDGES OR NEITHER. A band whose second edge refused, or was never a
+ * plot, is not a band — carrying it with one edge would draw an area between a
+ * line and nothing, which is a shape the author never asked for.
+ */
+/**
+ * ⭐⭐ (j) j.3b — THE ONE PLACE A FILL'S COLOUR IS READ, and the first place it
+ * CAN be read: both the output handles and the `Resolver` exist here.
+ *
+ * ⛔ R10, SATISFIED BY CONSTRUCTION RATHER THAN BY A RULE. The call below is
+ * `outputPresentation(f.args, { env, resolver, kind })` — literally the call a
+ * `plot()` makes. There is no second colour path, no fill-specific resolver and no
+ * third spelling of "the two colours a per-point mode needs": a fill and a plot get
+ * the same answer because they ask the same function.
+ *
+ * ⛔⛔ AN ALPHA-ONLY CONDITIONAL IS DECLINED, and this is the clause that is not in
+ * the plan. `keltner-center-of-gravity-channel:91` reads
+ *
+ *     nzz ? color.new(color.blue, 70) : color.new(color.blue, 90)
+ *
+ * — ONE hex, TWO transparencies. `colourConditional` folds both branches happily and
+ * hands back `colorUp === colorDown`, and the schema holds a single `opacity` per
+ * fill, so carrying it would draw a FLAT blue band where the author drew a fading
+ * one — and draw it where today nothing is drawn at all. ⭐ That is precisely the
+ * failure `staticColourOf`'s own `color.new` branch already refuses ("reading only
+ * the BASE and calling it static hands the member one flat red and loses the entire
+ * effect — silently"), arriving through a different door. The fold is not wrong; the
+ * SCHEMA cannot hold the answer, so the honest move is to decline and say so.
+ *
+ * ⛔ AND THE DECLINE IS DECLARED. `colorDynamic` rides out with the fill, because a
+ * fill that quietly carries nothing is indistinguishable from a fill whose author
+ * wrote no colour — and those are different facts.
+ */
+function resolveFillHandles(fills, outputs, resolved, ctx) {
+  if (!fills.length) return []
+  const byHandle = new Map()
+  outputs.forEach((o, i) => { if (o && o.handle) byHandle.set(o.handle, i) })
+  const out = []
+  for (const f of fills) {
+    const ai = byHandle.get(f.a)
+    const bi = byHandle.get(f.b)
+    if (ai === undefined || bi === undefined || ai === bi) continue
+    if (!resolved[ai] || resolved[ai].refusal || !resolved[bi] || resolved[bi].refusal) continue
+    let pres = {}
+    try {
+      // ⛔ FAIL-SOFT, as the collector's own `catch` always was: a colour this
+      // grammar cannot read must not cost the member the BAND. The edges are the
+      // indicator; the colour is the annotation.
+      pres = outputPresentation(f.args || [], {
+        env: f.env || (ctx && ctx.env),
+        resolver: ctx && ctx.resolver,
+        kind: 'fill',
+      }) || {}
+    } catch { pres = {} }
+    const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
+      ? (pres.colorUp !== pres.colorDown ? pres : null)
+      : null
+    out.push({
+      a: ai,
+      b: bi,
+      ...(pres.color ? { color: pres.color } : {}),
+      ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
+      ...(pair ? {
+        colorUp: pair.colorUp,
+        colorDown: pair.colorDown,
+        ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
+      } : {}),
+      // A conditional this lane could not carry — folded to one colour, or not
+      // folded at all — says so rather than going quiet.
+      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+        ? { colorDynamic: true } : {}),
+    })
+  }
+  return out
+}
+
+function outputPresentation(args, ctx) {
+  const pres = {}
+  const arg = (n) => args.find((a) => a.name === n)
+
+  const c = arg('color')
+  if (c) {
+    // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
+    // literal, and `color.new(base, <literal>)`. `staticColourOf` is the same
+    // function the branches of a CONDITIONAL colour go through, so the two paths
+    // cannot disagree about what counts as a colour.
+    // ⛔ A CALL NODE'S `args` ARE `{name, value}` PAIRS, NOT RAW NODES.
+    // `parseArguments` returns Pine's own positional-and-named shape, so reading
+    // `args[0].type` looks at the PAIR and finds nothing — the second time this
+    // wave read one level too shallow and got a silent "the author said nothing".
+    const flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
+    if (flat) {
+      pres.color = flat
+      const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
+      if (a !== null) pres.opacity = a
+    } else {
+      // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
+      // The condition is resolved into an ordinary canonical tree and travels as
+      // `colorCondition`; downstream it becomes a hidden column and the plot's
+      // `colorMode: 'column:<key>'`, which `binder.toPoints` draws per point.
+      //
+      // ⛔ A FAILURE HERE MUST NEVER REFUSE THE OUTPUT. The colour is
+      // presentation; the column is the indicator. If the condition cannot be
+      // resolved — it reaches an unsupported call, a mutable name, anything —
+      // the plot still imports, and the colour falls back to the honest
+      // "demanded and uncarried" marker below.
+      const cond = ctx && ctx.env ? colourConditional(c.value, ctx.env, 0, ctx) : null
+      let carried = false
+      // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
+      if (cond && cond.arity) pres.colorDynamicArity = cond.arity
+      if (cond && cond.naGated) pres.colorNaGated = true
+      if (cond && cond.up && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.test)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorUp = cond.up
+          pres.colorDown = cond.down
+          pres.colorCondition = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
+      // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 49 of the 60
+      // OOS scripts colour conditionally, and for a `plotcandle` it is the entire
+      // payload. What this door still cannot say is recorded as
+      // DEMANDED-AND-UNCARRIED rather than dropped, so the import can say so
+      // instead of quietly showing one flat colour.
+      if (!carried) pres.colorDynamic = true
+    }
+  }
+
+  const w = numberValue((arg('linewidth') || {}).value)
+  if (w !== null) pres.width = w
+
+  // ⭐⭐ C3A — A MARKER CALL'S `style=` IS A SHAPE, NOT A PLOT STYLE.
+  //
+  // ⚰️ THIS FUNCTION USED TO ASK ONE QUESTION FOR BOTH. `plotshape(cond, style =
+  // shape.triangleup)` fell into the `plot.style_*` lookup, missed, and was
+  // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
+  // as an unsupported plot style. The translator's own header said as much
+  // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
+  const kind = ctx && ctx.kind
+  const isMarker = MARKER_CALLS.has(kind)
+  const st = arg('style')
+  if (isMarker) {
+    const m = {}
+    if (st && st.value && st.value.type === 'name') {
+      const hit = PINE_MARKER_SHAPES[st.value.name]
+      if (hit) {
+        m.shape = hit.shape
+        m.pineShape = st.value.name
+        if (hit.approx) m.shapeApprox = true
+      } else {
+        // ⛔ AN UNKNOWN SHAPE IS RECORDED, NOT GUESSED. `styleUncarried` is the
+        // channel the import disclosure already reads for exactly this.
+        pres.styleUncarried = st.value.name
+      }
+    }
+    const loc = arg('location')
+    if (loc && loc.value && loc.value.type === 'name') {
+      const hit = PINE_MARKER_LOCATIONS[loc.value.name]
+      if (hit) {
+        m.position = hit.position
+        if (hit.approx) m.positionApprox = true
+      } else {
+        pres.locationUncarried = loc.value.name
+      }
+    }
+    const size = arg('size')
+    if (size && size.value && size.value.type === 'name'
+        && Object.hasOwn(PINE_MARKER_SIZES, size.value.name)) {
+      m.size = PINE_MARKER_SIZES[size.value.name]
+    }
+    // ⭐ `text=` ON `plotshape`, `char=` ON `plotchar` — the same field to a
+    // reader, two spellings in Pine, one name here.
+    const txt = arg('text') || (kind === 'plotchar' ? arg('char') : null)
+    if (txt && txt.value && txt.value.type === 'string' && txt.value.value) {
+      m.text = String(txt.value.value).slice(0, 24)
+    }
+    // ⚠️ A `plotchar` WITH NO `char=` STILL DRAWS SOMETHING IN PINE (its default
+    // is the star). Carrying that default here rather than leaving the marker
+    // textless keeps the member's chart recognisable.
+    if (kind === 'plotchar' && m.text === undefined) m.text = '★'
+    // ⭐ DEFAULTS ARE PINE'S OWN, stated rather than left to the renderer: both
+    // calls default to `location.abovebar`, and `plotshape`'s default shape is
+    // `shape.xcross`.
+    if (m.position === undefined) m.position = 'aboveBar'
+    if (m.shape === undefined && !pres.styleUncarried) {
+      m.shape = kind === 'plotchar' ? 'circle' : 'square'
+      m.pineShape = kind === 'plotchar' ? null : 'shape.xcross'
+      m.shapeApprox = true
+    }
+    if (m.shape !== undefined) {
+      pres.marker = m
+      // ⭐ AND THE ROW IS BORN A MARKER ROW. Without this the sheet would give
+      // it `style: 'line'` and draw a line through a 0/1 column.
+      pres.style = 'markers'
+    }
+  } else if (st && st.value && st.value.type === 'name') {
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
+    else pres.styleUncarried = st.value.name
+  }
+
+  const tr = numberValue((arg('transp') || {}).value)
+  if (tr !== null) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  return pres
+}
+
+/** `indicator(..., overlay = true)` — the author's own statement about WHICH
+ *  PANE their indicator belongs in, which this door has never read.
+ *  ⛔ A TOKEN SCAN, NOT A PARSE. A declaration carries arguments this grammar has
+ *  no node for (`max_lines_count`, `format`, `scale`), and parsing it to reach
+ *  one boolean would make an unrelated argument able to refuse the whole script. */
+function declarationOverlay(toks) {
+  for (let i = 0; i < toks.length - 2; i += 1) {
+    if (toks[i].kind === 'ident' && toks[i].value === 'overlay' && isPunct(toks[i + 1], '=')) {
+      const v = toks[i + 2]
+      if (v && v.kind === 'ident' && (v.value === 'true' || v.value === 'false')) {
+        return v.value === 'true'
+      }
+      return null
+    }
+  }
+  return null
+}
+
+const _BAR_READERS_FOR_TABLE = new WeakMap()
+
+/** The names that vary bar to bar NO MATTER WHAT THEY ARE HANDED, for one table.
+ *
+ *  Two declarations, both read off the manifest, neither listed here:
+ *
+ *  ⭐ `reads: 'bars'` — the entry is computed over the bar ARRAY rather than the
+ *  columns its arguments name. `vwap` takes no arguments at all, so argument
+ *  recursion alone would call it constant.
+ *
+ *  ⭐⭐ `recurrence` — the entry iterates bars, carrying its own previous value.
+ *  `x = 1.0 / x := x + 1 / plot(x)` folds to `accum` over two LITERALS and plots
+ *  1, 2, 3, 4 … — it is a counter, and it is emphatically not a constant. This
+ *  clause exists because omitting it made exactly that script refuse, and
+ *  `pine.forLoopReassignSilentWrongResult.test.js`'s non-vacuity control caught
+ *  it: a regression net doing precisely the job it was written for.
+ *
+ *  ⛔ DERIVED, NEVER LISTED — the same argument `parse.js` makes at
+ *  `barReadersOf`: a hand-list that happens to be right today is
+ *  indistinguishable from a derivation, and a mutation sweep proved such a list
+ *  survives every suite in this directory. */
+function barVaryingNamesFor(table) {
+  if (!table || typeof table !== 'object' || table === TABLE) return BAR_VARYING_SET
+  let set = _BAR_READERS_FOR_TABLE.get(table)
+  if (!set) {
+    const recs = Object.entries((table && table.functions) || {})
+      .filter(([, spec]) => spec && typeof spec.recurrence === 'object' && spec.recurrence)
+      .map(([name]) => name)
+    set = new Set([...barReadersOf(table), ...recs])
+    _BAR_READERS_FOR_TABLE.set(table, set)
+  }
+  return set
+}
+const BAR_VARYING_SET = new Set([...BAR_READERS, ...Object.keys(RECURRENCES)])
+
+export function readsBars(node, table = TABLE) {
+  const barFns = barVaryingNamesFor(table)
   const stack = [node]
   while (stack.length) {
     const n = stack.pop()
     if (!n || typeof n !== 'object') continue
-    if (n.type === 'series' || n.type === 'call') return true
+    // ⭐ EVERY IDENTIFIER IS A `series` NODE — price, clock AND scalar alike.
+    // `closedTable.json::_scalars_node` states it: "A SCALAR RIDES THE `series`
+    // NODE TYPE RATHER THAN ADDING ONE OF ITS OWN", because `parse.js` turns
+    // every identifier into one so the parser needs no table. So this single
+    // test covers `close`, `dayofweek` and `beta` together, and a scalar that
+    // is constant across bars but varies per SYMBOL stays a real column.
+    if (n.type === 'series') return true
+    // ⭐ A CALL THAT VARIES BAR TO BAR WHATEVER IT IS HANDED, DECLARED IN DATA:
+    // it reads the bar array itself (`vwap`, which takes no arguments at all) or
+    // it declares a recurrence (`accum`, which carries its own previous value —
+    // a counter over two literals is still a counter).
+    if (n.type === 'call' && barFns.has(n.name)) return true
     if (Array.isArray(n.args)) stack.push(...n.args)
   }
   return false
@@ -7988,6 +13252,59 @@ function outputTitle(args, kind, role = null) {
   // otherwise four identical offers, and a member picking "Smoothed Ha Candles"
   // from a list of four would be choosing at random.
   return base ? `${base} ${role}` : role
+}
+
+/** ⭐⭐ R22a / d2 — `alertcondition(condition, title, MESSAGE)`'s third argument.
+ *
+ *  It rides **beside `title`, in the same row, as a presentation field** — never as a
+ *  `str` node. That is what keeps `str`'s textop-only parentage (`assertCanonical`)
+ *  untouched and implies **no 12th `NODE_TYPES` member**: a message is something the
+ *  surface SHOWS, not something a column computes.
+ *
+ *  ⭐ A `{{placeholder}}` IS STILL A LITERAL and is carried VERBATIM, braces and all.
+ *  The braces are TradingView's to resolve when the alert fires; rewriting or
+ *  stripping them here would hand the member a message they did not write. 149 of the
+ *  corpus's 555 are this shape.
+ *
+ *  ⛔ AN EXPRESSION IS NOT CARRIED — `null`, and the caller notes it. `"px " +
+ *  str.tostring(close)` is a textop question, deliberately outside (d): carrying it as
+ *  if it were a string would print `px ` and silently lose the number.
+ *
+ *  ⚰️ NAMED **AND** POSITIONAL, and the named form is the one that bit. The (d) census
+ *  read `message = "…"` as an expression because the value does not start with a quote,
+ *  which understated the carryable set by ~155 and would have mis-sized this whole
+ *  step. `outputTitle` above has always read both; so does this.
+ *
+ *  ⚰️⚰️ AND THE SAME CENSUS HAD A SECOND DEFECT OF THE SAME FAMILY, WHICH SURVIVED THE
+ *  FIRST CORRECTION — found by item (f), 2026-09-15. It also tested `'+' not in a`
+ *  across the whole argument, so a literal carrying `A+` INSIDE ITS QUOTES read as a
+ *  concatenation. The corpus therefore holds **489 of 555** carryable (340 literal +
+ *  149 placeholder) and **ZERO** expression messages, not 487 and 2.
+ *
+ *  ⭐ THE CODE BELOW WAS NEVER WRONG — `value.type === 'string'` already carries those
+ *  two lines and notes neither. What the correction changes is a fact about the GUARD:
+ *  **`pine:alert-message` has zero corpus firings**, and only a synthetic specimen
+ *  exercises it. A note nobody has seen fire on real input is worth labelling as such,
+ *  because the alternative is citing it later as though the corpus had proved it.
+ */
+function outputMessage(args, kind) {
+  if (kind !== 'alertcondition') return null
+  const byName = args.find((a) => a.name === 'message')
+  const positional = args.filter((a) => !a.name)
+  // `alertcondition(condition, title, message)` — condition, title, THEN message.
+  const value = (byName && byName.value) || (positional[2] && positional[2].value)
+  if (!value) return null
+  return value.type === 'string' ? value.value : null
+}
+
+/** Did the author WRITE a message this lane could not carry? Distinguishes "no
+ *  message" (nothing to say) from "a message we dropped" (which must be said). */
+function hasUncarriedMessage(args, kind) {
+  if (kind !== 'alertcondition') return false
+  const byName = args.find((a) => a.name === 'message')
+  const positional = args.filter((a) => !a.name)
+  const value = (byName && byName.value) || (positional[2] && positional[2].value)
+  return !!value && value.type !== 'string'
 }
 
 /** ⭐⭐ THE PROOF THAT NOTHING HALF-TRANSLATED. The printed text is read back by

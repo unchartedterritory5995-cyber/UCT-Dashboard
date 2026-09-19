@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "19-anchored-vwap-stuehmer.pine",
+  "title": "Anchored VWAP",
+  "author": "stuehmer",
+  "source_url": "https://www.tradingview.com/script/L1tWQjgR-Anchored-VWAP/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v3",
+  "license": "not stated",
+  "publish_or_update_date": "Jun 12, 2019",
+  "declared_type": "study",
+  "capture_method": "Browser DOM capture: clicked the script page's \"Source code\" tab, then joined the rendered code viewer's per-line <span> elements' textContent with \\n (U+00A0 normalised to U+0020, no page-text/accessibility-tree extraction). Transferred to disk byte-exact via a URL-fragment handoff to a localhost sink and verified with an end-to-end FNV-1a checksum against the in-page value.",
+  "non_comment_lines": 14,
+  "complexity_bucket": "short",
+  "sha256_source": "24fbc333b318eb827c22ed4cd26a5a5dc432ee593f324caf6acf7fb56fc60785",
+  "sha256_normalized": "c332817e429fd8e1db77d899484585a20d975eafb795095977991d73f1efe674",
+  "storage": "local-only"
+}

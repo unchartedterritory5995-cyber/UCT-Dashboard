@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;Zd1PZqZcepxG59SeRXxr7UDdnzV1Qd0H",
+ "title": "Dot Dynamics",
+ "author": "StanleyBostich",
+ "url": "https://www.tradingview.com/script/kjj8hdDK-dot-dynamics/",
+ "agreeCount": 742,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/dot-dynamics__Zd1PZqZcep.pine",
+ "our_status": "reference-only"
+}

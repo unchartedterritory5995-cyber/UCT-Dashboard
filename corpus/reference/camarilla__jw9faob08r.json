@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;jw9faob08rO3ZvRU2UFad8C4sYvrAP2s",
+ "title": "Camarilla++",
+ "author": "Gunslinger2005",
+ "url": "https://www.tradingview.com/script/6CW0Ltac-camarilla/",
+ "agreeCount": 3931,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/camarilla__jw9faob08r.pine",
+ "cached_source": "tools/pine_survey/cache/sources/camarilla__jw9faob08r.pine",
+ "our_status": "committed"
+}

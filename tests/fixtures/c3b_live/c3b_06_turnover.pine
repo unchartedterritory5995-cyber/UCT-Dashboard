@@ -1,0 +1,8 @@
+//@version=5
+indicator("C3B Turnover", overlay = true, max_lines_count = 60)
+ma = ta.sma(close, 20)
+var line rider = na
+if not na(rider)
+    line.delete(rider)
+rider := line.new(bar_index - 40, ma, bar_index, ma, color = color.aqua, width = 3)
+plot(ma, title = "MA20")

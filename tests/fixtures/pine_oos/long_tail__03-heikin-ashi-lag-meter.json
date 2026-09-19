@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "03-heikin-ashi-lag-meter.pine",
+  "title": "Heikin Ashi Lag Meter [BSL]",
+  "author": "BarStateLabs",
+  "source_url": "https://www.tradingview.com/script/t25S8iqq-Heikin-Ashi-Lag-Meter-BSL/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 166,
+  "complexity_bucket": "long",
+  "sha256_source": "edd2fdc402f66c524083141b11286986b137dfbcfc7eab0b6472bd6360fcac90",
+  "sha256_normalized": "ebf96988b1b9d4e18286229c0491eb71e961983afcc0f318e051f69e98d0bf90",
+  "storage": "git"
+}

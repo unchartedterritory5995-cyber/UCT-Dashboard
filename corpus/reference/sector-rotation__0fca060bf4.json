@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0fca060bf4314e4bb29804c3361813d8",
+ "title": "Sector Rotation",
+ "author": "Vignesh_vish",
+ "url": "https://www.tradingview.com/script/8sz9Dow4-sector-rotation/",
+ "agreeCount": 1511,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/sector-rotation__0fca060bf4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/sector-rotation__0fca060bf4.pine",
+ "our_status": "committed"
+}

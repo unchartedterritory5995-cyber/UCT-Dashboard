@@ -1,0 +1,84 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tarun171977
+
+//@version=5
+indicator("Inside Bar Range + Mother Candle Breakout/Breakdown with Volume Confirmation", shorttitle="IBRBVC", overlay=true)
+
+// Input for volume threshold display
+showVolumeThreshold = input.bool(false, title="Show Volume Threshold")
+
+// Input for line color
+lineColor = input(color.new(#b2b5be, 0), title="Line Color")
+
+// Input for inside bar color
+insideBarColor = color.orange
+
+// Input for line width
+lineWidth = input.int(2, title="Line Width")
+
+// Input for line style
+styleOption = input.string("────", title="Line Style",
+     options=["────", "┈┈┈", "╌╌╌"])
+
+lineStyle = styleOption == "dotted (┈)" ? line.style_dotted :
+     styleOption == "dashed (╌)" ? line.style_dashed :
+     styleOption == "arrow left (←)" ? line.style_arrow_left :
+     styleOption == "arrow right (→)" ? line.style_arrow_right :
+     styleOption == "arrows both (↔)" ? line.style_arrow_both :
+         line.style_solid
+
+// Function to identify inside bars
+isInsideBar() =>
+    high[1] > high and low[1] < low
+
+// Color the inside bars
+barcolor(isInsideBar() ? insideBarColor : na, title="Inside Bar")
+
+// Initialize variables
+var float mhigh = na
+var float mlow = na
+var line mhighLine = na
+var line mlowLine = na
+
+// Track if breakout or breakdown has already occurred
+var bool breakoutOccurred = false
+var bool breakdownOccurred = false
+
+// If the current bar is an inside bar, set mhigh and mlow to the previous bar's high and low
+if (isInsideBar())
+    mhigh := high[1]
+    mlow := low[1]
+
+    // Delete previous lines
+    if (not na(mhighLine))
+        line.delete(mhighLine)
+    if (not na(mlowLine))
+        line.delete(mlowLine)
+
+    // Draw new lines
+    mhighLine := line.new(x1=bar_index[1], y1=mhigh, x2=bar_index+10, y2=mhigh, color=lineColor, width=lineWidth, style=lineStyle)
+    mlowLine := line.new(x1=bar_index[1], y1=mlow, x2=bar_index+10, y2=mlow, color=lineColor, width=lineWidth, style=lineStyle)
+
+    // Reset breakout/breakdown occurrence tracking
+    breakoutOccurred := false
+    breakdownOccurred := false
+
+// Define volume threshold
+volumeThreshold = showVolumeThreshold ? 100000 : na
+
+// Logic for breakout or breakdown with volume confirmation
+breakout = (not na(mhigh)) and (close > mhigh) and (not na(volumeThreshold) ? volume > volumeThreshold : true) and not breakdownOccurred
+breakdown = (not na(mlow)) and (close < mlow) and (not na(volumeThreshold) ? volume > volumeThreshold : true) and not breakoutOccurred
+
+// Label and bar color handling
+plotshape(series=breakout and not breakoutOccurred, style=shape.triangleup, location=location.belowbar, color=color.green, text="Breakout", textcolor=color.green, size=size.tiny)
+plotshape(series=breakdown and not breakdownOccurred, style=shape.triangledown, location=location.abovebar, color=color.red, text="Breakdown", textcolor=color.red, size=size.tiny)
+
+// Change bar color to yellow when breakout or breakdown label is printed
+barcolor((breakout and not breakoutOccurred) or (breakdown and not breakdownOccurred) ? color.yellow : na, title="")
+
+// Update breakout/breakdown occurrence tracking
+if (breakout)
+    breakoutOccurred := true
+if (breakdown)
+    breakdownOccurred := true

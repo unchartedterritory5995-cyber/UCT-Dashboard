@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;50b4566eddd04de3be2a3cb031dc4ebd",
+ "title": " Machine Learning RSI ║ BullVision",
+ "author": "BullVisionCapital",
+ "url": "https://www.tradingview.com/script/sHevuJyQ-machine-learning-rsi-bullvision/",
+ "agreeCount": 8955,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/machine-learning-rsi-bullvision__50b4566edd.pine",
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-rsi-bullvision__50b4566edd.pine",
+ "our_status": "committed"
+}

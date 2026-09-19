@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3a1fb6197f314eb2912194d70934bf7e",
+ "title": "Market Structure Break & Order Block",
+ "author": "EmreKb",
+ "url": "https://www.tradingview.com/script/DkE7UniD-market-structure-break-order-block/",
+ "agreeCount": 60927,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-structure-break-order-block__3a1fb6197f.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-structure-break-order-block__3a1fb6197f.pine",
+ "our_status": "committed"
+}

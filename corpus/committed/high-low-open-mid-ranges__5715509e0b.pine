@@ -1,0 +1,223 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Shanxia
+
+//@version=5
+
+indicator("High Low Open Mid Ranges", shorttitle="OHLM", overlay=true, max_lines_count=500, max_labels_count=500)
+
+var string title2 = "Table Options"
+
+//==========>>Inputs<<==========//
+
+tfbool      =   input.bool        (   true, "", inline="bool1")
+higherTF    =   input.timeframe   (   "W", "Timeframe ⏰ ", inline="bool1")
+
+bool3       =   input.bool        (   false, "Extend Last Range | ", inline="y4")
+bool4       =   input.int         (   30, "", inline="y4")
+
+lstyle1     =   input.string      (   "Dotted", "  Linestyles", options=["Dotted", "Solid", "Dashed"], inline="in2")
+style1      =   lstyle1           ==  "Dotted" ? line.style_dotted : lstyle1 == "Solid" ? line.style_solid : line.style_dashed
+lstyle2     =   input.string      (   "Solid", "", options=["Dotted", "Solid", "Dashed"], inline="in2")
+style2      =   lstyle2           ==  "Dotted" ? line.style_dotted : lstyle2 == "Solid" ? line.style_solid : line.style_dashed
+
+ex          =   input.string      (   "Right", "  Extend", options=["Right", "None"], inline="in3")
+ex1         =   ex                ==  "Right" ? extend.right : extend.none
+lwidth      =   input.string      (   "2", "Width", options=["1", "2", "3", "4", "5"], inline="in3")
+width       =   lwidth            ==  "1" ? 1 : lwidth == "2" ? 2 : lwidth == "3" ? 3 : lwidth == "4" ? 4 : 5
+
+my_color    =   input.color       (   color.aqua, "  Line", inline="in1")
+my_color2   =   input.color       (   #166cff, "", inline="in1")
+
+txtcol      =   input.color       (   color.new(color.white, 10), "Text", inline="in1")
+txtcol2     =   input.color       (   color.new(color.aqua, 0), "", inline="in1")
+
+inp         =   input.bool        (   true, "Price", inline="in4")
+inpoff      =   input.int         (   15, " | Offset", inline="in4")
+
+i_q         =   input.bool        (   false, "Quarters | ", inline="in5")
+i_t         =   input.bool        (   true, "Table | ", inline="in5")
+i_h         =   input.bool        (   true, " Historic Ranges", inline="in5")
+
+i_mr1       =   input.bool        (   false, "", inline="in10", tooltip="Monday's Timezone (TZ) can be adjusted below")
+i_mr1a      =   input.string      (   "Monday", "", options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], inline="in10")
+i_mr1ab     =   i_mr1a            ==  "Monday" ? dayofweek.monday : i_mr1a == "Tuesday" ? dayofweek.tuesday : i_mr1a == "Wednesday" ? dayofweek.wednesday : i_mr1a == "Thursday" ? dayofweek.thursday : i_mr1a == "Friday" ? dayofweek.friday : i_mr1a == "Saturday" ? dayofweek.saturday : i_mr1a == "Sunday" ? dayofweek.sunday:na
+
+i_mr2       =   input.color       (   color.new(#705eff, 0), "  Line Color", inline="in9")
+i_mr3       =   input.color       (   color.new(#705eff, 0), "Text Color", inline="in9")
+i_mr4       =   input.int         (   45, "|", inline="in10")
+
+i_v1        =   input.bool        (   true, "V-lines", inline="in12")
+i_v2        =   input.string      (   "Dashed", "| Style", options=["Dotted", "Solid", "Dashed"], inline="in12")
+i_v2a       =   i_v2              ==  "Dotted" ? line.style_dotted : i_v2 == "Solid" ? line.style_solid : line.style_dashed
+i_v3        =   input.string      (   "1", "  Width", options=["1", "2", "3", "4", "5"], inline="in13")
+i_v3a       =   i_v3              ==  "1" ? 1 : i_v3 == "2" ? 2 : i_v3 == "3" ? 3 : i_v3 == "4" ? 4 : 5
+i_v4        =   input.color       (   color.new(#843dff,0), "", inline="in13")
+
+i_d1        =   input.bool        (   false, "Day of week labels", inline="in14", tooltip="The timezone(TZ) can be adjusted below")
+i_d2        =   input.color       (   #d1d4dc, "|", inline="in14")
+i_d3        =   input.int         (   3, "  Offset", inline="in15")
+i_d4        =   input.string      (   "GMT+10", "TZ", options=["GMT+0", "GMT+1", "GMT+2", "GMT+3","GMT+4","GMT+5","GMT+6","GMT+7","GMT+8","GMT+9","GMT+10","GMT+11","GMT+12","GMT-1", "GMT-2", "GMT-3","GMT-4","GMT-5","GMT-6","GMT-7","GMT-8","GMT-9","GMT-10","GMT-11","GMT-12"], inline="in15")
+ 
+op1         =   input.string      (   "BRight", "  Position", options=["BRight", "BLeft", "TRight", "TLeft"], group=title2, inline="in6")
+op1a        =   op1               ==  "BRight" ? position.bottom_right : op1 == "BLeft" ? position.bottom_left : op1 == "TRight" ? position.top_right : op1 == "TLeft" ? position.top_left : na
+
+op2         =   input.string      (   "Normal", "Size", options=["Auto", "Tiny", "Small", "Normal", "Large", "Huge"], group=title2, inline="in6")
+op2a        =   op2               ==  "Normal" ? size.normal : op2 == "Tiny" ? size.tiny : op2 == "Normal" ? size.normal : op2 == "Small" ? size.small : op2 == "Large" ? size.large : op2 == "Huge" ? size.huge : op2 == "Auto" ? size.auto : na
+
+op3         =   input.string      (   "1", "  Border Width", options=["1", "2", "3", "4"], group=title2, inline="in7")
+op3a        =   op3               ==  "1" ? 1 : op3 == "2" ? 2 : op3 == "3" ? 3 : op3 == "4" ? 4 : na
+op4         =   input.color       (   #388cff, "|", group=title2, inline="in7")
+
+op5         =   input.color       (   color.new(#000000, 20), "  Colors", group=title2, inline="in8")
+op6         =   input.color       (   color.new(color.navy, 20), "", group=title2, inline="in8")
+
+op7         =   input.color       (   color.new(color.white, 10), "|", group=title2, inline="in8")
+op8         =   input.color       (   color.new(color.white,10), "", group=title2, inline="in8")
+
+//==========>>End of Inputs<<==========//
+
+
+//==========>>Main Security<<==========//
+
+i_mid       =   request.security  (   syminfo.tickerid, higherTF, hl2, lookahead=barmerge.lookahead_on)
+i_open      =   request.security  (   syminfo.tickerid, higherTF, open, lookahead=barmerge.lookahead_on)
+i_high      =   request.security  (   syminfo.tickerid, higherTF, high, lookahead=barmerge.lookahead_on)
+i_low       =   request.security  (   syminfo.tickerid, higherTF, low, lookahead=barmerge.lookahead_on)
+L_mid       =   i_mid
+L_open      =   i_open
+L_high      =   i_high
+L_low       =   i_low
+
+//==========>>Weekday Security<<==========//
+
+sec1        =   request.security  (   syminfo.tickerid, "D", high, lookahead=barmerge.lookahead_on)
+sec2        =   request.security  (   syminfo.tickerid, "D", low, lookahead = barmerge.lookahead_on)
+sec3        =   request.security  (   syminfo.tickerid, "D", open, lookahead = barmerge.lookahead_on)
+sec4        =   request.security  (   syminfo.tickerid, "D", hl2, lookahead = barmerge.lookahead_on)
+
+h           =   sec1
+l           =   sec2
+o           =   sec3
+m           =   sec4
+
+//==========>>Calculations<<===========//
+tq          =   (i_high + i_mid) / 2
+bq          =   (i_mid + i_low) / 2
+tql         =   tq
+bql         =   bq
+
+//==========>>Calc End<<===========//
+
+var label vlab1     = na
+var label vlab2     = na
+var label vlab3     = na
+var label vlab4     = na
+
+var label vlab5     = na
+var label vlab6     = na
+
+//==========>>Function for Main Ranges<<==========//
+
+f_line1(a, b, c) =>
+    var line hline = na
+    var label hlabel = na
+    if L_low[1] != L_low
+        line.set_x2(hline, bar_index)
+        line.set_extend(hline, extend.none)
+        line.set_style(hline, style1)
+        line.set_color(hline, i_h ? my_color : na)
+        hline := line.new(bar_index, a, bar_index + 1, a, xloc.bar_index, ex1, my_color, style2, width)
+        label.set_textcolor(hlabel, i_h ? txtcol2 : na)
+        hlabel:=label.new(bar_index[1], a[1], inp ? "L" + + b + str.tostring(a[1]) : "L" + c, style=label.style_none, textcolor=bool3 ? na : i_h ? txtcol2 : na)
+
+//==========>>Function Extended Previous Ranges<<==========//
+
+f_line2(a, b, c) =>
+    var line hline = na
+    if bool3 and L_low[1] != L_low
+        line.set_x2(hline, bar_index)
+        line.set_extend(hline, extend.none)
+        line.set_style(hline, style1)
+        line.set_color(hline, i_h ? my_color2 : na)
+        hline := line.new(bar_index, a[1], bar_index + 1, a[1], xloc.bar_index, ex1, my_color2, style1, width)
+    lb = label.new(bar_index + inpoff, a, inp ? higherTF+ b + str.tostring(a) : higherTF + c, textcolor=txtcol, style=label.style_none)
+    label.delete(lb[1])
+    lba = label.new(bar_index + bool4, line.get_y1(hline), inp ? "L" + higherTF + b + str.tostring(line.get_y1(hline)[1]) : "L" + higherTF + c, style=label.style_none, textcolor=bool3 ? txtcol2 :na)
+    label.delete(lba[1])    
+
+//==========>>Function Weekday Ranges<<==========//
+
+f_line3(a,b,c)=>
+    var line h1 = na
+    
+    if i_mr1 and dayofweek(time, i_d4) == i_mr1ab and h[1] != h
+
+        line.set_x2(h1, bar_index)
+        line.set_extend(h1, extend.none)
+        line.set_style(h1, style1)
+        h1 := line.new(bar_index, a, bar_index + 1, a, xloc.bar_index, ex1, i_mr2, style2, width)
+        a1 = line.get_y1(h1)[1]
+        label.new(bar_index, a1, inp ? b + ": " + str.tostring(a1):b, style=label.style_none, textcolor=i_mr3)
+    b1 = line.get_y1(h1)
+    lb = label.new(bar_index + i_mr4, b1, inp? i_mr1a + c + ": " + str.tostring(b1) : i_mr1a + c, style=label.style_none, textcolor=i_mr3)
+    label.delete(lb[1])
+
+//==========>>Vertical Session Dividers<<==========//
+
+vline(a) =>
+    if ta.change(time(higherTF)) and i_v1 
+        line.new(a, low - ta.tr , a, high + ta.tr, xloc.bar_index, extend.both, i_v4, i_v2a, i_v3a)
+
+vline(bar_index)
+
+//==========>>Arguments<===========//
+
+if tfbool
+    f_line1( L_open, "O | ", "O"),              f_line1( L_mid, "M | ", "M")
+    f_line1( L_high, "H | ", "H"),              f_line1(L_low, "L | ", "L")
+
+    f_line2(L_open, " | Open | ", " | Open"),   f_line2(L_mid, " | Mid | ", " | Mid")
+    f_line2(L_high, " | High | ", " | High"),   f_line2(L_low, " | Low | ", " | Low")
+
+if i_q
+    f_line1( tql, "TQ | ", "TQ"),               f_line1( bql, "BQ | ", "BQ")
+    f_line2(tql, " | TQ | ", " | TQ"),          f_line2(bql, " | BQ | ", " | BQ")
+
+f_line3( h, "H", "High"),                       f_line3( l, "L", "Low")
+f_line3( o, "O", "Open"),                       f_line3( m, "M", "Mid")
+
+//===========>>Table<<==========//
+
+var table pan = table.new(op1a, 5, 10, color.new(color.blue,100), i_t ? op4 : na, op3a, i_t ? op4 : na, op3a)
+
+tc(x,y,z) =>
+    table.cell(pan, x, y, z, text_color=op7, bgcolor=op5, text_size=op2a)
+
+ts(v, w, x, y) =>
+    z = request.security(syminfo.tickerid, v, w, lookahead=barmerge.lookahead_on )
+    table.cell(pan, x, y, str.tostring(z), text_color=op8, bgcolor=op6, text_size=op2a)
+if i_t
+    tc(0,0,"TF"),           tc(1,0,"Open"),         tc(2, 0, "High"),       tc(3,0, "Low")
+    tc(4, 0, "Mid"),        tc(0, 1, "D"),           tc(0, 2, "YD"),         tc(0,3,"W")
+    tc(0,4, "LW"),          tc(0,5, "M"),           tc(0,6,"LM"),           tc(0,7,"Q") 
+    tc(0,8,"LQ")
+    
+    ts('D', open, 1,1),     ts('D', high, 2,1),     ts('D', low, 3,1),      ts('D', hl2, 4,1)
+    ts('D', open[1], 1,2),  ts('D', high[1], 2,2),  ts('D', low[1], 3,2),   ts('D', hl2[1], 4,2)
+    ts('W', open, 1,3),     ts('W', high, 2,3),     ts('W', low, 3,3),      ts('W', hl2, 4,3)
+    ts('W', open[1], 1,4),  ts('W', high[1], 2,4),  ts('W', low[1], 3,4),   ts('W', hl2[1], 4,4)  
+    ts('M', open, 1,5),     ts('M', high, 2,5),     ts('M', low, 3,5),      ts('M', hl2, 4,5)
+    ts('M', open[1], 1,6),  ts('M', high[1], 2,6),  ts('M', low[1], 3,6),   ts('M', hl2[1], 4,6)
+    ts('3M', open, 1,7),    ts('3M', high, 2,7),    ts('3M', low, 3,7),     ts('3M', hl2, 4,7)
+    ts('3M', open[1], 1,8), ts('3M', high[1], 2,8), ts('3M', low[1], 3,8),  ts('3M', hl2[1], 4,8)
+
+//==========>>Day of Week Labels<<==========//
+
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.monday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "MON", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.tuesday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "TUE", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.wednesday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "WED", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.thursday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "THU", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.friday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "FRI", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.saturday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "SAT", i_d2, false, size.tiny)
+plotshape(i_d1 ? ta.change(time('D')) and dayofweek(time, i_d4) == dayofweek.sunday : na, "", shape.circle, location.bottom, color.new(color.black,100), i_d3, "SUN", i_d2, false, size.tiny)
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;UOOIN5REYltZ0WpVSbj7GS3AYPKquHV3",
+ "title": "Williams Fractal Trailing Stops",
+ "author": "SimpleCryptoLife",
+ "url": "https://www.tradingview.com/script/JZXkmCi2-williams-fractal-trailing-stops/",
+ "agreeCount": 3180,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+ "cached_source": "tools/pine_survey/cache/sources/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+ "our_status": "committed"
+}

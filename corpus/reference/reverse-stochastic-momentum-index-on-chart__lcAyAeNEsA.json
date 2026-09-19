@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;lcAyAeNEsA8mrA7Ac592PLWh6aHS5LeI",
+ "title": "Reverse Stochastic Momentum Index On Chart",
+ "author": "The_Caretaker",
+ "url": "https://www.tradingview.com/script/rCfo5HHf-reverse-stochastic-momentum-index-on-chart/",
+ "agreeCount": 2276,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+ "cached_source": "tools/pine_survey/cache/sources/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+ "our_status": "committed"
+}

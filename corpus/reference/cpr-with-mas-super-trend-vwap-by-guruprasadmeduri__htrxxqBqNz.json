@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;htrxxqBqNz7HKyUs4jCp7DOsgJ3K1xy9",
+ "title": "CPR with MAs, Super Trend & VWAP by GuruprasadMeduri",
+ "author": "GuruprasadMeduri",
+ "url": "https://www.tradingview.com/script/ZEjS9MPh-cpr-with-mas-super-trend-vwap-by-guruprasadmeduri/",
+ "agreeCount": 4287,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+ "our_status": "committed"
+}

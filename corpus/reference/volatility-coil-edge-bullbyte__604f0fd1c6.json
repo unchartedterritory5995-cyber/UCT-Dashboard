@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;604f0fd1c60d43ee89631524c5da1ed7",
+ "title": "Volatility Coil Edge [BullByte]",
+ "author": "BullByte",
+ "url": "https://www.tradingview.com/script/rqB1Q4ON-volatility-coil-edge-bullbyte/",
+ "agreeCount": 2220,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;aYY2rK1EEfduqs96jZfKFDKUPjZdL88Y",
+ "title": "Logistic RSI, STOCH, ROC, AO, ... by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/NioHIxY1-logistic-rsi-stoch-roc-ao-by-dgt/",
+ "agreeCount": 6319,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf.pine",
+ "our_status": "reference-only"
+}

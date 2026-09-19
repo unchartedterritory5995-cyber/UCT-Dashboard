@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "04-warm-up-curtain.pine",
+  "title": "Warm-Up Curtain [BSL]",
+  "author": "BarStateLabs",
+  "source_url": "https://www.tradingview.com/script/Z2Kg0uSJ-Warm-Up-Curtain-BSL/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 130,
+  "complexity_bucket": "long",
+  "sha256_source": "2a3bfef5b54e749e9fe5e501ae4910dad5172d600e336753a110430da274bd04",
+  "sha256_normalized": "412a3187eca394df274f824b40c3b2a9170942fe86eda02aacecbbe7fe49474a",
+  "storage": "git"
+}

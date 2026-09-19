@@ -1,0 +1,443 @@
+// ━╮╭━╮╱╱╭╮╱╱╱╱╱╱╱╱╱╱╱╱╭┳━━━╮
+// ┃╰╯┃┃╱╱┃┃╱╱╱╱╱╱╱╱╱╱╱╱┃┃╭━╮┃
+// ╭╮╭╮┣━━┫╰━┳━━┳╮╭┳━━┳━╯┣╯╭╯┃
+// ┃┃┃┃┃╭╮┃╭╮┃╭╮┃╰╯┃┃━┫╭╮┣╮╰╮┃
+// ┃┃┃┃┃╰╯┃┃┃┃╭╮┃┃┃┃┃━┫╰╯┃╰━╯┃
+// ╯╰╯╰┻━━┻╯╰┻╯╰┻┻┻┻━━┻━━┻━━━┻
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Mohamed3nan
+//@version=4
+// ---------------------------------------------------------------------------------------------- //
+study("MTF WatchList Charts [Anan]", "MTF WatchList Charts [Anan]", false, max_bars_back=500, max_lines_count = 500, max_labels_count = 500, precision=0)
+group_1   = "MTF & HTF Symbols"
+use_1st   = input(true, "", inline = "1", group = group_1)
+sym1      = input("","", type = input.symbol, inline = "1", group = group_1)
+sym_1st = sym1 == "" ? syminfo.ticker : sym1
+htf_1st   = input(""  , "", type=input.resolution, inline = "1", group = group_1)
+use_2nd   = input(true, "", inline = "2", group = group_1)
+sym2   = input("","", type = input.symbol, inline = "2", group = group_1)
+sym_2nd = sym2 == "" ? syminfo.ticker : sym2
+htf_2nd   = input("60"  , "",type=input.resolution, inline = "2", group = group_1)
+use_3rd   = input(true, "", inline = "3", group = group_1)
+sym3   = input("","", type = input.symbol, inline = "3", group = group_1)
+sym_3rd = sym3 == "" ? syminfo.ticker : sym3
+htf_3rd   = input("240"  , "",type=input.resolution, inline = "3", group = group_1)
+use_4th   = input(true, "", inline = "4", group = group_1)
+sym4   = input("","",type = input.symbol, inline = "4", group = group_1)
+sym_4th = sym4 == "" ? syminfo.ticker : sym4
+htf_4th   = input("1D"  , "",type=input.resolution, inline = "4", group = group_1)
+// use_5th   = input(false, "", inline = "5", group = group_1)
+// sym5   = input("","", type = input.symbol, inline = "5", group = group_1)
+// sym_5th = sym5 == "" ? syminfo.ticker : sym5
+// htf_5th   = input("720"  , "",type=input.resolution, inline = "5", group = group_1)
+// use_6th   = input(false, "", inline = "6", group = group_1)
+// sym6   = input("","", type = input.symbol, inline = "6", group = group_1)
+// sym_6th = sym6 == "" ? syminfo.ticker : sym6
+// htf_6th   = input("1D"  , "",type=input.resolution, inline = "6", group = group_1)
+// use_7th   = input(false, "", inline = "7", group = group_1)
+// sym7   = input("","",type = input.symbol, inline = "7", group = group_1)
+// sym_7th = sym7 == "" ? syminfo.ticker : sym7
+// htf_7th   = input("1W"  , "",type=input.resolution, inline = "7", group = group_1)
+// use_8th   = input(false, "", inline = "8", group = group_1)
+// sym8   = input("","",type = input.symbol, inline = "8", group = group_1)
+// sym_8th = sym8 == "" ? syminfo.ticker : sym8
+// htf_8th   = input("1M"  , "",type=input.resolution, inline = "8", group = group_1)
+group_2   = "Candle Settings"
+candleType= input("Standard", "Candle Type", options = ["Standard","Heikin Ashi", "Line"], inline = "1", group = group_2)
+bars      = input(10      , "#Bars", minval = 1, maxval = 10, inline = "1", group = group_2)
+price     = input(true, "Show Price", inline = "3", group = group_2)
+priceLine = input(true, "Show Price Line", inline = "3", group = group_2)
+textSizee = input("Small", "Labels Size", options = ["Auto", "Tiny", "Small", "Normal", "Large", "Huge"], inline = "4", group = group_2)
+textSize  = textSizee == "Auto" ? size.auto : textSizee == "Tiny" ? size.tiny : textSizee == "Small" ? size.small : textSizee == "Normal" ? size.normal : textSizee == "Large" ? size.large : size.huge
+gap       = input(15      , "Gaps Between Charts", minval = 15, maxval = 100, step=1, inline = "5", group = group_2)
+bullColor = input(#26a69a, "Colors" , inline = "6", group = group_2)
+bearColor = input(#ee5350, ""          , inline = "6", group = group_2)
+
+// ---------------------------------------------------------------------------------------------- //
+cutLastDigit(str) =>
+    s = str + ";"
+    r = str.replace_all(s, "1;", "")
+    if r != s
+        [r, 1]
+    else
+        r := str.replace_all(s, "2;", "")
+        if r != s
+            [r, 2]
+        else
+            r := str.replace_all(s, "3;", "")
+            if r != s
+                [r, 3]
+            else
+                r := str.replace_all(s, "4;", "")
+                if r != s
+                    [r, 4]
+                else
+                    r := str.replace_all(s, "5;", "")
+                    if r != s
+                        [r, 5]
+                    else
+                        r := str.replace_all(s, "6;", "")
+                        if r != s
+                            [r, 6]
+                        else
+                            r := str.replace_all(s, "7;", "")
+                            if r != s
+                                [r, 7]
+                            else
+                                r := str.replace_all(s, "8;", "")
+                                if r != s
+                                    [r, 8]
+                                else
+                                    r := str.replace_all(s, "9;", "")
+                                    if r != s
+                                        [r, 9]
+                                    else
+                                        r := str.replace_all(s, "0;", "")
+                                        if r != s
+                                            [r, 0]
+                
+strToNumInt(str) =>
+    integer = 0    // integer part of the number
+    s_new = str
+    position = 0.0    // handled position of the number.
+    sign = 1          // sign of the number. 1.0 is PLUS and -1.0 is MINUS.
+    for i = 0 to 30
+        [s, digit] = cutLastDigit(s_new) // here we'll cut the digits by one from the string till the string is empty.
+        integer := integer + digit * int(pow(10, position)) // it's just a regular digit.
+        position := position + 1
+        if s == ""
+            break
+        s_new := s                  // If we are here, then there are more digits in the string. Let's handle the next one!
+    sign * (integer)   // We've exited from the loop. Build the returning value.
+
+// resInMinutes() => 
+//     resInMinutes = timeframe.multiplier * (
+//       timeframe.isseconds ? 1. / 60. :
+//       timeframe.isminutes ? 1.       :
+//       timeframe.isdaily   ? 1440.    :
+//       timeframe.isweekly  ? 10080.   :
+//       timeframe.ismonthly ? 43800.   : na)
+
+// tfResInMinutes(res) =>
+//     security(syminfo.tickerid, res, resInMinutes())
+
+calculateTimeDividedBy(res) =>
+    timeDividiedBy = time(timeframe.period)
+    if(strToNumInt(res) < 1440)
+        timeDividiedBy := strToNumInt(res) * 60 * 1000
+	for i = 1 to 50
+		if(res == (tostring(i)+"D") or res == "D")
+			timeDividiedBy := i * 1 * 86400000
+			break
+		else if (res == (tostring(i)+"W") or res == "W")
+			timeDividiedBy := i * 7 * 86400000
+			break
+		else if (res == (tostring(i)+"M") or res == "M")
+			timeDividiedBy := i * 30 * 86400000
+			break
+    timeDividiedBy
+
+visible(res)=> 
+    calculateTimeDividedBy(res) >= calculateTimeDividedBy(timeframe.period)
+
+resToStr(res)=>
+    str = res
+	if(strToNumInt(str) < 60)
+		str := str + "m"
+	else if (strToNumInt(str) >= 60 and strToNumInt(str) <= 1440)
+		str := tostring(strToNumInt(str)/60) + "h"
+	else if (str == "")
+		if(strToNumInt(timeframe.period) < 60)
+			str := ""+ timeframe.period + "m"
+		else if (strToNumInt(timeframe.period) >= 60 and strToNumInt(timeframe.period) <= 1440)
+			str := ""+ tostring(strToNumInt(timeframe.period)/60) + "h"
+		else
+	    	str:= ""+ timeframe.period
+	else
+	    str
+    str
+
+drawLine(x1, y1, x2, y2, xloc, extend, color, style, width) =>
+    var id = line.new(x1, y1, x2, y2, xloc, extend, color, style, width)
+    line.set_xy1(id, x1, y1)
+    line.set_xy2(id, x2, y2)
+    line.set_color(id, color)
+
+drawLabel(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip) =>
+    var id = label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip)
+    label.set_xy(id, x, y)
+    label.set_text(id, text)
+    label.set_tooltip(id, tooltip)
+    label.set_textcolor(id, textcolor)
+
+labelAbove(txt,x, y, color, size) => 
+    var id = label.new(x, y, txt, xloc.bar_index, yloc.price, color, label.style_label_down, color.white, size)
+    label.set_xy(id, x, y)
+    label.set_text(id, txt)
+    label.set_textcolor(id, color.white)
+    label.set_color(id, color)
+
+labelRight(txt,x, y, color, size) => 
+    var id = label.new(x, y, txt, xloc.bar_index, yloc.price, color.new(color.white,100), label.style_label_left, color, size)
+    label.set_xy(id, x, y)
+    label.set_text(id, txt)
+    label.set_textcolor(id, color)
+        
+toolTip(o, h, l, c, c1) =>
+    "O: " + tostring(o) + "\nH: " + tostring(h) + "\nL: " + tostring(l) + "\nC: " + tostring(c)
+
+// getMax(src,bars)=>
+//     max = 0.
+//     if bars == 1
+//         max := highest(src, bars)
+//     else
+//         a = array.new_float(bars, 0)
+//         for _i = 0 to bars-1
+//             array.set(a, _i,src[_i])
+//         max := array.max(a)
+//     max
+
+// getMin(src,bars)=>
+//     min = 0.
+//     if bars == 1
+//         min := lowest(src, bars)
+//     else
+//         a = array.new_float(bars, 0)
+//         for _i = 0 to bars-1
+//             array.set(a, _i,src[_i])
+//         min := array.min(a)
+//     min
+
+// HH = (candleType == "Line")?getMax(close,bars):getMax(high,bars)
+// LL  = (candleType == "Line")?getMin(close,bars): getMin(low,bars)
+
+getOHLC(symbol, htf) =>
+    o   = open
+    h   = high
+    l   = low
+    c   = close
+    o1  = open[1]
+    h1  = high[1]
+    l1  = low[1]
+    c1 = close[1]
+    HH = (candleType == "Line")?highest(close, bars): highest(high, bars)
+    LL  = (candleType == "Line")?lowest(close , bars): lowest(low, bars)
+    [oRa,lRa,hRa,cRa,o1Ra,h1Ra,l1Ra,c1Ra,HHa,LLa]   = security(symbol, htf, [o,l,h,c,o1,h1,l1,c1,HH,LL])  
+    [oRb,lRb,hRb,cRb,o1Rb,h1Rb,l1Rb,c1Rb,HHb,LLb]   = security(symbol, timeframe.period, [o,l,h,c,o1,h1,l1,c1,HH,LL])  
+    [oHa,lHa,hHa,cHa,o1Ha,h1Ha,l1Ha,c1Ha,HHaa,LLaa] = security(heikinashi(symbol), htf, [o,l,h,c,o1,h1,l1,c1,HH,LL])
+    [oHb,lHb,hHb,cHb,o1Hb,h1Hb,l1Hb,c1Hb,HHab,LLab] = security(heikinashi(symbol), timeframe.period, [o,l,h,c,o1,h1,l1,c1,HH,LL])
+    timecheck = visible(htf)
+    oe  = oRb
+    he  = hRb
+    le  = lRb
+    ce  = cRb
+    oe1 = o1Rb
+    he1 = h1Rb
+    le1 = l1Rb
+    ce1 = c1Rb 
+    H   = HHb 
+    L   = LLb 
+    if timecheck and candleType != "Heikin Ashi"
+        oe  := oRa
+        he  := hRa
+        le  := lRa
+        ce  := cRa
+        oe1 := o1Ra
+        he1 := h1Ra
+        le1 := l1Ra
+        ce1 := c1Ra
+        H   := HHa
+        L   := LLa
+    if timecheck and candleType == "Heikin Ashi"
+        oe  := oHa
+        he  := hHa
+        le  := lHa
+        ce  := cHa
+        oe1 := o1Ha
+        he1 := h1Ha
+        le1 := l1Ha
+        ce1 := c1Ha
+        H   := HHaa
+        L   := LLaa
+    if not timecheck and candleType == "Heikin Ashi"
+        oe  := oHb
+        he  := hHb
+        le  := lHb
+        ce  := cHb
+        oe1 := o1Hb
+        he1 := h1Hb
+        le1 := l1Hb
+        ce1 := c1Hb
+        H   := HHab
+        L   := LLab
+    [oe,he,le,ce,oe1,he1,le1,ce1,H,L]
+
+// normalize(val,minVal,maxVal,newMin,newMax) =>
+//     newMin + (val - minVal) * (newMax - newMin) / (maxVal - minVal)
+    
+normalize(val,minVal,maxVal,newMin,newMax) =>
+    ((val-minVal) / (maxVal-minVal)) *100
+
+// Thanks to @dgtrd
+drawChart(show, htf, symbol, bullColor, bearColor, Xoffset, bars, candleType, textSize) =>
+    [O0,H0,L0,C0,O1,H1,L1,C1,H,L] = getOHLC(symbol, htf)
+    if candleType == "Standard" or candleType == "Heikin Ashi"
+        if show
+            labelAbove(tostring(symbol)+" ["+tostring(resToStr(htf))+"]\n"+tostring(C0,format.mintick)+" ("+tostring((C0 / C1 - 1) * 100, "#.##")+"%)", bar_index + (Xoffset - 4), 105 , O0 < C0 ? bullColor : bearColor,textSize)
+            if price
+                labelRight(tostring(C0,format.mintick), bar_index + (Xoffset) , normalize(C0,L,H,0,100) , O0 < C0 ? bullColor : bearColor,textSize)
+            if priceLine
+                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-bars+1),normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_dotted, 1)
+            if bars > 0
+                drawLine(bar_index + Xoffset, normalize(O0,L,H,0,100), bar_index + Xoffset, normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + Xoffset, normalize(L0,L,H,0,100), bar_index + Xoffset, normalize(H0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + Xoffset, normalize(H0,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 1
+                drawLine(bar_index + (Xoffset - 1), normalize(O1,L,H,0,100), bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 1), normalize(L1,L,H,0,100), bar_index + (Xoffset - 1), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 1), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 2
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 2), normalize(O1,L,H,0,100), bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 2), normalize(L1,L,H,0,100), bar_index + (Xoffset - 2), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 2), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 3
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 3), normalize(O1,L,H,0,100), bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 3), normalize(L1,L,H,0,100), bar_index + (Xoffset - 3), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 3), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 4
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 4), normalize(O1,L,H,0,100), bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 4), normalize(L1,L,H,0,100), bar_index + (Xoffset - 4), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 4), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 5
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 5), normalize(O1,L,H,0,100), bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 5), normalize(L1,L,H,0,100), bar_index + (Xoffset - 5), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 5), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 6
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 6), normalize(O1,L,H,0,100), bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 6), normalize(L1,L,H,0,100), bar_index + (Xoffset - 6), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 6), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 7
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 7), normalize(O1,L,H,0,100), bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 7), normalize(L1,L,H,0,100), bar_index + (Xoffset - 7), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 7), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 8
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 8), normalize(O1,L,H,0,100), bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 8), normalize(L1,L,H,0,100), bar_index + (Xoffset - 8), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 8), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+            if bars > 9
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 9), normalize(O1,L,H,0,100), bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)
+                drawLine(bar_index + (Xoffset - 9), normalize(L1,L,H,0,100), bar_index + (Xoffset - 9), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)
+                drawLabel(bar_index + (Xoffset - 9), normalize(H1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))
+    if candleType == "Line"
+        if show
+            labelAbove(tostring(symbol)+"["+tostring(resToStr(htf))+"]\n"+tostring(C0,format.mintick)+" ("+tostring((C0 / C1 - 1) * 100, "#.##")+"%)", bar_index + (Xoffset - 4), 105 , O0 < C0 ? bullColor : bearColor,textSize)
+            if price
+                labelRight(tostring(C0,format.mintick), bar_index + (Xoffset-1) , normalize(C0,L,H,0,100) , O0 < C0 ? bullColor : bearColor,textSize)
+            if priceLine
+                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-bars+1),normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_dotted, 1)
+            if bars > 0
+                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-1), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, C1 < C0 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + Xoffset, normalize(C0,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 1
+                O1 := valuewhen(change(C1), C1, 1)
+                drawLine(bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), bar_index + (Xoffset - 2), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 2
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), bar_index + (Xoffset - 3), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 3
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), bar_index + (Xoffset - 4), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 4
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), bar_index + (Xoffset - 5), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 5
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), bar_index + (Xoffset - 6), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 6
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), bar_index + (Xoffset - 7), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 7
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), bar_index + (Xoffset - 8), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            if bars > 8
+                O1 := valuewhen(change(O1), O1, 1)
+                C1 := valuewhen(change(C1), C1, 1)
+                L1 := valuewhen(change(L1), L1, 1)
+                H1 := valuewhen(change(H1), H1, 1)
+                drawLine(bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), bar_index + (Xoffset - 9), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+                drawLabel(bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            // if bars > 9
+            //     O1 := valuewhen(change(O1), O1, 1)
+            //     C1 := valuewhen(change(C1), C1, 1)
+            //     L1 := valuewhen(change(L1), L1, 1)
+            //     H1 := valuewhen(change(H1), H1, 1)
+            //     drawLine(bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), bar_index + (Xoffset - 10), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)
+            //     drawLabel(bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), "", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))
+            
+// ---------------------------------------------------------------------------------------------- //
+drawChart(use_1st, htf_1st ,sym_1st , bullColor, bearColor,   0      , bars, candleType, textSize)
+drawChart(use_2nd, htf_2nd, sym_2nd , bullColor, bearColor, 1*(-gap) , bars, candleType, textSize)
+drawChart(use_3rd, htf_3rd, sym_3rd , bullColor, bearColor, 2*(-gap) , bars, candleType, textSize)
+drawChart(use_4th, htf_4th, sym_4th , bullColor, bearColor, 3*(-gap) , bars, candleType, textSize)
+// drawChart(use_5th, htf_5th, sym_5th , bullColor, bearColor, 4*(-gap) , bars, candleType, textSize)
+// drawChart(use_6th, htf_6th, sym_6th , bullColor, bearColor, 5*(-gap) , bars, candleType, textSize)
+// drawChart(use_7th, htf_7th, sym_7th , bullColor, bearColor, 6*(-gap) , bars, candleType, textSize)
+// drawChart(use_8th, htf_8th, sym_8th , bullColor, bearColor, 7*(-gap) , bars, candleType, textSize)
+// ---------------------------------------------------------------------------------------------- //

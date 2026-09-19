@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;486858895cb4461aae5a4055591269a9",
+ "title": "Multicator Table",
+ "author": "only_fibonacci",
+ "url": "https://www.tradingview.com/script/mhl1Fgp1-multicator-table/",
+ "agreeCount": 8807,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multicator-table__486858895c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multicator-table__486858895c.pine",
+ "our_status": "committed"
+}

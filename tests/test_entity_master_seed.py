@@ -7,6 +7,23 @@ green BEFORE `entity_master_seed.py --dry-run` or a real invocation touches
 anything.
 
 Colocated with the script, mirroring `scripts/test_massive_ws.py`.
+
+⚰️ MOVED HERE FROM `scripts/` ON 2026-09-11, AND IT HAD NEVER RUN.
+It matched pytest's naming patterns but lived outside every `testpaths` root,
+so no standard run collected it — 18 tests, described by their own docstring as
+"the safety gate before any real seed run", green by assumption for as long as
+they existed. `tests/test_test_discovery_coverage.py` is what found it.
+
+⛔ THE OTHER FIX WAS THE DANGEROUS ONE. That rail offers "add the directory to
+`testpaths`", and adding `scripts/` would also have made pytest IMPORT
+`scripts/test_massive_ws.py` — a manual probe against the live Massive WS, where
+one connection per key means collecting it kicks production off the OPRA feed.
+`NOT_A_SUITE` exempts that file from the RAIL, not from collection. So the suite
+moved to the collected root instead of the root moving to the suite.
+
+⭐ Colocation was the stated reason it sat in `scripts/`, mirroring
+`scripts/test_massive_ws.py` — which is not a suite at all (zero test
+functions). The precedent was a file that must never be collected.
 """
 import sys
 from pathlib import Path

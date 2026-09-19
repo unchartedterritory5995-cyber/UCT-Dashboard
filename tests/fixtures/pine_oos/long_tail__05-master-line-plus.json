@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "05-master-line-plus.pine",
+  "title": "Master Line Plus. Multi-MA Consensus",
+  "author": "zebris_boris",
+  "source_url": "https://www.tradingview.com/script/zv91H545-Master-Line-Plus-Multi-MA-Consensus/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (MPL-2.0, per header comment)",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 81,
+  "complexity_bucket": "medium",
+  "sha256_source": "34b3ededc2b3e5994d3b29960cd650a2aab6dbd488d0192888b76d805d048f31",
+  "sha256_normalized": "27a75b3f2d2f8c2507ea7dfe8b0204fbe060a227d040d72843e63b44a4a65e2f",
+  "storage": "git"
+}

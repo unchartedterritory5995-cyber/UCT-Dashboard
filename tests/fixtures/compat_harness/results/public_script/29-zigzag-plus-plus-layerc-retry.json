@@ -1,0 +1,40 @@
+{
+  "id": "public_script/29-zigzag-plus-plus-layerc-retry",
+  "lane": "public_script",
+  "layer": "C",
+  "source": {
+    "dialect": "pine",
+    "version_declared": "5",
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#29-zigzag-plus-plus",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview_clipboard",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "source_entry_hardening": {
+    "mechanism": "OS clipboard (PowerShell Get-Content -Raw | Set-Clipboard) followed by a genuine Ctrl+V paste in the browser, replacing simulated per-keystroke typing",
+    "non_vacuity_check": "clipboard content verified byte-for-byte identical to the source file (case-sensitive string equality, both 4304 chars) BEFORE pasting; AFTER pasting, the editor's final cursor position (Ctrl+End) landed at Line 87 matching the source's exact line count, and a zoomed screenshot of the previously-corrupted nested if/else region (lines 56-71) confirmed indentation now matches the source exactly -- no cascading staircase this time",
+    "result": "CONFIRMED RELIABLE -- the harness limitation from the prior session (RISK-028's ZigZag++ HARNESS_DEFECT) is fixed for this mechanism"
+  },
+  "steps": {
+    "parse": { "status": "SUPPORTED", "note": "compiled cleanly, zero errors, on the first attempt with the hardened paste" },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v5_explicit" },
+    "translate": { "status": "SUPPORTED", "guard": null, "note": "the import DevLucem/ZigLib/1 as ZigZag resolved successfully -- the genuinely interesting question left open by the prior attempt is now answered" },
+    "canonical_ast": { "status": "SUPPORTED" },
+    "execution_requirements": { "status": "SUPPORTED" },
+    "visual_requirements": { "status": "SUPPORTED", "plot_count": null, "needs": ["lines", "labels", "bgcolor", "plotarrow"] },
+    "chart_render": {
+      "status": "SUPPORTED",
+      "note": "added to chart with NO compile errors. Object-tree legend resolved with real parameter values: 'ZigZag++ [LD] (12, 5, 2, 2, 0, 0, 80, 3)' -- exactly matching the pasted script's declared defaults (Depth=12, Deviation=5, Backstep=2, line_thick=2, labels=0, lines=0, background=80, label_size=3). This is strong evidence of genuine instantiation, not a name-only placeholder."
+    },
+    "persistence_save": { "status": "PARTIAL", "note": "not exercised this pass -- the compile/render/import-resolution question was the priority; save/reopen already validated generically on Williams VIX Fix in the prior Layer C session" },
+    "persistence_reload": { "status": "PARTIAL", "note": "not exercised this pass" },
+    "screener_eligibility": { "status": "PARTIAL", "eligible": false, "reason": "no numeric/boolean plot output -- lines/labels/bgcolor are drawing objects, matching Layer A's own reasoning for related no-plot scripts" },
+    "refusal_behavior": { "status": "SUPPORTED", "guard": null, "note": "no refusal -- clean success" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "note": "This SUPERSEDES the prior attempt's HARNESS_DEFECT result (that attempt was inconclusive due to a transcription-tooling corruption, not a real finding). This retry, with the hardened source-entry mechanism, gives the real answer: the vendor SUPPORTS this script fully, including the cross-script import. Layer A's own CORRECTLY_REFUSED classification for UCT is UNCHANGED and NOT contradicted -- it is a claim about UCT's own architecture (no mechanism to fetch/resolve an external Pine library), not a claim that the construct is invalid Pine. Both classifications are correct simultaneously, about two different systems.",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

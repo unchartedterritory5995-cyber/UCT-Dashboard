@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0ca9b3c747b94d33a1736d5acaabd87b",
+ "title": "Edufx AMD",
+ "author": "Fx-Eddie",
+ "url": "https://www.tradingview.com/script/ZRgEnoa6-edufx-amd/",
+ "agreeCount": 2101,
+ "category": "volume",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/edufx-amd__0ca9b3c747.pine",
+ "our_status": "reference-only"
+}

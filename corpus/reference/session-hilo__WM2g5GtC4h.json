@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;WM2g5GtC4htD4zwNWf5FZ2KIlKf1TSUg",
+ "title": "Session HiLo",
+ "author": "kurtsmock",
+ "url": "https://www.tradingview.com/script/Ycz8rRnW-session-hilo/",
+ "agreeCount": 3118,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/session-hilo__WM2g5GtC4h.pine",
+ "cached_source": "tools/pine_survey/cache/sources/session-hilo__WM2g5GtC4h.pine",
+ "our_status": "committed"
+}

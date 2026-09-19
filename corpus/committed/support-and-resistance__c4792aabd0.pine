@@ -1,0 +1,114 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © faytterro
+
+//@version=5
+indicator("Support and Resistance", overlay = true, max_bars_back =1500)
+trn=50
+o = input.int(0, "previous supports and resistances" , minval = 0)
+len=input.int(20, "previous supports and resistances length", minval = 1) 
+cs = input.color(color.rgb(0,255,0,trn), "Support Color")
+cr = input.color(color.rgb(255,0,0,trn), "Resistance Color")
+
+r = high<low[2]-(high[2]-low[2]) 
+ and math.abs(close[1]-open[1])>(high[2]-low[2])*2 
+r2 = high<math.min(low[3],low[4])-(math.max(high[3],high[4])-math.min(low[3],low[4])) 
+ and math.abs(close[1]-open[2])>(math.max(high[3],high[4])-math.min(low[3],low[4]))*2
+for i=1 to 4
+    r2:= r2 and r2[i]==false 
+    r:= r and r2[i-1]==false  
+s= low>high[2]-(high[2]-low[2]) 
+ and math.abs(close[1]-open[1])>(high[2]-low[2])*2 
+s2 = low>math.max(high[3],high[4])+(math.max(high[3],high[4])-math.min(low[3],low[4])) 
+ and math.abs(close[1]-open[2])>(math.max(high[3],high[4])-math.min(low[3],low[4]))*2
+for i=1 to 4
+    s2 := s2 and s2[i]==false 
+    s:= s and s2[i-1]==false 
+
+
+ass= ta.crossover(close,ta.valuewhen(r,high[2],o))
+for i = 1 to  ta.barssince(r)
+    ass:= ass and ass[i]==false
+k=ta.barssince(ass)<ta.barssince(r)? ta.barssince(ass) : -2
+box=box.new(ta.valuewhen(r,bar_index,o)-2,
+ ta.valuewhen(r,high[2],o), 
+ o==0? last_bar_index-k :ta.valuewhen(r,bar_index,o)-2+len,
+ ta.valuewhen(r,low[2],o), bgcolor = cr, border_color = color.rgb(71, 89, 139,100))
+box.delete(box[1])
+
+bass= ta.crossunder(close,ta.valuewhen(r,high[2],o))
+for i = 1 to  ta.barssince(r)
+    bass:= bass and bass[i]==false
+bk=ta.barssince(bass)<ta.barssince(r)? ta.barssince(bass) : -2
+bbox=box.new(last_bar_index-k,
+ ta.valuewhen(r,high[2],o), 
+ last_bar_index-bk,ta.valuewhen(r,low[2],o), bgcolor = cs, border_color = color.rgb(71, 89, 139,100))
+box.delete(bbox[o<1? 1 : 0])
+
+
+ass2= ta.crossover(close,math.max(ta.valuewhen(r2,high[3],o), ta.valuewhen(r2,high[4],o)))
+for i = 1 to  ta.barssince(r2)
+    ass2:= ass2 and ass2[i]==false
+k2=ta.barssince(ass2)<ta.barssince(r2)? ta.barssince(ass2) : -2
+box2=box.new(ta.valuewhen(r2,bar_index,o)-4, ///last_bar_index-ta.barssince(r2)-4 
+ math.max(ta.valuewhen(r2,high[3],o), ta.valuewhen(r2,high[4],o)), 
+ o==0? last_bar_index-k2 : ta.valuewhen(r2,bar_index,o)-4 + len ,
+ math.min(ta.valuewhen(r2,low[3],o), ta.valuewhen(r2,low[4],o)), 
+ bgcolor = cr, border_color = color.rgb(71, 89, 139,100))
+box.delete(box2[1])
+
+bass2= ta.crossunder(close,math.max(ta.valuewhen(r2,high[3],o), ta.valuewhen(r2,high[4],o)))
+for i = 1 to  ta.barssince(r2)
+    bass2:= bass2 and bass2[i]==false
+bk2=ta.barssince(bass2)<ta.barssince(r2)? ta.barssince(bass2) : -2
+bbox2=box.new(last_bar_index-k2,
+ math.max(ta.valuewhen(r2,high[3],o), ta.valuewhen(r2,high[4],o)), 
+ last_bar_index-bk2,
+ math.min(ta.valuewhen(r2,low[3],o), ta.valuewhen(r2,low[4],o)), 
+ bgcolor = cs, border_color = color.rgb(71, 89, 139,100))
+box.delete(bbox2[o==0? 1:0])
+
+akk = ta.crossunder(close,ta.valuewhen(s,low[2],o))
+for i=1 to ta.barssince(s)
+    akk:= akk and akk[i]==false
+k4=ta.barssince(akk)<ta.barssince(s)? ta.barssince(akk) : -2
+box4=box.new(ta.valuewhen(s,bar_index,o)-2,
+ ta.valuewhen(s,high[2],o), 
+ o==0? last_bar_index-k4 :ta.valuewhen(s,bar_index,o)-2+len,
+ ta.valuewhen(s,low[2],o), 
+ bgcolor = cs, border_color = color.rgb(71, 89, 139,100))
+box.delete(box4[1])
+
+akk2 = ta.crossunder(close,math.min(ta.valuewhen(s2,low[3],o),ta.valuewhen(s2,low[4],o)))
+for i=1 to ta.barssince(s2)
+    akk2:= akk2 and akk2[i]==false
+k5=ta.barssince(akk2)<ta.barssince(s2)? ta.barssince(akk2) : -2
+box5=box.new(ta.valuewhen(s2,bar_index,o)-4,
+ math.max(ta.valuewhen(s2,high[3],o),ta.valuewhen(s2,high[4],o)), 
+ o==0? last_bar_index-k5 : ta.valuewhen(s2,bar_index,o)-4+len ,
+ math.min(ta.valuewhen(s2,low[3],o),ta.valuewhen(s2,low[4],o)), 
+ bgcolor = cs, border_color = color.rgb(71, 89, 139,100))
+box.delete(box5[1])
+
+bakk = ta.crossover(close,ta.valuewhen(s,low[2],o))
+for i=1 to ta.barssince(s)
+    bakk:= bakk and bakk[i]==false
+bk4=ta.barssince(bakk)<ta.barssince(s)? ta.barssince(bakk) : -2
+bbox4=box.new(last_bar_index-k4,
+ ta.valuewhen(s,high[2],o), 
+ last_bar_index-bk4,
+ ta.valuewhen(s,low[2],o), 
+ bgcolor = cr, border_color = color.rgb(71, 89, 139,100))
+box.delete(bbox4[o==0? 1:0])
+
+bakk2 = ta.crossover(close,math.min(ta.valuewhen(s2,low[3],o),ta.valuewhen(s2,low[4],o)))
+for i=1 to ta.barssince(s2)
+    bakk2:= bakk2 and bakk2[i]==false
+bk5=ta.barssince(bakk2)<ta.barssince(s2)? ta.barssince(bakk2) : -2
+bbox5=box.new(last_bar_index-k5,
+ math.max(ta.valuewhen(s2,high[3],o),ta.valuewhen(s2,high[4],o)), 
+ last_bar_index-bk5,
+ math.min(ta.valuewhen(s2,low[3],o),ta.valuewhen(s2,low[4],o)), 
+ bgcolor = cr, border_color = color.rgb(71, 89, 139,100))
+box.delete(bbox5[o==0?1:0])
+
+

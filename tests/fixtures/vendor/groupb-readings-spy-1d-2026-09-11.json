@@ -1,0 +1,65 @@
+{
+  "_": "⭐⭐ ITEM 6 (GROUP B) — EIGHT VENDOR READINGS, NOT EIGHT GUESSES. Read off three probes already standing on the disposable layout; no adds were needed.",
+  "_capturedET": "2026-09-11T08:35:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+  "bars": 405,
+  "_probesRead": [
+    { "study": "UCTPROBE_GB_HILO", "source": "tools/visual_conformance/probes/groupb-hilo-default.pine", "plots": 11, "statusType": 2 },
+    { "study": "UCTPROBE_GB_PIVOT", "source": "tools/visual_conformance/probes/groupb-pivot-default.pine", "plots": 9, "statusType": 2 },
+    { "study": "UCTPROBE_GB_ROUND_MAX_VWAP", "source": "tools/visual_conformance/probes/groupb-round-max-vwap.pine", "plots": 14, "statusType": 2 }
+  ],
+
+  "_everyProbeCarriesItsOwnNonVacuityControl": "⛔ EVERY ONE OF THESE ANSWERS IS A DIFFERENCE THAT MEASURED ZERO, and a zero is exactly what a study that never evaluated also produces. So each probe carries a SPREAD channel that must be NON-zero — `high` really does differ from `close`, `low` from `close`, `hlc3` from `close` — and all of them are. Without that, 'the difference is 0' and 'nothing ran' are the same row.",
+
+  "readings": {
+    "ta.highest_one_arg_default": {
+      "verdict": "high",
+      "evidence": "N02 (hi1 - highest(high,n)) = 0 on all 405 bars, ONE distinct value. N03 (hi1 - highest(close,n)) takes 126 distinct non-zero values. N10 (vs hl2) is non-zero too, so it is not a blend.",
+      "_": "⭐⭐ THIS IS THE 81-SITE QUESTION FROM RULING H, AND IT CONFIRMS WHAT SHIPPED. `pine.js::PINE_SHORT_FORM` fills `ta.highest(n)` with `high` — measured here as exact equality on every bar."
+    },
+    "ta.lowest_one_arg_default": {
+      "verdict": "low",
+      "evidence": "N04 (lo1 - lowest(low,n)) = 0 on all 405 bars. N05 (vs lowest(close,n)) takes 126 distinct non-zero values.",
+      "_": "Same shape, same commit, same confirmation."
+    },
+    "ta.pivothigh_default_source": {
+      "verdict": "high",
+      "evidence": "N04 (hiDEF - high) takes only {-2, 0}, where -2 is the probe's did-not-fire sentinel and 0 is every firing bar. N05 (hiDEF - close) takes 12 distinct non-zero values.",
+      "firesControl": "N02 takes {0, 1} — it DOES fire, so the zeros are answers and not silence."
+    },
+    "ta.pivotlow_default_source": {
+      "verdict": "low",
+      "evidence": "N06 (loDEF - low) takes only {-2, 0}. N07 (loDEF - close) takes 18 distinct non-zero values.",
+      "firesControl": "N03 takes {0, 1}."
+    },
+    "math.round_half_rule": {
+      "verdict": "HALF AWAY FROM ZERO (half-up for positives) — NOT bankers' rounding",
+      "evidence": {
+        "round(2.5)": 3,
+        "round(-2.5)": -3,
+        "round(3.5)": 4,
+        "round(0.125, 2)": 0.13
+      },
+      "_": "⭐ 2.5 → 3 rules out bankers' (which gives 2), and -2.5 → -3 rules out toward-zero. The 2-dp case is the sharper one: 0.125 → 0.13 where bankers' would give 0.12. round(3.5) → 4 is the CONTROL — both rules agree there, so it proves the channel is live without discriminating. ⭐⭐ AND IT CONFIRMS THE ENGINE: `interpret.js::POINTWISE.round` and `ast_interpret._guarded_round` both already compute sign(x) * floor(|x| + 0.5), hand-written precisely because neither JS nor Python does this by default."
+    },
+    "math_max_min_variadic": {
+      "verdict": "VARIADIC — at least 5 arguments",
+      "evidence": { "max(2 args)": 2, "max(3 args)": 3, "max(5 args)": 5, "min(5 args)": 1 },
+      "_": "⛔ OUR TABLE DECLARES `max(series, series)` — TWO. A 5-argument call is legal Pine and would refuse here. This is an ARITY gap in the same family as `ta.barssince`, but pointing the other way: there we accept a form the vendor rejects; here we reject a form the vendor accepts."
+    },
+    "ta.vwap_no_arg_default": {
+      "verdict": "hlc3",
+      "evidence": "N13 (vwap(hlc3) - vwap()) = 0 on all 405 bars, ONE distinct value. N14 (vwap(close) - vwap()) takes 370 distinct non-zero values. N15, the hlc3-vs-close spread, is non-zero — so the zero above is an answer.",
+      "_": "⭐ This settles the `{series: 'hlc3'}` default that `PINE_CALL_SHAPES` would need. ⚠️ RULING H measured the 1-ARG form (`ta.vwap(hlc3)`) INERT at the arity layer because `ta.vwap` with arguments is refused upstream in the value-namespace path; that finding is about OUR door and is unaffected by this one, which is about the VENDOR's default."
+    }
+  },
+
+  "_stillUnread": "⚠️ `ta.tr(true)`. Item 6's row calls it 'still the template (the argument CHANGES THE MATHS)' and none of these three probes carries it. It is the one Group-B reading this capture does NOT supply.",
+
+  "_aPriorFailureThatNoLongerReproduces": "⭐ `capture-procedure.md` records `groupb-round-max-vwap.pine` failing at the vendor with CE10041 and landing as a one-plot stub. It reads `statusType: 2` with all 14 plots today. Recorded as an observation, not a fix: nothing in this session touched that probe, so either it was re-added successfully at some point after that note, or the original failure was a property of that add rather than of the source. ⛔ Do not delete the CE10041 note on the strength of this — a failure that does not reproduce is not a failure that was explained.",
+
+  "_notPinned": "⛔ None of these are pinned. `ta.highest`/`ta.lowest` already ARE (RULING H) and this confirms them; the rest are table-shape changes carrying the corpus-case price, and `math.max`'s variadic arity is a widening that needs its own decision.",
+
+  "_bounds": "⚠️ One symbol, one timeframe, 405 daily bars. The rounding reads are on fixed literals rather than on a swept range; `max`/`min` are read at 2, 3 and 5 arguments only; the pivot defaults are read at whatever left/right lengths the probe declares."
+}

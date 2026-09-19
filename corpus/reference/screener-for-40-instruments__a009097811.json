@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a009097811644f9d970a5c7115848473",
+ "title": "Screener for 40+ instruments",
+ "author": "QuantNomad",
+ "url": "https://www.tradingview.com/script/zN8rwPFF-screener-for-40-instruments/",
+ "agreeCount": 2822,
+ "category": "screener/scanner",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/screener-for-40-instruments__a009097811.pine",
+ "our_status": "reference-only"
+}

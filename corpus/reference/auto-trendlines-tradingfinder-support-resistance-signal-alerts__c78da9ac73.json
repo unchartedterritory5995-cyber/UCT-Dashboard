@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c78da9ac73324113b1fdf78126efdd1a",
+ "title": "Auto TrendLines [TradingFinder] Support Resistance Signal Alerts",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/hZyLPfdY-auto-trendlines-tradingfinder-support-resistance-signal-aler/",
+ "agreeCount": 6520,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+ "cached_source": "tools/pine_survey/cache/sources/auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+ "our_status": "committed"
+}

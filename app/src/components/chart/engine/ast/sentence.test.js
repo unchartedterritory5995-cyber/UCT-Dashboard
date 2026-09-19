@@ -156,6 +156,21 @@ const FORMS = [
   // `stdev` is the other one, and a sentence a member cannot tell apart is how a
   // wrong CCI gets approved in a read-back review.
   { kind: 'call', name: 'dev', parts: ['the mean absolute deviation of ', 0, ' over the last ', 1, ' bars'] },
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — hand-typed from
+  // closedTable.json's own words like every row above, deliberately NOT
+  // derived from it: the round trip proves nothing if the oracle agrees
+  // with the renderer by construction.
+  { kind: 'call', name: 'rising', parts: [0, ' rising for ', 1, ' bars'] },
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+  // discipline as `rising` above: hand-typed, deliberately not derived.
+  { kind: 'call', name: 'falling', parts: [0, ' falling for ', 1, ' bars'] },
+  { kind: 'call', name: 'median', parts: ['the ', 1, '-bar median of ', 0] },
+  { kind: 'call', name: 'percentrank', parts: ['the ', 1, '-bar percent rank of ', 0] },
+  {
+    kind: 'call',
+    name: 'bbw',
+    parts: ['the ', 1, '-bar Bollinger Band Width of ', 0, ' at multiplier ', 2],
+  },
   { kind: 'call', name: 'sqrt', parts: ['the square root of ', 0] },
   { kind: 'call', name: 'ln', parts: ['the natural log of ', 0] },
   { kind: 'call', name: 'log10', parts: ['the base-10 log of ', 0] },
@@ -195,6 +210,23 @@ const FORMS = [
     parts: ['the running total of ', 0,
       ' from the first bar at or after epoch ', 1, ', for at most ', 2, ' bars'] },
 
+  // ⭐⭐ `cum` (2026-09-09, owner Ruling D) — the UNANCHORED running total, and
+  // the pair with `cumFrom` above is the whole reason this rail is hand-typed.
+  // Both sentences open `the running total of ` and a member must be able to tell
+  // them apart AFTER that word, because the difference is the entire ruling: one
+  // starts at an instant the member named, the other at whatever bar the fetch
+  // happened to begin on.
+  // ⛔ THE CHROME AFTER SLOT 0 IS WHAT DISAMBIGUATES — ` over every bar of the
+  // loaded history` against ` from the first bar at or after epoch ` — so the two
+  // forms cannot both match, and `the grammar is UNAMBIGUOUS` below is what
+  // proves that rather than this comment.
+  // ⚠️ AND THE PHRASE IS DELIBERATE: *of the loaded history* is the disclosure.
+  // The value moves with how many bars were fetched, so the read-back says so in
+  // the sentence a member actually reads, not only in the manifest.
+  { kind: 'call',
+    name: 'cum',
+    parts: ['the running total of ', 0, ' over every bar of the loaded history'] },
+
   // ⭐ THE BOUNDED-STATE FIVE (2026-08-26), hand-typed from the manifest's words
   // like every row above — deriving them would make the oracle agree with the
   // renderer by construction and the round trip would prove nothing.
@@ -217,13 +249,18 @@ const FORMS = [
     name: 'valuewhen',
     parts: ['the value of ', 1, ' on the most recent of the last ', 2,
             ' bars where ', 0, ' was true'] },
+  // ⚰️ THESE READ "most recent" UNTIL 2026-09-08, and the tie-break correction
+  // moved the manifest's words to "oldest". Re-typing them here is the DESIGN
+  // working, not friction: this oracle is hand-typed precisely so a wording
+  // change has to be made twice by a human who agrees with it, instead of being
+  // inherited from the renderer and proving nothing.
   { kind: 'call',
     name: 'highestbars',
-    parts: ['the number of bars back to the most recent bar holding the highest ', 0,
+    parts: ['the number of bars back to the oldest bar holding the highest ', 0,
             ' of the last ', 1, ' bars'] },
   { kind: 'call',
     name: 'lowestbars',
-    parts: ['the number of bars back to the most recent bar holding the lowest ', 0,
+    parts: ['the number of bars back to the oldest bar holding the lowest ', 0,
             ' of the last ', 1, ' bars'] },
   // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
   // row here — deriving them would make the oracle agree with the renderer by
@@ -260,6 +297,11 @@ const FORMS = [
     name: 'obvN',
     parts: ['the signed volume of the last ', 0,
             ' bars, which is on-balance volume\'s change across that window'] },
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+  // discipline as `obvN` above: hand-typed, deliberately not derived.
+  { kind: 'call',
+    name: 'pvtN',
+    parts: ['the change in price-volume trend across the last ', 0, ' bars'] },
 
   // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
   // table, and that is the whole design: this grammar is a DELIBERATE second
@@ -921,9 +963,25 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:dayofmonth',
       'clock:dayofweek',
       'clock:hour',
+      // ⭐⭐ 104 -> 110: THE SIX BARSTATE COLUMNS (2026-09-09), NAMED rather than
+      // a bumped count. They arrived under an owner ruling that UCT defines
+      // `barstate.*` from OUR clock and OUR fetch instead of matching the vendor,
+      // because the vendor's flags on a CLOSED bar depend on when the viewer
+      // opened the chart — measured, fixture
+      // `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json`.
+      // ⚠️ `islast` is here at all because the earlier ruling that refused it as
+      // request-dependent was WRONG about which end of the series moves: a fetch
+      // reaches backwards from now, so deepening it never changes which bar is
+      // newest. `isfirst` DOES move, and carries `window_dependent`.
+      'clock:isconfirmed',
       'clock:isdaily',
+      'clock:isfirst',
+      'clock:ishistory',
       'clock:isintraday',
+      'clock:islast',
+      'clock:islastconfirmedhistory',
       'clock:ismonthly',
+      'clock:isrealtime',
       'clock:isweekly',
       'clock:minute',
       'clock:month',
@@ -954,6 +1012,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:atr',
       'function:avwap',
       'function:barssince',
+      // ⭐ 97 -> 101: Vendor Parity Tranche 2, Lane B — `bbw`, `median`,
+      // `percentrank`, `rising`, each resolved 2026-09-06 by a real
+      // TradingView capture (`closedTable.json`'s
+      // `_functions_vendor_parity_resolutions`), not asserted from
+      // documentation alone. Four named entries, not a bumped count.
+      'function:bbw',
       'function:bop',
       'function:cci',
       'function:change',
@@ -965,6 +1029,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       // cumulative sum arriving, which is a ruling
       // (`closedTable.json::_functions_cumulative`), not as a number somebody
       // adjusted.
+      // ⭐⭐ `cum` ARRIVED 2026-09-09 UNDER OWNER RULING D, and it is spelled out
+      // here for the same reason `cumFrom` is: a running total appearing in this
+      // table is a RULING, not a number somebody adjusted. What made it possible
+      // was not a change to the arithmetic — it was that the containment moved to
+      // the DEFINITION (`_requirement_tags.window_dependent`), so the five
+      // comparability consumers refuse it by name while a pane may draw it.
+      'function:cum',
       'function:cumFrom',
       'function:dev',
       'function:donchianLower',
@@ -972,6 +1043,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:donchianUpper',
       'function:ema',
       'function:exp',
+      // ⭐ 101 -> 103: VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) —
+      // `falling` (`ta.falling`'s structural mirror of `rising`, resolved by
+      // an INDEPENDENT real vendor capture) and `pvtN` (below, beside `pow` —
+      // `ta.pvt`'s windowed-delta bounded form, mirroring `obvN`). Two named
+      // entries, not a bumped count.
+      'function:falling',
       'function:highest',
       'function:highestbars',
       'function:hma',
@@ -987,6 +1064,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:lowestbars',
       'function:macd',
       'function:max',
+      'function:median',
       'function:mfi',
       'function:min',
       'function:minusDI',
@@ -994,10 +1072,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      'function:percentrank',
       'function:pivothigh',
       'function:pivotlow',
       'function:plusDI',
       'function:pow',
+      'function:pvtN',
+      'function:rising',
       'function:rma',
       'function:round',
       'function:rsi',
@@ -1015,7 +1096,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(97)
+    // ⚰️ 104 -> 110 WITH THE SIX BARSTATE CLOCK COLUMNS (owner ruling
+    // 2026-09-09). They are ordinary clock entries: each renders a sentence,
+    // each round-trips, and each is ASCII — which is the whole reason they went
+    // into the CLOCK rather than into a family of their own. The count moves
+    // deliberately, beside the list it describes, because the list is what the
+    // rail actually asserts.
+    expect(entries.length).toBe(110)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1025,7 +1112,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(97)
+    expect(subjects.length).toBe(110)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2342,6 +2429,38 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'cumFrom_anchored_on_the_very_first_bar',
       'cumFrom_a_hole_in_the_source_is_sticky',
       'cumFrom_the_member_fills_the_hole_and_it_totals',
+      // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — one corpus case per
+      // function, each resolved by a real TradingView capture rather than
+      // documentation alone (`closedTable.json::
+      // _functions_vendor_parity_resolutions`).
+      'rising_close_3',
+      'median_close_4',
+      'percentrank_close_10',
+      'bbw_close_20_2',
+      // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+      // discipline: one corpus case per function, each resolved by a real
+      // TradingView capture (`tests/fixtures/vendor/observations/
+      // ta-{falling-close3,pvt-delta5}-2026-09-06.json`).
+      'falling_close_3',
+      'pvtN_bounded_price_volume_trend_change',
+      // ⭐⭐ THE PLAIN RUNNING TOTAL (2026-09-09, owner Ruling D). It is the
+      // cross-lane rail on a column whose whole character is that it never
+      // forgets: a one-bar disagreement anywhere in the series persists to the
+      // last bar rather than washing out, which nothing else in this corpus has.
+      // Its three `cumFrom_*` neighbours above are the ANCHORED form; this is the
+      // unanchored one, admitted because the containment moved to the definition.
+      'cum_running_total',
+      // ⭐⭐ THE SIX BARSTATE COLUMNS (owner ruling 2026-09-09). They are here for
+      // the reason every other row is: this is the CROSS-LANE net, and a column
+      // the two lanes might disagree about must be pinned somewhere both of them
+      // walk. `isrealtime` is the one that needed the corpus to grow an
+      // `opts.now` — the evaluating instant sits 100 seconds into the newest
+      // 5-minute bar, so that bar is FORMING and is the only one that can answer
+      // true. A closed newest bar would make `islast` and
+      // `islastconfirmedhistory` coincide, and a lane that confused them would
+      // stay green.
+      'barstate_islast', 'barstate_isfirst', 'barstate_isrealtime',
+      'barstate_isconfirmed', 'barstate_ishistory', 'barstate_islastconfirmedhistory',
     ])
   })
 
@@ -2384,7 +2503,15 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 97)
+    // 104 -> 110 (2026-09-09): the six barstate clock columns.
+    // 103 -> 104 (2026-09-09): `cum`. The addend is the ENTRY COUNT of the
+    // table's generated set, so it moves with a declaration and not with the
+    // corpus — which is why it is written as a sum rather than one number.
+    // ⚰️ 104 -> 110 WITH THE SIX BARSTATE CLOCK COLUMNS. Written as a SUM
+    // rather than one number for exactly this reason: the corpus half moves on
+    // its own and the table half moves on its own, and a single literal would
+    // hide which one did.
+    expect(sentences.length).toBe(CORPUS.cases.length + 110)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -2602,7 +2729,13 @@ describe('the refusals', () => {
     // ⚠️ 13 -> 14 with `canonicalise:symbol` (W2b Task 4): `sym('SPY', expr)`
     // is the second call whose parameter is a QUOTED LITERAL rather than an
     // expression, and it refuses at the parse door for the same reason `tf` does.
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(14)
+    // ⚠️ 14 -> 17 with the bind-time text trio: `canonicalise:symtext` (a
+    // symbol-scoped field is `syminfo('<field>')`, its field a QUOTED LITERAL for
+    // the same reason `tf` and `sym` quote theirs), `canonicalise:textop` (a text
+    // question and the two operand shapes it takes), and `canonicalise:text-escapes`
+    // — the one that says text may only ever be an OPERAND. Each is its own
+    // sentence because each sends a member to a different edit.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(17)
     // ⚠️ 11 -> 12 with `interpret:timeframe` (W2b): a higher-timeframe read can
     // name a code the ladder does not declare, or one at or BELOW the bars it
     // was handed — neither is answerable from those bars, and inventing an
@@ -2610,7 +2743,10 @@ describe('the refusals', () => {
     // ⚠️ 12 -> 13 with `interpret:symbol` (W2b Task 4): a `sym` read nested
     // inside a `tf` would align unresampled bars onto resampled ones — an
     // almost-right column rather than a NaN, which is why it is a refusal.
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(13)
+    // ⚠️ 13 -> 14 with `interpret:bind-time-text` (R-K, 2026-09-12). See the
+    // correction under the `all.length` assertion below: the interpreter DOES
+    // have to have an opinion about a text node, because one can reach it.
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(14)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
     // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
     // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
@@ -2623,7 +2759,26 @@ describe('the refusals', () => {
     // REUSED rather than joined by a third: an unsayable ticker is exactly what
     // that guard already publishes, and a new near-duplicate sentence would be
     // the thing the loop below exists to forbid.
-    expect(all.length).toBe(37)
+    // ⚠️ 37 -> 40 with the bind-time text trio, all three on the PARSE door:
+    // `canonicalise:symtext`, `canonicalise:textop` and `canonicalise:text-escapes`.
+    //
+    // ⚰️⚰️ 40 -> 41 with `interpret:bind-time-text` (R-K, owner ruling
+    // 2026-09-12), AND THE SENTENCE THAT USED TO STAND HERE WAS THE DEFECT:
+    //
+    //     "The interpreter gains none, and that is the design rather than an
+    //      omission: a text node must be FOLDED before evaluation, so the
+    //      interpreter never has to have an opinion about one — it refuses an
+    //      unknown node type by the roster it already publishes."
+    //
+    // A text node must be folded before evaluation, and one that ISN'T still
+    // arrives — the fold refuses when the binding cannot supply `syminfo.*`, and
+    // on the chart lane it could not. "It refuses by the roster it already
+    // publishes" was the whole problem: the roster LISTS `textop` as legal, so
+    // the member read `unknown node type "textop" — legal types are … textop`.
+    // Measured on the member pane: three of `uncharted-volume-v2`'s four series.
+    // ⭐ The interpreter's opinion is now one sentence long and names the FIELD
+    // the binding did not settle, which is the part a member can act on.
+    expect(all.length).toBe(41)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

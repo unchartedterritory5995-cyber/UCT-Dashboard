@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2001",
+ "title": "PA ZigZag Fibonacci FAN",
+ "author": "RicardoSantos",
+ "url": "https://www.tradingview.com/script/JQSuXMqX-pa-zigzag-fibonacci-fan/",
+ "agreeCount": 2682,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pa-zigzag-fibonacci-fan__2001.pine",
+ "our_status": "committed"
+}

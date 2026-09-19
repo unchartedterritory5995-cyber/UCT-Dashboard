@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;dzN3DMCFJL4zItKWkRopFS0cXJiiZ5z5",
+ "title": "Correlation Matrix",
+ "author": "Mango2Juice",
+ "url": "https://www.tradingview.com/script/HiLauzSK-correlation-matrix/",
+ "agreeCount": 690,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/correlation-matrix__dzN3DMCFJL.pine",
+ "cached_source": "tools/pine_survey/cache/sources/correlation-matrix__dzN3DMCFJL.pine",
+ "our_status": "committed"
+}

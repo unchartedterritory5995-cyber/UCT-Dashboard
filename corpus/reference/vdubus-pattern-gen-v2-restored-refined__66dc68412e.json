@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;66dc68412e0548f4bd73df9177febb7b",
+ "title": "Vdubus Pattern Gen V2 [Restored & Refined]",
+ "author": "vdubus",
+ "url": "https://www.tradingview.com/script/fi2LLSGz-vdubus-pattern-gen-v2-restored-refined/",
+ "agreeCount": 7215,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+ "our_status": "committed"
+}

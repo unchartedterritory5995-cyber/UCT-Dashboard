@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;59bb295a999b4105b1276ad630b9cc91",
+ "title": "MACD Short/Long Strategy for TradingView Input Optimizer",
+ "author": "Gentleman-Goat",
+ "url": "https://www.tradingview.com/script/X4c5lTKF-macd-short-long-strategy-for-tradingview-input-optimizer/",
+ "agreeCount": 512,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+ "cached_source": "tools/pine_survey/cache/sources/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;38d39d2d6c4745beadc340130cbb09d9",
+ "title": "Momentum-based ZigZag",
+ "author": "Peter_O",
+ "url": "https://www.tradingview.com/script/gY4ilk5N-momentum-based-zigzag/",
+ "agreeCount": 12309,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/momentum-based-zigzag__38d39d2d6c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/momentum-based-zigzag__38d39d2d6c.pine",
+ "our_status": "committed"
+}

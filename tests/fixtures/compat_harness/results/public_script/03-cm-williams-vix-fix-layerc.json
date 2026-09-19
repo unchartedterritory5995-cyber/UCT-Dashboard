@@ -1,0 +1,40 @@
+{
+  "id": "public_script/03-cm-williams-vix-fix-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#03-cm-williams-vix-fix",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "steps": {
+    "parse": { "status": "SUPPORTED", "note": "compiled cleanly under IMPLIED Pine v1, zero errors" },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v1_implied" },
+    "translate": { "status": "SUPPORTED", "guard": null },
+    "canonical_ast": { "status": "SUPPORTED", "note": "not independently re-derived by UCT in this pass -- this result records the VENDOR side only, matching Layer A's already-SUPPORTED static classification for this same script" },
+    "execution_requirements": { "status": "SUPPORTED", "lookback": 50, "note": "lb=50 is the largest lookback input (Look Back Period Percentile High)" },
+    "visual_requirements": { "status": "SUPPORTED", "plot_count": 4, "needs": ["histogram", "conditional_color"] },
+    "chart_render": {
+      "status": "SUPPORTED",
+      "note": "REAL, VISUALLY CONFIRMED render: added to chart, appeared as its own pane (study(..., overlay=false)) below the main price+volume panes, rendering as a green histogram exactly matching plot(wvf, style=histogram, color=col). Screenshot evidence captured during the session."
+    },
+    "persistence_save": {
+      "status": "SUPPORTED",
+      "note": "saved under a temporary test name; confirmed listed in 'Open my script' as 'Version 1.0' with a real timestamp -- genuine server-side persistence, not merely a client-side unsaved buffer."
+    },
+    "persistence_reload": {
+      "status": "SUPPORTED",
+      "note": "verified via the 'Open my script' library listing (server-authoritative) rather than a full page reload, since a page reload was blocked by an UNRELATED unsaved chart-LAYOUT change (adding the indicator instance itself, a separate persistence layer from the script save) -- reloading would have discarded that instance, which was the deliberately-intended outcome, matching the 'preserve pre-existing state' discipline (never save a permanent new layout to the owner's real chart)."
+    },
+    "screener_eligibility": { "status": "PARTIAL", "eligible": false, "reason": "wvf/upperBand/lowerBand/rangeHigh/rangeLow are all numeric; the col variable used for plot coloring is a derived boolean condition but is never itself plotted or exposed as a comparable value -- not directly screener-eligible without adding a comparison, matching Layer A's static PARTIAL/ineligible-without-comparison finding pattern for volatility/band-class scripts" },
+    "refusal_behavior": { "status": "SUPPORTED", "guard": null, "note": "no refusal -- clean success" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null, "note": "no UCT implementation of this exact composite indicator exists to compare against; out of this tranche's scope" }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

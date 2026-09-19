@@ -4,6 +4,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import ImageBox from './ImageBox.jsx'
 import { sentenceFor } from '../engine/ast/sentence.js'
 import { TABLE } from '../engine/ast/parse.js'
+import { PROPOSE_BARS_LIMIT } from './proposeBars.js'
 
 // ─── THE CLAIMS THIS FILE EXISTS TO PROVE ───────────────────────────────────
 //
@@ -261,5 +262,26 @@ describe('ImageBox', () => {
     // ⛔ NO `Content-Type` HEADER. The browser sets the multipart boundary; a
     // hand-set header makes the body unparseable on the server.
     expect(init.headers).toBeUndefined()
+  })
+
+  it('RISK-016: truncates to the most recent bars before ever sending', async () => {
+    // 🔴 Same shared chokepoint as ConciergeBox's own RISK-016 test — the
+    // screenshot door hands its bars over the same MAX_PROPOSE_BARS-shaped
+    // ceiling (`_bars_from` in `api/routers/indicator_vision.py`), and used to
+    // hit the identical raw-400 shape for a long-listed symbol's full history.
+    const fetchImpl = vi.fn(async () => jsonResponse(okBody()))
+    const bars = Array.from({ length: PROPOSE_BARS_LIMIT + 500 },
+      (_, i) => ({ t: i, c: i }))
+    render(<ImageBox fetchImpl={fetchImpl} bars={bars} />)
+    fireEvent.change(screen.getByTestId('image-file'),
+                     { target: { files: [PICTURE()] } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /read the picture/i }))
+    })
+
+    const sentBars = JSON.parse(fetchImpl.mock.calls[0][1].body.get('bars'))
+    expect(sentBars).toHaveLength(PROPOSE_BARS_LIMIT)
+    expect(sentBars[0].t).toBe(500)
+    expect(sentBars[sentBars.length - 1].t).toBe(PROPOSE_BARS_LIMIT + 499)
   })
 })

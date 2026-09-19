@@ -86,6 +86,63 @@ export const TABLE = deepFreeze(TABLE_JSON)
  */
 export const SESSION_LOOKBACK = 'session'
 
+/** `lookback: 'series'` — THE WINDOW IS THE DELIVERED SERIES.
+ *
+ *  ⭐⭐ IT RESOLVES TO **0**, AND THAT IS A MEASUREMENT, NOT A CONVENIENCE.
+ *  `budget.maxLookback` prices WARM-UP — how many bars at the left edge are not
+ *  drawable (`ast_budget`'s own note: a 550-bar warmup leaves 89% of the
+ *  5,000-bar window drawable, one session leaves 81%). `ta.cum` answers on bar 0:
+ *  measured on TradingView 2026-09-08, `ta.cum(1) === bar_index + 1` on all 8,459
+ *  bars of a SPY 1D capture, so bar 0 reads 1. It sacrifices NOTHING at the left
+ *  edge, so 0 is its TRUE warm-up rather than an under-statement — and
+ *  under-stating is defined by the harm it causes, *"numbers computed from bars
+ *  that were never fetched"*, which a running total over exactly what arrived
+ *  cannot do.
+ *
+ *  ⛔⛔ WHAT IT COSTS IS COMPARABILITY, AND THAT IS HELD SOMEWHERE ELSE. Widen
+ *  the fetch and every value moves by the same constant, so the number is a fact
+ *  about the REQUEST. `closedTable.json::_requirement_tags.window_dependent`
+ *  carries that, the five comparability consumers refuse it BY NAME, and a rail
+ *  requires every `series` entry to be listed in some tag's `calls`. A reader who
+ *  sees `0` here and reads it as "this window is free" has the wrong half of the
+ *  story; the budget is free, the meaning is not.
+ *
+ *  ⛔ SAME HOME AS `SESSION_LOOKBACK`, same reason: `lint.test.js` pins this
+ *  module as the linter's ONLY import, so a sentinel owned by `interpret.js`
+ *  would be unreachable from a reader that needs it.
+ */
+export const SERIES_LOOKBACK = 'series'
+
+/** Names `PINE_INEXPRESSIBLE` refuses for a SCREEN but the HOST lane may serve.
+ *
+ *  ⭐⭐ DERIVED FROM `_requirement_tags`, NEVER TYPED HERE. A tag names the calls
+ *  that set it and the consumers that accept it; `pane` is the only acceptor
+ *  today, and "host mode may spell this" is precisely "some tag covering it is
+ *  accepted by the pane". A literal `['cum']` in this file would be a second
+ *  authority over a roster the manifest already owns, and the next name added to
+ *  a tag would silently NOT become host-spellable.
+ *
+ *  ⛔ IT IS THE ONE PLACE HOST MODE IS *LOOSER* THAN SCREENER MODE, and that
+ *  reads backwards until you have the reason. Host mode is otherwise stricter —
+ *  all-or-nothing, every plot resolved or the whole script is refused. This is
+ *  not an exception to that; it is a different question. Strictness is about
+ *  whether we can DRAW the script. This is about whether the number is
+ *  COMPARABLE across symbols and across runs — and a pane is one symbol, one
+ *  fetch, with the bar count on screen, so nothing on it is compared to anything.
+ *  `closedTable.json::_functions_cumulative` carries the whole ruling.
+ */
+export function hostAdmissible(table) {
+  const tags = (table && table._requirement_tags) || {}
+  const out = new Set()
+  for (const [tag, spec] of Object.entries(tags)) {
+    if (tag.startsWith('_') || !spec || typeof spec !== 'object') continue
+    if (!(spec.accepted_by || []).includes('pane')) continue
+    for (const name of spec.calls || []) out.add(name)
+  }
+  return out
+}
+
+
 /** How far back `lookback: 'session'` reaches, in bars — READ OFF THE MANIFEST.
  *
  *  ⛔⛔ NOT A LITERAL HERE, AND THAT IS THE POINT. Four readers need this number
@@ -168,7 +225,163 @@ export const SESSION_MAX_BARS = (() => {
  *  then a refusal AT THE DOOR beats a definition that saves and answers nothing. */
 export const TICKER_SHAPE = /^[A-Z][A-Z0-9.-]{0,9}$/
 
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live'])
+/** The clock names constant for ONE BINDING — read off the manifest.
+ *
+ *  ⛔ NEVER A LIST TYPED HERE. `dayofweek` and `isdaily` are the same KIND of
+ *  manifest entry and opposite kinds of value; only the sentence each carries
+ *  says so, and the manifest declares the split. */
+export const BIND_TIME_CLOCK = Object.freeze(
+  ((TABLE._bind_time_constants || {}).clock) || [],
+)
+
+/** ⭐⭐⭐ CAN THIS WINDOW LENGTH BE SETTLED PER BINDING, AND HOW LARGE CAN IT GET?
+ *  `{ foldable, max }`, and it is the ONE authority both doors ask.
+ *
+ *  ⛔⛔ IT LIVES IN `parse.js` FOR A HARD ARCHITECTURAL REASON, AND THE OBVIOUS
+ *  HOME WAS WRONG. The natural place is beside the fold in `bind.js` — but
+ *  `lint.js` must consult it, and `lint.test.js` asserts the linter's import
+ *  graph is EXACTLY `['./parse.js']`, because *"a linter that could reach
+ *  `interpret.js` could reach a verdict by RUNNING the formula instead of by
+ *  reading the tree, and a claim measured on one bar window is not the universal
+ *  claim the badge makes."* `bind.js` imports `interpret.js`. So importing the
+ *  fold into the linter would break that rail in the letter AND in the purpose,
+ *  and reimplementing the question inside `lint.js` would be the second
+ *  classifier this function exists to prevent. `parse.js` is the only module both
+ *  may see, and it imports nothing that can evaluate anything.
+ *
+ *  ⭐⭐ SO THIS IS STRUCTURAL, NOT EVALUATED, AND THAT IS THE POINT. It reads the
+ *  tree; it never runs it. `bind.js::foldScalar` can evaluate far more than this
+ *  admits — arithmetic, comparisons, `max()` — but the LINTER is the binding
+ *  constraint, not the fold: the door may only defer a length the linter can put
+ *  a number on. So the admissible set is deliberately the small one that can be
+ *  bounded EXACTLY by reading:
+ *
+ *    num                literal
+ *    series (clock)     `isweekly` etc. — 0 or 1, so its max is 1
+ *    series (input)     an `input.*` default, fixed per DEFINITION
+ *    op '?:'            max over the two ARMS
+ *
+ *  Everything else answers `{foldable: false}` and the linter refuses exactly as
+ *  it did before. ⛔ NO MONOTONICITY ARGUMENT IS MADE ANYWHERE HERE: admitting
+ *  `a + b` would need "both arms non-negative" to bound it, and a bound resting
+ *  on an unstated premise is how an UNDER-stated window gets shipped.
+ *
+ *  ⛔⛔ AND THE BOUND IS THE MAXIMUM, NEVER THE FIRST ARM AND NEVER THE ONE THAT
+ *  MATCHES TODAY'S CHART. A repaint bound may only ever OVER-state: an
+ *  over-stated lookback costs warm-up bars, an UNDER-stated one lets a formula
+ *  read a bar the budget never paid for — the one direction a budget cannot
+ *  absorb (`api/services/ast_bind.py`'s own header says so). */
+/** ⭐⭐ R-J (owner ruling, 2026-09-12) — IS A MEMBER'S KNOB FOLDED INTO THE TREE?
+ *
+ *  ⛔⛔ ONE VALUE, READ OFF THE MANIFEST, NAMED AFTER THE RULING IT DEPENDS ON.
+ *  R-H established that a member `input.int` the translator folds becomes an
+ *  IMMUTABLE parameter baked into the tree — so the folded value is the ONLY
+ *  value that window can ever take, and bounding a lookback by it is a promise
+ *  the badge can keep. The moment that stops being true, bounding by a default
+ *  becomes false the first time a member raises the knob, which is exactly what
+ *  `ast_lint`'s docstring has always warned about.
+ *
+ *  ⛔ SO THE PREMISE IS A CONSTANT AND NOT AN ASSUMPTION IN FOUR HEADS.
+ *  `inputWindowsAgreement.test.js` and `tests/test_input_windows.py` fire BY NAME
+ *  the day it flips, and `closedTable.json::_input_windows.whenRuntime` already
+ *  records what replaces it: bound by the input's DECLARED `maxval`, and REFUSE
+ *  when there is none — never fall back to the default, because a default is
+ *  where the knob starts and a bound must hold everywhere it can reach.
+ *
+ *  ⚠️ IT FAILS CLOSED. An absent or non-`true` declaration reads `false`, which
+ *  makes a knob-named window unanalysable rather than optimistically bounded. */
+export const INPUTS_ARE_FOLDED = ((TABLE._input_windows || {}).inputsAreFolded === true)
+
+/** The wave-2 rule, carried as a STRING so a reader can say what it will be. */
+export const RUNTIME_INPUT_WINDOW_RULE = (TABLE._input_windows || {}).whenRuntime || null
+
+export function bindFoldableWindow(node, allowInputDefault = INPUTS_ARE_FOLDED) {
+  const NO = { foldable: false, max: null }
+  if (!node || typeof node !== 'object') return NO
+
+  if (node.type === 'num') {
+    const v = Number(node.value)
+    return Number.isFinite(v) ? { foldable: true, max: v } : NO
+  }
+
+  if (node.type === 'series') {
+    // ⭐ A CLOCK NAME IS A PREDICATE: 0 or 1, so 1 bounds it for every binding.
+    if (BIND_TIME_CLOCK.includes(node.name)) return { foldable: true, max: 1 }
+    // ⭐⭐ R-J — BOUNDED BY THE FOLDED VALUE WHILE INPUTS ARE FOLDED (R-H).
+    // Gated on the manifest's own constant rather than allowed outright, so the
+    // day a member can raise this knob at runtime the bound stops being a
+    // promise the badge can keep, and the rails say so by name.
+    if (allowInputDefault
+        && typeof node.inputDefault === 'number' && Number.isFinite(node.inputDefault)) {
+      return { foldable: true, max: node.inputDefault }
+    }
+    return NO
+  }
+
+  if (node.type === 'op' && node.name === '?:') {
+    const args = node.args || []
+    if (args.length !== 3) return NO
+    // ⛔ THE SELECTOR MUST FOLD TOO, even though it contributes no VALUE. The
+    // bind stage settles the whole node, so a selector it cannot fold makes the
+    // whole length unfoldable — and the door must not defer what the stage will
+    // then refuse.
+    const sel = bindFoldableWindow(args[0], allowInputDefault)
+    const a = bindFoldableWindow(args[1], allowInputDefault)
+    const b = bindFoldableWindow(args[2], allowInputDefault)
+    if (!sel.foldable || !a.foldable || !b.foldable) return NO
+    return { foldable: true, max: Math.max(a.max, b.max) }
+  }
+
+  // `offset` (x[1]), `tf`, `sym`, `tf_live`, `call`, `textop`, `str`, `symtext`,
+  // and every arithmetic `op` — each reads a bar, another request, a symbol, or
+  // needs a premise this function will not make.
+  return NO
+}
+
+/** Does this length settle per binding? The predicate half of
+ *  `bindFoldableWindow`, for callers that do not need the bound.
+ *
+ *  ⛔ ONE WALK, TWO READINGS — never a second classifier. If this and the bound
+ *  could disagree, the door could defer a length the linter then refuses, which
+ *  is the exact gap that made the first attempt at this ruling come back out. */
+export function isBindFoldableLength(node) {
+  return bindFoldableWindow(node).foldable
+}
+
+/** The largest value this length can take over every binding, or `null`. */
+export function bindFoldableWindowMax(node, allowInputDefault = INPUTS_ARE_FOLDED) {
+  const r = bindFoldableWindow(node, allowInputDefault)
+  return r.foldable ? r.max : null
+}
+
+/** ⭐⭐ R-G — `bindFoldableWindowMax` NARROWED TO WHAT A WINDOW MAY ACTUALLY BE.
+ *
+ *  A window is a whole number of at least 1. A foldable length whose bound is
+ *  `0.5` or `-3` is not a usable window, and this answers `null` for it so the
+ *  caller falls through to its own refusal — which names the function, the
+ *  argument and the value, and is the sentence a member reads.
+ *
+ *  ⛔ ONE NARROWING, SHARED BY EVERY REGISTRATION-TIME READER, and mirrored by
+ *  `ast_table.usable_window_bound`. Written once because three copies of
+ *  "integer and at least one" is exactly the shape that drifts — and this whole
+ *  ruling exists because two readers of one window had already drifted.
+ */
+export function usableWindowBound(node) {
+  // ⭐ R-J's gate lives on `bindFoldableWindow` itself — ONE place, so this and
+  // `lint.js` cannot answer differently about the same knob.
+  const m = bindFoldableWindowMax(node)
+  if (m === null || typeof m !== 'number' || !Number.isFinite(m)) return null
+  if (!Number.isInteger(m) || m < 1) return null
+  return m
+}
+
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live',
+  // ⭐⭐ THE BIND-TIME TEXT TRIO. `textop` yields a NUMBER and sits wherever a
+  // number sits; `str` and `symtext` are its operands and may appear NOWHERE
+  // ELSE — `assertCanonical` enforces that parentage, so "text is not a value in
+  // this engine" is a structural property of every persisted tree rather than a
+  // convention. See `TEXTOP_ARITY` and `convertTextOperand`.
+  'str', 'symtext', 'textop'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -261,8 +474,29 @@ export function vendorNotesOf(table) {
       out[name] = spec[VENDOR_NOTE]
     }
   }
+  // ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+  // `barstate.*` divergence is about a group of CLOCK COLUMNS and has no
+  // function entry to hang it on — while a member reading one of those columns
+  // needs the sentence exactly as much as one calling `atr` does.
+  for (const family of ['_barstate']) {
+    const spec = table && table[family]
+    if (spec && typeof spec[VENDOR_NOTE] === 'string' && spec[VENDOR_NOTE].trim()) {
+      out[family.replace(/^_/, '')] = spec[VENDOR_NOTE]
+    }
+  }
   return out
 }
+
+/** The clock columns a family-level vendor note covers, `<column> -> <family>`.
+ *
+ *  ⛔ DERIVED FROM THE SAME BLOCK THAT CARRIES THE NOTE, so a seventh barstate
+ *  column surfaces the sentence on the day it lands rather than on the day
+ *  somebody remembers. */
+export const FAMILY_NOTE_COLUMNS = Object.freeze(Object.fromEntries(
+  [...(((TABLE || {})._barstate || {}).extent || []),
+    ...(((TABLE || {})._barstate || {}).realtime || [])]
+    .map((col) => [col, 'barstate']),
+))
 
 export const VENDOR_NOTES = Object.freeze(vendorNotesOf(TABLE))
 
@@ -288,9 +522,178 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
       taken.add(node.name)
       seen.push({ name: node.name, note: notes[node.name] })
     }
+    // ⭐ A SERIES NODE CAN CARRY ONE TOO, through its family. `barstate.ishistory`
+    // reaches the evaluator as the clock column `ishistory`, so a walk that only
+    // looked at CALL nodes would find the note and never show it — which is the
+    // "built, tested, green and unreachable" shape one layer in.
+    if (node.type === 'series' && typeof node.name === 'string') {
+      const family = FAMILY_NOTE_COLUMNS[node.name]
+      if (family && Object.prototype.hasOwnProperty.call(notes, family)
+          && !taken.has(family)) {
+        taken.add(family)
+        seen.push({ name: family, note: notes[family] })
+      }
+    }
     for (const a of (node.args || [])) stack.push(a)
   }
   return seen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+}
+
+
+/** ─── ⭐⭐ FOLD-KIND DISCLOSURES: THE SENTENCE IS DECLARED, NEVER COMPOSED ─────
+ *
+ *  A TRANSLATOR-LEVEL fold has no table function to hang a `vendorNote` on.
+ *  `request.security`, `security`, `tf` and `sym` are none of them table
+ *  functions, and the fold's whole point is that the wrapper is GONE from the
+ *  tree — so `vendorNotesForTree` cannot find it by construction, however hard it
+ *  walks. What survives is a DISCLOSURE the translation writes on the output row
+ *  (`baseTimeframeFolds`), and this is the map from that channel to the sentence
+ *  a member reads.
+ *
+ *  ⛔ DERIVED FROM `_folds`, NEVER LISTED HERE, for the reason `vendorNotesOf`
+ *  gives: today exactly one channel declares a note, and a reader written as
+ *  `name === 'baseTimeframeFolds'` would be indistinguishable from this one until
+ *  the day a second fold needs one — at which point the difference is a member
+ *  NOT being told about a divergence we had already measured and accepted.
+ *
+ *  ⛔ AND THE RENDERER COMPOSES NOTHING (owner ruling, 2026-09-12). The string
+ *  goes to the member verbatim, exactly as a refusal message does. A sentence
+ *  assembled in the component would be a second authority over one value.
+ */
+export function foldNotesOf(table) {
+  const out = {}
+  for (const [channel, spec] of Object.entries((table && table._folds) || {})) {
+    if (!spec || typeof spec !== 'object') continue
+    if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) continue
+    out[channel] = spec.memberNote
+  }
+  return out
+}
+
+export const FOLD_NOTES = Object.freeze(foldNotesOf(TABLE))
+
+/** Every fold disclosure an OUTPUT ROW carries, in the shape `vendorNotesForTree`
+ *  returns, so the renderer has one list and one spelling.
+ *
+ *  ⭐ THE ROW, NOT THE TREE — that is the whole difference from `vendorNotesForTree`
+ *  and the reason both exist. The tree no longer mentions the fold; the row
+ *  records that it happened, with the line and the timeframe it folded.
+ *
+ *  ⛔ DEDUPED BY CHANNEL. A script folding four `request.security` calls has one
+ *  divergence to disclose, not four; four copies of one sentence read as four
+ *  problems (the same rule `vendorNotesForTree` applies by name).
+ *
+ *  ⚠️ A channel present on the row but NOT declared in `_folds` yields nothing
+ *  here and is not invented — `vendorTruth.test.js` and `test_vendor_truth.py`
+ *  are what make that loud, on the row that claims the member is told. */
+export function foldNotesForOutput(out, notes = FOLD_NOTES) {
+  const seen = []
+  for (const channel of Object.keys(notes)) {
+    const disclosures = out && out[channel]
+    if (!Array.isArray(disclosures) || disclosures.length === 0) continue
+    seen.push({ name: channel, note: notes[channel] })
+  }
+  return seen
+}
+
+/** ─── ⭐⭐ THE ALERT-CONDITION DISCLOSURE: A LANE SPLIT A MEMBER CAN READ ─────
+ *
+ *  Ruling D1 (2026-09-12, option C). An `alertcondition` DRAWS NOTHING in Pine —
+ *  it registers a condition the platform offers under Alerts — so a PANE does not
+ *  select one. That is a decision `chooseOutput` makes in `pine.js`; this is the
+ *  sentence that tells the member where the condition went, and it is declared
+ *  ONCE in `closedTable.json::_alertconditions`.
+ *
+ *  ⛔ THE SUBSTITUTION HAPPENS HERE, NOT IN THE COMPONENT. The sentence carries a
+ *  `<name>` placeholder because the member needs to know WHICH condition, and the
+ *  renderer composing that would be a second authority over one value — the exact
+ *  defect ruling 1.1 closed for fold notes. The producer interpolates; `PineBox`
+ *  renders the finished string verbatim, like every other note it shows.
+ *
+ *  ⚠️ A row with no title falls back to the placeholder's own text rather than
+ *  emitting `'undefined'` — an unnamed alert is still an alert, and a sentence
+ *  naming a JavaScript value would be worse than a vague one.
+ */
+export function alertNotesOf(table) {
+  const spec = (table && table._alertconditions) || null
+  if (!spec || typeof spec !== 'object') return null
+  if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) return null
+  const placeholder = typeof spec.namePlaceholder === 'string' && spec.namePlaceholder
+    ? spec.namePlaceholder : '<name>'
+  return { memberNote: spec.memberNote, namePlaceholder: placeholder }
+}
+
+export const ALERT_NOTES = Object.freeze(alertNotesOf(TABLE) || {})
+
+/** The alert disclosure an OUTPUT ROW carries, in the shape `vendorNotesForTree`
+ *  returns, so the renderer has one list and one spelling.
+ *
+ *  ⛔ IT KEYS OFF `kind`, NEVER OFF `selected`. The note is a fact about what this
+ *  ROW is — a condition, not a drawing — and it is equally true of an
+ *  alertcondition the member scrolled past. Keying it off "the one the pane
+ *  declined" would silently drop the second and third conditions in a script that
+ *  declares several, which is the whole family of bug `foldNotesForOutput`
+ *  documents one function above. */
+export function alertNoteForOutput(out, notes = ALERT_NOTES) {
+  if (!out || out.kind !== 'alertcondition') return []
+  if (!notes || typeof notes.memberNote !== 'string') return []
+  const name = (typeof out.title === 'string' && out.title.trim())
+    ? out.title.trim() : 'this alert'
+  return [{
+    name: 'alertcondition',
+    note: notes.memberNote.split(notes.namePlaceholder || '<name>').join(name),
+  }]
+}
+
+/** ─── ⭐⭐ THE REQUIREMENT-TAG DISCLOSURE: A NUMBER THAT DEPENDS ON THE FETCH ──
+ *
+ *  `_requirement_tags.window_dependent.why_the_pane_may` has said since it was
+ *  written that the pane "shows a disclosure badge naming the bar count when the
+ *  value is DISPLAYED". ⚰️ Nothing rendered it. The pane drew `ta.cum`'s running
+ *  total with nothing beside it, which is precisely the reading the five
+ *  comparability consumers refuse the value FOR.
+ *
+ *  ⛔ THE SENTENCE IS DECLARED ONCE, IN THE MANIFEST, like `_folds[].memberNote`
+ *  and `_alertconditions.memberNote`. The producer substitutes the count; the
+ *  component renders the finished string verbatim. A renderer assembling
+ *  "… — 5,000 bars here" would be the second-authority defect ruling 1.1 closed.
+ *
+ *  ⚠️ A tag with no `memberNote` yields NOTHING and is not invented. Tags exist
+ *  to be refused by consumers as much as to be disclosed; silence here means
+ *  "this tag has no member sentence yet", never "this tag is harmless".
+ */
+export function requirementNotesOf(table) {
+  const out = {}
+  for (const [tag, spec] of Object.entries((table && table._requirement_tags) || {})) {
+    if (tag.startsWith('_') || !spec || typeof spec !== 'object') continue
+    if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) continue
+    out[tag] = {
+      memberNote: spec.memberNote,
+      barsPlaceholder: (typeof spec.barsPlaceholder === 'string' && spec.barsPlaceholder)
+        ? spec.barsPlaceholder : '<bars>',
+      // ⭐ THE ROSTER THE TAG ITSELF NAMES — calls AND series, because `isfirst`
+      // is a series with exactly the property and reading only `calls` would
+      // disclose half of them. `_requirement_tags.window_dependent.what` says so.
+      names: [...(spec.calls || []), ...(spec.series || [])],
+    }
+  }
+  return out
+}
+
+export const REQUIREMENT_NOTES = Object.freeze(requirementNotesOf(TABLE))
+
+/** The finished sentence for one tag at one bar count.
+ *
+ *  ⚠️ `bars` UNKNOWN yields the sentence with the placeholder's own words rather
+ *  than `undefined` or a guess — a disclosure that cannot name the count is still
+ *  a disclosure, and inventing a number here would be worse than a vague one.
+ *  (Same fallback rule `alertNoteForOutput` uses for an untitled condition.) */
+export function requirementNote(tag, bars, notes = REQUIREMENT_NOTES) {
+  const spec = notes && notes[tag]
+  if (!spec || typeof spec.memberNote !== 'string') return null
+  const count = Number.isFinite(bars) && bars > 0
+    ? Number(bars).toLocaleString('en-US') : 'an unknown number of'
+  return { name: tag, note: spec.memberNote.split(spec.barsPlaceholder).join(count) }
 }
 
 /** The declaration that says an entry's OTHER `int` arguments must fit inside
@@ -377,6 +780,67 @@ export class TableRefusal extends Error {
   }
 }
 
+/** ⭐⭐ IS THIS THROW A REFUSAL? The discriminator is `guard`, not the class.
+ *
+ *  ⛔ THERE ARE **SEVEN** REFUSAL CLASSES IN THIS ENGINE, measured 2026-09-11:
+ *  `TableRefusal` TWICE (this module's and `interpret.js`'s, different classes
+ *  under one name), `PcfRefusal`, `PineRefusal`, `RuntimeRefusal`,
+ *  `SentenceRefusal`, `ThinkScriptRefusal`. Each sets its own `name` and every one
+ *  of them carries a string `guard`. The split is deliberate — a census
+ *  recognises a refusal BY TYPE, so one shared class would let a `canonicalise`
+ *  guard's deletion be covered by an `interpret` guard's test.
+ *
+ *  ⚰️ THAT IS THE RIGHT RULE FOR A TEST AND THE WRONG ONE AT A CATCH SITE, which
+ *  does not know which door threw. `err instanceof TableRefusal` is false for six
+ *  of the seven, so a real refusal from `sentence` or `pine` would be relabelled
+ *  as this door's guard — this ruling's defect, one class identity along. Caught
+ *  by this file's own rail: `evaluateFormula('close * nosuchinput')` lost its
+ *  `sentence:name` the moment `isRefusal` tested the name instead of the field.
+ *
+ *  ⭐ SO THE FIELD IS THE CONTRACT. A refusal is an Error that NAMES A GUARD;
+ *  a `RangeError` or a `TypeError` has none, which is exactly the distinction.
+ *  ⚠️ `bind.js::NotFoldable` carries `what` and no guard — verified — so it
+ *  correctly reads as not-a-refusal.
+ */
+export function isRefusal(err) {
+  return err instanceof Error
+    && typeof err.guard === 'string' && err.guard.length > 0
+}
+
+/** The status a throw that is NOT a refusal comes back as. It is not a guard,
+ *  it has no guard, and nothing may count it as "refused". */
+export const ENGINE_ERROR = 'engine-error'
+
+/** ⭐ GUARDS WHOSE SENTENCE IS NOT OURS TO WRITE.
+ *
+ *  `parser` carries jsep's own syntax error VERBATIM — the character offset is
+ *  the part the text box needs — so it is a real guard name with no entry in any
+ *  `REFUSALS` table. Declared here so the registry rail can tell "deliberately
+ *  messageless" apart from "never registered", which is the whole difference
+ *  between a designed guard and a typo. */
+export const MESSAGELESS_GUARDS = Object.freeze(['parser'])
+
+/** ⭐⭐ CLASSIFY A CAUGHT THROW. A refusal keeps its guard; ANYTHING ELSE becomes
+ *  an engine error with NO `guard` KEY AT ALL.
+ *
+ *  ⚰️ THIS EXISTS BECAUSE THE ABSENCE OF IT SHIPPED. `parseFormula` ended with
+ *  `guard: err instanceof TableRefusal ? err.guard : 'canonicalise:node'`, so a
+ *  `RangeError` from a stack overflow reached the member as `canonicalise:node` —
+ *  "I don't recognise this node shape" — for a formula made of nothing but `+`
+ *  and `1`. Measured 2026-09-11: the recursive walker's ceiling was 5,468 nodes,
+ *  and past it every deep formula was refused for a reason that was not true.
+ *
+ *  ⛔ AND NOTHING COULD SEE IT. A laundered crash is `ok: false`, carries a guard
+ *  name, and is counted as refused by every census, log and fixture in this repo.
+ *  That is why the fix is a CLASSIFIER rather than a better fallback guard: there
+ *  is no guard name that makes "the engine broke" true.
+ */
+export function classifyThrow(err) {
+  const error = String(err && err.message ? err.message : err)
+  if (isRefusal(err)) return { ok: false, guard: err.guard, error }
+  return { ok: false, status: ENGINE_ERROR, engineError: (err && err.name) || 'Error', error }
+}
+
 /** guard → the sentence it refuses with. The fragments `escapes.json` pins are
  *  each a substring of exactly one of these, and no message is a substring of
  *  another. `parse.test.js` asserts both halves. */
@@ -410,6 +874,20 @@ export const REFUSALS = Object.freeze({
   'canonicalise:timeframe':
     'a higher-timeframe read is tf(<expression>, \'<TF>\') \u2014 two arguments, the second '
     + 'a quoted timeframe',
+  'canonicalise:symtext':
+    "a symbol-scoped name is written `syminfo('<field>')` — one argument, a "
+    + 'plain quoted field name, so which field is read can never be computed at '
+    + 'runtime',
+  'canonicalise:textop':
+    'a text question is written `text_contains(<text>, <text>)` (or startswith / '
+    + 'endswith / eq / ne, and `text_length(<text>)`), and each operand is either '
+    + "a quoted string or a `syminfo('<field>')` — never an expression, because "
+    + 'the answer has to be settled the moment a symbol is chosen',
+  'canonicalise:text-escapes':
+    'text is only ever an OPERAND of a text question. A quoted string or a '
+    + "`syminfo('<field>')` on its own is not a column this engine can compute, "
+    + 'and a tree carrying one outside `text_*(…)` would put a second kind of '
+    + 'value into every walk that prices, lints and evaluates it',
   'canonicalise:node':
     'the parser produced a construct with no canonical form',
 })
@@ -646,15 +1124,58 @@ const op = (name, args) => ({ type: 'op', name, args })
 const call = (name, args) => ({ type: 'call', name, args })
 const offset = (value, child) => ({ type: 'offset', value, args: [child] })
 
-function convert(node) {
+/** The text questions this grammar declares, by arity.
+ *
+ *  ⛔ CLOSED AND SMALL, AND EVERY ONE OF THEM CONSUMES TEXT WITHOUT PRODUCING
+ *  IT. That is the property that keeps text out of the value model: a tree can
+ *  ASK about text and get a number back, and there is no spelling that hands
+ *  text to anything else. `str.tostring`, `str.format` and `str.split` are
+ *  absent for that reason rather than for lack of demand. */
+const TEXTOP_ARITY = Object.freeze({
+  contains: 2, startswith: 2, endswith: 2, length: 1, eq: 2, ne: 2,
+})
+
+/** An operand of a text question: a quoted string, or a symbol-scoped field.
+ *
+ *  ⛔ NOT `convert` — and that is the containment, expressed as a different
+ *  function rather than as a rule somebody has to remember. Recursing through
+ *  `convert` here would let `text_contains(sma(close, 5), 'x')` parse, and the
+ *  refusal for that belongs at the door the member typed at, not four passes
+ *  later when a fold tries to read a moving average as a string. */
+function convertTextOperand(node) {
+  if (node && node.type === 'Literal' && typeof node.value === 'string') {
+    return { type: 'str', value: node.value }
+  }
+  if (node && node.type === 'CallExpression' && node.callee
+      && node.callee.name === 'syminfo') {
+    return convert(node)
+  }
+  return refuse('canonicalise:textop')
+}
+
+/** ⭐⭐ ENTER one jsep node: run ITS OWN guards, then DECLARE its children.
+ *
+ *  Returns either `{leaf}` — a finished canonical node with nothing to descend
+ *  into — or `{children, build}`, where `build` receives the converted children
+ *  in order.
+ *
+ *  ⛔⛔ EVERY GUARD RUNS HERE, BEFORE ANY CHILD IS TOUCHED, AND THAT IS THE WHOLE
+ *  CONTRACT. `refuse` THROWS, so WHICH guard fires first is observable behaviour
+ *  — `escapes.json` fates cases to guards BY NAME. The recursive version checked
+ *  a node's own shape and then descended left-to-right; keeping every guard in
+ *  the enter step, and `convert` pushing children in reverse so they complete
+ *  left-to-right, reproduces that order exactly. Moving a guard into `build`
+ *  would silently re-fate every case whose CHILD also refuses.
+ */
+function enterNode(node) {
   switch (node.type) {
     case 'Literal': {
-      if (typeof node.value === 'number') return num(node.value)
+      if (typeof node.value === 'number') return { leaf: num(node.value) }
       // The manifest declares `!`, `&&`, `||` and `?:` over a table whose only
       // literal is a number, so a condition IS a 0/1 column and `true`/`false`
       // are spellings of 1 and 0. See `_booleans` in closedTable.json.
-      if (node.value === true) return num(1)
-      if (node.value === false) return num(0)
+      if (node.value === true) return { leaf: num(1) }
+      if (node.value === false) return { leaf: num(0) }
       return refuse('canonicalise:node')
     }
     case 'Identifier':
@@ -663,11 +1184,11 @@ function convert(node) {
       // `globalThis` / `toString` / `hasOwnProperty` to that guard. Refusing
       // them here would move three census cases out from under the guard that
       // is supposed to catch them and make its first zero mean less.
-      return series(node.name)
+      return { leaf: series(node.name) }
     case 'UnaryExpression': {
       const name = UNARY_CANONICAL[node.operator]
       if (!name) return refuse('canonicalise:operator')
-      return op(name, [convert(node.argument)])
+      return { children: [node.argument], build: (k) => op(name, [k[0]]) }
     }
     case 'BinaryExpression': {
       // Reachable only if the parser was reconfigured behind this module's back;
@@ -675,20 +1196,23 @@ function convert(node) {
       // case in parse.test.js is what asserts the removal itself. This is the
       // belt, and it is exercised directly rather than left theoretical.
       if (TABLE.operators[node.operator]?.arity !== 2) return refuse('canonicalise:operator')
-      return op(node.operator, [convert(node.left), convert(node.right)])
+      return { children: [node.left, node.right], build: (k) => op(node.operator, k) }
     }
     case 'ConditionalExpression':
-      return op(TERNARY, [convert(node.test), convert(node.consequent), convert(node.alternate)])
+      return {
+        children: [node.test, node.consequent, node.alternate],
+        build: (k) => op(TERNARY, k),
+      }
     case 'CallExpression': {
-      // \u2b50 `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
+      // ⭐ `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
       // HIGHER TIMEFRAME, and the timeframe is a FIELD on the node rather than a
-      // child expression \u2014 the same shape rule `offset` follows for its bar
+      // child expression — the same shape rule `offset` follows for its bar
       // count. A shape with no slot for an expression cannot hold one, so a
       // timeframe can never be computed at runtime and `max_lookback` stays a
       // tree sum over a bounded thing.
       //
-      // \u26d4 IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
-      // alternative \u2014 inventing punctuation \u2014 would put a second grammar in a
+      // ⛔ IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
+      // alternative — inventing punctuation — would put a second grammar in a
       // language whose whole claim is that it has one. The string literal is
       // legal HERE and nowhere else: `convert` still refuses every other string,
       // so the table stays closed and this is the single declared exception.
@@ -699,12 +1223,12 @@ function convert(node) {
         if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
           return refuse('canonicalise:timeframe')
         }
-        // \u26a0\ufe0f WHICH timeframes are legal is `interpret`'s question, not this
+        // ⚠️ WHICH timeframes are legal is `interpret`'s question, not this
         // one's. The parser decides SHAPE; the table decides meaning, and
         // `interpret:timeframe` names an unserveable code at its own door with
         // the ladder listed. Validating it twice would be two authorities on one
         // vocabulary, and the parser's copy would be the one that goes stale.
-        return { type: 'tf', value: code.value, args: [convert(args[0])] }
+        return { children: [args[0]], build: (k) => ({ type: 'tf', value: code.value, args: k }) }
       }
       // ⭐ THE FORMING VARIANT, spelled `tf_live(expr, 'W')` — the same surface
       // one word along, because a member who knows one should not have to learn a
@@ -716,7 +1240,10 @@ function convert(node) {
         if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
           return refuse('canonicalise:timeframe')
         }
-        return { type: 'tf_live', value: code.value, args: [convert(args[0])] }
+        return {
+          children: [args[0]],
+          build: (k) => ({ type: 'tf_live', value: code.value, args: k }),
+        }
       }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
@@ -745,9 +1272,50 @@ function convert(node) {
         // member built, kept, and can never use. The shape check belongs at the
         // door they typed at.
         if (!TICKER_SHAPE.test(ticker.value)) return refuse('canonicalise:symbol')
-        return { type: 'sym', value: ticker.value, args: [convert(args[1])] }
+        return {
+          children: [args[1]],
+          build: (k) => ({ type: 'sym', value: ticker.value, args: k }),
+        }
       }
-      return call(node.callee.name, (node.arguments || []).map(convert))
+      // ⭐⭐ THE SYMBOL-SCOPED FIELD — `syminfo('ticker')` — and the FIELD IS A
+      // FIELD ON THE NODE for the third time in this switch, for the third
+      // instance of one reason: a shape with no slot for an expression cannot
+      // hold one. `tf` cannot compute its timeframe, `sym` cannot compute its
+      // ticker, and this cannot compute WHICH property of the symbol it reads.
+      // What all three buy is that the value is settled the moment a binding is
+      // chosen, which is what makes the bind-time fold total.
+      if (node.callee && node.callee.name === 'syminfo') {
+        const args = node.arguments || []
+        if (args.length !== 1) return refuse('canonicalise:symtext')
+        const field = args[0]
+        if (!field || field.type !== 'Literal' || typeof field.value !== 'string') {
+          return refuse('canonicalise:symtext')
+        }
+        // ⚠️ WHICH fields are servable is not asked here — the Pine door owns
+        // that roster (`BUILTIN_SYMBOL_SCOPED` / `symbolScope.json::unserved`)
+        // and the FOLD owns whether a given binding can answer. The parser
+        // decides SHAPE only; a field list copied into this file would be the
+        // copy that goes stale, which is the `sym` ticker lesson verbatim.
+        if (!/^[a-z][a-z0-9_]{0,23}$/.test(field.value)) return refuse('canonicalise:symtext')
+        return { leaf: { type: 'symtext', name: field.value } }
+      }
+      // ⭐⭐ A TEXT QUESTION WITH A NUMERIC ANSWER. `text_contains(…)` is 1 or 0
+      // and `text_length(…)` is a count, so a `textop` sits wherever a number
+      // sits and every existing walker prices it as one.
+      //
+      // ⛔ ITS OPERANDS ARE THE ONLY PLACE TEXT MAY APPEAR. A quoted string is
+      // legal HERE and nowhere else — exactly the carve-out `tf` and `sym`
+      // already have for their own literals — so `convert`'s Literal arm still
+      // refuses every other string and the table stays closed.
+      if (node.callee && typeof node.callee.name === 'string'
+          && node.callee.name.startsWith('text_')) {
+        const bare = node.callee.name.slice(5)
+        const want = TEXTOP_ARITY[bare]
+        const args = node.arguments || []
+        if (!want || args.length !== want) return refuse('canonicalise:textop')
+        return { leaf: { type: 'textop', name: bare, args: args.map(convertTextOperand) } }
+      }
+      return { children: node.arguments || [], build: (k) => call(node.callee.name, k) }
     }
     case 'MemberExpression': {
       // The whole-tree scan already refused every illegal member and every
@@ -756,7 +1324,6 @@ function convert(node) {
       // the idiom `BinaryExpression` above uses for the same reason.
       const read = readOffset(node)
       if (!read || read.guard) return refuse(read ? read.guard : 'canonicalise:member')
-      const child = convert(node.object)
       // ⭐⭐ `x[0]` IS `x`, AND IT FOLDS TO IT RATHER THAN BECOMING A NODE.
       // Same values, same (absent) NaN prefix, same `maxLookback` — so emitting
       // a zero-bar offset would give ONE COLUMN TWO CANONICAL TREES and
@@ -765,11 +1332,65 @@ function convert(node) {
       // `compute.rev`, and a rev bump force-migrates every binding: two
       // spellings of one column is a migration a user can trigger by typing
       // `[0]`. Pine spells the identity the same way and means the same thing.
-      return read.value === 0 ? child : offset(read.value, child)
+      return {
+        children: [node.object],
+        build: (k) => (read.value === 0 ? k[0] : offset(read.value, k[0])),
+      }
     }
     default:
       return refuse('canonicalise:node')
   }
+}
+
+/** jsep's tree → the canonical tree, ITERATIVELY.
+ *
+ *  ⚰️⚰️ THIS WAS RECURSIVE AND IT DIED ON THE CORPUS'S OWN CASE. `escapes.json`
+ *  carries `too_many_nodes` — 8,001 nodes, 4,001 deep — declared to refuse at
+ *  `budget:nodes`. The recursive version threw `RangeError: Maximum call stack
+ *  size exceeded` in here instead, and a `RangeError` IS NOT A REFUSAL: the
+ *  escape census counted the case as ESCAPED, so the one number that is supposed
+ *  to read zero read one — for a tree that never reached the budget waiting for
+ *  it.
+ *
+ *  ⛔ THE FIX IS TO STOP OVERFLOWING, NOT TO CATCH THE OVERFLOW. `budget.js`
+ *  says in writing that a `RangeError` is not a refusal and that it contains no
+ *  `try`, so it cannot become one — and catching it HERE would turn a property of
+ *  the running machine's stack into a guard name, which is a script refusing
+ *  differently on a different browser. An explicit stack has no such limit, so
+ *  the tree reaches `interpret`'s node budget and refuses at the door its case
+ *  names.
+ *
+ *  ⭐ `offencesIn` ABOVE IS THE IN-FILE PRECEDENT — it has been stack-based the
+ *  whole time, which is exactly why the whole-tree refusal SCAN survived the
+ *  case that killed this walker.
+ */
+function convert(root) {
+  const stack = [{ node: root, entered: false, plan: null }]
+  const done = []
+  while (stack.length) {
+    const frame = stack[stack.length - 1]
+    if (!frame.entered) {
+      frame.entered = true
+      const plan = enterNode(frame.node)
+      if (plan.children === undefined) {
+        stack.pop()
+        done.push(plan.leaf)
+        continue
+      }
+      frame.plan = plan
+      // ⭐ PUSHED IN REVERSE so children COMPLETE left-to-right — the order the
+      // recursion visited them, and therefore the order their refusals fired in.
+      for (let i = plan.children.length - 1; i >= 0; i -= 1) {
+        stack.push({ node: plan.children[i], entered: false, plan: null })
+      }
+      continue
+    }
+    stack.pop()
+    const n = frame.plan.children.length
+    const kids = n === 0 ? [] : done.splice(done.length - n, n)
+    done.push(frame.plan.build(kids))
+  }
+  return done.pop()
 }
 
 /** jsep's tree → the persisted tree.
@@ -828,11 +1449,10 @@ export function parseFormula(source) {
   try {
     return { ok: true, ast: canonicalise(tree) }
   } catch (err) {
-    return {
-      ok: false,
-      error: String(err && err.message ? err.message : err),
-      guard: err instanceof TableRefusal ? err.guard : 'canonicalise:node',
-    }
+    // ⛔ NOT `instanceof`, AND NOT A FALLBACK GUARD — see `classifyThrow`. A
+    // crash in the walker comes back as an ENGINE ERROR with no guard, so it can
+    // never be counted as a refusal by anything downstream.
+    return classifyThrow(err)
   }
 }
 
@@ -866,7 +1486,12 @@ function stableStringify(value) {
       value === undefined ? 'undefined' : typeof value}`)
 }
 
-const CANONICAL_KEYS = Object.freeze({
+/** The exact key set every canonical node type carries. Exported because
+ *  `graph.js` (C2C) checks the SAME shapes on a shared-graph node — a V2 node
+ *  differs from a V1 one only in what an `args` ENTRY means (an integer node
+ *  reference instead of an inlined child), never in which keys exist. A second
+ *  copy over there would be a second authority over one grammar. */
+export const CANONICAL_KEYS = Object.freeze({
   num: ['type', 'value'],
   series: ['type', 'name'],
   op: ['type', 'name', 'args'],
@@ -889,6 +1514,18 @@ const CANONICAL_KEYS = Object.freeze({
   // by walkers that already exist, so `tf` comes out non-repainting and this comes
   // out `preview-repaints` without anybody threading a flag through the linter.
   tf_live: ['type', 'value', 'args'],
+  // ⚠️ A TEXT LITERAL, AND THE SIBLING OF `num` DOWN TO ITS KEY SET. It carries
+  // no `args` because it has no children and no `name` because the value IS the
+  // node — the same reasoning `num` follows.
+  str: ['type', 'value'],
+  // ⚠️ `name`, NOT `value`, AND THE DIFFERENCE IS REAL: this node does not hold
+  // a string, it NAMES one that a symbol will supply. `series` carries `name`
+  // for the same reason, and reading it as `value` is how somebody eventually
+  // ships a tree whose "ticker" is the literal text `ticker`.
+  symtext: ['type', 'name'],
+  // A question ABOUT text whose answer is a number. Same key set as `call`,
+  // because that is what it is — a closed, declared function over operands.
+  textop: ['type', 'name', 'args'],
 })
 
 /** The tree really is one of the declared shapes, with exactly its own keys.
@@ -901,11 +1538,26 @@ const CANONICAL_KEYS = Object.freeze({
  *  artifact — a blob that arrived over a wire or out of a database, not
  *  necessarily one this module produced a millisecond ago. */
 export function assertCanonical(ast) {
-  const stack = [ast]
+  // ⭐⭐ THE PARENT TRAVELS WITH THE NODE, and it exists for exactly one rule:
+  // TEXT IS ONLY EVER AN OPERAND. `str` and `symtext` are the two nodes that
+  // are not numbers, and a tree carrying either one anywhere but directly under
+  // a `textop` would put a second kind of value into every walk that prices,
+  // lints and evaluates a tree — which is the cost this engine declined to pay
+  // when it admitted `str.contains`. Checked HERE because `astHash` runs over
+  // the PERSISTED artifact: a tree that arrived over a wire never passed
+  // through `convertTextOperand`, so the door-side containment is not enough.
+  const stack = [{ node: ast, parent: null }]
   while (stack.length) {
-    const node = stack.pop()
+    const { node, parent } = stack.pop()
     if (!node || typeof node !== 'object' || Array.isArray(node)) {
       throw new Error(`astHash: not a canonical node: ${JSON.stringify(node) ?? String(node)}`)
+    }
+    if ((node.type === 'str' || node.type === 'symtext') && parent !== 'textop') {
+      throw new Error(
+        `astHash: a ${node.type} node may only be an operand of a textop — found `
+        + `one under ${parent === null ? 'the root' : `a ${parent}`}. Text is not a `
+        + 'value in this engine; a text question answers with a number and the '
+        + 'text never leaves it.')
     }
     const expected = CANONICAL_KEYS[node.type]
     if (!expected) {
@@ -920,7 +1572,7 @@ export function assertCanonical(ast) {
     }
     if (node.args !== undefined) {
       if (!Array.isArray(node.args)) throw new Error('astHash: `args` must be an array')
-      stack.push(...node.args)
+      for (const child of node.args) stack.push({ node: child, parent: node.type })
     }
   }
   return ast

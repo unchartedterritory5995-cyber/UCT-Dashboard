@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;96d8d1599c9e46bba9c6e8852db49a16",
+ "title": "Session Liquidity",
+ "author": "Infinity_Trading_",
+ "url": "https://www.tradingview.com/script/jnIxahwx-session-liquidity/",
+ "agreeCount": 5215,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/session-liquidity__96d8d1599c.pine",
+ "our_status": "reference-only"
+}

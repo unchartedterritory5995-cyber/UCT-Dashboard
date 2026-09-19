@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2lteb6l2tkaWsLlOnbiNJpQEhIQXU34c",
+ "title": "Heatmap Volume [xdecow]",
+ "author": "xdecow",
+ "url": "https://www.tradingview.com/script/unWex8N4-heatmap-volume-xdecow/",
+ "agreeCount": 9351,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/heatmap-volume-xdecow__2lteb6l2tk.pine",
+ "our_status": "reference-only"
+}

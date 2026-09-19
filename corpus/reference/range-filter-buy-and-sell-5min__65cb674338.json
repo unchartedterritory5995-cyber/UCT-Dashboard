@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;65cb6743381a42b5920a6cf523579644",
+ "title": "Range Filter Buy and Sell 5min",
+ "author": "PHVNTOM_TRADER",
+ "url": "https://www.tradingview.com/script/J8GzFGfD-range-filter-buy-and-sell-5min/",
+ "agreeCount": 13931,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/range-filter-buy-and-sell-5min__65cb674338.pine",
+ "our_status": "reference-only"
+}

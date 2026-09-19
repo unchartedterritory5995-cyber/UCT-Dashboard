@@ -25,6 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { translatePine } from './pine.js'
+import { FOLD_NOTES } from './parse.js'
 import { translateThinkScript } from './thinkscript.js'
 import { astHash } from './parse.js'
 
@@ -68,6 +69,27 @@ describe('a vendor observation still translates to the tree it recorded', () => 
   })
 
   for (const obs of all) {
+    // ⛔⛔ RISK-032 (2026-09-06): NOT EVERY OBSERVATION'S `script.source` IS AN
+    // INDEPENDENTLY-IMPORTABLE UCT DEFINITION. A real-vendor disambiguation
+    // oracle (e.g. `uct-oracle-ambiguity-v3`) is a multi-output research script
+    // deliberately using constructs (here, `%` for phase-cycling) that pine.js
+    // refuses table-wide by design — a real, long-standing, deliberate product
+    // scope boundary, not a translator regression. Re-translating the WHOLE
+    // script was never the claim: this observation's `engine.ast`/
+    // `engine.formula` represent ONE independently-verified-translatable
+    // builtin call (e.g. `ta.rising(close,3)`), asserted directly, never
+    // derived by feeding the full oracle script through this door. `false`
+    // here is a LOUD, explicit, reason-carrying exemption — never a silent
+    // skip — so this file's own "must not pass vacuously" discipline still
+    // holds: every observation gets its own named, executed test either way.
+    if (obs.script.independentlyTranslatable === false) {
+      it(`⚠️ ${obs.id}: KNOWN non-independently-translatable research oracle (explicitly marked, not silently skipped)`, () => {
+        expect(obs.script.notIndependentlyTranslatableReason,
+          `${obs.id}: independentlyTranslatable:false requires a reason`).toBeTruthy()
+      })
+      continue
+    }
+
     it(`⭐ ${obs.id}: the paste still produces the recorded tree`, () => {
       const fn = TRANSLATORS[obs.script.dialect]
       expect(fn, `no translator for dialect ${obs.script.dialect}`).toBeTruthy()
@@ -114,5 +136,149 @@ describe('the divergence roster names its own probes', () => {
     // expensive defect class when it is wrong.
     const out = translatePine('//@version=5\nindicator("t")\nplot(ta.hma(close, 55))\n')
     expect(out.outputs[0].formula).toBe('hma(close, 55)')
+  })
+})
+
+// ─── ⛔⛔ THE SHARED SCHEMA — both lanes or neither (added 2026-09-12) ────────
+//
+// ⚰️ WHY. On 2026-09-11 a row satisfied THIS rail and failed its Python mirror: the
+// row's `decision` was a STRING, this file never read `decision` at all, and
+// `tests/test_vendor_truth.py` raised `AttributeError: 'str' object has no attribute
+// 'get'`. Two rails over one artifact, each with its own private idea of the
+// contract, is the second-authority defect — so the contract moved into
+// `divergences.schema.json` and BOTH lanes derive from it.
+describe('the divergence roster satisfies the SHARED schema', () => {
+  const schema = readJson(path.join(VENDOR_DIR, 'divergences.schema.json'))
+  const doc = readJson(path.join(VENDOR_DIR, 'divergences.json'))
+
+  it('⭐ the schema declares everything THIS lane enforces', () => {
+    for (const key of ['required_fields', 'decision_required_keys', 'probe_required_keys',
+      'status_vocabulary', 'member_hook_kinds', 'accepted_requires_member_hook',
+      'decision_required_on_status',
+      // the corrected-row contract, Python-only until 2026-09-12 (third instance)
+      'decision_required_keys_when_corrected', 'corrected_requires_correctedIn',
+      // and the fold obligation, added the same day by ruling
+      'fold_requires_member_note']) {
+      expect(schema[key], `the shared schema does not declare \`${key}\``).toBeDefined()
+    }
+    // ⭐ `requirementTag` ADDED 2026-09-12 (owner ruling on the AGEN firing-count
+    // divergence): a divergence about HOW MUCH HISTORY the consumer supplies has no
+    // function to hang a `vendorNote` on and no translator fold to disclose — the
+    // member meets it through a tag on the saved definition
+    // (`closedTable.json::_requirement_tags`). Pinned in both lanes rather than
+    // derived, so a new kind cannot appear without an author acknowledging it twice.
+    expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'requirementTag', 'vendorNote'])
+    expect(schema.decision_required_on_status).toEqual(['accepted'])
+  })
+
+  it('⛔ every row satisfies it — including the `decision` shape this lane used to ignore', () => {
+    for (const row of doc.rows) {
+      for (const field of schema.required_fields) {
+        expect(row[field], `${row.id}: missing \`${field}\``).toBeDefined()
+      }
+      expect(schema.status_vocabulary, `${row.id}: status ${row.status}`).toContain(row.status)
+
+      // ⚠️ The field whose absence from this lane caused the split. `decision` is read
+      // only on accepted rows, so it is required only there — but when present it must
+      // be an OBJECT in BOTH lanes.
+      if (row.decision !== undefined) {
+        expect(typeof row.decision,
+          `${row.id}: \`decision\` must be an OBJECT — a string here passed this rail `
+          + 'and crashed the Python one').toBe('object')
+        for (const key of schema.decision_required_keys) {
+          expect(row.decision[key], `${row.id}: decision names no \`${key}\``).toBeTruthy()
+        }
+      } else if (schema.decision_required_on_status.includes(row.status)) {
+        throw new Error(`${row.id}: ${row.status} with no \`decision\``)
+      }
+
+      for (const key of schema.probe_required_keys) {
+        expect((row.probe || {})[key], `${row.id}: probe names no \`${key}\``).toBeTruthy()
+      }
+    }
+  })
+
+  it('⚰ a CORRECTED row carries its own obligations — the third two-lane split', () => {
+    // ⚠⚠ FOUND 2026-09-12, AND BY THE OTHER LANE AGAIN. `test_vendor_truth.py` has
+    // always required `decision.what_changed` and `correctedIn` on a corrected row; this
+    // file did not know either field existed, so a new row passed here and failed there —
+    // the same shape as the `decision`-as-a-string crash and the `why_keep_ours` gap this
+    // describe block was created for. The fields are declared in the shared schema now
+    // and BOTH lanes read them from it, so neither lane owns the contract.
+    // ⛔ WHY A CORRECTED ROW OWES MORE, NOT LESS: the status switches OFF the
+    // `vendorNote` obligation, which is the strongest one in the roster. Without its own
+    // terms it would be the cheap way out of the ledger.
+    // ⭐ THE NON-VACUITY CONTROL. A loop over a status nothing carries passes forever.
+    expect(doc.rows.filter((r) => r.status === 'corrected').length,
+      'no corrected row left — this rail would pass vacuously').toBeGreaterThan(0)
+    for (const row of doc.rows) {
+      if (row.status !== 'corrected') continue
+      for (const key of schema.decision_required_keys_when_corrected) {
+        expect((row.decision || {})[key],
+          `${row.id}: corrected with no \`decision.${key}\``).toBeTruthy()
+      }
+      if (schema.corrected_requires_correctedIn) {
+        expect(row.correctedIn,
+          `${row.id}: corrected in no named commit or ruling — the claim that ours moved `
+          + 'is unverifiable without one').toBeTruthy()
+      }
+    }
+  })
+
+  it('⛔ an ACCEPTED row reaches a member by a declared hook KIND', () => {
+    // ⭐ Two kinds since 2026-09-12. `vendorNote` is the original — a note on the table
+    // function the id names. `fold` is for a TRANSLATOR-LEVEL divergence with no table
+    // function to hang one on, where the member is told by the disclosure the
+    // translation emits on the definition itself.
+    // ⭐ NON-VACUITY FOR THE FOLD BRANCH: without a fold row on the roster the
+    // paragraph below is dead code that reads as coverage.
+    expect(doc.rows.filter((r) => r.status === 'accepted'
+      && (r.member_hook || {}).kind === 'fold').length,
+    'no accepted fold row — the fold branch of this rail would never run').toBeGreaterThan(0)
+    for (const row of doc.rows) {
+      if (row.status !== 'accepted') continue
+      const hook = row.member_hook || { kind: 'vendorNote' }
+      // ⚠➕ AND THE ACCEPTED-ONLY DECISION KEYS, which were PYTHON-ONLY until 2026-09-12:
+      // `why_keep_ours` is the argument for our convention, and this lane did not know
+      // the field existed. Declared in the shared schema now, so both lanes ask.
+      for (const key of (schema.decision_required_keys_when_accepted || [])) {
+        expect((row.decision || {})[key],
+          `${row.id}: accepted with no \`${key}\``).toBeTruthy()
+      }
+      expect(Object.keys(schema.member_hook_kinds),
+        `${row.id}: member_hook.kind is ${hook.kind}`).toContain(hook.kind)
+      if (hook.kind === 'fold') {
+        expect(hook.name, `${row.id}: fold hook names no disclosure channel`).toBeTruthy()
+        // …and something must really emit it. A channel nobody writes to tells a
+        // member nothing, which is the whole failure `accepted` is meant to exclude.
+        const engine = path.resolve(VENDOR_DIR, '..', '..', '..', 'app', 'src', 'components', 'chart', 'engine')
+        const hits = []
+        const walk = (dir) => {
+          for (const e of fs.readdirSync(dir)) {
+            if (e === 'node_modules') continue
+            const full = path.join(dir, e)
+            if (fs.statSync(full).isDirectory()) { walk(full); continue }
+            if (!/\.[cm]?jsx?$/.test(e)) continue
+            if (fs.readFileSync(full, 'utf8').includes(hook.name)) hits.push(full)
+          }
+        }
+        walk(engine)
+        expect(hits.length,
+          `${row.id}: fold hook names \`${hook.name}\` and no engine source emits it`)
+          .toBeGreaterThan(0)
+
+        // ⛔⛔ AND EMITTING IT IS NOT TELLING ANYBODY — owner ruling, 2026-09-12.
+        // `baseTimeframeFolds` was emitted on every folded output row for a week and
+        // NO surface read it: the channel existed, the member did not hear a word.
+        // "Accepted" means the member is TOLD, so a fold row owes the SENTENCE too,
+        // declared once in `closedTable.json::_folds` and rendered verbatim.
+        if (schema.fold_requires_member_note) {
+          expect(FOLD_NOTES[hook.name],
+            `${row.id}: fold channel \`${hook.name}\` has no \`memberNote\` in `
+            + '`closedTable.json::_folds` — the disclosure reaches nobody, which is '
+            + 'the difference between accepted and merely known').toBeTruthy()
+        }
+      }
+    }
   })
 })

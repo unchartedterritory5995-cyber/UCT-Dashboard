@@ -1,0 +1,12 @@
+//@version=5
+// NON-VACUITY CONTROL FOR THE RENDER GATE -- this script MUST NOT draw.
+// Every bar of its column is 0/0, so the column holds no finite value,
+// `planBindings` gives the plot no series, and `legendChips` stamps the chip
+// `data-computed="false"`. It is inside the lookback budget on purpose: the
+// long-window control (ctrl-01) never reaches the chart because the product
+// refuses it at Save, so it can prove nothing about the RENDER gate.
+// If the harness calls this CHART_RENDERABLE, `drewNothing` is not discriminating
+// and every CHART_RENDERABLE it has ever printed is unearned.
+indicator("Control Non Finite Column", overlay = false)
+zero = close - close
+plot(close / zero, title = "Empty", color = color.purple, linewidth = 2)

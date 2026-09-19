@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c21f83602cfe4200862c0b8433de3a5d",
+ "title": "Auto Trendline [DojiEmoji]",
+ "author": "DojiEmoji",
+ "url": "https://www.tradingview.com/script/xYaiqwD8-auto-trendline-dojiemoji/",
+ "agreeCount": 9550,
+ "category": "candlestick patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/auto-trendline-dojiemoji__c21f83602c.pine",
+ "our_status": "committed"
+}

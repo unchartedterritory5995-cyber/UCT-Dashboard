@@ -33,6 +33,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import pathlib
 
 import pytest
 
@@ -103,7 +104,206 @@ def test_the_report_leads_with_its_DENOMINATOR(tmp_path, monkeypatch):
     monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
     out = io.StringIO()
     assert vt.check(out=out) == 0, out.getvalue()
-    assert "ran     : 1 observations, 1 compared values" in out.getvalue()
+    assert "ran     : 1 observations held, 1 parity-comparable, 0 vendor-semantics-only" in out.getvalue()
+    assert "1 compared values" in out.getvalue()
+
+
+def test_a_SYNTHETIC_INPUT_field_is_forward_compatible_and_does_not_break_check(tmp_path, monkeypatch):
+    """⭐ Track A schema-extension PROPOSAL, tested rather than merely asserted.
+
+    An observation whose computation runs over a bar_index-derived synthetic
+    series (e.g. the 2026-09 Pine-ambiguity oracle: ta.rising/ta.bbw/
+    ta.percentrank/ta.median, none of which read real price for their
+    disputed-semantics check) still needs `market.bars` populated with
+    whatever REAL chart was actually open, per the README's own "an
+    observation carries the vendor's own bars" rule -- but the values that
+    actually drove the compared result are NOT those bars. Overloading
+    `market.bars` with fabricated numbers pretending to be OHLCV would be
+    exactly the "plausible number is worse than no number" failure this
+    directory exists to prevent, applied to the bars field itself.
+
+    Proposed (NOT implemented — `vendor_truth.py` reads observations via
+    plain `.get()`, so this is additive by construction, verified here
+    rather than assumed): an optional sibling `input` object —
+    `{"kind": "synthetic" | "market", "formula": "<generating expression>",
+    "valuesAtProbe": {...}}` — that makes synthetic-vs-market unambiguous
+    without touching `market.bars`'s existing meaning at all. This test
+    proves an observation carrying that extra field loads and checks
+    exactly as one without it — `load_observations`/`check()` read only the
+    keys they already know about, so a future consumer of `input` can be
+    added without a migration and a store that doesn't have it yet keeps
+    working."""
+    obs_dir = tmp_path / "observations"
+    obs_dir.mkdir()
+    bars = [{"t": 20260100 + i, "o": 10.0 + i, "h": 10.0 + i, "l": 10.0 + i,
+             "c": 10.0 + i, "v": 100} for i in range(1, 31)]
+    ast = {"type": "call", "name": "sma",
+           "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 5}]}
+    truth = vt.evaluate({"engine": {"ast": ast},
+                         "market": {"bars": bars, "timeframe": "1D"}})[9]
+    obs = {
+        "id": "synthetic-input-field-probe", "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.sma(close, 5))", "plot": "plot0"},
+        "engine": {"formula": "sma(close, 5)", "ast": ast},
+        # `market.bars` stays the REAL chart's bars — untouched, never fabricated —
+        # exactly per the README's rule, even though this observation's own
+        # computed value doesn't depend on them (it does here, but the point of
+        # this test is that the PRESENCE of the new field changes nothing).
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        # PROPOSED new field, additive only:
+        "input": {
+            "kind": "synthetic",
+            "formula": "phase = bar_index % 25; raw = phase==24 ? 6.0 : ...",
+            "valuesAtProbe": {"phase": 24, "raw": 6.0, "raw[1]": 3.0,
+                               "raw[2]": 5.0, "raw[3]": 1.0, "raw[4]": 9.0},
+        },
+        "vendor": {"readDecimals": 6, "values": {str(bars[9]["t"]): round(truth, 6)}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py",
+                       "when": "2026-09-05"},
+    }
+    (obs_dir / "synthetic.json").write_text(json.dumps(obs), encoding="utf-8")
+    monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+    out = io.StringIO()
+    assert vt.check(out=out) == 0, out.getvalue()
+    assert "ran     : 1 observations held, 1 parity-comparable, 0 vendor-semantics-only" in out.getvalue()
+    assert "1 compared values" in out.getvalue()
+
+
+def _real_sma_obs(id_, bars):
+    ast = {"type": "call", "name": "sma",
+           "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 5}]}
+    truth = vt.evaluate({"engine": {"ast": ast}, "market": {"bars": bars, "timeframe": "1D"}})[9]
+    return {
+        "id": id_, "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.sma(close, 5))", "plot": "plot0"},
+        "engine": {"formula": "sma(close, 5)", "ast": ast},
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        "vendor": {"readDecimals": 6, "values": {str(bars[9]["t"]): round(truth, 6)}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py", "when": "2026-09-05"},
+    }
+
+
+def _vendor_semantics_only_obs(id_, bars):
+    """A pre-implementation research capture — engine.formula/engine.ast are
+    BOTH null because no UCT implementation exists yet (exactly the shape
+    OWNER_VENDOR_CAPTURE_PACKET_V3's ta.rising/ta.bbw/ta.percentrank/
+    ta.median observations will have). market.bars is still the real
+    chart's real bars, per the schema's own rule — untouched either way."""
+    return {
+        "id": id_, "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.rising(close, 3))", "plot": "plot0"},
+        "engine": {"formula": None, "ast": None},
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        "input": {"kind": "synthetic", "formula": "phase = bar_index % 25; ...",
+                   "valuesAtProbe": {"phase": 24, "raw": 6.0}},
+        "vendor": {"readDecimals": 0, "values": {str(bars[0]["t"]): 1}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py", "when": "2026-09-05"},
+    }
+
+
+class TestVendorSemanticsOnlyIsNeverParity:
+    """⛔⛔ 2026-09-05, owner-flagged: 'vendor observed' and 'UCT parity
+    verified' are DIFFERENT CLAIMS. Before this class existed, an
+    observation recorded for a not-yet-implemented function (engine.ast is
+    None — exactly what a pre-implementation Pine-ambiguity capture needs)
+    CRASHED the entire check() run (`TableRefusal: not a canonical node got
+    None`), which is loud but would make the harness unusable the moment a
+    real pre-implementation observation was added. These tests prove the fix:
+    such an observation is skipped from comparison, named separately, and
+    can never inflate a parity count — derived from engine.ast's presence,
+    never from a second, driftable status field."""
+
+    def _bars(self):
+        return [{"t": 20260100 + i, "o": 10.0 + i, "h": 10.0 + i, "l": 10.0 + i,
+                  "c": 10.0 + i, "v": 100} for i in range(1, 31)]
+
+    def test_a_null_ast_observation_no_longer_crashes_check(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        # Must not raise. Before the fix this line raised TableRefusal.
+        code = vt.check(out=out)
+        assert code == 0, out.getvalue()
+
+    def test_the_semantics_only_observation_is_named_but_not_compared(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        vt.check(out=out)
+        text = out.getvalue()
+        # The denominator line must show the split, not a single merged count.
+        assert "2 observations held, 1 parity-comparable, 1 vendor-semantics-only" in text
+        assert "1 compared values" in text
+        # The pre-implementation observation is named as excluded, not silently dropped.
+        assert "pre-impl-1" in text
+
+    def test_ALL_semantics_only_REFUSES_rather_than_a_quiet_pass(self, tmp_path, monkeypatch):
+        """The exact vacuous-pass shape this file's empty-store branch already
+        refuses, reached through a different door: every held observation
+        being vendor-semantics-only must not print '0 deltas, exit 0' —
+        that would read as verified parity when nothing was compared."""
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.check(out=out)
+        assert code == 2, out.getvalue()
+        assert "0 OF THE HELD OBSERVATIONS ARE PARITY-COMPARABLE" in out.getvalue()
+
+    def test_a_real_delta_among_comparable_observations_still_fails_even_with_semantics_only_present(
+            self, tmp_path, monkeypatch):
+        """A vendor_semantics_only observation must not dilute or hide a real
+        failure among the comparable ones — the two populations are scored
+        completely independently."""
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        bad = _real_sma_obs("bad-1", bars)
+        bad["vendor"]["values"][str(bars[9]["t"])] = 99999.0  # plant a real delta
+        (obs_dir / "bad.json").write_text(json.dumps(bad), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.check(out=out)
+        assert code == 1, out.getvalue()
+
+    def test_coverage_separates_parity_comparable_from_vendor_semantics_only(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.coverage(out=out)
+        text = out.getvalue()
+        assert code == 0
+        assert "1 parity-comparable observations (1 additional vendor-semantics-only, not counted above)" in text
+
+    def test_coverage_REFUSES_when_only_semantics_only_observations_are_held(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        assert vt.coverage(out=out) == 2
 
 
 def test_an_observation_WITHOUT_PROVENANCE_is_refused(tmp_path, monkeypatch):
@@ -134,9 +334,67 @@ def test_a_MALFORMED_observation_is_an_error_not_a_SKIP(tmp_path):
 
 # ─── 3. the roster cannot rot ────────────────────────────────────────────────
 
+#: ⛔⛔ THE SHARED SCHEMA, read by THIS rail and by its JS mirror
+#: (`vendorTruth.test.js`). Added 2026-09-12 because a row satisfied the JS rail and
+#: failed this one: the JS side never read `decision`, so a `decision` written as a
+#: STRING passed there and raised AttributeError here. Two rails over one artifact,
+#: each with its own idea of the contract, is the second-authority defect — so the
+#: contract lives in the file below and both lanes derive from it.
+SCHEMA_PATH = os.path.join(os.path.dirname(vt.DIVERGENCES), "divergences.schema.json")
+_SCHEMA = json.load(io.open(SCHEMA_PATH, encoding="utf-8"))
+ROOT = pathlib.Path(vt.DIVERGENCES).resolve().parents[3]
+
+
 def _rows():
     doc = json.load(io.open(vt.DIVERGENCES, encoding="utf-8"))
     return doc["rows"], doc
+
+
+def test_the_shared_schema_is_what_THIS_lane_enforces():
+    """⭐ The anti-drift rail. Both lanes must derive their contract from one file;
+    a rail that checks a field the schema does not declare is the drift starting
+    again. This asserts the schema declares everything this lane enforces."""
+    for key in ("required_fields", "decision_required_keys", "probe_required_keys",
+                "status_vocabulary", "member_hook_kinds",
+                "accepted_requires_member_hook",
+                "decision_required_keys_when_corrected",
+                "corrected_requires_correctedIn",
+                "fold_requires_member_note"):
+        assert key in _SCHEMA, f"the shared schema does not declare `{key}`"
+    assert _SCHEMA["decision_required_on_status"] == ["accepted"], (
+        "`decision` is read only on accepted rows; the schema must say so rather than "
+        "requiring it everywhere — a schema stricter than the artifact cries wolf")
+    assert "ruled" in _SCHEMA["decision_required_keys"]
+    # ⭐ `requirementTag` ADDED 2026-09-12: a divergence about HOW MUCH HISTORY the
+    # consumer supplies, met through `closedTable.json::_requirement_tags` rather
+    # than through any function's note. Pinned here rather than derived so a new
+    # kind cannot appear without an author acknowledging it in this rail.
+    assert set(_SCHEMA["member_hook_kinds"]) == {"vendorNote", "fold", "requirementTag"}
+
+
+def test_every_row_satisfies_the_SHARED_schema_so_both_lanes_agree():
+    """⛔ A row satisfies BOTH lanes or neither. This is the check whose absence let
+    a `decision` string through the JS rail on 2026-09-11."""
+    rows, _ = _rows()
+    for row in rows:
+        for field in _SCHEMA["required_fields"]:
+            assert field in row, f"{row.get('id')}: missing `{field}`"
+        assert row["status"] in _SCHEMA["status_vocabulary"], row["status"]
+        # ⚠️ `decision` is required on ACCEPTED rows only — that is where the rails
+        # read `decision.ruled`. A row at another status legitimately carries none.
+        if "decision" in row:
+            dec = row["decision"]
+            assert isinstance(dec, dict), (
+                f"{row['id']}: `decision` must be an OBJECT, not {type(dec).__name__} — "
+                f"a string here passed the JS rail and crashed this one")
+            for key in _SCHEMA["decision_required_keys"]:
+                assert dec.get(key), f"{row['id']}: decision names no `{key}`"
+        elif row["status"] == "accepted":
+            raise AssertionError(f"{row['id']}: ACCEPTED with no `decision`")
+        probe = row["probe"]
+        assert isinstance(probe, dict), f"{row['id']}: `probe` must be an object"
+        for key in _SCHEMA["probe_required_keys"]:
+            assert probe.get(key), f"{row['id']}: probe names no `{key}`"
 
 
 def test_every_divergence_row_carries_a_probe_that_NAMES_BOTH_ANSWERS():
@@ -190,6 +448,28 @@ def test_a_MEASURED_row_carries_the_measurement_and_a_suspected_row_does_not():
             # ⭐ A DECISION NOTHING COULD OVERTURN IS A BELIEF, NOT A RULING.
             assert dec.get("what_would_reopen_it"), (
                 f"{row['id']}: accepted with no condition that would reopen it")
+        # ⛔⛔ `corrected` IS NOT A CHEAPER `accepted`, AND WITHOUT THIS IT WOULD BE.
+        # The status was added because a divergence we CLOSED by fixing our own
+        # side had nowhere to live — but it also switches OFF the
+        # `vendorNote` requirement below, which is the strongest obligation in
+        # this file. A term that removes an obligation and adds none of its own is
+        # a door out of the ledger, so it carries its own: WHO ruled, WHAT the
+        # behaviour is now, WHICH commit did it, and what would reopen it.
+        if row["status"] == "corrected":
+            dec = row.get("decision") or {}
+            # ⚠ THESE KEYS WERE THIS FILE'S PRIVATE OPINION UNTIL 2026-09-12, and that is
+            # how a new corrected row came to pass the JS rail and fail here — the third
+            # time one lane enforced a field the other had never heard of. They now come
+            # from `divergences.schema.json`, which both lanes read, and the JS rail
+            # enforces the same list. Keep them there, never back here.
+            for key in _SCHEMA["decision_required_keys_when_corrected"]:
+                assert dec.get(key), (
+                    f"{row['id']}: corrected with no `decision.{key}` — a reader cannot "
+                    "tell a closed divergence from a stale row")
+            if _SCHEMA.get("corrected_requires_correctedIn"):
+                assert row.get("correctedIn"), (
+                    f"{row['id']}: corrected in no named commit — the claim that ours "
+                    "moved is unverifiable without one")
 
 
 # ─── 4. the findings, pinned so they expire honestly ─────────────────────────
@@ -289,8 +569,86 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
     for row in rows:
         if row["status"] != "accepted":
             continue
-        # The roster names the code it is about; the manifest key is the function.
-        target = row["id"].split("-")[0]
+        # ➕➕ TWO HOOK KINDS SINCE 2026-09-12, and the kinds come from the SHARED
+        # schema rather than from this file's opinion. A divergence about a named
+        # table function reaches a member through that function's `vendorNote`;
+        # a TRANSLATOR-LEVEL fold has no table function to hang one on —
+        # `request.security`, `security`, `tf` and `sym` are none of them — and
+        # reaches the member through the disclosure the translation emits on the
+        # definition itself.
+        # ⭐ NO EXPLICIT HOOK = the legacy derivation, which is what every row before
+        # 2026-09-12 was written against: kind `vendorNote`, name `id.split('-')[0]`.
+        # An explicit hook is needed only when that derivation does not name a real
+        # table function — the translator-level `fold` case.
+        hook = row.get("member_hook") or {"kind": "vendorNote"}
+        kind = hook.get("kind")
+        assert kind in _SCHEMA["member_hook_kinds"], (
+            f"{row['id']}: `member_hook.kind` is {kind!r}; declare one of "
+            f"{sorted(_SCHEMA['member_hook_kinds'])}.")
+
+        if kind == "fold":
+            # The disclosure channel must really be emitted by something.
+            name = hook.get("name") or ""
+            assert name, f"{row['id']}: fold hook names no disclosure channel"
+            roots = [ROOT / "app" / "src", ROOT / "api"]
+            found = any(
+                name in f.read_text(encoding="utf-8", errors="ignore")
+                for root in roots if root.exists()
+                for f in root.rglob("*.js")
+            ) or any(
+                name in f.read_text(encoding="utf-8", errors="ignore")
+                for root in roots if root.exists()
+                for f in root.rglob("*.py")
+            )
+            assert found, (
+                f"{row['id']}: fold hook names `{name}` and NO source emits it. A "
+                f"disclosure channel nobody writes to tells a member nothing.")
+
+            # ⛔⛔ AND EMITTING IT IS NOT TELLING ANYBODY — owner ruling 2026-09-12.
+            # `baseTimeframeFolds` was written on every folded output row while no
+            # surface rendered it: the channel existed and the member heard nothing.
+            # The sentence is declared once in `closedTable.json::_folds`, read here
+            # and by `parse.js::foldNotesOf`, and rendered verbatim by `PineBox`.
+            if _SCHEMA.get("fold_requires_member_note"):
+                from api.services.ast_table import fold_notes
+                assert fold_notes().get(name), (
+                    f"{row['id']}: fold channel `{name}` has no `memberNote` in "
+                    "`closedTable.json::_folds` — the disclosure reaches nobody, which "
+                    "is the difference between ACCEPTED and merely KNOWN.")
+            continue
+
+        if kind == "requirementTag":
+            # ⭐ THE DISCLOSURE IS A TAG ON THE SAVED DEFINITION, not a note on a
+            # function. The AGEN firing-count divergence is a property of HOW MANY
+            # BARS the consumer supplied, and no function in the manifest owns that
+            # — `ta.highest` computes the declared formula correctly on both sides.
+            # So the hook must name a real key of `closedTable.json::_requirement_tags`,
+            # which is the section every consumer already reads to decide whether it
+            # can serve the definition at all.
+            name = hook.get("name") or ""
+            assert name, f"{row['id']}: requirementTag hook names no tag"
+            manifest = json.load(io.open(
+                ROOT / "app" / "src" / "components" / "chart" / "engine" / "ast"
+                / "closedTable.json", encoding="utf-8"))
+            tags = manifest.get("_requirement_tags") or {}
+            # ⛔ PROSE KEYS ARE NOT TAGS. That section carries `_`-prefixed
+            # explanation alongside the real entries, and a hook naming one of
+            # those would pass a bare `in` check while disclosing nothing.
+            real = {k: v for k, v in tags.items() if not k.startswith("_")}
+            assert name in real, (
+                f"{row['id']}: requirementTag hook names `{name}` and"
+                f" `closedTable.json::_requirement_tags` declares"
+                f" {sorted(real)}. A tag nobody stamps reaches no member.")
+            # And the tag must say WHICH calls raise it and WHO accepts it —
+            # a tag with an empty `calls` list is stamped on nothing.
+            entry = real[name]
+            assert entry.get("calls"), (
+                f"{row['id']}: `_requirement_tags.{name}` names no calls, so"
+                " nothing ever stamps it and the disclosure is unreachable.")
+            continue
+
+        # kind == 'vendorNote': the manifest key is the function.
+        target = hook.get("name") or row["id"].split("-")[0]
         assert target in notes, (
             f"{row['id']}: ACCEPTED with no `vendorNote`. See "
             f"`closedTable.json::functions` for `{target}`. A member "
@@ -303,11 +661,57 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
         # the member reads.
         note = notes[target]
         measured = row.get("measured") or {}
-        assert str(measured.get("worst_abs_delta", ""))[:4] or True
-        assert "0.23" in note, (
-            f"{row['id']}: the member note does not carry the measured seed "
-            f"delta the ledger records ({measured.get('decay', {}).get('bar_14')})")
+        # ⚰️⚰️ THIS ASSERTED THE LITERAL `"0.23"` AGAINST EVERY ACCEPTED ROW, and
+        # `0.23` is ONE row's number — the ATR seed delta. It was exactly right
+        # while the ledger held one accepted row and became unsatisfiable the day
+        # a second one landed: a viewer-dependence divergence has no delta to
+        # carry, and the rail demanded it carry ATR's. A hand-typed value from one
+        # subject asserted over all subjects is this repo's most repeated defect,
+        # arriving inside the rail that exists to keep a member's sentence honest.
+        # ⭐ THE CLAIM IS UNCHANGED AND NOW DERIVES: whatever number the LEDGER
+        # records for THIS row must appear in the sentence the member reads, so
+        # the reassuring half can never drift from the measured half. A row with
+        # no measurement has nothing to carry, and is required to say so instead.
+        numbers = _measured_numbers(measured)
+        if numbers:
+            assert any(n in note for n in numbers), (
+                f"{row['id']}: the member note carries none of the numbers the "
+                f"ledger measures {sorted(numbers)}. The reassuring half is the "
+                f"one the member reads, so it must not drift from the measured "
+                f"half.")
+        else:
+            assert row.get("confidence") != "measured", (
+                f"{row['id']}: `confidence: measured` with no numbers in the "
+                f"ledger's `measured` block — one of the two is wrong.")
 
+
+
+def _measured_numbers(measured):
+    """Every number the ledger records for a row, as the strings a sentence would
+    spell them with.
+
+    ⛔ DERIVED FROM THE ROW, NEVER TYPED. The point of the check above is that a
+    member's sentence and the ledger cannot drift apart; a literal typed into the
+    test would be a THIRD copy, and the one nobody updates.
+    """
+    out = set()
+    stack = [measured]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            stack.extend(node.values())
+        elif isinstance(node, (list, tuple)):
+            stack.extend(node)
+        elif isinstance(node, (int, float)) and not isinstance(node, bool):
+            text = f"{node}"
+            out.add(text)
+            # A ledger value of 0.2345 is written 0.23 in prose; the leading
+            # significant digits are what a sentence actually carries.
+            if "." in text:
+                whole, _, frac = text.partition(".")
+                if len(frac) > 2:
+                    out.add(f"{whole}.{frac[:2]}")
+    return out
 
 def test_a_vendorNote_EXISTS_only_where_a_measurement_does():
     """⛔ THE OTHER DIRECTION, AND IT IS THE ONE THAT PROTECTS TRUST. A note
@@ -341,9 +745,25 @@ def test_the_two_lanes_read_the_SAME_vendor_note_declaration():
                      "closedTable.json"), encoding="utf-8"))
     direct = {n: sp[VENDOR_NOTE] for n, sp in manifest["functions"].items()
               if isinstance(sp.get(VENDOR_NOTE), str) and sp[VENDOR_NOTE].strip()}
+    # ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+    # `barstate.*` divergence is about a group of CLOCK COLUMNS, so there is no
+    # function entry to hang it on — while a member reading one of those columns
+    # needs the sentence exactly as much as one calling `atr` does. Both lanes
+    # read the family block; this reads it a third way, which is what makes the
+    # equality a mirror check rather than two copies of one expression.
+    for family in ("_barstate",):
+        spec = manifest.get(family) or {}
+        if isinstance(spec.get(VENDOR_NOTE), str) and spec[VENDOR_NOTE].strip():
+            direct[family.lstrip("_")] = spec[VENDOR_NOTE]
     assert vendor_notes() == direct
     # ⛔ AND THE DERIVATION IS PLANTABLE, so it is a walk rather than a hand-list.
     planted = {**manifest, "functions": {
         **manifest["functions"],
         "sma": {**manifest["functions"]["sma"], VENDOR_NOTE: "planted"}}}
     assert set(vendor_notes(planted)) == set(direct) | {"sma"}
+    # ⛔ PLANTABLE ON THE FAMILY SIDE TOO. Without this, the family branch could
+    # be deleted and the equality above would still hold on any manifest that
+    # happened to carry no family note — which is every manifest until the day
+    # one does, i.e. the day it stops being checked.
+    stripped = {k: v for k, v in manifest.items() if k != "_barstate"}
+    assert "barstate" not in vendor_notes(stripped)

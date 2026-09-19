@@ -16,6 +16,26 @@
 *.ttf   binary
 *.otf   binary
 
+# ⛔⛔ PINE SOURCES ARE BYTE-FIDELITY ARTIFACTS AND THIS BOX REWRITES LINE
+# ENDINGS ON CHECKOUT. Measured 2026-09-11:
+# `tests/fixtures/member/uncharted-volume.pine` was 34,950 bytes on disk against a
+# 34,342-byte blob — exactly its 608 CRLFs — so
+# `test_the_file_on_disk_matches_BOTH_recorded_hashes` failed on BOTH hashes and
+# read as "🔴 THE AUTHOR'S SCRIPT CHANGED … every 'line N' reference in this
+# project now points at a different statement". The author's script had not
+# changed at all; the checkout filter had. Both hashes match the LF form exactly.
+#
+# ⚠️ THAT IS THE WORST DIRECTION FOR THIS PARTICULAR RAIL TO FAIL IN. It exists to
+# shout when a member's script is swapped under our line-number references, so a
+# line-ending false positive teaches whoever sees it that the loudest alarm in the
+# fixture directory cries wolf — and the remedy it invites (re-record the hashes)
+# would bake this box's CRLF into a manifest every other checkout then fails.
+#
+# Same class as the note-connector fixtures below, same fix. Applies to all 510
+# tracked `.pine` files, not just the member two: the corpus rosters, the probe
+# integrity sweep and the linemaps all compare Pine bytes or characters.
+*.pine text eol=lf
+
 # note-connectors cross-language schema rail (Task 5): the Python drift test
 # (`test_note_convert_fixtures.py`) byte-compares a freshly regenerated copy
 # of these fixtures against the committed ones. `fixtures_gen.py` always
@@ -27,6 +47,92 @@
 api/services/journal_two/note_connectors/convert/fixtures_in/*.md text eol=lf
 api/services/journal_two/note_connectors/convert/fixtures_in/*.html text eol=lf
 app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text eol=lf
+# ⚰️ AND ITS SIBLING DIRECTORY, MISSED BY THE RULE ABOVE (added 2026-09-11).
+# `test_obsidian_parity_fixtures.py` byte-compares a freshly regenerated copy against
+# the committed one, exactly as the note-connector test does — but the eol rule named
+# only `server_convert/`, so all SEVEN obsidian_parity fixtures were CRLF on disk
+# against LF blobs and the test reported every one of them STALE.
+# ⛔ ITS MESSAGE TELLS YOU TO REGENERATE AND COMMIT, which would have baked this
+# box's CRLF into the repo and made the same test fail on every other checkout —
+# a false alarm whose remedy causes the real thing. Measured: each file is
+# byte-identical to its blob once line endings are normalised (e.g. 556 bytes on
+# disk vs a 535-byte blob, exactly its 21 CRLFs). Nothing about the converter drifted.
+app/src/pages/journal-2-0/lib/importer/__fixtures__/obsidian_parity/*.json text eol=lf
+
+# ⛔⛔ THE CLASS, NOT THE INSTANCE — a DIRECTORY BACKSTOP for every fixture
+# (added 2026-09-11, third instance of the same defect).
+#
+# The three rules above were each added the day one extension bit: `.pine` when
+# the member-script hash rail cried wolf, `server_convert/*.json` for the
+# note-connector drift test, `obsidian_parity/*.json` for its sibling. The fourth
+# instance was `tests/fixtures/thinkscript/*.ts` — `ImportBox.thinkscript.test.jsx`
+# byte-compares that file against what the import box produced, and CRLF on disk
+# against an LF blob fails it on the very first statement: the box produced a
+# bare-LF `declare upper;` line and the committed fixture arrived CRLF.
+# (This comment deliberately spells no escape sequence: written with one, the
+# escape became a REAL newline here and git parsed the remainder as a rule —
+#   .gitattributes:71: 'declare is not a valid attribute name
+# which is R8's defect class arriving in a config file instead of a message.)
+# Fixing a fifth extension next week is not a fix; this is.
+#
+# ⭐ MEASURED before writing the rule, not guessed. 1,862 tracked files under
+# tests/fixtures: json 1516 · pine 191 · py 89 · ts 24 · csv 16 · png 9 · md 9 ·
+# jpg 5 · gitignore 2 · gz 1. And `git ls-files --eol` says EVERY text blob is
+# ALREADY `i/lf` (1,615 of them checked out `w/crlf`, 230 `w/lf`). So this rule
+# rewrites nothing in the index and changes no recorded hash — it stops the
+# CHECKOUT from manufacturing a difference that was never committed.
+tests/fixtures/** text eol=lf
+
+# ⛔ …AND THE 15 BINARIES INSIDE IT, DECLARED AFTER SO THEY WIN. A later line
+# overrides an earlier one, and `binary` expands to `-text`, so these are exempt
+# from the rule above. Sweeping them into a text rule would rewrite every 0x0A
+# inside a PNG on checkout — and these particular PNGs are the vendor VISUAL
+# PARITY references, so a corrupted one would read as a product regression in the
+# one comparison that exists to catch product regressions. That is the same
+# failure the woff2 block at the top of this file was written to prevent; it
+# named four font extensions and left the image formats to the sniffer.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.gz   binary
+
+# ⚰️ R1 UNDER-REACHED BY TWO FILES (same evening). The rule above covers
+# `tests/fixtures/**`, and two harness-WRITTEN artifacts live under `tools/`:
+# `tests/test_chart_parity_harness.py` rewrites the first and
+# `corpusMetric.test.js` writes the second, both with `\n` only, against working
+# copies this box checks out CRLF. Named individually rather than as `tools/**`,
+# because that directory also holds PNGs and archives and a blanket text rule
+# there is the corrupt-binary hazard the top of this file exists to prevent.
+# ⭐⭐ AS A CLASS, NOT THREE FILES (owner ruling, 2026-09-12). It was three named
+# lines and the fourth instance still got through: `lookback_agreement.json`
+# landed unpinned on 2026-09-12 and dirtied the tree on every `npm run
+# test:engine`. Naming files caught three and missed the fourth, which is what a
+# hand-maintained list does.
+#
+# ⛔ `tools/**/*.json`, NEVER `tools/**`. The comment above is still the reason:
+# this directory holds PNGs, and a blanket text rule there is the corrupt-binary
+# hazard the top of this file exists to prevent. JSON is never binary, so
+# restricting the class to the extension keeps the safety and drops the list.
+#
+# ⚠️ AND `tests/fixtures/**` WOULD NOT HAVE CAUGHT IT — that rule is scoped to
+# that tree and this artifact lives in `tools/`. Checked rather than assumed.
+#
+# Pinning the three previously-unpinned files (`carried_perf`,
+# `execution_shapes`, `window_perf`) re-normalises nothing: all three are already
+# stored LF-only. They have no producer in the repo today, so they cannot churn —
+# which is an argument from today's state, and exactly why the rule is a class.
+tools/**/*.json text eol=lf
+
+# ─── merge seam, 2026-09-13 (feat/indicator-r0r1 ← origin/master 368520647) ───
+# ⛔ ORDER IS LOAD-BEARING HERE, WHICH IS WHY THIS IS NOT A BLIND CONCATENATION.
+# A later rule overrides an earlier one, and master's next block declares
+# `tools/wave_p_cert_corpus/manifest.json -text` — the exception to this branch's
+# class rule `tools/**/*.json text eol=lf` directly above. Master's side must
+# therefore come SECOND or its PDF-corpus manifest would be re-normalised by our
+# rule and the OCR certification would compare different bytes.
 
 # ⛔⛔ WAVE P5 — THE FROZEN OCR CERTIFICATION CORPUS IS BYTES, NOT TEXT.
 # `core.autocrlf` is true on the dev box and git guessed "text" for the one

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0df0d45ee6034863bd8ab8d28958e78f",
+ "title": "Sonarlab - Order Blocks",
+ "author": "vuetratrading",
+ "url": "https://www.tradingview.com/script/x1krAh2y-sonarlab-order-blocks/",
+ "agreeCount": 16182,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/sonarlab-order-blocks__0df0d45ee6.pine",
+ "our_status": "committed"
+}

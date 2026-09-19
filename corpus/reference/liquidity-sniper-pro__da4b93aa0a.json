@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;da4b93aa0a264f9ba09e53d8b97b3b90",
+ "title": "Liquidity Sniper Pro",
+ "author": "VenusJ",
+ "url": "https://www.tradingview.com/script/UbrDvLVh-liquidity-sniper-pro/",
+ "agreeCount": 5502,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-sniper-pro__da4b93aa0a.pine",
+ "our_status": "reference-only"
+}

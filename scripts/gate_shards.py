@@ -313,6 +313,20 @@ GATE_READ_PATHS = (
     "api/services/setup_grade.py",
     "api/services/voice_client_action_tools.py",
     "api/services/journal_two/roundtrip_export_fixture.py",
+    "api/services/ticker_meta.py",
+    # the Pine translator's own corpus + parity/lookback rails read these —
+    # directories are whole-tree entries (same idiom as app/src above), the
+    # rest are individual files `tests/test_the_read_set_covers_...` named
+    "corpus/committed",
+    "tools/c0_oos_fixtures",
+    "tools/corpus_metric.json",
+    "tools/lookback_agreement.json",
+    "tests/test_ast_bind_parity.py",
+    "docs/pine/lwc5-capability-map.md",
+    "docs/pine/param-ids.json",
+    "docs/pine/pine-presentation-spec.md",
+    "docs/pine/pine-version-evolution.md",
+    "docs/superpowers/specs/universal-indicator-ecosystem/OOS_2_PARITY_SET.json",
 )
 
 

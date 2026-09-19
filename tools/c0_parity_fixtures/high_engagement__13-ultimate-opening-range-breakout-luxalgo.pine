@@ -1,0 +1,485 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © LuxAlgo
+//@version=6
+indicator("Ultimate Opening Range Breakout [LuxAlgo]", shorttitle = "LuxAlgo - Ult ORB", overlay = true, max_labels_count = 500, max_lines_count = 500, max_boxes_count = 500)
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Constants
+//---------------------------------------------------------------------------------------------------------------------{
+DATA                    = #DBDBDB
+HEADERS                 = #808080
+BACKGROUND              = #161616
+BORDERS                 = #2E2E2E
+
+TOP_RIGHT               = 'Top Right'
+BOTTOM_RIGHT            = 'Bottom Right'
+BOTTOM_LEFT             = 'Bottom Left'
+
+TINY                    = 'Tiny'
+SMALL                   = 'Small'
+NORMAL                  = 'Normal'
+LARGE                   = 'Large'
+HUGE                    = 'Huge'
+
+DASHBOARD_GROUP         = 'Dashboard'
+
+dashboardTooltip        = 'Enable or disable the dashboard.'
+dashboardPositionTooltip= 'Select the dashboard location.'
+dashboardSizeTooltip    = 'Select the dashboard size.'
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Inputs
+//---------------------------------------------------------------------------------------------------------------------{
+sessionInput            = input.session("0930-1000", "Opening Range Session", tooltip = "Define the time range for the opening range calculation. Format: HHMM-HHMM")
+sessionDays             = input.string("1234567", "Days of Week", tooltip = "Select days to apply the opening range (1=Sunday, 7=Saturday)")
+timezoneInput           = input.string("UTC-5", "Timezone", options = ["UTC-12", "UTC-11", "UTC-10", "UTC-9", "UTC-8", "UTC-7", "UTC-6", "UTC-5", "UTC-4", "UTC-3", "UTC-2", "UTC-1", "UTC+0", "UTC+1", "UTC+2", "UTC+3", "UTC+4", "UTC+5", "UTC+6", "UTC+7", "UTC+8", "UTC+9", "UTC+10", "UTC+11", "UTC+12"], tooltip = "Adjust the timezone for the session input.")
+
+srcInput                = input.string("High/Low", "Range Source", options = ["High/Low", "Close"], tooltip = "Use the high/low of the session or the closing prices to define the range.")
+showExtensions          = input.bool(true, "Show Extension Levels", group = "Extensions")
+extType                 = input.string("Multiples", "Extension Type", options = ["Multiples", "Fibonacci"], group = "Extensions")
+mult1                   = input.float(1.0, "Multiplier 1", minval = 0, group = "Extensions")
+mult2                   = input.float(2.0, "Multiplier 2", minval = 0, group = "Extensions")
+mult3                   = input.float(3.0, "Multiplier 3", minval = 0, group = "Extensions")
+
+bullColor               = input.color(#089981, "Bullish Color", group = "Style", inline = "Colors")
+bearColor               = input.color(#f23645, "Bearish Color", group = "Style", inline = "Colors")
+neutralColor            = input.color(#5b9cf6, "Range Color", group = "Style", inline = "Colors")
+bgTransp                = input.int(85, "Background Transparency", minval = 0, maxval = 100, group = "Style")
+showLabels              = input.bool(true, "Show Level Labels", group = "Style")
+sigLabelSize            = input.string("Small", "Signal Label Size", options = ["Tiny", "Small", "Normal", "Large"], group = "Style")
+
+showVP                  = input.bool(true, "Show Volume Profile", group = "Volume Profile")
+vpRowsInput             = input.int(14, "Number of Rows", minval = 5, maxval = 50, group = "Volume Profile", tooltip = "Number of blocks to divide the opening range into. Lower values make the profile more 'blocky'.")
+vpWidth                 = input.int(30, "Profile Width (%)", minval = 1, maxval = 100, group = "Volume Profile", tooltip = "Width of the volume profile relative to the session length.")
+vpColor                 = input.color(color.new(#5b9cf6, 60), "Profile Color", group = "Volume Profile")
+
+stopPlotting            = input.bool(true, "Limit Plotting Duration", group = "Plotting Duration")
+stopTimeType            = input.string("New York Close", "End Plotting At", options = ["New York Close", "London Close", "Manual Time", "End of Day"], group = "Plotting Duration", tooltip = "Choose when to stop drawing the levels on the chart.")
+manualEndTime           = input.string("16:00", "Manual End Time (HH:MM)", group = "Plotting Duration", tooltip = "Format: HH:MM. Used if 'Manual Time' is selected.")
+
+showTrail               = input.bool(false, "Show Trailing Stop", group = "Trailing Stop")
+trailMult               = input.float(2.0, "ATR Multiplier", minval = 0.1, step = 0.1, group = "Trailing Stop", tooltip = "Multiplier for the ATR-based trailing stop.")
+trailAtrLen             = input.int(14, "ATR Length", minval = 1, group = "Trailing Stop")
+
+dashboardInput          = input.bool(true, 'Show Hit Rate Dashboard', group = DASHBOARD_GROUP, tooltip = dashboardTooltip)
+showOptimizer           = input.bool(false, 'Show Stop Optimizer', group = DASHBOARD_GROUP, tooltip = "Simulates different ATR multipliers to find the most profitable distance.")
+dashboardPositionInput  = input.string(TOP_RIGHT, 'Position', group = DASHBOARD_GROUP, tooltip = dashboardPositionTooltip, options = [TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT])
+dashboardSizeInput      = input.string(SMALL, 'Size', group = DASHBOARD_GROUP, tooltip = dashboardSizeTooltip, options = [TINY, SMALL, NORMAL, LARGE, HUGE])
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Variables
+//---------------------------------------------------------------------------------------------------------------------{
+var parsedDashboardPosition = switch dashboardPositionInput
+    TOP_RIGHT       => position.top_right
+    BOTTOM_RIGHT    => position.bottom_right
+    BOTTOM_LEFT     => position.bottom_left
+
+var parsedDashboardSize     = switch dashboardSizeInput
+    TINY            => size.tiny
+    SMALL           => size.small
+    NORMAL          => size.normal
+    LARGE           => size.large
+    HUGE            => size.huge
+
+atrVal = ta.atr(200)
+var float dynamicTickSize = na
+
+inSession = not na(time(timeframe.period, sessionInput + ":" + sessionDays, timezoneInput))
+isNewDay  = ta.change(time("D", "", timezoneInput)) != 0
+
+var float orHigh = na
+var float orLow  = na
+var bool  sessionEnded = false
+
+var int totalSessions = 0
+var int countU1 = 0
+var int countU2 = 0
+var int countU3 = 0
+var int countD1 = 0
+var int countD2 = 0
+var int countD3 = 0
+
+var bool dayReachedU1 = false
+var bool dayReachedU2 = false
+var bool dayReachedU3 = false
+var bool dayReachedD1 = false
+var bool dayReachedD2 = false
+var bool dayReachedD3 = false
+
+var map<float, float> volMap = map.new<float, float>()
+var int sessionStartBar = 0
+var int profileAnchor = 0
+var box[] activeVPBoxes = array.new_box()
+
+var float totalProfit = 0.0
+var float entryPrice  = na
+
+var float[] optProfits = array.from(0.0, 0.0, 0.0, 0.0, 0.0)
+var float[] optMults   = array.from(1.0, 1.5, 2.0, 2.5, 3.0)
+var float[] optStops   = array.new_float(5, na)
+var int[] optActive    = array.new_int(5, 0) // 0: Idle, 1: Active Bull, -1: Active Bear
+
+var float trailStop = na
+var int activeDir = 0 // 1: Bull, -1: Bear, 0: None
+
+var bool canSignalUp = true
+var bool canSignalDn = true
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Helper Functions
+//---------------------------------------------------------------------------------------------------------------------{
+cell(table t_able, int column, int row, string data, color = #FFFFFF, align = text.align_right, color background = na, float height = 0) => 
+    t_able.cell(column, row, data, text_color = color, text_size = parsedDashboardSize, text_halign = align, bgcolor = background, height = height)
+
+divider(table t_able, int row, int lastColumn) =>    
+    string rowDivider = '━━━━━━━━━━━━━━'
+    t_able.merge_cells(0, row, lastColumn, row)
+    cell(t_able, 0, row, rowDivider, align = text.align_center, height = 0.5, color = BORDERS)
+
+getExt(float multVal, float rangeVal, float highLvl, float lowLvl) =>
+    float up = highLvl + rangeVal * multVal
+    float dn = lowLvl - rangeVal * multVal
+    [up, dn]
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Core Logic
+//---------------------------------------------------------------------------------------------------------------------{
+if isNewDay or (inSession and not inSession[1])
+    orHigh := na
+    orLow  := na
+    sessionEnded := false
+    dayReachedU1 := false
+    dayReachedU2 := false
+    dayReachedU3 := false
+    dayReachedD1 := false
+    dayReachedD2 := false
+    dayReachedD3 := false
+    volMap.clear()
+    sessionStartBar := bar_index
+    profileAnchor := bar_index
+    activeVPBoxes.clear()
+    entryPrice := na
+    optStops.fill(na)
+    optActive.fill(0)
+    dynamicTickSize := math.max(syminfo.mintick, nz(atrVal, high - low) / vpRowsInput)
+
+if inSession
+    float currentHigh = srcInput == "High/Low" ? high : math.max(open, close)
+    float currentLow  = srcInput == "High/Low" ? low  : math.min(open, close)
+    
+    orHigh := na(orHigh) ? currentHigh : math.max(orHigh, currentHigh)
+    orLow  := na(orLow) ? currentLow  : math.min(orLow, currentLow)
+    profileAnchor := bar_index
+
+    float currentRange = orHigh - orLow
+    if currentRange > 0
+        dynamicTickSize := math.max(syminfo.mintick, currentRange / vpRowsInput)
+
+    float priceLevel = math.round(close / dynamicTickSize) * dynamicTickSize
+    volMap.put(priceLevel, (volMap.contains(priceLevel) ? volMap.get(priceLevel) : 0) + volume)
+
+if not inSession and inSession[1]
+    sessionEnded := true
+    totalSessions += 1
+
+float orRange = orHigh - orLow
+
+float f1 = extType == "Fibonacci" ? 0.382 : mult1
+float f2 = extType == "Fibonacci" ? 0.618 : mult2
+float f3 = extType == "Fibonacci" ? 1.0   : mult3
+
+[u1, d1] = getExt(f1, orRange, orHigh, orLow)
+[u2, d2] = getExt(f2, orRange, orHigh, orLow)
+[u3, d3] = getExt(f3, orRange, orHigh, orLow)
+
+if sessionEnded
+    if not na(u1) and high >= u1 and not dayReachedU1
+        countU1 += 1
+        dayReachedU1 := true
+    if not na(u2) and high >= u2 and not dayReachedU2
+        countU2 += 1
+        dayReachedU2 := true
+    if not na(u3) and high >= u3 and not dayReachedU3
+        countU3 += 1
+        dayReachedU3 := true
+        
+    if not na(d1) and low <= d1 and not dayReachedD1
+        countD1 += 1
+        dayReachedD1 := true
+    if not na(d2) and low <= d2 and not dayReachedD2
+        countD2 += 1
+        dayReachedD2 := true
+    if not na(d3) and low <= d3 and not dayReachedD3
+        countD3 += 1
+        dayReachedD3 := true
+
+orStartTime = str.substring(sessionInput, 0, 4)
+
+string targetEndTime = switch stopTimeType
+    "New York Close" => "1700"
+    "London Close"   => "1130"
+    "Manual Time"    => str.replace(manualEndTime, ":", "")
+    => "2359"
+
+plottingSession = orStartTime + "-" + targetEndTime
+bool displayAllowed = not stopPlotting or not na(time(timeframe.period, plottingSession + ":" + sessionDays, timezoneInput))
+
+plotHigh = displayAllowed ? orHigh : na
+plotLow  = displayAllowed ? orLow  : na
+plotU1   = displayAllowed and showExtensions ? u1 : na
+plotU2   = displayAllowed and showExtensions ? u2 : na
+plotU3   = displayAllowed and showExtensions ? u3 : na
+plotD1   = displayAllowed and showExtensions ? d1 : na
+plotD2   = displayAllowed and showExtensions ? d2 : na
+plotD3   = displayAllowed and showExtensions ? d3 : na
+
+atrTrail = ta.atr(trailAtrLen)
+
+volSMA = ta.sma(volume, 20)
+isHV = volume > volSMA
+volSuffix = isHV ? " (HV)" : " (LV)"
+szSignal = sigLabelSize == "Tiny" ? size.tiny : sigLabelSize == "Small" ? size.small : sigLabelSize == "Normal" ? size.normal : size.large
+
+bool breakoutUp = ta.crossover(close, orHigh) and not inSession and sessionEnded
+bool breakoutDn = ta.crossunder(close, orLow) and not inSession and sessionEnded
+
+if isNewDay or inSession
+    canSignalUp := true
+    canSignalDn := true
+    activeDir   := 0
+    trailStop   := na
+
+if breakoutUp and canSignalUp and displayAllowed
+    label.new(bar_index, high, "BULL BREAK" + volSuffix, color = bullColor, style = label.style_label_down, textcolor = color.white, size = szSignal)
+    canSignalUp := false
+    if activeDir == 0
+        activeDir  := 1
+        entryPrice := orHigh
+        trailStop  := low - (atrTrail * trailMult)
+        for i = 0 to 4
+            optActive.set(i, 1)
+            optStops.set(i, low - (atrTrail * optMults.get(i)))
+
+if breakoutDn and canSignalDn and displayAllowed
+    label.new(bar_index, low, "BEAR BREAK" + volSuffix, color = bearColor, style = label.style_label_up, textcolor = color.white, size = szSignal)
+    canSignalDn := false
+    if activeDir == 0
+        activeDir  := -1
+        entryPrice := orLow
+        trailStop  := high + (atrTrail * trailMult)
+        for i = 0 to 4
+            optActive.set(i, -1)
+            optStops.set(i, high + (atrTrail * optMults.get(i)))
+
+if activeDir == 1
+    trailStop := math.max(nz(trailStop[1], low - (atrTrail * trailMult)), low - (atrTrail * trailMult))
+    if close < trailStop or not displayAllowed
+        totalProfit += (close - entryPrice)
+        activeDir := 0
+        trailStop := na
+
+if activeDir == -1
+    trailStop := math.min(nz(trailStop[1], high + (atrTrail * trailMult)), high + (atrTrail * trailMult))
+    if close > trailStop or not displayAllowed
+        totalProfit += (entryPrice - close)
+        activeDir := 0
+        trailStop := na
+
+if showOptimizer
+    for i = 0 to 4
+        m = optMults.get(i)
+        a = optActive.get(i)
+        s = optStops.get(i)
+        if a == 1
+            newStop = math.max(nz(s, low - (atrTrail * m)), low - (atrTrail * m))
+            optStops.set(i, newStop)
+            if close < newStop or not displayAllowed
+                optProfits.set(i, optProfits.get(i) + (close - entryPrice))
+                optActive.set(i, 0)
+        else if a == -1
+            newStop = math.min(nz(s, high + (atrTrail * m)), high + (atrTrail * m))
+            optStops.set(i, newStop)
+            if close > newStop or not displayAllowed
+                optProfits.set(i, optProfits.get(i) + (entryPrice - close))
+                optActive.set(i, 0)
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Visuals
+//---------------------------------------------------------------------------------------------------------------------{
+bgcolor(inSession ? color.new(neutralColor, 90) : na, title = "Session Background")
+
+pHigh = plot(plotHigh, "OR High", color.new(neutralColor, 20), 2, plot.style_linebr)
+pLow  = plot(plotLow, "OR Low", color.new(neutralColor, 20), 2, plot.style_linebr)
+
+fill(pHigh, pLow, plotHigh, plotLow, color.new(neutralColor, bgTransp), color.new(neutralColor, bgTransp), "Range Fill")
+
+pu1 = plot(plotU1, "Upper Ext 1", color.new(bullColor, 40), 1, plot.style_linebr)
+pu2 = plot(plotU2, "Upper Ext 2", color.new(bullColor, 40), 1, plot.style_linebr)
+pu3 = plot(plotU3, "Upper Ext 3", color.new(bullColor, 40), 1, plot.style_linebr)
+
+pd1 = plot(plotD1, "Lower Ext 1", color.new(bearColor, 40), 1, plot.style_linebr)
+pd2 = plot(plotD2, "Lower Ext 2", color.new(bearColor, 40), 1, plot.style_linebr)
+pd3 = plot(plotD3, "Lower Ext 3", color.new(bearColor, 40), 1, plot.style_linebr)
+
+fill(pHigh, pu1, plotU1, plotHigh, color.new(bullColor, bgTransp + 10), color.new(bullColor, bgTransp), "Bull Zone 1")
+fill(pu1, pu2, plotU2, plotU1, color.new(bullColor, bgTransp + 5), color.new(bullColor, bgTransp + 10), "Bull Zone 2")
+fill(pu2, pu3, plotU3, plotU2, color.new(bullColor, bgTransp), color.new(bullColor, bgTransp + 5), "Bull Zone 3")
+
+fill(pLow, pd1, plotLow, plotD1, color.new(bearColor, bgTransp), color.new(bearColor, bgTransp + 10), "Bear Zone 1")
+fill(pd1, pd2, plotD1, plotD2, color.new(bearColor, bgTransp + 10), color.new(bearColor, bgTransp + 5), "Bear Zone 2")
+fill(pd2, pd3, plotD2, plotD3, color.new(bearColor, bgTransp + 5), color.new(bearColor, bgTransp), "Bear Zone 3")
+
+pTrail = plot(showTrail ? trailStop : na, "Trailing Stop", activeDir == 1 ? bullColor : bearColor, 2, plot.style_linebr)
+pPrice = plot(showTrail ? close : na, "Trail Price Ref", color.new(chart.fg_color, 100))
+fill(pTrail, pPrice, 
+     top_value = activeDir == 1 ? close : trailStop, 
+     bottom_value = activeDir == 1 ? trailStop : close, 
+     top_color = activeDir == 1 ? color.new(bullColor, 50) : color.new(bearColor, 100), 
+     bottom_color = activeDir == 1 ? color.new(bullColor, 100) : color.new(bearColor, 50), 
+     title = "Trailing Stop Fill")
+
+if barstate.islast
+    if showVP and volMap.size() > 0
+        if activeVPBoxes.size() > 0
+            for b in activeVPBoxes
+                b.delete()
+            activeVPBoxes.clear()
+
+        float maxVol = 0.0
+        float[] prices = volMap.keys()
+        for p in prices
+            maxVol := math.max(maxVol, volMap.get(p))
+        
+        if prices.size() > 0
+            prices.sort()
+            int profileMaxBars = 15 
+            float levelHeight = dynamicTickSize
+            int startX = bar_index + 25
+            
+            for i = 0 to prices.size() - 1
+                float p = prices.get(i)
+                if p >= (orLow - levelHeight / 2) and p <= (orHigh + levelHeight / 2)
+                    float vol = volMap.get(p)
+                    bool  isPOC = vol == maxVol
+                    int bars = math.max(1, math.round((vol / math.max(1e-10, maxVol)) * profileMaxBars))
+                    color cellColor = isPOC ? color.new(vpColor, 0) : color.new(vpColor, 40)
+                    box nb = box.new(startX, p + levelHeight / 2, startX + bars, p - levelHeight / 2, 
+                                     border_color = color.new(vpColor, 100), bgcolor = cellColor)
+                    activeVPBoxes.push(nb)
+
+    if showLabels
+        label.delete(label.new(bar_index + 2, orHigh, "OR High", color = neutralColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+        label.delete(label.new(bar_index + 2, orLow, "OR Low", color = neutralColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+        if showExtensions
+            string lblU1 = "Target 1 (" + str.tostring(totalSessions > 0 ? math.round((countU1 / totalSessions) * 100) : 0) + "%)"
+            string lblD1 = "Target 1 (" + str.tostring(totalSessions > 0 ? math.round((countD1 / totalSessions) * 100) : 0) + "%)"
+            string lblU2 = "Target 2 (" + str.tostring(totalSessions > 0 ? math.round((countU2 / totalSessions) * 100) : 0) + "%)"
+            string lblD2 = "Target 2 (" + str.tostring(totalSessions > 0 ? math.round((countD2 / totalSessions) * 100) : 0) + "%)"
+            string lblU3 = "Target 3 (" + str.tostring(totalSessions > 0 ? math.round((countU3 / totalSessions) * 100) : 0) + "%)"
+            string lblD3 = "Target 3 (" + str.tostring(totalSessions > 0 ? math.round((countD3 / totalSessions) * 100) : 0) + "%)"
+
+            label.delete(label.new(bar_index + 2, u1, lblU1, color = bullColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+            label.delete(label.new(bar_index + 2, d1, lblD1, color = bearColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+            label.delete(label.new(bar_index + 2, u2, lblU2, color = bullColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+            label.delete(label.new(bar_index + 2, d2, lblD2, color = bearColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+            label.delete(label.new(bar_index + 2, u3, lblU3, color = bullColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+            label.delete(label.new(bar_index + 2, d3, lblD3, color = bearColor, style = label.style_label_left, textcolor = color.white, size = size.small)[1])
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Dashboard
+//---------------------------------------------------------------------------------------------------------------------{
+if dashboardInput
+    int rowsTotal = 13 + (showTrail ? 2 : 0) + (showOptimizer ? 2 : 0)
+    var table dash = table.new(parsedDashboardPosition, 4, rowsTotal, bgcolor = BACKGROUND, border_width = 0, frame_color = BORDERS, frame_width = 1, force_overlay = false)
+    
+    if barstate.isfirst
+        dash.merge_cells(0, 0, 3, 0)
+        cell(dash, 0, 0, 'ORB Hit Rate', color = DATA, align = text.align_center)
+        
+        divider(dash, 1, 3)
+
+        cell(dash, 0, 2, "Level", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 2, "Hits", color = HEADERS)
+        cell(dash, 2, 2, "Total", color = HEADERS)
+        cell(dash, 3, 2, "Rate", color = HEADERS)
+
+        divider(dash, 3, 3)
+        divider(dash, 7, 3)
+        divider(dash, 11, 3)
+
+        dash.merge_cells(0, 12, 3, 12)
+        
+        int nextRow = 13
+        if showTrail
+            divider(dash, nextRow, 3)
+            nextRow += 1
+            dash.merge_cells(0, nextRow, 3, nextRow)
+            nextRow += 1
+            
+        if showOptimizer
+            divider(dash, nextRow, 3)
+            nextRow += 1
+            dash.merge_cells(0, nextRow, 3, nextRow)
+
+    if barstate.islast
+        totalHits = math.max(1, totalSessions)
+        
+        cell(dash, 0, 4, "Bull T1", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 4, str.tostring(countU1), color = bullColor)
+        cell(dash, 2, 4, str.tostring(totalSessions), color = bullColor)
+        cell(dash, 3, 4, str.tostring(math.round((countU1 / totalHits) * 100)) + "%", color = bullColor)
+
+        cell(dash, 0, 5, "Bull T2", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 5, str.tostring(countU2), color = bullColor)
+        cell(dash, 2, 5, str.tostring(totalSessions), color = bullColor)
+        cell(dash, 3, 5, str.tostring(math.round((countU2 / totalHits) * 100)) + "%", color = bullColor)
+
+        cell(dash, 0, 6, "Bull T3", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 6, str.tostring(countU3), color = bullColor)
+        cell(dash, 2, 6, str.tostring(totalSessions), color = bullColor)
+        cell(dash, 3, 6, str.tostring(math.round((countU3 / totalHits) * 100)) + "%", color = bullColor)
+
+        cell(dash, 0, 8, "Bear T1", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 8, str.tostring(countD1), color = bearColor)
+        cell(dash, 2, 8, str.tostring(totalSessions), color = bearColor)
+        cell(dash, 3, 8, str.tostring(math.round((countD1 / totalHits) * 100)) + "%", color = bearColor)
+
+        cell(dash, 0, 9, "Bear T2", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 9, str.tostring(countD2), color = bearColor)
+        cell(dash, 2, 9, str.tostring(totalSessions), color = bearColor)
+        cell(dash, 3, 9, str.tostring(math.round((countD2 / totalHits) * 100)) + "%", color = bearColor)
+
+        cell(dash, 0, 10, "Bear T3", color = HEADERS, align = text.align_left)
+        cell(dash, 1, 10, str.tostring(countD3), color = bearColor)
+        cell(dash, 2, 10, str.tostring(totalSessions), color = bearColor)
+        cell(dash, 3, 10, str.tostring(math.round((countD3 / totalHits) * 100)) + "%", color = bearColor)
+
+        cell(dash, 0, 12, "Tracked: " + str.tostring(totalSessions) + " (" + sessionInput + ")", color = DATA, align = text.align_center)
+        
+        int nextRow = 13
+        if showTrail
+            nextRow += 1
+            cell(dash, 0, nextRow, "Cumulative Trail Profit: " + str.tostring(totalProfit, "#.##"), color = DATA, align = text.align_center)
+            nextRow += 1
+            
+        if showOptimizer
+            nextRow += 1
+            int bestIdx = 0
+            float maxP = -1e10
+            for i = 0 to 4
+                p = optProfits.get(i)
+                if p > maxP
+                    maxP := p
+                    bestIdx := i
+            bestMult = optMults.get(bestIdx)
+            cell(dash, 0, nextRow, "Best ATR Mult: " + str.tostring(bestMult) + " (Profit: " + str.tostring(maxP, "#.##") + ")", color = color.new(#FFD700, 0), align = text.align_center)
+
+//---------------------------------------------------------------------------------------------------------------------}
+// Alerts
+//---------------------------------------------------------------------------------------------------------------------{
+alertcondition(breakoutUp, "Bullish ORB", "Price broke above the opening range.")
+alertcondition(breakoutDn, "Bearish ORB", "Price broke below the opening range.")
+alertcondition(ta.cross(close, u3), "Target 3 Reached", "Price reached the final bullish target.")
+alertcondition(ta.cross(close, d3), "Target 3 Reached", "Price reached the final bearish target.")
+
+//---------------------------------------------------------------------------------------------------------------------}

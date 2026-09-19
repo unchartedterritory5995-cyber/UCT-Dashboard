@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3a1cf288004f4e2b802dbc6db8322af6",
+ "title": "Linear Regression Channel Breakout Strategy",
+ "author": "chanu_lev10k",
+ "url": "https://www.tradingview.com/script/7USLDe0j-linear-regression-channel-breakout-strategy/",
+ "agreeCount": 737,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+ "our_status": "committed"
+}

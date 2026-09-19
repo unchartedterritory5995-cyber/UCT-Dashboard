@@ -1,0 +1,139 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradeChartist
+
+//@version=4
+study("Fib Retracement", overlay=true, max_bars_back=5000)
+
+
+Fibs            = input("Plot Fibs based on Lookback", options = ["Plot Fibs based on Lookback", "Plot Fibs based on Price Input"], title = "Fibonacci Plot Type")
+
+FIBS            = Fibs == "Plot Fibs based on Lookback"?1:Fibs == "Plot Fibs based on Price Input"?2:na
+
+Foption         = input(defval = "1. Candles" , title = "Fibonacci Plot Lookback Type", options=["2. Days", "1. Candles"]) 
+FP              = input(defval =     100 , title = "Days/Candles to Lookback") 
+Reverse         = input(defval =  false , title = "Reverse Fibonacci Levels?")
+ExtraFibs       = input(false, "Show 0.886 and 1.113 Fibs")
+
+
+Note            = input(true, "════ 𝗙𝗶𝗯𝘀 𝗯𝗮𝘀𝗲𝗱 𝗼𝗻 𝗣𝗿𝗶𝗰𝗲 𝗜𝗻𝗽𝘂𝘁 ════")
+High            = input(0., minval = 0,  title = "High - Enter Value")
+Low             = input(-1., minval = -1, title = "Low - Enter Value")
+
+
+Note2           = input(true, "══════ 𝗙𝗶𝗯 𝗟𝗶𝗻𝗲/𝗟𝗮𝗯𝗲𝗹 𝗦𝘁𝘆𝗹𝗲 ══════")
+Bull_Color      = input(#008000, type=input.color, title = "Support Fibs Color")
+Bear_Color      = input(#ff0000, type=input.color, title = "Resistance Fibs Color")
+CurrentFib      = input(false, "Show Fib Level of Current Price")
+Current_Color   = input(color.orange, type=input.color, title = "Current Fib Label Color")
+LineStyle       = input("Dotted", options = ["Dotted", "Solid"], title = "Fib Line Style")
+LineWidth       = input(1, minval=1, maxval=3,title = "Fib Line Width")
+Ext             = input(false, "Extend Lines Left")
+
+
+// Transparency = input("Low", options = ["High", "Medium", "Low"], title="Fib Line Transparency")
+
+
+
+BullColor       = Bull_Color//Transparency == "High"?color.new(#008000,75):Transparency == "Medium"?color.new(#008000,50):Bull_Color
+BearColor       = Bear_Color//Transparency == "High"?color.new(#ff0000,75):Transparency == "Medium"?color.new(#ff0000,50):Bear_Color
+
+
+FPeriod         = timeframe.isintraday and Foption=="2. Days"? (1440/timeframe.multiplier)*FP: 
+                     timeframe.isdaily and Foption=="2. Days"? FP/timeframe.multiplier: 
+                     timeframe.isweekly and Foption=="2. Days"? FP/(7*timeframe.multiplier): 
+                     timeframe.ismonthly and Foption=="2. Days"? FP/(28*timeframe.multiplier): 
+                     Foption=="1. Candles"? FP:100
+
+ 
+Fhigh           = FIBS==1? highest(FPeriod) : FIBS == 2 and High == 0? highest(high,100): FIBS == 2 and High!=0? High:na
+Flow            = FIBS==1? lowest(FPeriod) : FIBS == 2 and Low == -1? lowest(low,100): FIBS == 2 and High!=-1? Low:na
+FH              = FIBS == 1?highestbars(high,FPeriod): 1
+FL              = FIBS == 1?lowestbars(low,FPeriod): 2
+revfibs         = not Reverse? FL>FH : FL<FH
+
+
+
+Fib_x(n) =>
+    revfibs ? (Fhigh-Flow)*n+Flow : Fhigh-(Fhigh-Flow)*n
+
+Current         = revfibs?(close-Flow)/(Fhigh-Flow):(Fhigh-close)/(Fhigh-Flow)
+
+var label Current_Fib_Label = na
+label.delete(Current_Fib_Label)
+
+if(CurrentFib and barstate.islast)
+    Current_Fib_Label := label.new(bar_index, close, tostring(Current, "##.##"), textcolor = Current_Color, color = color.new(#000000,100), style=label.style_label_left, yloc=yloc.price)
+
+
+
+
+EXTEND          = Ext?extend.left:extend.none 
+STYLE           = LineStyle=="Dotted"?line.style_dotted:line.style_solid
+WIDTH           = LineWidth
+
+BB = FIBS==1?(FL<FH?bar_index[-FL]:bar_index[-FH]):FIBS==2?bar_index[50]:bar_index[50]
+
+Fib_line(x)  => 
+    var line ln = na
+    line.delete(ln)
+    ln:=line.new(BB, x, bar_index, x, color = close>x? BullColor:BearColor, extend=EXTEND ,style=STYLE, width = WIDTH)
+    
+
+    
+Fib_label(x,_txt) => 
+    var label lbl = na
+    label.delete(lbl)
+    lbl:=label.new(bar_index, x, _txt + tostring(x, "##.########") + " )", textcolor = close>x?BullColor:BearColor, color = color.new(#000000,100), style=label.style_label_left, yloc=yloc.price)
+
+
+
+Fib0        =    Fib_line(Fib_x(0))
+Fib236      =    Fib_line(Fib_x(0.236))
+Fib382      =    Fib_line(Fib_x(0.382))
+Fib500      =    Fib_line(Fib_x(0.500))
+Fib618      =    Fib_line(Fib_x(0.618))
+Fib786      =    Fib_line(Fib_x(0.786))
+Fib1000     =    Fib_line(Fib_x(1.000))
+
+Fib886      =    ExtraFibs?Fib_line(Fib_x(0.886)):na
+
+if(FIBS==2)
+
+    Fib1113 =   ExtraFibs?Fib_line(Fib_x(1.113)):na    
+    
+    Fib1272 =   Fib_line(Fib_x(1.272))
+    Fib1618 =   Fib_line(Fib_x(1.618))
+    Fib2000 =   Fib_line(Fib_x(2.000))
+    Fib2236 =   Fib_line(Fib_x(2.236))
+    Fib2618 =   Fib_line(Fib_x(2.618))
+    Fib3236 =   Fib_line(Fib_x(3.236))
+    Fib3618 =   Fib_line(Fib_x(3.618))
+    Fib4236 =   Fib_line(Fib_x(4.236))
+    Fib4618 =   Fib_line(Fib_x(4.618))
+    
+
+LFib0       =      Fib_label(Fib_x(0), "0 ( ")
+LFib236     =      Fib_label(Fib_x(0.236), "0.236 ( ")
+LFib382     =      Fib_label(Fib_x(0.382), "0.382 ( ")
+LFib500     =      Fib_label(Fib_x(0.500), "0.500 ( ")
+LFib618     =      Fib_label(Fib_x(0.618), "0.618 ( ")
+LFib786     =      Fib_label(Fib_x(0.786), "0.786 ( ")
+LFib1000    =      Fib_label(Fib_x(1.000), "1.000 ( ")
+
+LFib886     =      ExtraFibs?Fib_label(Fib_x(0.886), "0.886 ( "):na
+
+
+if(FIBS==2)
+
+    LFib1113 =      ExtraFibs?Fib_label(Fib_x(1.113), "1.113 ( "):na   
+    
+    LFib1272 =      Fib_label(Fib_x(1.272), "1.272 ( ")
+    LFib1618 =      Fib_label(Fib_x(1.618), "1.618 ( ")
+    LFib2000 =      Fib_label(Fib_x(2.000), "2.000 ( ")
+    LFib2236 =      Fib_label(Fib_x(2.236), "2.236 ( ")
+    LFib2618 =      Fib_label(Fib_x(2.618), "2.618 ( ")
+    LFib3236 =      Fib_label(Fib_x(3.236), "3.236 ( ")
+    LFib3618 =      Fib_label(Fib_x(3.618), "3.618 ( ")
+    LFib4236 =      Fib_label(Fib_x(4.236), "4.236 ( ")
+    LFib4618 =      Fib_label(Fib_x(4.618), "4.618 ( ")
+

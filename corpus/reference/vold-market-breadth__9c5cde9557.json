@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9c5cde95573d44b4bd91485a79170589",
+ "title": "VOLD-Market Breadth",
+ "author": "sskcharts",
+ "url": "https://www.tradingview.com/script/DypGAzBg-vold-market-breadth/",
+ "agreeCount": 685,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+ "cached_source": "tools/pine_survey/cache/sources/vold-market-breadth__9c5cde9557.pine",
+ "our_status": "committed"
+}

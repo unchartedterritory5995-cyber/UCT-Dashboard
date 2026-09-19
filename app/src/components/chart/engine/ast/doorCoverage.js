@@ -61,7 +61,7 @@
 // on any absence test would be pure noise. Extending this to scalars, operators
 // or clock needs its own measurement first — see `doorCoverage.test.js`.
 
-import { TABLE } from './parse'
+import { TABLE, hostAdmissible } from './parse'
 
 /** Bar fields, in the spelling every dialect shares. A probe that fed the ROLE
  *  name (`source`) as an identifier would refuse for a reason about the ARGUMENT
@@ -169,6 +169,21 @@ export function functionReachability(doors, table = TABLE) {
       row.pine = tries.find((t) => t.status === 'reachable')
         || tries.find((t) => t.status === 'call-unmapped')
         || tries[0]
+      // ⭐⭐ A FOURTH ANSWER, ADDED 2026-09-09: `ruled`. The three statuses above
+      // split "the door served it", "the door had never heard of the name" and
+      // "the door knows the name and could not map THIS call". `cum` is none of
+      // them: the door knows it, SERVES it on the host contract, and declines it
+      // for a screen because its value moves with the fetch
+      // (`_functions_cumulative`). Reporting that as `name-unknown` — whose own
+      // comment reads *"a TRUE hole: no arguments would have helped"* — files a
+      // closed ruling on the roster of work outstanding, which is the opposite of
+      // what that roster is for.
+      // ⛔ DERIVED FROM THE MANIFEST, so a second host-only name classifies
+      // itself. And deliberately NOT `reachable`: from the SCREENER contract
+      // these rows measure, it genuinely is not.
+      if (row.pine.status === 'name-unknown' && hostAdmissible(table).has(name)) {
+        row.pine = { ...row.pine, status: 'ruled' }
+      }
     }
 
     if (doors.thinkscript) {

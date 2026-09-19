@@ -1,0 +1,74 @@
+{
+  "id": "visual_fixture/level5_nested_calcs_mixed_outputs",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "app/src/components/chart/builder/compatHarness.level5Fixture.test.js",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "rsi(close,14) / crossOver(close, sma(close,20))"
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": 20
+    },
+    "visual_requirements": {
+      "status": "SUPPORTED",
+      "plot_count": 2,
+      "needs": [
+        "mixed_num_bool"
+      ],
+      "discovery": [
+        "sma(rsi(close,14), 3) EVALUATES -- one function's output can feed another's series-typed argument; \"series\" is NOT restricted to bare named series like close/high/low",
+        "a formula cannot reference a SIBLING plot's series by key (sma(fast, 5) is refused, guard: null) -- \"several interacting series\" in one document means several INDEPENDENT computations, not cross-plot data flow",
+        "a document mixing a NUMERIC plot and a BOOLEAN plot in the same multi-plot document installs cleanly, with scanPlot correctly naming the boolean row as the screener-relevant one"
+      ]
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "RISK-027 still blocks a live pixel re-run in this session"
+    },
+    "persistence_save": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "persistence_reload": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "screener_eligibility": {
+      "status": "SUPPORTED",
+      "eligible": true,
+      "reason": "scanPlot \"signal\" yields bool directly"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "evidence_artifact_paths": [
+    "app/src/components/chart/engine/ast/interpret.js"
+  ],
+  "harness_version": "compat-harness-v1"
+}

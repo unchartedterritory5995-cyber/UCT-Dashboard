@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "14-master-line-lite.pine",
+  "title": "Master Line Lite: 5-MA Consensus",
+  "author": "zebris_boris",
+  "source_url": "https://www.tradingview.com/script/UpOkagpl-Master-Line-Lite-5-MA-Consensus/",
+  "retrieved_at": "2026-09-07T11:45:00Z",
+  "pine_version": "v6",
+  "license": "MPL-2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"3 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 36,
+  "complexity_bucket": "short",
+  "sha256_source": "1a094e03e72fb2be6ee6b95e7cbdc357f3f1aa175a7fd47e438949b009cf6e16",
+  "sha256_normalized": "038a54fb6a891775f5f092fdfdaee787844a8597279aa44c45fbab8cca9caf6d",
+  "storage": "git"
+}

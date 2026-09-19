@@ -1,0 +1,36 @@
+//@version=6
+indicator("UCTPROBE_R11_ALMA", overlay = false)
+
+// ⭐⭐ ITEM 8, NAME #4 — `alma`, THE BARE v3-ERA SPELLING. ALONE IN ITS FILE
+// BECAUSE IT IS THE ONE THAT MIGHT NOT EXIST.
+//
+// ⛔ v6 renamed most of this family under `ta.`, and a bare `alma` may simply be
+// gone — in which case the COMPILE FAILURE IS THE READING, and it says the three
+// sites in the corpus are v3 scripts that do not compile at TradingView either.
+// That is a different finding with a different fix, and it must not be allowed to
+// take `ta.correlation` and `ta.percentile_linear_interpolation` down with it.
+//
+// ⭐ THE QUESTION, IF IT DOES EXIST: Arnaud Legoux needs `offset` and `sigma`.
+// 0.85 and 6 are the usual values, but usual is not the same as DEFAULT — and a
+// default is what a 2-argument call site actually gets. So the probe asks both
+// spellings on the SAME bar and subtracts: if the defaults are 0.85/6 the
+// difference is exactly zero, and if they are anything else it is not.
+
+// ── the control: does the name exist at all ────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                    // N01
+
+// ── the explicit form, with the values everyone assumes ────────────────────
+plot(alma(close, 9, 0.85, 6), "N02_alma_explicit_0p85_6")                   // N02
+
+// ── the defaulted form — what a 2-argument site actually gets ──────────────
+plot(alma(close, 9), "N03_alma_defaulted")                                  // N03
+
+// ── ⭐⭐ THE DISCRIMINATOR: zero iff the defaults ARE 0.85 and 6 ────────────
+// ⛔ Plotting the two side by side is not enough — two lines that look identical
+// on a chart can differ in the sixth decimal, and this engine's parity runs care
+// about the sixth decimal. The SUBTRACTION is the reading.
+plot(alma(close, 9) - alma(close, 9, 0.85, 6), "N04_defaulted_MINUS_explicit") // N04
+
+// ── two neighbours, to tell "defaults differ" from "one of them is broken" ──
+plot(alma(close, 9, 0.85, 2), "N05_alma_sigma2")                            // N05
+plot(alma(close, 9, 0.5, 6), "N06_alma_offset0p5")                          // N06

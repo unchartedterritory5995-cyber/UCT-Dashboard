@@ -1,0 +1,3631 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tools/c0_oos_fixtures",
+  "rows": [
+    {
+      "script": "high_engagement__02-waddah-attar-explosion-lazybear",
+      "timings_ms": {
+        "goto": 2601,
+        "open_builder": 56,
+        "new_formula": 37,
+        "import_tab": 35,
+        "paste": 14,
+        "translate": 0,
+        "apply": 15,
+        "save_click": 17,
+        "save_roundtrip": 1376,
+        "instance_persist": 913,
+        "reopen": 2674,
+        "render": 452
+      },
+      "definitions_before": 0,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#a0522d",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 10
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__02-waddah-attar-explosi",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_81d95274bbb0",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "downtrend",
+          "explosionline",
+          "downtrend_c",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "downtrend",
+          "explosionline"
+        ],
+        "guide_plot_keys": [
+          "downtrend_c",
+          "value_c"
+        ],
+        "tree_keys": [
+          "downtrend",
+          "downtrend_c",
+          "explosionline",
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "downtrendColor",
+          "downtrendWidth",
+          "explosionlineColor",
+          "explosionlineWidth",
+          "downtrend_cColor",
+          "downtrend_cWidth",
+          "value_cColor",
+          "value_cWidth",
+          "sensitivity",
+          "mult"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "downtrendColor": "#c9a84c",
+          "downtrendWidth": 1,
+          "explosionlineColor": "#A0522D",
+          "explosionlineWidth": 2,
+          "downtrend_cColor": "#c9a84c",
+          "downtrend_cWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1,
+          "sensitivity": 150,
+          "mult": 2
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$downtrendColor",
+          "$explosionlineColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_81d95274bbb0:1"
+      ],
+      "render_settled": true,
+      "chips_after": 5,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_81d95274bbb0:1",
+          "plotKey": "value",
+          "text": "high_engagem 8.57",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_81d95274bbb0:1",
+          "plotKey": "downtrend",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_81d95274bbb0:1",
+          "plotKey": "explosionline",
+          "text": "high_engagem 36.80",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_81d95274bbb0:1",
+          "plotKey": "downtrend_c",
+          "text": "high_engagem",
+          "hidden": true,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_81d95274bbb0:1",
+          "plotKey": "value_c",
+          "text": "high_engagem",
+          "hidden": true,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 1,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "downtrend",
+          "explosionline",
+          "downtrend_c",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "downtrend",
+          "explosionline"
+        ],
+        "guide_plot_keys": [
+          "downtrend_c",
+          "value_c"
+        ],
+        "tree_keys": [
+          "downtrend",
+          "downtrend_c",
+          "explosionline",
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "downtrendColor",
+          "downtrendWidth",
+          "explosionlineColor",
+          "explosionlineWidth",
+          "downtrend_cColor",
+          "downtrend_cWidth",
+          "value_cColor",
+          "value_cWidth",
+          "sensitivity",
+          "mult"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "downtrendColor": "#c9a84c",
+          "downtrendWidth": 1,
+          "explosionlineColor": "#A0522D",
+          "explosionlineWidth": 2,
+          "downtrend_cColor": "#c9a84c",
+          "downtrend_cWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1,
+          "sensitivity": 150,
+          "mult": 2
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$downtrendColor",
+          "$explosionlineColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__02-waddah-attar-explosion-lazybear.png",
+      "declared_plots": [
+        "value",
+        "downtrend",
+        "explosionline"
+      ],
+      "drawn_plots": [
+        "value",
+        "downtrend",
+        "explosionline"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 5
+    },
+    {
+      "script": "high_engagement__03-supertrend-kivancozbilgic",
+      "timings_ms": {
+        "goto": 3267,
+        "open_builder": 16,
+        "new_formula": 37,
+        "import_tab": 38,
+        "paste": 60,
+        "translate": 0,
+        "apply": 30,
+        "save_click": 150
+      },
+      "definitions_before": 1,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "markers",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#4caf50",
+          "#4caf50",
+          "#4caf50",
+          "#f23645",
+          "#f23645",
+          "#f23645",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 20
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__03-supertrend-kivancozb",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "result": "SAVE_FAILED",
+      "detail": "definition exceeds 65536 bytes (362735) \u2014 this store names its caps rather than inheriting `user_preferences`', which has none"
+    },
+    {
+      "script": "high_engagement__04-ttm-squeeze-greeny",
+      "timings_ms": {
+        "goto": 3028,
+        "open_builder": 17,
+        "new_formula": 13,
+        "import_tab": 53,
+        "paste": 39,
+        "translate": 0,
+        "apply": 11,
+        "save_click": 9,
+        "save_roundtrip": 542,
+        "instance_persist": 569,
+        "reopen": 2491,
+        "render": 264
+      },
+      "definitions_before": 1,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__04-ttm-squeeze-greeny",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_b96cad481398",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_b96cad481398:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_b96cad481398:1",
+          "plotKey": "value",
+          "text": "high_engagem -5.93",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 2,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__04-ttm-squeeze-greeny.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "high_engagement__10-rsi-divergence-faytterro",
+      "timings_ms": {
+        "goto": 2431,
+        "open_builder": 14,
+        "new_formula": 18,
+        "import_tab": 24,
+        "paste": 43,
+        "translate": 0,
+        "apply": 32,
+        "save_click": 8,
+        "save_roundtrip": 535,
+        "instance_persist": 549,
+        "reopen": 2450,
+        "render": 513
+      },
+      "definitions_before": 2,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "50",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c857c2"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__10-rsi-divergence-faytt",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_5e58ce428d2d",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#C857C2",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": [
+          50
+        ]
+      },
+      "instance_persisted": [
+        "inst:u_5e58ce428d2d:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_5e58ce428d2d:1",
+          "plotKey": "value",
+          "text": "high_engagem 54.95",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 3,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#C857C2",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": [
+          50
+        ]
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__10-rsi-divergence-faytterro.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "high_engagement__11-vumanchu-cipher-a-vumanchu",
+      "timings_ms": {
+        "goto": 2566,
+        "open_builder": 17,
+        "new_formula": 37,
+        "import_tab": 130,
+        "paste": 53,
+        "translate": 0,
+        "apply": 42,
+        "save_click": 18,
+        "save_roundtrip": 577,
+        "instance_persist": 559,
+        "reopen": 2576,
+        "render": 299
+      },
+      "definitions_before": 3,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#00ff00",
+          "#ff0000"
+        ],
+        "plotRowInputs": 24
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__11-vumanchu-cipher-a-vu",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_03ae54bcc67a",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "ema_1Color",
+          "ema_1Width",
+          "ema_2Color",
+          "ema_2Width",
+          "ema_3Color",
+          "ema_3Width",
+          "ema_4Color",
+          "ema_4Width",
+          "ema_5Color",
+          "ema_5Width",
+          "ema_6Color",
+          "ema_6Width",
+          "ema_7Color",
+          "ema_7Width",
+          "ema_8Color",
+          "ema_8Width",
+          "ema_8_Color",
+          "ema_8_Width",
+          "long_ema_signalColor",
+          "long_ema_signalWidth",
+          "short_ema_signalColor",
+          "short_ema_signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "ema_1Color": "#c9a84c",
+          "ema_1Width": 2,
+          "ema_2Color": "#c9a84c",
+          "ema_2Width": 2,
+          "ema_3Color": "#c9a84c",
+          "ema_3Width": 2,
+          "ema_4Color": "#c9a84c",
+          "ema_4Width": 2,
+          "ema_5Color": "#c9a84c",
+          "ema_5Width": 2,
+          "ema_6Color": "#c9a84c",
+          "ema_6Width": 2,
+          "ema_7Color": "#c9a84c",
+          "ema_7Width": 2,
+          "ema_8Color": "#c9a84c",
+          "ema_8Width": 2,
+          "ema_8_Color": "#c9a84c",
+          "ema_8_Width": 2,
+          "long_ema_signalColor": "#00ff00",
+          "long_ema_signalWidth": 1,
+          "short_ema_signalColor": "#ff0000",
+          "short_ema_signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$ema_1Color",
+          "$ema_2Color",
+          "$ema_3Color",
+          "$ema_4Color",
+          "$ema_5Color",
+          "$ema_6Color",
+          "$ema_7Color",
+          "$ema_8Color",
+          "$ema_8_Color",
+          "$long_ema_signalColor",
+          "$short_ema_signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_03ae54bcc67a:1"
+      ],
+      "render_settled": true,
+      "chips_after": 12,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "value",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_1",
+          "text": "high_engagem 739.99",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_2",
+          "text": "high_engagem 740.03",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_3",
+          "text": "high_engagem 740.47",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_4",
+          "text": "high_engagem 740.55",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_5",
+          "text": "high_engagem 740.35",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_6",
+          "text": "high_engagem 739.91",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_7",
+          "text": "high_engagem 738.98",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_8",
+          "text": "high_engagem 737.11",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "ema_8_",
+          "text": "high_engagem 737.11",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "long_ema_signal",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_03ae54bcc67a:1",
+          "plotKey": "short_ema_signal",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 4,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "ema_1Color",
+          "ema_1Width",
+          "ema_2Color",
+          "ema_2Width",
+          "ema_3Color",
+          "ema_3Width",
+          "ema_4Color",
+          "ema_4Width",
+          "ema_5Color",
+          "ema_5Width",
+          "ema_6Color",
+          "ema_6Width",
+          "ema_7Color",
+          "ema_7Width",
+          "ema_8Color",
+          "ema_8Width",
+          "ema_8_Color",
+          "ema_8_Width",
+          "long_ema_signalColor",
+          "long_ema_signalWidth",
+          "short_ema_signalColor",
+          "short_ema_signalWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "ema_1Color": "#c9a84c",
+          "ema_1Width": 2,
+          "ema_2Color": "#c9a84c",
+          "ema_2Width": 2,
+          "ema_3Color": "#c9a84c",
+          "ema_3Width": 2,
+          "ema_4Color": "#c9a84c",
+          "ema_4Width": 2,
+          "ema_5Color": "#c9a84c",
+          "ema_5Width": 2,
+          "ema_6Color": "#c9a84c",
+          "ema_6Width": 2,
+          "ema_7Color": "#c9a84c",
+          "ema_7Width": 2,
+          "ema_8Color": "#c9a84c",
+          "ema_8Width": 2,
+          "ema_8_Color": "#c9a84c",
+          "ema_8_Width": 2,
+          "long_ema_signalColor": "#00ff00",
+          "long_ema_signalWidth": 1,
+          "short_ema_signalColor": "#ff0000",
+          "short_ema_signalWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$ema_1Color",
+          "$ema_2Color",
+          "$ema_3Color",
+          "$ema_4Color",
+          "$ema_5Color",
+          "$ema_6Color",
+          "$ema_7Color",
+          "$ema_8Color",
+          "$ema_8_Color",
+          "$long_ema_signalColor",
+          "$short_ema_signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__11-vumanchu-cipher-a-vumanchu.png",
+      "declared_plots": [
+        "value",
+        "ema_1",
+        "ema_2",
+        "ema_3",
+        "ema_4",
+        "ema_5",
+        "ema_6",
+        "ema_7",
+        "ema_8",
+        "ema_8_",
+        "long_ema_signal",
+        "short_ema_signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "ema_1",
+        "ema_2",
+        "ema_3",
+        "ema_4",
+        "ema_5",
+        "ema_6",
+        "ema_7",
+        "ema_8",
+        "ema_8_",
+        "long_ema_signal",
+        "short_ema_signal"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 12
+    },
+    {
+      "script": "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody",
+      "timings_ms": {
+        "goto": 2413,
+        "open_builder": 32,
+        "new_formula": 100,
+        "import_tab": 29,
+        "paste": 31,
+        "translate": 0,
+        "apply": 38,
+        "save_click": 15,
+        "save_roundtrip": 571,
+        "instance_persist": 544,
+        "reopen": 2541,
+        "render": 3808
+      },
+      "definitions_before": 4,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#00bcd4",
+          "#f23645",
+          "#00e676",
+          "#787b86",
+          "#00e676",
+          "#f23645"
+        ],
+        "plotRowInputs": 12
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__12-cm-ultimate-rsi-mtf-",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_bc7ac3c73ab9",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_line",
+          "lower_line",
+          "mid_line",
+          "buy_signal",
+          "sell_signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_line",
+          "lower_line",
+          "mid_line",
+          "buy_signal",
+          "sell_signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "buy_signal",
+          "lower_line",
+          "mid_line",
+          "sell_signal",
+          "upper_line",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_lineColor",
+          "upper_lineWidth",
+          "lower_lineColor",
+          "lower_lineWidth",
+          "mid_lineColor",
+          "mid_lineWidth",
+          "buy_signalColor",
+          "buy_signalWidth",
+          "sell_signalColor",
+          "sell_signalWidth",
+          "upLine",
+          "lowLine",
+          "sml"
+        ],
+        "input_defaults": {
+          "color": "#00BCD4",
+          "lineWidth": 3,
+          "upper_lineColor": "#F23645",
+          "upper_lineWidth": 3,
+          "lower_lineColor": "#00E676",
+          "lower_lineWidth": 3,
+          "mid_lineColor": "#787B86",
+          "mid_lineWidth": 2,
+          "buy_signalColor": "#00E676",
+          "buy_signalWidth": 1,
+          "sell_signalColor": "#F23645",
+          "sell_signalWidth": 1,
+          "upLine": 70,
+          "lowLine": 30,
+          "sml": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_lineColor",
+          "$lower_lineColor",
+          "$mid_lineColor",
+          "$buy_signalColor",
+          "$sell_signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_bc7ac3c73ab9:1"
+      ],
+      "render_settled": true,
+      "chips_after": 6,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "value",
+          "text": "high_engagem 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "upper_line",
+          "text": "high_engagem 70.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "lower_line",
+          "text": "high_engagem 30.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "mid_line",
+          "text": "high_engagem 50.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "buy_signal",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bc7ac3c73ab9:1",
+          "plotKey": "sell_signal",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 5,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_line",
+          "lower_line",
+          "mid_line",
+          "buy_signal",
+          "sell_signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_line",
+          "lower_line",
+          "mid_line",
+          "buy_signal",
+          "sell_signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "buy_signal",
+          "lower_line",
+          "mid_line",
+          "sell_signal",
+          "upper_line",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_lineColor",
+          "upper_lineWidth",
+          "lower_lineColor",
+          "lower_lineWidth",
+          "mid_lineColor",
+          "mid_lineWidth",
+          "buy_signalColor",
+          "buy_signalWidth",
+          "sell_signalColor",
+          "sell_signalWidth",
+          "upLine",
+          "lowLine",
+          "sml"
+        ],
+        "input_defaults": {
+          "color": "#00BCD4",
+          "lineWidth": 3,
+          "upper_lineColor": "#F23645",
+          "upper_lineWidth": 3,
+          "lower_lineColor": "#00E676",
+          "lower_lineWidth": 3,
+          "mid_lineColor": "#787B86",
+          "mid_lineWidth": 2,
+          "buy_signalColor": "#00E676",
+          "buy_signalWidth": 1,
+          "sell_signalColor": "#F23645",
+          "sell_signalWidth": 1,
+          "upLine": 70,
+          "lowLine": 30,
+          "sml": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_lineColor",
+          "$lower_lineColor",
+          "$mid_lineColor",
+          "$buy_signalColor",
+          "$sell_signalColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.png",
+      "declared_plots": [
+        "value",
+        "upper_line",
+        "lower_line",
+        "mid_line",
+        "buy_signal",
+        "sell_signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "upper_line",
+        "lower_line",
+        "mid_line",
+        "buy_signal",
+        "sell_signal"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 6
+    },
+    {
+      "script": "high_engagement__14-heikin-ashi-candle-overlay-bjorgum",
+      "timings_ms": {
+        "goto": 2395,
+        "open_builder": 22,
+        "new_formula": 34,
+        "import_tab": 56,
+        "paste": 41,
+        "translate": 352,
+        "apply": 14,
+        "save_click": 9,
+        "save_roundtrip": 566,
+        "instance_persist": 552,
+        "reopen": 2607,
+        "render": 261
+      },
+      "definitions_before": 5,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__14-heikin-ashi-candle-o",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_069f1f773eba",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "close"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "close"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "close",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "closeColor",
+          "closeWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "closeColor": "#c9a84c",
+          "closeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$closeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_069f1f773eba:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_069f1f773eba:1",
+          "plotKey": "value",
+          "text": "high_engagem 744.24",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_069f1f773eba:1",
+          "plotKey": "close",
+          "text": "high_engagem 744.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 6,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "close"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "close"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "close",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "closeColor",
+          "closeWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "closeColor": "#c9a84c",
+          "closeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$closeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.png",
+      "declared_plots": [
+        "value",
+        "close"
+      ],
+      "drawn_plots": [
+        "value",
+        "close"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "high_engagement__22-reversal-probability-profile-algoalpha",
+      "timings_ms": {
+        "goto": 2436,
+        "open_builder": 18,
+        "new_formula": 26,
+        "import_tab": 43,
+        "paste": 119,
+        "translate": 302
+      },
+      "definitions_before": 6,
+      "instances_before": 0,
+      "chips_before": 0,
+      "result": "IMPORT_BLOCKED",
+      "detail": "Apply never became enabled",
+      "refusal": "LINE 181, COLUMN 6 `ta.pivothigh` returns its value `rightbars` after the pivot, so this engine has to know that number when it builds the formula \u2014 write it as"
+    },
+    {
+      "script": "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "timings_ms": {
+        "goto": 2441,
+        "open_builder": 18,
+        "new_formula": 28,
+        "import_tab": 43,
+        "paste": 124,
+        "translate": 0,
+        "apply": 24,
+        "save_click": 29,
+        "save_roundtrip": 594,
+        "instance_persist": 562,
+        "reopen": 2502,
+        "render": 241
+      },
+      "definitions_before": 6,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "0",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "histogram",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#26a69a",
+          "#ef5350"
+        ],
+        "plotRowInputs": 12
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__24-coppock-curve-multi-",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_8303ce9e220a",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "coppock",
+          "histogram",
+          "value",
+          "zero_cross_down",
+          "zero_down",
+          "zero_up"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "zero_cross_downColor",
+          "zero_cross_downWidth",
+          "coppockColor",
+          "coppockWidth",
+          "histogramColor",
+          "histogramWidth",
+          "zero_upColor",
+          "zero_upWidth",
+          "zero_downColor",
+          "zero_downWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "zero_cross_downColor": "#c9a84c",
+          "zero_cross_downWidth": 1,
+          "coppockColor": "#c9a84c",
+          "coppockWidth": 2,
+          "histogramColor": "#c9a84c",
+          "histogramWidth": 1,
+          "zero_upColor": "#26a69a",
+          "zero_upWidth": 1,
+          "zero_downColor": "#ef5350",
+          "zero_downWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "histogram",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$zero_cross_downColor",
+          "$coppockColor",
+          "$histogramColor",
+          "$zero_upColor",
+          "$zero_downColor"
+        ],
+        "targets": [],
+        "levels": [
+          0
+        ]
+      },
+      "instance_persisted": [
+        "inst:u_8303ce9e220a:1"
+      ],
+      "render_settled": true,
+      "chips_after": 6,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "value",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "zero_cross_down",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "coppock",
+          "text": "high_engagem -1.36",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "histogram",
+          "text": "high_engagem -1.36",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "zero_up",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_8303ce9e220a:1",
+          "plotKey": "zero_down",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 7,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "coppock",
+          "histogram",
+          "value",
+          "zero_cross_down",
+          "zero_down",
+          "zero_up"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "zero_cross_downColor",
+          "zero_cross_downWidth",
+          "coppockColor",
+          "coppockWidth",
+          "histogramColor",
+          "histogramWidth",
+          "zero_upColor",
+          "zero_upWidth",
+          "zero_downColor",
+          "zero_downWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "zero_cross_downColor": "#c9a84c",
+          "zero_cross_downWidth": 1,
+          "coppockColor": "#c9a84c",
+          "coppockWidth": 2,
+          "histogramColor": "#c9a84c",
+          "histogramWidth": 1,
+          "zero_upColor": "#26a69a",
+          "zero_upWidth": 1,
+          "zero_downColor": "#ef5350",
+          "zero_downWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "histogram",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$zero_cross_downColor",
+          "$coppockColor",
+          "$histogramColor",
+          "$zero_upColor",
+          "$zero_downColor"
+        ],
+        "targets": [],
+        "levels": [
+          0
+        ]
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\high_engagement__24-coppock-curve-multi-filter-markittick.png",
+      "declared_plots": [
+        "value",
+        "zero_cross_down",
+        "coppock",
+        "histogram",
+        "zero_up",
+        "zero_down"
+      ],
+      "drawn_plots": [
+        "value",
+        "zero_cross_down",
+        "coppock",
+        "histogram",
+        "zero_up",
+        "zero_down"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 6
+    },
+    {
+      "script": "long_tail__13-volatility-of-returns",
+      "timings_ms": {
+        "goto": 2537,
+        "open_builder": 28,
+        "new_formula": 30,
+        "import_tab": 39,
+        "paste": 44,
+        "translate": 0,
+        "apply": 69,
+        "save_click": 18,
+        "save_roundtrip": 599,
+        "instance_persist": 23,
+        "reopen": 2522,
+        "render": 229
+      },
+      "definitions_before": 7,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#2962ff",
+          "#787b86"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "long_tail__13-volatility-of-returns",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_66bcd215ff5e",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "moving_average"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "moving_average"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "moving_average",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "moving_averageColor",
+          "moving_averageWidth",
+          "annualize",
+          "annPeriod",
+          "showMa"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1,
+          "moving_averageColor": "#787B86",
+          "moving_averageWidth": 2,
+          "annualize": 1,
+          "annPeriod": 365,
+          "showMa": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$moving_averageColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_66bcd215ff5e:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_66bcd215ff5e:1",
+          "plotKey": "value",
+          "text": "long_tail__1 18.06",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_66bcd215ff5e:1",
+          "plotKey": "moving_average",
+          "text": "long_tail__1 17.35",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 8,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "moving_average"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "moving_average"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "moving_average",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "moving_averageColor",
+          "moving_averageWidth",
+          "annualize",
+          "annPeriod",
+          "showMa"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1,
+          "moving_averageColor": "#787B86",
+          "moving_averageWidth": 2,
+          "annualize": 1,
+          "annPeriod": 365,
+          "showMa": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$moving_averageColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\long_tail__13-volatility-of-returns.png",
+      "declared_plots": [
+        "value",
+        "moving_average"
+      ],
+      "drawn_plots": [
+        "value",
+        "moving_average"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "long_tail__16-spy-position-helper",
+      "timings_ms": {
+        "goto": 2495,
+        "open_builder": 43,
+        "new_formula": 48,
+        "import_tab": 27,
+        "paste": 57,
+        "translate": 366,
+        "apply": 13,
+        "save_click": 12,
+        "save_roundtrip": 612,
+        "instance_persist": 24,
+        "reopen": 2432,
+        "render": 231
+      },
+      "definitions_before": 8,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#ff9800"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "long_tail__16-spy-position-helper",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_9575edce5623",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_9575edce5623:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_9575edce5623:1",
+          "plotKey": "value",
+          "text": "long_tail__1 690.08",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 9,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\long_tail__16-spy-position-helper.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "mid_engagement__07-3way-bollinger-trend",
+      "timings_ms": {
+        "goto": 2740,
+        "open_builder": 33,
+        "new_formula": 22,
+        "import_tab": 51,
+        "paste": 101,
+        "translate": 330,
+        "apply": 25,
+        "save_click": 15,
+        "save_roundtrip": 607,
+        "instance_persist": 568,
+        "reopen": 3046,
+        "render": 366
+      },
+      "definitions_before": 9,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__07-3way-bollinger-trend",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_882519dd8088",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower_band",
+          "upper_band",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "tradeMode",
+          "bandStdevMult"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "upper_bandColor": "#c9a84c",
+          "upper_bandWidth": 1,
+          "lower_bandColor": "#c9a84c",
+          "lower_bandWidth": 1,
+          "tradeMode": 0,
+          "bandStdevMult": 2
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_bandColor",
+          "$lower_bandColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_882519dd8088:1"
+      ],
+      "render_settled": true,
+      "chips_after": 3,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_882519dd8088:1",
+          "plotKey": "value",
+          "text": "mid_engageme 736.28",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_882519dd8088:1",
+          "plotKey": "upper_band",
+          "text": "mid_engageme 754.68",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_882519dd8088:1",
+          "plotKey": "lower_band",
+          "text": "mid_engageme 717.88",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 10,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower_band",
+          "upper_band",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "tradeMode",
+          "bandStdevMult"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "upper_bandColor": "#c9a84c",
+          "upper_bandWidth": 1,
+          "lower_bandColor": "#c9a84c",
+          "lower_bandWidth": 1,
+          "tradeMode": 0,
+          "bandStdevMult": 2
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_bandColor",
+          "$lower_bandColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__07-3way-bollinger-trend.png",
+      "declared_plots": [
+        "value",
+        "upper_band",
+        "lower_band"
+      ],
+      "drawn_plots": [
+        "value",
+        "upper_band",
+        "lower_band"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 3
+    },
+    {
+      "script": "mid_engagement__09-relative-volume-breakout-context",
+      "timings_ms": {
+        "goto": 2568,
+        "open_builder": 36,
+        "new_formula": 28,
+        "import_tab": 29,
+        "paste": 71,
+        "translate": 394,
+        "apply": 30,
+        "save_click": 17,
+        "save_roundtrip": 596,
+        "instance_persist": 556,
+        "reopen": 2481,
+        "render": 222
+      },
+      "definitions_before": 10,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "0",
+        "placement": "pane",
+        "styleSelects": [
+          "stepline",
+          "stepline"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__09-relative-volume-break",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_c0d9c167f618",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "prior_lower_rail",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "prior_lower_rail"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "prior_lower_rail",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "prior_lower_railColor",
+          "prior_lower_railWidth",
+          "showCandidateRails"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "prior_lower_railColor": "#c9a84c",
+          "prior_lower_railWidth": 1,
+          "showCandidateRails": 1
+        },
+        "plot_styles": [
+          "stepline",
+          "stepline"
+        ],
+        "plot_colors": [
+          "$color",
+          "$prior_lower_railColor"
+        ],
+        "targets": [],
+        "levels": [
+          0
+        ]
+      },
+      "instance_persisted": [
+        "inst:u_c0d9c167f618:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_c0d9c167f618:1",
+          "plotKey": "value",
+          "text": "mid_engageme 760.40",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c0d9c167f618:1",
+          "plotKey": "prior_lower_rail",
+          "text": "mid_engageme 716.58",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 11,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "prior_lower_rail",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "prior_lower_rail"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "prior_lower_rail",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "prior_lower_railColor",
+          "prior_lower_railWidth",
+          "showCandidateRails"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "prior_lower_railColor": "#c9a84c",
+          "prior_lower_railWidth": 1,
+          "showCandidateRails": 1
+        },
+        "plot_styles": [
+          "stepline",
+          "stepline"
+        ],
+        "plot_colors": [
+          "$color",
+          "$prior_lower_railColor"
+        ],
+        "targets": [],
+        "levels": [
+          0
+        ]
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__09-relative-volume-breakout-context.png",
+      "declared_plots": [
+        "value",
+        "prior_lower_rail"
+      ],
+      "drawn_plots": [
+        "value",
+        "prior_lower_rail"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "mid_engagement__13-spma-trend",
+      "timings_ms": {
+        "goto": 2429,
+        "open_builder": 34,
+        "new_formula": 31,
+        "import_tab": 27,
+        "paste": 57,
+        "translate": 293,
+        "apply": 15,
+        "save_click": 13,
+        "save_roundtrip": 718,
+        "instance_persist": 26,
+        "reopen": 2486,
+        "render": 25896
+      },
+      "definitions_before": 11,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#ffffff",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 10
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__13-spma-trend",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_162eda0d357c",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band",
+          "upper_glow",
+          "lower_glow"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band",
+          "upper_glow",
+          "lower_glow"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower_band",
+          "lower_glow",
+          "upper_band",
+          "upper_glow",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "upper_glowColor",
+          "upper_glowWidth",
+          "lower_glowColor",
+          "lower_glowWidth"
+        ],
+        "input_defaults": {
+          "color": "#FFFFFF",
+          "lineWidth": 2,
+          "upper_bandColor": "#c9a84c",
+          "upper_bandWidth": 2,
+          "lower_bandColor": "#c9a84c",
+          "lower_bandWidth": 2,
+          "upper_glowColor": "#c9a84c",
+          "upper_glowWidth": 4,
+          "lower_glowColor": "#c9a84c",
+          "lower_glowWidth": 4
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_bandColor",
+          "$lower_bandColor",
+          "$upper_glowColor",
+          "$lower_glowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_162eda0d357c:1"
+      ],
+      "render_settled": false,
+      "chips_after": 5,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_162eda0d357c:1",
+          "plotKey": "value",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_162eda0d357c:1",
+          "plotKey": "upper_band",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_162eda0d357c:1",
+          "plotKey": "lower_band",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_162eda0d357c:1",
+          "plotKey": "upper_glow",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_162eda0d357c:1",
+          "plotKey": "lower_glow",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        }
+      ],
+      "persisted_defs": 12,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band",
+          "upper_glow",
+          "lower_glow"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "upper_band",
+          "lower_band",
+          "upper_glow",
+          "lower_glow"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower_band",
+          "lower_glow",
+          "upper_band",
+          "upper_glow",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "upper_glowColor",
+          "upper_glowWidth",
+          "lower_glowColor",
+          "lower_glowWidth"
+        ],
+        "input_defaults": {
+          "color": "#FFFFFF",
+          "lineWidth": 2,
+          "upper_bandColor": "#c9a84c",
+          "upper_bandWidth": 2,
+          "lower_bandColor": "#c9a84c",
+          "lower_bandWidth": 2,
+          "upper_glowColor": "#c9a84c",
+          "upper_glowWidth": 4,
+          "lower_glowColor": "#c9a84c",
+          "lower_glowWidth": 4
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$upper_bandColor",
+          "$lower_bandColor",
+          "$upper_glowColor",
+          "$lower_glowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__13-spma-trend.png",
+      "declared_plots": [
+        "value",
+        "upper_band",
+        "lower_band",
+        "upper_glow",
+        "lower_glow"
+      ],
+      "drawn_plots": [
+        "value",
+        "upper_band",
+        "lower_band",
+        "upper_glow",
+        "lower_glow"
+      ],
+      "empty_plots": [
+        "value",
+        "upper_band",
+        "lower_band",
+        "upper_glow",
+        "lower_glow"
+      ],
+      "result": "CHART_PARTIAL",
+      "detail": "5/5 plot(s) computed nothing: ['value', 'upper_band', 'lower_band', 'upper_glow', 'lower_glow']",
+      "cleanup_removed": 5
+    },
+    {
+      "script": "mid_engagement__14-master-line-lite",
+      "timings_ms": {
+        "goto": 2392,
+        "open_builder": 15,
+        "new_formula": 8,
+        "import_tab": 33,
+        "paste": 49,
+        "translate": 319,
+        "apply": 25,
+        "save_click": 21,
+        "save_roundtrip": 606,
+        "instance_persist": 546,
+        "reopen": 2545,
+        "render": 25828
+      },
+      "definitions_before": 12,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#787b86",
+          "#787b86",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 14
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__14-master-line-lite",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_dd7dabcc0745",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "consensus",
+          "upper_band",
+          "lower_band",
+          "bull_flip",
+          "bear_flip",
+          "bear_flip_"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "consensus",
+          "upper_band",
+          "lower_band",
+          "bull_flip",
+          "bear_flip",
+          "bear_flip_"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "bear_flip",
+          "bear_flip_",
+          "bull_flip",
+          "consensus",
+          "lower_band",
+          "upper_band",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "consensusColor",
+          "consensusWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "bull_flipColor",
+          "bull_flipWidth",
+          "bear_flipColor",
+          "bear_flipWidth",
+          "bear_flip_Color",
+          "bear_flip_Width",
+          "bandMult",
+          "showBand"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "consensusColor": "#c9a84c",
+          "consensusWidth": 2,
+          "upper_bandColor": "#787B86",
+          "upper_bandWidth": 1,
+          "lower_bandColor": "#787B86",
+          "lower_bandWidth": 1,
+          "bull_flipColor": "#c9a84c",
+          "bull_flipWidth": 1,
+          "bear_flipColor": "#c9a84c",
+          "bear_flipWidth": 1,
+          "bear_flip_Color": "#c9a84c",
+          "bear_flip_Width": 1,
+          "bandMult": 0.5,
+          "showBand": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$consensusColor",
+          "$upper_bandColor",
+          "$lower_bandColor",
+          "$bull_flipColor",
+          "$bear_flipColor",
+          "$bear_flip_Color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_dd7dabcc0745:1"
+      ],
+      "render_settled": false,
+      "chips_after": 7,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "value",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "consensus",
+          "text": "mid_engageme 733.36",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "upper_band",
+          "text": "mid_engageme 738.51",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "lower_band",
+          "text": "mid_engageme 728.21",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "bull_flip",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "bear_flip",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        },
+        {
+          "instanceId": "inst:u_dd7dabcc0745:1",
+          "plotKey": "bear_flip_",
+          "text": "mid_engageme",
+          "hidden": false,
+          "drewNothing": true
+        }
+      ],
+      "persisted_defs": 13,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "consensus",
+          "upper_band",
+          "lower_band",
+          "bull_flip",
+          "bear_flip",
+          "bear_flip_"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "consensus",
+          "upper_band",
+          "lower_band",
+          "bull_flip",
+          "bear_flip",
+          "bear_flip_"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "bear_flip",
+          "bear_flip_",
+          "bull_flip",
+          "consensus",
+          "lower_band",
+          "upper_band",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "consensusColor",
+          "consensusWidth",
+          "upper_bandColor",
+          "upper_bandWidth",
+          "lower_bandColor",
+          "lower_bandWidth",
+          "bull_flipColor",
+          "bull_flipWidth",
+          "bear_flipColor",
+          "bear_flipWidth",
+          "bear_flip_Color",
+          "bear_flip_Width",
+          "bandMult",
+          "showBand"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "consensusColor": "#c9a84c",
+          "consensusWidth": 2,
+          "upper_bandColor": "#787B86",
+          "upper_bandWidth": 1,
+          "lower_bandColor": "#787B86",
+          "lower_bandWidth": 1,
+          "bull_flipColor": "#c9a84c",
+          "bull_flipWidth": 1,
+          "bear_flipColor": "#c9a84c",
+          "bear_flipWidth": 1,
+          "bear_flip_Color": "#c9a84c",
+          "bear_flip_Width": 1,
+          "bandMult": 0.5,
+          "showBand": 1
+        },
+        "plot_styles": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$consensusColor",
+          "$upper_bandColor",
+          "$lower_bandColor",
+          "$bull_flipColor",
+          "$bear_flipColor",
+          "$bear_flip_Color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__14-master-line-lite.png",
+      "declared_plots": [
+        "value",
+        "consensus",
+        "upper_band",
+        "lower_band",
+        "bull_flip",
+        "bear_flip",
+        "bear_flip_"
+      ],
+      "drawn_plots": [
+        "value",
+        "consensus",
+        "upper_band",
+        "lower_band",
+        "bull_flip",
+        "bear_flip",
+        "bear_flip_"
+      ],
+      "empty_plots": [
+        "value",
+        "bull_flip",
+        "bear_flip",
+        "bear_flip_"
+      ],
+      "result": "CHART_PARTIAL",
+      "detail": "4/7 plot(s) computed nothing: ['value', 'bull_flip', 'bear_flip', 'bear_flip_']",
+      "cleanup_removed": 7
+    },
+    {
+      "script": "mid_engagement__17-volume-surge-radar",
+      "timings_ms": {
+        "goto": 2407,
+        "open_builder": 18,
+        "new_formula": 16,
+        "import_tab": 28,
+        "paste": 80,
+        "translate": 599,
+        "apply": 21,
+        "save_click": 21,
+        "save_roundtrip": 644,
+        "instance_persist": 563,
+        "reopen": 2838,
+        "render": 309
+      },
+      "definitions_before": 13,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "histogram"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__17-volume-surge-radar",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_649278cb7e4f",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "value",
+          "volume"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "volumeColor",
+          "volumeWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "volumeColor": "#c9a84c",
+          "volumeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "histogram"
+        ],
+        "plot_colors": [
+          "$color",
+          "$volumeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_649278cb7e4f:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_649278cb7e4f:1",
+          "plotKey": "value",
+          "text": "mid_engageme -1.25",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_649278cb7e4f:1",
+          "plotKey": "volume",
+          "text": "mid_engageme 57447800.00",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 14,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "value",
+          "volume"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "volumeColor",
+          "volumeWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "volumeColor": "#c9a84c",
+          "volumeWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "histogram"
+        ],
+        "plot_colors": [
+          "$color",
+          "$volumeColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__17-volume-surge-radar.png",
+      "declared_plots": [
+        "value",
+        "volume"
+      ],
+      "drawn_plots": [
+        "value",
+        "volume"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "mid_engagement__19-oliver-kell-volume-monitor",
+      "timings_ms": {
+        "goto": 2605,
+        "open_builder": 37,
+        "new_formula": 35,
+        "import_tab": 49,
+        "paste": 64,
+        "translate": 260,
+        "apply": 17,
+        "save_click": 18,
+        "save_roundtrip": 663,
+        "instance_persist": 35,
+        "reopen": 2579,
+        "render": 263
+      },
+      "definitions_before": 14,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "histogram",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 8
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__19-oliver-kell-volume-mo",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_a44bc2546673",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume_ma",
+          "volume_ma_c",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume_ma"
+        ],
+        "guide_plot_keys": [
+          "volume_ma_c",
+          "value_c"
+        ],
+        "tree_keys": [
+          "value",
+          "value_c",
+          "volume_ma",
+          "volume_ma_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "volume_maColor",
+          "volume_maWidth",
+          "volume_ma_cColor",
+          "volume_ma_cWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "volume_maColor": "#c9a84c",
+          "volume_maWidth": 1,
+          "volume_ma_cColor": "#c9a84c",
+          "volume_ma_cWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "histogram",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$volume_maColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_a44bc2546673:1"
+      ],
+      "render_settled": true,
+      "chips_after": 4,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_a44bc2546673:1",
+          "plotKey": "value",
+          "text": "mid_engageme 57447800.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a44bc2546673:1",
+          "plotKey": "volume_ma",
+          "text": "mid_engageme 64642470.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a44bc2546673:1",
+          "plotKey": "volume_ma_c",
+          "text": "mid_engageme",
+          "hidden": true,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a44bc2546673:1",
+          "plotKey": "value_c",
+          "text": "mid_engageme",
+          "hidden": true,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 15,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume_ma",
+          "volume_ma_c",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume_ma"
+        ],
+        "guide_plot_keys": [
+          "volume_ma_c",
+          "value_c"
+        ],
+        "tree_keys": [
+          "value",
+          "value_c",
+          "volume_ma",
+          "volume_ma_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "volume_maColor",
+          "volume_maWidth",
+          "volume_ma_cColor",
+          "volume_ma_cWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "volume_maColor": "#c9a84c",
+          "volume_maWidth": 1,
+          "volume_ma_cColor": "#c9a84c",
+          "volume_ma_cWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "histogram",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$volume_maColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c2a_out_oos\\mid_engagement__19-oliver-kell-volume-monitor.png",
+      "declared_plots": [
+        "value",
+        "volume_ma"
+      ],
+      "drawn_plots": [
+        "value",
+        "volume_ma"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 4
+    },
+    {
+      "script": "mid_engagement__22-rsi-levels-regime-map",
+      "timings_ms": {
+        "goto": 3702,
+        "open_builder": 156,
+        "new_formula": 29,
+        "import_tab": 81,
+        "paste": 174,
+        "translate": 824,
+        "apply": 42,
+        "save_click": 121
+      },
+      "definitions_before": 15,
+      "instances_before": 1,
+      "chips_before": 4,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 24
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__22-rsi-levels-regime-map",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "result": "SAVE_FAILED",
+      "detail": "definition exceeds 65536 bytes (369939) \u2014 this store names its caps rather than inheriting `user_preferences`', which has none"
+    }
+  ],
+  "bars_probe": 300
+}

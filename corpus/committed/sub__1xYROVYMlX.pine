@@ -1,0 +1,741 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © IcemanRan
+//@version=4
+study("Sub",overlay=false)
+options =input(defval = "River map",title='Options',type=input.string,options=["River map","LINE VER","MBL-20days","MBL-50days","MBL-100days","MBL-200days","MBL-NDX","MBL-SPX","MBL-RUSSELL","MBL-DOWJONES"])
+color textc = input(color.white, "text color", type = input.color)
+transpx=input(defval=0,title = "transparency of river zone",  type = input.integer , minval=0,maxval=100, step = 10)
+transpy=input(defval=70,title = "transparency of critical zone",  type = input.integer , minval=0,maxval=100, step = 10)
+
+//show_rm=           input(title = "Show RIVER MAP",             type = input.bool, defval = true)
+//rm_trans =         input(title = "RIVER MAP Transparency",  type = input.integer, maxval=100, minval=0,step = 100, defval = 100)
+
+show_lv=           input(title = "Show LINE VER",             type = input.bool, defval = true)
+lv_trans =         input(title = "LINE VER Transparency",  type = input.integer, maxval=100, minval=0,step = 100, defval = 100)
+show_t10=           input(title = "Show TOTAL LINE",             type = input.bool, defval = true)
+t10_trans =         input(title = "LINE VER Transparency",  type = input.integer, maxval=100, minval=0,step = 100, defval = 0)
+lwidth =         input(title = " LINE WIDTH OF TOTAL",  type = input.integer, maxval=5, minval=1,step = 1, defval = 2)
+//line
+
+COM = security("INDEX:SLTW", "1D",close)
+CND = security("INDEX:SYTW", "1D",close)
+CNS = security("INDEX:SPTW", "1D",close)
+ENE = security("INDEX:SETW", "1D",close)
+FIN = security("INDEX:SFTW", "1D",close)
+HLT = security("INDEX:SVTW", "1D",close)
+IND = security("INDEX:SITW", "1D",close)
+MAT = security("INDEX:SBTW", "1D",close)
+REI = security("INDEX:SSTW", "1D",close)
+TEC = security("INDEX:SKTW", "1D",close)
+UTL = security("INDEX:SUTW", "1D",close)
+TOTAL = security("INDEX:S5TW", "1D",close)
+T10=TOTAL*11
+TTL=(COM+CND+CNS+ENE+FIN+HLT+IND+MAT+REI+TEC+UTL)/11
+
+//LINE VER
+h8 = hline(options == "LINE VER" and show_lv?  100 : na, linestyle=hline.style_dashed, color=color.red,editable=0)
+h7  = hline(options == "LINE VER" and show_lv?  85 : na, linestyle=hline.style_dashed, color=color.red,editable=0)
+h6  = hline(options == "LINE VER" and show_lv?  20 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h5  = hline(options == "LINE VER" and show_lv?   0 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+
+fill(h5,h6,color.lime,transpy,editable=false)
+fill(h7,h8 ,color.red,transpy,editable=false)
+
+
+//p20=plot(options == "River map" and show_lv?TOTAL : na,title = "SPX",linewidth=3,transp=lv_trans, color=textc)
+p21=plot(options == "LINE VER" or (options == "River map" and show_lv)?COM : na,title = "COM Communication Services ",transp=lv_trans, color=color.gray)
+p22=plot(options == "LINE VER" or (options == "River map" and show_lv)?CND : na,title = "CND Consumer Discretionary ",transp=lv_trans, color=color.red)
+p23=plot(options == "LINE VER" or (options == "River map" and show_lv)?CNS : na,title = "CNS Consumer Staples",transp=lv_trans , color=color.orange)
+p24=plot(options == "LINE VER" or (options == "River map" and show_lv)?ENE : na,title = "ENE Energy",transp=lv_trans , color=color.yellow)
+p25=plot(options == "LINE VER" or (options == "River map" and show_lv)?FIN : na,title = "FIN Financials",transp=lv_trans , color=color.lime)
+p26=plot(options == "LINE VER" or (options == "River map" and show_lv)?HLT : na,title = "HLT Health Care",transp=lv_trans , color=color.green)
+p27=plot(options == "LINE VER" or (options == "River map" and show_lv)?IND : na,title = "IND Industrials",transp=lv_trans , color=color.aqua)
+p28=plot(options == "LINE VER" or (options == "River map" and show_lv)?MAT : na,title = "MAT Materials",transp=lv_trans , color=color.blue)
+p29=plot(options == "LINE VER" or (options == "River map" and show_lv)?REI : na,title = "REI Real Estate",transp=lv_trans , color=color.fuchsia)
+p30=plot(options == "LINE VER" or (options == "River map" and show_lv)?TEC : na,title = "TEC Information Technology",transp=lv_trans , color=#795cf7)
+p31=plot(options == "LINE VER" or (options == "River map" and show_lv)?UTL : na,title = "UTL Utilities",transp=lv_trans , color=#ff0b5e)
+p33=plot(options == "LINE VER" or (options == "River map" and show_lv)?TOTAL : na,title = "SPX",transp=t10_trans,linewidth=lwidth, color=textc)
+p32=plot(options == "River map" and show_t10?T10 : na,title = "SPX total",transp=t10_trans,linewidth=lwidth, color=textc)
+
+//river map
+
+h4  = hline(options == "River map"?  1100 : na, linestyle=hline.style_dashed, color=color.red,editable=0)
+h3  = hline(options == "River map"?  1000 : na, linestyle=hline.style_dashed, color=color.red,editable=0)
+h2  = hline(options == "River map"?  200 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h1  = hline(options == "River map"?   0 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+
+fill(h1,h2,color.lime,transpy,editable=false)
+fill(h3,h4 ,color.red,transpy,editable=false)
+
+a=COM
+b=COM+CND 
+c=COM+CND+CNS
+d=COM+CND+CNS+ENE
+e=COM+CND+CNS+ENE+FIN
+f=COM+CND+CNS+ENE+FIN+HLT
+g=COM+CND+CNS+ENE+FIN+HLT+IND
+h=COM+CND+CNS+ENE+FIN+HLT+IND+MAT
+i=COM+CND+CNS+ENE+FIN+HLT+IND+MAT+REI
+j=COM+CND+CNS+ENE+FIN+HLT+IND+MAT+REI+TEC
+k=COM+CND+CNS+ENE+FIN+HLT+IND+MAT+REI+TEC+UTL
+
+p0=plot(options == "River map"?0 : na,title = "0 ",color=#ff0b5e)
+p1=plot(options == "River map"?a : na,title = "COM telecom ",color=color.gray)
+p2=plot(options == "River map"?b : na,title = "CND consumer discretionary ",color=color.red)
+p3=plot(options == "River map"?c : na,title = "CNS consumer staple",color=color.orange)
+p4=plot(options == "River map"?d : na,title = "ENE energies",color=color.yellow)
+p5=plot(options == "River map"?e : na,title = "FIN financials",color=color.lime)
+p6=plot(options == "River map"?f : na,title = "HLT health cares",color=color.green)
+p7=plot(options == "River map"?g : na,title = "IND industrials",color=color.aqua)
+p8=plot(options == "River map"?h : na,title = "MAT materials",color=color.blue)
+p9=plot(options == "River map"?i : na,title = "REI real estate",color=color.fuchsia)
+p10=plot(options == "River map"?j : na,title = "TEC technology",color=#795cf7)
+p11=plot(options == "River map"?k : na,title = "UTL utility",color=color.gray)
+
+fill(p0,p1,#ff0b5e,transpx,editable=false)
+fill(p1,p2 ,color.red,transpx,editable=false)
+fill(p2,p3 ,color.orange,transpx,editable=false)
+fill(p3,p4 ,color.yellow,transpx,editable=false)
+fill(p4,p5 ,color.lime,transpx,editable=false)
+fill(p5,p6 ,color.green,transpx,editable=false)
+fill(p6,p7 ,color.aqua,transpx,editable=false)
+fill(p7,p8 ,color.blue,transpx,editable=false)
+fill(p8,p9 ,color.fuchsia,transpx,editable=false)
+fill(p9,p10 ,#795cf7,transpx,editable=false)
+fill(p10,p11 ,color.gray,transpx,editable=false)
+
+if options == "River map" 
+    GLlabel12=label.new(
+     x=bar_index,y=1150,
+     text="Total = "+tostring(TOTAL,"#.0")+" , or "+tostring(TTL*11,"#.0")+" ("+tostring(TTL,"#.0")+"%)"+" out of 1100",
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=TTL>80?color.red:TTL<20?color.lime:textc,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel11=label.new(
+     x=bar_index,y=50,
+     text="COM  "+tostring(COM,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=#ff0b5e,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel10=label.new(
+     x=bar_index,y=150,
+     text="CND  "+tostring(CND,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.red,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel9=label.new(
+     x=bar_index,y=250,
+     text="CNS  "+tostring(CNS,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.orange,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel8=label.new(
+     x=bar_index,y=350,
+     text="ENE  "+tostring(ENE,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.yellow,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel7=label.new(
+     x=bar_index,y=450,
+     text="FIN  "+tostring(FIN,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.lime,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel6=label.new(
+     x=bar_index,y=550,
+     text="HLT  "+tostring(HLT,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.green,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel5=label.new(
+     x=bar_index,y=650,
+     text="IND  "+tostring(IND,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.aqua,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel4=label.new(
+     x=bar_index,y=750,
+     text="MAT  "+tostring(MAT,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.blue,
+     textalign = text.align_center,
+     size=size.normal)     
+    GLlabel3=label.new(
+     x=bar_index,y=850,
+     text="REI  "+tostring(REI,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.fuchsia,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel2=label.new(
+     x=bar_index,y=950,
+     text="TEC  "+tostring(TEC,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=#795cf7,
+     textalign = text.align_center,
+     size=size.normal)     
+    GLlabel1=label.new(
+     x=bar_index,y=1050,
+     text="UTL  "+tostring(UTL,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=color.silver,
+     textalign = text.align_center,
+     size=size.normal)     
+    label.delete(GLlabel12[1])
+    label.delete(GLlabel11[1])
+    label.delete(GLlabel10[1])
+    label.delete(GLlabel9[1])
+    label.delete(GLlabel8[1])
+    label.delete(GLlabel7[1])
+    label.delete(GLlabel6[1])
+    label.delete(GLlabel5[1])
+    label.delete(GLlabel4[1])
+    label.delete(GLlabel3[1])
+    label.delete(GLlabel2[1])
+    label.delete(GLlabel1[1])
+
+
+
+
+// #.0 MBL Market Breadth Draw Line of 4 market index 
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h21 = hline(options == "MBL-20days"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h22 = hline(options == "MBL-20days"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h23  = hline(options == "MBL-20days"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h24  = hline(options == "MBL-20days"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h25  = hline(options == "MBL-20days"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h26  = hline(options == "MBL-20days"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h26,h25 ,color.green,editable=false)
+fill(h22,h23,color.red,editable=false)
+plot(options == "MBL-20days"?security("INDEX:S5TW", "1D", close) : na,title = "S&P500' 20DAYS",color=color.white,linewidth=2)
+plot(options == "MBL-20days"?security("INDEX:NDTW", "1D", close) : na,title = "NASDAQ100' 20DAYS ",color=color.red,linewidth=2)
+plot(options == "MBL-20days"?security("INDEX:DITW", "1D", close) : na,title = "DOWJONES30' 20DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-20days"?security("INDEX:R2TW", "1D", close) : na,title = "RUSSELL2000' 20DAYS",color=color.lime,linewidth=2)
+plot(options == "MBL-20days"?security("INDEX:MMTW", "1D", close) : na,title = "VTI 20DAYS",color=color.fuchsia,linewidth=2)
+
+//右侧数字表示分数
+scoreN = security("INDEX:NDTW", "1D",close)
+scoreS = security("INDEX:S5TW", "1D",close)
+scoreD = security("INDEX:DITW", "1D",close)
+scoreR = security("INDEX:R2TW", "1D",close)
+scoreH = security("INDEX:MMTW", "1D",close)
+if options == "MBL-20days"
+    GLlabel20=label.new(
+     x=bar_index,y=7*10-5,
+     text="NASDAQ100 = "+tostring(scoreN,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN>80?color.red:scoreN<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=5*10-5,
+     text="S&P500 = "+tostring(scoreS,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS>80?color.red:scoreS<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=3*10-5,
+     text="DOWJONES30 = "+tostring(scoreD,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD>80?color.red:scoreD<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=1*10-5,
+     text="RUSSELL2000 = "+tostring(scoreR,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR>80?color.red:scoreR<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="VTI 20DAYS = "+tostring(scoreH,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH>80?color.red:scoreH<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+
+// #.0 MBL Market Breadth Draw Line of 4 market index 
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h71 = hline(options == "MBL-50days"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h72 = hline(options == "MBL-50days"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h73  = hline(options == "MBL-50days"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h74  = hline(options == "MBL-50days"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h75  = hline(options == "MBL-50days"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h76  = hline(options == "MBL-50days"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h76,h75 ,color.green,editable=false)
+fill(h72,h73,color.red,editable=false)
+plot(options == "MBL-50days"?security("INDEX:S5FI", "1D", close) : na,title = "S&P500' 50DAYS",color=color.white,linewidth=2)
+plot(options == "MBL-50days"?security("INDEX:NDFI", "1D", close) : na,title = "NASDAQ100' 50DAYS ",color=color.red,linewidth=2)
+plot(options == "MBL-50days"?security("INDEX:DIFI", "1D", close) : na,title = "DOWJONES30' 50DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-50days"?security("INDEX:R2FI", "1D", close) : na,title = "RUSSELL2000' 50DAYS",color=color.lime,linewidth=2)
+plot(options == "MBL-50days"?security("INDEX:MMFI", "1D", close) : na,title = "VTI 50DAYS",color=color.fuchsia,linewidth=2)
+
+//右侧数字表示分数
+scoreN1 = security("INDEX:NDFI", "1D",close)
+scoreS1 = security("INDEX:S5FI", "1D",close)
+scoreD1 = security("INDEX:DIFI", "1D",close)
+scoreR1 = security("INDEX:R2FI", "1D",close)
+scoreH1 = security("INDEX:MMFI", "1D",close)
+if options == "MBL-50days"
+    GLlabel20=label.new(
+     x=bar_index,y=7*10-5,
+     text="NASDAQ100 = "+tostring(scoreN1,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN1>80?color.red:scoreN1<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=5*10-5,
+     text="S&P500 = "+tostring(scoreS1,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS1>80?color.red:scoreS1<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=3*10-5,
+     text="DOWJONES30 = "+tostring(scoreD1,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD1>80?color.red:scoreD1<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=1*10-5,
+     text="RUSSELL2000 = "+tostring(scoreR1,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR1>80?color.red:scoreR1<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="VTI 50DAYS= "+tostring(scoreH1,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH1>80?color.red:scoreH1<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+
+// #.0 MBL Market Breadth Draw Line of 4 market index 
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h81 = hline(options == "MBL-100days"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h82 = hline(options == "MBL-100days"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h83  = hline(options == "MBL-100days"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h84  = hline(options == "MBL-100days"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h85  = hline(options == "MBL-100days"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h86  = hline(options == "MBL-100days"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h86,h85 ,color.green,editable=false)
+fill(h82,h83,color.red,editable=false)
+plot(options == "MBL-100days"?security("INDEX:S5OH", "1D", close) : na,title = "S&P500' 100DAYS",color=color.white,linewidth=2)
+plot(options == "MBL-100days"?security("INDEX:NDOH", "1D", close) : na,title = "NASDAQ100' 100DAYS ",color=color.red,linewidth=2)
+plot(options == "MBL-100days"?security("INDEX:DIOH", "1D", close) : na,title = "DOWJONES30' 100DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-100days"?security("INDEX:R2OH", "1D", close) : na,title = "RUSSELL2000' 100DAYS",color=color.lime,linewidth=2)
+plot(options == "MBL-100days"?security("INDEX:MMOH", "1D", close) : na,title = "VTI 100DAYS",color=color.fuchsia,linewidth=2)
+
+//右侧数字表示分数
+scoreN2 = security("INDEX:NDOH", "1D",close)
+scoreS2 = security("INDEX:S5OH", "1D",close)
+scoreD2 = security("INDEX:DIOH", "1D",close)
+scoreR2 = security("INDEX:R2OH", "1D",close)
+scoreH2 = security("INDEX:MMOH", "1D",close)
+if options == "MBL-100days"
+    GLlabel20=label.new(
+     x=bar_index,y=7*10-5,
+     text="NASDAQ100 = "+tostring(scoreN2,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN2>80?color.red:scoreN2<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=5*10-5,
+     text="S&P500 = "+tostring(scoreS2,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS2>80?color.red:scoreS2<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=3*10-5,
+     text="DOWJONES30 = "+tostring(scoreD2,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD2>80?color.red:scoreD2<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=1*10-5,
+     text="RUSSELL2000 = "+tostring(scoreR2,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR2>80?color.red:scoreR2<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="VTI 100DAYS= "+tostring(scoreH2,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH2>80?color.red:scoreH2<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+
+// #.0 MBL Market Breadth Draw Line of 4 market index 
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h91 = hline(options == "MBL-200days"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h92 = hline(options == "MBL-200days"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h93  = hline(options == "MBL-200days"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h94  = hline(options == "MBL-200days"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h95  = hline(options == "MBL-200days"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h96  = hline(options == "MBL-200days"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h96,h95 ,color.green,editable=false)
+fill(h92,h93,color.red,editable=false)
+plot(options == "MBL-200days"?security("INDEX:S5TH", "1D", close) : na,title = "S&P500' 200DAYS",color=color.white,linewidth=2)
+plot(options == "MBL-200days"?security("INDEX:NDTH", "1D", close) : na,title = "NASDAQ100' 200DAYS ",color=color.red,linewidth=2)
+plot(options == "MBL-200days"?security("INDEX:DITH", "1D", close) : na,title = "DOWJONES30' 200DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-200days"?security("INDEX:R2TH", "1D", close) : na,title = "RUSSELL2000' 200DAYS",color=color.lime,linewidth=2)
+plot(options == "MBL-200days"?security("INDEX:MMTH", "1D", close) : na,title = "VTI 200DAYS",color=color.fuchsia,linewidth=2)
+
+
+//右侧数字表示分数
+scoreN3 = security("INDEX:NDTH", "1D",close)
+scoreS3 = security("INDEX:S5TH", "1D",close)
+scoreD3 = security("INDEX:DITH", "1D",close)
+scoreR3 = security("INDEX:R2TH", "1D",close)
+scoreH3 = security("INDEX:MMTH", "1D",close)
+if options == "MBL-200days"
+    GLlabel20=label.new(
+     x=bar_index,y=7*10-5,
+     text="NASDAQ100 = "+tostring(scoreN3,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN3>80?color.red:scoreN3<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=5*10-5,
+     text="S&P500 = "+tostring(scoreS3,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS3>80?color.red:scoreS3<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=3*10-5,
+     text="DOWJONES30 = "+tostring(scoreD3,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD3>80?color.red:scoreD3<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=1*10-5,
+     text="RUSSELL2000 = "+tostring(scoreR3,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR3>80?color.red:scoreR3<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="VTI 200DAYS= "+tostring(scoreH3,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH3>80?color.red:scoreH3<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+
+
+// #.0 MBL Market Breadth Draw Line of NASDAQ multi days index
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h31 = hline(options == "MBL-NDX"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h32 = hline(options == "MBL-NDX"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h33  = hline(options == "MBL-NDX"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h34  = hline(options == "MBL-NDX"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h35  = hline(options == "MBL-NDX"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h36  = hline(options == "MBL-NDX"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h36,h35 ,color.green,editable=false)
+fill(h32,h33,color.red,editable=false)
+//plot(options == "MBL-NDX"?security("INDEX:NDFD", "1D", close) : na,title = "3RD NDX 5DAYS",color=color.aqua,linewidth=1)
+plot(options == "MBL-NDX"?security("INDEX:NDTW", "1D", close) : na,title = "3RD NDX 20DAYS ",color=color.white,linewidth=2)
+plot(options == "MBL-NDX"?security("INDEX:NDFI", "1D", close) : na,title = "3RD NDX 50DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-NDX"?security("INDEX:NDOH", "1D", close) : na,title = "3RD NDX 100DAYS",color=color.lime,linewidth=3)
+//plot(options == "MBL-NDX"?security("INDEX:NDOF", "1D", close) : na,title = "3RD NDX 150DAYS",color=color.purple,linewidth=3)
+plot(options == "MBL-NDX"?security("INDEX:NDTH", "1D", close) : na,title = "3RD NDX 200DAYS ",color=color.red,linewidth=3)
+
+
+//右侧数字表示分数
+scoreN5 = security("INDEX:NDFD", "1D",close)
+scoreS5 = security("INDEX:NDTW", "1D",close)
+scoreD5 = security("INDEX:NDFI", "1D",close)
+scoreR5 = security("INDEX:NDOH", "1D",close)
+scoreH5 = security("INDEX:NDTH", "1D",close)
+if options == "MBL-NDX"
+    GLlabel20=label.new(
+     x=bar_index,y=1*10-5,
+     text="NASDAQ100 5DAYS= "+tostring(scoreN5,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN5>80?color.red:scoreN5<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=3*10-5,
+     text="NASDAQ100 20DAYS= "+tostring(scoreS5,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS5>80?color.red:scoreS5<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=5*10-5,
+     text="NASDAQ100 50DAYS = "+tostring(scoreD5,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD5>80?color.red:scoreD5<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=7*10-5,
+     text="NASDAQ100 100DAYS = "+tostring(scoreR5,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR5>80?color.red:scoreR5<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="NASDAQ100 200DAYS= "+tostring(scoreH5,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH5>80?color.red:scoreH5<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+
+// #.0 MBL Market Breadth Draw Line of SPX multi days index
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h41 = hline(options == "MBL-SPX"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h42 = hline(options == "MBL-SPX"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h43  = hline(options == "MBL-SPX"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h44  = hline(options == "MBL-SPX"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h45  = hline(options == "MBL-SPX"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h46  = hline(options == "MBL-SPX"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h46,h45 ,color.green,editable=false)
+fill(h42,h43,color.red,editable=false)
+//plot(options == "MBL-SPX"?security("INDEX:S5FD", "1D", close) : na,title = "4th SPX 5DAYS",color=color.aqua,linewidth=1)
+plot(options == "MBL-SPX"?security("INDEX:S5TW", "1D", close) : na,title = "4th SPX 20DAYS ",color=color.white,linewidth=2)
+plot(options == "MBL-SPX"?security("INDEX:S5FI", "1D", close) : na,title = "4th SPX 50DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-SPX"?security("INDEX:S5OH", "1D", close) : na,title = "4th SPX 100DAYS",color=color.lime,linewidth=3)
+//plot(options == "MBL-SPX"?security("INDEX:S5OF", "1D", close) : na,title = "4th SPX 150DAYS",color=color.purple,linewidth=3)
+plot(options == "MBL-SPX"?security("INDEX:S5TH", "1D", close) : na,title = "4th SPX 200DAYS ",color=color.red,linewidth=3)
+
+
+//右侧数字表示分数
+scoreN6 = security("INDEX:S5FD", "1D",close)
+scoreS6 = security("INDEX:S5TW", "1D",close)
+scoreD6 = security("INDEX:S5FI", "1D",close)
+scoreR6 = security("INDEX:S5OH", "1D",close)
+scoreH6 = security("INDEX:S5TH", "1D",close)
+if options == "MBL-SPX"
+    GLlabel20=label.new(
+     x=bar_index,y=1*10-5,
+     text="S&P500 5DAYS= "+tostring(scoreN6,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN6>80?color.red:scoreN6<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=3*10-5,
+     text="S&P500 20DAYS= "+tostring(scoreS6,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS6>80?color.red:scoreS6<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=5*10-5,
+     text="S&P500 50DAYS = "+tostring(scoreD6,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD6>80?color.red:scoreD6<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=7*10-5,
+     text="S&P500 100DAYS = "+tostring(scoreR6,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR6>80?color.red:scoreR6<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="S&P500 200DAYS= "+tostring(scoreH6,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH6>80?color.red:scoreH6<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+    
+//MBL-RUSSELL
+// #.0 MBL Market Breadth Draw Line of RUSSELL2000 multi days index
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h51 = hline(options == "MBL-RUSSELL"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h52 = hline(options == "MBL-RUSSELL"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h53  = hline(options == "MBL-RUSSELL"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h54  = hline(options == "MBL-RUSSELL"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h55  = hline(options == "MBL-RUSSELL"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h56  = hline(options == "MBL-RUSSELL"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h56,h55 ,color.green,editable=false)
+fill(h52,h53,color.red,editable=false)
+//plot(options == "MBL-RUSSELL"?security("INDEX:R2FD", "1D", close) : na,title = "5th RUSSELL 5DAYS",color=color.aqua,linewidth=1)
+plot(options == "MBL-RUSSELL"?security("INDEX:R2TW", "1D", close) : na,title = "5th RUSSELL 20DAYS ",color=color.white,linewidth=2)
+plot(options == "MBL-RUSSELL"?security("INDEX:R2FI", "1D", close) : na,title = "5th RUSSELL 50DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-RUSSELL"?security("INDEX:R2OH", "1D", close) : na,title = "5th RUSSELL 100DAYS",color=color.lime,linewidth=3)
+//plot(options == "MBL-RUSSELL"?security("INDEX:R2OF", "1D", close) : na,title = "5th RUSSELL 150DAYS",color=color.purple,linewidth=3)
+plot(options == "MBL-RUSSELL"?security("INDEX:R2TH", "1D", close) : na,title = "5th RUSSELL 200DAYS ",color=color.red,linewidth=3)
+
+
+//右侧数字表示分数
+scoreN7 = security("INDEX:R2FD", "1D",close)
+scoreS7 = security("INDEX:R2TW", "1D",close)
+scoreD7 = security("INDEX:R2FI", "1D",close)
+scoreR7 = security("INDEX:R2OH", "1D",close)
+scoreH7 = security("INDEX:R2TH", "1D",close)
+if options == "MBL-RUSSELL"
+    GLlabel20=label.new(
+     x=bar_index,y=1*10-5,
+     text="RUSSELL2000 5DAYS= "+tostring(scoreN7,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN7>80?color.red:scoreN7<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=3*10-5,
+     text="RUSSELL2000 20DAYS= "+tostring(scoreS7,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS7>80?color.red:scoreS7<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=5*10-5,
+     text="RUSSELL2000 50DAYS = "+tostring(scoreD7,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD7>80?color.red:scoreD7<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=7*10-5,
+     text="RUSSELL2000 100DAYS = "+tostring(scoreR7,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR7>80?color.red:scoreR7<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="RUSSELL2000 200DAYS= "+tostring(scoreH7,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH7>80?color.red:scoreH7<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+    
+//MBL-DOWJONES
+// #.0 MBL Market Breadth Draw Line of RUSSELL2000 multi days index
+//Sperate the Inidcator into 4 areas,above 80%,below 20%,50~80%,20~50%;h11 provides a blank area.
+h61 = hline(options == "MBL-DOWJONES"? 110 : na, linestyle=hline.style_dashed, color=color.new(color.white,100),editable=0)
+h62 = hline(options == "MBL-DOWJONES"? 100 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h63  = hline(options == "MBL-DOWJONES"?  80 : na, linestyle=hline.style_dashed, color=color.lime,editable=0)
+h64  = hline(options == "MBL-DOWJONES"?  50 : na, linestyle=hline.style_dashed, color=color.gray,editable=0)
+h65  = hline(options == "MBL-DOWJONES"?  20 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+h66  = hline(options == "MBL-DOWJONES"?   0 : na, linestyle=hline.style_dashed, color=color.green,editable=0)
+//Fill Top and Bottom Area with Color Red and Green
+fill(h66,h65 ,color.green,editable=false)
+fill(h62,h63,color.red,editable=false)
+//plot(options == "MBL-DOWJONES"?security("INDEX:DIFD", "1D", close) : na,title = "6th DOWJONES 5DAYS",color=color.aqua,linewidth=1)
+plot(options == "MBL-DOWJONES"?security("INDEX:DITW", "1D", close) : na,title = "6th DOWJONES 20DAYS ",color=color.white,linewidth=2)
+plot(options == "MBL-DOWJONES"?security("INDEX:DIFI", "1D", close) : na,title = "6th DOWJONES 50DAYS ",color=color.yellow,linewidth=2)
+plot(options == "MBL-DOWJONES"?security("INDEX:DIOH", "1D", close) : na,title = "6th DOWJONES 100DAYS",color=color.lime,linewidth=3)
+//plot(options == "MBL-DOWJONES"?security("INDEX:DIOF", "1D", close) : na,title = "6th DOWJONES 150DAYS",color=color.purple,linewidth=3)
+plot(options == "MBL-DOWJONES"?security("INDEX:DITH", "1D", close) : na,title = "6th DOWJONES 200DAYS ",color=color.red,linewidth=3)
+
+//右侧数字表示分数
+scoreN8 = security("INDEX:DIFD", "1D",close)
+scoreS8 = security("INDEX:DITW", "1D",close)
+scoreD8 = security("INDEX:DIFI", "1D",close)
+scoreR8 = security("INDEX:DIOH", "1D",close)
+scoreH8 = security("INDEX:DITH", "1D",close)
+if options == "MBL-DOWJONES"
+    GLlabel20=label.new(
+     x=bar_index,y=1*10-5,
+     text="DOWJONES30 5DAYS= "+tostring(scoreN8,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreN8>80?color.red:scoreN8<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel21=label.new(
+     x=bar_index,y=3*10-5,
+     text="DOWJONES30 20DAYS= "+tostring(scoreS8,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreS8>80?color.red:scoreS8<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel22=label.new(
+     x=bar_index,y=5*10-5,
+     text="DOWJONES30 50DAYS = "+tostring(scoreD8,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreD8>80?color.red:scoreD8<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel23=label.new(
+     x=bar_index,y=7*10-5,
+     text="DOWJONES30 100DAYS = "+tostring(scoreR8,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreR8>80?color.red:scoreR8<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    GLlabel24=label.new(
+     x=bar_index,y=9*10-5,
+     text="DOWJONES30 200DAYS= "+tostring(scoreH8,"#.0"),
+     style=label.style_label_left,color=color.new(color.white,transp=100),
+     textcolor=scoreH8>80?color.red:scoreH8<20?color.green:color.white,
+     textalign = text.align_center,
+     size=size.normal)
+    label.delete(GLlabel20[1])
+    label.delete(GLlabel21[1])
+    label.delete(GLlabel22[1])
+    label.delete(GLlabel23[1])
+    label.delete(GLlabel24[1])
+    
+
+    
+

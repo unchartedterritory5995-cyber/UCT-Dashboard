@@ -36,6 +36,11 @@ from hub_critique_capture import PROFILES, PTR_JS, ensure_account  # noqa: E402 
 WCAG_AA_NORMAL = 4.5
 WCAG_AA_LARGE = 3.0
 
+#: Set from --route before any measurement, and recorded on EVERY row. The route decides
+#: which actions land inside the scrim, so a result read without it can be attributed to the
+#: wrong mode — which is exactly how D-58 was mis-filed as "the harness cannot measure this".
+ROUTE = ["/charts"]
+
 
 def _srgb_to_lin(c: float) -> float:
     c = c / 255.0
@@ -112,11 +117,13 @@ MEASURE_JS = """
     const lcs = getComputedStyle(label);
     out.push({
       id: el.getAttribute('data-testid'),
-      // ⛔ A DISABLED BUBBLE IS NOT A CONTRAST FAILURE. WCAG 1.4.3 exempts inactive
-      // user-interface components, and `.bubbleDisabled` is 0.4 opacity BY DESIGN — it is
-      // the one signal that says "this needs a symbol first". Grading it against AA would
-      // manufacture a finding out of a deliberate affordance.
-      disabled: op < 0.5,
+      // ⛔ DISABLED IS READ FROM aria-disabled, NOT FROM OPACITY. Opacity was a proxy for
+      // the state and stopped being one the moment D-57 moved the dimming off the container
+      // and onto the icon/rim — at which point an opacity test would have silently started
+      // GRADING every disabled bubble while reporting them as enabled. `aria-disabled` is the
+      // semantic fact and is independent of how the state happens to be painted.
+      // WCAG 1.4.3 still exempts inactive components; this only decides which rows are exempt.
+      disabled: el.getAttribute('aria-disabled') === 'true',
       opacity: op,
       color: lcs.color,
       fontSize: lcs.fontSize,
@@ -154,8 +161,11 @@ def measure(page, theme, rows, out: Path):
     page.evaluate(HIDE_LABELS_JS)
     page.wait_for_timeout(120)
     shot_bg = Image.open(io.BytesIO(page.screenshot()))
-    shot_text.save(out / f"contrast_{theme}_text.png")
-    shot_bg.save(out / f"contrast_{theme}_bg.png")
+    # ⚠️ the route is in the filename: two routes write the same theme, and a frame that
+    # overwrote another would silently be attributed to the wrong mode.
+    slug = ROUTE[0].strip("/").replace("/", "-") or "root"
+    shot_text.save(out / f"contrast_{slug}_{theme}_text.png")
+    shot_bg.save(out / f"contrast_{slug}_{theme}_bg.png")
 
     dpr = info["dpr"]
     for b in info["bubbles"]:
@@ -176,7 +186,7 @@ def measure(page, theme, rows, out: Path):
             verdict = "EXEMPT"
         else:
             verdict = "PASS" if ratio >= bar else "FAIL"
-        rows.append(dict(theme=theme, bubble=b["id"], region=b["region"],
+        rows.append(dict(theme=theme, route=ROUTE[0], bubble=b["id"], region=b["region"],
                          fg=fg, bg=bg, ratio=round(ratio, 2), bar=bar,
                          font_px=size_px, disabled=b["disabled"],
                          opacity=round(b["opacity"], 2), verdict=verdict))
@@ -217,6 +227,20 @@ def main():
     ap.add_argument("--base", default="http://127.0.0.1:8131")
     ap.add_argument("--out", default="scratchpad/contrast")
     ap.add_argument("--profile", default="iphone", choices=sorted(PROFILES))
+    # ⛔⛔ THE ROUTE IS THE WHOLE REASON THE SCRIMMED CELLS READ AS UNMEASURABLE (D-58).
+    # Fan GEOMETRY is fixed, so on every mode the top two outer bubbles land inside the scrim.
+    # On `/charts` those two happen to be `planTrade` and `alert` -- the symbol-gated pair -- so
+    # with every /api/* returning {} they render at 0.4 opacity, are WCAG-1.4.3 exempt, and the
+    # cell comes back with nothing graded in it. That is a property of THE ROUTE I PICKED, not
+    # of the harness and not of the product.
+    # ⭐ `/journal/notebook`'s four cut actions (newNote, voiceNote, linkTicker, templates)
+    # declare NO `requires` at all, so they are enabled with no symbol and two of them land in
+    # the scrim. Same geometry, same scrim, gradeable labels.
+    ap.add_argument("--routes", default="/charts,/journal/notebook",
+                    help="comma-separated routes. The DEFAULT measures both because they are "
+                         "COMPLEMENTARY: /charts fills the un-scrimmed cells and leaves the "
+                         "scrimmed ones exempt-only; /journal/notebook puts every bubble inside "
+                         "the scrim. Neither route alone can cover all four cells (D-58).")
     ap.add_argument("--email", default=None,
                     help="sign in before measuring (required against production; the harness "
                          "serves a synthetic admin and needs none)")
@@ -244,6 +268,8 @@ def main():
     with sync_playwright() as pw:
         browser = pw.chromium.launch(args=["--force-color-profile=srgb", "--disable-lcd-text"])
         try:
+          for route in [r.strip() for r in args.routes.split(",") if r.strip()]:
+            ROUTE[0] = route
             for theme in ("dark", "light"):
                 ctx = browser.new_context(**prof)
                 ctx.route("**/api/auth/preferences", _prefs_route(theme))
@@ -262,7 +288,7 @@ def main():
                         ctx.close()
                         continue
                 page = ctx.new_page()
-                page.goto(f"{args.base}/charts", wait_until="domcontentloaded", timeout=45000)
+                page.goto(f"{args.base}{route}", wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(2500)
                 try:
                     page.keyboard.press("Escape")

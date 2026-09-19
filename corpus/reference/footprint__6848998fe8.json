@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6848998fe8b9472fb388ac3cb3d3cb3c",
+ "title": "Footprint",
+ "author": "akutsusho",
+ "url": "https://www.tradingview.com/script/3TtUsC9J-footprint/",
+ "agreeCount": 6924,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/footprint__6848998fe8.pine",
+ "our_status": "reference-only"
+}

@@ -741,7 +741,32 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # IS UNTOUCHED AT 111 -- again the reason for two numbers rather than one.
     # ⚠️ THE SCALAR HALF MOVED 111 -> 137 ON 2026-09-02 (the Wave-1 promotion);
     # the BAR half is untouched, which is the half this test is about.
-    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 137
+    # 97 -> 101 (2026-09-06): Vendor Parity Tranche 2, Lane B (`rising`,
+    # `median`, `percentrank`, `bbw`). Scalar half untouched at 137.
+    # 103 -> 104 (2026-09-09): `cum`, the running total, declared under owner
+    # Ruling D with its containment on the DEFINITION rather than on this entry.
+    # Scalar half untouched at 137.
+    # 101 -> 103 (2026-09-08): `falling` and `pvtN`, from Vendor-Backed Unserved
+    # Builtins Batch 1 (`32046d04c`). Scalar half untouched at 137 again.
+    # ⚰️ THAT COMMIT DID NOT BUMP THIS LINE AND SHIPPED THIS RAIL RED — which is
+    # the rail working, not failing: a hand-typed count beside a DERIVED partition
+    # is the exact defect this file exists to catch, and it caught its own author.
+    # Two entries landing on the bar floor is a claim about the corpus's coverage
+    # obligation, so it is meant to cost somebody a deliberate edit here.
+    # ⭐ 104 -> 110 (2026-09-09, recorded 2026-09-11): the BARSTATE SIX --
+    # `isconfirmed`, `isfirst`, `ishistory`, `islast`, `islastconfirmedhistory`,
+    # `isrealtime` -- landed by the barstate merge. The scalar half is untouched at
+    # 137, which is the whole reason this assertion carries two numbers instead of
+    # one total: a bar-state flag is a property of a BAR and has nothing to say
+    # about a per-symbol column.
+    # ⚠️ THE MERGE DID NOT BUMP THIS LINE AND SHIPPED THIS RAIL RED for two days --
+    # the same thing the `falling`/`pvtN` note above records, and the rail working
+    # rather than failing. The six were DERIVED here before this line moved
+    # (partition diffed against `0a96689ef`, the commit that wrote 104), not read
+    # off the failure message: the message says only that a number moved, and
+    # editing a count to match a number you did not explain is how a floor stops
+    # being a claim about coverage.
+    assert len(parts["bar"]) == 110 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
@@ -874,8 +899,34 @@ def test_a_scalar_RIDES_the_series_node_and_there_is_no_FIFTH_node_type():
     # that was correct, and the honest fix is to stop restating it. What this
     # rail is actually about is unchanged and is the line below: a SCALAR still
     # rides the `series` node and never became a node type of its own.
-    assert found == set(ast_interpret.NODE_TYPES), found
+    # ⭐⭐ THE CONFORMANCE CORPUS CARRIES THE EVALUABLE VOCABULARY, AND THE SPLIT
+    # HAS ONE OWNER. `ast_interpret.BIND_TIME_NODE_TYPES` exists for this exact
+    # pair of rails and says so in its own docstring: this census "measures
+    # NUMERIC agreement between the lanes and cannot carry a node that never
+    # becomes a number", while the node-type rails "must still prove every type is
+    # exercised somewhere". A `textop` folds to a number at BIND time and is gone
+    # before a bar is read, so a case built from one would have nothing for the two
+    # lanes to disagree about numerically.
+    # ⛔ THIS IS NOT AN EXEMPTION. The trio's own net is asserted immediately
+    # below, so "not in this corpus" can never quietly become "in no corpus".
+    evaluable = set(ast_interpret.NODE_TYPES) - set(ast_interpret.BIND_TIME_NODE_TYPES)
+    assert found == evaluable, found
     assert "scalar" not in found
+
+    # ⭐ …AND THE BIND-TIME TRIO IS EXERCISED WHERE IT BELONGS, string for string.
+    # Without this, moving a type into `BIND_TIME_NODE_TYPES` would be a way to
+    # delete it from every rail at once — which is precisely how an exemption list
+    # turns into a hiding place.
+    import json, pathlib
+    net = json.loads(
+        (pathlib.Path(__file__).resolve().parents[1]
+         / "tests" / "fixtures" / "ast" / "bind_fold_parity.json").read_text(encoding="utf-8"))
+    in_net = set()
+    types_in(net, in_net)
+    missing_from_net = set(ast_interpret.BIND_TIME_NODE_TYPES) - in_net
+    assert not missing_from_net, (
+        f"{sorted(missing_from_net)} is declared bind-time but appears in no "
+        f"committed net, so nothing measures it in either lane")
     assert "offset" in found, (
         "the corpora no longer exercise the offset node, so this rail has stopped "
         "measuring the vocabulary it claims to")

@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "23-distilled-htf-po3.pine",
+  "title": "The Distilled HTF PO3",
+  "author": "DistilledTrades",
+  "source_url": "https://www.tradingview.com/script/UMNF5h9P-The-Distilled-HTF-PO3/",
+  "retrieved_at": "2026-09-07T13:45:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"3 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 743,
+  "complexity_bucket": "long",
+  "sha256_source": "78b5715ec2ad0ffddbaecb4c2ce5aabf22a377466ee36504db6cd72ab65446d8",
+  "sha256_normalized": "9817d78e1b80f9bb09dfd6e3c5a3ee8227ca120d67c0b2dfc967b6b92939dd90",
+  "storage": "local-only"
+}

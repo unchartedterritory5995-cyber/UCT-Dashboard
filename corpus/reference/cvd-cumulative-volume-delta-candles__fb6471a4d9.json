@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fb6471a4d9d84f8ebaf879ba690d6b23",
+ "title": "CVD - Cumulative Volume Delta Candles",
+ "author": "TradingView",
+ "url": "https://www.tradingview.com/script/NlM312nK-cvd-cumulative-volume-delta-candles/",
+ "agreeCount": 6873,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cvd-cumulative-volume-delta-candles__fb6471a4d9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cvd-cumulative-volume-delta-candles__fb6471a4d9.pine",
+ "our_status": "committed"
+}

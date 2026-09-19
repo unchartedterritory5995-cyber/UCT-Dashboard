@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import useTickerMeta, { fetcher, prefetchTickerMeta } from './useTickerMeta'
+import fs from 'node:fs'
+import path from 'node:path'
+
+/** ⛔ THE SHAPE BEFORE ANY DATA, IN ONE PLACE. It gained `exchange` on 2026-09-13
+ *  (T5b) and six cases asserted it field-for-field; naming it once is what makes
+ *  the next field a one-line change instead of a six-line one. */
+const NULL_META = { name: null, sector: null, industry: null, theme: null, exchange: null }
 
 const wrapper = ({ children }) => (
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
@@ -17,7 +24,7 @@ describe('useTickerMeta', () => {
   it('returns null-safe defaults before/without data', () => {
     global.fetch = vi.fn(() => new Promise(() => {}))
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
-    expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
+    expect(result.current).toEqual(NULL_META)
   })
 
   it('returns fetched meta', async () => {
@@ -33,14 +40,77 @@ describe('useTickerMeta', () => {
   it('null-safe when fetch fails', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false })
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
-    await waitFor(() => expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null }))
+    await waitFor(() => expect(result.current).toEqual(NULL_META))
   })
 
   it('null-safe when JSON parsing throws', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error('bad json') } })
     const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-    expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
+    expect(result.current).toEqual(NULL_META)
+  })
+
+  // ─── ⭐⭐ T5b — THE PROJECTION MUST NOT DROP WHAT THE SERVER SENDS ──────────
+  //
+  // ⚰️ MEASURED IN A REAL BROWSER, 2026-09-13. `fetcher` named four fields and
+  // the endpoint answers five: `exchange` was dropped on its way through this
+  // hook, so `tickerMeta.exchange` was `undefined` on EVERY chart in the app,
+  // `StockChart`'s `symbolMeta` built `{ticker, exchange: null}`, and three of
+  // `uncharted-volume-v2`'s four columns refused on a witnessed symbol. Every
+  // rail on the fold below it passed, because they all hand it the object this
+  // layer failed to build. `lesson_a_projection_drops_what_it_does_not_name`.
+  //
+  // ⛔ THE CONTRACT IS READ, NEVER TYPED. `get_ticker_meta`'s own docstring is
+  // where the shape is declared; a hand-copied list here would go stale in
+  // exactly the way the defect did.
+  describe('⛔⛔ every field the endpoint declares survives the hook', () => {
+    /** The server's declared response keys, parsed out of
+     *  `api/services/ticker_meta.py::get_ticker_meta`'s docstring. */
+    const serverKeys = (() => {
+      const src = fs.readFileSync(
+        path.resolve(process.cwd(), '..', 'api/services/ticker_meta.py'), 'utf8')
+      const at = src.indexOf('def get_ticker_meta')
+      const m = /\{([a-z_,\s]+)\}/.exec(src.slice(at, at + 400))
+      return m ? m[1].split(',').map((k) => k.trim()).filter(Boolean) : []
+    })()
+
+    it('the contract is readable, and this test can see it', () => {
+      // ⛔ THE NON-VACUITY CONTROL. A parse that found nothing would make every
+      // assertion below pass over an empty list — the shape of "an absence is
+      // only evidence if the instrument could have seen a presence".
+      expect(serverKeys.length).toBeGreaterThanOrEqual(4)
+      expect(serverKeys).toContain('name')
+    })
+
+    it('⛔ fetcher surfaces every declared field, by value', async () => {
+      const body = Object.fromEntries(serverKeys.map((k, i) => [k, `v${i}`]))
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => body })
+      const got = await fetcher('/api/ticker-meta/SPY')
+      for (const k of serverKeys) {
+        expect(got, `the hook drops \`${k}\`, which the endpoint declares`).toHaveProperty(k, body[k])
+      }
+    })
+
+    it('⛔ …and the pre-data shape answers every one of them too', () => {
+      global.fetch = vi.fn(() => new Promise(() => {}))
+      const { result } = renderHook(() => useTickerMeta('SPY'), { wrapper })
+      for (const k of serverKeys) {
+        expect(result.current, `NULLS has no \`${k}\``).toHaveProperty(k, null)
+      }
+    })
+
+    it('⭐ an exchange-only answer is a REAL hit and gets seeded', async () => {
+      // SPY has no sector and no industry. Before this, the one field the
+      // bind-time fold needs was the one field `lsPut` refused to persist, so a
+      // reload bound unwitnessed on the first paint every time.
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ name: null, sector: null, industry: null, theme: null, exchange: 'NYSE Arca' }),
+      })
+      const { result } = renderHook(() => useTickerMeta('SPY'), { wrapper })
+      await waitFor(() => expect(result.current.exchange).toBe('NYSE Arca'))
+      expect(JSON.parse(localStorage.getItem('tmeta:SPY')).d.exchange).toBe('NYSE Arca')
+    })
   })
 
   it('does not fetch when sym is falsy', () => {
@@ -59,7 +129,7 @@ describe('useTickerMeta', () => {
       const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
       await waitFor(() => expect(result.current.name).toBe('Tesla Inc'))
       const stored = JSON.parse(localStorage.getItem('tmeta:TSLA'))
-      expect(stored.d).toEqual({ name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', theme: 'EV' })
+      expect(stored.d).toEqual({ name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', theme: 'EV', exchange: null })
       expect(typeof stored.t).toBe('number')
     })
 
@@ -81,17 +151,17 @@ describe('useTickerMeta', () => {
       }))
       global.fetch = vi.fn(() => new Promise(() => {}))
       const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
-      expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
+      expect(result.current).toEqual(NULL_META)
     })
 
     it('does not persist an all-null transient miss', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ name: null, sector: null, industry: null, theme: null }),
+        json: async () => (NULL_META),
       })
       const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
       await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-      expect(result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
+      expect(result.current).toEqual(NULL_META)
       expect(localStorage.getItem('tmeta:TSLA')).toBeNull()
     })
   })
@@ -145,6 +215,7 @@ describe('useTickerMeta', () => {
       })
       await expect(fetcher('/api/ticker-meta/ENPH')).resolves.toEqual({
         name: 'Enphase Energy, Inc.', sector: 'Technology', industry: 'Solar', theme: 'Clean Energy',
+        exchange: null,
       })
     })
   })
@@ -157,7 +228,7 @@ describe('useTickerMeta', () => {
     global.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 503 })
     const first = renderHook(() => useTickerMeta('ENPH'), { wrapper: sharedWrapper })
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
-    expect(first.result.current).toEqual({ name: null, sector: null, industry: null, theme: null })
+    expect(first.result.current).toEqual(NULL_META)
     first.unmount()
 
     // Backend recovered; a fresh mount (same cache) revalidates and gets data —

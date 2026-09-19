@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2174489a808f40c98e3e1fc2012e8645",
+ "title": "Anchored VWAP Pinch & Handoff, Intervals, and Signals",
+ "author": "allanster",
+ "url": "https://www.tradingview.com/script/VYu6A3GB-anchored-vwap-pinch-handoff-intervals-and-signals/",
+ "agreeCount": 3090,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+ "cached_source": "tools/pine_survey/cache/sources/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+ "our_status": "committed"
+}

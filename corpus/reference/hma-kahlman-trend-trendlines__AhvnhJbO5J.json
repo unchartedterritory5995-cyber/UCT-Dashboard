@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;AhvnhJbO5JJIe9hsjz5cykZPosFf14Dm",
+ "title": "HMA-Kahlman Trend & Trendlines",
+ "author": "capissimo",
+ "url": "https://www.tradingview.com/script/Pi7EVefr-hma-kahlman-trend-trendlines/",
+ "agreeCount": 3403,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/hma-kahlman-trend-trendlines__AhvnhJbO5J.pine",
+ "our_status": "reference-only"
+}

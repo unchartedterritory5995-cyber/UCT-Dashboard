@@ -1,0 +1,431 @@
+{
+ "id": "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08",
+ "shape": "seeded",
+ "script": {
+  "dialect": "pine-v6",
+  "source": "//@version=6\nindicator(\"UCT recur probe v1\")\nsrcna = bar_index % 97 == 0 ? na : close\nena = ta.ema(srcna, 10)\nrna = ta.rma(srcna, 10)\nf(v) => ta.ema(v, 5)\ngo = bar_index % 2 == 0\npt = go ? f(close) : na\nevery = ta.ema(close, 5)\nvar float pif = na\nif go\n    pif := f(close)\nplot(bar_index, \"A\")\nplot(srcna, \"B\")\nplot(ena, \"C\")\nplot(rna, \"D\")\nplot(go ? 1 : 0, \"E\")\nplot(pt, \"F\")\nplot(pif, \"G\")\nplot(every, \"H\")\n"
+ },
+ "engine": {
+  "formula": null,
+  "ast": null
+ },
+ "market": {
+  "symbol": "AMEX:SPY",
+  "timeframe": "D",
+  "bars": [
+   {
+    "t": "1761312600",
+    "o": 676.46,
+    "h": 678.47,
+    "l": 675.65,
+    "c": 677.25,
+    "v": 74356527.0
+   },
+   {
+    "t": "1761571800",
+    "o": 682.73,
+    "h": 685.54,
+    "l": 682.115,
+    "c": 685.24,
+    "v": 63339790.0
+   },
+   {
+    "t": "1761658200",
+    "o": 687.05,
+    "h": 688.905,
+    "l": 684.83,
+    "c": 687.06,
+    "v": 61738073.0
+   },
+   {
+    "t": "1761744600",
+    "o": 688.72,
+    "h": 689.7,
+    "l": 682.87,
+    "c": 687.39,
+    "v": 85362207.0
+   },
+   {
+    "t": "1761831000",
+    "o": 683.9,
+    "h": 685.94,
+    "l": 679.83,
+    "c": 679.83,
+    "v": 76335751.0
+   },
+   {
+    "t": "1761917400",
+    "o": 685.04,
+    "h": 685.08,
+    "l": 679.24,
+    "c": 682.06,
+    "v": 87164122.0
+   },
+   {
+    "t": "1762180200",
+    "o": 685.67,
+    "h": 685.8,
+    "l": 679.94,
+    "c": 683.34,
+    "v": 57315025.0
+   },
+   {
+    "t": "1762266600",
+    "o": 676.11,
+    "h": 679.96,
+    "l": 674.58,
+    "c": 675.24,
+    "v": 78426969.0
+   },
+   {
+    "t": "1762353000",
+    "o": 674.98,
+    "h": 680.86,
+    "l": 674.17,
+    "c": 677.58,
+    "v": 74402376.0
+   },
+   {
+    "t": "1762439400",
+    "o": 676.47,
+    "h": 677.38,
+    "l": 668.72,
+    "c": 670.31,
+    "v": 85035298.0
+   },
+   {
+    "t": "1757338200",
+    "o": 648.62,
+    "h": 649.84,
+    "l": 647.23,
+    "c": 648.83,
+    "v": 63133104.0
+   },
+   {
+    "t": "1757424600",
+    "o": 648.97,
+    "h": 650.86,
+    "l": 647.22,
+    "c": 650.33,
+    "v": 66133856.0
+   },
+   {
+    "t": "1757511000",
+    "o": 653.62,
+    "h": 654.55,
+    "l": 650.63,
+    "c": 652.21,
+    "v": 78034529.0
+   },
+   {
+    "t": "1757597400",
+    "o": 654.18,
+    "h": 658.33,
+    "l": 653.59,
+    "c": 657.63,
+    "v": 69934360.0
+   },
+   {
+    "t": "1757683800",
+    "o": 657.6,
+    "h": 659.11,
+    "l": 656.9,
+    "c": 657.41,
+    "v": 72780135.0
+   },
+   {
+    "t": "1757943000",
+    "o": 659.64,
+    "h": 661.04,
+    "l": 659.34,
+    "c": 660.91,
+    "v": 63772412.0
+   },
+   {
+    "t": "1758029400",
+    "o": 661.47,
+    "h": 661.78,
+    "l": 659.21,
+    "c": 660.0,
+    "v": 61168953.0
+   },
+   {
+    "t": "1758115800",
+    "o": 660.01,
+    "h": 661.72,
+    "l": 654.3,
+    "c": 659.18,
+    "v": 101952244.0
+   },
+   {
+    "t": "1758202200",
+    "o": 661.89,
+    "h": 664.89,
+    "l": 660.27,
+    "c": 662.26,
+    "v": 90459242.0
+   },
+   {
+    "t": "1758288600",
+    "o": 662.33,
+    "h": 664.55,
+    "l": 660.37,
+    "c": 663.7,
+    "v": 97945620.0
+   },
+   {
+    "t": "1758547800",
+    "o": 662.2,
+    "h": 667.29,
+    "l": 662.17,
+    "c": 666.84,
+    "v": 69452201.0
+   },
+   {
+    "t": "1758634200",
+    "o": 666.72,
+    "h": 667.34,
+    "l": 661.98,
+    "c": 663.21,
+    "v": 81708872.0
+   },
+   {
+    "t": "1758720600",
+    "o": 664.51,
+    "h": 664.61,
+    "l": 659.67,
+    "c": 661.1,
+    "v": 68082229.0
+   },
+   {
+    "t": "1758807000",
+    "o": 657.94,
+    "h": 659.4056,
+    "l": 654.405,
+    "c": 658.05,
+    "v": 89622067.0
+   }
+  ]
+ },
+ "vendor": {
+  "readDecimals": 16,
+  "_read": "Read off the chart MODEL, not the DOM: window._exposed_chartWidgetCollection -> activeChartWidget -> model().model().dataSources(), the source whose metaInfo().shortDescription is the script's own indicator() title. Its data().bars() carries [time, plot_0..plot_7]; the eight plot style titles read A..H in the same order as the eight plot() calls, which is the compiled-study identity proof.",
+  "naHole": [
+   {
+    "bar_index": 8241,
+    "t": "1761312600",
+    "srcna": 677.25,
+    "ena": 669.3760809915402,
+    "rna": 666.9377186131281
+   },
+   {
+    "bar_index": 8242,
+    "t": "1761571800",
+    "srcna": 685.24,
+    "ena": 672.2604299021692,
+    "rna": 668.7679467518153
+   },
+   {
+    "bar_index": 8243,
+    "t": "1761658200",
+    "srcna": 687.06,
+    "ena": 674.9512608290476,
+    "rna": 670.5971520766337
+   },
+   {
+    "bar_index": 8244,
+    "t": "1761744600",
+    "srcna": 687.39,
+    "ena": 677.2128497692207,
+    "rna": 672.2764368689703
+   },
+   {
+    "bar_index": 8245,
+    "t": "1761831000",
+    "srcna": null,
+    "ena": null,
+    "rna": null
+   },
+   {
+    "bar_index": 8246,
+    "t": "1761917400",
+    "srcna": 682.06,
+    "ena": 678.0941498111806,
+    "rna": 673.2547931820733
+   },
+   {
+    "bar_index": 8247,
+    "t": "1762180200",
+    "srcna": 683.34,
+    "ena": 679.0479407546023,
+    "rna": 674.263313863866
+   },
+   {
+    "bar_index": 8248,
+    "t": "1762266600",
+    "srcna": 675.24,
+    "ena": 678.3555878901292,
+    "rna": 674.3609824774793
+   },
+   {
+    "bar_index": 8249,
+    "t": "1762353000",
+    "srcna": 677.58,
+    "ena": 678.2145719101057,
+    "rna": 674.6828842297314
+   },
+   {
+    "bar_index": 8250,
+    "t": "1762439400",
+    "srcna": 670.31,
+    "ena": 676.7773770173592,
+    "rna": 674.2455958067582
+   }
+  ],
+  "skippedCallSite": [
+   {
+    "bar_index": 8207,
+    "t": "1757338200",
+    "go": 0.0,
+    "pt": null,
+    "pif": 644.5273814359844,
+    "every": 647.0079265242971,
+    "close": 648.83
+   },
+   {
+    "bar_index": 8208,
+    "t": "1757424600",
+    "go": 1.0,
+    "pt": 646.4615876239895,
+    "pif": 646.4615876239895,
+    "every": 648.1152843495314,
+    "close": 650.33
+   },
+   {
+    "bar_index": 8209,
+    "t": "1757511000",
+    "go": 0.0,
+    "pt": null,
+    "pif": 646.4615876239895,
+    "every": 649.4801895663543,
+    "close": 652.21
+   },
+   {
+    "bar_index": 8210,
+    "t": "1757597400",
+    "go": 1.0,
+    "pt": 650.1843917493263,
+    "pif": 650.1843917493263,
+    "every": 652.1967930442362,
+    "close": 657.63
+   },
+   {
+    "bar_index": 8211,
+    "t": "1757683800",
+    "go": 0.0,
+    "pt": null,
+    "pif": 650.1843917493263,
+    "every": 653.9345286961575,
+    "close": 657.41
+   },
+   {
+    "bar_index": 8212,
+    "t": "1757943000",
+    "go": 1.0,
+    "pt": 653.7595944995509,
+    "pif": 653.7595944995509,
+    "every": 656.2596857974384,
+    "close": 660.91
+   },
+   {
+    "bar_index": 8213,
+    "t": "1758029400",
+    "go": 0.0,
+    "pt": null,
+    "pif": 653.7595944995509,
+    "every": 657.5064571982922,
+    "close": 660.0
+   },
+   {
+    "bar_index": 8214,
+    "t": "1758115800",
+    "go": 1.0,
+    "pt": 655.5663963330339,
+    "pif": 655.5663963330339,
+    "every": 658.0643047988615,
+    "close": 659.18
+   },
+   {
+    "bar_index": 8215,
+    "t": "1758202200",
+    "go": 0.0,
+    "pt": null,
+    "pif": 655.5663963330339,
+    "every": 659.4628698659077,
+    "close": 662.26
+   },
+   {
+    "bar_index": 8216,
+    "t": "1758288600",
+    "go": 1.0,
+    "pt": 658.277597555356,
+    "pif": 658.277597555356,
+    "every": 660.8752465772718,
+    "close": 663.7
+   },
+   {
+    "bar_index": 8217,
+    "t": "1758547800",
+    "go": 0.0,
+    "pt": null,
+    "pif": 658.277597555356,
+    "every": 662.8634977181812,
+    "close": 666.84
+   },
+   {
+    "bar_index": 8218,
+    "t": "1758634200",
+    "go": 1.0,
+    "pt": 659.9217317035707,
+    "pif": 659.9217317035707,
+    "every": 662.9789984787875,
+    "close": 663.21
+   },
+   {
+    "bar_index": 8219,
+    "t": "1758720600",
+    "go": 0.0,
+    "pt": null,
+    "pif": 659.9217317035707,
+    "every": 662.352665652525,
+    "close": 661.1
+   },
+   {
+    "bar_index": 8220,
+    "t": "1758807000",
+    "go": 1.0,
+    "pt": 659.2978211357138,
+    "pif": 659.2978211357138,
+    "every": 660.91844376835,
+    "close": 658.05
+   }
+  ]
+ },
+ "provenance": {
+  "platform": "TradingView",
+  "platformVersion": "Pine Script v6",
+  "who": "claude-opus-5 via claude-in-chrome, owner-authenticated session",
+  "when": "2026-09-08",
+  "chartUrl": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "rawArtifact": null,
+  "note": "Disposable capture layout, never saved. Study identity proven from the chart model (shortDescription + 8 plot style titles A-H), never from Monaco or the DOM."
+ },
+ "expect": {
+  "explains": null,
+  "rulings": {
+   "na_input": "HOLD. ta.ema/ta.rma keep their state unchanged across an `na` source bar, emit `na` AT that bar, and take one normal step on the next finite bar. Verified on all four holes; the hold prediction reproduces the vendor to 0 or 1.1e-13. A RESET model would emit `na` for a further n-1 bars and then re-seed -- the vendor emits a value on the VERY NEXT BAR (0 extra na bars vs the 9 a reset requires).",
+   "skipped_call_site": "INVOCATION-INDEXED. A recurrent builtin inside a UDF whose call site is skipped does NOT step. Six consecutive executed invocations are reproduced to err=0.000e+00 by stepping only on executed bars; the every-bar model is excluded because pt != every on every executed bar.",
+   "held_output": "The `if`+`:=` form holds the last assigned value on skipped bars (P7.2's series-history rule), while the recurrence INSIDE the function does not advance. Output holds; state does not step."
+  }
+ }
+}

@@ -1,0 +1,111 @@
+{
+  "_what": "What TradingView actually does for `ta.cum` and for the four context namespaces `Uncharted Volume` needs (`timeframe.*`, `syminfo.*`, `barstate.*`, `str.*`). One probe, SPY 1D, read off the chart model. ⚠️ MEASUREMENT ONLY — this file records what the vendor does and takes no position on whether `ta.cum` should ship. That question is open: `closedTable.json::_functions_cumulative` had already refused a host/screener split on containment grounds before this capture was taken, and the ruling is back with the owner.",
+
+  "provenance": {
+    "vendor": "TradingView",
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "timeframe": "1D",
+    "captured": "2026-09-08",
+    "chart": "https://www.tradingview.com/chart/VEeQHWPh/",
+    "study": "UCTPROBE_NS",
+    "how": "window._exposed_chartWidgetCollection -> activeChartWidget -> model().model().dataSources(); located by metaInfo().shortDescription; per-bar rows via data().each(). Identity proven before any value was accepted.",
+    "bars": "The study evaluated 8,459 bars (bar_index 0..8458); the data window exposes the last 400. Values quoted from either are labelled."
+  },
+
+  "_coverage": {
+    "TA_CUM_SEED": "OBSERVED — a series held `na` until bar 8300 reads `na` on 8296-8299 and 1 on 8300.",
+    "TA_CUM_NA_MID_SERIES": "OBSERVED — 769 `na` bars in an 8,459-bar series.",
+    "TA_CUM_HISTORY_DEPTH": "OBSERVED — ta.cum(1) == bar_index + 1 on every bar, so the seed is bar 0 of the whole loaded series.",
+    "STR_TOSTRING_FORMATS": "OBSERVED for '0.00', '#.##' and '#', across ~400 varied values including an exact integer and negatives.",
+    "TIMEFRAME_PREDICATES": "OBSERVED on a 1D chart only. isweekly/ismonthly are observed FALSE there; their TRUE case is NOT observed.",
+    "SYMINFO": "OBSERVED as lengths and as a '/' containment test — the exact strings are inferred from the lengths, see the note.",
+    "BARSTATE_FORMING_BAR": "⛔ NOT OBSERVED. The capture was taken with the market closed, so every bar is confirmed history. `isconfirmed`, `ishistory` and `isnew` are 1 on all 8,459 bars and the FORMING-bar value remains unmeasured. This is the gap that keeps `barstate.*` refused for a pane until realtime is tested."
+  },
+
+  "vendor": {
+    "ta_cum": {
+      "cum_one_equals_bar_index_plus_1": true,
+      "final_bar_index": 8458,
+      "ta_cum_1_final": 8459,
+      "reading": "`ta.cum` seeds at bar 0 of the WHOLE loaded series, not at the left edge of the visible window. On a daily SPY chart that is ~33 years.",
+
+      "na_before_first_finite_input": {
+        "series": "bar_index < 8300 ? na : 1.0",
+        "rows": [
+          { "bar_index": 8296, "ta_cum": null },
+          { "bar_index": 8297, "ta_cum": null },
+          { "bar_index": 8298, "ta_cum": null },
+          { "bar_index": 8299, "ta_cum": null },
+          { "bar_index": 8300, "ta_cum": 1 },
+          { "bar_index": 8301, "ta_cum": 2 },
+          { "bar_index": 8302, "ta_cum": 3 },
+          { "bar_index": 8303, "ta_cum": 4 }
+        ],
+        "reading": "`na` until the first finite input, then the running total begins at that bar."
+      },
+
+      "na_mid_series": {
+        "series": "bar_index % 11 == 0 ? na : 1.0",
+        "rows": [
+          { "bar_index": 8063, "prev": 7330, "at_the_na_bar": null, "next": 7331 },
+          { "bar_index": 8074, "prev": 7340, "at_the_na_bar": null, "next": 7341 },
+          { "bar_index": 8085, "prev": 7350, "at_the_na_bar": null, "next": 7351 }
+        ],
+        "final_value": 7690,
+        "non_na_bar_count": 7690,
+        "reading": "⭐⭐ THE OUTPUT IS `na` ON THE `na` BAR, AND THE TOTAL IS HELD. 7330 -> na -> 7331: it neither advances nor resets. The final value equals the count of finite inputs exactly, so a skipped bar contributes nothing rather than resetting the accumulator.",
+        "⛔_differs_from_the_spec_as_written": "The implementation spec said `na inputs contribute 0 once the series has started`. The TOTAL behaves that way — it is unchanged — but the OUTPUT on that bar is `na`, not the held total. Implementing the spec's literal wording would draw a value on a bar TradingView leaves blank. This is the same HOLD rule already pinned for `ta.ema`/`ta.rma`/`ta.rsi`/`ta.macd` on 2026-09-08, now shown to cover the accumulator family too."
+      }
+    },
+
+    "str_tostring": {
+      "probe": "tv = (bar_index % 997) / 7.0, plotted as str.tonumber(str.tostring(tv, fmt)) and str.length(str.tostring(tv, fmt))",
+      "cases": [
+        { "value": 68.857142857142854, "format": "0.00", "round_trips_to": 68.86, "length": 5, "implied_text": "68.86" },
+        { "value": 68.857142857142854, "format": "#.##", "round_trips_to": 68.86, "length": 5, "implied_text": "68.86" },
+        { "value": 68.857142857142854, "format": "#", "round_trips_to": 69, "length": 2, "implied_text": "69" },
+        { "value": -68.857142857142854, "format": "0.00", "round_trips_to": -68.86, "length": 6, "implied_text": "-68.86" },
+        { "value": 12, "format": "0.00", "length": 5, "implied_text": "12.00" },
+        { "value": 12, "format": "#.##", "length": 2, "implied_text": "12" },
+        { "value": 12, "format": "#", "length": 2, "implied_text": "12" }
+      ],
+      "reading": "Standard optional/required digit semantics. `0` is a REQUIRED digit position and pads: 12 -> \"12.00\". `#` is OPTIONAL and drops trailing zeros AND the decimal point with them: 12 -> \"12\". Both round half-away-from-zero at the last kept place. The sign is a leading character, so a negative is one longer.",
+      "why_it_matters": "`Uncharted Volume` formats nine table cells with these three formats. Step 7's table-text comparison cannot pass without them being exact."
+    },
+
+    "timeframe": {
+      "on_a_1D_chart": { "isdaily": 1, "isweekly": 0, "ismonthly": 0 },
+      "⚠️_not_observed": "The TRUE case for isweekly/ismonthly. They are implemented from the chart's own declared timeframe, which this engine already holds — but only the daily row is vendor-witnessed."
+    },
+
+    "syminfo": {
+      "ticker_length": 3,
+      "tickerid_length": 8,
+      "ticker_contains_slash": 0,
+      "tickerid_contains_slash": 0,
+      "reading": "On SPY the `ticker` is 3 characters (\"SPY\") and the `tickerid` is 8, consistent with \"AMEX:SPY\" — an EXCHANGE:SYMBOL form. Neither contains \"/\".",
+      "⚠️_inference_stated": "The lengths are measured; the exact strings are INFERRED from them, because a string cannot be plotted. `Uncharted Volume` only ever asks whether they contain \"/\", which IS measured, so the inference is not load-bearing for that script."
+    },
+
+    "barstate": {
+      "on_every_one_of_8459_closed_bars": { "isconfirmed": 1, "ishistory": 1 },
+      "islast_true_on_bar_count": 1,
+      "islast_true_bars": [8458],
+      "final_bar_index": 8458,
+      "reading": "`islast` is true on exactly one bar, the newest. `isconfirmed`/`ishistory` are true on every bar of a closed-market capture.",
+      "⛔_the_gap": "This says nothing about a FORMING bar, which is the only case where these values are interesting and the only case a chart pane adds over a screener. Until a realtime capture exists, `barstate.*` stays refused in host mode."
+    }
+  },
+
+  "rules_established": {
+    "ta.cum": "Running total seeded at bar 0 of the delivered series. `na` before the first finite input; `na` ON an `na` bar; the total HELD across it (contributes nothing, does not reset); resumes on the next finite bar.",
+    "str.tostring(x, '0.00')": "Fixed two decimals, zero-padded, half-away-from-zero.",
+    "str.tostring(x, '#.##')": "Up to two decimals, trailing zeros and a bare decimal point dropped.",
+    "str.tostring(x, '#')": "Rounded to an integer.",
+    "timeframe.isdaily/isweekly/ismonthly": "Predicates on the chart's own timeframe; only the 1D row is witnessed.",
+    "syminfo.ticker / tickerid": "Bare symbol and EXCHANGE:SYMBOL respectively; neither contains '/' for an ordinary equity.",
+    "barstate.islast": "True on exactly the newest bar.",
+    "barstate.isconfirmed / ishistory": "True on every closed bar; the forming-bar value is UNMEASURED."
+  }
+}

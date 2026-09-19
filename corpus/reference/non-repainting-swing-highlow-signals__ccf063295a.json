@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ccf063295ac9406b9d9f6d769ea6f258",
+ "title": "Non-Repainting Swing High/Low Signals",
+ "author": "profitgang",
+ "url": "https://www.tradingview.com/script/WOHQscVo-non-repainting-swing-high-low-signals/",
+ "agreeCount": 400,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/non-repainting-swing-highlow-signals__ccf063295a.pine",
+ "our_status": "reference-only"
+}

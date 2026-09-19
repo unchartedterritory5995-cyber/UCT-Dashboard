@@ -1,0 +1,172 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ChartPrime
+
+//@version=6
+indicator("Swing High/Low (ZigZag) [ChartPrime]", overlay = true, max_labels_count = 500)
+
+var line_h = line(na)
+var line_h1 = line(na)
+
+var line_l = line(na)
+var line_l1 = line(na)
+var line_z = line(na)
+
+var index_h = 0
+var index_l = 0
+var trend = bool(na)
+
+var line_up = line(na)
+var line_dn = line(na)
+var lbl_h = label(na)
+var lbl_l = label(na)
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙐𝙎𝙀𝙍 𝙄𝙉𝙋𝙐𝙏𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+int     len            = input.int(100, "Swing Length")
+bool    hide_h_l       = input.bool(true, "Levels", inline = "lvl", group = "Levels")
+bool    broken_levels  = input.bool(false, "Broken Levels", inline = "lvl", group = "Levels")
+bool    history_levels = input.bool(false, "History Levels", inline = "lvl", group = "Levels")
+
+bool    shadow         = input.bool(true, "Shadow", inline = "s", group = "Levels")
+int     shadow_width   = input.int(8, "", inline = "s", group = "Levels")
+
+color   upper_col      = input.color(#c424e0, "▽", inline = "cc")
+color   lower_col      = input.color(#24e075, "△", inline = "cc")
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙄𝙉𝘿𝙄𝘾𝘼𝙏𝙊𝙍 𝘾𝘼𝙇𝘾𝙐𝙇𝘼𝙏𝙄𝙊𝙉𝙎 / 𝙑𝙄𝙎𝙐𝘼𝙇𝙄𝙕𝘼𝙏𝙄𝙊𝙉
+// --------------------------------------------------------------------------------------------------------------------{
+float upper = ta.highest(len)
+float lower = ta.lowest(len)
+
+bool upper_trigger = high[1] == upper[1] and high < upper 
+bool lower_trigger = low[1] == lower[1] and low > lower
+
+if upper_trigger
+    index_h := time[1]
+
+if lower_trigger
+    index_l := time[1]
+
+if high == upper 
+    trend := true
+
+if low == lower 
+    trend := false
+
+if not trend and trend[1]
+    line_h := line.new(index_h, upper, time, upper, color = hide_h_l ? upper_col : na, width = 2, xloc = xloc.bar_time)
+    if shadow
+        line_h1 := line.new(index_h
+                             , upper
+                             , line_h.get_x2()
+                             , upper
+                             , color = hide_h_l ? color.new(upper_col, 70) : na
+                             , width = shadow_width
+                             , xloc = xloc.bar_time)
+
+    line_z := line.new(index_l, line_l.get_y1(), line_h.get_x1(), upper, color = lower_col, xloc = xloc.bar_time)
+
+    if not history_levels
+        line.delete(line_h[1])
+        line.delete(line_h1[1])
+
+
+if trend and not trend[1]
+    line_l := line.new(index_l, lower, time, lower, color = hide_h_l ? lower_col : na, width = 2, xloc = xloc.bar_time)
+    if shadow
+        line_l1 := line.new(index_l
+                             , lower
+                             , time
+                             , lower
+                             , color = hide_h_l ? color.new(lower_col,70) : na
+                             , width = shadow_width
+                             , xloc = xloc.bar_time)
+
+    line_z := line.new(index_h, line_h.get_y1(), line_l.get_x1(), lower, color = upper_col, xloc = xloc.bar_time)
+
+    if not history_levels
+        line.delete(line_l[1])
+        line.delete(line_l1[1])
+
+line_z.set_style(line.style_dashed)
+
+line_l.set_x2(time)
+line_l1.set_x2(time)
+
+line_h.set_x2(time)
+line_h1.set_x2(time)
+
+
+
+bool cross_over  = ta.crossover(low, line_h.get_y1())
+bool cross_under = ta.crossunder(high, line_l.get_y1())
+
+if not (trend != trend[1]) and broken_levels
+    if cross_over 
+        line_h.set_style(line.style_dashed)
+        line_h.set_width(1)
+
+    if cross_under and barstate.isconfirmed 
+        line_l.set_style(line.style_dashed)
+        line_l.set_width(1)
+
+if barstate.islast
+    if trend != trend[1]
+        line.delete(line_up)
+        line.delete(line_dn)
+        label.delete(lbl_h)
+        label.delete(lbl_l)
+
+    if not trend != trend[1]
+        if trend
+            line_up := line.new(index_l
+                                 , line_l.get_y1()
+                                 , index_h
+                                 , upper
+                                 , style = line.style_dashed
+                                 , color = lower_col
+                                 , xloc = xloc.bar_time)
+        if not trend 
+            line_dn := line.new(index_h
+                                 , line_h.get_y1()
+                                 , index_l
+                                 , lower
+                                 , style = line.style_dashed
+                                 , color = upper_col
+                                 , xloc = xloc.bar_time)
+
+    if hide_h_l
+        lbl_h := label.new(bar_index
+                             , line_h.get_y1()
+                             , str.tostring(line_h.get_y1()
+                             , "Swing H  (#,###.####)")
+                             , style = label.style_label_left
+                             , color = color.new(upper_col, 50)
+                             , textcolor = chart.fg_color)
+
+        lbl_l := label.new(bar_index
+                             , line_l.get_y1()
+                             , str.tostring(line_l.get_y1()
+                             , "Swing L  (#,###.####)")
+                             , style = label.style_label_left
+                             , color = color.new(lower_col, 50)
+                             , textcolor = chart.fg_color)
+
+    label.delete(lbl_h[1])
+    label.delete(lbl_l[1])
+    line.delete(line_dn[1])
+    line.delete(line_up[1])
+
+    var tbl = table.new(position.top_right, 10, 10)
+    tbl.cell(0,0,"Swing Direction: ", text_color = chart.fg_color)
+    tbl.cell(1,0, (trend ? "⬈" : "⬊"), text_color = trend ? lower_col : upper_col, text_size = size.huge)
+
+if not hide_h_l
+    label.new(line_h.get_x1(), line_h.get_y2(), "", xloc = xloc.bar_time, color = upper_col)
+    label.new(line_l.get_x1(), line_l.get_y2(), "", xloc = xloc.bar_time, style = label.style_label_up, color = lower_col)
+
+plot(na, editable = false)
+// --------------------------------------------------------------------------------------------------------------------}

@@ -1,0 +1,73 @@
+{
+  "id": "public_script/07-hull-suite",
+  "lane": "public_script",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#07-hull-suite",
+    "captured_at": "2026-09-07",
+    "capture_method": "local_fixture_file"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null,
+      "evidence": []
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "pine"
+    },
+    "translate": {
+      "status": "UNSUPPORTED",
+      "guard": "pine:window",
+      "message": "a Pine length has to reach the engine as a plain whole number — argument 2 of `wma` — `55 / 2` reduces to 27.5, and Pine's `/` on two whole numbers keeps the fraction (their own docs: `5 / 2 = 2.5`), so this is not a whole number of bars. WHICH whole number is a real choice and the two are different indicators: `idiv(55 / 2, 1)` is 27, `round(55 / 2)` is 28. ⚠ If you are expanding a HULL average by hand, this engine's own `hma` declares the half-window as the DOWNWARD one (`floor(n / 2)`, `closedTable.json::_functions_hull`) — so `hma(…)` uses 27 here, and `hma` is already declared, which spares you the expansion entirely",
+      "unsupported_constructs": []
+    },
+    "canonical_ast": {
+      "status": "UNSUPPORTED",
+      "ast_ref": null
+    },
+    "execution_requirements": {
+      "status": "PARTIAL",
+      "note": "Layer A v1 does not extract per-script lookback/timeframe/session requirements yet; deferred to a later pass, disclosed rather than guessed."
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": null,
+      "needs": []
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A is static-only; rendering is Layer B/C"
+    },
+    "persistence_save": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "persistence_reload": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "screener_eligibility": {
+      "status": "UNSUPPORTED",
+      "eligible": false,
+      "reason": "translation did not produce a formula"
+    },
+    "refusal_behavior": {
+      "status": "PARTIAL",
+      "guard": "pine:window",
+      "message": "a hand-expanded Hull hands wma a half-window of 27.5 with no published rounding; the door offers hma instead (doorScorecard.test.js OFFERED)"
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "unsupported_builtin"
+  ],
+  "final_classification": "PARTIAL",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

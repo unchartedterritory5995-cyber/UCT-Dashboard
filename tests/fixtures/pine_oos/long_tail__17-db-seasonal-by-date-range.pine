@@ -1,0 +1,294 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at
+// https://mozilla.org/MPL/2.0/
+// © dbb
+
+//@version=6
+indicator(title='DB Seasonal by Date Range', shorttitle='DB Seasonal',
+    overlay=false, format=format.price, precision=2, max_bars_back=5000)
+
+// ===== INPUTS =====
+// Input for start and end dates
+start_month = input.int(9, title='Start Month (1-12)', minval=1, maxval=12, group="Date Range")
+start_day = input.int(1, title='Start Day (1-31)', minval=1, maxval=31, group="Date Range")
+end_month = input.int(9, title='End Month (1-12)', minval=1, maxval=12, group="Date Range")
+end_day = input.int(30, title='End Day (1-31)', minval=1, maxval=31, group="Date Range")
+
+// Input for lookback years (for detailed table only)
+lookback_years = input.int(10, title='Look Back # Years (Table)', minval=1, maxval=20, group="Analysis Settings")
+
+// Maximum years to analyze (prevents memory issues)
+max_years_to_analyze = input.int(50, title='Max Years to Analyze', minval=10, maxval=100, group="Analysis Settings")
+
+// Color for highlighting
+highlight_color = input.color(color.new(color.blue, 80), title='Highlight Color', group="Display")
+
+// Text size input for tables
+text_size_input = input.string("Small", title="Table Text Size", options=["Tiny", "Small", "Normal", "Large"], group="Display")
+
+// ===== FUNCTIONS =====
+// Function to convert text size input to Pine Script size constant
+get_text_size(size_str) =>
+    switch size_str
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.small
+
+table_text_size = get_text_size(text_size_input)
+
+// Function to check if a given time falls within the seasonal date range for its year
+isInSeasonalRange(int bar_time) =>
+    bar_year = year(bar_time)
+    start_timestamp = timestamp(bar_year, start_month, start_day, 0, 0)
+    end_timestamp = end_month < start_month ?
+         timestamp(bar_year + 1, end_month, end_day, 23, 59) :
+         timestamp(bar_year, end_month, end_day, 23, 59)
+
+    // Also check if we're in the end portion of a range that started previous year
+    prev_year_start = timestamp(bar_year - 1, start_month, start_day, 0, 0)
+    prev_year_end = end_month < start_month ?
+         timestamp(bar_year, end_month, end_day, 23, 59) :
+         timestamp(bar_year - 1, end_month, end_day, 23, 59)
+
+    (bar_time >= start_timestamp and bar_time <= end_timestamp) or
+     (end_month < start_month and bar_time >= prev_year_start and bar_time <= prev_year_end)
+
+// Function to check if current bar's date falls within the specified range (for highlighting)
+isDateInRange() =>
+    current_year = year(time)
+    start_date = timestamp(current_year, start_month, start_day, 0, 0)
+    end_date = timestamp(current_year, end_month, end_day, 23, 59)
+    if (end_month < start_month)
+        end_date := timestamp(current_year + 1, end_month, end_day, 23, 59)
+    (time >= start_date and time <= end_date)
+
+// ===== HELPER FUNCTION: Check if year exists in array =====
+// FIXED: Scans ALL entries in the array, not just the first 6
+yearExistsInArray(array<int> years_array, int check_year) =>
+    bool found = false
+    int arr_size = array.size(years_array)
+    if arr_size > 0
+        for j = 0 to arr_size - 1
+            if array.get(years_array, j) == check_year
+                found := true
+                break
+    found
+
+// ===== INCREMENTAL DATA COLLECTION (Bar-by-Bar) =====
+// Variables to track seasonal periods incrementally
+var array<float> all_seasonal_returns = array.new<float>()
+var array<int> all_seasonal_years = array.new<int>()
+
+// State tracking for current seasonal period
+var float period_start_price = na
+var int period_start_year = na
+var bool in_seasonal_period = false
+var int last_recorded_year = na
+
+// Check current bar's seasonal status
+current_in_range = isInSeasonalRange(time)
+current_bar_year = year(time)
+
+// Determine the "season year" (the year the seasonal period started)
+season_year = end_month < start_month and month(time) <= end_month ? current_bar_year - 1 : current_bar_year
+
+// Detect start of a new seasonal period
+if current_in_range and not in_seasonal_period
+    period_start_price := close
+    period_start_year := season_year
+    in_seasonal_period := true
+
+// Detect end of seasonal period (transition out of range)
+if not current_in_range and in_seasonal_period
+    // Record the seasonal return
+    if not na(period_start_price) and close[1] > 0 and period_start_price > 0
+        // Use previous bar's close as the end price (last bar in range)
+        period_end_price = close[1]
+        seasonal_return = (period_end_price - period_start_price) / period_start_price * 100
+
+        // FIXED: Use helper function to check ALL entries in the array
+        if not yearExistsInArray(all_seasonal_years, period_start_year) and array.size(all_seasonal_returns) < max_years_to_analyze
+            array.unshift(all_seasonal_returns, seasonal_return)
+            array.unshift(all_seasonal_years, period_start_year)
+            last_recorded_year := period_start_year
+
+    in_seasonal_period := false
+    period_start_price := na
+
+// Handle last bar if still in seasonal period (for current/incomplete period)
+if barstate.islast and in_seasonal_period
+    if not na(period_start_price) and close > 0 and period_start_price > 0
+        seasonal_return = (close - period_start_price) / period_start_price * 100
+
+        // FIXED: Use helper function to check ALL entries in the array
+        if not yearExistsInArray(all_seasonal_years, period_start_year) and array.size(all_seasonal_returns) < max_years_to_analyze
+            array.unshift(all_seasonal_returns, seasonal_return)
+            array.unshift(all_seasonal_years, period_start_year)
+            last_recorded_year := period_start_year
+
+// ===== CALCULATE STATISTICS =====
+// Variables for ALL data (used in Summary Box)
+var float all_avg_return = na
+var float all_sum_return = na
+var float all_max_gain = na
+var float all_max_loss = na
+var int all_positive_years = 0
+var int all_total_years = 0
+var float all_win_percentage = na
+
+// Variables for LOOKBACK period only (used in Detail Table TOTALS)
+var float lookback_avg_return = na
+var float lookback_sum_return = na
+var float lookback_max_gain = na
+var float lookback_max_loss = na
+var int lookback_positive_years = 0
+var int lookback_total_years = 0
+var float lookback_win_percentage = na
+
+if barstate.islast and array.size(all_seasonal_returns) > 0
+    all_total_years := array.size(all_seasonal_returns)
+
+    // ===== Calculate statistics for ALL data (Summary Box) =====
+    sum_all_returns = 0.0
+    all_positive_years := 0
+
+    // Loop through ALL years in the array (up to max_years_to_analyze)
+    for i = 0 to all_total_years - 1
+        return_val = array.get(all_seasonal_returns, i)
+        sum_all_returns += return_val
+        if return_val > 0
+            all_positive_years += 1
+
+    all_sum_return := sum_all_returns
+    all_avg_return := sum_all_returns / all_total_years
+    all_win_percentage := (all_positive_years / all_total_years) * 100
+    all_max_gain := array.max(all_seasonal_returns)
+    all_max_loss := array.min(all_seasonal_returns)
+
+    // ===== Calculate statistics for LOOKBACK period only (Detail Table TOTALS) =====
+    lookback_total_years := math.min(lookback_years, array.size(all_seasonal_returns))
+
+    if lookback_total_years > 0
+        sum_lookback_returns = 0.0
+        lookback_positive_years := 0
+
+        // Create temporary array for lookback period to calculate max/min
+        lookback_returns_temp = array.new<float>()
+
+        for i = 0 to lookback_total_years - 1
+            return_val = array.get(all_seasonal_returns, i)
+            sum_lookback_returns += return_val
+            array.push(lookback_returns_temp, return_val)
+            if return_val > 0
+                lookback_positive_years += 1
+
+        lookback_sum_return := sum_lookback_returns
+        lookback_avg_return := sum_lookback_returns / lookback_total_years
+        lookback_win_percentage := (lookback_positive_years / lookback_total_years) * 100
+        lookback_max_gain := array.max(lookback_returns_temp)
+        lookback_max_loss := array.min(lookback_returns_temp)
+
+// ===== CHART HIGHLIGHTING =====
+// FIXED: Uses force_overlay=true to display shaded area on price chart
+bgcolor(isDateInRange() ? highlight_color : na, title="Seasonal Range Highlight", force_overlay=true)
+
+// ===== SUMMARY BOX (Bottom Right) - Uses ALL Data =====
+if barstate.islast
+    var table summary_box = table.new(position.bottom_right, 2, 6,
+         bgcolor=color.white, border_width=1, border_color=color.gray)
+
+    // Handle na values with default text
+    years_text = all_total_years > 0 ? str.tostring(all_total_years) : "0"
+    win_rate_text = not na(all_win_percentage) ? str.tostring(all_win_percentage, "#.1") + "%" : "N/A"
+    sum_return_text = not na(all_sum_return) ? str.tostring(all_sum_return, "#.1") + "%" : "N/A"
+    avg_return_text = not na(all_avg_return) ? str.tostring(all_avg_return, "#.1") + "%" : "N/A"
+    max_gain_text = not na(all_max_gain) ? str.tostring(all_max_gain, "#.1") + "%" : "N/A"
+    max_loss_text = not na(all_max_loss) ? str.tostring(all_max_loss, "#.1") + "%" : "N/A"
+
+    win_color = na(all_win_percentage) ? color.gray : (all_win_percentage >= 50 ? color.green : color.red)
+    sum_color = na(all_sum_return) ? color.gray : (all_sum_return >= 0 ? color.green : color.red)
+    avg_color = na(all_avg_return) ? color.gray : (all_avg_return >= 0 ? color.green : color.red)
+
+    // Header row to clarify this is ALL data
+    table.cell(summary_box, 0, 0, "ALL DATA", bgcolor=color.navy, text_color=color.white, text_size=table_text_size)
+    table.cell(summary_box, 1, 0, "(" + str.tostring(max_years_to_analyze) + " yr max)", bgcolor=color.navy, text_color=color.white, text_size=table_text_size)
+
+    table.cell(summary_box, 0, 1, "Years Analyzed:", text_color=color.black, text_size=table_text_size)
+    table.cell(summary_box, 1, 1, years_text, text_color=color.blue, text_size=table_text_size)
+
+    table.cell(summary_box, 0, 2, "Win Rate:", text_color=color.black, text_size=table_text_size)
+    table.cell(summary_box, 1, 2, win_rate_text, text_color=win_color, text_size=table_text_size)
+
+    table.cell(summary_box, 0, 3, "Total Return:", text_color=color.black, text_size=table_text_size)
+    table.cell(summary_box, 1, 3, sum_return_text, text_color=sum_color, text_size=table_text_size)
+
+    table.cell(summary_box, 0, 4, "Avg Return:", text_color=color.black, text_size=table_text_size)
+    table.cell(summary_box, 1, 4, avg_return_text, text_color=avg_color, text_size=table_text_size)
+
+    table.cell(summary_box, 0, 5, "Max Gain/Loss:", text_color=color.black, text_size=table_text_size)
+    table.cell(summary_box, 1, 5, max_gain_text + " / " + max_loss_text, text_color=color.black, text_size=table_text_size)
+
+// ===== DETAIL TABLE (Top Left) - Uses LOOKBACK Period Only =====
+if barstate.islast and array.size(all_seasonal_returns) > 0
+    years_to_show = math.min(lookback_years, array.size(all_seasonal_returns))
+
+    var table detail_table = table.new(position.top_left, years_to_show + 2, 6,
+         bgcolor=color.white, border_width=1, border_color=color.gray)
+
+    // Row 0: Headers
+    table.cell(detail_table, 0, 0, "METRIC", bgcolor=color.gray, text_color=color.white, text_size=table_text_size)
+
+    // Year headers
+    for i = 0 to years_to_show - 1
+        if i < array.size(all_seasonal_years)
+            year_val = array.get(all_seasonal_years, i)
+            table.cell(detail_table, i + 1, 0, str.tostring(year_val),
+                 bgcolor=color.gray, text_color=color.white, text_size=table_text_size)
+
+    // TOTALS header now shows lookback period
+    table.cell(detail_table, years_to_show + 1, 0, str.tostring(years_to_show) + "YR TOT", bgcolor=color.navy, text_color=color.white, text_size=table_text_size)
+
+    // Row 1: Return % by Year - TOTALS column shows CUMULATIVE SUM
+    table.cell(detail_table, 0, 1, "RETURN %", text_color=color.black, text_size=table_text_size)
+    for i = 0 to years_to_show - 1
+        if i < array.size(all_seasonal_returns)
+            return_val = array.get(all_seasonal_returns, i)
+            cell_color = return_val >= 0 ? color.new(color.green, 80) : color.new(color.red, 80)
+            table.cell(detail_table, i + 1, 1, str.tostring(return_val, "#.2") + "%",
+                 bgcolor=cell_color, text_color=color.black, text_size=table_text_size)
+
+    // TOTALS column - CUMULATIVE SUM of returns
+    lookback_sum_text = not na(lookback_sum_return) ? str.tostring(lookback_sum_return, "#.2") + "%" : "N/A"
+    sum_text_color = na(lookback_sum_return) ? color.gray : (lookback_sum_return >= 0 ? color.green : color.red)
+    table.cell(detail_table, years_to_show + 1, 1, lookback_sum_text,
+         text_color=sum_text_color, text_size=table_text_size)
+
+    // Row 2: AVG RETURN %
+    table.cell(detail_table, 0, 2, "AVG RET %", text_color=color.black, text_size=table_text_size)
+    lookback_avg_text = not na(lookback_avg_return) ? str.tostring(lookback_avg_return, "#.2") + "%" : "N/A"
+    avg_text_color = na(lookback_avg_return) ? color.gray : (lookback_avg_return >= 0 ? color.green : color.red)
+    table.cell(detail_table, years_to_show + 1, 2, lookback_avg_text,
+         text_color=avg_text_color, text_size=table_text_size)
+
+    // Row 3: % Positive (Win Rate - LOOKBACK ONLY)
+    table.cell(detail_table, 0, 3, "% POSITIVE", text_color=color.black, text_size=table_text_size)
+
+    lookback_win_text = not na(lookback_win_percentage) ? str.tostring(lookback_win_percentage, "#.1") + "%" : "N/A"
+    win_text_color = na(lookback_win_percentage) ? color.gray : (lookback_win_percentage >= 50 ? color.rgb(76, 175, 79, 11) : color.red)
+    table.cell(detail_table, years_to_show + 1, 3, lookback_win_text,
+         text_color=win_text_color, text_size=table_text_size)
+
+    // Row 4: % Negative (LOOKBACK ONLY)
+    table.cell(detail_table, 0, 4, "% NEGATIVE", text_color=color.black, text_size=table_text_size)
+    lookback_neg_text = not na(lookback_win_percentage) ? str.tostring(100 - lookback_win_percentage, "#.1") + "%" : "N/A"
+    table.cell(detail_table, years_to_show + 1, 4, lookback_neg_text, text_color=color.black, text_size=table_text_size)
+
+    // Row 5: Max Gain/Loss (LOOKBACK ONLY)
+    table.cell(detail_table, 0, 5, "MAX +/-", text_color=color.black, text_size=table_text_size)
+    lookback_max_text = not na(lookback_max_gain) and not na(lookback_max_loss) ?
+         str.tostring(lookback_max_gain, "#.1") + "/" + str.tostring(lookback_max_loss, "#.1") : "N/A"
+    table.cell(detail_table, years_to_show + 1, 5, lookback_max_text, text_color=color.black, text_size=table_text_size)
+
+// ===== PANE PLOT (keeps indicator pane visible for tables) =====
+plot(0, title="DB Seasonal Table", color=color.new(color.white, 100))

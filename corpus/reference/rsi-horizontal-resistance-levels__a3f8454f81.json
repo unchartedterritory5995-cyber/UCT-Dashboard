@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a3f8454f81234e9dafcb92f444ed966a",
+ "title": "RSI Horizontal resistance levels",
+ "author": "RezzoRedPriest",
+ "url": "https://www.tradingview.com/script/NA3HDw90-rsi-horizontal-resistance-levels/",
+ "agreeCount": 433,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rsi-horizontal-resistance-levels__a3f8454f81.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rsi-horizontal-resistance-levels__a3f8454f81.pine",
+ "our_status": "committed"
+}

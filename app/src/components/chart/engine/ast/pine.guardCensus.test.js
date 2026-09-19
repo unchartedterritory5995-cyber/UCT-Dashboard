@@ -100,8 +100,41 @@ describe('the Pine guard census, by name', () => {
 // ⛔ THE FOLD DID NOT CREATE THESE. It removed the thing standing in front of
 // them — which is what makes an unexercised guard the wrong thing to celebrate:
 // its sentence had never been read by anyone until a cast stopped hiding it.
+// ⭐⭐ `pine:constant-only` AND `pine:presentation-only` ARRIVED on 2026-09-07,
+// and they arrived as NEW GUARDS rather than by a corpus script stopping short.
+// Both name outcomes this door previously expressed as SILENCE — `ok:false` with
+// `refusal: null` — which OOS-2 found on a real published indicator and which
+// five tests in this directory had pinned as the expected shape.
+//   · `pine:constant-only` — every column the script would offer holds the same
+//     number on every bar.
+//   · `pine:presentation-only` — every column is an unchanged price series the
+//     script merely draws with, i.e. `plotcandle(open, high, low, close,
+//     color = <the indicator>)`, whose payload is the colour this door drops.
+// ⚠️ NEITHER IS UNEXERCISED IN THE SENSE THIS LIST WARNS ABOUT. The two published
+// corpora do not reach them, so they belong here — but both are pinned by
+// dedicated cases in `pine.plotcandle.test.js` and
+// `pine.forLoopReassignSilentWrongResult.test.js`, and the 60-script OOS corpus
+// reaches the passthrough PATH on two scripts (each surfacing an earlier, more
+// specific refusal first, which is the better sentence to show).
+// ⭐⭐ TWO MOVERS, 2026-09-14, AND THEY MOVED IN OPPOSITE DIRECTIONS — which is
+// what makes this a capability landing rather than a baseline slipping.
+//
+//   `pine:collection`   JOINS this list. No published script reaches it any
+//                       more: wave 2 item (a) folds a sized array to a
+//                       plan-time vector, so scripts that used to stop at
+//                       their first `array.get` now run past it.
+//   `pine:constant-only` LEAVES it. Those same scripts run on and some of
+//                       them turn out to offer nothing that varies bar to
+//                       bar — so a guard that no corpus script had ever
+//                       reached is now reached, by scripts that could not
+//                       get far enough to reach it before.
+//
+// ⛔ THE METRIC DID NOT MOVE: 266 / 31 / 44, re-derived. Nothing is unlocked
+// end to end; what changed is WHICH guard fires first, which is exactly what
+// this census measures and why it is worth keeping.
 const EXPECTED_UNEXERCISED = [
   'pine:character',
+  'pine:collection',
   'pine:colour-value',
   'pine:declaration-library',
   'pine:drawing',
@@ -109,11 +142,17 @@ const EXPECTED_UNEXERCISED = [
   'pine:function-def',
   'pine:history-ref',
   'pine:input-kind',
+  // ⭐ HOST MODE ONLY (2026-09-08). The census runs the corpus through the
+  // LENIENT contract, where `barstate.*` still folds to its closed-bar value —
+  // so no published script reaches this guard here, and that is correct rather
+  // than a gap. `pineStrictMode.test.js` exercises it directly.
+  'pine:live-bar-state',
   'pine:na',
   'pine:named-argument',
   'pine:offset-literal',
   'pine:offset-negative',
   'pine:operator',
+  'pine:presentation-only',
   'pine:role-order',
   'pine:roundtrip',
   // ⭐⭐ ARRIVED 2026-08-29, and this is the "door got better" direction the note
@@ -129,6 +168,15 @@ const EXPECTED_UNEXERCISED = [
   // constructs this door cannot read. It means no PUBLISHED script now reaches it.
   'pine:statement',
   'pine:text-value',
+  // ⭐⭐ ARRIVED 2026-09-09 AND BELONGS HERE ON PURPOSE. `pine:timeout` is the
+  // wall-clock + step-count guard: it fires when translation does not finish
+  // inside its budget, which no HEALTHY script ever does. Being unexercised by
+  // the corpus is the correct state and is not evidence the guard is inert — it
+  // is proven to fire by `pine.timeout.test.js`, which asks a normal script to
+  // stop at 100 resolution steps and checks it refuses by name.
+  // ⚠️ It will LEAVE this list the day a corpus script legitimately exceeds the
+  // budget, and that would be a defect in the translator, not in the script.
+  'pine:timeout',
   'pine:type',
   // ⭐⭐ MOVED HERE 2026-08-28, and the move IS the measurement. `pine:undefined`
   // was reached by exactly one published script — `10-ehlers-instantaneous-trend`,
@@ -139,6 +187,18 @@ const EXPECTED_UNEXERCISED = [
   // ⚠️ Unexercised does NOT mean dead: an undefined name is still a real refusal
   // a member can reach by typo. It means no PUBLISHED script does.
   'pine:undefined',
+  // ⭐⭐ ARRIVED 2026-09-09 WITH THE BARSTATE RULING, and it belongs here on
+  // purpose. `pine:window-dependent` refuses a value whose answer moves with how
+  // much history was loaded — today exactly one name reaches it, `barstate.isfirst`
+  // on a SCREEN, and no published script in either corpus writes it. Being
+  // unexercised is the correct state rather than a gap.
+  // ⚠️ IT IS NOT UNTESTED: `pine.barstate.test.js` and `pineStrictMode.test.js`
+  // both drive it directly, in BOTH directions — a screen refuses, a pane draws —
+  // because asserting only the refusal is how an exemption becomes a hole.
+  // ⛔ IT WILL LEAVE THIS LIST the day a corpus script writes `barstate.isfirst`,
+  // which is a perfectly ordinary thing to write for initialisation, so the move
+  // would be a fact about the corpus rather than a defect.
+  'pine:window-dependent',
 ]
 
 /* ⭐ MEASURED ACROSS BOTH PUBLISHED CORPORA. The guards above are reached by NONE

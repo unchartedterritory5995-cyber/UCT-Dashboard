@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;wdeUFJ4ZD2waCsczJtwptJx6FYVmQ2d2",
+ "title": "Chart Champions - Part 1 - nPOC - Levels - VWAPs",
+ "author": "Frien_dd-DisDev",
+ "url": "https://www.tradingview.com/script/MPZkvXfR-chart-champions-part-1-npoc-levels-vwaps/",
+ "agreeCount": 3639,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+ "cached_source": "tools/pine_survey/cache/sources/chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+ "our_status": "committed"
+}

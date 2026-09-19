@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;03JuGF728KazijyffgOsiBC6lroCdaY7",
+ "title": "Bollinger Band Width Percentile",
+ "author": "The_Caretaker",
+ "url": "https://www.tradingview.com/script/tqitSsyG-bollinger-band-width-percentile/",
+ "agreeCount": 3633,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/bollinger-band-width-percentile__03JuGF728K.pine",
+ "cached_source": "tools/pine_survey/cache/sources/bollinger-band-width-percentile__03JuGF728K.pine",
+ "our_status": "committed"
+}

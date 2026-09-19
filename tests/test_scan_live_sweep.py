@@ -1223,8 +1223,27 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # assertion stays an EXACT set rather than becoming a containment check: this
     # dict is everything the caller knows that the tree does not, so a key added
     # silently is a channel nobody reviewed.
+    #
+    # ⭐ `now` JOINED THEM 2026-09-09, AND THIS RAIL IS WHY IT WAS REVIEWED. It is
+    # the cycle's evaluating instant, and `ast_interpret` derives the bar-close
+    # TRI-STATE from it through `indicator_compute.bar_close_state`. Without it the
+    # four CLOCK_REALTIME columns blank, and `barstate.islastconfirmedhistory` —
+    # which the Pine door does NOT fold, unlike `isconfirmed`/`ishistory`/
+    # `isrealtime` — came back `not_computable` on every saved scan reading it.
+    # Measured 1 -> None before the fix.
+    #
+    # ⚰⚰ IT WAS `newest_bar_is_forming: mode == LIVE` FOR ONE COMMIT. A mode is
+    # not a clock: this cycle's window was `open + REGULAR_SESSION_LENGTH`, a FIXED
+    # 6h30m gated on FULL closures only, so on a 1pm ET half-day it kept firing
+    # until 16:00 and would have called a settled bar "forming" for three hours.
+    # Pinned by `tests/test_scan_sweep_bar_close_state.py`.
+    # ⭐ THE WINDOW WAS FIXED 2026-09-10 — `_session_length_et` reads both leaf sets
+    # and the cycle now stops at 13:00 on a half-day
+    # (`tests/test_scan_live_window_early_close.py`). ⛔ The instant still stands:
+    # a window is a property of the SWEEP and the tri-state is a property of the
+    # BAR, and the nightly run is `mode != LIVE` over bars that are equally closed.
     keys = {k.value for k in opts.keys}
-    assert keys == {"tf", "symbols"}, keys
+    assert keys == {"tf", "symbols", "now"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")

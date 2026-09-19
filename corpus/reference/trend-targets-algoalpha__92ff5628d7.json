@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;92ff5628d7c643419a350022e0e3866c",
+ "title": "Trend Targets [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/OXsSm5NV-trend-targets-algoalpha/",
+ "agreeCount": 15160,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trend-targets-algoalpha__92ff5628d7.pine",
+ "our_status": "committed"
+}

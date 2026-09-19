@@ -48,7 +48,12 @@ import math
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
+from api.services.nyse_calendar import (
+    NYSE_EARLY_CLOSES_YYYYMMDD,
+    NYSE_HOLIDAYS_YYYYMMDD,
+)
 from api.services.ast_table import (
+    usable_window_bound,
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
     SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
     recurrence_bindings, is_pointwise,
@@ -76,6 +81,7 @@ from api.services.indicator_compute import (
     AVWAP_MIN_INSTANT,
     compute_atr_raw,
     compute_avwap_raw,
+    bar_close_state,
     compute_cci_raw,
     compute_clock,
     compute_donchian_raw,
@@ -83,6 +89,7 @@ from api.services.indicator_compute import (
     compute_macd_raw,
     compute_mfi_raw,
     compute_obv_raw,
+    compute_pvt_raw,
     compute_rsi_raw,
     compute_stoch_raw,
     compute_vwap_raw,
@@ -108,7 +115,33 @@ INF = float("inf")
 #: expression, and that is the whole design: a shape with no slot for an
 #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
 #: FORWARD reference stays inexpressible in both lanes at once.
-NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
+#: ⭐⭐ AND THE BIND-TIME TEXT TRIO. ``textop`` is a QUESTION about text whose
+#: answer is a NUMBER, so it sits wherever a number sits and every walker prices
+#: it as one; ``str`` and ``symtext`` are the only operands it takes and may
+#: appear NOWHERE ELSE. ⛔ THAT PARENTAGE IS THE WHOLE REASON THE TRIO IS
+#: ADMISSIBLE — text can be ASKED ABOUT and can never be CARRIED, so this lane
+#: gains no second value kind. ``parse.js::assertCanonical`` enforces it on the
+#: persisted tree; here the containment shows up as ``interpret`` having no arm
+#: for any of the three, which is correct: they must be FOLDED before evaluation
+#: (``ast_bind.fold_bound``), and one that reaches the evaluator is a refusal
+#: rather than a silently wrong column.
+NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
+              "str", "symtext", "textop")
+
+#: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
+#: before anything computes, and refused by ``interpret`` if one ever reaches it.
+#:
+#: ⛔⛔ THIS EXISTS SO THE SPLIT HAS ONE OWNER. Two rails need it and they need it
+#: for opposite reasons: the conformance census (``tools/ast_conformance.py``)
+#: measures NUMERIC agreement between the lanes and cannot carry a node that
+#: never becomes a number, while the node-type rails must still prove every type
+#: is exercised somewhere. Naming the subset once, here, is what stops those two
+#: from disagreeing about which types are which.
+#:
+#: ⚠️ IT IS NOT AN EXEMPTION LIST. A type named here still has to appear in a
+#: committed net -- ``tests/fixtures/ast/bind_fold_parity.json`` -- and both
+#: lanes still have to agree about it there, string for string.
+BIND_TIME_NODE_TYPES = ("str", "symtext", "textop")
 
 
 # --------------------------------------------------------------------------- #
@@ -348,22 +381,49 @@ REFUSALS: Mapping[str, str] = {
     "interpret:steps": (
         "warming this running value up over these bars would take more steps than "
         "the engine will spend"),
+    # ⭐⭐ R-K (owner ruling, 2026-09-12). ``BIND_TIME_NODE_TYPES`` above already
+    # says these are "settled by the fold before anything computes, and refused
+    # by ``interpret`` if one ever reaches it" -- and until today the refusal it
+    # promised was ``interpret:node -- unknown node type 'textop', legal types
+    # are ... str, symtext, textop``: a sentence naming the type inside its own
+    # list of accepted types. The declaration was right and the branch was
+    # missing, in BOTH lanes, which is why this key lands in both.
+    "interpret:bind-time-text": (
+        "a value that a symbol settles reached the evaluator unsettled — the "
+        "binding did not supply the symbol field it names"),
 }
 
 #: The ceiling on ``bars x warmup`` for one recurrence -- the ONE cost in this
 #: engine a STATIC budget cannot threshold, because it depends on how many bars
 #: the caller brought rather than on the tree alone.
 #:
-#: ⚠️ ONE NUMBER FOR BOTH LANES, AND THIS LANE IS WHY IT IS THIS LOW. The walker
-#: here is plain loops on purpose (numpy would change summation order and cost
-#: the 1e-9 parity), so it is far slower per step than the JS one. A per-lane
-#: ceiling would be two engines: the same formula would draw on a chart and
-#: refuse in an alert, which is the one divergence a cross-lane parity run is
-#: blind to, because both lanes would be internally consistent.
+#: ⚠️ ONE NUMBER FOR BOTH LANES, AND THAT STAYS TRUE. A per-lane ceiling would be
+#: two engines: the same formula would draw on a chart and refuse in an alert,
+#: which is the one divergence a cross-lane parity run is blind to, because both
+#: lanes would be internally consistent.
+#:
+#: ⚰️ BUT "THIS LANE IS WHY IT IS THIS LOW" WAS AN ESTIMATE. The walker here is
+#: plain loops on purpose (numpy would change summation order and cost the 1e-9
+#: parity) and the JS docblock put it at ``~40x slower per step``. R-Q timed the
+#: same synthetic ``accum`` in both lanes, 2026-09-13, and it is 4.9x.
 #:
 #: ⛔ THE VALUE IS ASSERTED EQUAL TO ``interpret.js::MAX_RECURRENCE_STEPS`` in
 #: ``test_ast_interpret.py``, read out of the JS source rather than retyped.
-MAX_RECURRENCE_STEPS = 1000000
+#:
+#: ⭐⭐ R-Q (owner ruling, 2026-09-13): 1,000,000 -> 12,000,000, DERIVED from the
+#: 59-script ``pine_oos`` corpus plus ``uncharted-volume-v2.pine`` -- deepest real
+#: warm-up 250, deepest depth a member reaches 32,000 (``fullBarsFor``), worst
+#: real product 8,000,000, ceiling at 1.5x that. The full derivation lives beside
+#: the JS constant; this file carries the number and not a second copy of the
+#: argument.
+#:
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: sweep at 5,000 bars, so the most this walker can ever be asked for is
+#: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
+#: this ceiling either way. The note above says the low number existed to bound
+#: THIS lane; the measurement says this lane was already bounded by its own bar
+#: cap, and that is why the number could move without moving the risk.
+MAX_RECURRENCE_STEPS = 12000000
 
 #: How far back a running value may read its OWN past -- ``self[k]``.
 #:
@@ -382,6 +442,10 @@ MAX_SELF_LAG = 4
 #: carries it, because how many bars a session holds is decided by the CALENDAR
 #: and the TIMEFRAME rather than by anything the author typed.
 SESSION_LOOKBACK = "session"
+
+#: ``lookback: "series"`` -- THE WINDOW IS THE DELIVERED SERIES. Resolves to 0 in
+#: the budget sum; see `_own_lookback` and `parse.js::SERIES_LOOKBACK`.
+SERIES_LOOKBACK = "series"
 
 #: How far back that reaches, in bars -- READ OFF THE MANIFEST.
 #:
@@ -507,13 +571,159 @@ def _isnan(x: float) -> bool:
 # ⭐ NaN IS A WARMUP, NOT A ZERO, AND IT PROPAGATES. A fabricated 0 during a
 # 199-bar warmup is a number a user could arm an alert on.
 
+#: ⭐⭐⭐ HOW A WINDOW TREATS AN ``na`` IS A PER-MEMBER FACT, NOT A FAMILY ONE.
+#:
+#: ⛔⛔ MEASURED ON TRADINGVIEW 2026-09-08 AND THE FAMILY SPLITS THREE WAYS.
+#: Generalising one member's rule to the other eleven would have been wrong for at
+#: least three of them. Fixture:
+#: ``tests/fixtures/vendor/runtime/finite-window-na-policy-by-member-spy-1d-2026-09-08.json``.
+#: JS twin: ``interpret.js``'s ``NA`` / ``windowOperands`` / ``FINITE_WINDOW[*].na``.
+#: These two lanes are kept equivalent by ``tools/ast_conformance.py``, so they
+#: MUST move together (§11).
+NA_SKIP = "skip"
+NA_PROPAGATE = "propagate"
+NA_RESTART = "restart"
+NA_FFILL = "ffill"
+
+#: The na policy of every finite-window member, by TABLE name.
+#:   SKIP      -- the last ``n`` FINITE observations, however many BARS that spans;
+#:                answers on the ``na`` bar itself (vendor: 133 of 133).
+#:   PROPAGATE -- a clean ``n``-BAR window; blank for exactly ``n-1`` bars after a hole.
+#:   RESTART   -- the window begins again after a hole, so one bar later
+#:                ``highest == lowest ==`` the lone observation.
+#:   FFILL     -- an ``na`` in the LOOKBACK is replaced by the last finite value
+#:                and keeps its bar-position weight; the answer is ``na`` only
+#:                when the CURRENT bar is ``na``. Vendor-pinned 2026-09-08.
+WINDOW_NA: Dict[str, str] = {
+    "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
+    "highest": NA_RESTART, "lowest": NA_RESTART,
+    "highestbars": NA_RESTART, "lowestbars": NA_RESTART,
+    "wma": NA_FFILL,
+    # ⚠️ STILL NOT DETERMINED. ``dev`` is the one member whose PROPAGATE reading
+    # is positively observed (210ok/0bad, PART Z) rather than a default.
+    "dev": NA_PROPAGATE,
+}
+
+#: The answer when the CURRENT bar is ``na`` and the policy would otherwise
+#: refuse. Only the two arg-extremes declare one: the vendor answers 0 there
+#: because a restarted window's only candidate is this bar, so the OFFSET is
+#: defined even though the VALUE is not.
+WINDOW_NA_CURRENT: Dict[str, float] = {"highestbars": 0.0, "lowestbars": 0.0}
+
+
+def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
+    """The operand list for bar ``i`` under one policy, or ``None`` if unanswerable."""
+    if policy == NA_PROPAGATE:
+        return series, i - n + 1, i
+    if policy == NA_RESTART:
+        if not math.isfinite(series[i]):
+            return None
+        lo = i
+        while lo > i - n + 1 and lo > 0 and math.isfinite(series[lo - 1]):
+            lo -= 1
+        return series, lo, i
+    buf: List[float] = []
+    j = i
+    while j >= 0 and len(buf) < n:
+        if math.isfinite(series[j]):
+            buf.append(series[j])
+        j -= 1
+    if len(buf) < n:
+        return None
+    buf.reverse()
+    return buf, 0, n - 1
+
+
 def _rolling(series: Sequence[float], n: int,
-             reduce: Callable[[Sequence[float], int, int], float]) -> List[float]:
-    """Rolling reduction over a full window. NaN before bar ``n-1``."""
+             reduce: Callable[[Sequence[float], int, int], float],
+             policy: str = NA_PROPAGATE,
+             na_current: Optional[float] = None) -> List[float]:
+    """Rolling reduction over a full window. NaN before bar ``n-1``.
+
+    ⚠️ THE SERIES-START WARM-UP IS UNCHANGED AND DELIBERATELY SO. Every vendor
+    capture begins deep in real history, so what Pine does on bar 0 of a symbol
+    has never been observed. ``RESTART`` answers with a PARTIAL run after a hole
+    because that IS observed; the ``i < n - 1`` gate at the start of the series is
+    not, so it stays.
+
+    ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE, in O(N). Gathering it
+    per-bar would make one bar's cost depend on how long the preceding gap was.
+    The JS twin is ``interpret.js::rolling``.
+    """
     out = _nan_col(len(series))
+    src: Sequence[float] = series
+    if policy == NA_FFILL:
+        filled: List[float] = []
+        carry = NAN
+        for v in series:
+            if math.isfinite(v):
+                carry = v
+            filled.append(carry)
+        src = filled
+    inner = NA_PROPAGATE if policy == NA_FFILL else policy
     for i in range(n - 1, len(series)):
-        out[i] = reduce(series, i - n + 1, i)
+        # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
+        # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
+        # being asked about.
+        if policy == NA_FFILL and not math.isfinite(series[i]):
+            continue
+        w = _window_operands(src, n, i, inner)
+        if w is not None:
+            buf, lo, hi = w
+            out[i] = reduce(buf, lo, hi)
+        elif na_current is not None and not math.isfinite(series[i]):
+            out[i] = na_current
     return out
+
+
+def _cum_col(series: Sequence[float]) -> List[float]:
+    """``cum(source)`` -- the running total from bar 0 of the DELIVERED series.
+
+    ⭐⭐ THE ``na`` RULE IS THE VENDOR'S AND IT IS THREE FACTS, NOT ONE. Measured
+    on TradingView 2026-09-08 (SPY 1D, 8,459 bars):
+      1. ``na`` BEFORE the first finite input -- a total of nothing is not 0.
+      2. ``na`` **ON** an ``na`` bar -- the vendor draws no point there.
+      3. the total is HELD across it: 7330 -> na -> 7331. It neither advances nor
+         resets, and the final value equalled the count of finite inputs EXACTLY
+         (7,690 of 8,459), which is what proves a skipped bar contributes nothing.
+
+    ⛔ (2) IS THE ONE AN IMPLEMENTATION GETS WRONG. The spec this was built from
+    said *"na inputs contribute 0 once the series has started"* -- true of the
+    TOTAL and false of the OUTPUT, and its literal wording would paint a value on
+    a bar TradingView leaves blank.
+
+    ⛔ MIRROR OF ``interpret.js::cumCol``, which carries the same note. The two
+    lanes are held to each other by the conformance comparator, not by this
+    comment.
+    """
+    out = [NAN] * len(series)
+    total = 0.0
+    for i, v in enumerate(series):
+        if not (isinstance(v, (int, float)) and math.isfinite(v)):
+            continue                       # out[i] stays NaN AND `total` is held
+        total += float(v)
+        out[i] = total
+    return out
+
+
+def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
+               span: Optional[Callable[[int], int]] = None):
+    """⛔⛔ EVERY finite-window member goes through here, so a member CANNOT be
+    wired past its own declared policy.
+
+    Until 2026-09-08 the call sites passed ``WINDOW_NA[name]`` one at a time, and
+    six of them simply did not -- ``wma``, ``dev``, ``highestbars``,
+    ``lowestbars``, ``rising`` and ``falling`` called ``_rolling`` with the
+    DEFAULT policy while ``WINDOW_NA`` declared one beside them. They agreed only
+    because the default happened to be the same string, so editing the table
+    would have changed nothing and the edit would have looked applied. That is a
+    second authority over one value, and it is the exact shape this engine has
+    paid for repeatedly.
+    """
+    def fn(series: Sequence[float], n: int) -> List[float]:
+        return _rolling(series, span(n) if span else n, reduce,
+                        WINDOW_NA[name], WINDOW_NA_CURRENT.get(name))
+    return fn
 
 
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
@@ -566,11 +776,15 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
     best = _window_extreme(series, lo, hi, better)
     if math.isnan(best):
         return NAN
-    # ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
-    # one. Bounded by ``lo`` rather than run open -- a walk that could step past
-    # the window would read a negative index (Python wraps; JS yields
-    # ``undefined`` and never terminates).
-    for i in range(hi, lo - 1, -1):
+    # ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
+    # the OLDER occurrence -- the LARGER distance back. Measured 2026-09-08 on a
+    # two-valued source built to force ties: ``ties -> OLDEST`` is 380ok/0bad and
+    # ``ties -> NEWEST`` is 193ok/187bad, 244 of the agreeing bars carrying no
+    # ``na`` at all, so this is a tie rule and not an ``na`` rule in disguise.
+    # ⚰️ THIS WALKED BACKWARD FROM ``hi`` UNTIL THEN. Untied windows agree under
+    # both walks, which is why it survived: the derived-value invariant
+    # ``high[highestbars(high,n)] == highest(high,n)`` holds either way.
+    for i in range(lo, hi + 1):
         if series[i] == best:
             return float(hi - i)
     # ⚠️ UNREACHABLE WHILE ``_window_extreme`` HOLDS ITS CONTRACT -- it only ever
@@ -678,6 +892,150 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     return math.sqrt(sq / (hi - lo + 1))
 
 
+# ⚰️⚰️ ``_window_rising_monotone`` AND ``_window_falling_monotone`` LIVED HERE
+# AND ARE GONE (2026-09-08). They were right about STRICTNESS and wrong about
+# FAMILY -- see ``_monotone_col``. Their own docstrings disclosed the hole that
+# killed them (*the vendor's stated na-skipping window walk is not
+# implemented*), which framed the open question as WHICH window policy applies;
+# the answer is that there is no window. The strictness half of their evidence
+# survives and is stronger: re-proved 2026-09-08 on a source with flat steps,
+# 380ok/0bad for strict ``>`` against 0ok/380bad for ``>=``.
+
+
+
+def _window_median(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.median(src, length)`` — rank-counting, no sort/array ops.
+
+    Even length resolved 2026-09-06 by a real vendor capture to MEAN of the
+    two middle ranks (not the lower-middle rank the int->int overload had
+    circumstantially suggested) — see
+    ``_functions_vendor_parity_resolutions.median_resolution``. The JS twin
+    is ``interpret.js::windowMedian``.
+    """
+    length = hi - lo + 1
+
+    def rank_element(k: int) -> float:
+        for j in range(lo, hi + 1):
+            vj = series[j]
+            if _isnan(vj):
+                return NAN
+            less = 0
+            equal = 0
+            for m in range(lo, hi + 1):
+                vm = series[m]
+                if _isnan(vm):
+                    return NAN
+                if vm < vj:
+                    less += 1
+                elif vm == vj:
+                    equal += 1
+            if less <= k < less + equal:
+                return vj
+        return NAN  # unreachable while every window index is scanned above
+
+    if length % 2 == 1:
+        return rank_element((length - 1) // 2)
+    a = rank_element(length // 2 - 1)
+    b = rank_element(length // 2)
+    if _isnan(a) or _isnan(b):
+        return NAN
+    return (a + b) / 2
+
+
+def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
+    """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
+    current) / length``. NOT expressible via a running ``sum`` (each ``sum``
+    term evaluates at its OWN bar; percentrank compares every prior term
+    against the SAME current bar). Resolved 2026-09-06 by a real vendor
+    capture confirming divisor ``length`` with the current bar EXCLUDED —
+    see ``_functions_vendor_parity_resolutions.percentrank_resolution``.
+    """
+    cur = series[i]
+    if _isnan(cur):
+        return NAN
+    count = 0
+    for k in range(1, length + 1):
+        v = series[i - k]
+        if _isnan(v):
+            return NAN
+        if v <= cur:
+            count += 1
+    return 100.0 * count / length
+
+
+def _bbw_col(series: Sequence[float], n: int, mult: float) -> List[float]:
+    """``ta.bbw(src, length, mult)`` — the PERCENT form: ``(2 * mult *
+    stdev(src, length) / sma(src, length)) * 100``, with ``stdev`` the same
+    POPULATION form ``_window_stdev`` already uses.
+
+    Resolved 2026-09-06 by a real vendor capture confirming the percent form
+    (x100), not the bare ratio — see
+    ``_functions_vendor_parity_resolutions.bbw_resolution``. The JS twin is
+    ``interpret.js``'s ``FN.bbw``.
+
+    ⚠️ KNOWN, DISCLOSED NARROWING: ``mult`` is typed ``int`` in
+    ``closedTable.json`` (this grammar has no float-constant arg type at all
+    — ``int``/``series`` are the only two argument kinds in the whole
+    table), so a fractional multiplier cannot be expressed here, unlike
+    TradingView's true float-typed signature. The captured real evidence
+    used ``mult=2`` (an integer).
+    """
+    sd = _rolling(series, n, _window_stdev)
+    avg = _rolling(series, n, _window_mean)
+    out = _nan_col(len(series))
+    for i in range(len(series)):
+        s, a = sd[i], avg[i]
+        if _isnan(s) or _isnan(a) or a == 0:
+            continue
+        out[i] = (2 * mult * s / a) * 100
+    return out
+
+
+def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
+    """``ta.rising`` / ``ta.falling`` -- a CARRIED COUNTER, not a window.
+
+    ⛔⛔ THESE WERE FINITE-WINDOW MEMBERS UNTIL 2026-09-08 AND THE FAMILY WAS
+    WRONG, not merely the ``na`` policy inside it. No window policy fits: skip,
+    forward-fill and propagate score 323/52, 291/84 and 287/88 against the
+    capture. The reason is a contradiction no window can hold -- two bars of the
+    capture present STRUCTURALLY IDENTICAL windows (an ``na`` followed by four
+    strictly rising values) and TradingView answers TRUE at one and FALSE at the
+    other.
+
+    What it reads is a count of consecutive strict steps that HOLDS across an
+    ``na`` exactly as the smoother does. 375ok/0bad on three independent sources;
+    RESET-on-``na`` scores 287/88. The JS twin is ``interpret.js::monotoneStep``.
+
+    ⚠️ THE RETURN IS A DEFINITE 0/1 AND THAT IS NOT AN APPROXIMATION. The same
+    capture proves ``not na`` is TRUE in Pine and ``na ? 1 : 0`` is 0, so an
+    ``na`` bool is indistinguishable from ``false`` through every boolean
+    operation the language has. There is no observable third state to keep.
+
+    ⛔ THE WARM-UP GATE IS KEPT AND IT GUARDS SOMETHING UNOBSERVED. As a window
+    over ``n + 1`` samples these blanked bars ``0..n-1``; a bare counter answers
+    ``false`` there instead. No capture has ever seen the start of a series, so
+    the correction stops at the edge of what was measured. Without the gate the
+    CLEAN corpus moves, and only GAPPY sources should.
+    """
+    out = _nan_col(len(series))
+    count = 0
+    prev = NAN
+    seen = 0
+    for i, v in enumerate(series):
+        if math.isfinite(v) and math.isfinite(prev):
+            step = (v > prev) if rising else (v < prev)
+            count = count + 1 if step else 0
+        # else: HOLD -- do not advance, do not reset.
+        prev = v
+        seen += 1
+        # The step always runs; only the OUTPUT is withheld during warm-up, and
+        # the gate counts SAMPLES rather than bars so the JS twin can carry the
+        # identical rule in a cell and keep it on the invocation clock.
+        if seen > n:
+            out[i] = 1.0 if count >= n else 0.0
+    return out
+
+
 def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     """An exponential smoother seeded with the SMA of the first full window.
 
@@ -687,11 +1045,26 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     See ``closedTable.json::_functions_smoothing`` for why the ALPHA is what is
     shared and the period is not.
 
-    ⚠️ THE SEED IS A DECISION AND IT MATCHES BOTH THE NATIVE LANE AND
-    ``interpret.js::emaCol``. A NaN in the input RESTARTS the seed — the warmup of
-    a composed series (``ema(sma(close,20), 9)``) is exactly that case, and an EMA
-    that carried its state across a hole would be reporting an average of bars it
-    never saw.
+    ⭐⭐⭐ A NaN IN THE INPUT HOLDS THE STATE. VENDOR-PINNED 2026-09-08.
+
+    TradingView keeps the smoother unchanged across an ``na`` bar, emits ``na``
+    AT that bar, and takes ONE normal step on the next finite bar. Measured on
+    four holes for both members (err 0 or 1.1e-13) and again on a 400-bar capture
+    where 0 of 133 na bars carried a value while every finite bar did.
+
+    ⚰⚰ THIS DOCSTRING SAID THE OPPOSITE -- "A NaN in the input RESTARTS the
+    seed ... an EMA that carried its state across a hole would be reporting an
+    average of bars it never saw." Coherent, and not Pine. Owner ruling
+    2026-09-08: vendor truth wins, and cross-lane agreement is worth nothing when
+    the shared authority is wrong. ``interpret.js::smoothStep`` carries the same
+    correction; these two lanes MUST move together or the screener and the chart
+    disagree about one number.
+
+    ⚠️ THE SEED IS STILL A DECISION AND IS *NOT* VENDOR-OBSERVED. Every capture
+    begins deep in real history where the smoother already carries state, so no
+    fixture has seen the first emitted value. It matches the native lane and
+    TradingView's published prose -- prose evidence, not a screen read.
+
     """
     out = _nan_col(len(series))
     prev = NAN
@@ -700,7 +1073,7 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     for i in range(len(series)):
         v = series[i]
         if not math.isfinite(v):
-            prev, count, total = NAN, 0, 0.0
+            # HOLD: state untouched, this bar answers `na`.
             continue
         if math.isnan(prev):
             total += v
@@ -1314,20 +1687,16 @@ def _donchian(h, l, n, index):  # noqa: E741
 #: cannot evaluate — which is the exact shape of the bug B5 fixed, where an alert
 #: naming a JS-only indicator could be STORED and could never FIRE.
 FN: Dict[str, Callable[..., List[float]]] = {
-    "sma": lambda series, n: _rolling(series, n, _window_mean),
+    "sma": _window_fn("sma", _window_mean),
     "ema": lambda series, n: _ema_col(series, n),
-    "highest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
-    "lowest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
+    "highest": _window_fn("highest", lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowest": _window_fn("lowest", lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
     # ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME OBJECT SHAPE THE
     # VALUE FORMS PASS -- `_window_arg_extreme` asks `_window_extreme` for the
     # value and only then names the bar, so the pair cannot disagree about one
     # window and the tie-break is the manifest's ruling rather than this line's.
-    "highestbars": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
-    "lowestbars": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
+    "highestbars": _window_fn("highestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
     # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
@@ -1337,9 +1706,23 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, left, right, lambda v, w: v > w),
     "pivotlow": lambda series, left, right: _pivot_col(
         series, left, right, lambda v, w: v < w),
-    "stdev": lambda series, n: _rolling(series, n, _window_stdev),
-    "sum": lambda series, n: _rolling(series, n, _window_sum),
-    "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
+    "stdev": _window_fn("stdev", _window_stdev),
+    "sum": _window_fn("sum", _window_sum),
+    "dev": _window_fn("dev", _window_mean_abs_dev),
+    # ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
+    # TradingView capture. See ``closedTable.json``'s
+    # ``_functions_vendor_parity_resolutions`` for the full evidence chain
+    # each of these four carries. JS twins: ``interpret.js``'s ``FN.rising``/
+    # ``FN.median``/``FN.percentrank``/``FN.bbw``.
+    "rising": lambda series, n: _monotone_col(series, n, True),
+    # BATCH 1 -- resolved 2026-09-06 by real TradingView capture (independent
+    # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
+    "falling": lambda series, n: _monotone_col(series, n, False),
+    "median": _window_fn("median", _window_median),
+    "percentrank": lambda series, n: [
+        _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
+    ],
+    "bbw": lambda series, n, mult: _bbw_col(series, n, mult),
     "change": _fn_change,
     "abs": _fn_abs,
     # ⚠️ NaN PROPAGATES, WRITTEN OUT RATHER THAN INHERITED. JS's `Math.min(NaN, x)`
@@ -1367,7 +1750,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "idiv": lambda a, b: _elementwise2(a, b, _guarded_idiv),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "rma": lambda series, n: _rma_col(series, n),
-    "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),
+    "cum": _cum_col,
+    "wma": _window_fn("wma", _window_weighted_mean),
     "hma": lambda series, n: _hma_col(series, n),
     "sign": lambda series: [_guarded_sign(v) for v in series],
     "round": lambda series: [_guarded_round(v) for v in series],
@@ -1546,6 +1930,32 @@ def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     """
     n = int(args[0])
     level = compute_obv_raw(bars)
+    out: List[MaybeNum] = [None] * len(bars)
+    if len(level) != len(bars):
+        return out
+    for i in range(n, len(bars)):
+        near, far = level[i], level[i - n]
+        if not (_is_number(near) and _is_number(far)):
+            continue
+        out[i] = float(near) - float(far)
+    return out
+
+
+def _fn_pvtn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``pvtN(n)`` -- price-volume trend's CHANGE across the last ``n`` bars.
+
+    Mirrors ``_fn_obvn`` exactly, for the identical reason: ``ta.pvt`` is a
+    bare Pine builtin (close-and-volume by definition), its LEVEL is refused
+    for the same unseeded-cumulative reason as OBV
+    (``_functions_excluded.pvt``), and only the windowed DELTA is declarable
+    because the arbitrary seed cancels in a difference.
+
+    Verified against a real TradingView capture
+    (``tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json``):
+    exact match on 15 real SPY trading days, steady-state.
+    """
+    n = int(args[0])
+    level = compute_pvt_raw(bars)
     out: List[MaybeNum] = [None] * len(bars)
     if len(level) != len(bars):
         return out
@@ -1744,6 +2154,29 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     ``_binary_div`` for IEEE division and the finite-or-NaN collapse ``_to_column``
     applies -- so a zero-range bar answers exactly what
     ``sma((close - open) / (high - low), n)`` answers, rather than nearly.
+
+    ⛔⛔ THE COMPOSITION SENTENCE ABOVE IS TRUE ONLY WHERE THE RATIO IS FINITE,
+    AND SINCE 2026-09-08 THAT IS A REAL CARVE-OUT RATHER THAN A PEDANTIC ONE.
+    This window PROPAGATES an ``na`` (the ``_rolling`` default); ``sma`` was
+    measured against TradingView that day and declared ``NA_SKIP``. So on a bar
+    where ``high == low`` -- a halt, a limit lock, a one-tick session -- the
+    declared ``bop(n)`` answers a HOLE and the hand-written
+    ``sma((close - open) / (high - low), n)`` answers a NUMBER, because it drops
+    the uncomputable bar and averages the rest.
+
+    ⛔ THE HOLE IS THE ONE TO KEEP, AND THE ARGUMENT IS IN
+    ``test_bop_over_a_zero_range_bar_is_a_HOLE_and_not_a_CONFIDENT_EXTREME``:
+    ``1/0`` is ``+Infinity``, ``_cmp`` compares it as a real number larger than
+    every threshold, and BOP is bounded -1..+1 -- so ``bop(n) > 0`` on a bar
+    nobody can compute prints the STRONGEST reading this indicator has. Matching
+    ``sma``'s skip would restore that. Measured, not argued: making this line read
+    ``sma``'s policy turned two red tests into four.
+
+    ⚠️ SO THE TWO SPELLINGS DIVERGE ON EXACTLY THE ``na`` BARS, and that is
+    recorded rather than hidden. It is the narrowest form of the thing
+    ``_functions_excluded`` warns about -- a declared entry that does not equal
+    its own composition -- and it exists because a vendor measurement moved under
+    a composition claim written before it.
     """
     n = int(args[0])
     ratio = []
@@ -1754,7 +2187,7 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
             continue
         ratio.append(_finite_or_nan(
             _binary_div(_number(c) - _number(o), _number(h) - _number(l))))
-    col = _rolling(ratio, n, _window_mean)
+    col = _rolling(ratio, n, _window_mean)          # NA_PROPAGATE — see above
     return [None if math.isnan(v) else v for v in col]
 
 
@@ -1763,6 +2196,7 @@ _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
     "avwap": _fn_avwap,
     "obvN": _fn_obvn,
+    "pvtN": _fn_pvtn,
     "cumFrom": _fn_cum_from,
     "aroonUp": _fn_aroon_up,
     "aroonDown": _fn_aroon_down,
@@ -1904,7 +2338,13 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live"):
+        # ⭐ ``textop`` CARRIES ARGS TOO -- added with R-K, mirroring
+        # ``interpret.js::flatten``. Leaving it out meant a malformed operand
+        # inside a bind-time text question was never asserted, so the one node
+        # type most likely to arrive UNFOLDED was the one whose children nothing
+        # checked.
+        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
+                            "textop"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -1913,6 +2353,30 @@ def _flatten(root: Any) -> List[dict]:
                 stack.append(arg)
     order.reverse()          # a reversed pre-order puts every child before its parent
     return order
+
+
+def _bind_time_fields_in(root: Any) -> List[str]:
+    """Every ``syminfo.*`` field a bind-time text subtree needs, sorted.
+
+    ⭐ THE REFUSAL'S WHOLE VALUE IS THIS LIST. ``str.contains(syminfo.tickerid,
+    "/")`` and ``str.contains(syminfo.ticker, "/")`` fail for DIFFERENT reasons
+    -- ``ticker`` is the string our own store is keyed by and always resolvable,
+    while ``tickerid`` needs a witnessed exchange spelling -- so a refusal that
+    named only the node type would send a member to rewrite a script that is
+    fine. Mirrors ``interpret.js::bindTimeFieldsIn``.
+    """
+    out: set = set()
+    stack = [root]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, Mapping):
+            continue
+        if n.get("type") == "symtext" and isinstance(n.get("name"), str):
+            out.add(f"syminfo.{n['name']}")
+        args = n.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return sorted(out)
 
 
 def symbols_named(ast: Any) -> tuple:
@@ -2167,13 +2631,51 @@ def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
         return int(lb)
     if lb == SESSION_LOOKBACK:
         return SESSION_MAX_BARS
+    # ⭐ ``series`` CONTRIBUTES 0 TO THE TREE SUM. `budget.maxLookback` prices
+    # WARM-UP, and `ta.cum` answers on bar 0 (measured: `ta.cum(1) == bar_index +
+    # 1` on all 8,459 bars of a SPY 1D capture), so it sacrifices nothing at the
+    # left edge. What it DOES cost -- the value moving with the fetch width -- is
+    # carried by `_requirement_tags.window_dependent`, never by this number.
+    # Mirror: `interpret.js::ownLookback`, and `parse.js::SERIES_LOOKBACK` has the
+    # full argument.
+    if lb == SERIES_LOOKBACK:
+        return 0
     m = _LOOKBACK_RE.fullmatch(str(lb))
     if m is None:
         _refuse("interpret:node",
                 f"{node.get('name')!r} declares lookback {lb!r}, which is neither a "
                 "constant nor an argument")
     times = int(m.group(1)) if m.group(1) else 1
-    return times * _window_literal(node, int(m.group(2)))
+    return times * _bindable_window(node, int(m.group(2)))
+
+
+def _bindable_window(node: dict, index: int) -> int:
+    """The window a REGISTRATION-TIME reader may accept — wider than the evaluator's.
+
+    ⭐⭐ R-G (owner ruling, 2026-09-12). ``_window_literal`` requires a literal
+    ``num`` node, and it stays that way for the EVALUATOR: by the time a tree is
+    computed the bind stage has folded every bind-time length, so a non-literal
+    there is a real defect. A LOOKBACK is asked at REGISTRATION, where no binding
+    exists — and refusing there made ``timeframe.isweekly ? lenWeekly : lenDaily``
+    uninstallable, which is the exact pattern ``_bind_time_constants`` exists for.
+
+    ⛔ IT OVER-CLAIMS, WHICH IS THE ONLY SAFE DIRECTION.
+    ``usable_window_bound`` returns the MAXIMUM over the arms. An over-stated
+    lookback costs warm-up bars at the left edge; an UNDER-stated one hands back
+    numbers computed from bars that were never fetched, which this function's own
+    caller calls the one direction a budget must never fail in.
+
+    ⛔ AND IT IS THE SAME CONTRACT ``ast_lint`` AND ``parse.js`` READ.
+    ``ast_table.bind_foldable_window`` is the single walk; three readers, one
+    grammar, and ``tests/test_ast_lookback_parity.py`` holds them to one answer.
+    A foldable length whose bound is not a usable window (``0.5``, ``-3``) falls
+    through to ``_window_literal`` so the member still gets the named refusal.
+    """
+    bound = usable_window_bound((node.get("args") or [None] * (index + 1))[index]
+                                if index < len(node.get("args") or []) else None)
+    if bound is not None:
+        return bound
+    return _window_literal(node, index)
 
 
 def max_lookback(ast: Any) -> int:
@@ -2197,6 +2699,17 @@ def max_lookback(ast: Any) -> int:
     for node in order:
         kind = node["type"]
         if kind in ("num", "series"):
+            seen[id(node)] = 0
+            continue
+        # ⭐ BIND-TIME TEXT COSTS NOTHING IN BARS, and that is a fact about the
+        # values rather than a convenience: ``syminfo('ticker')`` is settled by
+        # the BINDING, so it reads no bar at all, and a text question over such
+        # operands reads none either. ⛔ ZERO IS NOT A DEFAULT HERE — every other
+        # unhandled type falls through to a refusal below, because a lookback
+        # silently guessed at 0 is the one direction a budget must never fail in:
+        # it hands back numbers computed from bars that were never fetched.
+        # Mirrors ``interpret.js::maxLookback``'s arm.
+        if kind in ("str", "symtext", "textop"):
             seen[id(node)] = 0
             continue
         if kind == "op":
@@ -2255,7 +2768,13 @@ def max_lookback(ast: Any) -> int:
         best = 0
         for i in range(len(node["args"])):
             if spec["args"][i] == "int":
-                _window_literal(node, i)
+                # ⛔ THE SAME REGISTRATION-TIME READER AS THE LOOKBACK ABOVE (R-G).
+                # This is a VALIDATION of the slot, not a measurement, and it must
+                # admit exactly what `_own_lookback` admits — otherwise a
+                # bind-foldable length would be measured happily one line up and
+                # refused here, which is the same two-readers defect one function
+                # further in. The value is discarded; the refusal is the point.
+                _bindable_window(node, i)
                 continue
             best = max(best, seen[id(node["args"][i])])
         # ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED,
@@ -2780,6 +3299,38 @@ def _assert_clock_wiring() -> None:
     _CLOCK_WIRING_OK.add(key)
 
 
+def _nyse_full_closures() -> frozenset:
+    """NYSE FULL CLOSURES, from the one authority.
+
+    ⛔ READ, NEVER COPIED — ``api/services/nyse_calendar.py``, a dependency-free
+    leaf. ``bars_fetch`` re-exports the same object under its historical name, so
+    there is still exactly one set and five readers of it.
+
+    ⚰️ THIS WAS A ``try: from api.services.bars_fetch import ...`` UNTIL
+    2026-09-09. The defensiveness was real — importing ``bars_fetch`` drags
+    fastapi, the Massive client and a thread pool in to read thirty dates — but a
+    ``try/except`` in THIS file is forbidden by ``tests/test_ast_budget.py``: a
+    caught ``RecursionError`` is one line from being a budget refusal. Moving the
+    literal to a leaf removes the reason for the guard instead of the guard.
+    """
+    return NYSE_HOLIDAYS_YYYYMMDD
+
+
+def _nyse_early_closes() -> frozenset:
+    """NYSE 1pm ET HALF-DAYS, from the one authority.
+
+    ⛔ READ, NEVER COPIED — the same leaf; ``liveflow_monitor`` re-exports this
+    object under its historical name, keeping its five read sites and the parity
+    rail ``tests/test_nyse_calendar_parity.py`` untouched.
+
+    ⚰️ THIS SET WAS ONCE REPORTED AS NOT EXISTING. The claim reasoned from
+    ``bars_fetch``'s own comment that half-days are "intentionally NOT" in THAT
+    set — true of that set, false of the repo. Wiring it in is what closed the
+    gap; naming the gap was what kept it open.
+    """
+    return NYSE_EARLY_CLOSES_YYYYMMDD
+
+
 def _reads_clock(ast: Any) -> bool:
     """Does this tree read any name the manifest declares as a clock entry?
 
@@ -2956,7 +3507,28 @@ def interpret(ast: Any, bars: List[dict],
     # is what caught it: it interprets `close`, a leaf that reads no clock.
     _assert_clock_wiring()
     if _reads_clock(ast):
-        clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+        # ⭐ THE TRI-STATE TRAVELS WITH THE TIMEFRAME, and for the same reason:
+        # it is something the CALLER knows and the bars do not. Absent, the four
+        # BARSTATE realtime columns are None -- the identical fail-closed
+        # contract tf already has, and never a guessed instant.
+        #
+        # ⛔⛔ THIS IS THE ONE PLACE THE TRADING CALENDAR IS CONSULTED, AND IT IS
+        # CONSULTED ON THIS SIDE ON PURPOSE. Both sets are READ from their single
+        # authorities rather than copied: ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD``
+        # (full closures) and ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD``
+        # (1pm ET half-days). ``bar_close_state`` reduces them to ONE tri-state,
+        # and that is the only thing the JS twin is ever handed -- never a date
+        # set, which would be a second authority in a second language.
+        _o = opts or {}
+        forming = _o.get("newest_bar_is_forming")
+        if forming is None and _o.get("now") is not None:
+            forming = bar_close_state(
+                bars, _o.get("tf"), _o.get("now"),
+                _o["holidays"] if "holidays" in _o else _nyse_full_closures(),
+                _o["early_closes"] if "early_closes" in _o
+                else _nyse_early_closes(),
+            )
+        clock_cols = compute_clock(bars, _o.get("tf"), forming)
         for name in TABLE.get(CLOCK_SECTION) or {}:
             col = clock_cols.get(name)
             if col is None:
@@ -3271,6 +3843,28 @@ def interpret(ast: Any, bars: List[dict],
             if n["name"] in _BAR_FN:
                 return _bar_column(n["name"], bars, args, length)
             return FN[n["name"]](*args)
+        if kind in BIND_TIME_NODE_TYPES:
+            # ⭐⭐ R-K -- BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
+            #
+            # These are settled before anything computes: the fold replaces the
+            # whole subtree with the number it decides. Reaching here means the
+            # fold could not decide it -- the text fold raised on a ``syminfo.*``
+            # field the binding did not supply -- so the refusal names THAT
+            # FIELD, which is what a member can act on, rather than the node
+            # type, which they cannot.
+            #
+            # ⛔ AND IT REFUSES RATHER THAN EVALUATING. Text lives only inside the
+            # fold pass by design; an evaluator arm that started answering text
+            # questions would be a second value system in every walk that prices,
+            # lints and evaluates a tree.
+            fields = _bind_time_fields_in(n)
+            return _refuse(
+                "interpret:bind-time-text",
+                ("this value is decided when a symbol is chosen, and this "
+                 f"binding did not settle {', '.join(fields)}")
+                if fields else
+                ("a bind-time text value survived the fold with no symbol field "
+                 "to blame — the fold ran without constants, or did not run"))
         # ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. Written as a refusal rather
         # than a `return NaN` because a tree nobody authored must refuse, not draw
         # a blank line that reads exactly like a warmup.

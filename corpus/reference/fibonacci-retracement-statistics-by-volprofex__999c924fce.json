@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;999c924fcec149e59c5c51fce6de4ed2",
+ "title": "Fibonacci Retracement Statistics by VolProfex",
+ "author": "VolProfex",
+ "url": "https://www.tradingview.com/script/LWHC2tNe-fibonacci-retracement-statistics-by-volprofex/",
+ "agreeCount": 753,
+ "category": "harmonic patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fibonacci-retracement-statistics-by-volprofex__999c924fce.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fibonacci-retracement-statistics-by-volprofex__999c924fce.pine",
+ "our_status": "committed"
+}

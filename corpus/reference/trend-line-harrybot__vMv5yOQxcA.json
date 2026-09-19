@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;vMv5yOQxcA05yqaplG76VCWlyVZwFLJD",
+ "title": "Trend Line - HarryBot",
+ "author": "HarryBot",
+ "url": "https://www.tradingview.com/script/yxcb5SVj-trend-line-harrybot/",
+ "agreeCount": 5124,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trend-line-harrybot__vMv5yOQxcA.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trend-line-harrybot__vMv5yOQxcA.pine",
+ "our_status": "committed"
+}

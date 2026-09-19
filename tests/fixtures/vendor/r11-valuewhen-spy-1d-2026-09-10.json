@@ -1,0 +1,46 @@
+{
+  "_what": "All four `ta.valuewhen` questions from `docs/pine/r11-time-and-valuewhen.md`, read off a live TradingView chart. 381 corpus sites ride on the `occurrence` convention.",
+
+  "_ruling": "⭐⭐ `occurrence = 0` IS INCLUSIVE — it is the most recent firing COUNTING THE CURRENT BAR. Occurrences count FIRINGS, one per firing, going back. A condition that never fired answers `na`, not 0.",
+
+  "_the_off_by_one_is_the_whole_point": "⛔⛔ THE DOC CALLED THIS \"the single most likely place to be off by one, and 381 sites ride on it\", and the two candidate readings differ ONLY on bars where the condition is true. On every other bar `occurrence 0` is the same value under both conventions — so a probe that did not isolate those bars would have agreed with BOTH readings and proved nothing while looking conclusive. N05 marks them: 80 of the 400 bars are discriminating, and all 80 say INCLUSIVE.",
+
+  "answers": {
+    "Q1_never_fired": {
+      "ruling": "`na`, on every bar. Never 0.",
+      "bars_reading_na": 400,
+      "bars_reading_zero": 0,
+      "_how": "`ta.valuewhen(bar_index < 0, close, 0)` — a condition that can never be true, written as ARITHMETIC rather than the literal `false` so it cannot be folded away before it is evaluated."
+    },
+    "Q2_Q3_occurrence_counts_firings": {
+      "ruling": "Each occurrence steps back exactly one FIRING.",
+      "bars_where_occ0_minus_occ1_equals_5": 400,
+      "bars_where_occ1_minus_occ2_equals_5": 400,
+      "bars_with_any_other_step": 0,
+      "_how": "The condition fires every 5th bar by construction, so if occurrences count firings the step between consecutive occurrences is exactly 5 — and anything else would mean `occurrence` does not mean what the name suggests."
+    },
+    "Q4_occurrence_zero_on_a_firing_bar": {
+      "ruling": "INCLUSIVE — occurrence 0 is THIS bar when the condition is true on it.",
+      "discriminating_bars": 80,
+      "matched_INCLUSIVE": 80,
+      "matched_EXCLUSIVE": 0
+    }
+  },
+
+  "sample": [
+    { "bar": 8065, "cond": 1, "expected_INCLUSIVE": 8065, "expected_EXCLUSIVE": 8060, "occ0": 8065, "occ1": 8060, "occ2": 8055 },
+    { "bar": 8070, "cond": 1, "expected_INCLUSIVE": 8070, "expected_EXCLUSIVE": 8065, "occ0": 8070, "occ1": 8065, "occ2": 8060 },
+    { "bar": 8075, "cond": 1, "expected_INCLUSIVE": 8075, "expected_EXCLUSIVE": 8070, "occ0": 8075, "occ1": 8070, "occ2": 8065 }
+  ],
+
+  "_the_oracle_is_in_the_probe": "⭐⭐ THE CONDITION IS ARITHMETIC ON PURPOSE. `bar_index % 5 == 0` fires on a schedule known in advance, so the RIGHT answer for every occurrence is computable from `bar_index` alone — and the probe computes BOTH candidate answers as their own plots, beside the vendor's. Nothing here is a comparison against a remembered expectation. A price condition like `close > open` would have made every reading a comparison against a second unknown.",
+
+  "_instrument": "UCTPROBE_R11_VALUEWHEN, pasted via the Monaco model handle and added with the action button asserted to read \"Add to chart\". Buffer verified sha256-identical to the committed source before the click: 064e91e7c8635de837d39ec381f7545924333d69ef536c34af22cd83688a36d3, 3098 characters.",
+  "_gates": "isFailed() === false; plot roster 12 == the balanced-paren scan of the committed source; 400 bars.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "bars": 400,
+  "capturedAtUTC": "2026-09-11T01:23:17Z",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME. The `occurrence` convention is a property of the function signature, not of SPY, and the probe deliberately uses `bar_index` rather than price so the reading cannot depend on the instrument at all. ⛔ It does NOT cover a condition that fires on CONSECUTIVE bars, where 'one firing back' and 'one bar back' coincide and a different implementation could still diverge; the 5-bar spacing was chosen to separate them, which means the adjacent case is untested."
+}

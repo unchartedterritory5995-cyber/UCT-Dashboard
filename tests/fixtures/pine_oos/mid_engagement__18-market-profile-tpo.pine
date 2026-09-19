@@ -1,0 +1,386 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Edward  —  reworked / optimized build: TPO [vault]
+
+//@version=6
+indicator(title = 'Market Profile TPO [vault]', shorttitle = 'TPO [vault]', overlay = true, max_polylines_count = 100, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)
+
+// ======================================================================
+// INPUTS
+// ======================================================================
+grp_main = '1 - Profile'
+period_input     = input.timeframe('D', 'Profile period', options = ['D', 'W', 'M'], group = grp_main)
+rows_nb          = input.int(100, 'Row size', minval = 10, maxval = 300, group = grp_main, tooltip = 'How many horizontal rows the period range is split into. More rows = more detail, slower calculation.')
+width_percentage = input.float(30, 'Profile width %', minval = 5, maxval = 200, group = grp_main, tooltip = 'Width of the widest row as a % of the period duration.')
+va_percentage    = input.float(70.0, 'Value area %', minval = 10, maxval = 100, group = grp_main)
+max_profiles     = input.int(10, 'Profiles kept on chart', minval = 1, maxval = 40, group = grp_main, tooltip = 'Older profiles are deleted automatically so the script never hits TradingView drawing limits.')
+show_live        = input.bool(true, 'Show developing profile', group = grp_main)
+
+grp_style = '2 - Profile style'
+calc_va       = input.bool(true, 'Calculate value area', group = grp_style)
+show_poc      = input.bool(true, 'Show POC line', group = grp_style)
+show_va_lines = input.bool(true, 'Show VA lines', group = grp_style)
+show_va_bg    = input.bool(true, 'Show VA background', group = grp_style)
+show_labels   = input.bool(false, 'Show level labels', group = grp_style)
+label_size_str = input.string('Small', 'Label size', options = ['Tiny', 'Small', 'Normal'], group = grp_style)
+profile_color = input.color(color.rgb(156, 156, 156, 70), 'Profile color', group = grp_style)
+poc_color     = input.color(color.rgb(247, 82, 95, 30), 'POC color', group = grp_style)
+poc_width     = input.int(2, 'POC width', minval = 1, group = grp_style)
+poc_style_str = input.string('Solid', 'POC line style', options = ['Solid', 'Dashed', 'Dotted'], group = grp_style)
+va_color      = input.color(color.rgb(91, 156, 246, 30), 'VA line color', group = grp_style)
+va_bg_color   = input.color(color.rgb(91, 156, 246, 95), 'VA background color', group = grp_style)
+va_style_str  = input.string('Dashed', 'VA line style', options = ['Solid', 'Dashed', 'Dotted'], group = grp_style)
+
+grp_ib = '3 - Initial balance'
+show_ib        = input.bool(true, 'Show IB', group = grp_ib)
+ib_session     = input.session('0930-1030', 'IB session', group = grp_ib, tooltip = 'First balance window of the session. 0930-1030 = US index futures RTH open hour.')
+ib_tz          = input.string('America/New_York', 'IB timezone', options = ['America/New_York', 'America/Chicago', 'Europe/London', 'Europe/Warsaw', 'Asia/Tokyo', 'Asia/Shanghai', 'UTC'], group = grp_ib)
+extend_ib      = input.bool(false, 'Extend IB lines', group = grp_ib)
+ib_color       = input.color(color.rgb(133, 227, 167), 'IB color', group = grp_ib)
+ib_line_color  = input.color(color.rgb(255, 255, 255, 30), 'IB line color', group = grp_ib)
+ib_width       = input.int(2, 'IB width', minval = 1, group = grp_ib)
+ib_ext_style_str = input.string('Dotted', 'IB extension style', options = ['Solid', 'Dashed', 'Dotted'], group = grp_ib)
+
+grp_sp = '4 - Single prints'
+show_singles   = input.bool(true, 'Show single prints', group = grp_sp)
+extend_singles = input.bool(true, 'Extend single prints', group = grp_sp)
+min_sp_rows    = input.int(1, 'Min rows per single print', minval = 1, maxval = 20, group = grp_sp, tooltip = 'Filters out one row noise. 2-3 keeps only meaningful gaps.')
+singles_color  = input.color(color.rgb(255, 255, 255, 90), 'Single prints color', group = grp_sp)
+
+grp_npoc = '5 - Naked POC'
+show_npoc     = input.bool(true, 'Show naked POC', group = grp_npoc, tooltip = 'Untouched POCs from previous periods keep extending right until price trades back into them.')
+npoc_max      = input.int(15, 'Max naked POCs', minval = 1, maxval = 50, group = grp_npoc)
+npoc_color    = input.color(color.rgb(247, 82, 95, 55), 'Naked POC color', group = grp_npoc)
+npoc_width    = input.int(1, 'Naked POC width', minval = 1, group = grp_npoc)
+npoc_style_str = input.string('Dotted', 'Naked POC style', options = ['Solid', 'Dashed', 'Dotted'], group = grp_npoc)
+
+// ======================================================================
+// HELPERS
+// ======================================================================
+get_line_style(style_str) =>
+    switch style_str
+        'Solid'  => line.style_solid
+        'Dotted' => line.style_dotted
+        => line.style_dashed
+
+get_label_size(s) =>
+    switch s
+        'Tiny'   => size.tiny
+        'Normal' => size.normal
+        => size.small
+
+// ---------- drawing registries (grouped per profile, auto pruned) ----------
+var polyline[] hist_poly    = array.new<polyline>()
+var int[]      hist_poly_id = array.new<int>()
+var line[]     hist_line    = array.new<line>()
+var int[]      hist_line_id = array.new<int>()
+var box[]      hist_box     = array.new<box>()
+var int[]      hist_box_id  = array.new<int>()
+var label[]    hist_lbl     = array.new<label>()
+var int[]      hist_lbl_id  = array.new<int>()
+
+var polyline[] live_poly = array.new<polyline>()
+var line[]     live_line = array.new<line>()
+var box[]      live_box  = array.new<box>()
+var label[]    live_lbl  = array.new<label>()
+
+var int profile_id = 0
+
+reg_poly(polyline o, bool is_live) =>
+    if is_live
+        array.push(live_poly, o)
+    else
+        array.push(hist_poly, o)
+        array.push(hist_poly_id, profile_id)
+
+reg_line(line o, bool is_live) =>
+    if is_live
+        array.push(live_line, o)
+    else
+        array.push(hist_line, o)
+        array.push(hist_line_id, profile_id)
+
+reg_box(box o, bool is_live) =>
+    if is_live
+        array.push(live_box, o)
+    else
+        array.push(hist_box, o)
+        array.push(hist_box_id, profile_id)
+
+reg_lbl(label o, bool is_live) =>
+    if is_live
+        array.push(live_lbl, o)
+    else
+        array.push(hist_lbl, o)
+        array.push(hist_lbl_id, profile_id)
+
+clear_live() =>
+    if array.size(live_poly) > 0
+        for o in live_poly
+            polyline.delete(o)
+        array.clear(live_poly)
+    if array.size(live_line) > 0
+        for o in live_line
+            line.delete(o)
+        array.clear(live_line)
+    if array.size(live_box) > 0
+        for o in live_box
+            box.delete(o)
+        array.clear(live_box)
+    if array.size(live_lbl) > 0
+        for o in live_lbl
+            label.delete(o)
+        array.clear(live_lbl)
+
+prune_hist() =>
+    while array.size(hist_poly_id) > 0 and profile_id - array.get(hist_poly_id, 0) >= max_profiles
+        polyline.delete(array.shift(hist_poly))
+        array.shift(hist_poly_id)
+    while array.size(hist_line_id) > 0 and profile_id - array.get(hist_line_id, 0) >= max_profiles
+        line.delete(array.shift(hist_line))
+        array.shift(hist_line_id)
+    while array.size(hist_box_id) > 0 and profile_id - array.get(hist_box_id, 0) >= max_profiles
+        box.delete(array.shift(hist_box))
+        array.shift(hist_box_id)
+    while array.size(hist_lbl_id) > 0 and profile_id - array.get(hist_lbl_id, 0) >= max_profiles
+        label.delete(array.shift(hist_lbl))
+        array.shift(hist_lbl_id)
+
+// ======================================================================
+// STATE
+// ======================================================================
+var float[] period_highs = array.new_float()
+var float[] period_lows  = array.new_float()
+var int period_start_time = 0
+
+var float current_ib_high = na
+var float current_ib_low  = na
+
+var float prev_poc = na
+var float prev_vah = na
+var float prev_val = na
+var float prev_ibh = na
+var float prev_ibl = na
+
+var float[] npoc_price = array.new_float()
+var int[]   npoc_time  = array.new_int()
+var line[]  npoc_line  = array.new<line>()
+
+bool new_period = timeframe.change(period_input)
+
+// ======================================================================
+// CORE - build + render one profile
+// ======================================================================
+render_profile(float[] arr_h, float[] arr_l, int start_t, int end_t, bool is_live, float ib_h, float ib_l) =>
+    float r_poc = na
+    float r_vah = na
+    float r_val = na
+
+    int len = array.size(arr_h)
+    if len >= 2
+        float h_range = array.max(arr_h)
+        float l_range = array.min(arr_l)
+        float box_height = (h_range - l_range) / rows_nb
+        if box_height <= 0
+            box_height := syminfo.mintick
+
+        // ---------- row scoring (single pass over bars, not rows x bars) ----------
+        int[] row_scores = array.new<int>(rows_nb, 0)
+        int total_tpo = 0
+        for j = 0 to len - 1
+            float b_high = array.get(arr_h, j)
+            float b_low  = array.get(arr_l, j)
+            int i_top = math.max(0, math.min(rows_nb - 1, int(math.floor((h_range - b_high) / box_height))))
+            int i_bot = math.max(0, math.min(rows_nb - 1, int(math.floor((h_range - b_low) / box_height))))
+            for i = i_top to i_bot
+                array.set(row_scores, i, array.get(row_scores, i) + 1)
+                total_tpo += 1
+
+        // ---------- POC (ties resolved toward the middle of the range) ----------
+        int max_score = 0
+        int poc_index = -1
+        float mid_row = (rows_nb - 1) / 2.0
+        for i = 0 to rows_nb - 1
+            int sc = array.get(row_scores, i)
+            if sc > 0
+                bool better = poc_index == -1 or sc > max_score or (sc == max_score and math.abs(i - mid_row) < math.abs(poc_index - mid_row))
+                if better
+                    max_score := sc
+                    poc_index := i
+        if poc_index >= 0
+            r_poc := h_range - (poc_index + 0.5) * box_height
+
+        // ---------- value area (standard two row expansion) ----------
+        if calc_va and poc_index >= 0
+            float target = total_tpo * (va_percentage / 100.0)
+            int va_count = max_score
+            int up_idx = poc_index - 1
+            int dn_idx = poc_index + 1
+            while va_count < target and (up_idx >= 0 or dn_idx < rows_nb)
+                int up1 = up_idx >= 0 ? array.get(row_scores, up_idx) : -1
+                int up2 = up_idx - 1 >= 0 ? array.get(row_scores, up_idx - 1) : 0
+                int dn1 = dn_idx < rows_nb ? array.get(row_scores, dn_idx) : -1
+                int dn2 = dn_idx + 1 < rows_nb ? array.get(row_scores, dn_idx + 1) : 0
+                int up_sum = up1 < 0 ? -1 : up1 + up2
+                int dn_sum = dn1 < 0 ? -1 : dn1 + dn2
+                if up_sum < 0 and dn_sum < 0
+                    break
+                if up_sum >= dn_sum
+                    va_count += up1 + up2
+                    up_idx -= 2
+                else
+                    va_count += dn1 + dn2
+                    dn_idx += 2
+            int top_i = math.max(up_idx + 1, 0)
+            int bot_i = math.min(dn_idx - 1, rows_nb - 1)
+            r_vah := h_range - top_i * box_height
+            r_val := h_range - (bot_i + 1) * box_height
+
+        // ---------- geometry ----------
+        int period_duration = end_t - start_t
+        if period_duration <= 0
+            period_duration := timeframe.in_seconds(period_input) * 1000
+        float time_per_score = max_score > 0 ? (period_duration * (width_percentage / 100.0)) / max_score : 0.0
+        int right_edge = is_live ? end_t + timeframe.in_seconds(timeframe.period) * 1000 : end_t
+
+        // ---------- single prints ----------
+        if show_singles and max_score > 0
+            int run_start = -1
+            int sp_right = extend_singles ? right_edge : math.min(start_t + math.round(time_per_score), right_edge)
+            for i = 0 to rows_nb - 1
+                bool is_single = array.get(row_scores, i) == 1
+                if is_single and run_start == -1
+                    run_start := i
+                if not is_single and run_start != -1
+                    // skip the top tail (run touching row 0) - that is a tail, not a single print
+                    if run_start != 0 and i - run_start >= min_sp_rows
+                        float b_top = h_range - run_start * box_height
+                        float b_bot = h_range - i * box_height
+                        reg_box(box.new(start_t, b_top, sp_right, b_bot, xloc = xloc.bar_time, border_width = 0, bgcolor = singles_color), is_live)
+                    run_start := -1
+            // a run that reaches the last row is the bottom tail - intentionally not drawn
+
+        // ---------- value area background ----------
+        if show_va_bg and not na(r_vah) and not na(r_val)
+            reg_box(box.new(start_t, r_vah, right_edge, r_val, xloc = xloc.bar_time, border_color = color.new(color.white, 100), bgcolor = va_bg_color), is_live)
+
+        // ---------- profile shape ----------
+        chart.point[] points = array.new<chart.point>()
+        array.push(points, chart.point.from_time(start_t, h_range))
+        float cur_h = h_range
+        for i = 0 to rows_nb - 1
+            int w = math.round(array.get(row_scores, i) * time_per_score)
+            array.push(points, chart.point.from_time(start_t + w, cur_h))
+            array.push(points, chart.point.from_time(start_t + w, cur_h - box_height))
+            cur_h := cur_h - box_height
+        array.push(points, chart.point.from_time(start_t, l_range))
+        reg_poly(polyline.new(points, curved = false, closed = true, xloc = xloc.bar_time, line_color = profile_color, fill_color = profile_color), is_live)
+
+        // ---------- levels ----------
+        if show_poc and not na(r_poc)
+            reg_line(line.new(start_t, r_poc, right_edge, r_poc, xloc = xloc.bar_time, color = poc_color, width = poc_width, style = get_line_style(poc_style_str)), is_live)
+        if show_va_lines and not na(r_vah) and not na(r_val)
+            reg_line(line.new(start_t, r_vah, right_edge, r_vah, xloc = xloc.bar_time, color = va_color, style = get_line_style(va_style_str)), is_live)
+            reg_line(line.new(start_t, r_val, right_edge, r_val, xloc = xloc.bar_time, color = va_color, style = get_line_style(va_style_str)), is_live)
+
+        // ---------- initial balance ----------
+        if show_ib and not na(ib_h) and not na(ib_l)
+            reg_line(line.new(start_t, ib_h, start_t, ib_l, xloc = xloc.bar_time, color = ib_color, width = ib_width, style = line.style_solid), is_live)
+            if extend_ib
+                reg_line(line.new(start_t, ib_h, right_edge, ib_h, xloc = xloc.bar_time, color = ib_line_color, width = 1, style = get_line_style(ib_ext_style_str)), is_live)
+                reg_line(line.new(start_t, ib_l, right_edge, ib_l, xloc = xloc.bar_time, color = ib_line_color, width = 1, style = get_line_style(ib_ext_style_str)), is_live)
+
+        // ---------- labels ----------
+        if show_labels
+            if not na(r_poc)
+                reg_lbl(label.new(right_edge, r_poc, 'POC ' + str.tostring(r_poc, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = poc_color, size = get_label_size(label_size_str)), is_live)
+            if not na(r_vah)
+                reg_lbl(label.new(right_edge, r_vah, 'VAH ' + str.tostring(r_vah, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = va_color, size = get_label_size(label_size_str)), is_live)
+            if not na(r_val)
+                reg_lbl(label.new(right_edge, r_val, 'VAL ' + str.tostring(r_val, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = va_color, size = get_label_size(label_size_str)), is_live)
+
+    [r_poc, r_vah, r_val]
+
+// ======================================================================
+// MAIN
+// ======================================================================
+if bar_index == 0
+    period_start_time := time
+    current_ib_high := na
+    current_ib_low := na
+
+// closed period -> render final profile
+if new_period and bar_index > 0
+    [poc, vah, val] = render_profile(period_highs, period_lows, period_start_time, time, false, current_ib_high, current_ib_low)
+
+    prev_poc := poc
+    prev_vah := vah
+    prev_val := val
+    prev_ibh := current_ib_high
+    prev_ibl := current_ib_low
+
+    // naked POC bookkeeping
+    if show_npoc and not na(poc)
+        line nl = line.new(period_start_time, poc, time, poc, xloc = xloc.bar_time, color = npoc_color, width = npoc_width, style = get_line_style(npoc_style_str))
+        array.push(npoc_line, nl)
+        array.push(npoc_price, poc)
+        array.push(npoc_time, time)
+        if array.size(npoc_line) > npoc_max
+            line.delete(array.shift(npoc_line))
+            array.shift(npoc_price)
+            array.shift(npoc_time)
+
+    profile_id += 1
+    prune_hist()
+
+    array.clear(period_highs)
+    array.clear(period_lows)
+    period_start_time := time
+    current_ib_high := na
+    current_ib_low := na
+
+array.push(period_highs, high)
+array.push(period_lows, low)
+
+// ---------- initial balance tracking ----------
+bool is_ib_active = not na(time(timeframe.period, ib_session, ib_tz))
+if is_ib_active
+    if na(current_ib_high)
+        current_ib_high := high
+        current_ib_low := low
+    else
+        current_ib_high := math.max(current_ib_high, high)
+        current_ib_low := math.min(current_ib_low, low)
+
+// ---------- naked POC maintenance ----------
+if array.size(npoc_line) > 0
+    for i = array.size(npoc_line) - 1 to 0
+        float p = array.get(npoc_price, i)
+        int t0 = array.get(npoc_time, i)
+        line ln = array.get(npoc_line, i)
+        if time > t0 and high >= p and low <= p
+            line.delete(ln)
+            array.remove(npoc_line, i)
+            array.remove(npoc_price, i)
+            array.remove(npoc_time, i)
+        else
+            line.set_x2(ln, time)
+
+// ---------- developing profile ----------
+if barstate.islast
+    clear_live()
+    if show_live
+        render_profile(period_highs, period_lows, period_start_time, time, true, current_ib_high, current_ib_low)
+
+// ---------- timeframe sanity check ----------
+if barstate.islast and timeframe.in_seconds() >= timeframe.in_seconds(period_input)
+    runtime.error('TPO [vault]: chart timeframe must be lower than the profile period. Use an intraday timeframe for a daily profile.')
+
+// ======================================================================
+// ALERTS
+// ======================================================================
+alertcondition(ta.crossover(close, prev_poc),  'Cross above prior POC', 'Price crossed above the previous period POC')
+alertcondition(ta.crossunder(close, prev_poc), 'Cross below prior POC', 'Price crossed below the previous period POC')
+alertcondition(ta.crossover(close, prev_vah),  'Cross above prior VAH', 'Price accepted above the previous value area')
+alertcondition(ta.crossunder(close, prev_val), 'Cross below prior VAL', 'Price accepted below the previous value area')
+alertcondition(ta.crossover(close, prev_ibh),  'IB high broken',       'Price closed above the initial balance high')
+alertcondition(ta.crossunder(close, prev_ibl), 'IB low broken',        'Price closed below the initial balance low')

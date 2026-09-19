@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;648",
+ "title": "CM_Stochastic_MTF",
+ "author": "ChrisMoody",
+ "url": "https://www.tradingview.com/script/Wylw98ue-cm-stochastic-mtf/",
+ "agreeCount": 22983,
+ "category": "momentum",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/cm-stochastic-mtf__648.pine",
+ "our_status": "reference-only"
+}

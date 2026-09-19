@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2295",
+ "title": "WaveTrend with Crosses [LazyBear]",
+ "author": "lonestar108",
+ "url": "https://www.tradingview.com/script/jFQn4jYZ-wavetrend-with-crosses-lazybear/",
+ "agreeCount": 23460,
+ "category": "momentum",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/wavetrend-with-crosses-lazybear__2295.pine",
+ "our_status": "reference-only"
+}

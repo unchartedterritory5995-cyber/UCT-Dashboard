@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "12-structure-participation-matrix.pine",
+  "title": "Structure Participation Matrix [MQLSoftware]",
+  "author": "MQLSoftware",
+  "source_url": "https://www.tradingview.com/script/OUrrKkjm-Structure-Participation-Matrix-MQLSoftware/",
+  "retrieved_at": "2026-09-07T11:25:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License, v. 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"Aug 28\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 343,
+  "complexity_bucket": "long",
+  "sha256_source": "f213dee6bad6c4de686d11ce83524c96ca372504527ab9dd02980634fe0744e1",
+  "sha256_normalized": "adac76abbd0ffb2e16b7f7518faafd5f14d1b1095c258789c7fc7f2b5b09b66c",
+  "storage": "git"
+}

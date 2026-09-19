@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3453680ea111491ea841ca4621294893",
+ "title": "MTF WatchList Charts [Anan]",
+ "author": "Mohamed3nan",
+ "url": "https://www.tradingview.com/script/I1rGOfAx-mtf-watchlist-charts-anan/",
+ "agreeCount": 2900,
+ "category": "screener/scanner",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/mtf-watchlist-charts-anan__3453680ea1.pine",
+ "cached_source": "tools/pine_survey/cache/sources/mtf-watchlist-charts-anan__3453680ea1.pine",
+ "our_status": "committed"
+}

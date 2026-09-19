@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;dd048626775f4320945bb6cef5bad0cf",
+ "title": "Support & Resistance (MTF) | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/3WgfGErN-support-resistance-mtf-flux-charts/",
+ "agreeCount": 13186,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/support-resistance-mtf-flux-charts__dd04862677.pine",
+ "cached_source": "tools/pine_survey/cache/sources/support-resistance-mtf-flux-charts__dd04862677.pine",
+ "our_status": "committed"
+}

@@ -50,6 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
+  SERIES_LOOKBACK, usableWindowBound,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -83,7 +84,7 @@ import { yieldsOf, SENTENCE_RULES } from './sentence.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP, computeOBV, AVWAP_MIN_INSTANT,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -126,6 +127,19 @@ export const REFUSALS = Object.freeze({
   'interpret:timeframe': 'a higher-timeframe read names a timeframe this engine cannot serve from the bars it was given',
   'interpret:symbol': 'a read of another instrument sits where this engine cannot align it to the bars in hand',
   'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
+  // ⭐⭐ R-K (owner ruling, 2026-09-12). A `str`/`symtext`/`textop` is settled by
+  // the BINDING, before anything computes — `bind.js::foldBound` replaces the
+  // whole subtree with the number it decides. One reaching the evaluator means
+  // the binding could not settle it, and that is a statement about the SYMBOL,
+  // not about the tree.
+  //
+  // ⚰️ IT USED TO COME OUT AS `interpret:node — unknown node type "textop",
+  // legal types are … str, symtext, textop`: a refusal naming the type in its own
+  // list of accepted types. The same sentence-contradicts-the-branch defect
+  // `lint.js` fixed during R-G, one lane over, and it cost the member pane three
+  // of Volume v2's four series with a message that read like an engine bug.
+  'interpret:bind-time-text':
+    'a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names',
 })
 
 /** ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH — the mirror of
@@ -167,8 +181,65 @@ export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M
  *  translator the base timeframe it is translating for, and `D` becomes
  *  `tf_live` at or below a daily base and `tf` above it. Until then a member
  *  gets a refusal that names the ladder instead of a column that is smooth,
- *  plausible and off by one bar forever. */
+ *  plausible and off by one bar forever.
+ *
+ *  ➕➕ ADDENDUM, 2026-09-12 — THE IDENTITY FORM IS PERMITTED; THE STEP-BACK FORM
+ *  IS STILL REFUSED. The ruling above is EXTENDED, not reversed, because the two are
+ *  not the same request:
+ *
+ *    REFUSED, per 2026-09-01 (`62f2560a7`) — declaring `D` in `TF_RESAMPLABLE`, which
+ *    makes the call a RESAMPLE. A `tf` node reads the last CLOSED period, so
+ *    `tf(close,'D')` on a daily base answers YESTERDAY: measured then as
+ *    `[null, 10, 11, 12, …]` against `close`'s `[10, 11, 12, 13, …]`. That step-back
+ *    is not optional and `D` stays OUT of the array below.
+ *
+ *    PERMITTED, per ruling 3.5 (`29d64a2ef`) — a timeframe literal EQUAL to the
+ *    engine's own base period folds to the IDENTITY: the child unwrapped, no node, no
+ *    shift. That is exactly the "two spellings of the same thing on a daily chart,
+ *    one bar apart" this comment names above — `timeframe.period` has folded to plain
+ *    `close` for months while a literal `'D'` refused beside it.
+ *
+ *  ⭐ SO THE UNBLOCKER THIS COMMENT ASKED FOR IS WHAT WAS BUILT: "give the translator
+ *  the base timeframe it is translating for". `BASE_TF` below is that input, DERIVED
+ *  rather than typed, and the rule compares against it — nothing in the translator
+ *  knows that the string `'D'` is special.
+ *
+ *  ⛔ AND THE CASE THIS COMMENT WARNED ABOUT IS GUARDED, NOT ASSUMED AWAY. On an
+ *  INTRADAY base a literal `'D'` really is the last completed SESSION, so the identity
+ *  would be off by one. `securityAsNode` refuses the fold when the base is intraday and
+ *  the newest bar is forming, with a closed-bar control proving the fold still works.
+ *  `interpret.tfDaily.test.js` carries BOTH halves: the 2026-09-01 assertion that the
+ *  step-back form refuses, kept verbatim, and the identity assertion beside it. */
 export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
+
+/** ⭐⭐ THE BARS THIS ENGINE IS ACTUALLY HANDED — the "base" the ruling above says
+ *  would unblock `D`, and it is DERIVED rather than typed: the base is the ladder
+ *  rung immediately BELOW the lowest thing `tf` can resample, because `tf` may only
+ *  read STRICTLY ABOVE the bars in hand. Today that is `'D'`. Widen
+ *  `TF_RESAMPLABLE` and this follows on the same day rather than a release later.
+ *
+ *  ⛔ IT IS NOT A SECOND AUTHORITY ON THE LADDER. It reads both arrays above and
+ *  throws if they ever stop agreeing, so a hand-edit that breaks the relationship
+ *  fails loudly here instead of quietly one layer down.
+ */
+export const BASE_TF = (() => {
+  const lowestResamplable = TF_RESAMPLABLE
+    .map((c) => TF_LADDER.indexOf(c))
+    .filter((i) => i >= 0)
+    .sort((x, y) => x - y)[0]
+  if (!(lowestResamplable > 0)) {
+    throw new Error('BASE_TF: TF_RESAMPLABLE and TF_LADDER disagree — '
+      + `resamplable=${TF_RESAMPLABLE.join(',')} ladder=${TF_LADDER.join(',')}`)
+  }
+  return TF_LADDER[lowestResamplable - 1]
+})()
+
+/** Is a timeframe code INTRADAY, i.e. below the daily rung? Used by the one guard
+ *  that must refuse an identity fold on a forming intraday bar. */
+export const isIntradayTf = (code) => {
+  const i = TF_LADDER.indexOf(code)
+  return i >= 0 && i < TF_LADDER.indexOf('D')
+}
 
 /** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
  *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
@@ -441,11 +512,43 @@ function refuse(guard, detail) {
  *  cross-lane parity run is blind to because both lanes would be internally
  *  consistent.
  *
- *  ⏳ WHAT WOULD RAISE IT: a scan needs only the LAST bar, so a last-bar-only
- *  entry point costs `warmup` steps instead of `bars × warmup` and would let a
- *  sweep carry a 500-bar warm-up over the whole universe. That is an API change
- *  in both lanes, not a number change here. */
-export const MAX_RECURRENCE_STEPS = 1000000
+ *  ⏳ WHAT WOULD RAISE IT FURTHER: a scan needs only the LAST bar, so a
+ *  last-bar-only entry point costs `warmup` steps instead of `bars × warmup` and
+ *  would let a sweep carry a 960-bar warm-up over the whole universe. That is an
+ *  API change in both lanes, not a number change here.
+ *
+ *  ─── ⭐⭐ R-Q (owner ruling, 2026-09-13) — 1,000,000 → 12,000,000, DERIVED ───
+ *
+ *  ⚰️ THE OLD NUMBER WAS NOT A MEASUREMENT, AND A MEMBER FOUND OUT.
+ *  `uncharted-volume-v2.pine` on SPY 1D — the timeframe a chart opens on — hit
+ *  this guard on 22 of its 133 graph nodes and drew the four characters `NaN` in
+ *  every dashboard cell. Not a wrong number: `Vol : NaN (NaNx)`, where a volume
+ *  goes. 1D is the criterion, so that shipped broken behind the flag.
+ *
+ *  📏 THE DERIVATION, measured by `recurrenceSteps.measure.test.js` over the
+ *  59-script `pine_oos` corpus plus v2, with `opts.stepSink` recording EVERY
+ *  recurrence rather than only the ones that refuse:
+ *
+ *      deepest REAL warm-up          250   (2 of 59 corpus scripts, and v2)
+ *      deepest depth a member reaches 32,000  (`fullBarsFor('30')`/`('60')` —
+ *                                     what panning left backfills to, NOT the
+ *                                     8,000 a first fetch happens to bring)
+ *      worst REAL product         8,000,000  = 32,000 × 250
+ *      THE CEILING               12,000,000  = 1.5 × the worst real shape
+ *
+ *  ⛔ AND IT IS STILL A BOUND. The grammar's own maximum warm-up is
+ *  `budget.js::DEFAULT_BUDGET.maxLookback` = 960, so the most this engine can
+ *  ever be ASKED for is `32,000 × 960 = 30,720,000` — which this still refuses,
+ *  by 2.56×. A ceiling raised until one script passed would have been set at
+ *  8,000,000 with no headroom and no runaway left bounded.
+ *
+ *  ⚠️ AND THE PYTHON LANE'S EXPOSURE DOES NOT MOVE, which is the whole of the
+ *  "one number for both lanes" concern above. The sweep's own bar count is
+ *  hard-capped at `scan_evaluator._MAX_BARS = 5000`, so the most Python can ever
+ *  reach is `5,000 × 960 = 4,800,000` steps — BELOW both the old ceiling's
+ *  intent and this one. This guard has never been what bounds that lane; its own
+ *  bar cap is. Measured cost is recorded in the derivation test. */
+export const MAX_RECURRENCE_STEPS = 12000000
 
 /** How far back a running value may read its OWN past — `self[k]`.
  *
@@ -513,9 +616,86 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
 // that window's output NaN.
 
 /** Rolling reduction over a full window. NaN before bar `n-1`. */
-function rolling(series, n, reduce) {
+/** ⭐⭐⭐ HOW A WINDOW TREATS AN `na` IS A PER-MEMBER FACT, NOT A FAMILY ONE.
+ *
+ *  ⛔⛔ MEASURED 2026-09-08, AND THE FAMILY SPLITS THREE WAYS. Generalising any
+ *  one member's rule to the other eleven would have been wrong for at least
+ *  three of them — which is why the ruling that authorised this fix forbade
+ *  exactly that. Fixture:
+ *  `finite-window-na-policy-by-member-spy-1d-2026-09-08`.
+ *
+ *    SKIP      — the last `n` FINITE observations, however many BARS that spans.
+ *                `sma`, `stdev`, `sum`, `median`: 380 ok / 0 bad, and they answer
+ *                on the `na` bar itself (133 of 133).
+ *    PROPAGATE — a clean `n`-BAR window; any `na` inside it makes the answer
+ *                `na`. `dev`: 210 ok / 0 bad, blank for exactly `n-1` bars after
+ *                a hole. ⭐ This is what every member used to do.
+ *    RESTART   — the window BEGINS AGAIN after a hole: reduce over the
+ *                contiguous finite run ending at this bar, capped at `n`.
+ *                `highest`, `lowest`: 346 ok / 0 bad — one bar after a hole
+ *                `highest === lowest === ` the lone observation.
+ *
+ *  ⚠️ THE SERIES-START WARM-UP IS DELIBERATELY UNCHANGED. Every capture begins
+ *  deep in real history, so no fixture has seen what a window does on bar 0 of a
+ *  symbol. `RESTART` answers with a PARTIAL run after a hole because that IS
+ *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
+ *  Two rules that look like one, and only one of them has evidence.
+ */
+const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart', FFILL: 'ffill' })
+
+/** The operand list for bar `i` under one policy, or `null` when unanswerable.
+ *
+ *  ⭐ `FFILL` NEVER REACHES HERE. It is a transform of the SERIES, not of the
+ *  window — `rolling` forward-fills once, in O(N), and then asks for a plain
+ *  `PROPAGATE` window over the filled copy. Expressing it as a per-bar operand
+ *  gather would make the cost of one bar depend on how long the preceding gap
+ *  was, which is exactly the unbounded-lookback shape §8/§9 rules out. */
+function windowOperands(series, n, i, policy) {
+  if (policy === NA.PROPAGATE) return { lo: i - n + 1, hi: i, buf: series }
+  if (policy === NA.RESTART) {
+    let lo = i
+    while (lo > i - n + 1 && lo > 0 && Number.isFinite(series[lo - 1])) lo -= 1
+    if (!Number.isFinite(series[i])) return null
+    return { lo, hi: i, buf: series }
+  }
+  // SKIP — the last `n` FINITE values, gathered oldest-first into a dense buffer.
+  const buf = new Float64Array(n)
+  let k = n
+  for (let j = i; j >= 0 && k > 0; j -= 1) if (Number.isFinite(series[j])) buf[--k] = series[j]
+  if (k > 0) return null                       // fewer than `n` finite values exist yet
+  return { lo: 0, hi: n - 1, buf }
+}
+
+/** @param {number} [naCurrent] the answer when the CURRENT bar is `na` and the
+ *  policy would otherwise refuse. Only `highestbars`/`lowestbars` declare one:
+ *  the vendor answers 0 there because a restarted window's only candidate is
+ *  this bar, so the OFFSET is defined even though the VALUE is not. Leaving it
+ *  `undefined` keeps every other member blank, which is what they were measured
+ *  doing. */
+function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
   const out = nan(series.length)
-  for (let i = n - 1; i < series.length; i++) out[i] = reduce(series, i - n + 1, i)
+  // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
+  // in its lookback with the last finite value and keeps that bar's WEIGHT —
+  // vendor-pinned 2026-09-08, 380ok/0bad on an arithmetic source.
+  let src = series
+  if (policy === NA.FFILL) {
+    src = new Float64Array(series.length)
+    let carry = NaN
+    for (let i = 0; i < series.length; i++) {
+      if (Number.isFinite(series[i])) carry = series[i]
+      src[i] = carry
+    }
+  }
+  for (let i = n - 1; i < series.length; i++) {
+    // ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE FILLED
+    // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
+    // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
+    // every hole and lose the half of the rule that says otherwise.
+    if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
+    if (w) out[i] = reduce(w.buf, w.lo, w.hi)
+    else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
+  }
   return out
 }
 
@@ -563,10 +743,16 @@ function windowExtreme(series, lo, hi, better) {
 function windowArgExtreme(series, lo, hi, better) {
   const best = windowExtreme(series, lo, hi, better)
   if (Number.isNaN(best)) return NaN
-  // ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
-  // one. Bounded by `lo` rather than run open — a walk that could step past the
-  // window would read `undefined` forever and never terminate.
-  for (let i = hi; i >= lo; i--) if (series[i] === best) return hi - i
+  // ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
+  // the OLDER occurrence — the LARGER distance back. Measured 2026-09-08 on a
+  // two-valued source built to force ties: `ties -> OLDEST` is 380ok/0bad and
+  // `ties -> NEWEST` is 193ok/187bad, with 244 of the agreeing bars carrying no
+  // `na` at all, so this is the tie rule and not an `na` rule wearing its coat.
+  // ⚰️ THIS WALKED BACKWARD FROM `hi` UNTIL THEN, returning the most recent
+  // match. Every non-tied window agrees under both walks, which is why a defect
+  // this old survived: `high[highestbars(high,n)] === highest(high,n)` holds
+  // either way, and the corpus has few exact ties in a float series.
+  for (let i = lo; i <= hi; i++) if (series[i] === best) return hi - i
   // ⚠️ UNREACHABLE WHILE `windowExtreme` HOLDS ITS CONTRACT — it only ever
   // returns a member of `series[lo..hi]`. NaN rather than a throw because a
   // broken extreme must not become an escape inside the walker.
@@ -733,6 +919,77 @@ function windowStdev(series, lo, hi) {
   return Math.sqrt(sq / (hi - lo + 1))
 }
 
+// ⚰️⚰️ `windowRisingMonotone` AND `windowFallingMonotone` LIVED HERE AND ARE GONE
+// (2026-09-08). They were correct about STRICTNESS and wrong about FAMILY.
+//
+// Their own docstrings disclosed the hole that killed them: *"the vendor's
+// stated na-skipping window walk is not implemented, this table's uniform
+// NaN-anywhere-in-window convention is used instead"*. That disclosure framed
+// the open question as *which na policy does the window use* — and the answer
+// is that there is no window. See `monotoneStep`.
+//
+// ⭐ THE STRICTNESS HALF OF THEIR EVIDENCE SURVIVES AND IS STRONGER NOW. The
+// 2026-09-06 capture proved strict `>` over 15 real trading days with one
+// genuinely discriminating row; the 2026-09-08 capture re-proves it on a source
+// built with flat steps, 380ok/0bad for strict against 0ok/380bad for `>=`.
+// What changed is where the comparison lives, not what it compares.
+
+/** `ta.median(src, length)` — rank-counting, no sort/array ops (keeps
+ *  `maxLookback` a pure tree sum, per `closedTable.json`'s own constraint).
+ *
+ *  For each candidate `s[j]` in the window: `less` = count of window values
+ *  strictly below it, `equal` = count equal to it. The element holding
+ *  sorted rank `k` is the first `j` where `less <= k < less + equal`.
+ *
+ *  ⭐ EVEN LENGTH = MEAN OF THE TWO MIDDLE RANKS, resolved 2026-09-06 by a
+ *  real vendor capture against the lower-middle candidate the int->int
+ *  overload had circumstantially suggested — see
+ *  `_functions_vendor_parity_resolutions.median_resolution`. Odd length is
+ *  unambiguous under every definition in circulation and was never in
+ *  question. */
+function windowMedian(series, lo, hi) {
+  const length = hi - lo + 1
+  const rankElement = (k) => {
+    for (let j = lo; j <= hi; j++) {
+      const vj = series[j]
+      if (Number.isNaN(vj)) return NaN
+      let less = 0, equal = 0
+      for (let m = lo; m <= hi; m++) {
+        const vm = series[m]
+        if (Number.isNaN(vm)) return NaN
+        if (vm < vj) less++
+        else if (vm === vj) equal++
+      }
+      if (less <= k && k < less + equal) return vj
+    }
+    return NaN // unreachable while every window index is scanned above
+  }
+  if (length % 2 === 1) return rankElement((length - 1) / 2)
+  const a = rankElement(length / 2 - 1)
+  const b = rankElement(length / 2)
+  if (Number.isNaN(a) || Number.isNaN(b)) return NaN
+  return (a + b) / 2
+}
+
+/** `ta.percentrank(src, length)` — `100 * count(prior length bars <= current)
+ *  / length`. NOT `sum`-expressible: `sum` evaluates each term at ITS OWN
+ *  bar, and percentrank compares every prior term against the SAME current
+ *  bar — a fixed reference, not a rolling one. Resolved 2026-09-06 by a real
+ *  vendor capture confirming divisor `length` with the current bar EXCLUDED
+ *  from the sample (not `length + 1` with it included) — see
+ *  `_functions_vendor_parity_resolutions.percentrank_resolution`. */
+function percentrankAt(series, i, length) {
+  const cur = series[i]
+  if (Number.isNaN(cur)) return NaN
+  let count = 0
+  for (let k = 1; k <= length; k++) {
+    const v = series[i - k]
+    if (Number.isNaN(v)) return NaN
+    if (v <= cur) count++
+  }
+  return (100 * count) / length
+}
+
 /** EMA seeded with the SMA of the first full window, `k = 2 / (n + 1)`.
  *
  *  ⚠️ THE SEED IS A DECISION AND IT MATCHES THE NATIVE LANE. `indicators.js::_ema`
@@ -746,28 +1003,128 @@ function windowStdev(series, lo, hi) {
  *  BY CONSTRUCTION rather than by two loops that agree today. See
  *  `closedTable.json::_functions_smoothing` for why the alpha is what is shared
  *  and the PERIOD is not. */
+/** ⭐⭐⭐ THE SMOOTHER AS A STATE TRANSITION — THE SHAPE THE RUNTIME NEEDS (2F-2C).
+ *
+ *  A column walk and a bar loop want the same arithmetic in two different
+ *  shapes: this file folds a whole series at once, the runtime has ONE bar and
+ *  must remember. `SMOOTH_CELLS` scalars ARE that memory, and `smoothStep` is
+ *  the whole of the rule — `smoothCol` below is now a driver over it, so there
+ *  is no second EMA to keep in step. Exactly what `FINITE_WINDOW` did for
+ *  windows in 2F-2B, one shape down: `{span, reduce}` there, `{cells, step}` here.
+ *
+ *  ⛔ THE CELLS ARE A FLAT ARRAY AT AN OFFSET, not an object. The runtime holds
+ *  every instance's state in one Float64Array so a screener can allocate it once
+ *  per symbol; handing this function an object per call would put the collector
+ *  in the bar loop, which is the cost Phase 1 measured and rejected.
+ */
+const SMOOTH_CELLS = 3            // [prev, count, sum]
+
+function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
+
+/** One bar of a smoother. Returns the value to emit (NaN while warming). */
+function smoothStep(st, o, v, n, k) {
+  if (!Number.isFinite(v)) {
+    // ⭐⭐⭐ HOLD. VENDOR-PINNED 2026-09-08, AND WE USED TO RESET HERE.
+    //
+    // TradingView keeps the smoother's state UNCHANGED across an `na` bar,
+    // emits `na` AT that bar, and takes ONE normal step on the next finite bar.
+    // Measured on four holes for both members, reproduced to 0 or 1.1e-13, and
+    // again on a 400-bar capture where 0 of 133 na bars carried a value while
+    // every finite bar did. Fixture:
+    // `na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08`.
+    //
+    // ⚰⚰ WHAT WAS HERE BEFORE, AND WHY IT WAS WRONG. We reset `prev/count/sum`,
+    // arguing that "an EMA that carried its state across a hole would report an
+    // average over bars it never saw". That argument is coherent and it is not
+    // Pine. The cost was not theoretical: `ta.ema(close > open ? close : na, 10)`
+    // — an entirely ordinary conditional source — answered on 90 of 300 bars
+    // instead of ~291, because every hole threw away the warm-up as well as the
+    // state. Owner ruling 2026-09-08: vendor truth wins, cross-lane agreement is
+    // worth nothing when the shared authority is wrong.
+    //
+    // ⛔ THE COUNTERPART RULE IS DIFFERENT AND LIVES ELSEWHERE. A FINITE WINDOW
+    // does not hold — it SKIPS the `na` and still answers. We do not do that
+    // either; see `divergences.json::finite-window-propagates-na-instead-of-
+    // skipping-it`, which is confirmed and awaiting its own ruling. Do not
+    // 'unify' the two families: TradingView does not.
+    return NaN
+  }
+  if (Number.isNaN(st[o])) {
+    st[o + 2] += v
+    st[o + 1] += 1
+    if (st[o + 1] === n) { st[o] = st[o + 2] / n; return st[o] }
+    return NaN
+  }
+  st[o] = st[o] * (1 - k) + v * k
+  return st[o]
+}
+
 function smoothCol(series, n, k) {
   const out = nan(series.length)
-  let prev = NaN
-  let count = 0
-  let sum = 0
-  for (let i = 0; i < series.length; i++) {
-    const v = series[i]
-    if (!Number.isFinite(v)) { prev = NaN; count = 0; sum = 0; continue }
-    if (Number.isNaN(prev)) {
-      sum += v
-      count += 1
-      if (count === n) { prev = sum / n; out[i] = prev }
-    } else {
-      prev = prev * (1 - k) + v * k
-      out[i] = prev
-    }
-  }
+  const st = new Float64Array(SMOOTH_CELLS)
+  smoothInit(st, 0)
+  for (let i = 0; i < series.length; i++) out[i] = smoothStep(st, 0, series[i], n, k)
   return out
 }
 
-const emaCol = (series, n) => smoothCol(series, n, 2 / (n + 1))
-const rmaCol = (series, n) => smoothCol(series, n, 1 / n)
+// ─── ⭐⭐⭐ `ta.rising` / `ta.falling` ARE NOT WINDOWS ────────────────────────
+//
+// ⛔⛔ THEY LIVED IN `FINITE_WINDOW` UNTIL 2026-09-08 AND THE FAMILY WAS WRONG,
+// not merely the `na` policy inside it. Two probes could not fit ANY window
+// policy — skip, forward-fill and propagate scored 323/52, 291/84 and 287/88 —
+// and the reason is a contradiction no window can hold: bars 41 and 74 of the
+// capture present STRUCTURALLY IDENTICAL windows (an `na` followed by four
+// strictly rising values) and TradingView answers TRUE at one and FALSE at the
+// other. A function whose answer differs on identical windows is reading
+// something outside the window.
+//
+// What it is reading is a COUNTER of consecutive strict steps, and that counter
+// HOLDS across an `na` exactly as `smoothStep` does. The signature is visible in
+// one row of the fixture: the source DROPS from 7 to 1 across a hole and
+// `ta.rising` still reports true, because the hole held the count and the bar
+// after it compares against that hole. 375ok/0bad on three independent sources
+// (two for `rising`, one for `falling`); RESET-on-`na` scores 287/88.
+//
+// ⚠️ THE RETURN IS A DEFINITE 0/1 AND THAT IS NOT AN APPROXIMATION. The same
+// capture proves `not na` is TRUE in Pine and `na ? 1 : 0` is 0, so an `na`
+// bool is INDISTINGUISHABLE from `false` through every boolean operation the
+// language has. There is no observable third state to preserve.
+const MONOTONE_CELLS = 3          // [count, previous value, samples seen]
+
+function monotoneInit(st, o) { st[o] = 0; st[o + 1] = NaN; st[o + 2] = 0 }
+
+/** One bar of a monotone-run counter. `cmp` is the strict comparison. */
+function monotoneStep(st, o, v, n, cmp) {
+  const prev = st[o + 1]
+  st[o + 1] = v                    // the PREVIOUS SAMPLE's value, `na` included
+  st[o + 2] += 1
+  // ⛔ HOLD when either operand is `na` — do not advance, do not reset.
+  if (Number.isFinite(v) && Number.isFinite(prev)) st[o] = cmp(v, prev) ? st[o] + 1 : 0
+  // ⛔⛔ THE WARM-UP GATE LIVES IN THE STATE, NOT IN A DRIVER, and that is
+  // what keeps it on the INVOCATION clock this whole family was vendor-pinned to
+  // (Z5, 280ok/0bad). A gate written as `bar >= n` in the bar loop would be a
+  // CHART-BAR rule, so a `ta.rising` inside a conditionally-called UDF would
+  // start answering at the wrong time — and the columnar lane, which has no
+  // notion of a skipped call, could never see the disagreement.
+  //
+  // ⚠️ WHAT IT GUARDS IS UNOBSERVED. As a window over `n + 1` samples these
+  // blanked the first `n` bars; a bare counter answers `false` there instead.
+  // No capture has ever seen the start of a series, so the correction stops at
+  // the edge of what was measured. Drop this and the CLEAN corpus moves — and
+  // only GAPPY sources should.
+  if (st[o + 2] <= n) return NaN
+  return st[o] >= n ? 1 : 0
+}
+
+const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
+const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
+
+// ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
+// wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
+// runtime and this lane read the SAME constant from the SAME place. Keeping them
+// would have left two names for one thing and a second place to change an alpha
+// — the shape of defect this engine has paid for repeatedly. Nothing referenced
+// them after the move (checked across all of `app/src`, not just this file).
 
 /** The linearly weighted mean of `[lo, hi]` — the most recent bar carries the
  *  most weight. ⚠️ NaN PROPAGATES through the sum, which is what makes the
@@ -838,7 +1195,7 @@ function crossing(a, b, fired) {
  *  how a user reaches it in one keystroke.
  *
  *  ⭐ SO THE SHIPPED MATHS NEVER SEES ONE. The column starts after the LAST
- *  non-finite value in ANY argument, which is `emaCol`'s already-declared rule
+ *  non-finite value in ANY argument, which is `smoothStep`'s already-declared rule
  *  ("a NaN in the input RESTARTS the seed") applied to a whole bar. Two things
  *  fall out of it, and both are why this is the right rule rather than a
  *  convenient one:
@@ -1032,17 +1389,168 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *  TABLE, which is the one thing this phase exists to make impossible; a
  *  DECLARED-BUT-UNIMPLEMENTED one is a formula the builder offers and the chart
  *  cannot draw. `interpret.test.js` asserts the equality in both directions. */
+/**
+ * ⭐⭐⭐ THE FINITE-WINDOW FAMILY, DECLARED ONCE AND CONSUMED BY BOTH LANES.
+ *
+ * A finite-window builtin is one whose value on a bar is a pure function of a
+ * BOUNDED recent window of its source — no carried recurrence, no backward
+ * search. `rolling` walks the whole series for the columnar lane; the bar-by-bar
+ * runtime hands the SAME `reduce` a window drawn from its history rings. Two
+ * drivers, one meaning.
+ *
+ * ⛔⛔ MEMBERSHIP IS AN IMPLEMENTATION FACT, NOT A NAME OR AN ARITY. `ema` and
+ * `rma` take a series and a length and are NOT here: `CARRIED`'s members carry
+ * state from the previous OUTPUT, which a window cannot express. `barssince` and
+ * `valuewhen` search backwards for a CONDITION. `cum` accumulates without bound.
+ * Each is its own family and each is still required — see the gap register.
+ *
+ * ⛔ `span` IS PART OF THE SEMANTICS, NOT A DETAIL. `ta.rising(x, n)` compares
+ * n+1 BARS to answer about n intervals, and that +1 is vendor-pinned
+ * (2026-09-06 capture). A runtime that asked for `n` bars would be one bar short
+ * on every call, which is why the number lives here rather than at each call site.
+ *
+ * ⚠️ DELIBERATELY NOT MEMBERS, though they are finite in a looser sense:
+ *   `bbw`  composes TWO windows over one source — expressible, not yet wired.
+ *   `hma`  windows a DERIVED series (`2*wma(n/2) - wma(n)`), so it needs a
+ *          runtime series that does not exist in the source program.
+ *   `percentrank` uses its own `percentrankAt` rather than a `(s, lo, hi)` reducer.
+ *   `pivothigh`/`pivotlow` read `right` bars into the FUTURE — not causal, so a
+ *          bar loop cannot answer them at the current bar at all.
+ */
+/** `cum(source)` — the running total from bar 0 of the DELIVERED series.
+ *
+ *  ⭐⭐ THE `na` RULE IS THE VENDOR'S AND IT IS THREE FACTS, NOT ONE. Measured on
+ *  TradingView 2026-09-08 (SPY 1D, 8,459 bars):
+ *    1. `na` BEFORE the first finite input — a total of nothing is not 0.
+ *    2. `na` **ON** an `na` bar — the vendor draws no point there.
+ *    3. the total is HELD across it: 7330 -> na -> 7331. It neither advances nor
+ *       resets, and the final value equalled the count of finite inputs EXACTLY
+ *       (7,690 of 8,459), which is what proves a skipped bar contributes nothing.
+ *
+ *  ⛔ (2) IS THE ONE AN IMPLEMENTATION GETS WRONG. The spec this was built from
+ *  said *"na inputs contribute 0 once the series has started"* — true of the
+ *  TOTAL and false of the OUTPUT, and following its literal wording would paint a
+ *  value on a bar TradingView leaves blank. Same HOLD rule already pinned for
+ *  `ta.ema`/`ta.rma`/`ta.rsi`/`ta.macd`, now shown to cover the accumulator too.
+ *
+ *  ⚠️ THE COLUMN IS A FACT ABOUT THE FETCH, WHICH IS WHY IT IS TAGGED. Widen the
+ *  request and every value shifts by one constant. `_requirement_tags.
+ *  window_dependent` is the containment; this function is only the arithmetic.
+ */
+function cumCol(series) {
+  const out = nan(series.length)
+  let total = 0
+  for (let i = 0; i < series.length; i++) {
+    const v = series[i]
+    if (!Number.isFinite(v)) continue      // out[i] stays NaN AND `total` is held
+    total += v
+    out[i] = total
+  }
+  return out
+}
+
+export const FINITE_WINDOW = Object.freeze({
+  sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },
+  wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.FFILL },
+  stdev: { reduce: windowStdev, span: (n) => n, na: NA.SKIP },
+  sum: { reduce: windowSum, span: (n) => n, na: NA.SKIP },
+  dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.PROPAGATE },
+  median: { reduce: windowMedian, span: (n) => n, na: NA.SKIP },
+  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART },
+  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART },
+  // ⭐⭐ SAME WINDOW AS `highest`/`lowest`, ONE EXTRA RULE. `naCurrent: 0` is the
+  // vendor's answer on an `na` bar, where `highest` blanks and these do not —
+  // the restarted window's only candidate is this bar, so the OFFSET is defined
+  // even though the VALUE is not. PART Z measured the difference (36 of 36 vs 0
+  // of 36) and could not explain it; this is the explanation.
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  // ⚰️ `rising` AND `falling` LEFT THIS TABLE 2026-09-08. They are carried
+  // counters, not windows — see `monotoneStep`. They are in `CARRIED` now, and
+  // the reason they were ever here is that a strict monotone run LOOKS like a
+  // window over `n + 1` samples right up until an `na` lands in it.
+})
+
+/** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
+ *  ABOVE. This is what makes "one semantic authority" structural: the whole-series
+ *  pass and the runtime bridge cannot drift, because neither owns the reducer or
+ *  the span — the table does. */
+const windowFn = (name) => (series, n) =>
+  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce,
+    FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
+
+/** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
+ *
+ *  A finite window answers from `span` recent INPUTS; a carried builtin answers
+ *  from a few scalars it has been keeping. Both tables exist for the same reason:
+ *  the columnar lane and the bar loop need the same arithmetic in two shapes, and
+ *  a table of `{cells, init, step}` lets ONE implementation serve both.
+ *
+ *    FINITE_WINDOW : { span,  reduce }   — 2F-2B
+ *    CARRIED       : { cells, init, step, alpha } — 2F-2C
+ *
+ *  ⛔⛔ MEMBERSHIP IS AN IMPLEMENTATION FACT, NOT A NAME. A member is here
+ *  because its shipped column walk IS a forward pass over a fixed number of
+ *  scalars. `sma` is not here (it re-reads `n` inputs); `cum` is not here (the
+ *  closed table does not declare it at all); `barssince`/`valuewhen` are the same
+ *  SHAPE and deliberately NOT members — see the note below.
+ *
+ *  ⚠️ `barssince` AND `valuewhen` ARE ABSENT ON PURPOSE, AND IT IS NOT AN
+ *  OVERSIGHT. `interpret.js::barsSince`/`valueWhen` are forward passes over two
+ *  scalars each, so they FIT this table mechanically. They are excluded because
+ *  `pine.js` refuses `ta.barssince` and `ta.valuewhen` BY NAME: Pine's are
+ *  unbounded / occurrence-indexed and this table's are bounded / period-indexed,
+ *  which are different functions. Admitting them here would build a runtime for
+ *  a spelling no member can reach, and the honest first dependency is the CLOSED
+ *  TABLE declaring Pine's actual signatures. Measured, not assumed — see the
+ *  execution-shape census and gap register PART V.
+ */
+export const CARRIED = Object.freeze({
+  ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
+  rma: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },
+  // ⭐ NO `alpha`. These two carry a COUNT, not an average, so the fourth
+  // argument their step ignores is the same slot `ema`/`rma` use for a decay —
+  // one signature, two uses, which is what lets one driver serve the table.
+  //
+  // ⛔ `warmup` KEEPS A GATE THE VENDOR HAS NEVER BEEN SEEN THROUGH. As a window
+  // over `n + 1` samples these blanked bars `0..n-1`; a bare counter would answer
+  // `false` there instead. No capture has ever observed the start of a series —
+  // every probe begins deep in real history — so the correction deliberately
+  // stops at the boundary of what was measured and leaves the warm-up exactly
+  // where it was. Without this the CLEAN corpus moves, and the whole point of
+  // this change is that only GAPPY sources should.
+  rising: { cells: MONOTONE_CELLS, init: monotoneInit, step: risingStep },
+  falling: { cells: MONOTONE_CELLS, init: monotoneInit, step: fallingStep },
+})
+
+/** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
+ *  cannot drift: both reach `CARRIED[name].step` and nothing else computes an
+ *  exponential average in this file. */
+const carriedFn = (name) => (series, n) => {
+  const spec = CARRIED[name]
+  // ⛔ DRIVEN FROM `cells`/`init`/`step`, NOT FROM A SMOOTHER. This used to call
+  // `smoothCol` directly, which silently made "carried" mean "exponential
+  // average" and would have refused `rising`/`falling` a seat at the table they
+  // belong to. The alpha is now just the fourth argument some steps read.
+  const st = new Float64Array(spec.cells)
+  spec.init(st, 0)
+  const k = spec.alpha ? spec.alpha(n) : undefined
+  const out = nan(series.length)
+  for (let i = 0; i < series.length; i++) out[i] = spec.step(st, 0, series[i], n, k)
+  return out
+}
+
 export const FN = Object.freeze({
-  sma: (series, n) => rolling(series, n, windowMean),
-  ema: (series, n) => emaCol(series, n),
-  highest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b)),
-  lowest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b)),
+  sma: windowFn('sma'),
+  ema: carriedFn('ema'),
+  highest: windowFn('highest'),
+  lowest: windowFn('lowest'),
   // ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME SHAPE THE VALUE
   // FORMS PASS — `windowArgExtreme` asks `windowExtreme` for the value and only
   // then names the bar, so the pair cannot disagree about one window and the
   // tie-break is the manifest's ruling rather than this line's.
-  highestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b)),
-  lowestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b)),
+  highestbars: windowFn('highestbars'),
+  lowestbars: windowFn('lowestbars'),
   barssince: (cond, n) => barsSince(cond, n),
   valuewhen: (cond, src, n) => valueWhen(cond, src, n),
   // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
@@ -1050,9 +1558,36 @@ export const FN = Object.freeze({
   // both bars of a tie. See `closedTable.json::_functions_pivots`.
   pivothigh: (series, left, right) => pivotCol(series, left, right, (v, w) => v > w),
   pivotlow: (series, left, right) => pivotCol(series, left, right, (v, w) => v < w),
-  stdev: (series, n) => rolling(series, n, windowStdev),
-  sum: (series, n) => rolling(series, n, windowSum),
-  dev: (series, n) => rolling(series, n, windowMeanAbsDev),
+  stdev: windowFn('stdev'),
+  sum: windowFn('sum'),
+  dev: windowFn('dev'),
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
+  // TradingView capture, not by inferred/documentation evidence. See
+  // `closedTable.json`'s `_functions_vendor_parity_resolutions` for the
+  // full evidence chain each of these four carries.
+  // ⛔ AND RE-RESOLVED 2026-09-08: strictness stood, the FAMILY did not. Both are
+  // carried counters — see `monotoneStep`. Their `na` clause was the disclosed
+  // residual gap in the 2026-09-06 resolution, and closing it moved them out of
+  // `FINITE_WINDOW` entirely.
+  rising: carriedFn('rising'),
+  falling: carriedFn('falling'),
+  median: windowFn('median'),
+  percentrank: (series, n) => {
+    const out = nan(series.length)
+    for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n)
+    return out
+  },
+  bbw: (series, n, mult) => {
+    const sd = rolling(series, n, windowStdev)
+    const avg = rolling(series, n, windowMean)
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) {
+      const s = sd[i], a = avg[i]
+      if (Number.isNaN(s) || Number.isNaN(a) || a === 0) continue
+      out[i] = ((2 * mult * s) / a) * 100
+    }
+    return out
+  },
   change: (series) => {
     const out = nan(series.length)
     for (let i = 1; i < series.length; i++) out[i] = series[i] - series[i - 1]
@@ -1069,8 +1604,9 @@ export const FN = Object.freeze({
   // the rule kills it in both lanes instead of relying on one language's luck.
   min: (a, b) => elementwise2(a, b, POINTWISE.min),
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
-  rma: (series, n) => rmaCol(series, n),
-  wma: (series, n) => rolling(series, n, windowWeightedMean),
+  rma: carriedFn('rma'),
+  cum: cumCol,
+  wma: windowFn('wma'),
   // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
   // the manifest carries one period and the member writes one number. Alan Hull's
   // published definition, restated verbatim by TradingView's `ta.hma`.
@@ -1309,6 +1845,41 @@ function barObvN(bars, args) {
   return out
 }
 
+/** `pvtN(n)` — price-volume trend's CHANGE across the last `n` bars. Mirrors
+ *  `barObvN` exactly, for the identical reason: `ta.pvt` is a bare Pine
+ *  builtin (close-and-volume by definition, no series to hand it), its LEVEL
+ *  is refused for the same unseeded-cumulative reason as OBV
+ *  (`_functions_excluded.pvt`), and only the windowed DELTA is declarable
+ *  because the arbitrary seed cancels in a difference.
+ *
+ *  ⭐⭐ THIS IS THE ONE THAT UNLOCKS A REAL CORPUS SCRIPT. Unlike `ta.accdist`
+ *  (corpus need is EMA-based, which no bounded-delta primitive can serve —
+ *  see `_functions_excluded.accdist`), the blind-corpus script
+ *  `volume-obv-accumulation-divergence` writes exactly `ta.pvt > ta.pvt[10]`,
+ *  the precise shape `contextBoundedPlan` rewrites to `pvtN(10) > 0`.
+ *
+ *  ⭐ VERIFIED against a real TradingView capture
+ *  (tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json): exact
+ *  match on 15 real SPY trading days (steady-state; the true first-valid-bar
+ *  initialization is not independently observable from that window and is
+ *  not claimed — the windowed delta never depends on it, since the unknown
+ *  seed cancels regardless of what it actually was). */
+function barPvtN(bars, args) {
+  const n = args[0]
+  const level = computePVT(bars)
+  if (level.length !== bars.length) return []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i].t, value: NaN }
+  for (let i = n; i < bars.length; i++) {
+    const near = level[i] ? level[i].value : undefined
+    const far = level[i - n] ? level[i - n].value : undefined
+    out[i].value = (typeof near === 'number' && typeof far === 'number')
+      ? near - far
+      : NaN
+  }
+  return out
+}
+
 /** Chande's Aroon, from the published formula and this table's own arg-extreme.
  *
  *  ⭐ THE PUBLISHED FORM, VERBATIM (StockCharts):
@@ -1368,6 +1939,24 @@ const barAroonDown = (bars, args) => aroonCol(bars, args[0], 'l', false)
  *  ⛔ THE RATIO GOES THROUGH THE SAME SEAM THE OPERATOR PATH USES (IEEE division,
  *  then the finite-or-NaN collapse), so a zero-range bar answers exactly what
  *  `sma((close - open) / (high - low), n)` answers rather than nearly. */
+/** `bop(n)` — the n-bar mean of `(close - open) / (high - low)`.
+ *
+ *  ⛔⛔ IT PROPAGATES AN `na` WHILE `FINITE_WINDOW.sma.na` IS `NA.SKIP`, so the
+ *  declared `bop(n)` and the hand-written `sma((c - o) / (h - l), n)` DIVERGE on
+ *  exactly the bars where `high === low` — a halt, a limit lock, a one-tick
+ *  session. The declared one holes; the composition drops the bar and averages
+ *  the rest.
+ *
+ *  ⛔ THE HOLE IS THE ONE TO KEEP. `1/0` is `+Infinity`, the comparison path
+ *  treats it as a real number above every threshold, and BOP is bounded -1..+1 —
+ *  so `bop(n) > 0` on an uncomputable bar prints this indicator's strongest
+ *  reading. Matching sma's skip would restore that defect, measured: it turned
+ *  two red tests into four.
+ *
+ *  ⚠️ The divergence is narrow and deliberate, and it exists because a vendor
+ *  measurement (sma -> SKIP, 2026-09-08) moved under a composition claim written
+ *  before it. Mirrored in `ast_interpret._fn_bop`, which carries the full note.
+ */
 function barBop(bars, args) {
   const n = args[0]
   const ratio = new Float64Array(bars.length)
@@ -1376,7 +1965,7 @@ function barBop(bars, args) {
     const r = (b.c - b.o) / (b.h - b.l)
     ratio[i] = Number.isFinite(r) ? r : NaN
   }
-  const col = rolling(ratio, n, windowMean)
+  const col = rolling(ratio, n, windowMean)        // NA.PROPAGATE — see above
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     out[i] = { time: bars[i] ? bars[i].t : i, value: col[i] }
@@ -1497,7 +2086,7 @@ function barCumFrom(bars, args) {
 }
 
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN, cumFrom: barCumFrom,
+  vwap: barVwap, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 
@@ -1567,7 +2156,19 @@ const isNan = (x) => Number.isNaN(x)
 const cmp = (f) => (a, b) => (isNan(a) || isNan(b) ? 0 : (f(a, b) ? 1 : 0))
 const logical = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a !== 0, b !== 0) ? 1 : 0))
 
-const BINARY = Object.freeze({
+// ⭐⭐ EXPORTED FOR THE BAR-BY-BAR RUNTIME, and for the reason this file already
+// states two hundred lines below about its own step loop: "A second scalar table
+// here would be a second grammar, and the first thing to diverge would be the NaN
+// rule (`cmp` answers 0, `logical` answers NaN) — a difference no cross-lane
+// parity run would catch, because it would be wrong identically in both lanes."
+//
+// That argument does not stop at this module's edge. `engine/runtime/vm.js`
+// executes the same operators one bar at a time, so it imports THESE — it does
+// not keep a copy. The graph-vs-runtime differential rail is then free to test
+// what actually differs between the lanes (history indexing, ordering, emit
+// alignment, warm-up NaN patterns) instead of re-testing arithmetic that is
+// shared by construction.
+export const BINARY = Object.freeze({
   '+': (a, b) => a + b,
   '-': (a, b) => a - b,
   '*': (a, b) => a * b,
@@ -1582,12 +2183,12 @@ const BINARY = Object.freeze({
   '||': logical((a, b) => a || b),
 })
 
-const UNARY = Object.freeze({
+export const UNARY = Object.freeze({
   'u-': (a) => -a,
   '!': (a) => (isNan(a) ? NaN : (a !== 0 ? 0 : 1)),
 })
 
-const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
+export const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
@@ -1607,8 +2208,13 @@ function flatten(root) {
     const node = stack.pop()
     assertNode(node)
     order.push(node)
+    // ⭐ `textop` CARRIES ARGS TOO — added with R-K. Leaving it out meant a
+    // malformed operand inside a bind-time text question was never asserted, so
+    // the one node type most likely to arrive UNFOLDED was the one whose
+    // children nothing checked.
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
-        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live') {
+        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live'
+        || node.type === 'textop') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -1617,6 +2223,27 @@ function flatten(root) {
   }
   order.reverse()          // a reversed pre-order puts every child before its parent
   return order
+}
+
+/** Every `syminfo.*` field a bind-time text subtree needs, sorted.
+ *
+ *  ⭐ THE REFUSAL'S WHOLE VALUE IS THIS LIST. `str.contains(syminfo.tickerid,
+ *  "/")` and `str.contains(syminfo.ticker, "/")` fail for DIFFERENT reasons —
+ *  `ticker` is the string our own store is keyed by and always resolvable, while
+ *  `tickerid` needs a witnessed exchange spelling — so a refusal that named only
+ *  the node type would send a member to rewrite a script that is fine.
+ *
+ *  ⛔ ITERATIVE, like `flatten`, and for the same reason. */
+function bindTimeFieldsIn(root) {
+  const out = new Set()
+  const stack = [root]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'symtext' && typeof n.name === 'string') out.add(`syminfo.${n.name}`)
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return [...out].sort()
 }
 
 function assertNode(node) {
@@ -1740,6 +2367,35 @@ function windowLiteral(node, index) {
   return arg.value
 }
 
+/** ⭐⭐ R-G — THE WINDOW A REGISTRATION-TIME READER MAY ACCEPT (owner ruling,
+ *  2026-09-12), which is WIDER than the evaluator's.
+ *
+ *  `windowLiteral` requires a literal `num` node and stays that way for the
+ *  EVALUATOR: by the time a tree is computed the bind stage has folded every
+ *  bind-time length, so a non-literal there is a real defect. A LOOKBACK and an
+ *  argument-domain check are asked at REGISTRATION, where no binding exists —
+ *  and refusing there made `timeframe.isweekly ? lenWeekly : lenDaily`
+ *  uninstallable, which is the exact pattern `_bind_time_constants` exists for.
+ *
+ *  ⛔ IT OVER-CLAIMS, WHICH IS THE ONLY SAFE DIRECTION. `usableWindowBound`
+ *  returns the MAXIMUM over the arms. An over-stated lookback costs warm-up bars
+ *  at the left edge; an UNDER-stated one hands back numbers computed from bars
+ *  that were never fetched — the one direction `maxLookback`'s own docstring
+ *  says a budget must never fail in.
+ *
+ *  ⛔ AND IT IS THE SAME CONTRACT `lint.js` AND `ast_table.py` READ.
+ *  `parse.js::bindFoldableWindow` is the single walk; `lint.js` has used it since
+ *  it was written, and before this ruling THIS file did not — which is how a
+ *  member script could be bounded by the linter and refused by the door.
+ *  A foldable length whose bound is not a usable window falls through to
+ *  `windowLiteral` so the member still gets the named refusal.
+ */
+function bindableWindow(node, index) {
+  const bound = usableWindowBound((node.args || [])[index])
+  if (bound !== null) return bound
+  return windowLiteral(node, index)
+}
+
 /** ⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE PASS —
  *  because `int` can say "a whole number" and cannot say "no larger than that
  *  one".
@@ -1790,7 +2446,9 @@ function assertArgDomain(node, spec) {
   if (spec.args[ceiling] !== 'int') return
   const values = []
   for (let i = 0; i < spec.args.length; i++) {
-    values[i] = spec.args[i] === 'int' ? windowLiteral(node, i) : null
+    // ⛔ R-G: the SAME registration-time reader, so a bind-foldable length is
+    // compared on its MAX rather than refused before the comparison happens.
+    values[i] = spec.args[i] === 'int' ? bindableWindow(node, i) : null
   }
   const roleOf = (i) => (Array.isArray(spec.argRoles) && typeof spec.argRoles[i] === 'string'
     ? spec.argRoles[i] : 'period')
@@ -1879,13 +2537,17 @@ export function ownLookback(node, spec) {
   const lb = spec.lookback
   if (typeof lb === 'number') return lb
   if (lb === SESSION_LOOKBACK) return SESSION_MAX_BARS
+  // ⭐ `series` CONTRIBUTES 0 TO THE TREE SUM — see `SERIES_LOOKBACK` in
+  // `parse.js` for why that is the measured warm-up and not a shortcut, and for
+  // where the cost it DOES carry is held instead.
+  if (lb === SERIES_LOOKBACK) return 0
   const m = LOOKBACK_RE.exec(String(lb))
   if (!m) {
     refuse('interpret:node',
       `${JSON.stringify(node.name)} declares lookback ${JSON.stringify(lb)}, which is neither a constant nor an argument`)
   }
   const times = m[1] === undefined ? 1 : Number(m[1])
-  return times * windowLiteral(node, Number(m[2]))
+  return times * bindableWindow(node, Number(m[2]))
 }
 
 /** How many bars of history the tree needs. A TREE SUM, never a dataflow pass.
@@ -1908,6 +2570,15 @@ export function maxLookback(ast) {
   const seen = new Map()
   for (const node of order) {
     if (node.type === 'num' || node.type === 'series') { seen.set(node, 0); continue }
+    // ⭐ BIND-TIME TEXT COSTS NOTHING IN BARS, and that is a fact about the
+    // values rather than a convenience: `syminfo('ticker')` is settled by the
+    // BINDING, so it reads no bar at all, and a text question over such operands
+    // reads none either. ⛔ ZERO IS NOT A DEFAULT HERE — every other unhandled
+    // type falls through to a refusal below, because a lookback silently
+    // guessed at 0 is the one direction a budget must never fail in: it hands
+    // back numbers computed from bars that were never fetched.
+    if (node.type === 'str' || node.type === 'symtext') { seen.set(node, 0); continue }
+    if (node.type === 'textop') { seen.set(node, 0); continue }
     if (node.type === 'op') {
       let best = 0
       for (const arg of node.args) best = Math.max(best, seen.get(arg))
@@ -1960,7 +2631,11 @@ export function maxLookback(ast) {
     assertArity(node, spec)
     let best = 0
     for (let i = 0; i < node.args.length; i++) {
-      if (spec.args[i] === 'int') { windowLiteral(node, i); continue }
+      // ⛔ R-G: a VALIDATION of the slot, not a measurement — and it must admit
+      // exactly what `ownLookback` admits, or a length measured happily one
+      // function up is refused here. The value is discarded; the refusal is why
+      // the call is made at all.
+      if (spec.args[i] === 'int') { bindableWindow(node, i); continue }
       best = Math.max(best, seen.get(node.args[i]))
     }
     // ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED, and
@@ -2242,7 +2917,27 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // `computeClock` call, the same thirteen columns, the same validation. What is
   // skipped is skipped only when the answer could not have depended on it.
   if (readsClock(ast, TABLE)) {
-    const cols = computeClock(bars, opts ? opts.tf : undefined)
+    // ⭐ THE TRI-STATE TRAVELS WITH THE TIMEFRAME, and for the same reason: it
+    // is something the CALLER knows and the bars do not. `null` or absent leaves
+    // the four BARSTATE realtime columns NaN — the identical fail-closed
+    // contract `tf` already has, and never a guessed instant.
+    //
+    // ⛔⛔ AND THE TRADING CALENDAR DOES NOT CROSS THIS SEAM. Whether the newest
+    // bar is still forming is decided once, on the Python side, by
+    // `indicator_compute.py::bar_close_state` — the only place the NYSE
+    // full-closure and early-close sets are read. What arrives here is one
+    // tri-state.
+    //
+    // ⚰️ A `holidays` PARAMETER (and, next to it, a `now`) USED TO BE THREADED
+    // TO THIS CALL AND NO CALLER EVER FED EITHER. An unfed channel into a second
+    // calendar authority is worse than none: it reads as wired, so the next
+    // person fills it in rather than asking whether it should exist. Removed
+    // rather than left open. The pair moved to
+    // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
+    // consumer of the NYSE sets, and that function's answer is the tri-state
+    // the caller now passes as `newestBarIsForming`.
+    const cols = computeClock(bars, opts ? opts.tf : undefined,
+      opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
       if (!col) {
@@ -2483,12 +3178,37 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
         return FN[n.name](...args)
       }
+      case 'str':
+      case 'symtext':
+      case 'textop': {
+        // ⭐⭐ R-K — BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
+        //
+        // These three are settled before anything computes: `bind.js::foldBound`
+        // folds a `textop` WHEREVER IT SITS and replaces the subtree with the
+        // number it decides. Reaching here means the fold could not decide it —
+        // `foldText` threw `NotFoldable` naming a `syminfo.*` field the binding
+        // did not supply — so the honest refusal names THAT FIELD, which is what
+        // a member can act on, rather than the node type, which they cannot.
+        //
+        // ⛔ AND IT REFUSES RATHER THAN EVALUATING. Text lives only inside the
+        // fold pass, by design: `bind.js` is explicit that nothing there returns
+        // a string to a caller, because a second value system in every walk that
+        // prices, lints and evaluates a tree is the cost the closed table exists
+        // to avoid. An evaluator arm that started answering text questions would
+        // be exactly that second system.
+        const fields = bindTimeFieldsIn(n)
+        return refuse('interpret:bind-time-text', fields.length
+          ? `this value is decided when a symbol is chosen, and this binding did not settle `
+            + `${fields.join(', ')}`
+          : `a bind-time text value survived the fold with no symbol field to blame — `
+            + `the fold ran without constants, or did not run`)
+      }
       default:
         // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. `assertNode` above already
-        // refuses anything outside the four types, so this is unreachable while
-        // the two agree — and it is written as a refusal rather than a `return
-        // NaN` because a tree nobody authored must refuse, not draw a blank line
-        // that reads exactly like a warmup.
+        // refuses anything outside the declared types, so this is unreachable
+        // while the two agree — and it is written as a refusal rather than a
+        // `return NaN` because a tree nobody authored must refuse, not draw a
+        // blank line that reads exactly like a warmup.
         return refuse('interpret:node',
           `unknown node type ${JSON.stringify(n.type)} — legal types are ${NODE_TYPES.join(', ')}`)
     }
@@ -2521,6 +3241,30 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // a cost the engine does not pay.
   const { idOf, freeOf } = structuralMaps(ast)
   const memo = new Map()
+  // ⭐⭐ C2C.11 — THE CROSS-COLUMN HALF OF THE SAME MEMO. `memo` above is keyed
+  // on a STRUCTURAL id within ONE tree, so it already collapses the repetition
+  // inside a single plot. It cannot see the repetition BETWEEN plots, which is
+  // where C2A measured 77-84% of a real document's counted nodes: a multi-plot
+  // Pine script computes one consensus expression and plots several views of
+  // it, and each view was paying for the whole thing again.
+  //
+  // ⛔ KEYED ON THE NODE OBJECT, WHICH IS WHY THIS ONLY PAYS AFTER C2C's
+  // STORAGE WORK. Structural ids are per-tree and mean nothing across trees;
+  // object identity means "literally the same subtree", which is exactly what a
+  // shared graph's expansion produces (`graph.js::expandGraph` materialises each
+  // distinct node once and hands the same object to every parent). On an
+  // inlined V1 document nothing is shared, every lookup misses, and the only
+  // cost is a Map miss per self-free node.
+  //
+  // ⛔⛔ THE CALLER OWNS ITS LIFETIME AND MUST NOT OUTLIVE ONE COMPUTE PASS.
+  // The cached value is a column computed against THESE bars, THESE inputs and
+  // THIS timeframe; a memo that survived a bar update would serve yesterday's
+  // numbers with nothing red anywhere. `nativeRegistry.astColumnsFor` creates
+  // one per call and drops it — never module state, never a cache with a key.
+  //
+  // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
+  // so a subtree that reads a recurrence bind is never cached here either.
+  const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
 
   const evalNode = (n) => {
     // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
@@ -2539,8 +3283,16 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // kills the mutation, add it and delete this paragraph.
     const id = freeOf.get(n) ? idOf.get(n) : undefined
     if (id !== undefined && memo.has(id)) return memo.get(id)
+    if (crossMemo !== null && id !== undefined && crossMemo.has(n)) {
+      const shared = crossMemo.get(n)
+      memo.set(id, shared)
+      return shared
+    }
     const value = evalNodeRaw(n)
-    if (id !== undefined) memo.set(id, value)
+    if (id !== undefined) {
+      memo.set(id, value)
+      if (crossMemo !== null) crossMemo.set(n, value)
+    }
     return value
   }
 
@@ -2634,6 +3386,24 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // like any other window — but the WORK is `bars × warmup`, and the bar count
     // arrives with the caller. So it is measured here, where it is known, and
     // refused BY NAME rather than turning a chart into a hang.
+    //
+    // ⭐⭐ R-Q — AND EVERY RECURRENCE IS RECORDED, NOT ONLY THE ONES THAT REFUSE.
+    // ⛔ A GUARD THAT ONLY SPEAKS WHEN IT FIRES CANNOT BE CALIBRATED. The ceiling
+    // was 1,000,000 with no measurement of what real scripts need behind it, and
+    // the way that surfaced was a member's chart drawing `NaN` in every dashboard
+    // cell on the timeframe they open first. `opts.stepSink` is how the corpus
+    // was measured (`recurrenceSteps.measure.test.js`) and how a caller can
+    // report a refusal BY NODE instead of letting a NaN reach a cell — the same
+    // arrangement `textTooDeep` has one lane over, for the same reason.
+    if (opts && Array.isArray(opts.stepSink)) {
+      opts.stepSink.push({
+        name: node.name,
+        warmup,
+        bars: length,
+        steps: length * warmup,
+        exceeded: length * warmup > MAX_RECURRENCE_STEPS,
+      })
+    }
     if (length * warmup > MAX_RECURRENCE_STEPS) {
       refuse('interpret:steps',
         `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up is `

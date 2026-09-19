@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;053c3e6056684debbf14087e237fd109",
+ "title": "ICT Turtle Soup | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/b67pK4jN-ict-turtle-soup-flux-charts/",
+ "agreeCount": 17789,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ict-turtle-soup-flux-charts__053c3e6056.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ict-turtle-soup-flux-charts__053c3e6056.pine",
+ "our_status": "committed"
+}

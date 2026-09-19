@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "20-mann-kendall-trend-significance.pine",
+  "title": "Mann-Kendall Trend Significance [RC Tools]",
+  "author": "RC-Tools",
+  "source_url": "https://www.tradingview.com/script/vbgeMN5N-Mann-Kendall-Trend-Significance-RC-Tools/",
+  "retrieved_at": "2026-09-07T12:45:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"5 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 123,
+  "complexity_bucket": "long",
+  "sha256_source": "05fa054babd14fc68b21b6934c77972f19dfd9b552b14fba869db2191a7c882d",
+  "sha256_normalized": "2fa62b1729aa3d3f59ca49e9d736976c25d3c262976a572a058f081e9f1368f1",
+  "storage": "git"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;nTK2sHWDlBGsoTsTAAIcDRWWjDMzehe6",
+ "title": "Screener - Mean Reversion Channel",
+ "author": "fareidzulkifli",
+ "url": "https://www.tradingview.com/script/Lr5QD0kK-screener-mean-reversion-channel/",
+ "agreeCount": 6292,
+ "category": "screener/scanner",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/screener-mean-reversion-channel__nTK2sHWDlB.pine",
+ "cached_source": "tools/pine_survey/cache/sources/screener-mean-reversion-channel__nTK2sHWDlB.pine",
+ "our_status": "committed"
+}

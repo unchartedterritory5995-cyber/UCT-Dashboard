@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;cvG2DjaryvOrQIoNCijC4Sqs10YduL6a",
+ "title": "Volume Divergence by MM",
+ "author": "baymucuk",
+ "url": "https://www.tradingview.com/script/oOODs8xN-volume-divergence-by-mm/",
+ "agreeCount": 5529,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-divergence-by-mm__cvG2Djaryv.pine",
+ "our_status": "committed"
+}

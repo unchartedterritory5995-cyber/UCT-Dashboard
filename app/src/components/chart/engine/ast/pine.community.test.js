@@ -38,8 +38,11 @@ describe('the community corpus, by name', () => {
     '01-squeeze-momentum-lazybear.pine',
     '02-wavetrend-oscillator-lazybear.pine',
     '03-cm-williams-vix-fix.pine',
-    '04-ut-bot-alerts.pine',
-    '05-chandelier-exit.pine',
+    // ⚰️ '04-ut-bot-alerts.pine' AND '05-chandelier-exit.pine' WERE HERE and came out
+    // 2026-09-12 by ruling R-F — roster 19 → 17. Both were passing on the silent
+    // max/min fold: a 250-bar rolling window standing in for an all-time one. Both are
+    // TRAILING STOPS, so the wrong window put a stop in the wrong place. A roster that
+    // shrinks because a wrong answer stopped being produced has got MORE true.
     '06-qqe-mod.pine',
     // ⭐⭐ TWO WALLS FELL IN ONE SESSION AND THE SECOND WAS INVISIBLE BEHIND THE
     // FIRST. `haopen = na(haopen[1]) ? … : …` is Pine's plain self-referencing
@@ -64,7 +67,17 @@ describe('the community corpus, by name', () => {
     '13-relative-strength-vs-benchmark-spy.pine',
     '15-inside-bar.pine',
     '16-nr4-nr7.pine',
-    '17-pocket-pivot-breakout.pine',
+    // 🔴🔴 `17-pocket-pivot-breakout.pine` REMOVED (RISK-043, 2026-09-07) — it
+    // was a SILENT_WRONG_RESULT, not a real pass. `ppchk` is mutated inside a
+    // top-level `for` loop (`ppchk += 1`), then read by an `if ppchk < 1 and
+    // greenday: ispp := true` block whose condition the translator could not
+    // fold — before the fix, the loop's un-foldable mutation was only caught
+    // by a closing-pass safety net that ran too late for the earlier `if`
+    // statement's own body, which had already captured a stale, pre-loop
+    // `ppchk` and silently baked it into `ispp`. See
+    // `pine.forLoopReassignSilentWrongResult.test.js` for the mechanism and
+    // permanent regression net; see `pine.community.guards.test.js` for where
+    // this script now lives (correctly refused, `pine:reassign`).
     '18-minervini-trend-template.pine',
     // ⭐⭐ TWO REFUSALS DEEP, and neither was the one the blocker table named.
     // It cleared `pine:request` when a ternary timeframe learned to fold its own
@@ -83,6 +96,13 @@ describe('the community corpus, by name', () => {
     // before it cleared.
     '20-cm-ultimate-ma-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
+    // ➕ ADDED 2026-09-12 by ruling 3.5 (`29d64a2ef`): it asked for
+    // `request.security(syminfo.tickerid, "D", …)`, and a literal naming the engine's
+    // own base now folds to the IDENTITY rather than refusing. — Roster 18 → 19.
+    // ⭐ THE STALENESS RAILS FOUND IT, NOT A PERSON: `doorScorecard` said "no ruling
+    // names a script that translates" and `pine.blindCorpus` said `request.security`
+    // "is listed as unserved but TRANSLATES", both within a minute of the change.
+    '23-higher-timeframe-ema.pine',
     '24-multi-timeframe-rsi.pine',
   ]
 

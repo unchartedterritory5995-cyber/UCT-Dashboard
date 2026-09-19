@@ -55,12 +55,30 @@ describe('the corpus is real and it is all there', () => {
     expect(Object.keys(SNAPSHOT).sort()).toEqual(FILES)
   })
 
-  it('every fixture is genuine Pine, not something this repo wrote', () => {
+  /** ⭐ ONE FIXTURE IS OURS, BY NAME, AND THAT IS THE POINT OF NAMING IT.
+   *  `12-ichimoku-kinko-hyo` replaced a third-party Ichimoku that had been
+   *  committed here under CC BY-NC-ND 4.0 — a licence forbidding derivatives, so
+   *  it could not stay (owner ruling 2026-09-09). The replacement is clean-room,
+   *  written from the published definition of the system, MPL-2.0, ours.
+   *  ⛔ IT IS LISTED HERE RATHER THAN QUIETLY PASSING THE REGEX. This test's
+   *  claim is that the corpus is what MEMBERS PASTE, not what we can already
+   *  translate; a repo-authored fixture is a thumb on that scale. Keeping the
+   *  exception to exactly one, spelled out, is what stops the corpus drifting
+   *  into a set of things we wrote for ourselves. */
+  const AUTHORED_HERE = ['12-ichimoku-kinko-hyo.pine']
+
+  it('every fixture is genuine Pine, and only the one named file is ours', () => {
+    expect(AUTHORED_HERE.every((f) => FILES.includes(f)), 'the named exception exists').toBe(true)
+    expect(AUTHORED_HERE.length, 'the exception list has not grown').toBe(1)
     for (const f of FILES) {
       const src = read(f)
       expect(src.length, f).toBeGreaterThan(300)
       // A published script names its author or its licence or declares itself.
       expect(/©|Copyright|License|licence|@version|study\(|indicator\(|strategy\(/.test(src), f).toBe(true)
+      // Everything not on the list must carry provenance that is not ours.
+      if (!AUTHORED_HERE.includes(f)) {
+        expect(/Uncharted Territory/.test(src), `${f} must not be repo-authored`).toBe(false)
+      }
     }
   })
 })
@@ -246,7 +264,22 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       // index, `1 + 1`, `bar_index` — it is simply no longer reachable from any
       // PUBLISHED script in this corpus, which is what this list tracks.
       // `pine.offset.test.js` holds the snippets that still exercise it.
-      'pine:tuple', // 02, 06, 19
+      // ⚰️ `pine:tuple` LEFT THIS LIST 2026-09-13, CLOSED RATHER THAN WEAKENED —
+      // the fourth guard to go that way, after `pine:role-order`, `pine:na`,
+      // `pine:block` and `pine:offset-literal`. It fired on 02, 06 and 19 for
+      // the SAME shape: a user function whose body is an `if/else if/else` chain
+      // returning a tuple from every arm. The chain folded to ONE scalar value,
+      // so `destructureBindings` reported *"returns one value, and 2 names were
+      // given"* — a sentence about the fold rather than about the script.
+      // `foldIfChain` folds such a chain ELEMENT-WISE now (R2 step 2a), so the
+      // destructure hands out its parts and the refusal moves on: 19's two
+      // per-output refusals read `pine:state` instead, which is its next real
+      // blocker and a truer sentence.
+      // ⛔ THE GUARD IS STILL LIVE and still right for a right-hand side that
+      // genuinely answers one value, for mismatched arity, and for a shape this
+      // engine cannot take apart — `pine.tuples.test.js` and
+      // `pine.tupleBuiltins.test.js` (86 cases) hold the snippets that exercise
+      // it. It simply has no published script left in this corpus that trips it.
       // ⚰️ `pine:role-order` LEFT THIS LIST BECAUSE IT WAS CLOSED, not because it
       // stopped mattering. It fired on `18-normalized-average-true-range` for
       // `ta.atr(length)`, where the translator could see that `atr` exists and
@@ -266,6 +299,8 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 12, 14, 15
+      'pine:hidden-only', // 10 — every visible column refuses and the survivor is
+      // the author's own `display.none` fill edge (ruling 1.2, 2026-09-12)
       // ⚰️ `pine:undefined` LEFT THIS LIST 2026-08-27, and it left because the
       // door stopped being WRONG rather than because it stopped being strict.
       // This module keeps a hand-typed `PINE_KNOWN_BUILTINS` whose own comment
@@ -335,6 +370,24 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // them (`pine:state` ×2, `pine:cycle` ×2). Same shape as the `pine:arity`
     // movement recorded above, run the other way — a guard entering this set
     // means a published script finally exercises a sentence nobody had read.
+    // ⭐ 10 → 11 ON 2026-09-12, AND UP IS THE HONEST DIRECTION AGAIN. `pine:hidden-only`
+    // joined because ruling 1.2 gave a name to something this door used to do in
+    // silence: `10-supertrend.pine` refuses on all nine visible columns and keeps one
+    // — the author's `display.none` `ohlc4` fill edge — and the member was told nothing
+    // about why that survivor is not on offer. Same shape as the `pine:cycle` movement
+    // above: a guard entering this set means a published script finally exercises a
+    // sentence nobody had read.
+    // ⚰️ 11 → 10 ON 2026-09-13, AND THIS ASSERTION IS WHAT NOTICED — the fourth
+    // time. `pine:tuple` left the set because an `if/else if/else` chain whose
+    // every arm is a same-arity tuple now folds ELEMENT-WISE (R2 step 2a), so a
+    // destructure of such a function hands out its parts instead of being told
+    // the function "returns one value". 19's two per-output refusals moved from
+    // `pine:tuple` to `pine:state`, which is its next real blocker.
+    // ⛔ DOWN, AND A WIN — but the direction alone does not say so, which is the
+    // whole reason this number is read alongside WHICH guard moved. 02 and 06
+    // stopped refusing for it too, and the guard stays live for a right-hand
+    // side that genuinely answers one value and for mismatched arity, railed by
+    // 86 constructed cases in `pine.tuples` / `pine.tupleBuiltins`.
     expect(fired.size).toBe(10)
   })
 
@@ -508,6 +561,25 @@ describe('the whole corpus, in one number', () => {
     // how the asymmetry was proven rather than argued: neutralising line 92 alone
     // made the whole script translate, so line 90's identical `time` was never
     // the wall. One policy, three spellings, and `and`/`or` was the one missing.
+    // ⭐ 14 → 15 ON 2026-09-09, AND THIS ONE CAME FROM A LICENCE REMOVAL, NOT A
+    // CAPABILITY. `12-ichimoku-clouds` was third-party under CC BY-NC-ND 4.0 — a
+    // licence forbidding derivatives — so it could not stay in this repository
+    // (owner ruling). Its clean-room replacement `12-ichimoku-kinko-hyo` is ours,
+    // MPL-2.0, written from the published definition of the system.
+    // ⭐⭐ THE REPLACEMENT TRANSLATES WHERE THE ORIGINAL REFUSED, and the reason is
+    // worth keeping: the old file refused at SCRIPT level on `pine:plot-offset`,
+    // so its 23 outputs bought nothing. The new one puts the offset only on the
+    // three plots that genuinely displace — Chikou back, both Senkou spans forward
+    // — leaving Tenkan and Kijun as plain columns. Same wall, three outputs instead
+    // of the whole script. ⚠️ SO THE COVERAGE THIS FIXTURE CARRIED IS NOT LOST:
+    // `perOutputRefusals` still records `pine:plot-offset` ×3, which is what the
+    // "NOTHING is blocked on the bar offset any more" case downstream reads.
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F. `10-supertrend.pine` moved out of the
+    // translating set, and it is a CORRECT loss: it was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min presented as the
+    // running band, i.e. a trailing stop in the wrong place. It refuses at pine:state
+    // now. A count that went down because a wrong answer stopped being produced is a
+    // count that got MORE true, not less.
     expect(translating).toBe(14)
     // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
     // The count went DOWN while a script was ADDED, which is the only reason
@@ -532,7 +604,26 @@ describe('the whole corpus, in one number', () => {
     // two-directional is what forced the question instead of letting 60 stand.
     // If this ever climbs back toward 60 without a named script, suspect the
     // blind spot reopened rather than that coverage grew.
-    expect(columns).toBe(53)
+    // ⭐ 53 → 55 ON 2026-09-09, AND THE NAMED SCRIPT IS `12-ichimoku-kinko-hyo` —
+    // the clean-room replacement for the CC BY-NC-ND file that could not stay in
+    // this repository (see the `translating` pin above). It is +2, not +23: the
+    // removed script offered 23 outputs and ZERO usable columns, because it refused
+    // at script level. The replacement offers 5 and lands exactly two — Tenkan and
+    // Kijun, the pair that carry no `offset`.
+    // ⛔ THIS IS THE CLIMB THE PARAGRAPH ABOVE WARNS ABOUT, so it is answered in its
+    // own terms: the two columns are `(highest(high, 9) + lowest(low, 9)) / 2` and
+    // its 26-bar twin, both of which read bars on every session and neither of which
+    // is a folded-constant phantom. The three displaced plots still refuse.
+    // ⚰⚰ 55 → 46 ON 2026-09-12, BY RULING R-F, AND THE NINE THAT LEFT ARE THE NINE
+    // `10-supertrend.pine` WAS OFFERING. Two plots, four `plotshape` markers and three
+    // `alertcondition`s, every one of them built on a band this engine was folding to a
+    // 250-bar rolling min/max — a member screening on "Supertrend flipped" was screening
+    // on a window nobody chose. They are a CORRECT loss, and the arithmetic is exact:
+    // the script's own usable count was 9 and the corpus number fell by 9.
+    // ⭐ Same reading as the `53 → 55` paragraph, in the other direction: a number that
+    // falls because a wrong answer stopped being produced is a number that got more true.
+    // If this climbs back to 55 without a named script, suspect the admission reopened.
+    expect(columns).toBe(46)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus
@@ -567,7 +658,15 @@ describe('the whole corpus, in one number', () => {
     // `evaluateFormula` + `canSaveFormula` before being written to the fixture —
     // the regenerator deliberately carries that field through rather than
     // re-deciding it, so a new entry arrives as `null` and must be walked by hand.
-    expect(saveable.length).toBe(14)
+    // ⭐ 14 → 15 with the clean-room `12-ichimoku-kinko-hyo` (see the reason at the
+    // `translating` pin above). Its `downstream` was MEASURED the same way 15's was
+    // — through `evaluateFormula` with `BUILDER_INPUT_SCOPE` — because the
+    // regenerator carries the field rather than deriving it, so a REPLACED filename
+    // is a NEW key and arrives `null`. ⚠️ That is the trap in a rename: the file is
+    // "the same fixture" to a reader and a different row to the writer, and the
+    // `blocked` case above is what catches it — a null downstream lands there, not
+    // silently outside this number. `translating` and `saveable` stay the same set.
+    expect(saveable.length).toBe(15)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1928d26a0775419cb3ac6b36996f057b",
+ "title": "Dynamic Support and Resistance with Trend Lines (Multi-Language)",
+ "author": "ata_sabanci",
+ "url": "https://www.tradingview.com/script/xMvwtAxO-dynamic-support-and-resistance-with-trend-lines-multi-langua/",
+ "agreeCount": 3520,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2XdpoRlzHB0bjMSgLurJYOHIscTB2QBm",
+ "title": "Demand and Supply Candles-open",
+ "author": "CSTAcademyPurushothamGowda",
+ "url": "https://www.tradingview.com/script/KRlFYBWy-demand-and-supply-candles-open/",
+ "agreeCount": 1969,
+ "category": "market structure / smart-money",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/demand-and-supply-candles-open__2XdpoRlzHB.pine",
+ "our_status": "reference-only"
+}

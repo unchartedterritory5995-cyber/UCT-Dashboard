@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;033f4cab46d043c5a2a97f4c6f7896b3",
+ "title": "RSI Trendlines with Breakouts [HG]",
+ "author": "HoanGhetti",
+ "url": "https://www.tradingview.com/script/YcKrOcXe-rsi-trendlines-with-breakouts-hg/",
+ "agreeCount": 5010,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rsi-trendlines-with-breakouts-hg__033f4cab46.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rsi-trendlines-with-breakouts-hg__033f4cab46.pine",
+ "our_status": "committed"
+}

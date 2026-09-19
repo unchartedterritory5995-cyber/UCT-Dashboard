@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;878af32b434e46d28f35fbe4893bb81b",
+ "title": "Deviation Scaled Moving Average w/ DSL [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/MXTaXJdU-deviation-scaled-moving-average-w-dsl-loxx/",
+ "agreeCount": 632,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine",
+ "cached_source": "tools/pine_survey/cache/sources/deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine",
+ "our_status": "committed"
+}

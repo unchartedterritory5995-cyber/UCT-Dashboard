@@ -1,0 +1,31 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RezzoRedPriest
+
+//@version=6
+indicator("RSI Horizontal resistance levels", overlay=true, max_lines_count=500)
+
+// Пользовательские параметры RSI 50 as default
+rsiLength   = input.int(3,   "RSI Length",   minval=1)
+level       = input.float(50.0, "RSI Level",   minval=0.0, maxval=100.0)
+tolerance   = input.float(1.0,  "Tolerance",   minval=0.0)
+maxRays     = input.int(5,   "Max Rays",    minval=1, maxval=100)
+rayColor    = input.color(color.yellow, "Ray Color")
+rayWidth    = input.int(2,   "Ray Width",  minval=1, maxval=5)
+
+// Расчёт RSI без дополнительного сглаживания
+rsi = ta.rsi(close, rsiLength)
+
+// Условие: RSI попадает в заданный диапазон вокруг уровня
+inRange = (rsi >= level - tolerance) and (rsi <= level + tolerance)
+
+// Инициализация массива для хранения ID лучей (сохраняется между баррами)
+var array<line> rays = array.new<line>()
+
+// Создаём горизонтальный луч (extend.right) по цене закрытия, если условие истинно
+newLine = inRange ? line.new(bar_index, close, bar_index + 1, close, extend=extend.right, color=rayColor, width=rayWidth) : na
+if not na(newLine)
+    array.push(rays, newLine)
+
+// Ограничиваем количество отображаемых лучей до последних maxRays: удаляем самый старый
+if array.size(rays) > maxRays
+    line.delete(array.shift(rays))

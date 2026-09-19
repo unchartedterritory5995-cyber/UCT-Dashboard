@@ -36,6 +36,9 @@ from fastapi import HTTPException, Request
 # existing bars-serving call site upgrades with no other change; the constructor
 # signature (content/status_code/headers) is identical.
 from fastapi.responses import ORJSONResponse as JSONResponse
+from api.services.nyse_calendar import (
+    NYSE_HOLIDAYS_YYYYMMDD as _NYSE_HOLIDAYS_YYYYMMDD_LEAF,
+)
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
@@ -326,17 +329,13 @@ def get_hot_intraday_tickers(max_n: int = 500) -> list[str]:
 # cycle, saturating the shared API key. Memorial Day 2026 (this set's
 # trigger) reproduced exactly that. Keep this list ahead of `today` by at
 # least one calendar year; refresh annually from nyse.com/markets/hours-calendars.
-_NYSE_HOLIDAYS_YYYYMMDD: frozenset[int] = frozenset({
-    # 2025
-    20250101, 20250109, 20250120, 20250217, 20250418, 20250526, 20250619,
-    20250704, 20250901, 20251127, 20251225,
-    # 2026
-    20260101, 20260119, 20260216, 20260403, 20260525, 20260619, 20260703,
-    20260907, 20261126, 20261225,
-    # 2027
-    20270101, 20270118, 20270215, 20270326, 20270531, 20270618, 20270705,
-    20270906, 20271125, 20271224,
-})
+#: ⚰️ THE LITERAL MOVED TO ``api/services/nyse_calendar.py`` (2026-09-09), a
+#: dependency-free leaf, and is RE-EXPORTED here so every existing reader that
+#: names ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`` is untouched. It moved because
+#: reaching it used to mean importing this module -- fastapi, the Massive
+#: client, the cache and a thread pool -- just to read thirty dates.
+#: ⛔ STILL ONE AUTHORITY. This name and the leaf are the same object.
+_NYSE_HOLIDAYS_YYYYMMDD = _NYSE_HOLIDAYS_YYYYMMDD_LEAF
 
 
 def _is_nyse_holiday(yyyymmdd: int) -> bool:

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1082",
+ "title": "Candlestick Patterns Identified, update 1-17-26",
+ "author": "repo32",
+ "url": "https://www.tradingview.com/script/vcsWo8mh-candlestick-patterns-identified-update-1-17-26/",
+ "agreeCount": 34467,
+ "category": "candlestick patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
+ "cached_source": "tools/pine_survey/cache/sources/candlestick-patterns-identified-update-1-17-26__1082.pine",
+ "our_status": "committed"
+}

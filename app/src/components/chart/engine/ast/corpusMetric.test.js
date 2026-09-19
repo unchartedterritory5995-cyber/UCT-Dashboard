@@ -1,0 +1,123 @@
+// ─── ⭐⭐ THE THREE-NUMBER METRIC, MEASURED RATHER THAN QUOTED ───────────────
+//
+// ⚰️ WHY THIS FILE EXISTS. "30/266 host · 45/266 screener" was quoted in four
+// places across `docs/pine/` and in SESSION-STATE, and it came from an ad-hoc run
+// nobody could repeat. Re-measured 2026-09-11 the numbers were **32 and 46** — so
+// the figure every plan was reasoning against had been stale for at least two
+// capability landings, and nothing could have told anyone, because no test
+// computed it. A number with no runnable producer is a number that drifts.
+//
+// ⛔ IT CARRIES NO FLOOR, AND THAT IS DELIBERATE. A floor here is how
+// `capabilityDemandCensus` ended up asserting `> 150` against a corpus half of
+// which is licence-restricted and never committed. What this asserts instead is
+// NON-VACUITY — that it really read the corpus and that both lanes really
+// discriminate — and it PRINTS the measurement plus writes per-script rows, so
+// any number walks back to a file. The authority is the artifact, not a literal.
+//
+// ⛔ A THROW IS RECORDED AS `THREW`, NEVER SWALLOWED. `translatePine` is supposed
+// to RETURN refusals; one committed script makes it throw one instead
+// (`smart-money-breakouts-chartprime__ea79c79a67.pine`, `pine:statement` out of
+// `switchBinding`). Catching it silently would have hidden a member-reachable
+// crash behind a tidy count, so the row says `THREW` and the console says which.
+import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { translatePine } from './pine.js'
+
+const REPO = path.resolve(process.cwd(), '..')
+const DIR = path.join(REPO, 'corpus/committed')
+const OUT = path.join(REPO, 'tools/corpus_metric.json')
+
+describe('the committed corpus, both lanes', () => {
+  // ⚠ AN EXPLICIT TIMEOUT, BECAUSE THIS ONE MEASURES 532 TRANSLATIONS. It runs in
+  // ~2.3s alone and crossed vitest's 15s default once under a full-suite load on
+  // 2026-09-12 — a red that says "timed out" beside a console line reporting the very
+  // numbers it was asked for, which reads as a broken producer rather than a busy box.
+  it('⭐ measures host and screener, and records every row', { timeout: 180000 }, () => {
+    const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
+
+    const run = (src, sp, strict) => {
+      try {
+        const r = translatePine(src, strict
+          ? { strict: true, budgetMs: 2000, sourcePath: sp }
+          : { budgetMs: 2000, sourcePath: sp })
+        return { ok: !!r.ok, guards: [...new Set((r.refusals || []).map((x) => x.guard))] }
+      } catch (e) {
+        /* eslint-disable-next-line no-console */
+        console.log(`THREW ${strict ? 'host    ' : 'screener'} ${sp}: ${e && e.guard}`)
+        return { ok: false, guards: ['THREW'] }
+      }
+    }
+
+    const rows = files.map((f) => {
+      const src = fs.readFileSync(path.join(DIR, f), 'utf8')
+      const sp = `corpus/committed/${f}`
+      const host = run(src, sp, true)
+      const screener = run(src, sp, false)
+      return { file: f, host: host.ok, screener: screener.ok, hostGuards: host.guards, screenerGuards: screener.guards }
+    })
+
+    const hostOk = rows.filter((r) => r.host).length
+    const screenerOk = rows.filter((r) => r.screener).length
+    const threw = rows.filter((r) => r.hostGuards.includes('THREW') || r.screenerGuards.includes('THREW'))
+
+    /* eslint-disable no-console */
+    console.log(`\n=== THE THREE-NUMBER METRIC, measured ===`)
+    console.log(`  scripts                 ${rows.length}`)
+    console.log(`  host / pane   (strict)  ${hostOk}/${rows.length}`)
+    console.log(`  screener    (default)   ${screenerOk}/${rows.length}`)
+    console.log(`  translatePine THREW on  ${threw.length} (see rows)`)
+    /* eslint-enable no-console */
+
+    // ⚰ `measured_at` WAS A HAND-TYPED '2026-09-11' AND WENT STALE THE FIRST TIME THE
+    // METRIC MOVED: ruling R-F re-derived it on 2026-09-12 and the artifact still said
+    // yesterday — a stamp claiming to date a measurement, dating the last time someone
+    // edited the literal. It is derived from the run now, so the only way for it to be
+    // wrong is for the file not to have been regenerated, which is the thing it should say.
+    // ⚰️⚰️ AND THEN IT WENT WRONG THE OTHER WAY (owner ruling, 2026-09-14). A
+    // wall-clock stamp re-written on EVERY run means a run that moved nothing
+    // still dirties the tree, so `git status` shows a modified metric after any
+    // suite and somebody reverts it by hand — which is the churn pattern the CRLF
+    // days were spent killing, and which trains a reader to ignore a diff in the
+    // one file whose diff is the whole point.
+    //
+    // ⭐ SO THE STAMP FOLLOWS THE VALUES, NOT THE CLOCK: the file is rewritten
+    // only when a measured value actually changes, and `measured_at` is then the
+    // day it changed. A metric that has not moved keeps the date it last moved,
+    // which is the true answer to "when was this measured" for an unchanged
+    // number — and it makes a modified `corpus_metric.json` mean something again.
+    const measured = {
+      scripts: rows.length,
+      host_ok: hostOk,
+      screener_ok: screenerOk,
+      threw: threw.map((r) => r.file),
+      rows,
+    }
+    let prior = null
+    try { prior = JSON.parse(fs.readFileSync(OUT, 'utf8')) } catch { prior = null }
+    const same = prior
+      && JSON.stringify({ ...prior, measured_at: undefined })
+        === JSON.stringify({ ...measured, measured_at: undefined })
+    if (!same) {
+      fs.writeFileSync(OUT, `${JSON.stringify({
+        measured_at: new Date().toISOString().slice(0, 10),
+        ...measured,
+      }, null, 2)}\n`)
+    }
+
+    // ── NON-VACUITY, not a floor ──────────────────────────────────────────
+    // It really read the corpus…
+    expect(rows.length).toBeGreaterThan(200)
+    // …both lanes really answer…
+    expect(hostOk).toBeGreaterThan(0)
+    expect(screenerOk).toBeGreaterThan(0)
+    // …and both really DISCRIMINATE. A lane that said yes to everything, or no to
+    // everything, would be an instrument reporting a property of itself.
+    expect(hostOk).toBeLessThan(rows.length)
+    expect(screenerOk).toBeLessThan(rows.length)
+    // …and the lanes are not the same question: the screener is the looser one, so
+    // it must clear at least as many as the host. If this ever inverts, one of the
+    // two lanes is not what its name says.
+    expect(screenerOk).toBeGreaterThanOrEqual(hostOk)
+  })
+})

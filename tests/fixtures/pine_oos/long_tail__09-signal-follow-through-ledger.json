@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "09-signal-follow-through-ledger.pine",
+  "title": "Signal Follow-Through Ledger [MQLSoftware]",
+  "author": "MQLSoftware",
+  "source_url": "https://www.tradingview.com/script/6Sflxjmd-Signal-Follow-Through-Ledger-MQLSoftware/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "yesterday (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 233,
+  "complexity_bucket": "long",
+  "sha256_source": "4d56392fdfa8e29a086f3fd1214ed5a3536c443df41905b4204fd7b64e0d5157",
+  "sha256_normalized": "fb9d3705d9418f67e600695dbe598759f1d891a2c6b6f08520e28a77a6de4919",
+  "storage": "git"
+}

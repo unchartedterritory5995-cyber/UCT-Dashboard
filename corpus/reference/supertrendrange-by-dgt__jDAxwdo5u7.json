@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;jDAxwdo5u7waRjoYoEPsNHK5Rw6Cg6eF",
+ "title": "SuperTrendRange by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/neIhiYqp-supertrendrange-by-dgt/",
+ "agreeCount": 2938,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/supertrendrange-by-dgt__jDAxwdo5u7.pine",
+ "our_status": "reference-only"
+}

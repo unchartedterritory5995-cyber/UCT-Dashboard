@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1510",
+ "title": "Mamona Candles",
+ "author": "alona.gz",
+ "url": "https://www.tradingview.com/script/VvUqVJUX-mamona-candles/",
+ "agreeCount": 7471,
+ "category": "candlestick patterns",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/mamona-candles__1510.pine",
+ "our_status": "reference-only"
+}

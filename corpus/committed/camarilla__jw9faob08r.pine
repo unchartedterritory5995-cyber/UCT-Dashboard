@@ -1,0 +1,712 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=4
+
+study("Camarilla++", overlay = true)
+
+//Resources:
+
+//Camarilla Pivots Suite - Daily, Weekly, Monthly, Yearly S/R
+//https://www.tradingview.com/v/VQaB8luz/
+
+//GRaB Candles
+//https://www.tradingview.com/script/W3CQILKS-GRaB-Candles/
+
+//Inverse-Fisher-RSI-MTF2-
+//https://www.tradingview.com/script/XDJWADe9-Inverse-Fisher-RSI-MTF2-alerts/
+
+
+//https://www.tradingview.com/script/6mkMeGyw-strategy-MACD-and-RSI-alert/
+
+//VWAP CANDLES
+//https://www.tradingview.com/script/JNE22ckq-VWAP-Candles/
+
+//RSI SWING
+//https://www.tradingview.com/script/uHew29m1-RSI-Swing-Indicator-v2/
+
+//Jurik-PPO-PercentileRank
+//ttps://www.tradingview.com/script/EJUoaGdk-Jurik-PPO-PercentileRank-Mkt-Tops-Bottoms/
+
+//VPTbollfib
+//https://www.tradingview.com/script/6cjUFQpc-VPTbollfib/
+
+showDaily = input(title="Show Camarilla", defval=true)
+ptf = input(title="Pivot Resolution", defval="D", options=["Current","D","W","M","12M"])
+showlast   = input(title = "Hide Historial", defval = false)
+showlabels = input(title = "Show Labels", defval = true)
+lstyle     = input(title = "Line Style", options = ['Solid', 'Circles', 'Cross'], defval ='Solid')
+showWCPR = input(title="Show Weekly Levels", defval=false)
+
+showTomorrow= input(title="Show Future Pivot,H3,L3", defval=false)
+
+showReg= input(title="Show Regression", defval=false)
+showVwap= input(title="Show VWAP Candles", defval=false)
+showVwapLine= input(title="Show VWAP Line", defval=false)
+
+pbers = input(title="PivotBoss Extreme Reversal Setup", defval=false)
+pbors = input(title="PivotBoss Outside Reversal Setup", defval=false)
+changeColorPPO = input(title="Change Barcolor for PPO", type=input.bool, defval=false)
+changeColor    = input(title="Change Barcolor for GRaB", type=input.bool, defval=false)
+
+
+// Line Style
+linestyle = lstyle == 'Solid' ? plot.style_line :   lstyle == 'Circles' ? plot.style_circles : plot.style_cross
+
+// Label for S/R
+chper = time - time[1]
+chper := change(chper) > 0 ? chper[1] : chper
+
+
+ 
+Round_it(x) => 
+    n = round(x / syminfo.mintick) * syminfo.mintick
+
+//
+///// GOLDEN ROPE
+show_gr= input(false, "Show Golden Rope")
+ema_200 = ema(close, 200)
+plot(show_gr ? ema_200 : na, title="Golden Rope", color = color.yellow, style=plot.style_line,linewidth=1, transp=0)
+
+///// EMA 
+show_ema26= input(false, "Show EMA")
+ema_26 = ema(close, 26)
+plot(show_ema26 ? ema_26 : na, title="EMA 26", color = color.purple, style=plot.style_line,linewidth=1, transp=0)
+
+
+
+// Camarilla + CPR function
+getData(t,tom) =>
+
+    
+    highhtf = security(syminfo.tickerid, t, tom ? high : high[1],  lookahead = barmerge.lookahead_on)
+    lowhtf = security(syminfo.tickerid, t, tom ? low : low[1], lookahead = barmerge.lookahead_on)
+    closehtf = security(syminfo.tickerid, t, tom ? close : close[1], lookahead = barmerge.lookahead_on)
+    range = highhtf - lowhtf
+    islast = showlast ? security(syminfo.tickerid, t, barstate.islast, lookahead = true) : true
+
+    H5 = (highhtf / lowhtf) * closehtf
+    H4 = closehtf + range * 1.1/2
+    H3 = closehtf + range * 1.1/4
+    H2 = closehtf + range * 1.1/6
+    H1 = closehtf + range * 1.1/12
+    H6 = H5 + 1.168 * (H5 - H4) 
+
+    L1 = closehtf - range * 1.1/12
+    L2 = closehtf - range * 1.1/6
+    L3 = closehtf - range * 1.1/4
+    L4 = closehtf - range * 1.1/2
+    L5 = closehtf - (H5 - closehtf)
+    L6 = closehtf - (H6 - closehtf)
+
+    pivot = (highhtf + lowhtf + closehtf) / 3.0
+    bc = (highhtf + lowhtf) / 2.0
+    tc = pivot - bc + pivot
+    [islast,H6,  H5, H4, H3, H2, H1, L1, L2, L3, L4, L5 ,L6 , pivot , bc , tc]
+    
+
+
+
+
+[dIsLast, dH6, dH5, dH4, dH3, dH2, dH1, dL1, dL2, dL3, dL4, dL5 , dL6 , dP , dPb , dPt] = getData(ptf,false)
+[tIsLast, tH6, tH5, tH4, tH3, tH2, tH1, tL1, tL2, tL3, tL4, tL5 , tL6 , tP , tPb , tPt] = getData(ptf,true)
+
+[wIsLast, wH6, wH5, wH4, wH3, wH2, wH1, wL1, wL2, wL3, wL4, wL5 , wL6 , wP , wPb , wPt] = getData("W",false)
+[mIsLast, mH6, mH5, mH4, mH3, mH2, mH1, mL1, mL2, mL3, mL4, mL5 , mL6 , mP , mPb , mPt] = getData("M",false)
+[yIsLast, yH6, yH5, yH4, yH3, yH2, yH1, yL1, yL2, yL3, yL4, yL5 , yL6 , yP , yPb , yPt] = getData("12M",false)
+/////
+
+
+
+
+
+
+//W CPR    
+cpr_trans = color.new(color.white , transp = 75)
+
+if showWCPR 
+    wcpr = line.new(time, wP , time + 60 * 60 * 24, wP, xloc=xloc.bar_time,color = color.white , style=line.style_dashed , extend=extend.right)  
+    line.delete(wcpr[1])
+    wcprb = line.new(time, wPb , time + 60 * 60 * 24, wPb, xloc=xloc.bar_time,color = cpr_trans , style=line.style_dashed , extend=extend.right)  
+    line.delete(wcprb[1])
+    wcprt = line.new(time, wPt , time + 60 * 60 * 24, wPt, xloc=xloc.bar_time,color = cpr_trans , style=line.style_dashed , extend=extend.right)  
+    line.delete(wcprt[1])    
+    wcprl = label.new(time , wP  , "                                                                                 Weekly Pivot : "+ tostring(Round_it(wP)) , xloc=xloc.bar_time, size=size.small,textcolor=color.white, style=label.style_none ,textalign = text.align_left )
+    label.delete(wcprl[1])
+    
+    wh3 = line.new(time, wH3 , time + 60 * 60 * 24, wH3, xloc=xloc.bar_time,color = color.red , style=line.style_dashed , extend=extend.right)  
+    line.delete(wh3[1])
+    wh3l = label.new(time , wH3  , "                                                                                 Weekly H3 : "+ tostring(Round_it(wH3)) , xloc=xloc.bar_time, size=size.small,textcolor=color.red, style=label.style_none ,textalign = text.align_left )
+    label.delete(wh3l[1])
+    wh4 = line.new(time, wH4 , time + 60 * 60 * 24, wH4, xloc=xloc.bar_time,color = color.red , style=line.style_dashed , extend=extend.right)  
+    line.delete(wh4[1])
+    wh4l = label.new(time , wH4  , "                                                                                 Weekly H4 : "+ tostring(Round_it(wH4)) , xloc=xloc.bar_time, size=size.small,textcolor=color.red, style=label.style_none ,textalign = text.align_left )
+    label.delete(wh4l[1])    
+    wh5 = line.new(time, wH5 , time + 60 * 60 * 24, wH5, xloc=xloc.bar_time,color = color.red , style=line.style_dashed , extend=extend.right)  
+    line.delete(wh5[1])
+    wh5l = label.new(time , wH5  , "                                                                                 Weekly H5 : "+ tostring(Round_it(wH5)) , xloc=xloc.bar_time, size=size.small,textcolor=color.red, style=label.style_none ,textalign = text.align_left )
+    label.delete(wh5l[1])    
+
+
+    wl3 = line.new(time, wL3 , time + 60 * 60 * 24, wL3, xloc=xloc.bar_time,color = color.green , style=line.style_dashed , extend=extend.right)  
+    line.delete(wl3[1])
+    wl3l = label.new(time , wL3  , "                                                                                 Weekly L3 : "+ tostring(Round_it(wL3)) , xloc=xloc.bar_time, size=size.small,textcolor=color.green, style=label.style_none ,textalign = text.align_left )
+    label.delete(wl3l[1])
+    wl4 = line.new(time, wL4 , time + 60 * 60 * 24, wL4, xloc=xloc.bar_time,color = color.green , style=line.style_dashed , extend=extend.right)  
+    line.delete(wl4[1])
+    wl4l = label.new(time , wL4  , "                                                                                 Weekly L4 : "+ tostring(Round_it(wL4)) , xloc=xloc.bar_time, size=size.small,textcolor=color.green, style=label.style_none ,textalign = text.align_left )
+    label.delete(wl4l[1])
+    
+    wl5 = line.new(time, wL5 , time + 60 * 60 * 24, wL5, xloc=xloc.bar_time,color = color.green , style=line.style_dashed , extend=extend.right)  
+    line.delete(wl5[1])
+    wl5l = label.new(time , wL5  , "                                                                                 Weekly L5 : "+ tostring(Round_it(wL5)) , xloc=xloc.bar_time, size=size.small,textcolor=color.green, style=label.style_none ,textalign = text.align_left )
+    label.delete(wl5l[1])    
+    
+    
+//D
+plot(showDaily and dIsLast ? dP : na, title = "Pivot", color =  dP !=dP[1] ? na : color.fuchsia, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dPb : na, title = "Pivot Botttom", color = dPb !=dPb[1] ? na : color.fuchsia, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dPt : na, title = "Pivot Top", color = dPt !=dPt[1] ? na :color.fuchsia, linewidth = 1, style = linestyle, transp = 0)
+
+
+plot(showDaily and dIsLast ? dH5 : na, title = "H5", color = dH5 != dH5[1] ? na : color.blue, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dH4 : na, title = "H4", color = dH4 != dH4[1] ? na :color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dH3 : na, title = "H3", color = dH3 != dH3[1] ? na :color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dH2 : na, title = "H2", color = dH2 != dH2[1] ? na :color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dL2 : na, title = "L2", color = dL2 != dL2[1] ? na :color.green, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dL3 : na, title = "L3", color = dL3 != dL3[1] ? na :color.green, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dL4 : na, title = "L4", color = dL4 != dL4[1] ? na :color.green, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dL5 : na, title = "L5", color = dL5 != dL5[1] ? na :color.blue, linewidth = 1, style = linestyle, transp = 0) 
+plot(showDaily and dIsLast ? dH6 : na, title = "H6", color = dH6 != dH6[1] ? na :color.blue, linewidth = 1, style = linestyle, transp = 0)
+plot(showDaily and dIsLast ? dL6 : na, title = "L6", color = dL6 != dL6[1] ? na :color.blue, linewidth = 1, style = linestyle, transp = 0)
+
+
+
+if showTomorrow
+    tP_l = line.new(x1=time  + 86400000 / 4 , y1=tP,
+         x2=time + 86400000, y2=tP ,
+         xloc=xloc.bar_time , color = color.fuchsia, style=line.style_dashed)
+    line.delete(tP_l[1])
+    tPb_l = line.new(x1=time  + 86400000 / 4 , y1=tPb,
+         x2=time + 86400000, y2=tPb ,
+         xloc=xloc.bar_time , color = color.fuchsia, style=line.style_dashed)
+    line.delete(tPb_l[1]) 
+    tPt_l = line.new(x1=time  + 86400000 / 4 , y1=tPt,
+         x2=time + 86400000, y2=tPt ,
+         xloc=xloc.bar_time , color = color.fuchsia, style=line.style_dashed)
+    line.delete(tPt_l[1]) 
+
+    tph3_l = line.new(x1=time + 86400000 / 4, y1=tH3,
+         x2=time + 86400000, y2=tH3 ,
+         xloc=xloc.bar_time , color = color.red , style=line.style_dashed)      
+    line.delete(tph3_l[1])
+
+    tpl3_l = line.new(x1=time + 86400000 / 4, y1=tL3,
+         x2=time + 86400000, y2=tL3 ,
+         xloc=xloc.bar_time , color = color.green , style=line.style_dashed)   
+    line.delete(tpl3_l[1])
+    
+    var label tPlabel = na
+    var label tH3label = na
+    var label tL3label = na
+    tPlabel := label.new(x = time + 86400000 / 2, y = tP, text = "                  Next Pivot " + tostring(Round_it(tP)),size=size.small,textcolor=color.fuchsia, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+    label.delete(tPlabel[1])
+    tH3label := label.new(x = time + 86400000 / 2, y = tH3, text = "                  Next H3 " + tostring(Round_it(tH3)),size=size.small,textcolor=color.red, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+    label.delete(tH3label[1])
+    tL3label := label.new(x = time + 86400000 / 2, y = tL3, text = "                  Next L3 " + tostring(Round_it(tL3)),size=size.small,textcolor=color.green, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+    label.delete(tL3label[1])
+
+
+
+dist = time + chper *2
+wdist = time + chper * 2
+
+if showlabels
+
+    if (showDaily)
+        var label dPlabel = na
+        var label ds3label = na, var label ds4label = na, var label ds5label = na, var label ds6label = na
+        var label dr3label = na, var label dr4label = na, var label dr5label = na, var label dr6label = na
+
+        label.delete(dPlabel)
+        label.delete(ds3label), label.delete(ds4label), label.delete(ds5label), label.delete(ds6label)
+        label.delete(dr3label), label.delete(dr4label), label.delete(dr5label),label.delete(dr6label)
+        dPlabel := label.new(x = dist, y = dP, text =  "                  P " + tostring(Round_it(dP)),textalign = text.align_left,size=size.small,textcolor=color.fuchsia, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+
+        ds3label := label.new( x = dist,y = dL3, text = "                  L3 " + tostring(Round_it(dL3)),textalign = text.align_left, size=size.small,textcolor=color.green, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        ds4label := label.new(x = dist, y = dL4, text = "                  L4 " + tostring(Round_it(dL4)),textalign = text.align_left, size=size.small,textcolor=color.green, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        ds5label := label.new(x = dist, y = dL5, text = "                  L5 " + tostring(Round_it(dL5)),textalign = text.align_left, size=size.small,textcolor=color.blue, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        ds6label := label.new(x = dist, y = dL6, text = "                  L6 " + tostring(Round_it(dL6)),textalign = text.align_left, size=size.small,textcolor=color.blue, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+
+        dr3label := label.new(x = dist, y = dH3, text = "                  H3 " + tostring(Round_it(dH3)), textalign = text.align_left,size=size.small,textcolor=color.red, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        dr4label := label.new(x = dist, y = dH4, text = "                  H4 " + tostring(Round_it(dH4)), textalign = text.align_left, size=size.small,textcolor=color.red, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        dr5label := label.new(x = dist, y = dH5, text = "                  H5 " + tostring(Round_it(dH5)), textalign = text.align_left,size=size.small,textcolor=color.blue, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+        dr6label := label.new(x = dist, y = dH6, text = "                  H6 " + tostring(Round_it(dH6)), textalign = text.align_left,size=size.small,textcolor=color.blue, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+
+//GRaB Candles
+emaPeriod = input(title="[GRaB] EMA Period", type=input.integer, defval=34)
+showWave = input(title="[GRaB] Show Wave", type=input.bool, defval=false)
+
+emaHigh = ema(high,emaPeriod)
+emaLow = ema(low,emaPeriod)
+emaClose = ema(close,emaPeriod)
+
+waveHigh = showWave == true ? emaHigh : na
+waveLow = showWave == true ? emaLow : na
+waveClose = showWave == true ? emaClose : na
+
+plot(waveHigh, title="EMA High",color=color.red )
+plot(waveLow, title="EMA Low", color=color.blue)
+plot(waveClose, title="EMA Close", color=color.silver)
+barcolor(close < emaLow and changeColor ? close > open ? color.red : color.maroon : close > emaHigh and changeColor ? close > open ? color.blue : color.navy : close > open  and changeColor ? color.silver : changeColor ? color.gray : na)           
+
+
+
+
+fastLength = 8 //input(8, minval=1)
+slowLength = 16//input(16,minval=1)
+signalLength= 11//input(11,minval=1)
+fastMA = ema(close, fastLength)
+slowMA = ema(close, slowLength)
+macd = fastMA - slowMA
+signal = sma(macd, signalLength)
+
+Length = 10 //input(10, minval=1)
+Oversold = 49//input(49, minval=1)
+Overbought = 51//input(51, minval=1)
+xRSI = rsi(close, Length)
+
+longCond = bool(na)
+shortCond = bool(na)
+longCond := xRSI > Overbought and signal < macd
+shortCond := xRSI < Oversold and signal > macd
+
+CondIni = 0
+CondIni := longCond ? 1 : shortCond ? -1 : CondIni[1]
+longCondition = longCond and CondIni[1] == -1
+shortCondition = shortCond and CondIni[1] == 1
+
+plotshape(longCondition, title="RSI/MACD up", textcolor=color.white, style=shape.arrowup, size=size.tiny, location=location.belowbar, color=color.green, transp=0)
+plotshape(shortCondition, title="RSI/MACD down", textcolor=color.white, style=shape.arrowdown, size=size.tiny, location=location.abovebar, color=color.red, transp=0)
+
+period     = input(     150, "[Regr] Period"       , input.integer, minval=3)
+deviations = input(    2.0, "[Regr] Deviation(s)" , input.float  , minval=0.1, step=0.1)
+extendType = input("Right", "[Regr] Extend Method", input.string , options=["Right","None"])=="Right" ? extend.right : extend.none
+periodMinusOne = period-1
+Ex = 0.0, Ey = 0.0, Ex2 = 0.0, Exy = 0.0, for i=0 to periodMinusOne
+    closeI = nz(close[i]), Ex := Ex + i, Ey := Ey + closeI, Ex2 := Ex2 + (i * i), Exy := Exy + (closeI * i)
+ExEx = Ex * Ex, slope = Ex2==ExEx ? 0.0 : (period * Exy - Ex * Ey) / (period * Ex2 - ExEx)
+linearRegression = (Ey - slope * Ex) / period
+intercept = linearRegression + bar_index * slope
+deviation = 0.0, for i=0 to periodMinusOne
+    deviation := deviation + pow(nz(close[i]) - (intercept - slope * (bar_index[i])), 2.0)
+deviation := deviations * sqrt(deviation / periodMinusOne)
+startingPointY = linearRegression + slope * periodMinusOne
+if showReg
+    var line upperChannelLine = na  , var line medianChannelLine = na  , var line lowerChannelLine = na
+    line.delete(upperChannelLine[1]), line.delete(medianChannelLine[1]), line.delete(lowerChannelLine[1])
+    upperChannelLine  := line.new(bar_index - period + 1, startingPointY + deviation, bar_index, linearRegression + deviation, xloc.bar_index, extendType, color.new(#FF0000, 0), line.style_solid , 2)
+    medianChannelLine := line.new(bar_index - period + 1, startingPointY            , bar_index, linearRegression            , xloc.bar_index, extendType, color.new(#C0C000, 0), line.style_solid , 1)
+    lowerChannelLine  := line.new(bar_index - period + 1, startingPointY - deviation, bar_index, linearRegression - deviation, xloc.bar_index, extendType, color.new(#00FF00, 0), line.style_solid , 2)
+
+    
+// VWAP CANDLES
+NormalVwap=vwap(hlc3)
+H = vwap(high)
+L = vwap(low)
+O = vwap(open)
+C = vwap(close)
+
+left = 30 //input(title="[VWAP Candles# bars to the left", type=integer, defval=30)
+
+left_low = lowest(left)
+left_high = highest(left)
+newlow = low <= left_low
+newhigh = high >= left_high
+wc = color.new(color.black , transp = 100)
+
+q = barssince(newlow)
+w = barssince(newhigh)
+col2 = showVwap ? q < w ?  #8B3A3A : #9CBA7F : wc
+col2b = showVwap ? O > C ? color.red : color.lime : wc
+col2c = showVwapLine ? O > C ? color.red : color.lime : wc
+
+
+AVGHL=avg(H,L)
+AVGOC=avg(O,C)
+col  = showVwap ? AVGHL>AVGOC ? color.lime : color.red : wc
+col3 = showVwap ? open > AVGOC ? color.lime : color.red : wc
+
+plotcandle(O,H,L,C,color=col2b , wickcolor = wc , bordercolor = wc) 
+plot(showVwapLine ? NormalVwap : na, color=col2c)
+
+
+///TKE
+//// TKE
+tke_period =  14
+tke_emaperiod = 5
+momentum=(close/close [tke_period]) * 100
+cci=cci(hlc3,tke_period)
+rsi=rsi(close,tke_period)
+willr=(highest(high,tke_period)-close)/(highest(high,tke_period)-lowest(low,tke_period)) * -100
+stosk=stoch(close,high,low,tke_period)
+upper_s = sum(volume * (change(hlc3) <= 0 ? 0 : hlc3), tke_period)
+lower_s = sum(volume * (change(hlc3) >= 0 ? 0 : hlc3), tke_period)
+mfi= rsi(upper_s, lower_s)
+spacing = 7
+length7 = 7
+length14 = 14
+length28 = 28
+average(bp, tr_, length) => sum(bp, length) / sum(tr_, length)
+high_ = max(high, close[1])
+low_ = min(low, close[1])
+bp = close - low_
+tr_ = high_ - low_
+avg7 = average(bp, tr_, length7)
+avg14 = average(bp, tr_, length14)
+avg28 = average(bp, tr_, length28)
+ult= 100 * (4*avg7 + 2*avg14 + avg28)/7
+TKEline=(ult+mfi+momentum+cci+rsi+willr+stosk)/7
+EMAline= ema(TKEline,tke_emaperiod)
+showTKEdots= input(title="Show TKE dots", defval=false)
+obb     = input(     85, "[TKE] OB", input.integer)
+oss     = input(     -5, "[TKE] OS", input.integer)
+
+
+//plotshape(TKEline >= obb and showTKEdots, color=color.orange, transp=50, style=shape.circle, size=size.tiny, location=location.abovebar, title="TKE OS")
+//plotshape(TKEline >= 80  and showTKEdots, color=color.yellow, transp=50, style=shape.circle, size=size.tiny, location=location.abovebar, title="TKE OS 2")
+plotshape(crossunder(TKEline ,obb) and showTKEdots, color=color.red, transp=20, style=shape.circle, size=size.tiny, location=location.abovebar, title="TKE OB cross")
+//plotshape(TKEline <= oss  and showTKEdots, color=color.yellow, transp=50, style=shape.circle, size=size.tiny, location=location.belowbar, title="TKE OS")
+plotshape(crossover(TKEline ,0) and showTKEdots, color=color.green, transp=20, style=shape.circle, size=size.tiny, location=location.belowbar, title="KE OS cross")
+
+
+
+//// RSI SWING
+// RSI Settings for user
+rsiShow = input(title="[RSI Swing] Show Indicator", defval=false)
+rsiSource = input(title="[RSI Swing] Source", type=input.source, defval=close)
+rsiLength = input(title="[RSI Swing] Length", type=input.integer, defval=7)
+rsiOverbought = input(title="[RSI Swing] OB", type=input.integer, defval=70, minval=51, maxval=100)
+rsiOvesold = input(title="[RSI Swing] OS", type=input.integer, defval=30, minval=1, maxval=49)
+
+// RSI value based on inbuilt RSI
+rsiValue = rsi(rsiSource, rsiLength)
+
+// Get the current state
+isOverbought = rsiValue >= rsiOverbought
+isOversold = rsiValue <= rsiOvesold
+
+// State of the last extreme 0 for initialization, 1 = overbought, 2 = oversold
+var laststate = 0
+
+// Highest and Lowest prices since the last state change
+var hh = low
+var ll = high
+
+// Labels
+var label labelll = na
+var label labelhh = na
+
+// Swing lines
+var line line_up = na
+var line line_down = na
+
+var last_actual_label_hh_price = 0.0
+var last_actual_label_ll_price = 0.0
+
+
+// FUNCTIONS
+obLabelText() =>
+    if(last_actual_label_hh_price < high)
+        "HH"
+    else
+        "LH"
+//plot(last_actual_label_hh_price)
+osLabelText() =>
+    if(last_actual_label_ll_price < low)
+        "HL"
+    else
+        "LL"
+
+// Create oversold or overbought label
+createOverBoughtLabel(isIt) =>
+    if(isIt)
+        label.new(x=bar_index, y=na ,yloc=yloc.abovebar, style=label.style_label_down, color=color.red, size=size.tiny, text=obLabelText())
+    else
+        label.new(x=bar_index, y=na ,yloc=yloc.belowbar, style=label.style_label_up, color=color.green, size=size.tiny, text=osLabelText())
+       
+        
+// Move the oversold swing and label
+moveOversoldLabel() =>
+    label.set_x(labelll, bar_index)
+    label.set_y(labelll, low)
+    label.set_text(labelll, osLabelText())
+    line.set_x1(line_down, bar_index)
+    line.set_y1(line_down, low)
+
+moveOverBoughtLabel() =>
+    label.set_x(labelhh, bar_index)
+    label.set_y(labelhh, high)
+    label.set_text(labelhh, obLabelText())
+    line.set_x1(line_up, bar_index)
+    line.set_y1(line_up, high)
+
+// We go from oversold straight to overbought NEW DRAWINGS CREATED HERE
+if(laststate == 2 and isOverbought and rsiShow)
+    hh := high
+    labelhh := createOverBoughtLabel(true)
+    last_actual_label_ll_price := label.get_y(labelll)
+    labelll_ts = label.get_x(labelll)
+    labelll_price = label.get_y(labelll)
+    line_up := line.new(x1=bar_index, y1=high, x2=labelll_ts, y2=labelll_price, width=1)
+
+// We go from overbought straight to oversold  NEW DRAWINGS CREATED HERE
+if(laststate == 1 and isOversold and rsiShow)
+    ll := low
+    labelll := createOverBoughtLabel(false)
+    last_actual_label_hh_price := label.get_y(labelhh)
+    labelhh_ts = label.get_x(labelhh)
+    labelhh_price = label.get_y(labelhh)
+    line_down := line.new(x1=bar_index, y1=high, x2=labelhh_ts, y2=labelhh_price, width=1)
+
+
+// If we are overbought
+if(isOverbought)
+    if(high >= hh)
+        hh := high
+        moveOverBoughtLabel()
+    laststate := 1
+    
+// If we are oversold
+if(isOversold)
+    if(low <= ll)
+        ll := low
+        moveOversoldLabel()
+    laststate := 2
+    
+    
+// If last state was overbought and we are overbought
+if(laststate == 1 and isOverbought)
+    if(hh <= high)
+        hh := high
+        moveOverBoughtLabel()
+    
+//If we are oversold and the last state was oversold, move the drawings to the lowest price
+if(laststate == 2 and isOversold)
+    if(low <= ll)
+        ll := low
+        moveOversoldLabel()
+
+
+// If last state was overbought
+if(laststate == 1)
+    if(hh <= high)
+        hh := high
+        moveOverBoughtLabel()
+        
+// If last stare was oversold
+if(laststate == 2)
+    if(ll >= low)
+        ll := low
+        moveOversoldLabel()
+        
+        
+// PPO
+
+pctile        = 90//input(90, title="Percentile Threshold Extreme Value, Exceeding Creates Colored Histogram")
+wrnpctile     = 75//input(75, title="Percentile Threshold Warning Value, Exceeding Creates Colored Histogram")
+ma_source     = close//input(title="Source", type=source, defval=close)
+
+short_length  = 35//input(title="Length - Short", type=integer, defval=35)
+short_phase   = 2//input(title="Phase - Short", type=integer, defval=2)
+short_power   = 2//input(title="Power - Short", type=integer, defval=2)
+
+long_length   = 75//input(title="Length - Long", type=integer, defval=75)
+long_phase    = 2//input(title="Phase - Long", type=integer, defval=2)
+long_power    = 2//input(title="Power - Long", type=integer, defval=2)
+
+lkb           = input(200,title="[PPO] Look Back Period ")
+
+// Jurik MA Calculation by everget
+get_jurik(length, phase, power, src)=>
+    phaseRatio = phase < -100 ? 0.5 : phase > 100 ? 2.5 : phase / 100 + 1.5
+    beta = 0.45 * (length - 1) / (0.45 * (length - 1) + 2)
+    alpha = pow(beta, power)
+    jma = 0.0
+    e0 = 0.0
+    e0 := (1 - alpha) * src + alpha * nz(e0[1])
+    e1 = 0.0
+    e1 := (src - e0) * (1 - beta) + beta * nz(e1[1])
+    e2 = 0.0
+    e2 := (e0 + phaseRatio * e1 - nz(jma[1])) * pow(1 - alpha, 2) + pow(alpha, 2) * nz(e2[1])
+    jma := e2 + nz(jma[1])
+
+lmas = get_jurik(short_length, short_phase, short_power, ma_source)
+lmal = get_jurik(long_length, long_phase, long_power, ma_source)
+
+pctileB = pctile * -1
+wrnpctileB = wrnpctile * -1
+
+ppoT = (lmas-lmal)/lmal*100
+ppoB = (lmal - lmas)/lmal*100
+
+pctRankT = percentrank(ppoT, lkb)
+pctRankB = percentrank(ppoB, lkb) * -1
+colT = pctRankT >= pctile ? color.red : pctRankT >= wrnpctile and pctRankT < pctile ? color.orange : color.gray
+colB = pctRankB <= pctileB ? color.lime : pctRankB <= wrnpctileB and pctRankB > pctileB ? color.green : color.silver
+colFinal = color.silver
+if (pctRankT >= pctile or  (pctRankT >= wrnpctile and pctRankT < pctile))
+    colFinal := colT
+if(pctRankB <= pctileB or (pctRankB <= wrnpctileB and pctRankB > pctileB))
+    colFinal := colB
+barcolor(changeColorPPO ? colFinal: na)
+
+
+
+
+// HULL MA 
+
+src = close//input(close, title="Source")
+showHull = input(title="[Hull] Show indicator",defval=false)
+modeSwitch = input("Hma", title="[Hull] Variation", options=["Hma", "Thma", "Ehma"])
+length = input(55, title="[Hull] Length(180-200 for floating S/R , 55 for swing entry)")
+switchColor = input(true, "[Hull] Color according to trend?")
+//candleCol = input(false,title="Color candles based on Hull's Trend?")
+visualSwitch  = input(true, title="[Hull] Show as a Band?")
+thicknesSwitch = input(1, title="[Hull] Line Thickness")
+transpSwitch = input(40, title="[Hull] Band Transparency",step=5)
+
+//FUNCTIONS
+//HMA
+HMA(_src, _length) =>  wma(2 * wma(_src, _length / 2) - wma(_src, _length), round(sqrt(_length)))
+//EHMA    
+EHMA(_src, _length) =>  ema(2 * ema(_src, _length / 2) - ema(_src, _length), round(sqrt(_length)))
+//THMA    
+THMA(_src, _length) =>  wma(wma(_src,_length / 3) * 3 - wma(_src, _length / 2) - wma(_src, _length), _length)
+    
+//SWITCH
+Mode(modeSwitch, src, len) =>
+      modeSwitch == "Hma"  ? HMA(src, len) :
+      modeSwitch == "Ehma" ? EHMA(src, len) : 
+      modeSwitch == "Thma" ? THMA(src, len/2) : na
+      
+//OUT
+HULL = Mode(modeSwitch, src, length)
+MHULL = HULL[0]
+SHULL = HULL[2]
+
+//COLOR
+hullColor = switchColor ? (HULL > HULL[2] ? #00ff00 : #ff0000) : #ff9800
+
+//PLOT
+///< Frame
+Fi1 = plot(showHull? MHULL : na, title="MHULL", color=hullColor, linewidth=thicknesSwitch, transp=50)
+Fi2 = plot(visualSwitch and showHull ? SHULL : na, title="SHULL", color=hullColor, linewidth=thicknesSwitch, transp=50)
+///< Ending Filler
+fill(Fi1, Fi2, title="Band Filler", color=hullColor, transp=transpSwitch)
+
+
+//vptBOlfib
+
+showvpt = input(title="[vpt] Show bands",defval=false)
+showvptar = input(title="[vpt] Show arrows",defval=true)
+
+source = close
+hilow = ((high - low)*100)
+openclose = ((close - open)*100)
+vol = (volume / hilow)
+spreadvol = (openclose * vol)
+VPT = spreadvol + cum(spreadvol)
+window_len = input(28, minval=1, title='[vpt] Window Lenght')
+
+v_len = input(14, defval=14, minval=1, title='[vpt] smooth Lenght')
+price_spread = stdev(high-low, window_len)
+
+v =  spreadvol + cum(spreadvol)
+smooth = sma(v, v_len)
+v_spread = stdev(v - smooth, window_len)
+shadow = (v - smooth) / v_spread * price_spread
+
+out = shadow > 0 ? high + shadow : low + shadow
+color = shadow > 0 ? color.green : color.red
+
+
+// out = close > close[1] ? shadow : -shadow
+
+smooth1 = input(3)
+
+m = sma(out, smooth1)
+plot(showvpt ? m : na , title='VPT', color=color.blue,linewidth=3, transp=0)
+len=input(defval=20,minval=1)
+p=close
+sma=sma(p,len)
+avg=atr(len)
+fibratio1=input(defval=1.618,title="Fibonacci Ratio 1")
+fibratio2=input(defval=2.618,title="Fibonacci Ratio 2")
+fibratio3=input(defval=4.236,title="Fibonacci Ratio 3")
+r1=avg*fibratio1
+r2=avg*fibratio2
+r3=avg*fibratio3
+top3=sma+r3
+top2=sma+r2
+top1=sma+r1
+bott1=sma-r1
+bott2=sma-r2
+bott3=sma-r3
+
+t3=plot(showvpt ? top3 : na,transp=0,title="Upper 3",color=color.red)
+t2=plot(showvpt ? top2 : na,transp=20,title="Upper 2",color=color.teal)
+t1=plot(showvpt ? top1 : na,transp=40,title="Upper 1",color=color.teal)
+b1=plot(showvpt ? bott1 : na,transp=40,title="Lower 1",color=color.teal)
+b2=plot(showvpt ? bott2 : na,transp=20,title="Lower 2",color=color.teal)
+b3=plot(showvpt ? bott3 : na,transp=0,title="Lower 3",color=color.red)
+plot(showvpt ? sma : na,style=plot.style_line,title="SMA",color=color.black)
+fill(t3,b3,color=color.yellow,transp=90)
+fill(t2,b2,color=color.green,transp=90)
+
+
+buy = crossover(m,bott2)
+sell=crossunder(m,top2)
+ 
+
+plotshape(showvptar ? sell : na, title="sell", style=shape.triangledown,location=location.abovebar, color=color.red, transp=0, size=size.small)
+plotshape(showvptar ? buy : na,  title="buy", style=shape.triangleup,location=location.belowbar, color=color.green, transp=0, size=size.small)
+
+
+
+// Pivot Boss Reversal
+lookbackPeriod = 20//input(title="Lookback Period", type=integer, defval=20, minval=0)
+atrMultiplier = 2//input(title="Bar ATR Multiplier", type=float, defval=2.0, minval=0)
+barBodyPercentMin = 0.65//input(title="Minimum Bar Body %", type=float, defval=0.65, minval=0.0, maxval=1.0)
+barBodyPercentMax = 0.85//input(title="Maximum Bar Body %", type=float, defval=0.85, minval=0.0, maxval=1.0)
+
+typicalAtr = atr(lookbackPeriod)
+firstBar_body_size = abs(close[1] - open[1])
+firstBar_range = high[1] - low[1]
+firstBar_body_pct = firstBar_body_size / firstBar_range
+
+firstBar_signal = (firstBar_range > (atrMultiplier * typicalAtr)) and (firstBar_body_pct >= barBodyPercentMin) and (firstBar_body_pct <= barBodyPercentMax)
+bull_signal = firstBar_signal and (close[1] < open[1]) and (close > open)
+bear_signal = firstBar_signal and (close[1] > open[1]) and (close < open)
+
+plotshape(pbers and bull_signal , "Bullish Reversal", shape.labelup, location.belowbar, color.green, 
+   text="XR", textcolor=color.black, size=size.tiny)
+plotshape(pbers and bear_signal, "Bearish Reversal", shape.labeldown, location.abovebar, color.red, 
+   text="XR", textcolor=color.black, size=size.tiny)
+
+
+
+olookbackPeriod = 20//input(title="Lookback Period", type=integer, defval=20, minval=0)
+oatrMultiplier = 1.05//input(title="Bar ATR Multiplier", type=float, defval=1.05, minval=0)
+
+otypicalAtr = atr(olookbackPeriod)
+ofirstBar_body_size = abs(close[1] - open[1])
+ofirstBar_range = high[1] - low[1]
+
+ofirstBar_signal = (ofirstBar_range > (oatrMultiplier * otypicalAtr))
+obull_signal = (low < low[1]) and (close > high[1]) and ofirstBar_signal
+obear_signal = (high > high[1]) and (close < low[1]) and ofirstBar_signal
+
+plotshape(pbors and obull_signal, "Bullish Reversal", shape.labelup, location.belowbar, color.green, 
+   text="OR", textcolor=color.black, size=size.tiny)
+plotshape(pbors and obear_signal, "Bearish Reversal", shape.labeldown, location.abovebar, color.red, 
+   text="OR", textcolor=color.black, size=size.tiny)
+

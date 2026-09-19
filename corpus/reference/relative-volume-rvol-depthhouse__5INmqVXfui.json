@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5INmqVXfuir8ukO7Ub2H4WJJmoUjXsiI",
+ "title": "Relative Volume RVOL [DepthHouse]",
+ "author": "oh92",
+ "url": "https://www.tradingview.com/script/RAFaln44-relative-volume-rvol-depthhouse/",
+ "agreeCount": 4232,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/relative-volume-rvol-depthhouse__5INmqVXfui.pine",
+ "our_status": "reference-only"
+}

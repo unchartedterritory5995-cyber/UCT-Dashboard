@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;jNLZBfpYDOA3zFHJXTusK3CD7dbsi4sk",
+ "title": "FXN - Asian Session Range",
+ "author": "RobMinty",
+ "url": "https://www.tradingview.com/script/9o6kQF9j-fxn-asian-session-range/",
+ "agreeCount": 15724,
+ "category": "session tools",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/fxn-asian-session-range__jNLZBfpYDO.pine",
+ "our_status": "reference-only"
+}

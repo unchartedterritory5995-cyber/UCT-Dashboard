@@ -1,0 +1,69 @@
+{
+  "_": "⭐ PROVENANCE FOR UCTPROBE_NS.pine — the vendor's own bytes, not a reconstruction.",
+  "_why_a_sidecar": "The .pine beside this file is committed VERBATIM so its hash means something. Documenting it in-file would change the bytes and break the correspondence, so the record lives here instead. ⛔ DO NOT EDIT THE .pine TO ADD COMMENTS.",
+  "capturedAtUTC": "2026-09-10T13:29:24+00:00",
+  "capturedAtET": "2026-09-10T09:29:24-04:00",
+  "how": "TradingView chart -> UCTPROBE_NS legend -> More -> 'Source code…' opened the Pine editor at /pine/?id=USER;787899e263ad483c9c48748c6b6db574. Text read from Monaco's rendered .view-line nodes, sorted by CSS top, NBSP normalised to space, trailing whitespace stripped per line.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "study": "UCTPROBE_NS",
+  "studyId": "Script$USER;787899e263ad483c9c48748c6b6db574@tv-scripting",
+  "studyVersion": 101,
+  "layout": "UCT AGENT VISIT 2026-09-10 (disposable)",
+  "layoutUrl": "https://www.tradingview.com/chart/e3cTXatd/",
+  "tabStateAsAsserted": {
+    "visibilityState": "hidden",
+    "hasFocus": false,
+    "_note": "⛔ 'hidden' DID NOT MEAN UNRENDERED. The three-part diagnostic in docs/pine/capture-procedure.md read: canvases 1743x372 / 1743x186 / 1743x186 with ZERO at the 300x150 default; sourcesWrapper 3 == pane count 3 with live legend text; control [data-name] = 128 > 0. Insert-then-count moved 11 -> 12 -> 11. The chart was fully rendered and writable throughout.",
+    "insertThenCount": {
+      "baseline": 11,
+      "afterInsert": 12,
+      "afterRemove": 11
+    }
+  },
+  "receipt": {
+    "chars": 1360,
+    "lines": 28,
+    "plots": 23,
+    "fnv1a_reported_by_page": 3243080180,
+    "fnv1a_recomputed_in_shell": 3243080180,
+    "sha256_of_extracted_text": "2b9fecc6c8ef69bb7c309e79e2c4edbba664da21c0192003c4c6e8bc14b2caa3",
+    "_note": "sha256 is over the EXACT extracted text WITHOUT the trailing newline; the committed file adds one LF for POSIX convention. Four independent cross-checks agreed: char count, FNV-1a, 28 lines, and plots==23 which matches _metaInfo.plots read separately off the study object."
+  },
+  "vendorDigest": {
+    "pine.version": "0.28",
+    "_note": "metaInfo.pine.digest is the vendor's own hash of these bytes. It is base64 and was elided by the transport's content filter, so it is NOT recorded here rather than recorded wrong. The sha256 above is ours and is reproducible from the file."
+  },
+  "plotRoster_PLOTS_ORDER": {
+    "_": "⭐⭐ THE AUTHORITATIVE COLUMN ORDER. Derived from the committed source: Pine numbers plots plot_0..plot_N in SOURCE ORDER, and the value array follows _metaInfo.plots, which is that same order. value[0] is time, so value[i+1] is the i-th entry here.",
+    "_supersedes": "⚰️ AN EARLIER LISTING OF THIS ROSTER WAS IN STYLE-KEY ORDER — read from Object.keys(_metaInfo.styles) — and that is NOT value order. The names were right and the ORDER was not. Aroon proved the two can disagree on 2026-09-10: styles gave [Aroon Down, Aroon Up] while plots gave [AroonUp, AroonDown], the opposite, which would have shipped the two series swapped. Never key a column by style-key order.",
+    "order": [
+      "N01_bar_index",
+      "N02_cum_na_contributes",
+      "N03_cum_one",
+      "N04_cum_late_start",
+      "N05_isdaily",
+      "N06_isweekly",
+      "N07_ismonthly",
+      "N08_tv",
+      "N09_num_0_00",
+      "N10_len_0_00",
+      "N11_num_hash_hash",
+      "N12_len_hash_hash",
+      "N13_num_hash",
+      "N14_len_hash",
+      "N15_neg_num_0_00",
+      "N16_neg_len_hash",
+      "N17_ticker_slash",
+      "N18_tickerid_slash",
+      "N19_ticker_len",
+      "N20_tickerid_len",
+      "N21_isconfirmed",
+      "N22_islast",
+      "N23_ishistory"
+    ]
+  },
+  "_displaced_2026_09_10": "⚰️ THE ON-CHART VARIANT IS GONE FROM THE DISPOSABLE LAYOUT, AND THAT IS RECOVERABLE. UCTPROBE_NS was an UNSAVED variant of Script$USER;787899e263ad483c9c48748c6b6db574 living on the chart; the script's SAVED content is a different, 1-plot study called 'UCT marker parity probe'. On 2026-09-10 an 'Update on chart' against the bound editor replaced the on-chart variant, and a second Update reverted the slot to the saved content. ⭐ The saved script was never written to ('Save script' was never clicked), which the revert itself demonstrates. These bytes are the variant, committed at a57b06986 and hashed above, so it is fully reconstructable. ⛔ Do not attempt to restore it by Updating the bound editor — see the BINDING HAZARD in docs/pine/capture-procedure.md.",
+  "_CORRECTION_2026_09_10_the_id_is_not_a_saved_script": "⚰️⚰️ `Script$USER;787899e263ad483c9c48748c6b6db574` IS NOT A SAVED SCRIPT AND NEVER WAS. The key above says 'the script's SAVED content is a different, 1-plot study called \"UCT marker parity probe\"'. Measured 2026-09-10 20:2x UTC: pine-facade GET .../USER;787899e2…/last returns **404**, while the same call returns 200 with real names and source for USER;77714867… (UCTPROBE_FOLD) and USER;971af725… (uct-oracle-cmf-adl-pvt-falling-kcw-v1) — the two positive controls that make the 404 mean something. The account's saved list (6 scripts) does not contain it either. ⭐ It is TradingView's UNSAVED-BUFFER slot: every unsaved script added to a chart is stamped with that same id, with a slot revision that ticks (0.30 → 0.31 observed across two unrelated buffers in one session). 'UCT marker parity probe' is itself a FAILED 1-plot stub on that slot — isFailed true, _data._items empty, pine.digest 0366beecad3fa344b185adf5e6ac9b35f5419485, the shared placeholder digest a study also carries BEFORE it compiles. ⛔ SO THE 'REVERT' WAS NOT EVIDENCE OF A SAVED SCRIPT'S CONTENT — it was the shared slot showing a stub. ⭐ The CONCLUSION drawn above nevertheless holds, and holds harder: the owner's saved scripts were never written to, because at this id there was no saved script to write to. The owner's two real saved scripts still read v4.0/2026-09-07 and v2.0/2026-03-17, both predating this session.",
+  "_CORRECTION_2026_09_10_digest_was_not_base64": "⚰️ `vendorDigest._note` says metaInfo.pine.digest 'is base64 and was elided by the transport's content filter'. It is not base64 — it is a 40-character LOWERCASE HEX sha1, readable directly. Measured the same day: UCTPROBE_FOLD 19e64af9b3b63266fdcb22c1c7339c08abcd7d07 · UCTPROBE_TUPLE 458828a527f37483c9c1441f52179174bc08617d · UCTPROBE_BARSTATE_FULL ad12631250223e5c9958697a8b8fd96aca76f899. ⛔ The elision was a transport artifact of HOW it was being read, not a property of the value, and recording it as 'base64' would have sent the next reader looking for a decoder that is not needed."
+}

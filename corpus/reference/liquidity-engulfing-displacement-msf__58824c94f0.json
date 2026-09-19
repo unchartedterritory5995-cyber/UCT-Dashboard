@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;58824c94f0a04d0da16391134a09d4ce",
+ "title": "Liquidity Engulfing & Displacement [MsF]",
+ "author": "Trader_Morry",
+ "url": "https://www.tradingview.com/script/rXN2YTsl-liquidity-engulfing-displacement-msf/",
+ "agreeCount": 549,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidity-engulfing-displacement-msf__58824c94f0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-engulfing-displacement-msf__58824c94f0.pine",
+ "our_status": "committed"
+}

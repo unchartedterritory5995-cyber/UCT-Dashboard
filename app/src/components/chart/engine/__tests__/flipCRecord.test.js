@@ -160,6 +160,13 @@ describe('the Flip-C decision record', () => {
     // so there is no bands-vs-panes pair to measure, and "a number for every live
     // parity case, OR SAYS WHY NOT" is answered with the number and the reason
     // both.
-    expect(JSON.parse(read(CASES)).cases).toHaveLength(52)
+    // ⭐ 52 -> 53: `ast_user_formula_multiplot_rsi`, the Compatibility Harness
+    // Lane 2 Level-2 fixture — a genuine two-row AST multi-plot document. It is a
+    // PLACEHOLDER by the same rule as the three above: it carries settings and a
+    // `why` and NO `expect`, because a number this branch has not measured on two
+    // builds is a gate pretending to be a measurement. ⛔ SO THE LIVE COUNT (48)
+    // DID NOT MOVE, AND THAT IS THE CHECK — the pair of numbers is the claim, and
+    // a new definition may only ever move the total.
+    expect(JSON.parse(read(CASES)).cases).toHaveLength(53)
   })
 })

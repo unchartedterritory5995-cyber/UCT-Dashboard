@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0a521d089c1f49cfbdbb5b83db174d65",
+ "title": "Liquidity Engulfing Candles [upslidedown]",
+ "author": "upslidedown",
+ "url": "https://www.tradingview.com/script/QpnPfNK6-liquidity-engulfing-candles-upslidedown/",
+ "agreeCount": 714,
+ "category": "candlestick patterns",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+ "our_status": "committed"
+}

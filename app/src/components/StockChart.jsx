@@ -67,7 +67,7 @@ import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
-import ChartToolbar, { TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
+import ChartToolbar, { CHART_TOOLBAR_FOOTPRINT_PX, TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED, overlayRowId } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
@@ -82,6 +82,7 @@ import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
+import { createObjectLayer } from './chart/engine/objectLayer'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
@@ -3308,6 +3309,28 @@ export default function StockChart({
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
+  // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
+  //
+  // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
+  // `{}` for anything that is not an object — so every `syminfo.*` was
+  // NotFoldable on every chart binding until this existed. `{ticker, exchange}`
+  // is the WHOLE contract: `ticker` resolves `syminfo.ticker` for every symbol,
+  // and `exchange` resolves `syminfo.tickerid`/`syminfo.prefix` only where
+  // `symbolScope.json::confirmed` holds a witness for that spelling.
+  //
+  // ⛔ NOTHING ELSE IS THREADED, AND THAT IS THE MANIFEST'S DECISION RATHER THAN
+  // AN OMISSION. `mintick`, `type`, `currency`, `session`, `pointvalue` and
+  // `description` are in `symbolScope.json::unserved` — refused BY NAME at the
+  // door, each with a reason a member can act on — and `tickerid` is DERIVED
+  // from ticker + witnessed prefix, so supplying it here would put a second
+  // authority on the one string the whole witness table exists to settle.
+  //
+  // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
+  // exactly what the witness table is keyed on — `ticker_meta.py` already
+  // produces it, and the rig confirmed the pairing independently on SPY.
+  const symbolMeta = useMemo(() => (
+    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+  ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
@@ -11728,9 +11751,77 @@ export default function StockChart({
         // back to a preference, and a null timeframe would key the lane's cache
         // differently from the request the hook actually makes.
         sym,
+        // ⭐ R-K: the OBJECT beside the string. `sym` keys the server lane's
+        // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
+        symbol: symbolMeta,
         tf: resolvedTf,
+        // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
+        // from `bar_close_state` because that is the side the NYSE calendar lives
+        // on; the browser is handed one tri-state and never a date set. Without it
+        // the four CLOCK_REALTIME columns render BLANK — correct under the
+        // fail-closed contract, and useless.
+        // ⛔ `?? null` IS THE FAIL-CLOSED DEFAULT AND MUST STAY. A server that has
+        // not shipped the field yet sends `undefined`; `null` means UNKNOWN and
+        // blanks the columns, whereas `false` would assert the newest bar is
+        // SETTLED and hand the column layer a confident `isconfirmed = 1`.
+        // ⭐ It rides WITH the payload it describes, so a cached or delta response
+        // carries the state of ITS OWN newest bar rather than of the wall clock.
+        newestBarIsForming: data?.newest_bar_is_forming ?? null,
         adjustTime,
         applyData: _applyData,
+        // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
+        // other chart-library capability the binder uses: a host that cannot
+        // provide it draws no lines, labels or boxes and everything else — the
+        // columns, the legend, the scan — is untouched. One canvas per INSTANCE,
+        // because two copies of one indicator are two independent lifetimes.
+        createObjectLayer: (inst) => createObjectLayer({
+          instanceId: inst && inst.instanceId,
+          container: chart.chartElement ? chart.chartElement() : null,
+          // ⭐⭐ THE CHROME THIS HOST FLOATS OVER ITS OWN CHART, so a table
+          // anchored to a TOP corner lands where a member can see it. The
+          // drawing toolbar is `absolute; top: 4px; height: 26px; z-index: 5`
+          // over this very container — measured live on the first run, both of
+          // Volume v2's dashboards drew correctly and were painted over by it.
+          // ⛔ It reaches the layer as a NUMBER FROM THE COMPONENT THAT OWNS THE
+          // TOOLBAR, never as a measurement inside the adapter: the adapter's
+          // freedom from `getBoundingClientRect` is what makes a pane resize cost
+          // nothing, and one `insets` argument is the price of keeping it.
+          insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
+          mapping: () => {
+            const series = candleSeriesRef.current
+            const ts = chart.timeScale ? chart.timeScale() : null
+            if (!series || !ts) return null
+            const el = chart.chartElement ? chart.chartElement() : null
+            // ⭐⭐ ITEM 4 — THE PRICE SCALE IS NOT PLOT AREA, AND A TABLE ANCHORED
+            // TO THE RIGHT CORNER LANDS ON TOP OF IT.
+            //
+            // ⚰⚰ MEASURED at both touch tiers, 2026-09-13. The container is
+            // 390px on a phone and the right scale owns its last 104px
+            // (x=286..390); a `right: 8px` table therefore ran from 264 to 382,
+            // straight over the price labels. At 1024 the same thing happens at
+            // x=550..654. Pine's `position.top_right` means the top right of the
+            // PLOT, which is what the vendor draws — not the top right of the
+            // widget including its axis.
+            //
+            // ⛔ READ FROM THE CHART, NEVER ASSUMED. LWC sizes the scale to the
+            // widest label in view, so it changes with the symbol and the zoom;
+            // a constant here would be right for SPY and wrong for a four-digit
+            // price. `priceScale('right').width()` is the chart's own answer.
+            let rightInset = 0
+            try {
+              const ps = chart.priceScale ? chart.priceScale('right') : null
+              const w = ps && typeof ps.width === 'function' ? ps.width() : 0
+              if (Number.isFinite(w) && w > 0) rightInset = Math.round(w)
+            } catch { rightInset = 0 }
+            return {
+              timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
+              priceToY: (p) => series.priceToCoordinate(p),
+              width: el ? el.clientWidth : 0,
+              height: el ? el.clientHeight : 0,
+              rightInset,
+            }
+          },
+        }),
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },
         // The declutter toggle. `visible` is part of the option set the binder
         // re-asserts on every bind, so without this a hidden engine series would

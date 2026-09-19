@@ -1,0 +1,48 @@
+{
+  "_what": "Questions 1, 2 and 4 of `docs/pine/r11-time-and-valuewhen.md` — what `time(<timeframe>)` returns — read off a live TradingView chart on 1D.",
+
+  "_ruling": "⭐⭐ `time(\"W\")` IS NEVER `na`, AND IT RETURNS THE FORMING WEEK'S OPEN — the third of the three candidates the doc listed, not the two anybody was choosing between. `time(timeframe.period)` is exactly `time`. And `time(\"D\") != time(\"D\")[1]` is true on every bar of a 1D chart, so the classic new-period idiom works.",
+
+  "answers": {
+    "Q1_higher_timeframe_with_no_bar": {
+      "question": "On a bar where the higher timeframe has no bar (a 1D chart asking time(\"W\") mid-week), does it return na, the open time of the FORMING higher-timeframe bar, or the LAST COMPLETED one?",
+      "ruling": "The FORMING bar's open. Never na.",
+      "na_bars": 0,
+      "bars_where_timeW_is_at_or_before_this_bar": 400,
+      "bars_where_timeW_is_in_the_future": 0,
+      "distinct_offsets_in_days": [-4, -3, -2, -1, 0],
+      "_how_to_read_it": "⭐ THE OFFSET SET IS THE PROOF, and it is why the probe plots a delta in days rather than a flag. `time(\"W\")` sits 0 to 4 days BEFORE the bar reading it — exactly the distance from a weekday back to that same week's Monday open. If it were the LAST COMPLETED week the offsets would be 5 to 9 days; if it were na there would be na bars. Neither appears."
+    },
+    "Q2_chart_own_timeframe": {
+      "question": "Is time(timeframe.period) exactly `time`, or can it differ at a session edge?",
+      "ruling": "Exactly `time`, on every bar.",
+      "na_bars": 0,
+      "bars_equal_to_time": 400,
+      "bars_differing_from_time": 0,
+      "_how_to_read_it": "The na-flag is reported beside the delta on purpose: 'equal' and 'both missing' are the same zero otherwise, and a session edge is exactly where a difference would hide."
+    },
+    "Q4_new_period_idiom": {
+      "question": "Does `time(\"D\") != time(\"D\")[1]` — the classic new-day test — work?",
+      "ruling": "True on every bar of a 1D chart, with no na anywhere.",
+      "na_bars": 0,
+      "bars_changed_vs_previous": 400,
+      "bars_same_as_previous": 0,
+      "_and_the_precondition_HOLDS": "⭐ The doc made this conditional: the idiom 'would be a cheap win — but only if (1) is na-free'. Q1 says it is. So the condition is satisfied and the idiom is available."
+    }
+  },
+
+  "sample_tail": [
+    { "time_days": 20704.5625, "timeW_days": 20704.5625, "W_minus_time_days": 0 },
+    { "time_days": 20705.5625, "timeW_days": 20704.5625, "W_minus_time_days": -1 },
+    { "time_days": 20706.5625, "timeW_days": 20704.5625, "W_minus_time_days": -2 }
+  ],
+
+  "_instrument": "UCTPROBE_R11_TIME_TF, pasted via the Monaco model handle and added with the action button asserted to read \"Add to chart\". Buffer verified sha256-identical to the committed source before the click: 17e4e77b8b0ff425f8e25630856c7f8ae0f8a2c808f5e3988bbc7711b1902647, 3191 characters.",
+  "_gates": "isFailed() === false; plot roster 10 == the balanced-paren scan of the committed source; 400 bars.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "bars": 400,
+  "capturedAtUTC": "2026-09-11T01:26:31Z",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE CHART TIMEFRAME, AND A REGULAR-SESSION EQUITY. Q1 was asked with the higher timeframe \"W\" against a 1D chart; it does not establish what a MONTHLY or intraday-into-daily request does, and it says nothing about an instrument whose week does not start on Monday. ⛔ Question 3 — the two-argument session form, and the 52 corpus sites that ride on it — is NOT here: it is a separate probe (`r11-time-session.pine`) because it must be read on an INTRADAY chart, where bars exist on both sides of 09:30-16:00. On a daily chart every bar is the session and that question answers nothing while looking conclusive."
+}

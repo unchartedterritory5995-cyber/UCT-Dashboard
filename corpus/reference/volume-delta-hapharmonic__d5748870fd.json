@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d5748870fddf40ee9b4540a9b96af2e2",
+ "title": "Volume Delta [hapharmonic]",
+ "author": "hapharmonic",
+ "url": "https://www.tradingview.com/script/n4NK9sLH-volume-delta-hapharmonic/",
+ "agreeCount": 5172,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-delta-hapharmonic__d5748870fd.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-delta-hapharmonic__d5748870fd.pine",
+ "our_status": "committed"
+}

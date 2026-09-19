@@ -1,0 +1,131 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RicardoSantos.
+
+//@version=5
+string  TITLE = 'ZigZag (MA, Pattern Recognition)'
+string STITLE = 'ZZ'
+indicator(TITLE, STITLE, true)
+
+int length = input.int(4, 'Length:')
+int ExtremeDetection = input.int(4, 'Extreme Detection:')
+bool useAltTF = input.bool(true, 'Use Alternative Timeframe?')
+string AlternativeTF = input.timeframe('15', 'Alternative Timeframe:')
+bool showChannel = input.bool(true, 'Show Channel?')
+
+f_zz(_length, _detection)=>
+    float _hls = ta.ema(ta.ema(ta.ema(hl2, _length), math.round(_length*0.66)), math.round(_length*0.33))
+    float _hh = ta.highest(_detection)
+    float _ll = ta.lowest(_detection)
+    bool _isRising = _hls >= _hls[1]
+    float _zigzag = _isRising and not _isRising[1] ? _ll :  not _isRising and _isRising[1] ? _hh : na
+    _zigzag
+
+BG = barmerge.gaps_off , BL = barmerge.lookahead_on
+float zigzag = useAltTF ? (ta.change(time(AlternativeTF)) != 0 ? request.security(syminfo.tickerid, AlternativeTF, f_zz(length, ExtremeDetection), BG, BL) : na) : f_zz(length, ExtremeDetection)
+float tops = ta.valuewhen(zigzag, zigzag, 0) >= ta.valuewhen(zigzag, ta.highest(ExtremeDetection), 0) and zigzag ? ta.valuewhen(zigzag, zigzag, 0) : na
+float bottoms = ta.valuewhen(zigzag, zigzag, 0) <= ta.valuewhen(zigzag, ta.lowest(ExtremeDetection), 0) and zigzag ? ta.valuewhen(zigzag, zigzag, 0) : na
+
+plot(not showChannel ? na : tops   , 'T', color.orange)
+plot(not showChannel ? na : bottoms, 'B', color.orange)
+plot(zigzag, 'ZZ', color.purple, 2)
+
+//  ||---   Pattern Recognition:
+
+//istop() => zigzag == filteredtopf
+//isbot() => zigzag == filteredbotf
+
+float x = ta.valuewhen(zigzag, zigzag, 4) 
+float a = ta.valuewhen(zigzag, zigzag, 3) 
+float b = ta.valuewhen(zigzag, zigzag, 2) 
+float c = ta.valuewhen(zigzag, zigzag, 1) 
+float d = ta.valuewhen(zigzag, zigzag, 0)
+
+float xab = (math.abs(b - a) / math.abs(x - a))
+float xad = (math.abs(a - d) / math.abs(x - a))
+float abc = (math.abs(b - c) / math.abs(a - b))
+float bcd = (math.abs(c - d) / math.abs(b - c))
+
+//  ||-->   Functions:
+isBat(int _mode)=>
+    bool _xab = xab >= 0.382 and xab <= 0.5
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 1.618 and bcd <= 2.618
+    bool _xad = xad <= 0.886
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isAltBat(int _mode)=>
+    bool _xab = xab <= 0.382
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 2.0 and bcd <= 3.618
+    bool _xad = xad <= 1.13
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isButterfly(int _mode)=>
+    bool _xab = xab <= 0.786
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 1.618 and bcd <= 2.618
+    bool _xad = xad >= 1.27 and xad <= 1.618
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isABCD(int _mode)=>
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 1.13 and bcd <= 2.618
+    _abc and _bcd and (_mode == 1 ? d < c : d > c)
+
+isGartley(int _mode)=>
+    bool _xab = xab >= 0.5 and xab <= 0.618 // 0.618
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 1.13 and bcd <= 2.618
+    bool _xad = xad >= 0.75 and xad <= 0.875 // 0.786
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isCrab(int _mode)=>
+    bool _xab = xab >= 0.75 and xab <= 0.875 // 0.886
+    bool _abc = abc >= 0.382 and abc <= 0.886
+    bool _bcd = bcd >= 2.0 and bcd <= 3.618
+    bool _xad = xad >= 1.5 and xad <= 1.625 // 1.618
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isShark(int _mode)=>
+    bool _xab = xab >= 0.5 and xab <= 0.875 // 0.886
+    bool _abc = abc >= 1.13 and abc <= 1.618
+    bool _bcd = bcd >= 1.27 and bcd <= 2.24
+    bool _xad = xad >= 0.88 and xad <= 1.13
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+is5o(int _mode)=>
+    bool _xab = xab >= 1.13 and xab <= 1.618
+    bool _abc = abc >= 1.618 and abc <= 2.24
+    bool _bcd = bcd >= 0.5 and bcd <= 0.625 // 0.5
+    bool _xad = xad >= 0.0 and xad <= 0.236 // negative?
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+isWolf(int _mode)=>
+    bool _xab = xab >= 1.27 and xab <= 1.618
+    bool _abc = abc >= 0 and abc <= 5
+    bool _bcd = bcd >= 1.27 and bcd <= 1.618
+    bool _xad = xad >= 0.0 and xad <= 5
+    _xab and _abc and _bcd and _xad and (_mode == 1 ? d < c : d > c)
+
+CTX = color.white
+SLD = shape.labeldown , LT = location.top, CDN = color.maroon
+plotshape(isABCD(-1) and not isABCD(-1)[1]          , '-P', SLD, LT, CDN, -2, "\nAB=CD"  , CTX)
+plotshape(isBat(-1) and not isBat(-1)[1]            , '-P', SLD, LT, CDN, -2, "Bat"      , CTX)
+plotshape(isAltBat(-1) and not isAltBat(-1)[1]      , '-P', SLD, LT, CDN,  0, "Alt Bat"  , CTX)
+plotshape(isButterfly(-1) and not isButterfly(-1)[1], '-P', SLD, LT, CDN,  0, "Butterfly", CTX)
+plotshape(isGartley(-1) and not isGartley(-1)[1]    , '-P', SLD, LT, CDN,  0, "Gartley"  , CTX)
+plotshape(isCrab(-1) and not isCrab(-1)[1]          , '-P', SLD, LT, CDN,  0, "Crab"     , CTX)
+plotshape(isShark(-1) and not isShark(-1)[1]        , '-P', SLD, LT, CDN,  0, "Shark"    , CTX)
+plotshape(is5o(-1) and not is5o(-1)[1]              , '-P', SLD, LT, CDN,  0, "5-O"      , CTX)
+plotshape(isWolf(-1) and not isWolf(-1)[1]          , '-P', SLD, LT, CDN,  0, "Wolf Wave", CTX)
+SLU = shape.labelup , LB = location.bottom , CUP = color.lime
+plotshape(isABCD(1) and not isABCD(1)[1]          , '+P', SLU, LB, CUP, 0, "AB=CD\n"  , CTX)
+plotshape(isBat(1) and not isBat(1)[1]            , '+P', SLU, LB, CUP, 0, "Bat"      , CTX)
+plotshape(isAltBat(1) and not isAltBat(1)[1]      , '+P', SLU, LB, CUP, 0, "Alt Bat"  , CTX)
+plotshape(isButterfly(1) and not isButterfly(1)[1], '+P', SLU, LB, CUP, 0, "Butterfly", CTX)
+plotshape(isGartley(1) and not isGartley(1)[1]    , '+P', SLU, LB, CUP, 0, "Gartley"  , CTX)
+plotshape(isCrab(1) and not isCrab(1)[1]          , '+P', SLU, LB, CUP, 0, "Crab"     , CTX)
+plotshape(isShark(1) and not isShark(1)[1]        , '+P', SLU, LB, CUP, 0, "Shark"    , CTX)
+plotshape(is5o(1) and not is5o(1)[1]              , '+P', SLU, LB, CUP, 0, "5-O"      , CTX)
+plotshape(isWolf(1) and not isWolf(1)[1]          , '+P', SLU, LB, CUP, 0, "Wolf Wave", CTX)
+

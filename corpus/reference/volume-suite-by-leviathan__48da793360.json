@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;48da7933608a4a6fb564667f6208d11e",
+ "title": "Volume Suite - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/YNMTwt1n-volume-suite-by-leviathan/",
+ "agreeCount": 7896,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-suite-by-leviathan__48da793360.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-suite-by-leviathan__48da793360.pine",
+ "our_status": "committed"
+}

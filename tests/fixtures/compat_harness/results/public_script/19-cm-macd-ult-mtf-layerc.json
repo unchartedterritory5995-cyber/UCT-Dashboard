@@ -1,0 +1,41 @@
+{
+  "id": "public_script/19-cm-macd-ult-mtf-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#19-cm-macd-ult-mtf",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "steps": {
+    "parse": {
+      "status": "VENDOR_AMBIGUOUS",
+      "note": "Compiled under IMPLIED Pine v1 (no version pragma, confirmed via the editor's own info message). Real error: 'Script could not be translated from: outSignal' (1 of 4 problems; the other 3 were the version-unspecified info message plus two secondary symptoms of the same root cause)."
+    },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v1_implied" },
+    "translate": {
+      "status": "VENDOR_AMBIGUOUS", "guard": null,
+      "note": "DIAGNOSTIC (not part of the verbatim-script finding): adding an explicit '//@version=4' pragma dropped the problem count from 4 to 1, confirming most of the noise was implied-v1 resolution, not a parser bug -- but ONE real problem remained even under v4: 'Syntax error at input outSignal' on `circlePosition = outSignal`. Root cause not further diagnosed (out of scope -- this is a vendor-side question, not a UCT one). The script does not compile cleanly in TradingView's current engine under either implied v1 or explicit v4."
+    },
+    "canonical_ast": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached -- vendor's own compile failed first" },
+    "execution_requirements": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "visual_requirements": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "compile failed; nothing rendered. REAL FINDING: TradingView added a placeholder chart-object-tree entry ('Untitled Script') on clicking 'Add to chart' DESPITE the compile error -- this placeholder was found and removed via right-click -> Remove during cleanup, confirmed restored to baseline. Any future Layer C run must check for and remove this placeholder even on a failed compile, not only on success."
+    },
+    "persistence_save": { "status": "ENVIRONMENT_BLOCKED", "reason": "never saved to the script library" },
+    "persistence_reload": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "screener_eligibility": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "refusal_behavior": { "status": "VENDOR_AMBIGUOUS", "guard": null, "note": "vendor refusal, not a UCT refusal -- UCT was never reached" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null }
+  },
+  "failure_taxonomy": ["vendor_ambiguity", "harness_defect"],
+  "final_classification": "VENDOR_AMBIGUOUS",
+  "harness_defect_note": "A compile-error script still gets an object-tree placeholder added to the chart on 'Add to chart' -- a real methodological gotcha for this harness (not a product defect; TradingView's own UI behavior), now documented for future Layer C runs.",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

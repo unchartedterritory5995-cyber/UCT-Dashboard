@@ -1,0 +1,41 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © sskcharts
+
+//@version=5
+indicator("VOLD-Market Breadth", 'VOLD-Market Breadth', true, scale=scale.none)
+
+src = input(title='Source', defval=close)
+
+var string GP1 = "Display"
+txt_sizeopt = input.string(title='Text Size', defval='auto', inline='10', options=['auto', 'tiny', 'small', 'normal', 'large', 'huge'], group=GP1)
+txt_size = txt_sizeopt == 'auto' ? size.auto : txt_sizeopt == 'tiny' ? size.tiny : txt_sizeopt == 'small' ? size.small : txt_sizeopt == 'normal' ? size.normal : txt_sizeopt == 'large' ? size.large : size.huge
+string  i_tableYpos = input.string("top", "Panel position", inline = "1", options = ["top", "middle", "bottom"], group = GP1)
+string  i_tableXpos = input.string("right", "", inline = "1", options = ["left", "center", "right"], group = GP1)
+
+var table VoldDisplay = table.new(i_tableYpos + "_" + i_tableXpos, 2, 2, border_width = 1, border_color=color.white)
+    
+format_text(str) =>
+    str + '\n'
+
+t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular)
+realS (t) => request.security(t, timeframe.period, src)
+
+NYSEuvol = realS ("USI:UVOL")
+NYSEdvol = realS ("USI:DVOL")
+NASDAQuvol = realS ("USI:UVOLQ")
+NASDAQdvol = realS ("USI:DVOLQ")
+
+NYSEratio = (NYSEuvol >= NYSEdvol) ? (NYSEuvol/NYSEdvol) : -(NYSEdvol/NYSEuvol)
+NASDAQratio = (NASDAQuvol >= NASDAQdvol) ? (NASDAQuvol/NASDAQdvol) : -(NASDAQdvol/NASDAQuvol)
+
+final_nasdaqvold = format_text("NQ " + str.tostring(math.round(NASDAQratio, 2)) + ":1")
+final_nysevold = format_text("NYSE " + str.tostring(math.round(NYSEratio, 2)) + ":1")
+
+color_nysevold = (NASDAQratio >= 0) ? color.new(color.green, 0) : color.new(color.red, 5)
+color_nadsaqvold = (NYSEratio >= 0) ? color.new(color.green, 0) : color.new(color.red, 5)
+
+if barstate.islast
+    table.cell(VoldDisplay, 0, 0, final_nasdaqvold, bgcolor=color_nysevold, text_size=txt_size)
+    table.cell(VoldDisplay, 1, 0, final_nysevold, bgcolor=color_nadsaqvold, text_size=txt_size)
+
+//END

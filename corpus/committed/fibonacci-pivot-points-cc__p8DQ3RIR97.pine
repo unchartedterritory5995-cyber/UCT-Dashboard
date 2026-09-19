@@ -1,0 +1,53 @@
+//@version=4
+// Copyright (c) 2019-present, Franklin Moormann (cheatcountry)
+// Fibonacci Pivot Points [CC] script may be freely distributed under the MIT license.
+study(title="Fibonacci Pivot Points [CC]", overlay=true)
+
+src = input(title="Source", type=input.source, defval=close)
+res = input(title="Resolution", type=input.resolution, defval="D")
+bar = input(title="Allow Bar Color Change?", type=input.bool, defval=true)
+buyLvl = input(title="Chosen Buy Level", defval="R1", options=["R1", "R2", "R3"])
+sellLvl = input(title="Chosen Sell Level", defval="S1", options=["S1", "S2", "S3"])
+High  = security(syminfo.tickerid, res, high[1], lookahead=true)
+Low   = security(syminfo.tickerid, res, low[1], lookahead=true)
+Close = security(syminfo.tickerid, res, close[1], lookahead=true)
+
+pp = (High + Low + Close) / 3
+range = High - Low
+r1 = pp + (range * 0.382)
+r2 = pp + (range * 0.618)
+r3 = pp + (range * 1.000)
+s1 = pp - (range * 0.382)
+s2 = pp - (range * 0.618)
+s3 = pp - (range * 1.000)
+
+bl = buyLvl == "R1" ? r1 : buyLvl == "R2" ? r2 : buyLvl == "R3" ? r3 : pp
+sl = sellLvl == "S1" ? s1 : sellLvl == "S2" ? s2 : sellLvl == "S3" ? s3 : pp
+sig = src > bl or (src[1] < sl[1] and src > sl) ? 1 : src < sl or (src[1] > bl[1] and src < bl) ? -1 : 0
+alertcondition(crossover(sig, 0), "Buy Signal", "Bullish Change Detected")
+alertcondition(crossunder(sig, 0), "Sell Signal", "Bearish Change Detected")
+fppColor = sig > 0 ? color.green : sig < 0 ? color.red : color.black
+barcolor(bar ? fppColor : na)
+plot(pp, color=color.blue, title="PP", style=plot.style_line, linewidth=2)
+ppLabel = label.new(bar_index, pp, text="PP", textcolor=color.blue, style=label.style_none)
+plot(r1, color=color.red, title="R1", style=plot.style_line, linewidth=2)
+r1Label = label.new(bar_index, r1, text="R1", textcolor=color.red, style=label.style_none)
+plot(r2, color=color.red, title="R2", style=plot.style_line, linewidth=2)
+r2Label = label.new(bar_index, r2, text="R2", textcolor=color.red, style=label.style_none)
+plot(r3, color=color.red, title="R3", style=plot.style_line, linewidth=2)
+r3Label = label.new(bar_index, r3, text="R3", textcolor=color.red, style=label.style_none)
+plot(s1, color=color.green, title="S1", style=plot.style_line, linewidth=2)
+s1Label = label.new(bar_index, s1, text="S1", textcolor=color.green, style=label.style_none)
+plot(s2, color=color.green, title="S2", style=plot.style_line, linewidth=2)
+s2Label = label.new(bar_index, s2, text="S2", textcolor=color.green, style=label.style_none)
+plot(s3, color=color.green, title="S3", style=plot.style_line, linewidth=2)
+s3Label = label.new(bar_index, s3, text="S3", textcolor=color.green, style=label.style_none)
+
+// now we delete the previous label so we only have the current label shown
+label.delete(ppLabel[1])
+label.delete(r1Label[1])
+label.delete(r2Label[1])
+label.delete(r3Label[1])
+label.delete(s1Label[1])
+label.delete(s2Label[1])
+label.delete(s3Label[1])

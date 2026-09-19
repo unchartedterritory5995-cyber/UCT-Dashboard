@@ -1,0 +1,310 @@
+{
+  "_what": "barstate.* read off a LIVE TradingView chart across the 2026-09-09 US open",
+  "_instrument": "UCTPROBE_NS study on AMEX:SPY, plot VALUES read from the chart model",
+  "_why_values_not_pixels": "A bool plot carries no numeric value, so every predicate is plotted as `? 1 : 0`. The capture reads study._data._items, never the screen.",
+  "_tab_was_hidden": "document.visibilityState was 'hidden' for this whole capture and the panes rendered NOTHING (0 legend nodes, blank screenshot). The MODEL was unaffected: the study held 400 computed rows throughout. See docs/pine/capture-procedure.md — the hidden-tab defect is a RENDERING defect, and a value capture is immune to it.",
+  "symbol": "AMEX:SPY",
+  "captures": [
+    {
+      "id": "closed-history-at-rest",
+      "capturedAtET": "2026-09-09 08:58:17",
+      "resolution": "1D",
+      "sessionState": "pre-open, 32 minutes before the 09:30 ET open",
+      "bars": 400,
+      "cols": [
+        "barTimeET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
+      "tail": [
+        [
+          "2026-09-01 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-02 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-03 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-04 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ]
+      ],
+      "alsoSampled": [
+        {
+          "i": 0,
+          "barTimeET": "2025-02-04 09:30:00",
+          "isconfirmed": 1,
+          "islast": 0,
+          "ishistory": 1
+        },
+        {
+          "i": 200,
+          "barTimeET": "2025-11-19 09:30:00",
+          "isconfirmed": 1,
+          "islast": 0,
+          "ishistory": 1
+        }
+      ],
+      "_ruling": "BEFORE THE SESSION OPENS THERE IS NO REALTIME BAR AT ALL. The newest bar is YESTERDAY's (2026-09-08) and it carries isconfirmed=1, islast=1 and ishistory=1 SIMULTANEOUSLY. So `islast` does not imply 'forming', and `ishistory` does not imply 'not the last bar' — a fold that treats either as the other's negation is wrong for the whole pre-open window, which is when a screener actually runs.",
+      "_note_no_bar_for_today": "There is no 2026-09-09 bar at 08:58 ET. The daily bar is created at the open, which is what makes the 09:30 transition observable."
+    },
+    {
+      "id": "the-0930-bar-open-transition",
+      "resolution": "1D",
+      "symbol": "AMEX:SPY",
+      "cols": [
+        "observedAtET",
+        "bars",
+        "lastBarET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
+      "rows": [
+        [
+          "2026-09-09 08:58:17",
+          400,
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ],
+        [
+          "2026-09-09 09:27:47",
+          400,
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ],
+        [
+          "2026-09-09 09:30:14",
+          401,
+          "2026-09-09 09:30:00",
+          0,
+          1,
+          0
+        ]
+      ],
+      "_ruling_the_transition": "At the open the bar count goes 400 -> 401, a NEW bar is created for today, and TWO flags flip on it: isconfirmed 1 -> 0 and ishistory 1 -> 0. `islast` stays 1 and simply MOVES to the new bar.",
+      "_ruling_why_strict_mode_must_refuse_the_fold": "⛔⛔ THE SAME SCRIPT, THE SAME SYMBOL, THE SAME TIMEFRAME give DIFFERENT answers for barstate.isconfirmed and barstate.ishistory before and after 09:30 ET. A screener column that folded either to its closed-bar value pre-open would silently change meaning at the open, with nothing to refuse and nothing to point at. This is the measured justification for pine:live-bar-state in strict mode.",
+      "_ruling_forming_bar_signature": "On the FORMING bar: isconfirmed=0, islast=1, ishistory=0. So for the newest bar, `ishistory` is the complement of 'this bar is still forming'. Note it is NOT the complement of `islast` — pre-open, islast=1 AND ishistory=1 on the same bar.",
+      "_note_still_unmeasured": "isrealtime / isnew / islastconfirmedhistory are NOT in this capture. The existing UCTPROBE_NS plots only isconfirmed/islast/ishistory, and extending it needs a study added — blocked this visit by the hidden tab."
+    },
+    {
+      "id": "the-1m-bar-open-transition-AND-a-repaint",
+      "resolution": "1m",
+      "symbol": "AMEX:SPY",
+      "_context": "Switched to 1m at 09:31:29, so the 09:31 bar formed LIVE under this session while the 09:30 bar arrived as server-side history. That accident is what exposed the finding.",
+      "cols": [
+        "barET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
+      "observations": [
+        {
+          "atET": "2026-09-09 09:31:41",
+          "bars": 400,
+          "last": [
+            "09:31:00",
+            0,
+            1,
+            0
+          ],
+          "prev": [
+            "09:30:00",
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "atET": "2026-09-09 09:32:01",
+          "bars": 401,
+          "last": [
+            "09:32:00",
+            0,
+            1,
+            0
+          ],
+          "prev": [
+            "09:31:00",
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "atET": "2026-09-09 09:32:47",
+          "bars": 401,
+          "tail5": [
+            [
+              "2026-09-08 15:58:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-08 15:59:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-09 09:30:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-09 09:31:00",
+              1,
+              1,
+              0
+            ],
+            [
+              "2026-09-09 09:32:00",
+              0,
+              1,
+              0
+            ]
+          ]
+        }
+      ],
+      "_ruling_bar_open": "A 1m bar-open behaves exactly like the daily one: a new bar appears, isconfirmed=0 and ishistory=0 on it, islast moves to it.",
+      "_ruling_THE_REPAINT": "⛔⛔ THE SAME BAR CARRIES DIFFERENT barstate VALUES DEPENDING ON WHETHER YOUR SESSION WATCHED IT FORM. At 09:32:47 — 46 seconds after it closed — the 09:31 bar still read isconfirmed=1, islast=1, ishistory=0, while the 09:30 bar (loaded as history) read 1, 0, 1. A bar that formed live KEEPS its realtime-computed barstate after closing; it does not get recomputed as history until the chart reloads. So `ishistory` and `islast` on a closed bar are a function of WHEN THE VIEWER ARRIVED, not of the bar.",
+      "_why_this_matters": "This is a repaint, and it is in the flag a screener would most naturally use to mean 'this bar is settled'. Two members opening the same script minutes apart get different columns for the same historical bar. It is a second, independent reason strict mode must refuse barstate.* rather than fold it — separate from the pre-open/post-open flip, which is about the CURRENT bar.",
+      "_bounds_on_the_claim": "Observed on one symbol, one session, over ~90 seconds, with the vendor's recompute not having occurred within that window. It does NOT establish that the recompute never happens — only that a closed bar can carry realtime values well after closing. The safe reading is: never assume a closed bar's barstate is stable."
+    }
+  ],
+  "tickerid_shape": {
+    "_from": "the same probe's N17-N20, same capture",
+    "symbol": "AMEX:SPY",
+    "str.contains(syminfo.ticker, '/')": 0,
+    "str.contains(syminfo.tickerid, '/')": 0,
+    "str.length(syminfo.ticker)": 3,
+    "str.length(syminfo.tickerid)": 8,
+    "_reading": "ticker='SPY' (3). tickerid is 8 = 4+1+3, consistent with 'AMEX:SPY' — an exchange prefix, a colon, then the ticker. The chart model independently reports the symbol string as 'AMEX:SPY'.",
+    "_caveat": "INFERRED, NOT ENUMERATED. This says what SPY's tickerid looks like; it does NOT enumerate what TradingView can emit. A bind-time fold over tickerid must be a whitelist of measured prefixes that REFUSES what it has not seen."
+  },
+  "tickerid_shape_five_symbols": {
+    "_what": "Volume line 222's OWN predicates, read across five instrument classes",
+    "_line222": "str.contains(syminfo.ticker, \"/\") or str.contains(syminfo.tickerid, \"/\")",
+    "_how": "The existing UCTPROBE_NS already plots exactly these (N17-N20). Only the SYMBOL was changed; no study was added. Chart restored to AMEX:SPY 1D.",
+    "capturedAtET": "2026-09-09 09:09:14",
+    "cols": [
+      "requested",
+      "resolved",
+      "ticker_slash",
+      "tickerid_slash",
+      "ticker_len",
+      "tickerid_len",
+      "prefix_len_derived"
+    ],
+    "rows": [
+      [
+        "AMEX:SPY",
+        "AMEX:SPY",
+        0,
+        0,
+        3,
+        8,
+        4
+      ],
+      [
+        "NASDAQ:AAPL",
+        "NASDAQ:AAPL",
+        0,
+        0,
+        4,
+        11,
+        6
+      ],
+      [
+        "FX:EURUSD",
+        "FX:EURUSD",
+        0,
+        0,
+        6,
+        9,
+        2
+      ],
+      [
+        "BITSTAMP:BTCUSD",
+        "BITSTAMP:BTCUSD",
+        0,
+        0,
+        6,
+        15,
+        8
+      ],
+      [
+        "SP:SPX",
+        "SP_DLY:SPX",
+        0,
+        0,
+        3,
+        10,
+        6
+      ]
+    ],
+    "_prefix_derivation": "prefix_len = tickerid_len - ticker_len - 1, which recovers AMEX(4), NASDAQ(6), FX(2), BITSTAMP(8), SP_DLY(6) exactly. The colon is confirmed present by the arithmetic closing on every row.",
+    "_ruling_1_no_slash_anywhere": "str.contains(...,'/') is FALSE on all five, INCLUDING forex (EURUSD) and crypto (BTCUSD). So on these feeds Volume line 222 folds to FALSE. ⛔ It does NOT follow that it is always false — other exchanges spell pairs with a separator. The fold must be a whitelist of measured feeds that REFUSES an unmeasured one, never a blanket false.",
+    "_ruling_2_the_vendor_rewrites_the_prefix": "⛔⛔ THE TRAP. 'SP:SPX' was requested and the vendor resolved it to 'SP_DLY:SPX' — confirmed independently by tickerid_len=10 (6+1+3), not merely by the symbol string. So THE TICKERID IS NOT THE TEXT THE MEMBER TYPED. A bind-time fold keyed on an exchange prefix cannot use the requested prefix; it must use the RESOLVED one, which is only knowable at bind time. A whitelist doing exact-prefix comparison against 'SP' would miss; str.contains('SP') happens to still match inside 'SP_DLY' — which is worse, because it makes the wrong design look correct on this one example.",
+    "_caveat": "INFERRED, NOT ENUMERATED. Five symbols on five feeds. This says nothing about what other exchanges emit."
+  },
+  "fold_pass_ruling_1g": {
+    "_what": "Does the vendor accept a timeframe-conditional LENGTH — Volume line 233's shape?",
+    "_line233_shape": "length = timeframe.isweekly ? 5 : 20, then used as a ta.* window",
+    "capturedAtET": "2026-09-09 09:10:46",
+    "condition_half": {
+      "_measured": "the existing probe's N05/N06/N07, chart resolution switched and restored",
+      "on_1D": {
+        "timeframe.isdaily": 1,
+        "timeframe.isweekly": 0,
+        "timeframe.ismonthly": 0
+      },
+      "on_1W": {
+        "timeframe.isdaily": 0,
+        "timeframe.isweekly": 1,
+        "timeframe.ismonthly": 0
+      },
+      "_ruling": "The ternary's CONDITION flips exactly as expected on the vendor."
+    },
+    "acceptance_half": {
+      "_instrument": "Uncharted Volume ITSELF, already on the chart — the script that contains line 233",
+      "on_1D": {
+        "rows": 400,
+        "computing": true
+      },
+      "on_1W": {
+        "rows": 400,
+        "computing": true
+      },
+      "_ruling": "⭐⭐ THE VENDOR ACCEPTS AND RUNS IT. Uncharted Volume computes 400 rows on BOTH 1D and 1W with live values, and its outputs DIFFER between them. So a timeframe-conditional length is legal Pine — TradingView's own rule is that a length needs a 'simple int', which a bind-time ternary over two constants satisfies. Our pine:window refusal at line 233 is therefore a CAPABILITY GAP, not a correctness guard.",
+      "_why_this_beats_a_synthetic_probe": "It is the actual line in question, in the member's own script, running on the vendor — not a reconstruction of it."
+    },
+    "_still_unmeasured": "⛔ The NUMERIC half. That the vendor accepts the shape does NOT establish that the folded window is 5 on 1W and 20 on 1D. Proving the VALUE needs the three-SMA probe (fold vs sma20 vs sma5) from tools/visual_conformance/probes/fold-pass.pine, which requires ADDING a study — blocked this visit by the hidden tab. Until that is measured, the fold may be implemented but must not be assumed correct."
+  }
+}

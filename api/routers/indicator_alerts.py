@@ -17,6 +17,7 @@ from api.middleware.auth_middleware import get_current_user
 from api.services import alert_user_series
 from api.services import indicator_alert_service as ias
 from api.services import indicator_alert_evaluator
+from api.services import indicator_telemetry as telemetry
 
 
 router = APIRouter(prefix="/api/indicator-alerts", tags=["indicator-alerts"])
@@ -315,6 +316,24 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
         # not a 500. `ias.create` raises BEFORE the INSERT, so a refusal here
         # means nothing was armed and there is nothing to go quiet.
         raise _refusal_to_400(exc) from exc
+    # ⭐ Phase One Track C. `delivery_configured` fires ONLY for a USER-AUTHORED
+    # definition's address (`u_<hex>.plot`) — an alert on a native indicator
+    # (`rsi`, `macd`, …) is not part of the imported-definition journey this
+    # event exists to trace. Fires after `ias.create` succeeds (the admission
+    # chain passed, the alert is actually armed), never on the refusal branch
+    # above. KNOWN GAP, stated rather than silently omitted: a definition
+    # attached to a CHART WIDGET is not instrumented in this pass — that
+    # attachment lives inside the broad `charts_workspace_layout` preference
+    # blob alongside fifty unrelated fields, which is too diffuse a signal to
+    # extract cleanly here; a saved SCAN's delivery is likewise not separately
+    # instrumented (a saved definition already fires `import_accepted`, and
+    # whether it is later used as a scan filter is a client-side, read-time
+    # computed property — see `_stamped`'s `assert_scannable` in
+    # `user_definitions.py` — not a distinct "attach" action to hook).
+    if alert_user_series.is_user_address(body.indicator):
+        telemetry.log_event(user["id"], "delivery_configured", dialect=None,
+                            surface="alert", indicator=body.indicator,
+                            sym=body.sym.upper(), tf=body.tf)
     return {"id": alert_id}
 
 

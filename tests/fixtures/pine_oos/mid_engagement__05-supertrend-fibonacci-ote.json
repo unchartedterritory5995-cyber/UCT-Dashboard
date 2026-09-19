@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "05-supertrend-fibonacci-ote.pine",
+  "title": "Supertrend + Fibonacci OTE Grid & Bands [BigBeluga]",
+  "author": "BigBeluga",
+  "source_url": "https://www.tradingview.com/script/5MNAEWMW-Supertrend-Fibonacci-OTE-Grid-Bands-BigBeluga/",
+  "retrieved_at": "2026-09-07T09:55:00Z",
+  "pine_version": "v6",
+  "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (declared in script header comment)",
+  "publish_or_update_date": "shown as \"4 hours ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 225,
+  "complexity_bucket": "long",
+  "sha256_source": "a49af07885e7e26a5f0d722d72a98d2106d8e6d123b73fa39720d34ed6852baf",
+  "sha256_normalized": "24ce1a1f24f6ce750bc3b69366ff495791cecd7afaee3227ab83203917352100",
+  "storage": "local-only"
+}

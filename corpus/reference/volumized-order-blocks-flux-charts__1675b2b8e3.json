@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1675b2b8e313444fa43929cb5157efeb",
+ "title": "Volumized Order Blocks | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/bLdpFVuq-volumized-order-blocks-flux-charts/",
+ "agreeCount": 24795,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volumized-order-blocks-flux-charts__1675b2b8e3.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volumized-order-blocks-flux-charts__1675b2b8e3.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,428 @@
+{
+ "generated": "2026-09-09T11:21:46.109Z",
+ "skipped": [
+  "parabolic-sar__xoeoPMOWGJ.pine"
+ ],
+ "rows": [
+  {
+   "corpus": "committed",
+   "file": "artemis-oscillator-pro__ea1097ca9e.pine",
+   "bytes": 56903,
+   "lines": 738,
+   "ms": 322.1113
+  },
+  {
+   "corpus": "oos",
+   "file": "mid_engagement__22-rsi-levels-regime-map.pine",
+   "bytes": 44758,
+   "lines": 650,
+   "ms": 182.244
+  },
+  {
+   "corpus": "committed",
+   "file": "smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+   "bytes": 128118,
+   "lines": 2088,
+   "ms": 103.7623
+  },
+  {
+   "corpus": "committed",
+   "file": "renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+   "bytes": 81736,
+   "lines": 1815,
+   "ms": 77.1967
+  },
+  {
+   "corpus": "oos",
+   "file": "mid_engagement__17-volume-surge-radar.pine",
+   "bytes": 21381,
+   "lines": 307,
+   "ms": 73.0328
+  },
+  {
+   "corpus": "curated",
+   "file": "10-supertrend.pine",
+   "bytes": 3683,
+   "lines": 79,
+   "ms": 69.675
+  },
+  {
+   "corpus": "committed",
+   "file": "atr-god-strategy-by-tradesmart__4369755a29.pine",
+   "bytes": 47753,
+   "lines": 530,
+   "ms": 65.9936
+  },
+  {
+   "corpus": "committed",
+   "file": "camarilla__jw9faob08r.pine",
+   "bytes": 32238,
+   "lines": 713,
+   "ms": 56.9195
+  },
+  {
+   "corpus": "committed",
+   "file": "supertrend-explorer__V4MsmtCeKs.pine",
+   "bytes": 16436,
+   "lines": 296,
+   "ms": 56.9012
+  },
+  {
+   "corpus": "committed",
+   "file": "multicator-table__486858895c.pine",
+   "bytes": 42365,
+   "lines": 803,
+   "ms": 53.8198
+  },
+  {
+   "corpus": "committed",
+   "file": "elliot-wave-detector-pro__ce1cc9553e.pine",
+   "bytes": 91139,
+   "lines": 1983,
+   "ms": 52.2374
+  },
+  {
+   "corpus": "committed",
+   "file": "chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+   "bytes": 48191,
+   "lines": 928,
+   "ms": 50.6271
+  },
+  {
+   "corpus": "committed",
+   "file": "smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+   "bytes": 82319,
+   "lines": 1601,
+   "ms": 48.9679
+  },
+  {
+   "corpus": "committed",
+   "file": "neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+   "bytes": 45330,
+   "lines": 995,
+   "ms": 44.8065
+  },
+  {
+   "corpus": "committed",
+   "file": "all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+   "bytes": 51537,
+   "lines": 878,
+   "ms": 41.1269
+  },
+  {
+   "corpus": "committed",
+   "file": "ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+   "bytes": 23943,
+   "lines": 362,
+   "ms": 37.7351
+  },
+  {
+   "corpus": "committed",
+   "file": "volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+   "bytes": 40978,
+   "lines": 1054,
+   "ms": 37.0484
+  },
+  {
+   "corpus": "committed",
+   "file": "machine-learning-lorentzian-classification__5c7960db26.pine",
+   "bytes": 63729,
+   "lines": 931,
+   "ms": 36.4864
+  },
+  {
+   "corpus": "committed",
+   "file": "sub__1xYROVYMlX.pine",
+   "bytes": 39507,
+   "lines": 742,
+   "ms": 35.4717
+  },
+  {
+   "corpus": "committed",
+   "file": "mtf-key-levels-support-and-resistance__29f470a089.pine",
+   "bytes": 37895,
+   "lines": 706,
+   "ms": 35.2924
+  },
+  {
+   "corpus": "committed",
+   "file": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+   "bytes": 44032,
+   "lines": 977,
+   "ms": 32.4206
+  },
+  {
+   "corpus": "community",
+   "file": "05-chandelier-exit.pine",
+   "bytes": 3455,
+   "lines": 58,
+   "ms": 28.6278
+  },
+  {
+   "corpus": "committed",
+   "file": "72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+   "bytes": 18058,
+   "lines": 313,
+   "ms": 27.1503
+  },
+  {
+   "corpus": "committed",
+   "file": "advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+   "bytes": 20351,
+   "lines": 375,
+   "ms": 24.5479
+  },
+  {
+   "corpus": "committed",
+   "file": "wyckoff-accumulation-distribution__d9ae726e21.pine",
+   "bytes": 5687,
+   "lines": 149,
+   "ms": 24.1615
+  },
+  {
+   "corpus": "curated",
+   "file": "03-rsi-directional-momentum-scanner.pine",
+   "bytes": 41296,
+   "lines": 783,
+   "ms": 23.3198
+  },
+  {
+   "corpus": "committed",
+   "file": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+   "bytes": 29987,
+   "lines": 694,
+   "ms": 22.823
+  },
+  {
+   "corpus": "committed",
+   "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+   "bytes": 12024,
+   "lines": 227,
+   "ms": 22.7686
+  },
+  {
+   "corpus": "committed",
+   "file": "trend-targets-algoalpha__92ff5628d7.pine",
+   "bytes": 10740,
+   "lines": 218,
+   "ms": 21.2112
+  },
+  {
+   "corpus": "committed",
+   "file": "atr-support-and-resistance__3e9ddb38c4.pine",
+   "bytes": 16728,
+   "lines": 298,
+   "ms": 20.5095
+  },
+  {
+   "corpus": "committed",
+   "file": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+   "bytes": 43654,
+   "lines": 626,
+   "ms": 20.3179
+  },
+  {
+   "corpus": "committed",
+   "file": "supertrend-strategy__rcRbtoBiKG.pine",
+   "bytes": 3428,
+   "lines": 57,
+   "ms": 20.1443
+  },
+  {
+   "corpus": "curated",
+   "file": "04-superguppy-supertrend-screener.pine",
+   "bytes": 30313,
+   "lines": 568,
+   "ms": 20.1389
+  },
+  {
+   "corpus": "curated",
+   "file": "01-stoch-rsi-screener.pine",
+   "bytes": 29663,
+   "lines": 214,
+   "ms": 19.8918
+  },
+  {
+   "corpus": "committed",
+   "file": "cc-yata__bd898a1af0.pine",
+   "bytes": 19157,
+   "lines": 211,
+   "ms": 18.6058
+  },
+  {
+   "corpus": "committed",
+   "file": "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+   "bytes": 5637,
+   "lines": 115,
+   "ms": 18.565
+  },
+  {
+   "corpus": "committed",
+   "file": "heikin-ashi-supertrend__2fb7267210.pine",
+   "bytes": 26792,
+   "lines": 358,
+   "ms": 18.4665
+  },
+  {
+   "corpus": "oos",
+   "file": "long_tail__05-master-line-plus.pine",
+   "bytes": 6190,
+   "lines": 115,
+   "ms": 17.8626
+  },
+  {
+   "corpus": "oos",
+   "file": "mid_engagement__14-master-line-lite.pine",
+   "bytes": 3164,
+   "lines": 62,
+   "ms": 17.2269
+  },
+  {
+   "corpus": "committed",
+   "file": "dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+   "bytes": 55952,
+   "lines": 938,
+   "ms": 16.6853
+  },
+  {
+   "corpus": "committed",
+   "file": "ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+   "bytes": 20392,
+   "lines": 389,
+   "ms": 16.5881
+  },
+  {
+   "corpus": "committed",
+   "file": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+   "bytes": 27872,
+   "lines": 234,
+   "ms": 16.2725
+  },
+  {
+   "corpus": "committed",
+   "file": "average-day-range-adr-pivots__38b8c996e9.pine",
+   "bytes": 26668,
+   "lines": 479,
+   "ms": 16.2519
+  },
+  {
+   "corpus": "committed",
+   "file": "poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+   "bytes": 58676,
+   "lines": 1103,
+   "ms": 16.209
+  },
+  {
+   "corpus": "committed",
+   "file": "optimized-trend-tracker__ZhWiFvtpwE.pine",
+   "bytes": 16741,
+   "lines": 336,
+   "ms": 16.1711
+  },
+  {
+   "corpus": "committed",
+   "file": "smarter-snr__ac98ab25d5.pine",
+   "bytes": 16514,
+   "lines": 405,
+   "ms": 16.0429
+  },
+  {
+   "corpus": "oos",
+   "file": "high_engagement__22-reversal-probability-profile-algoalpha.pine",
+   "bytes": 26923,
+   "lines": 462,
+   "ms": 15.7978
+  },
+  {
+   "corpus": "committed",
+   "file": "momentum-volatility-scanner__4d1deaa855.pine",
+   "bytes": 10482,
+   "lines": 191,
+   "ms": 15.6467
+  },
+  {
+   "corpus": "committed",
+   "file": "volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+   "bytes": 115333,
+   "lines": 1878,
+   "ms": 15.6206
+  },
+  {
+   "corpus": "committed",
+   "file": "3-level-zigzag-semafor__3078.pine",
+   "bytes": 2783,
+   "lines": 57,
+   "ms": 15.2464
+  },
+  {
+   "corpus": "committed",
+   "file": "smt-divergence-ict-killzones__c932d56665.pine",
+   "bytes": 23090,
+   "lines": 404,
+   "ms": 14.7406
+  },
+  {
+   "corpus": "committed",
+   "file": "candlestick-patterns-identified-update-1-17-26__1082.pine",
+   "bytes": 6292,
+   "lines": 85,
+   "ms": 14.7288
+  },
+  {
+   "corpus": "committed",
+   "file": "4c-nyse-market-breadth-ratio__722410befd.pine",
+   "bytes": 2229,
+   "lines": 43,
+   "ms": 14.4807
+  },
+  {
+   "corpus": "committed",
+   "file": "anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+   "bytes": 22087,
+   "lines": 332,
+   "ms": 14.4708
+  },
+  {
+   "corpus": "oos",
+   "file": "long_tail__12-setup-grader.pine",
+   "bytes": 15358,
+   "lines": 250,
+   "ms": 14.2784
+  },
+  {
+   "corpus": "committed",
+   "file": "price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+   "bytes": 15537,
+   "lines": 190,
+   "ms": 14.277
+  },
+  {
+   "corpus": "committed",
+   "file": "cumulative-volume-delta__K07lTKE3tP.pine",
+   "bytes": 1753,
+   "lines": 44,
+   "ms": 14.2605
+  },
+  {
+   "corpus": "committed",
+   "file": "blackflag-fts__GdkmXaTINI.pine",
+   "bytes": 5368,
+   "lines": 131,
+   "ms": 14.1795
+  },
+  {
+   "corpus": "committed",
+   "file": "black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+   "bytes": 28202,
+   "lines": 513,
+   "ms": 14.16
+  },
+  {
+   "corpus": "committed",
+   "file": "cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+   "bytes": 27984,
+   "lines": 503,
+   "ms": 14.0959
+  }
+ ]
+}

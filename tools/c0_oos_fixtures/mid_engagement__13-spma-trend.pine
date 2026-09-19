@@ -1,0 +1,200 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © NordicAlphaLab
+
+//@version=6
+indicator("SPMA Trend | NAL", "SPMA Trend", overlay = true)
+
+//                                       ███╗  ██╗ █████╗ ██╗
+//                                       ████╗ ██║██╔══██╗██║
+//                                       ██╔██╗ ██║███████║██║
+//                                       ██║╚██╗██║██╔══██║██║
+//                                       ██║ ╚████║██║  ██║███████╗
+//                                       ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
+
+// ══════════════════════════════════════ ◈ Visuals & Tooltips ◈ ══════════════════════════════════════
+
+col_mode = input.string("Standard", title = "Color Mode", group = "Visuals", options = ["Standard", "Nordic", "Simple"])
+
+[col_up, col_dn, col_nu] = switch col_mode
+    "Standard" => [color.rgb(0, 255, 200), color.rgb(32, 94, 144), color.gray]
+    "Nordic"   => [color.rgb(0, 96, 175), color.rgb(150, 154, 169), color.gray]
+    "Simple"   => [color.lime, color.red, color.gray]
+
+// ══════════════════════════════════════ ◈ Functions ◈ ══════════════════════════════════════
+
+f_array_median(array<float> values) =>
+    array.sort(values, order.ascending)
+    int size = array.size(values)
+    int mid = int(math.floor(size / 2))
+    size == 0 ? na : size % 2 == 1 ? array.get(values, mid) : math.avg(array.get(values, mid - 1), array.get(values, mid))
+
+f_median_ad(series float source, simple int length) =>
+    array<float> values = array.new_float(0)
+    for i = 0 to length - 1
+        if not na(source[i])
+            array.push(values, source[i])
+
+    float medianValue = f_array_median(values)
+
+    array<float> deviations = array.new_float(0)
+    for i = 0 to length - 1
+        if not na(source[i]) and not na(medianValue)
+            array.push(deviations, math.abs(source[i] - medianValue))
+
+    f_array_median(deviations)
+
+f_array_quantile(array<float> values, simple float percentile) =>
+    array.sort(values, order.ascending)
+    int size = array.size(values)
+
+    if size == 0
+        na
+    else
+        float rank = percentile / 100.0 * (size - 1)
+        int lowerIndex = int(math.floor(rank))
+        int upperIndex = int(math.ceil(rank))
+        float weight = rank - lowerIndex
+        float lowerValue = array.get(values, lowerIndex)
+        float upperValue = array.get(values, upperIndex)
+        lowerValue + (upperValue - lowerValue) * weight
+
+f_quantile_volatility(series float residual, simple int length, simple float percentile) =>
+    array<float> upperValues = array.new_float(0)
+    array<float> lowerValues = array.new_float(0)
+    array<float> allValues = array.new_float(0)
+
+    for i = 0 to length - 1
+        if not na(residual[i])
+            float absResidual = math.abs(residual[i])
+            array.push(allValues, absResidual)
+
+            if residual[i] > 0.0
+                array.push(upperValues, residual[i])
+            else if residual[i] < 0.0
+                array.push(lowerValues, -residual[i])
+
+    float fallback = f_array_quantile(allValues, percentile)
+    float upperQuantile = nz(f_array_quantile(upperValues, percentile), fallback)
+    float lowerQuantile = nz(f_array_quantile(lowerValues, percentile), fallback)
+
+    [math.max(nz(upperQuantile, syminfo.mintick), syminfo.mintick), math.max(nz(lowerQuantile, syminfo.mintick), syminfo.mintick)]
+
+f_clamp(float value, float minValue, float maxValue) =>
+    math.max(minValue, math.min(value, maxValue))
+
+// ══════════════════════════════════════ ◈ Inputs ◈ ══════════════════════════════════════
+
+G  = "SPMA Settings"
+G2 = "Volatility"
+G3 = "Slope Gate"
+
+Length   = input.int(30, "Baseline Length", group = G)
+Lookback = input.int(30, "Percentrank Lookback", minval = 2, tooltip = "Number of historical bars used to rank the current returns. Lower values react faster but produce a less stable rank. Higher values compare the current shock against a broader historical sample.", group = G)
+GateInp  = input.int(50, "% Gate", minval = 0, maxval = 99, tooltip = "Minimum percentile rank required for the SPMA to update. A value of 50 updates on above-median positive price shocks, while higher values restrict updates to increasingly unusual shocks. When the gate is not met, the SPMA holds its previous value.", group = G)
+
+useAsymBands = input.bool(false, "Use Asymmetric Bands?", group = G2, tooltip = "Applies separate bullish and bearish shock multipliers to SD, ATR, MeanAD and MedianAD volatility. Quantile volatility is already asymmetric and therefore does not use this setting.")
+VolFeed = input.string("MeanAD", "Volatility Method", options = ["SD", "ATR", "MeanAD", "MedianAD", "Quantile"], group = G2)
+VolLen  = input.int(14, "Volatility Length", minval = 2, group = G2)
+VolMul  = input.float(0.75, "Volatility Multiple", minval = 0.0, step = 0.1, group = G2)
+QuantilePct = input.float(90.0, "Quantile Percentile", minval = 50.0, maxval = 99.0, step = 1.0, tooltip = "Percentile of positive and negative SPMA residual magnitudes used to construct Quantile bands. Higher values produce wider bands based on increasingly extreme historical deviations from the SPMA.", group = G2)
+
+UseSlope   = input.bool(true, "Use Slope Gate?", tooltip = "Requires the SPMA percentage slope to exceed the Slope Gate before a bullish state can activate. When disabled, any upward SPMA movement can produce a bullish state. The bearish condition is not affected by this setting.", group = G3)
+SlopeLen   = input.int(10, "Slope Lookback (bars)", group = G3)
+SlopeGateL = input.float(0.5, "% Slope Gate", step = 0.1, group = G3)
+
+// ══════════════════════════════════════ ◈ Logic ◈ ══════════════════════════════════════
+
+f_SPMA(simple int percentrank_lookback, simple int ma_length, simple int percentile_gate) =>
+    float Ret = close - close[1]
+    float Per = ta.percentrank(Ret, percentrank_lookback)
+    bool Gate = Per > percentile_gate
+    float emaValue = ta.ema(close, ma_length)
+
+    var float MA = na
+    MA := na(MA[1]) ? emaValue : Gate ? emaValue : MA[1]
+    MA
+
+float SPMA = f_SPMA(Lookback, Length, GateInp)
+
+// Volatility
+float VolatilityRaw = switch VolFeed
+    "SD"       => ta.stdev(close, VolLen)
+    "ATR"      => ta.atr(VolLen)
+    "MeanAD"   => ta.dev(close, VolLen)
+    "MedianAD" => f_median_ad(close, VolLen)
+    "Quantile" => na
+
+float Volatility = ta.ema(VolatilityRaw, VolLen)
+
+// Empirical SPMA residual quantiles
+float residual = close - SPMA
+[quantileUpper, quantileLower] = f_quantile_volatility(residual, VolLen, QuantilePct)
+
+// Shock-asymmetric volatility
+f_asymmetric_volatility(series float source, series float symmetricVol, simple int smoothLen) =>
+    float ret = source > 0.0 and source[1] > 0.0 ? math.log(source / source[1]) : 0.0
+    float spread = 1.0
+
+    float bullShock = math.pow(math.max(ret, 0.0), 2.0)
+    float bearShock = math.pow(math.max(-ret, 0.0), 2.0)
+    float totalShock = bullShock + bearShock
+
+    float bullVar = ta.ema(bullShock, smoothLen)
+    float bearVar = ta.ema(bearShock, smoothLen)
+    float totalVar = ta.ema(totalShock, smoothLen)
+
+    float bullRatio = totalVar > 0.0 ? math.sqrt(math.max(2.0 * bullVar / totalVar, 0.0)) : 1.0
+    float bearRatio = totalVar > 0.0 ? math.sqrt(math.max(2.0 * bearVar / totalVar, 0.0)) : 1.0
+
+    float upperMult = 1.0 + 3.0 * (bullRatio - 1.0)
+    float lowerMult = 1.0 + 3.0 * (bearRatio - 1.0)
+
+    float avgMult = nz(ta.sma(math.avg(upperMult, lowerMult), 180), ta.sma(math.avg(upperMult, lowerMult), math.min(math.max(bar_index, 1), 180)))
+
+    float upperMultAdj = f_clamp(upperMult, avgMult - spread, avgMult + spread)
+    float lowerMultAdj = f_clamp(lowerMult, avgMult - spread, avgMult + spread)
+
+    float upperVol = math.max(nz(symmetricVol, syminfo.mintick) * upperMultAdj, syminfo.mintick)
+    float lowerVol = math.max(nz(symmetricVol, syminfo.mintick) * lowerMultAdj, syminfo.mintick)
+
+    [upperVol, lowerVol]
+
+[asymUpper, asymLower] = f_asymmetric_volatility(close, Volatility, VolLen)
+
+bool useQuantile = VolFeed == "Quantile"
+
+float finalUpper = useQuantile ? quantileUpper : useAsymBands ? asymUpper : Volatility
+float finalLower = useQuantile ? quantileLower : useAsymBands ? asymLower : Volatility
+
+// Final bands and scoring
+float upperBand = SPMA + finalUpper * VolMul
+float lowerBand = SPMA - finalLower * VolMul
+
+// Signal Enhancement Gate
+float SlopePer = not na(SPMA[SlopeLen]) and SPMA[SlopeLen] != 0.0 ? (SPMA - SPMA[SlopeLen]) / SPMA[SlopeLen] * 100.0 : 0.0
+bool SlopeGate = SlopePer > SlopeGateL
+
+var int NAL = 0
+
+if SPMA > SPMA[1] and close > upperBand and (UseSlope ? SlopeGate : true)
+    NAL := 1
+
+if close < lowerBand
+    NAL := -1
+
+// ══════════════════════════════════════ ◈ Plots and Visuals ◈ ══════════════════════════════════════
+
+color col = NAL == 1 ? col_up : NAL == -1 ? col_dn : col_nu
+
+m = plot(SPMA, "Shock Percentile Moving Average", color = color.new(color.white, 50), linewidth = 2)
+u = plot(upperBand, "Upper Band", color = col, linewidth = 2)
+l = plot(lowerBand, "Lower Band", color = col, linewidth = 2)
+
+plot(upperBand, "Upper Glow", color = color.new(col, 70), linewidth = 7, display = display.pane)
+plot(lowerBand, "Lower Glow", color = color.new(col, 70), linewidth = 7, display = display.pane)
+
+fill(u, m, color.new(col, 90), title = "Upper Core")
+fill(m, l, color.new(col, 90), title = "Lower Core")
+
+plotcandle(open, high, low, close, "Candles", color = col, wickcolor = col, bordercolor = col, display = display.pane, force_overlay = true)
+barcolor(col)

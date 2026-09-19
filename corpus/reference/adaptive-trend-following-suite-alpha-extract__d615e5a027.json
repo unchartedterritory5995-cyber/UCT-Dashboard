@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d615e5a027804fabba86230e6894b7d7",
+ "title": "Adaptive Trend Following Suite [Alpha Extract]",
+ "author": "AlphaExtract",
+ "url": "https://www.tradingview.com/script/PzNwDABE-adaptive-trend-following-suite-alpha-extract/",
+ "agreeCount": 707,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/adaptive-trend-following-suite-alpha-extract__d615e5a027.pine",
+ "cached_source": "tools/pine_survey/cache/sources/adaptive-trend-following-suite-alpha-extract__d615e5a027.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;u9vU8nIMXAOh4s3tMk24rJALrID4zr3D",
+ "title": "Anchored VWAP",
+ "author": "jamiespips",
+ "url": "https://www.tradingview.com/script/AqvAwrfM-anchored-vwap/",
+ "agreeCount": 4293,
+ "category": "volume",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/anchored-vwap__u9vU8nIMXA.pine",
+ "our_status": "reference-only"
+}

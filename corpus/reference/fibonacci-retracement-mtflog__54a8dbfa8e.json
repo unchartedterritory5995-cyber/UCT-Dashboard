@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;54a8dbfa8e1f41ff9dd66c7c53b99859",
+ "title": "Fibonacci Retracement MTF/LOG",
+ "author": "dg_factor",
+ "url": "https://www.tradingview.com/script/ryIPRXKw-fibonacci-retracement-mtf-log/",
+ "agreeCount": 2698,
+ "category": "harmonic patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fibonacci-retracement-mtflog__54a8dbfa8e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fibonacci-retracement-mtflog__54a8dbfa8e.pine",
+ "our_status": "committed"
+}

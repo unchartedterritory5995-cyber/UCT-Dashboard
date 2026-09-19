@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c0ca8cf74904482faf834adfa825c2d3",
+ "title": "Session Highs and Lows Indicator (SMC Sessions, DST-safe)",
+ "author": "tc3oliver",
+ "url": "https://www.tradingview.com/script/g5McCOZh-session-highs-and-lows-indicator-smc-sessions-dst-safe/",
+ "agreeCount": 3146,
+ "category": "session tools",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+ "cached_source": "tools/pine_survey/cache/sources/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+ "our_status": "committed"
+}

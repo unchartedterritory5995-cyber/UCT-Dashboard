@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;014bfba33ddb4edca034f4b5116e2a43",
+ "title": "EMA 9/21/50 + VWAP + MACD + RSI Pro [v6]",
+ "author": "JOSES2705",
+ "url": "https://www.tradingview.com/script/66V8WRY8-ema-9-21-50-vwap-macd-rsi-pro-v6/",
+ "agreeCount": 3526,
+ "category": "momentum",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+ "our_status": "committed"
+}

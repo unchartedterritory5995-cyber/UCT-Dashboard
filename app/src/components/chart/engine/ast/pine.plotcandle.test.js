@@ -24,7 +24,20 @@ import { translatePine } from './pine.js'
 describe('a candle call yields one column per role', () => {
   const src = (body) => `//@version=5\nindicator("t")\n${body}\n`
   const rows = (out) => {
-    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    // ⚰️ THIS ASSERTED `out.refusal === null`, AND THAT WAS A CLAIM ABOUT THE
+    // WRONG THING. Every test below is about EXPANSION and ROLE MAPPING — four
+    // columns, named by role, picked by name not position — and none of them is
+    // about whether the whole script is a usable import. Those two questions
+    // came apart when `plotcandle(open, high, low, close)` stopped being
+    // accepted: it redraws the chart's own candles, so its meaning is entirely
+    // in the `color=` argument this door does not read, and OOS-2 found two real
+    // published indicators accepted on exactly that basis with `open` handed
+    // back as the member's representative column.
+    //
+    // The role-mapping claims are unchanged and still checked here. The
+    // acceptance claim now has its OWN test at the bottom of this file, with the
+    // correct expectation, rather than riding along inside this helper.
+    expect(out.outputs.length, 'no columns were resolved at all').toBeGreaterThan(0)
     return out.outputs
   }
   const byTitle = (out) => Object.fromEntries(
@@ -99,5 +112,42 @@ describe('a candle call yields one column per role', () => {
     // translation that quietly dropped it would still produce four columns.
     expect(got['heikin smoothed open']).toContain('accum(')
     expect(got['heikin smoothed close']).not.toContain('accum(')
+  })
+
+  // ── the acceptance claim, which used to ride inside `rows()` ───────────────
+
+  it('⛔⛔ an ALL-BARE candle is not an import — it redraws the chart`s own bars', () => {
+    // `plotcandle(open, high, low, close, color = <the whole indicator>)` is a
+    // real and common shape: the four arguments are STRUCTURE and the payload is
+    // the colour. With presentation dropped at the door, accepting this hands a
+    // member back the price they already had, titled as their indicator.
+    const out = translatePine(src('plotcandle(open, high, low, close)'))
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:presentation-only')
+    // The four columns still EXIST and still carry their roles — they are hidden,
+    // not lost, so a member can still be told what was there.
+    expect(out.outputs).toHaveLength(4)
+    expect(out.outputs.map((o) => o.hiddenReason)).toEqual(
+      ['passthrough', 'passthrough', 'passthrough', 'passthrough'])
+  })
+
+  it('⭐ the rule is UNCHANGED PRICE, not "a candle" — a computed candle imports', () => {
+    // The control. Heikin-Ashi and every other real candle indicator computes its
+    // four arms, and must keep working; a rule that banned `plotcandle` outright
+    // would pass the test above and be wrong.
+    const out = translatePine(src(
+      'plotcandle(ta.sma(open, 2), ta.sma(high, 2), ta.sma(low, 2), ta.sma(close, 2))'))
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    expect(out.ok).toBe(true)
+    expect(out.outputs.every((o) => !o.hidden)).toBe(true)
+  })
+
+  it('⭐ ONE computed arm is enough — the judgement is per CALL, not per column', () => {
+    // Deliberately conservative: `plotcandle(open, high, low, cum(close))` has a
+    // computed close, so the call carries content and its three raw arms stay
+    // offered. Judging per-column would silently break the "one statement, four
+    // columns" contract this file exists to pin.
+    const out = translatePine(src('plotcandle(open, high, low, sma(close, 2))'))
+    expect(out.outputs.filter((o) => o.hiddenReason === 'passthrough')).toHaveLength(0)
   })
 })

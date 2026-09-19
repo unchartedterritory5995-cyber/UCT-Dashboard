@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "18-deltalabs-equal-highs-equal-lows.pine",
+  "title": "DeltaLabs - Equal Highs / Equal Lows",
+  "author": "DeltaLabs",
+  "source_url": "https://www.tradingview.com/script/jCrH5a6Z-DeltaLabs-Equal-Highs-Equal-Lows/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 392,
+  "complexity_bucket": "long",
+  "sha256_source": "1a8d80239fb158e579e9c8f6840e214394801efed720cc81c148216486591b7f",
+  "sha256_normalized": "125643cd8f0be1f4bb42a339936f1eaca0dfbe9a2b223c0ad16aa50b6305767c",
+  "storage": "local-only"
+}

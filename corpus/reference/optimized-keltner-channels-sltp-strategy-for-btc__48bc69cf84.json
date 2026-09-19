@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;48bc69cf84654f16aaa3c5ecd050ee11",
+ "title": "Optimized Keltner Channels SL/TP Strategy for BTC",
+ "author": "chanu_lev10k",
+ "url": "https://www.tradingview.com/script/eH0FxdMp-optimized-keltner-channels-sl-tp-strategy-for-btc/",
+ "agreeCount": 524,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+ "cached_source": "tools/pine_survey/cache/sources/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+ "our_status": "committed"
+}

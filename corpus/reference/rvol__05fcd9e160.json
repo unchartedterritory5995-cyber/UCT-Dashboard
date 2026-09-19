@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;05fcd9e160744aafaa72492991e7168b",
+ "title": "RVOL",
+ "author": "FractalTrade_",
+ "url": "https://www.tradingview.com/script/7l9lcCft-rvol/",
+ "agreeCount": 711,
+ "category": "volume",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rvol__05fcd9e160.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rvol__05fcd9e160.pine",
+ "our_status": "committed"
+}

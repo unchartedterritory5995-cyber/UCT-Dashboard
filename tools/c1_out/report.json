@@ -1,0 +1,541 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tests/fixtures/pine_c1",
+  "rows": [
+    {
+      "script": "c1-01-dynamic-colour",
+      "timings_ms": {
+        "goto": 2669,
+        "open_builder": 22,
+        "new_formula": 16,
+        "import_tab": 25,
+        "paste": 7,
+        "translate": 276,
+        "apply": 11,
+        "save_click": 7,
+        "save_roundtrip": 755,
+        "instance_persist": 1123,
+        "reopen": 2472,
+        "render": 217
+      },
+      "definitions_before": 0,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c1-01-dynamic-colour",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_b724eb885384",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [
+          "value_c"
+        ],
+        "tree_keys": [
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_b724eb885384:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_b724eb885384:1",
+          "plotKey": "value",
+          "text": "c1-01-dynami 54.95",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_b724eb885384:1",
+          "plotKey": "value_c",
+          "text": "c1-01-dynami",
+          "hidden": true,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 1,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [
+          "value_c"
+        ],
+        "tree_keys": [
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c1_out\\c1-01-dynamic-colour.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": "skipped (--keep)"
+    },
+    {
+      "script": "c1-02-fill-band",
+      "timings_ms": {
+        "goto": 2702,
+        "open_builder": 13,
+        "new_formula": 13,
+        "import_tab": 20,
+        "paste": 24,
+        "translate": 259,
+        "apply": 8,
+        "save_click": 7,
+        "save_roundtrip": 793,
+        "instance_persist": 21,
+        "reopen": 2429,
+        "render": 338
+      },
+      "definitions_before": 1,
+      "instances_before": 1,
+      "chips_before": 2,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#2962ff",
+          "#2962ff"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c1-02-fill-band",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_fe86ee97018c",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "lower"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "lower"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "lowerColor",
+          "lowerWidth"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1,
+          "lowerColor": "#2962FF",
+          "lowerWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$lowerColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_fe86ee97018c:1"
+      ],
+      "render_settled": true,
+      "chips_after": 4,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_fe86ee97018c:1",
+          "plotKey": "value",
+          "text": "c1-02-fill-b 760.64",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_fe86ee97018c:1",
+          "plotKey": "lower",
+          "text": "c1-02-fill-b 723.84",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 2,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "lower"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "lower"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "lower",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "lowerColor",
+          "lowerWidth"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1,
+          "lowerColor": "#2962FF",
+          "lowerWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$lowerColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c1_out\\c1-02-fill-band.png",
+      "declared_plots": [
+        "value",
+        "lower"
+      ],
+      "drawn_plots": [
+        "value",
+        "lower"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": "skipped (--keep)"
+    },
+    {
+      "script": "c1-03-colour-and-fill",
+      "timings_ms": {
+        "goto": 2481,
+        "open_builder": 10,
+        "new_formula": 11,
+        "import_tab": 48,
+        "paste": 28,
+        "translate": 272,
+        "apply": 10,
+        "save_click": 8,
+        "save_roundtrip": 593,
+        "instance_persist": 41,
+        "reopen": 2571,
+        "render": 220
+      },
+      "definitions_before": 2,
+      "instances_before": 2,
+      "chips_before": 4,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#787b86",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c1-03-colour-and-fill",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_bd224a8c1587",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "slow",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "slow"
+        ],
+        "guide_plot_keys": [
+          "value_c"
+        ],
+        "tree_keys": [
+          "slow",
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "slowColor",
+          "slowWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "slowColor": "#787B86",
+          "slowWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$slowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_bd224a8c1587:1"
+      ],
+      "render_settled": true,
+      "chips_after": 7,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_bd224a8c1587:1",
+          "plotKey": "value",
+          "text": "c1-03-colour 739.90",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bd224a8c1587:1",
+          "plotKey": "slow",
+          "text": "c1-03-colour 738.41",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_bd224a8c1587:1",
+          "plotKey": "value_c",
+          "text": "c1-03-colour",
+          "hidden": true,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 3,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "slow",
+          "value_c"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "slow"
+        ],
+        "guide_plot_keys": [
+          "value_c"
+        ],
+        "tree_keys": [
+          "slow",
+          "value",
+          "value_c"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "slowColor",
+          "slowWidth",
+          "value_cColor",
+          "value_cWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 2,
+          "slowColor": "#787B86",
+          "slowWidth": 1,
+          "value_cColor": "#c9a84c",
+          "value_cWidth": 1
+        },
+        "plot_styles": [
+          "line",
+          "line"
+        ],
+        "plot_colors": [
+          "$color",
+          "$slowColor"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c1_out\\c1-03-colour-and-fill.png",
+      "declared_plots": [
+        "value",
+        "slow"
+      ],
+      "drawn_plots": [
+        "value",
+        "slow"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": "skipped (--keep)"
+    }
+  ],
+  "bars_probe": 300
+}

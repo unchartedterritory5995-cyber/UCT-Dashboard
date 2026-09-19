@@ -52,16 +52,41 @@ import {
   firstBindNeedsSetData,
   seriesOptionsForPlot,
   signColorsForPlot,
+  columnColorsForPlot,
+  effectiveColor,
+  DEFAULT_MARKER_COLOR,
   bindingKey,
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
+import { createFillPrimitive } from './fillPrimitive'
+import { markersFor, createMarkerLayer } from './markerPrimitive'
+// ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
+// marker layer above it: the capability is handed in, and a host that does not
+// provide one simply draws no objects.
+import { evaluateObjects } from './objectRuntime'
+import { objectReaderFor } from './objectColumns'
+import { toRenderState } from './objectRenderState'
+
 import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { ohlcCapabilityOf, barHasOhlc } from './ohlcCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
+
+/** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
+ *  declares them, else its series colour at a low default alpha.
+ *  ⛔ DEFAULTED HERE, NOT IN THE SCHEMA. `defSchema` validates SHAPE; inventing a
+ *  colour there would write it into every stored document as though the author
+ *  had chosen it, which is the same "stamped default" defect `legendMode` names. */
+function effectiveFillColour(plot) {
+  const color = (plot && typeof plot.fillColor === 'string' && plot.fillColor)
+    || (plot && typeof plot.color === 'string' && plot.color) || '#2962FF'
+  const opacity = (plot && Number.isFinite(plot.fillOpacity))
+    ? Math.max(0, Math.min(1, plot.fillOpacity)) : 0.15
+  return { color, opacity }
+}
 
 /** Monotonic id stamped on each resolved source column, so a consumer's memo key
  *  can name the exact array it computed against. Non-enumerable, so it can never
@@ -157,16 +182,78 @@ function toOhlcPoints(payload, adjustTime) {
   return out
 }
 
-function toPoints(column, bars, adjustTime, signColors) {
+// ⭐ SIGNATURE IS THIS BRANCH'S (merge 2026-09-15, union): master added the
+// compound-payload block above; this branch extended `toPoints` with
+// `colColors`/`condColumn` for a per-bar conditional colour, and the call site at
+// the C1-B fill wiring passes six arguments. Master's four-arg spelling would drop
+// two silently — the parameters are read in the body below.
+function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     const time = adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
     if (!Number.isFinite(v)) { out[i] = { time }; continue }
-    out[i] = signColors
-      ? { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
-      : { time, value: v }
+    if (signColors) {
+      out[i] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
+      continue
+    }
+    // ⭐⭐ C1 — PER-POINT COLOUR FROM A COMPUTED COLUMN (`colorMode: 'column:'`).
+    //
+    // ⛔ A NON-FINITE CONDITION GETS NO COLOUR AT ALL, not `down`. `na` is the
+    // author saying nothing on that bar — Pine's own `plot(x, color = na)` draws
+    // the point in no new colour — and picking a side would paint a warmup bar
+    // the "false" colour, which reads as a real signal for as many bars as the
+    // condition's own lookback. Omitting `color` leaves the series colour, which
+    // is what an uncoloured point already means everywhere else in this file.
+    const colour = pointColour(colColors, condColumn, i)
+    if (colour) { out[i] = { time, value: v, color: colour }; continue }
+    out[i] = { time, value: v }
   }
+  return out
+}
+
+/**
+ * ⭐⭐ R10 — THE ONE PLACE A PER-POINT COLOUR IS DECIDED, for a plot and for a
+ * fill alike.
+ *
+ * `null` means "this bar has no colour of its own", and the two callers are
+ * entitled to answer that differently because they are drawing different things:
+ * a PLOT falls back to the series colour (an uncoloured point already means that
+ * everywhere in this file), and a FILL draws NOTHING (R30 — an `na` bar is a gap,
+ * never a guess). ⛔ What they must never differ on is WHICH bars have a colour
+ * and WHICH colour it is; that is this function, and there is one of it.
+ */
+function pointColour(colColors, condColumn, i) {
+  if (!colColors || !condColumn) return null
+  const c = condColumn[i]
+  // ⛔ A NON-FINITE CONDITION IS NOT `down`. `na` is the author saying nothing on
+  // that bar, and picking a side paints every warm-up bar the "false" colour —
+  // which reads as a real signal for as many bars as the condition's lookback.
+  if (!Number.isFinite(c)) return null
+  return c !== 0 ? colColors.up : colColors.down
+}
+
+/**
+ * ⭐⭐ (j) j.3 / R30 — THE PER-POINT COLOURS A FILL DRAWS WITH, or `null` when the
+ * fill's colour is static.
+ *
+ * ⛔ THE FILL SPEC GOES TO `columnColorsForPlot` VERBATIM — the same reader a
+ * PLOT goes to, because the contract settled at `2b99b6682` gives a fill the same
+ * three field names a plot uses (`colorMode`, `colorUp`, `colorDown`). A second
+ * resolver for "the two colours a per-point mode needs" is the second-authority
+ * defect `pool.js` already avoids once, and R10 forbids a second colour path.
+ *
+ * ⛔ THE DECIDING COLUMN IS LOOKED UP THROUGH THE SAME `bindingKey` every column
+ * in this pass is stored under, so a fill's colour rule can only ever name a
+ * column of its OWN instance.
+ */
+function fillColours(fillSpec, instanceId, columns, n) {
+  const cc = columnColorsForPlot(fillSpec)
+  if (!cc) return null
+  const cond = columns.get(bindingKey(instanceId, cc.key))
+  if (!cond) return null
+  const out = new Array(n)
+  for (let i = 0; i < n; i += 1) out[i] = pointColour(cc, cond, i)
   return out
 }
 
@@ -378,6 +465,134 @@ export function createBinder({ chart, LWC }) {
   // compute. Both are pruned to what this pass actually used, so a symbol flip
   // cannot leave 5,000-point arrays alive behind a stale key.
 
+  /** instanceId → the live object layer for that indicator, if it draws any. */
+  const objectLayers = new Map()
+
+  /** ⭐⭐ C3B — EVERY INSTANCE'S OBJECT PROGRAM, EVALUATED AND DRAWN.
+   *
+   *  ⛔ ONE INSTANCE, ONE LAYER. Two copies of the same indicator on one chart
+   *  are two independent lifetimes — the same program, different inputs, and
+   *  therefore different objects. Keying by `instanceId` rather than `defId` is
+   *  what keeps them apart; keying by definition would make the second copy
+   *  silently overwrite the first's drawings.
+   *
+   *  ⛔ AND A FAILURE HERE COSTS ONLY THE DRAWINGS. Wrapped end to end: an
+   *  object program that refuses, exceeds its envelope, or throws must never
+   *  take the columns, the legend or the scan down with it. That is the C2A
+   *  failure-containment rule applied to the newest surface. */
+  const syncObjects = (ctx, instances, bars) => {
+    const make = ctx.createObjectLayer
+    const alive = new Set()
+    for (const inst of instances) {
+      if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
+      const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      const program = def && def.objects
+      if (!program) continue
+      alive.add(inst.instanceId)
+      if (typeof make !== 'function') continue
+      let layer = objectLayers.get(inst.instanceId)
+      if (!layer) {
+        const made = attempt(() => make(inst))
+        layer = made.ok ? made.value : null
+        if (!layer) continue
+        objectLayers.set(inst.instanceId, layer)
+      }
+      // ⛔⛔ BOTH DOCUMENT FORMS. A small script stays V1 and its program stays
+      // UNBOUND; only a document over the byte budget carries a graph. Reading
+      // one form and not the other is what made the first live run paint
+      // nothing while every unit test stayed green — see `objectReaderFor`.
+      const built = attempt(() => {
+        // ⭐⭐ THE INSTANCE'S OWN INPUTS AND THE CHART'S TIMEFRAME, exactly as
+        // step 1 below hands them to `registry.computeFor`. Passing neither is
+        // what made a member input invisible to an object coordinate while the
+        // plot beside it honoured the same knob — see `objectColumns`'s header.
+        // ⭐ AND THE SYMBOL, for the same reason step 1 threaded it into
+        // `computeFor`: `syminfo.*` is settled at BIND time, and an object tree
+        // that reads one refuses outright without it. Passing `inputs` and `tf`
+        // and not `symbol` is what made v2's two tables the only part of that
+        // document a member could not see.
+        const reader = objectReaderFor(def, bars, {
+          inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
+        })
+        if (!reader) return null
+        const run = evaluateObjects(reader.program, {
+          barCount: bars.length,
+          readNode: reader.readNode,
+          readTime: (i) => bars[i] && bars[i].t,
+        })
+        return {
+          run,
+          state: toRenderState(run.live, { bars }),
+          form: reader.form,
+          // ⛔⛔ THE NODES THE OBJECT LANE COULD NOT EVALUATE, CARRIED OUT OF THE
+          // ATTEMPT INSTEAD OF DISCARDED. `objectReaderFor` has always answered
+          // this and nobody has ever read it, and the cost is a specific,
+          // member-visible lie: a refused node reads `NaN` through `readNode`,
+          // and a `NaN` in a text template renders the four characters `NaN`
+          // INSIDE A DASHBOARD CELL. Measured on `uncharted-volume-v2.pine` at
+          // the chart's own depth — 8,000 SPY daily bars — 22 of its 133 graph
+          // nodes refuse `interpret:steps` (`accum over 8000 bars with a
+          // 250-bar warm-up is 2000000 steps and the ceiling is 1000000`), and
+          // both tables draw `Vol : NaN (NaNx)`. At 3,000 bars the same document
+          // computes and matches the vendor cell for cell.
+          // ⭐ So the count is stamped on the layer: a NaN a member can see now
+          // has a number beside it saying the engine refused rather than the
+          // script having said `na`.
+          // ⛔ THE TIMEFRAME THE OBJECT LANE ACTUALLY BOUND AT. `timeframeFlags`
+          // returns null for a code it does not know — deliberately, because a
+          // guessed `isdaily` is a confident wrong length — and every
+          // timeframe-conditional window then refuses `resolve:window`. Which
+          // means a member sees blank cells and the only way to tell that from
+          // any other blank is to know WHICH code reached the fold.
+          boundTf: ctx.tf === undefined ? '(undefined)' : String(ctx.tf),
+          unreadableNodes: (reader.failed || []).length,
+          // ⛔⛔ R-Q — AND WHY EACH ONE. A count says a member's cell is `NaN`
+          // for a reason; the guard and its sentence say WHICH reason, and the
+          // two most likely ones need completely different work — a step
+          // ceiling is a number, an unsettled symbol is a wire. Deduped by
+          // guard: twenty-two nodes refusing the same way is ONE fact.
+          unreadableGuards: [...new Set((reader.refusals || []).map((r) => r.guard))].sort(),
+          unreadableWhy: ((reader.refusals || [])[0] || {}).message || null,
+        }
+      })
+      if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
+      // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
+      // series is the same picture, so a poll that changed nothing repaints
+      // nothing — the memo discipline the column path above already keeps.
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}`
+      // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
+      // evidence a live run can read off the DOM: ids are a creation counter, so
+      // an engine that re-created rather than updated would show them climbing.
+      const meta = {
+        liveIds: built.value.run.live.map((o) => o.id),
+        // ⭐⭐ THE BAR EACH LIVE OBJECT WAS BORN ON. A final picture cannot say
+        // WHEN an object was created, so a one-bar-early engine and a correct one
+        // look identical in a screenshot. This is the fact that discriminates
+        // them, and it is the engine's own record rather than a re-derivation.
+        createdBars: built.value.run.live.map((o) => o.createdBar),
+        boundTf: built.value.boundTf,
+        unreadableNodes: built.value.unreadableNodes,
+        unreadableGuards: built.value.unreadableGuards,
+        unreadableWhy: built.value.unreadableWhy,
+        stats: {
+          created: built.value.run.stats.created,
+          updated: built.value.run.stats.updated,
+          deleted: built.value.run.stats.deleted,
+          peakLive: built.value.run.stats.peakLive,
+          liveTotal: built.value.run.stats.liveTotal,
+          status: built.value.run.status,
+          dropped: built.value.state.dropped,
+        },
+      }
+      attempt(() => layer.set(built.value.state, sig, meta))
+    }
+    for (const [id, layer] of objectLayers) {
+      if (alive.has(id)) continue
+      attempt(() => layer.clear())
+      objectLayers.delete(id)
+    }
+  }
+
   /** instanceId → `{registry, def, bars, sig, cols}`. */
   let computeMemo = new Map()
 
@@ -484,6 +699,12 @@ export function createBinder({ chart, LWC }) {
 
   function releaseAll() {
     for (const b of held) attempt(() => chart.removeSeries(b.series))
+    // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
+    // would leave its last picture frozen over the chart, which reads as "the
+    // indicator is still on" — the ghost-state defect this release path exists
+    // to prevent, one surface newer.
+    for (const [, layer] of objectLayers) attempt(() => layer.clear())
+    objectLayers.clear()
     held = []
     computeMemo = new Map()
     pointMemo = new Map()
@@ -586,13 +807,13 @@ export function createBinder({ chart, LWC }) {
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
-      return { ok: false, reason: 'engine disabled', bound: 0, released: 0 }
+      return { ok: false, reason: 'engine disabled', bound: 0, released: 0, notes: [] }
     }
 
     const registry = ctx.registry
     const resolvePlacement = ctx.resolvePlacement
     if (!registry || typeof resolvePlacement !== 'function') {
-      return { ok: false, reason: 'no placement resolver', bound: 0, released: 0 }
+      return { ok: false, reason: 'no placement resolver', bound: 0, released: 0, notes: [] }
     }
 
     const bars = Array.isArray(ctx.bars) ? ctx.bars : []
@@ -733,7 +954,31 @@ export function createBinder({ chart, LWC }) {
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
         const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
-          { sym: ctx.sym, tf: ctx.tf, source: primarySource, sources: sourceCols }))
+          // ⭐ MERGED 2026-09-15 AS A UNION: master's `source`/`sources` (the
+          // universal-data seam) and this branch's `symbol`/`newestBarIsForming`
+          // (the R-K seam) are four independent keys on one ctx. Taking either
+          // side alone drops a seam that its own lane has rails for.
+          // ⭐⭐ `newestBarIsForming` RIDES THE CTX, like `sym` and `tf`. It is
+          // Python's `bar_close_state` answer, carried from the /api/bars payload
+          // the SAME bars came from — so the tri-state and the series it describes
+          // can never be from two different fetches.
+          // ⛔ FAIL CLOSED: `?? null` keeps UNKNOWN as UNKNOWN. `false` would mean
+          // SETTLED and blank nothing, which is the one wrong answer these columns
+          // exist to prevent.
+          // ⭐⭐ R-K (2026-09-13) — `symbol` RIDES BESIDE `sym`, AND THEY ARE NOT
+          // THE SAME THING. `sym` is the ticker STRING the server lane keys a
+          // fetch on. `symbol` is the OBJECT the bind-time fold needs —
+          // `{ticker, exchange}` — because `syminfo.tickerid` is only resolvable
+          // for a symbol whose exchange spelling has a witness, and that is a
+          // property of the SYMBOL, not of the script.
+          // ⚰️ Until today the fold was handed `ctx.sym`, a string, and
+          // `symbolConstantsWith` returns `{}` for anything that is not an
+          // object — so every `syminfo.*` was NotFoldable on every chart binding
+          // and three of Volume v2's four columns refused. The stage was built,
+          // wired and dark for want of a shape at one seam.
+          { sym: ctx.sym, symbol: ctx.symbol || null, tf: ctx.tf,
+            source: primarySource, sources: sourceCols,
+            newestBarIsForming: ctx.newestBarIsForming ?? null }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -795,6 +1040,12 @@ export function createBinder({ chart, LWC }) {
       if (isOhlcPayload(col)) return col.bars.some(barHasOhlc)
       return col !== undefined && registry.hasAnyFinite(col)
     }
+
+    // ── 1b. ⭐⭐ C3B — the object programs, evaluated and drawn ──
+    // AFTER the columns and BEFORE the pool, because a drawing must never be
+    // able to change which series get bound: an object program that refuses has
+    // to cost its own pictures and nothing else.
+    attempt(() => syncObjects(ctx, instances, bars))
 
     // ── 2. Ask the pool what should happen ──
     // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
@@ -860,13 +1111,22 @@ export function createBinder({ chart, LWC }) {
         return pts
       }
       const sc = signColorsForPlot(b.plot)
-      const up = sc ? sc.up : null
-      const down = sc ? sc.down : null
+      // ⭐ C1 — the deciding column for `colorMode: 'column:<key>'`, looked up
+      // through the SAME `bindingKey` every column in this pass is stored under,
+      // so a colour rule can only ever name a column of its own instance.
+      const cc = sc ? null : columnColorsForPlot(b.plot)
+      const cond = cc ? columns.get(bindingKey(b.instanceId, cc.key)) : undefined
+      const up = sc ? sc.up : (cc ? cc.up : null)
+      const down = sc ? sc.down : (cc ? cc.down : null)
       const m = pointMemo.get(b.key)
+      // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
+      // while the VALUE column did not (a different input, the same maths) would
+      // serve the previous pass's colours — the memo would be answering a
+      // question nobody asked.
       if (m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
-          && m.up === up && m.down === down) return m.points
-      const points = toPoints(column, bars, adjustTime, sc)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, points })
+          && m.up === up && m.down === down && m.cond === cond) return m.points
+      const points = toPoints(column, bars, adjustTime, sc, cc, cond)
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, cond, points })
       return points
     }
 
@@ -1017,6 +1277,16 @@ export function createBinder({ chart, LWC }) {
     assertLeftAxis(prepared.some((p) => p.scaleId === 'left'))
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
+    //
+    // ⭐⭐ (j) j.2 / R27 (amended) — WHICH BINDING HOSTS A HIDDEN SIBLING'S FILL.
+    // A `display.none` anchor binds NO series (pass one orphans it, and that
+    // stays true), but it DOES have a column — `columns.set` above loops every
+    // plot key. A fill between two such anchors therefore needs a HOST: one
+    // series already bound and visible in the same instance, whose
+    // `priceToCoordinate` the primitive borrows. The FIRST prepared binding of an
+    // instance takes that job, deterministically, so two visible plots cannot
+    // both host the same band.
+    const fillHostSeen = new Set()
     const next = []
     for (const p of prepared) {
       const { b, paneIndex, scaleId, scaleOptions, series } = p
@@ -1087,6 +1357,147 @@ export function createBinder({ chart, LWC }) {
         }
       }
 
+      // ⭐⭐ C1-B: THE AREA BETWEEN THIS PLOT AND ANOTHER (`fill: {with}`).
+      //
+      // The primitive is created ONCE per binding and thereafter only re-fed
+      // through `setOptions`. Re-attaching on every pass would leak one
+      // primitive per frame — the same lifecycle mistake `guideHandles` above
+      // exists to prevent, and with no `removePriceLine` equivalent to notice it.
+      //
+      // ⛔ IT MUST ALSO SURVIVE A RE-TENANT. A pooled series keeps whatever was
+      // attached to it, so a fill from the PREVIOUS occupant would go on drawing
+      // over the new one's numbers. `source !== 'same'` is the same signal the
+      // guides use, and it detaches here for the same reason.
+      let fill = (b.from && b.from.fill) || null
+      const fillSpec = b.plot && b.plot.fill
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      if (fill && (b.source !== 'same' || !fillWith)) {
+        attempt(() => series.detachPrimitive(fill.primitive))
+        fill = null
+      }
+      if (fillWith) {
+        const other = columns.get(bindingKey(b.instanceId, fillWith))
+        const own = columns.get(b.key)
+        if (own && other) {
+          const colour = effectiveFillColour(b.plot)
+          if (!fill) {
+            fill = createFillPrimitive({})
+            attempt(() => series.attachPrimitive(fill.primitive))
+          }
+          fill.setOptions({
+            upper: own, lower: other, times: bars.map((bar) => adjustTime(bar.t)),
+            color: colour.color, opacity: colour.opacity,
+            colors: fillColours(fillSpec, b.instanceId, columns, bars.length),
+          })
+        }
+      }
+
+      // ⭐⭐ (j) j.2 — THE FILLS A HIDDEN SIBLING OWNS, HOSTED HERE.
+      //
+      // ⛔ A SEPARATE SLOT, NOT A WIDENED `fill`, AND THE MEASUREMENT CHOSE IT.
+      // `from.fill` has exactly ONE reader (the line above) and one meaning —
+      // *this plot's own band* — and its re-tenant rule keys on `b.source` for
+      // THIS plot. A hosted band belongs to a DIFFERENT plot and is invalidated
+      // for different reasons, so folding both into one array would make "which
+      // element is mine?" ambiguous at the detach. Keeping `fill` untouched is
+      // what makes the single-fill case byte-identical to `fillBinding.test.js`'s
+      // two leak rails BY CONSTRUCTION rather than by re-testing.
+      //
+      // ⛔ THE SAME TWO LEAK MODES APPLY AND ARE HANDLED THE SAME WAY: attach
+      // ONCE (reuse the carried handle), and detach on a re-tenant — plus a
+      // third this path adds, an owner that stops declaring a fill.
+      let hostedFills = (b.from && b.from.hostedFills) || null
+      const isFillHost = !fillHostSeen.has(b.instanceId)
+      if (isFillHost) fillHostSeen.add(b.instanceId)
+      // ⛔ ONE GUARD, NOT TWO. A blanket `b.source !== 'same'` detach here was
+      // MEASURED REDUNDANT: disabling it left every case green, because the
+      // key-by-key cleanup below already detaches whatever `kept` no longer
+      // holds — including a re-tenant, whose new occupant declares different
+      // hidden plots (or none). `lesson_a_guard_repeated_is_a_guard_unproved`:
+      // two guards over one fact cannot be mutation-proved, so the general one
+      // stays and the blanket one is gone.
+      //
+      // ⭐ WHAT IS LEFT IS THE CASE THE CLEANUP CANNOT SEE: this binding is no
+      // longer its instance's fill host, so the loop that would have rebuilt
+      // `kept` never runs for it and every band it carries must come off.
+      if (hostedFills && !isFillHost) {
+        for (const h of hostedFills.values()) attempt(() => series.detachPrimitive(h.primitive))
+        hostedFills = null
+      }
+      if (isFillHost) {
+        const kept = new Map()
+        for (const hp of ((b.def && b.def.plots) || [])) {
+          if (!hp || hp.hidden !== true) continue
+          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          if (!hw || hw === hp.key) continue
+          const upper = columns.get(bindingKey(b.instanceId, hp.key))
+          const lower = columns.get(bindingKey(b.instanceId, hw))
+          // ⛔ FAIL CLOSED, exactly as the own-fill path does for an
+          // unresolvable `with`: no band rather than a band between whatever is
+          // lying around.
+          if (!upper || !lower) continue
+          let h = (hostedFills && hostedFills.get(hp.key)) || null
+          if (!h) {
+            h = createFillPrimitive({})
+            attempt(() => series.attachPrimitive(h.primitive))
+          }
+          const hc = effectiveFillColour(hp)
+          h.setOptions({
+            upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
+            color: hc.color, opacity: hc.opacity,
+            // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
+            // a `display.none` anchor, so this is the site that colours a cloud.
+            colors: fillColours(hp.fill, b.instanceId, columns, bars.length),
+          })
+          kept.set(hp.key, h)
+        }
+        if (hostedFills) {
+          for (const [k, h] of hostedFills) {
+            if (!kept.has(k)) attempt(() => series.detachPrimitive(h.primitive))
+          }
+        }
+        hostedFills = kept.size ? kept : null
+      }
+
+      // ⭐⭐ C3A — THE GLYPH, DRAWN. `plotshape`/`plotchar` already yielded their
+      // condition as an ordinary 0/1 column (which is what makes them
+      // screenable); what the author ALSO said — a triangle above the bar
+      // reading "BUY" — reached the document as `plots[i].marker` for the first
+      // time in this wave, and this is where it becomes pixels.
+      //
+      // ⛔ THE MARKERS RIDE THE PLOT'S OWN SERIES, not the candle series. That
+      // is what makes `position: 'inBar'` mean `location.absolute` (the glyph
+      // sits at the value the author plotted) and what keeps a marker in the
+      // same pane as the indicator that produced it. A marker parked on the
+      // price series would jump panes for any oscillator.
+      //
+      // ⚠️ `ctx.createSeriesMarkers` IS INJECTED, like every other chart-library
+      // capability this module uses. A host that does not provide it simply
+      // draws no markers — the column, the legend and the scan are unaffected —
+      // rather than throwing on a chart that was otherwise fine.
+      let markerLayer = (b.from && b.from.markerLayer) || null
+      const markerSpec = b.plot && b.plot.marker
+      if (markerLayer && (b.source !== 'same' || !markerSpec)) {
+        attempt(() => markerLayer.clear())
+        markerLayer = null
+      }
+      if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
+        const own = columns.get(b.key)
+        if (own) {
+          if (!markerLayer) markerLayer = createMarkerLayer(ctx.createSeriesMarkers, series)
+          const cc = columnColorsForPlot(b.plot)
+          attempt(() => markerLayer.set(markersFor({
+            column: own,
+            times: bars.map((bar) => adjustTime(bar.t)),
+            marker: markerSpec,
+            color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
+            condColumn: cc ? columns.get(bindingKey(b.instanceId, cc.key)) : null,
+            colorUp: cc ? cc.up : null,
+            colorDown: cc ? cc.down : null,
+          })))
+        }
+      }
+
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
       const points = pointsFor(b, columns.get(b.key))
       if (firstBindNeedsSetData(b, planMode)) {
@@ -1098,6 +1509,7 @@ export function createBinder({ chart, LWC }) {
       }
 
       next.push({
+        markerLayer,
         key: b.key,
         instanceId: b.instanceId,
         defId: b.defId,
@@ -1105,6 +1517,14 @@ export function createBinder({ chart, LWC }) {
         poolKey: b.poolKey,
         series,
         guideHandles,
+        // ⭐ C1-B — carried so the next pass reuses it (never re-attaches) and can
+        // detach it when this series changes tenant.
+        fill,
+        // ⭐ (j) j.2 — the bands this series HOSTS for hidden siblings, keyed by
+        // the owning plot's key. Same lifecycle as `fill` and carried for the
+        // same reason; a separate slot because it has a different owner and a
+        // different invalidation condition.
+        hostedFills,
         guideSig: b.guideSig,
         paneIndex,
         scaleId,
@@ -1133,7 +1553,50 @@ export function createBinder({ chart, LWC }) {
     // `chart.panes()` describes the stack the layout is talking about.
     if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
 
-    return { ok: true, bound: next.length, released: release.length }
+    // ── ⭐⭐ THE NOTES CHANNEL: A FILL WITH NO VISIBLE HOST IS SAID, NOT DROPPED ──
+    //
+    // ⛔ SILENCE IS A DEFECT, and this is the one place the binder was silent. A
+    // fill is drawn by attaching a primitive to a SERIES, and a series exists only
+    // for a VISIBLE plot — `isFillHost` above is the FIRST VISIBLE binding of an
+    // instance. So a definition whose plots are ALL hidden produces no binding at
+    // all, the hosted-fill pass never runs for it, and every band it declares is
+    // dropped without a word. The caller sees `{ok: true, bound: 0, released: 0}`,
+    // which is exactly what a definition that asked for nothing returns.
+    //
+    // ⭐ REACHABLE FROM THE BUILDER, NOT FROM THE PANE. `memberPaneDefinition`
+    // refuses an all-hidden document, so the member path cannot make one; the
+    // builder hands the binder whatever definition it holds, so it can.
+    //
+    // ⛔ READ FROM `fillHostSeen`, WHICH IS THE SAME FACT THE DRAW USED. Asking
+    // "did any binding host this instance's fills?" of the set the hosted-fill
+    // pass itself populated is one authority; re-deriving "is any plot visible?"
+    // here would be a second opinion that could drift from the draw it describes.
+    //
+    // ⚠️ THE NOTE NAMES THE BAND THE WAY THIS DOCUMENT NAMES IT — `key` and
+    // `fill.with`. A definition's `plots[]` entry carries no source line (the
+    // binder is handed a DEFINITION, never source text), so a `line` field could
+    // only be null or invented.
+    const notes = []
+    for (const inst of (ctx.instances || [])) {
+      const id = inst && inst.instanceId
+      if (!id || fillHostSeen.has(id)) continue
+      const def = inst.def || (ctx.registry && ctx.registry.getDefinition
+        ? ctx.registry.getDefinition(inst.defId) : null)
+      for (const p of ((def && def.plots) || [])) {
+        if (!p || p.hidden !== true) continue
+        const w = p.fill && typeof p.fill.with === 'string' ? p.fill.with : null
+        if (!w || w === p.key) continue
+        notes.push({
+          instanceId: id,
+          key: p.key,
+          with: w,
+          code: 'binder:no-visible-host',
+          message: 'no visible host in this pane',
+        })
+      }
+    }
+
+    return { ok: true, bound: next.length, released: release.length, notes }
   }
 
   /**

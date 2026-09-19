@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;285168ddfb7c45e0bf1bdc9ec0fe2ea6",
+ "title": "MGI Levels Suite",
+ "author": "mcthatsme",
+ "url": "https://www.tradingview.com/script/eIS3JPxY-mgi-levels-suite/",
+ "agreeCount": 932,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/mgi-levels-suite__285168ddfb.pine",
+ "cached_source": "tools/pine_survey/cache/sources/mgi-levels-suite__285168ddfb.pine",
+ "our_status": "committed"
+}

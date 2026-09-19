@@ -1,0 +1,54 @@
+{
+  "_": "⭐⭐ ITEM 7, QUESTION 3 — ANSWERED. `time(timeframe.period, \"0930-1600\")` is `na` OUTSIDE the session and the BAR'S OWN TIME inside it. It is NOT the session's start time.",
+  "_probe": "tools/visual_conformance/probes/r11-time-session.pine",
+  "_probeSha256": "ddc948f6d6a4c52335d29bf51ec0959d8a168a755fea11de71d5723a3da71bca",
+  "_probeBytes": 2420,
+  "_studyName": "UCTPROBE_R11_TIME_SESSION",
+  "_capturedUTC": "2026-09-11T05:05:00Z",
+  "_capturedET": "2026-09-11T01:05:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "5",
+  "chartSession": "extended",
+  "bars": 400,
+
+  "_the_question": "The corpus's 54 two-argument `time(...)` sites are either a BOOLEAN test ('are we in the session?') or an ARITHMETIC one ('when did the session start?'). The two readings produce different code, so this was not guessable.",
+
+  "_compiles": true,
+  "_compileNote": "⭐ THE FIRST HALF OF THE READING, AND IT WAS A REAL FORK. The probe's own header says a compile FAILURE would itself be the answer — it would mean the 54 sites are scripts that do not compile at TradingView either, a different finding with a different fix. They compile: `status().type === 2`, 400 bars, and the plot roster came back 6, matching the balanced-paren scan of the committed source.",
+
+  "verdict": {
+    "outsideTheSession": "na",
+    "insideTheSession": "the bar's own `time`",
+    "isSessionStartTime": false,
+    "_": "⛔ SO THE VALUE CARRIES NO INFORMATION THE BAR DID NOT ALREADY HAVE. Inside the session `tsess - time` measured EXACTLY 0 on all 156 in-session bars, and `tsess / 86400000` reproduced the bar's own unix timestamp to the millisecond. The only bit this call adds is IN-SESSION OR NOT, which makes the two-argument form a membership test wearing an arithmetic shape."
+  },
+
+  "measured": {
+    "insideTheSession": {
+      "bars": 156,
+      "na_count": 0,
+      "not_na_count": 156,
+      "sess_minus_time_seconds_distinct": [0],
+      "firstBar": { "unix": 1788960600, "etClock": "09:30", "na": 0, "sessMinusTimeSeconds": 0, "rawDays": 20705.5625 },
+      "lastBar": { "unix": 1789070100, "etClock": "15:55", "na": 0, "sessMinusTimeSeconds": 0, "rawDays": 20706.82986111111 }
+    },
+    "outsideTheSession": {
+      "bars": 244,
+      "na_count": 244,
+      "not_na_count": 0,
+      "rawDays_sentinel_count": 244,
+      "firstBar": { "unix": 1788906300, "etClock": "18:25", "na": 1, "rawDays": -1 },
+      "lastBar": { "unix": 1789084500, "etClock": "19:55", "na": 1, "rawDays": -1 }
+    },
+    "boundaries": [
+      { "from": "09:25 na=1", "to": "09:30 na=0", "_": "the session opens ON 09:30" },
+      { "from": "15:55 na=0", "to": "16:00 na=1", "_": "⚠️ the 16:00 bar is ALREADY OUTSIDE — the window is half-open, [09:30, 16:00)" }
+    ]
+  },
+
+  "_the_discriminator_and_why_it_matters": "⛔⛔ THE FIRST ATTEMPT AT THIS CAPTURE ANSWERED NOTHING AND LOOKED CONCLUSIVE. On the chart's default `regular` session every one of the 400 bars is inside 09:30-16:00 (hours 9-15 only, 0 bars outside), so `na` had no bar to be true on: N02 read 0 everywhere, which is indistinguishable from 'it is never na'. The probe carries N05_hour / N06_minute precisely so that this gets CHECKED rather than assumed, and it fired. The capture was only taken after switching the chart to `extended`, which produced hours 4-19 and 244 of 400 bars outside the session. ⭐ A probe that can detect its own vacuity is the difference between a reading and a guess.",
+
+  "_what_this_settles_for_the_corpus": "The 54 two-argument sites in `corpus/committed` are a MEMBERSHIP TEST. A translation that treats the return as a session-start instant is reading information that is not there — inside the session it is just `time`. The `na`-ness is the whole signal.",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE SESSION STRING. AMEX:SPY, 5m, `\"0930-1600\"`, chart session `extended`, captured overnight on 2026-09-11. Not tested: a session string with a day-of-week mask (`\"0930-1600:23456\"`), a session spanning midnight, a non-US symbol whose exchange session differs, or the same call on a DAILY chart — where the probe's own header warns every bar IS the session and the question has no bar to be false on."
+}

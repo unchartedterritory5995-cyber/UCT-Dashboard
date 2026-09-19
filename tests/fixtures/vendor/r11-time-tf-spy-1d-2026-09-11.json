@@ -1,0 +1,54 @@
+{
+  "_": "⭐⭐ ITEM 7, THE `time(<timeframe>)` HALF — Q1, Q2 AND Q4 ANSWERED. With Q3 (2026-09-11, separate file) all four are now read.",
+  "_probe": "tools/visual_conformance/probes/r11-time-tf.pine",
+  "_probeSha256": "17e4e77b8b0ff425f8e25630856c7f8ae0f8a2c808f5e3988bbc7711b1902647",
+  "_probeBytes": 3449,
+  "_studyName": "UCTPROBE_R11_TIME_TF",
+  "_capturedET": "2026-09-11T08:45:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+  "bars": 610,
+  "_compiles": true,
+  "_vendorRoster": 10,
+  "_committedRoster": 10,
+
+  "Q1_timeW_on_a_daily_chart": {
+    "question": "On a 1D chart asking time(\"W\") mid-week: `na`, the FORMING week's open, or the LAST COMPLETED week's open? The three differ on every bar that is not a period boundary.",
+    "verdict": "THE FORMING WEEK'S OPEN. Never `na`.",
+    "naCount": 0,
+    "notNaCount": 610,
+    "alwaysAtOrBeforeThisBar": true,
+    "daysBehindThisBar_distinct": [0, -1, -2, -3, -4],
+    "witnesses": [
+      { "barIndex": 8458, "timeW_rawDays": 20704.5625, "time_rawDays": 20704.5625, "deltaDays": 0 },
+      { "barIndex": 8459, "timeW_rawDays": 20704.5625, "time_rawDays": 20705.5625, "deltaDays": -1 },
+      { "barIndex": 8460, "timeW_rawDays": 20704.5625, "time_rawDays": 20706.5625, "deltaDays": -2 }
+    ],
+    "_": "⭐⭐ THE THREE WITNESSES ARE THE PROOF. `timeW` holds CONSTANT at 20704.5625 across three consecutive daily bars while the bar's own time increments by one day each — that is a weekly bar's open standing still while the days advance inside it. ⛔ AND IT RULES OUT THE THIRD ANSWER: the last COMPLETED week would sit 5 to 9 days back; the observed spread is 0 to -4, i.e. inside the current week. ⭐ The 0 case is the week's first bar, where the weekly open IS the daily bar's own time.",
+    "_consequence": "⛔ `na`-free means the Q4 comparison idiom below is safe — which the backlog said was conditional on exactly this."
+  },
+
+  "Q2_timeSelf_on_the_charts_own_timeframe": {
+    "question": "Is time(timeframe.period) exactly `time`, or can it differ at a session edge?",
+    "verdict": "EXACTLY `time`.",
+    "delta_seconds_distinct": [0],
+    "naCount": 0,
+    "_": "Zero on every one of 610 bars, and never `na`. ⭐ The na-flag is carried separately for a reason the probe states: without it, 'equal' and 'both missing' would be the same row of zeros — which is exactly how a session edge would hide."
+  },
+
+  "Q4_the_new_period_idiom_folds": {
+    "question": "Does `time(\"D\") != time(\"D\")[1]` — the classic new-day test — fold? Cheap win, but only if Q1 is `na`-free.",
+    "verdict": "YES — true on every bar of a 1D chart, and `na`-free",
+    "timeD_naCount": 0,
+    "changed_distinctValues": [1],
+    "changedCount": 610,
+    "totalBars": 610,
+    "_": "⭐ On a daily chart every bar IS a new day, so 610/610 is the right answer and a value other than 1 anywhere would have meant the comparison was doing something else. ⛔ The na-guard matters: if `time(\"D\")` were `na` the comparison would be MEANINGLESS rather than false, and the probe refuses to record those two as the same answer. It never was `na`, so the idiom is available."
+  },
+
+  "_itemSevenNowComplete": "⭐ With `r11-time-session-spy-5m-2026-09-11.json` (Q3: `na` outside the session, the bar's own time inside) and `r11-valuewhen-spy-2026-09-11.json` (all four valuewhen questions), every question in `docs/pine/r11-time-and-valuewhen.md` has been read off the vendor.",
+
+  "_notPinned": "⛔ None of these are pinned. `time(<tf>)` is a node this engine already has (`tf`), and what the readings settle is its SEMANTICS — which is a separate, member-visible decision about what our `tf` node should return mid-period. Routed with the measurement rather than taken in a capture pass.",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE CHART TIMEFRAME, ONE HIGHER TIMEFRAME. AMEX:SPY on 1D asking \"W\" and \"D\". Nothing here reads an INTRADAY chart asking a daily or weekly frame, a higher timeframe that is not a whole multiple, or the first bar of the series where no prior higher-timeframe bar exists."
+}

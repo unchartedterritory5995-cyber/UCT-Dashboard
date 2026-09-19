@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "14-heikin-ashi-candle-overlay-bjorgum.pine",
+  "title": "Heikin Ashi Candle Overlay",
+  "author": "Bjorgum",
+  "source_url": "https://www.tradingview.com/script/TA4mVPD8-Heikin-Ashi-Candle-Overlay/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v5",
+  "license": "not stated",
+  "publish_or_update_date": "Jul 4, 2021 (page badge shows \"Updated Nov 16, 2021\")",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 26,
+  "complexity_bucket": "short",
+  "sha256_source": "e13949ec0485f3a722b9a37b809dfce541057321f12f772500f7cfbe4af59071",
+  "sha256_normalized": "7a81c50a0bd9e2e7bb946b6dc6f870dd36c3655a363e37efbcd9b270c7f795e2",
+  "storage": "local-only"
+}

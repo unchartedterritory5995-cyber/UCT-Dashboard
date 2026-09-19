@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;7569f1043ed54ac9805249d930c567ed",
+ "title": "Market Structure Inducements ICT [TradinFinder] CHoch BOS Sweeps",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/whEhJfeJ-market-structure-inducements-ict-tradinfinder-choch-bos-swee/",
+ "agreeCount": 5145,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine",
+ "our_status": "committed"
+}

@@ -30,9 +30,25 @@ import { AuthContext } from '../context/AuthContext'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration,
 } from '../components/chart/engine/nativeRegistry'
+import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
+
+/** ⭐⭐ C2D.7 — THE CAPABILITY THE CLIENT DECLARES, IN ONE PLACE.
+ *
+ *  `?graph=1` tells the store "I can rebuild the forest from `compute.graph`
+ *  myself, so send me the graph". It is opt-IN on purpose: a member whose
+ *  browser is still holding yesterday's bundle cannot hydrate, and answering
+ *  them compactly would blank their chart with nothing red anywhere. An old
+ *  bundle simply never asks.
+ *
+ *  ⛔ EVERY READ DOOR THAT HYDRATES MUST USE THIS, AND ONLY THOSE. Adding the
+ *  flag to a fetch whose consumer does not call `hydrateGraphDocument` is the
+ *  same defect wearing the other sign — a document arriving with no trees at a
+ *  surface that reads trees. */
+const GRAPH_READ = 'graph=1'
+const withGraph = (url) => `${url}${url.includes('?') ? '&' : '?'}${GRAPH_READ}`
 
 /** ⚠️ THROWS on a non-ok response, deliberately.
  *
@@ -41,7 +57,10 @@ export const USER_DEFINITIONS_KEY = '/api/user-definitions'
  *  the Save button should exist at all. SWR only populates `error` if the
  *  fetcher rejects, so the throw is what makes the paywall visible. */
 async function fetcher(url) {
-  const r = await fetch(url, { credentials: 'include' })
+  // ⭐ C2D.7 — the SWR key stays `USER_DEFINITIONS_KEY` (every `mutate` in this
+  // file names it) while the REQUEST carries the capability flag. Folding the
+  // flag into the key would silently orphan five revalidation call sites.
+  const r = await fetch(withGraph(url), { credentials: 'include' })
   if (!r.ok) {
     const err = new Error(`user-definitions ${r.status}`)
     err.status = r.status
@@ -49,7 +68,12 @@ async function fetcher(url) {
   }
   const body = await r.json()
   if (!Array.isArray(body?.definitions)) throw new Error('user-definitions: malformed response')
-  return body.definitions
+  // ⭐ C2C: a row stored as a shared graph reads back as the ORDINARY document
+  // every surface below already knows — trees, ast, and the source text
+  // re-derived by the one lane that can print it. Inert for every other row.
+  return body.definitions.map((row) => (row && row.definition
+    ? { ...row, definition: hydrateGraphDocument(row.definition) }
+    : row))
 }
 
 /**
@@ -96,7 +120,30 @@ export function useUserDefinitions() {
  *          — never null, on any branch. Callers read `.ok` unconditionally, and
  *          `error` is a NON-BLANK string whenever `ok` is false.
  */
-export async function saveUserDefinition(definition, defId = null) {
+/**
+ * @param {object} definition
+ * @param {string|null} [defId]
+ * @param {{importId: string, dialect?: string}|null} [telemetry] Phase One
+ *   Track C — TELEMETRY-ONLY, never merged into `definition`. Lets the
+ *   server's `import_accepted` event join back to whichever client-observed
+ *   `import_submitted`/`compile_finished` pair produced this save. `null`
+ *   (the default, and what every pre-existing caller sends) omits both
+ *   fields from the request body — the server treats their absence as
+ *   "no journey to join", not an error.
+ */
+export async function saveUserDefinition(definition, defId = null, telemetry = null) {
+  // ⭐⭐ C2C: SEND THE SMALLER FORM WHEN THE INLINED ONE WOULD NOT FIT. A
+  // multi-plot Pine import computes one consensus expression and plots several
+  // views of it, so `compute.trees` inlines the same subtree ten times and the
+  // corpus' two heaviest scripts weigh 332 KB and 181 KB against a 64 KB cap
+  // that is ~99% repetition (C2B). `reduceIfOversized` stores the DAG instead.
+  //
+  // ⛔ IT CANNOT MAKE A DOCUMENT WRONG, ONLY SMALLER. `def_hash` and
+  // `treesHash` are provably identical for both forms, the server accepts
+  // either and materialises the forest for every reader, and a conversion it
+  // cannot do safely returns the original untouched — so the worst outcome is
+  // the refusal the member would have got anyway.
+  definition = reduceIfOversized(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -104,7 +151,13 @@ export async function saveUserDefinition(definition, defId = null) {
       method: defId ? 'PUT' : 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ definition }),
+      body: JSON.stringify({
+        definition,
+        ...(telemetry && telemetry.importId ? {
+          import_id: telemetry.importId,
+          source_dialect: telemetry.dialect || null,
+        } : {}),
+      }),
     })
   } catch {
     // ⛔ A TRANSPORT FAILURE AND A REFUSAL NEED DIFFERENT WORDS. One is "try

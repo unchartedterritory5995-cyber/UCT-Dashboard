@@ -1,0 +1,37 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ceyhun
+
+//@version=4
+study(title="Keltner Channels Bands ", shorttitle="KCB", overlay=true)
+
+length = input(20, minval=1)
+alen = input(10,minval=1,title="Atr Length")
+mult = input(1.0)
+src = input(close, title="Source")
+ma = ema(src, length)
+
+KTop1 = ma + 1 * atr(alen)
+KBot1 = ma - 1 * atr(alen)
+KTop2 = ma + 2 * atr(alen)
+KBot2 = ma - 2 * atr(alen)
+KTop3 = ma + 3 * atr(alen)
+KBot3 = ma - 3 * atr(alen)
+
+a= color.green
+b= color.red
+c= color.blue
+k= color.black
+
+plot(ma, color=k, title="Basis")
+
+d=plot(KTop1,color=a,title="Upper 1")
+e=plot(KBot1,color=a,title="Lower 1")
+fill(d,e, color=a)
+
+f=plot(KTop2,color=b,title="Upper 2")
+g=plot(KBot2,color=b,title="Lower 2")
+fill(f,g, color=b)
+
+h=plot(KTop3,color=c,title="Upper 3")
+j=plot(KBot3,color=c,title="Lower 3")
+fill(h,j, color=c)

@@ -1,0 +1,462 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AlgoAlpha
+
+//@version=6
+indicator("Reversal Probability Profile [AlgoAlpha]", "AlgoAlpha - Reversal Probability", overlay = true, max_boxes_count = 500, max_labels_count = 500, max_lines_count = 500, max_bars_back = 5000)
+
+// Inputs
+calcGR = "Calculation"
+pivotLeft = input.int(5, "Pivot Left Bars", minval = 1, maxval = 50, group = calcGR, tooltip = "Number of bars to the left used to confirm pivot highs and pivot lows.")
+pivotRight = input.int(5, "Pivot Right Bars", minval = 1, maxval = 50, group = calcGR, tooltip = "Number of bars to the right used to confirm pivot highs and pivot lows. Higher values make pivots slower but cleaner.")
+lookbackBars = input.int(600, "Calculation Lookback", minval = 50, maxval = 5000, group = calcGR, tooltip = "Maximum number of bars used for pivot storage, profile bounds, and reversal probability calculations.")
+pivotMemory = input.int(240, "Pivot Memory", minval = 20, maxval = 400, group = calcGR, tooltip = "Maximum number of confirmed pivots stored for clustering. Higher values add more history but increase calculation load.")
+binRadius = input.int(3, "Bin Smoothing Radius", minval = 0, maxval = 20, group = calcGR, tooltip = "Adds nearby bins around each pivot to the probability profile. A value of 3 means each pivot can add weight to 3 bins above and below its main bin.")
+profileBins = input.int(140, "Profile Resolution", minval = 20, maxval = 220, group = calcGR, tooltip = "Number of vertical price bins used to build the pivot probability profile.")
+clusterCount = input.int(5, "Profile Clusters", minval = 2, maxval = 8, group = calcGR, tooltip = "Number of pivot price clusters used to color the probability profile.")
+kmeansIterations = input.int(25, "Cluster Iterations", minval = 5, maxval = 50, group = calcGR, tooltip = "Number of k-means update passes used to group pivot prices into color clusters.")
+atrLen = input.int(14, "ATR Length", minval = 1, maxval = 200, group = calcGR, tooltip = "ATR length used by the overlap filter for new pivot support and resistance lines.")
+atrMult = input.float(2.0, "ATR Overlap Multiplier", minval = 0.0, maxval = 20.0, step = 0.1, group = calcGR, tooltip = "New pivot lines are blocked when an active line already exists within this ATR distance.")
+
+alertGR = "Alerts"
+highProbabilityThreshold = input.float(80.0, "High Probability Touch Threshold", minval = 1.0, maxval = 100.0, step = 1.0, group = alertGR, tooltip = "Minimum normalized profile density needed to trigger high probability touch alerts.")
+
+appearanceGR = "Appearance"
+showProfile = input.bool(true, "Show Profile", group = appearanceGR, tooltip = "Show the reversal probability profile built from confirmed pivot clusters.")
+profileWidth = input.int(70, "Profile Width", minval = 10, maxval = 250, group = appearanceGR, tooltip = "Maximum horizontal profile width measured in bars.")
+profileOffset = input.int(90, "Profile Offset", minval = 0, maxval = 250, group = appearanceGR, tooltip = "Distance in bars between the current bar and the start of the profile.")
+regularBinTransparency = input.int(75, "Regular Bin Transparency", minval = 0, maxval = 100, group = appearanceGR, tooltip = "Transparency used for normal profile bins. Profile borders use a stronger version of the same cluster color.")
+pocTransparency = input.int(0, "POC Bin Transparency", minval = 0, maxval = 100, group = appearanceGR, tooltip = "Transparency used for the highest probability profile bin.")
+showProbabilityText = input.bool(false, "Show Bin Text", group = appearanceGR, tooltip = "Show probability or pivot count text inside profile boxes.")
+profileTextMode = input.string("Probability", "Bin Text Mode", options = ["Probability", "Count"], group = appearanceGR, tooltip = "Controls whether profile boxes show normalized probability or smoothed pivot count.")
+showProfileLabels = input.bool(true, "Show Profile Labels", group = appearanceGR, tooltip = "Show profile name, top/bottom price, and highest probability bin label.")
+showPocLine = input.bool(true, "Show Probability POC Line", group = appearanceGR, tooltip = "Draw a line through the highest probability bin.")
+showClusterLines = input.bool(true, "Show Cluster Lines", group = appearanceGR, tooltip = "Draw dashed lines through pivot cluster centroids.")
+showPivotLines = input.bool(true, "Show Pivot Lines", group = appearanceGR, tooltip = "Draw support and resistance lines from confirmed pivots.")
+showLevelLabels = input.bool(true, "Show Line Labels", group = appearanceGR, tooltip = "Show the price and normalized reversal probability on active pivot support and resistance lines.")
+showBrokenLevels = input.bool(true, "Keep Broken Lines", group = appearanceGR, tooltip = "Keep broken historical pivot lines on the chart as faint dotted lines. Disable this to remove lines after they break.")
+maxPivotLines = input.int(120, "Maximum Pivot Lines", minval = 10, maxval = 150, group = appearanceGR, tooltip = "Maximum number of pivot support and resistance lines stored on the chart.")
+showPivotDots = input.bool(true, "Show Pivot Dots", group = appearanceGR, tooltip = "Show confirmed pivot markers colored by their profile cluster.")
+maxPivotDots = input.int(260, "Maximum Pivot Dots", minval = 10, maxval = 300, group = appearanceGR, tooltip = "Maximum number of colored pivot markers drawn at the last bar.")
+dotSizeInput = input.string("Small", "Pivot Dot Size", options = ["Tiny", "Small", "Normal", "Large", "Huge"], group = appearanceGR, tooltip = "Size of the colored pivot markers.")
+dotTransparency = input.int(30, "Pivot Dot Transparency", minval = 0, maxval = 100, group = appearanceGR, tooltip = "Transparency applied to colored pivot markers.")
+supportColor = input.color(#00ffbb, "Support Colour", group = appearanceGR, tooltip = "Color used for pivot low support lines and bullish reversal context.")
+resistanceColor = input.color(#ff1100, "Resistance Colour", group = appearanceGR, tooltip = "Color used for pivot high resistance lines and bearish reversal context.")
+brokenColor = input.color(color.gray, "Broken Line Colour", group = appearanceGR, tooltip = "Legacy broken-level color setting. Historical broken levels are displayed using a faint chart foreground color.")
+col1 = input.color(color.yellow, "Cluster 1", inline = "pal1", group = appearanceGR, tooltip = "Color used for cluster slot 1.")
+col2 = input.color(color.blue, "Cluster 2", inline = "pal1", group = appearanceGR, tooltip = "Color used for cluster slot 2.")
+col3 = input.color(color.orange, "Cluster 3", inline = "pal1", group = appearanceGR, tooltip = "Color used for cluster slot 3.")
+col4 = input.color(color.red, "Cluster 4", inline = "pal1", group = appearanceGR, tooltip = "Color used for cluster slot 4.")
+col5 = input.color(color.teal, "Cluster 5", inline = "pal2", group = appearanceGR, tooltip = "Color used for cluster slot 5.")
+col6 = input.color(#26a69a, "Cluster 6", inline = "pal2", group = appearanceGR, tooltip = "Color used for cluster slot 6.")
+col7 = input.color(#ef5350, "Cluster 7", inline = "pal2", group = appearanceGR, tooltip = "Color used for cluster slot 7.")
+col8 = input.color(#787b86, "Cluster 8", inline = "pal2", group = appearanceGR, tooltip = "Color used for cluster slot 8.")
+
+// Variables and functions
+type PivotPoint
+    float price
+    int bar
+    bool isHigh
+
+type PivotLine
+    line ln
+    label lbl
+    float level
+    bool isSupport
+    bool isBroken
+    int startBar
+
+var pivots = array.new<PivotPoint>()
+var pivotLines = array.new<PivotLine>()
+var profileBoxes = array.new_box()
+var profileLabels = array.new_label()
+var profileLines = array.new_line()
+var pivotMarks = array.new_label()
+var pal = array.from(col1, col2, col3, col4, col5, col6, col7, col8)
+
+getColor(id) =>
+    array.get(pal, id % array.size(pal))
+
+sizeFromString(txt) =>
+    switch txt
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.huge
+
+formatVolume(vol) =>
+    str.tostring(vol, format.volume)
+
+formatProbability(value) =>
+    str.tostring(value, format.percent)
+
+isOverlapping(price, threshold, PivotLine[] levels) =>
+    overlap = false
+    if array.size(levels) > 0
+        for i = 0 to array.size(levels) - 1
+            item = array.get(levels, i)
+            if not item.isBroken and math.abs(item.level - price) <= threshold
+                overlap := true
+                break
+    overlap
+
+pivotKmeans(PivotPoint[] src, k, iterations) =>
+    n = array.size(src)
+    labels = array.new_int(n, 0)
+    clusters = math.max(1, k)
+    centroids = array.new_float(clusters, 0.0)
+
+    if n > 0
+        firstPivot = array.get(src, 0)
+        minPrice = firstPivot.price
+        maxPrice = firstPivot.price
+
+        for i = 0 to n - 1
+            st = array.get(src, i)
+            minPrice := math.min(minPrice, st.price)
+            maxPrice := math.max(maxPrice, st.price)
+
+        step = clusters > 1 ? (maxPrice - minPrice) / (clusters - 1) : 0.0
+
+        for c = 0 to clusters - 1
+            array.set(centroids, c, clusters == 1 ? math.avg(minPrice, maxPrice) : minPrice + step * c)
+
+        for iteration = 0 to iterations - 1
+            for i = 0 to n - 1
+                st = array.get(src, i)
+                bestId = 0
+                bestDist = 1e10
+
+                for c = 0 to clusters - 1
+                    dist = math.abs(st.price - array.get(centroids, c))
+                    if dist < bestDist
+                        bestDist := dist
+                        bestId := c
+
+                array.set(labels, i, bestId)
+
+            sums = array.new_float(clusters, 0.0)
+            counts = array.new_int(clusters, 0)
+
+            for i = 0 to n - 1
+                st = array.get(src, i)
+                cid = array.get(labels, i)
+                array.set(sums, cid, array.get(sums, cid) + st.price)
+                array.set(counts, cid, array.get(counts, cid) + 1)
+
+            for c = 0 to clusters - 1
+                count = array.get(counts, c)
+                if count > 0
+                    array.set(centroids, c, array.get(sums, c) / count)
+
+        sortedCentroids = array.copy(centroids)
+        array.sort(sortedCentroids, order.ascending)
+        map = array.new_int(clusters, 0)
+        used = array.new_bool(clusters, false)
+
+        for c = 0 to clusters - 1
+            original = array.get(centroids, c)
+            bestRank = 0
+            bestRankDist = 1e10
+
+            for r = 0 to clusters - 1
+                if not array.get(used, r)
+                    rankDist = math.abs(original - array.get(sortedCentroids, r))
+                    if rankDist < bestRankDist
+                        bestRankDist := rankDist
+                        bestRank := r
+
+            array.set(used, bestRank, true)
+            array.set(map, c, bestRank)
+
+        for i = 0 to n - 1
+            oldId = array.get(labels, i)
+            array.set(labels, i, array.get(map, oldId))
+
+        centroids := sortedCentroids
+
+    [centroids, labels]
+
+// Calculations
+ph = ta.pivothigh(high, pivotLeft, pivotRight)
+pl = ta.pivotlow(low, pivotLeft, pivotRight)
+atr = ta.atr(atrLen)
+threshold = na(atr) ? syminfo.mintick : atr * atrMult
+
+newResistanceAlert = not na(ph)
+newSupportAlert = not na(pl)
+resistanceBreakAlert = false
+supportBreakAlert = false
+maxProbabilityTouchAlert = false
+highProbabilityTouchAlert = false
+bullishReversalTouchAlert = false
+bearishReversalTouchAlert = false
+
+if not na(ph)
+    array.unshift(pivots, PivotPoint.new(ph, bar_index - pivotRight, true))
+
+if not na(pl)
+    array.unshift(pivots, PivotPoint.new(pl, bar_index - pivotRight, false))
+
+while array.size(pivots) > 0
+    oldestPivot = array.get(pivots, array.size(pivots) - 1)
+    shouldDrop = array.size(pivots) > pivotMemory or bar_index - oldestPivot.bar > lookbackBars
+
+    if shouldDrop
+        array.pop(pivots)
+    else
+        break
+
+// Visuals
+if not showPivotLines and array.size(pivotLines) > 0
+    while array.size(pivotLines) > 0
+        item = array.pop(pivotLines)
+        line.delete(item.ln)
+        label.delete(item.lbl)
+
+if showPivotLines and not na(ph) and not isOverlapping(ph, threshold, pivotLines)
+    levelText = showLevelLabels ? str.tostring(ph, format.mintick) : ""
+    ln = line.new(bar_index - pivotRight, ph, bar_index, ph, xloc = xloc.bar_index, color = resistanceColor, width = 1)
+    lb = label.new(bar_index, ph, levelText, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = showLevelLabels ? color.new(resistanceColor, 80) : color.new(resistanceColor, 100), textcolor = showLevelLabels ? resistanceColor : color.new(resistanceColor, 100), size = size.small)
+    array.push(pivotLines, PivotLine.new(ln, lb, ph, false, false, bar_index - pivotRight))
+
+if showPivotLines and not na(pl) and not isOverlapping(pl, threshold, pivotLines)
+    levelText = showLevelLabels ? str.tostring(pl, format.mintick) : ""
+    ln = line.new(bar_index - pivotRight, pl, bar_index, pl, xloc = xloc.bar_index, color = supportColor, width = 1)
+    lb = label.new(bar_index, pl, levelText, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = showLevelLabels ? color.new(supportColor, 80) : color.new(supportColor, 100), textcolor = showLevelLabels ? supportColor : color.new(supportColor, 100), size = size.small)
+    array.push(pivotLines, PivotLine.new(ln, lb, pl, true, false, bar_index - pivotRight))
+
+if showPivotLines and array.size(pivotLines) > 0
+    for i = array.size(pivotLines) - 1 to 0
+        item = array.get(pivotLines, i)
+        tooOld = bar_index - item.startBar > lookbackBars
+
+        if tooOld
+            line.delete(item.ln)
+            label.delete(item.lbl)
+            array.remove(pivotLines, i)
+        else
+            if not item.isBroken
+                activeColor = item.isSupport ? supportColor : resistanceColor
+                line.set_x2(item.ln, bar_index)
+                line.set_color(item.ln, activeColor)
+                line.set_style(item.ln, line.style_solid)
+                label.set_x(item.lbl, bar_index)
+                label.set_color(item.lbl, showLevelLabels ? color.new(activeColor, 80) : color.new(activeColor, 100))
+                label.set_textcolor(item.lbl, showLevelLabels ? activeColor : color.new(activeColor, 100))
+
+                brokenUp = not item.isSupport and close > item.level
+                brokenDown = item.isSupport and close < item.level
+
+                if brokenUp or brokenDown
+                    resistanceBreakAlert := resistanceBreakAlert or brokenUp
+                    supportBreakAlert := supportBreakAlert or brokenDown
+
+                    if showBrokenLevels
+                        item.isBroken := true
+                        line.set_color(item.ln, color.new(chart.fg_color, 90))
+                        line.set_style(item.ln, line.style_dotted)
+                        label.set_text(item.lbl, showLevelLabels ? formatVolume(volume) : "")
+                        label.set_color(item.lbl, color.new(chart.bg_color, 100))
+                        label.set_textcolor(item.lbl, showLevelLabels ? color.new(chart.fg_color, 90) : color.new(chart.fg_color, 100))
+                        label.set_style(item.lbl, brokenUp ? label.style_label_lower_right : label.style_label_upper_right)
+                        array.set(pivotLines, i, item)
+                    else
+                        line.delete(item.ln)
+                        label.delete(item.lbl)
+                        array.remove(pivotLines, i)
+
+while array.size(pivotLines) > maxPivotLines
+    oldItem = array.shift(pivotLines)
+    line.delete(oldItem.ln)
+    label.delete(oldItem.lbl)
+
+if barstate.islast
+    while array.size(profileBoxes) > 0
+        box.delete(array.pop(profileBoxes))
+    while array.size(profileLabels) > 0
+        label.delete(array.pop(profileLabels))
+    while array.size(profileLines) > 0
+        line.delete(array.pop(profileLines))
+    while array.size(pivotMarks) > 0
+        label.delete(array.pop(pivotMarks))
+
+if barstate.islast and array.size(pivots) > 0
+    windowBars = math.min(lookbackBars, bar_index)
+    localHigh = high
+    localLow = low
+
+    for i = 0 to windowBars
+        localHigh := math.max(localHigh, high[i])
+        localLow := math.min(localLow, low[i])
+
+    rangeSize = math.max(localHigh - localLow, syminfo.mintick)
+    binSize = rangeSize / profileBins
+    effectiveClusters = math.min(clusterCount, array.size(pivots))
+    [centroids, labels] = pivotKmeans(pivots, effectiveClusters, kmeansIterations)
+
+    binCounts = array.new_int(profileBins, 0)
+    highCounts = array.new_int(profileBins, 0)
+    lowCounts = array.new_int(profileBins, 0)
+    clusterBins = array.new_int(profileBins * effectiveClusters, 0)
+
+    if localHigh > localLow and effectiveClusters > 0
+        for i = 0 to array.size(pivots) - 1
+            st = array.get(pivots, i)
+            inWindow = bar_index - st.bar <= lookbackBars and st.price >= localLow and st.price <= localHigh
+
+            if inWindow
+                binIndex = int(math.floor((st.price - localLow) / binSize))
+                binIndex := math.max(0, math.min(profileBins - 1, binIndex))
+                cid = i < array.size(labels) ? array.get(labels, i) : 0
+                startBin = math.max(0, binIndex - binRadius)
+                endBin = math.min(profileBins - 1, binIndex + binRadius)
+
+                for j = startBin to endBin
+                    array.set(binCounts, j, array.get(binCounts, j) + 1)
+
+                    if st.isHigh
+                        array.set(highCounts, j, array.get(highCounts, j) + 1)
+                    else
+                        array.set(lowCounts, j, array.get(lowCounts, j) + 1)
+
+                    clusterCell = j * effectiveClusters + cid
+                    array.set(clusterBins, clusterCell, array.get(clusterBins, clusterCell) + 1)
+
+        maxCount = array.max(binCounts)
+        pocIndex = 0
+        pocCount = 0
+
+        for i = 0 to profileBins - 1
+            count = array.get(binCounts, i)
+
+            if count > pocCount
+                pocCount := count
+                pocIndex := i
+
+        profileStart = bar_index + profileOffset
+        profileEnd = bar_index + math.min(profileOffset + profileWidth, 500)
+        availableWidth = math.max(1, profileEnd - profileStart)
+        leftWindow = math.max(0, bar_index - lookbackBars)
+        pocLevel = localLow + pocIndex * binSize + binSize * 0.5
+        pocCluster = 0
+        pocClusterCount = 0
+
+        for c = 0 to effectiveClusters - 1
+            clusterCountInPoc = array.get(clusterBins, pocIndex * effectiveClusters + c)
+
+            if clusterCountInPoc > pocClusterCount
+                pocClusterCount := clusterCountInPoc
+                pocCluster := c
+
+        pocColor = getColor(pocCluster)
+
+        if array.size(pivotLines) > 0
+            for i = 0 to array.size(pivotLines) - 1
+                item = array.get(pivotLines, i)
+
+                if not item.isBroken
+                    levelBin = int(math.floor((item.level - localLow) / binSize))
+                    levelBin := math.max(0, math.min(profileBins - 1, levelBin))
+                    levelCount = item.level >= localLow and item.level <= localHigh ? array.get(binCounts, levelBin) : 0
+                    reversalProbability = maxCount > 0 ? float(levelCount) / float(maxCount) : 0.0
+                    levelProbabilityText = str.tostring(reversalProbability * 100.0, "#")
+                    levelText = str.tostring(item.level, format.mintick) + " (" + levelProbabilityText + "% Reversal Probability)"
+                    activeColor = item.isSupport ? supportColor : resistanceColor
+
+                    label.set_text(item.lbl, showLevelLabels ? levelText : "")
+                    label.set_color(item.lbl, showLevelLabels ? color.new(activeColor, 80) : color.new(activeColor, 100))
+                    label.set_textcolor(item.lbl, showLevelLabels ? activeColor : color.new(activeColor, 100))
+
+        if showProfile and showClusterLines
+            for c = 0 to effectiveClusters - 1
+                centroidLevel = array.get(centroids, c)
+
+                if centroidLevel >= localLow and centroidLevel <= localHigh
+                    clusterLine = line.new(leftWindow, centroidLevel, profileEnd, centroidLevel, xloc = xloc.bar_index, color = color.new(getColor(c), 45), width = 1, style = line.style_dashed)
+                    array.push(profileLines, clusterLine)
+
+        if showProfile and showPocLine and pocCount > 0
+            pocLine = line.new(leftWindow, pocLevel, profileEnd, pocLevel, xloc = xloc.bar_index, color = pocColor, width = 2, style = line.style_solid)
+            array.push(profileLines, pocLine)
+
+        for i = 0 to profileBins - 1
+            count = array.get(binCounts, i)
+
+            if count > 0 and maxCount > 0
+                binBottom = localLow + i * binSize
+                binTop = binBottom + binSize
+                probability = float(count) / float(maxCount)
+                boxWidth = math.max(1, int(math.round(probability * availableWidth)))
+                boxLeft = profileEnd - boxWidth
+                isPoc = i == pocIndex
+                dominantCluster = 0
+                dominantClusterCount = 0
+
+                for c = 0 to effectiveClusters - 1
+                    clusterCountInBin = array.get(clusterBins, i * effectiveClusters + c)
+
+                    if clusterCountInBin > dominantClusterCount
+                        dominantClusterCount := clusterCountInBin
+                        dominantCluster := c
+
+                clusterColor = getColor(dominantCluster)
+                binTransparency = isPoc ? pocTransparency : regularBinTransparency
+                borderTransparency = isPoc ? pocTransparency : math.max(0, regularBinTransparency - 35)
+
+                if showProfile
+                    profileBox = box.new(boxLeft, binTop, profileEnd, binBottom, xloc = xloc.bar_index, border_color = color.new(clusterColor, borderTransparency), border_width = 1, border_style = line.style_solid, bgcolor = color.new(clusterColor, binTransparency))
+
+                    if showProbabilityText
+                        boxText = profileTextMode == "Probability" ? formatProbability(probability) : str.tostring(count)
+                        box.set_text(profileBox, boxText)
+                        box.set_text_color(profileBox, chart.fg_color)
+                        box.set_text_size(profileBox, size.tiny)
+                        box.set_text_halign(profileBox, text.align_center)
+                        box.set_text_valign(profileBox, text.align_center)
+
+                    array.push(profileBoxes, profileBox)
+
+                priceInBin = close >= binBottom and close <= binTop
+                highProbabilityBin = probability * 100.0 >= highProbabilityThreshold
+                bullishDominant = array.get(lowCounts, i) > array.get(highCounts, i)
+                bearishDominant = array.get(highCounts, i) > array.get(lowCounts, i)
+
+                maxProbabilityTouchAlert := maxProbabilityTouchAlert or (priceInBin and isPoc)
+                highProbabilityTouchAlert := highProbabilityTouchAlert or (priceInBin and highProbabilityBin)
+                bullishReversalTouchAlert := bullishReversalTouchAlert or (priceInBin and highProbabilityBin and bullishDominant)
+                bearishReversalTouchAlert := bearishReversalTouchAlert or (priceInBin and highProbabilityBin and bearishDominant)
+
+        if showPivotDots and array.size(labels) > 0
+            dotLimit = math.min(maxPivotDots, array.size(pivots))
+
+            for i = 0 to dotLimit - 1
+                st = array.get(pivots, i)
+
+                if bar_index - st.bar <= lookbackBars
+                    cid = i < array.size(labels) ? array.get(labels, i) : 0
+                    mark = label.new(st.bar, st.price, "•", xloc = xloc.bar_index, yloc = yloc.price, color = color.new(chart.bg_color, 100), textcolor = color.new(getColor(cid), dotTransparency), style = label.style_label_center, size = sizeFromString(dotSizeInput))
+                    array.push(pivotMarks, mark)
+
+        if showProfile and showProfileLabels
+            topText = "Reversal Probability\n" + str.tostring(localHigh, format.mintick)
+            bottomText = str.tostring(localLow, format.mintick)
+            pocText = "Max Reversal Zone\nPivots: " + str.tostring(pocCount)
+
+            topLabel = label.new(profileEnd, localHigh, topText, xloc = xloc.bar_index, yloc = yloc.price, color = color.new(chart.bg_color, 100), textcolor = chart.fg_color, style = label.style_label_down, size = size.small)
+            bottomLabel = label.new(profileEnd, localLow, bottomText, xloc = xloc.bar_index, yloc = yloc.price, color = color.new(chart.bg_color, 100), textcolor = chart.fg_color, style = label.style_label_up, size = size.small)
+            pocLabel = label.new(profileEnd, pocLevel, pocText, xloc = xloc.bar_index, yloc = yloc.price, color = color.new(chart.bg_color, 100), textcolor = pocColor, style = label.style_label_left, size = size.small)
+
+            array.push(profileLabels, topLabel)
+            array.push(profileLabels, bottomLabel)
+            array.push(profileLabels, pocLabel)
+
+// Alerts
+alertcondition(newResistanceAlert, title = "New Resistance Pivot", message = "A new pivot high resistance point was confirmed.")
+alertcondition(newSupportAlert, title = "New Support Pivot", message = "A new pivot low support point was confirmed.")
+alertcondition(resistanceBreakAlert, title = "Resistance Break", message = "Price broke above an active pivot resistance line.")
+alertcondition(supportBreakAlert, title = "Support Break", message = "Price broke below an active pivot support line.")
+alertcondition(maxProbabilityTouchAlert, title = "Max Probability Zone Touch", message = "Price touched the highest probability reversal zone.")
+alertcondition(highProbabilityTouchAlert, title = "High Probability Zone Touch", message = "Price touched a reversal zone above the configured probability threshold.")
+alertcondition(bullishReversalTouchAlert, title = "Bullish Reversal Zone Touch", message = "Price touched a high probability pivot zone dominated by pivot lows.")
+alertcondition(bearishReversalTouchAlert, title = "Bearish Reversal Zone Touch", message = "Price touched a high probability pivot zone dominated by pivot highs.")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;28sGm8JqI3nH3dG4gZIEgl9W0G3Vqo9z",
+ "title": "Position Size Calculator",
+ "author": "zzzcrypto123",
+ "url": "https://www.tradingview.com/script/rFxYFTrU-position-size-calculator/",
+ "agreeCount": 5380,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
+ "cached_source": "tools/pine_survey/cache/sources/position-size-calculator__28sGm8JqI3.pine",
+ "our_status": "committed"
+}

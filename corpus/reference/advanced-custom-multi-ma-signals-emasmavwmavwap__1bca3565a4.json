@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1bca3565a4f34a6c9230e5d473936d49",
+ "title": "Advanced custom multi MA signals (EMA/SMA/VWMA/VWAP)",
+ "author": "BIGTAKER",
+ "url": "https://www.tradingview.com/script/YBm4CSwI-advanced-custom-multi-ma-signals-ema-sma-vwma-vwap/",
+ "agreeCount": 2216,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+ "our_status": "committed"
+}

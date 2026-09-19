@@ -61,6 +61,22 @@ rebinding at module level is a legitimate idiom — accumulators, conditional
 config, `x = decorate(x)` — and flagging it is precisely how a rail gets muted.
 The regex is the line between "a constant with two values" and "a variable
 doing its job".
+
+
+⭐⭐ SECOND INSTANCE, FOUND 2026-09-11 — and it is why this rail is worth its
+runtime. `api/services/ticker_explain.py` bound `_DOMAIN_FETCHERS` at two module
+levels: an empty placeholder annotated `dict[str, tuple]` and commented
+"populated below", and ~70 lines later the real dict of eight FUNCTIONS, which
+rebinds rather than populates. Nothing ever read the first one, so nothing was
+broken — but a reader who believed that comment would have added a fetcher ABOVE
+the rebind, where it is silently discarded and the domain simply never fetches.
+
+⛔ THE TWO INSTANCES FAILED DIFFERENTLY, WHICH IS THE ARGUMENT FOR A STRUCTURAL
+RAIL RATHER THAN A LESSON. `_parse_mdy` (the incident this file was written for)
+had two REAL implementations with different return types, and every caller was
+written against the dead one — a live 500. This one had a dead placeholder and a
+live definition, and the damage it could do was to the next edit. A rail that
+only caught the first shape would have said nothing here.
 """
 import ast
 import pathlib

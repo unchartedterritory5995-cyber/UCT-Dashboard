@@ -1,0 +1,5 @@
+//@version=5
+indicator("Two Plots Pane", overlay = false)
+r = ta.rsi(close, 14)
+plot(r, title = "RSI", color = color.purple, linewidth = 2)
+plot(ta.sma(r, 9), title = "Signal", color = color.orange, linewidth = 1)

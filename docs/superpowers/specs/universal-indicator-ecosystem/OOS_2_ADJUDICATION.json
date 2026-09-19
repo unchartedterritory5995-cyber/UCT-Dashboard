@@ -1,0 +1,21 @@
+{
+  "method": "three independent adjudicators, 7 scripts each, given the Pine source and the UCT result but not the desired answer; no adjudicator saw another's verdicts",
+  "totals": {
+    "FAITHFUL": 18,
+    "MISLEADING": 3,
+    "CANNOT_TELL": 0,
+    "of_accepted": 21
+  },
+  "reclassified_to_SILENT_FALSE_SUCCESS": {
+    "mid_engagement__01-zeiierman-trend-pressure": "SILENT_FALSE_SUCCESS",
+    "long_tail__02-relative-volume-candles-narrow-ranges": "SILENT_FALSE_SUCCESS",
+    "mid_engagement__05-supertrend-fibonacci-ote": "SILENT_FALSE_SUCCESS"
+  },
+  "finding": "All three MISLEADING verdicts are the same failure mode, found independently by two adjudicators: acceptance resting on a contentless output after every meaningful series was correctly refused.",
+  "corroborated_strength": "Both adjudicators volunteered that the refusal machinery is sound - every var/:=/self-reference/loop-carried value in all 21 scripts was refused with a named guard rather than folded to a plausible number.",
+  "verdicts": {
+    "mid_engagement__01-zeiierman-trend-pressure": "SILENT_FALSE_SUCCESS",
+    "long_tail__02-relative-volume-candles-narrow-ranges": "SILENT_FALSE_SUCCESS",
+    "mid_engagement__05-supertrend-fibonacci-ote": "SILENT_FALSE_SUCCESS"
+  }
+}

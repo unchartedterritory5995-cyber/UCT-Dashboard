@@ -171,21 +171,34 @@ def rsi_from_wilder_averages(avg_gain: float, avg_loss: float) -> MaybeNum:
         answer is exactly **100.0**. That branch is pinned by
         ``tests/fixtures/indicators/rsi_ramp_14.json`` in BOTH lanes and is
         deliberately unchanged.
-      * ``avg_loss == 0`` AND ``avg_gain == 0`` — nothing moved. ``0/0`` is not
-        a number; the honest column entry is the same ``None`` the warm-up pad
-        uses, not the top of the scale. (Pine's ``ta.rsi`` yields NaN here, and
-        ``indicators.js`` leaves its ``NA`` for the same reason.)
+      * ``avg_loss == 0`` AND ``avg_gain == 0`` — nothing moved.
 
-    ⛔ ``None`` IS NOT "NO SIGNAL", IT IS "NOT COMPUTABLE", and the difference is
-    what the whole phase turns on: ``_last_finite`` skips it, so an armed
-    ``rsi > 70`` alert on a frozen ticker now declines to answer instead of
-    answering "yes".
+    ⚰️⚰️ AND THE SECOND CASE WAS DECIDED HERE ON A CLAIM ABOUT PINE THAT WAS
+    NEVER CHECKED. This docstring said *"Pine's ``ta.rsi`` yields NaN here"*.
+    It does not. Measured directly on TradingView 2026-09-08 with
+    ``ta.rsi(k, 14)`` over a constant source: the answer is **100.0** on every
+    bar of the capture. Pine evaluates ``down == 0 ? 100 : up == 0 ? 0 : ...``,
+    so the zero-LOSS test fires FIRST and a series that never moves reads 100.
+
+    ⛔ THAT MAKES THE OLD RULE A UCT INVENTION defended by an unverified vendor
+    claim — the exact shape the program's own standing rule warns about (*a
+    tested invariant can still be a UCT invention*). It was pinned by a fixture,
+    guarded by an AST rail, mirrored in ``indicators.js``, and wrong.
+
+    ⚠️⚠️ THE INCIDENT BEHIND IT WAS REAL AND IS NOT DISMISSED. On 2026-08-09
+    **SIM, TMTS, CWEN-A, DRDB and OBA** all carried ``rsi14 = 100.0`` with
+    ``chg_pct_1d = 0.00``, so an "RSI > 70" screen surfaced five frozen tickers
+    as the most overbought names in the universe. Restoring Pine's answer
+    restores that exposure. **The fix belongs at the screener, not in the
+    definition of RSI**: a zero-movement / zero-ADR ticker should not reach a
+    momentum screen at all, and TradingView users see 100 on those names too.
+    Owner ruling requested — see ``divergences.json::rsi-zero-movement-reads-na``.
     """
     if avg_loss == 0:
-        # Both zero ⇒ 0/0. Not overbought, not oversold — not computable.
-        if avg_gain == 0:
-            return None
+        # ⛔ ORDER MATTERS AND IT IS PINE'S ORDER: zero-loss first, so 0/0 -> 100.
         return 100.0
+    if avg_gain == 0:
+        return 0.0
     return 100.0 - 100.0 / (1 + avg_gain / avg_loss)
 
 
@@ -195,31 +208,47 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     First RSI value lands at index ``period`` (needs ``period`` price diffs
     starting at i=1). Output aligned to input length.
 
-    ⚠️ A ``None`` CAN NOW APPEAR PAST THE WARM-UP PAD. ``rsi_from_wilder_averages``
-    refuses the ``0/0`` bar (a window in which nothing moved at all), so this
-    column's ``None``s mean "not computable here", which is what they have always
-    meant — they are simply no longer confined to a prefix. Callers already index
-    by bar position and already skip ``None``.
+    ⚠️ A ``None`` CAN APPEAR PAST THE WARM-UP PAD, and since 2026-09-08 for one
+    reason rather than two. The ``0/0`` refusal is gone (it was a UCT invention —
+    see ``rsi_from_wilder_averages``); what remains is a HOLE in the input, where
+    this column declines to answer because the vendor does.
+
+    ⭐⭐⭐ A NON-FINITE DIFF HOLDS THE STATE. VENDOR-PINNED 2026-09-08.
+
+    The old loop seeded from the first ``period`` diffs unconditionally and then
+    booked a non-finite diff as gain 0 / loss 0 — which decays BOTH averages and
+    leaves their ratio unchanged, so the printed value repeated the previous bar
+    and read exactly like a hold while the state underneath had been scaled down.
+    Every later bar was then wrong and never re-converged. TradingView instead
+    holds: ``na`` on the hole AND on the bar after it, then one normal step.
     """
     n = len(closes)
     out: List[MaybeNum] = [None] * n
     if period <= 0 or n < period + 1:
         return out
-    avg_gain = 0.0
-    avg_loss = 0.0
-    for i in range(1, period + 1):
-        diff = closes[i] - closes[i - 1]
-        if diff > 0:
-            avg_gain += diff
+    avg_gain: MaybeNum = None
+    avg_loss: MaybeNum = None
+    seen = 0
+    sum_gain = 0.0
+    sum_loss = 0.0
+    for i in range(1, n):
+        a, b = closes[i], closes[i - 1]
+        if a is None or b is None:
+            continue                              # HOLD
+        diff = a - b
+        if not isfinite(diff):
+            continue                              # HOLD
+        gain = diff if diff > 0 else 0.0
+        loss = -diff if diff < 0 else 0.0
+        if avg_gain is None:
+            sum_gain += gain
+            sum_loss += loss
+            seen += 1
+            if seen < period:
+                continue
+            avg_gain = sum_gain / period
+            avg_loss = sum_loss / period
         else:
-            avg_loss -= diff
-    avg_gain /= period
-    avg_loss /= period
-    for i in range(period, n):
-        if i > period:
-            diff = closes[i] - closes[i - 1]
-            gain = diff if diff > 0 else 0.0
-            loss = -diff if diff < 0 else 0.0
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
         out[i] = rsi_from_wilder_averages(avg_gain, avg_loss)
@@ -740,6 +769,45 @@ def compute_obv(bars: List[dict]) -> List[MaybeNum]:
     public ``compute_*`` in this module rounds — the delivery boundary is a rule,
     not a per-indicator judgement call."""
     return _round_series(compute_obv_raw(bars), 2)
+
+
+# ─── PVT ─────────────────────────────────────────────────────────────────────
+
+def compute_pvt_raw(bars: List[dict]) -> List[MaybeNum]:
+    """Price-Volume Trend, unrounded. Mirrors ``computePVT``.
+
+    TradingView's own published reference-manual EXAMPLE source:
+    ``f_pvt() => ta.cum((ta.change(close) / close[1]) * volume)``.
+
+    ⚠️ PRESERVED QUIRK — THE ZERO SEED, same as ``compute_obv_raw``. Bar 0 is
+    ``0.0``. The LEVEL is never exposed to a formula — only a windowed DELTA is
+    (``_fn_pvtn``) — so an unverified seed cannot leak into any answer this
+    lane emits.
+
+    Zero-previous-close is treated as a 0 contribution: a defensive,
+    UNVERIFIED boundary, never observed on real data. Verified against a real
+    TradingView capture (exact match, 15 real SPY trading days, steady-state
+    5-bar windowed delta):
+    ``tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json``.
+    """
+    n = len(bars)
+    if n == 0:
+        return []
+    out: List[MaybeNum] = [None] * n
+    out[0] = 0.0
+    pvt = 0.0
+    for i in range(1, n):
+        prev_close = bars[i - 1]["c"]
+        v = float(bars[i].get("v") or 0)
+        term = ((bars[i]["c"] - prev_close) / prev_close) * v if prev_close else 0.0
+        pvt += term
+        out[i] = pvt
+    return out
+
+
+def compute_pvt(bars: List[dict]) -> List[MaybeNum]:
+    """DELIVERY wrapper (2dp), same convention as ``compute_obv``."""
+    return _round_series(compute_pvt_raw(bars), 2)
 
 
 # ─── Donchian Channels ───────────────────────────────────────────────────────
@@ -1378,11 +1446,279 @@ CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
 #: over which of these names a formula may spell; this module is the authority
 #: over what each one MEANS, and ``ast_interpret`` raises by name when the two
 #: disagree.
+#: The two BARSTATE columns that read only the fetch's EXTENT -- which bar this
+#: is out of how many -- and no clock at all.
+#:
+#: ⭐ OUTSIDE THE UNIT GATE, for the same reason ``barindex`` is: they never touch
+#: ``t``, so a series stored in ``YYYYMMDD`` ints gives them no reason to doubt
+#: themselves. They also can never BLANK -- there is no input they could be
+#: missing. ⚠️ ``isfirst`` is WINDOW-DEPENDENT in the requirement-tag sense and
+#: ``islast`` is not -- widen the fetch and the oldest bar moves while the newest
+#: one does not. That asymmetry is the ruling, and it is why these are two
+#: columns rather than one with a flag.
+CLOCK_EXTENT = ("islast", "isfirst")
+
+#: The four BARSTATE columns that need to know whether the newest bar's period
+#: has finished -- a fact this function is TOLD, never one it computes.
+#:
+#: ⛔⛔ ALL FOUR ARE TRI-STATE AND FAIL CLOSED TO ``None`` when
+#: ``newest_bar_is_forming`` is ``None``, exactly as the four timeframe booleans
+#: fail closed without a ``tf``. ``None`` means "nobody told me" and NOT "not
+#: forming" -- collapsing the two would make ``isconfirmed`` a confident 1 on a
+#: bar that is still forming, a wrong answer wearing a right one's clothes, and
+#: the whole point of these columns is that a member can trust the last bar.
+CLOCK_REALTIME = ("isrealtime", "isconfirmed", "ishistory",
+                  "islastconfirmedhistory")
+
 CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
-                                      "isweekly", "ismonthly")
+                                      "isweekly", "ismonthly") \
+    + CLOCK_EXTENT + CLOCK_REALTIME
+
+#: Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
+#: code, for the reason ``CLOCK_INTRADAY_TFS`` states one screen up.
+_TF_SPAN_SECONDS = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600}
 
 
-def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[MaybeNum]]:
+def _et_ymd(t: float, zone) -> int:
+    """The ET calendar day ``t`` falls in, as ``YYYYMMDD`` -- the key shape both
+    NYSE sets are stored in."""
+    from datetime import datetime
+    d = datetime.fromtimestamp(t, zone)
+    return d.year * 10000 + d.month * 100 + d.day
+
+
+def _et_close_at(t: float, zone, hour: int = 16) -> float:
+    """``hour``:00 New York on the ET calendar day ``t`` falls in, unix seconds."""
+    from datetime import datetime
+    local = datetime.fromtimestamp(t, zone)
+    return local.replace(hour=hour, minute=0, second=0,
+                         microsecond=0).timestamp()
+
+
+def scheduled_close_seconds(t: float, tf, holidays=None, early_closes=None):
+    """THE INSTANT A BAR'S PERIOD IS SCHEDULED TO END, or ``None``.
+
+    ⭐ INTRADAY IS EXACT AND NEEDS NO CALENDAR: a 5-minute bar ends 300 seconds
+    after it starts whether the market is in its regular session, its pre-market
+    or its post-market, so an extended-hours bar in the fetch is handled by the
+    same arithmetic as an RTH one. ⚠️ That is a MEASURED property of our fetch,
+    not a convenience: ``bars_fetch._fetch_intraday_yfinance`` asks
+    ``prepost=True`` and the serve-time filter keeps those prints on purpose.
+    ⛔ Daily and above do NOT carry them -- the single ``prepost=True`` site reads
+    ``_YF_CONFIG``, which is intraday-only, and ``api/index_bars.py`` passes
+    ``prepost=False``. Railed in
+    ``tests/test_bars_extended_hours_scope.py``.
+
+    ⭐⭐ DAILY AND ABOVE END AT THE SESSION CLOSE ON THEIR LAST TRADING DAY, AND
+    THIS ENGINE KNOWS BOTH NYSE SETS.
+
+    ⛔ BOTH SETS ARE PASSED IN, NEVER IMPORTED HERE. This module is the CLOCK; a
+    second list of exchange dates is the defect ``/api/market-calendar`` exists
+    to prevent. The authorities are ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`` (full
+    closures) and ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`` (1pm ET
+    half-days -- a real frozenset with five read sites and the parity rail
+    ``tests/test_nyse_calendar_parity.py``).
+
+    ⚰️ AN EARLIER VERSION OF THIS DOCSTRING SAID THIS ENGINE "does NOT know EARLY
+    CLOSES", reasoning from ``bars_fetch``'s own comment that half-days are
+    "intentionally NOT" in THAT set. True of that set; false of the repo. Wiring
+    ``early_closes`` in is what closes the gap rather than naming it.
+
+    ⚠️ ABSENT either set this still answers, and answers the regular-session way:
+    without ``holidays`` a holiday-shortened week reads long by a day, and
+    without ``early_closes`` a half-day reads long by three hours. Hand both in.
+    """
+    span = _TF_SPAN_SECONDS.get(tf)
+    if span:
+        return t + span
+    if tf not in ("D", "W", "M"):
+        return None
+    from datetime import datetime, timedelta
+    zone = _et_zone()
+    day = _et_close_at(t, zone)
+    if tf in ("W", "M"):
+        # ⭐ A WEEK OR A MONTH ENDS ON ITS LAST TRADING DAY, not on the day its
+        # bar is STAMPED. Our bars are stamped at the period's START, so walking
+        # forward is the whole difference between "this week's bar closed" and
+        # "this week's bar closed on Monday afternoon".
+        local = datetime.fromtimestamp(day, zone)
+        # Python's weekday(): 0=Monday .. 6=Sunday; Friday is 4.
+        day = _et_close_at(
+            (local + timedelta(days=(4 - local.weekday()) % 7)).timestamp(), zone)
+        if tf == "M":
+            month = datetime.fromtimestamp(day, zone).month
+            while True:
+                nxt = _et_close_at(
+                    (datetime.fromtimestamp(day, zone)
+                     + timedelta(days=7)).timestamp(), zone)
+                if datetime.fromtimestamp(nxt, zone).month != month:
+                    break
+                day = nxt
+    # ⛔⛔ AND THE LAST TRADING DAY IS NOT ALWAYS THAT WEEKDAY. Good Friday closes
+    # the NYSE, so a week ending 2026-04-03 actually ended on the Thursday.
+    if holidays:
+        for _ in range(7):
+            if _et_ymd(day, zone) not in holidays:
+                break
+            day = _et_close_at(
+                (datetime.fromtimestamp(day, zone)
+                 - timedelta(days=1)).timestamp(), zone)
+    # ⭐ THE HOUR IS DECIDED LAST, on whatever day the walk landed on: a half-day
+    # closes at 13:00 ET. Deciding it earlier would apply the wrong day's hour.
+    if early_closes and _et_ymd(day, zone) in early_closes:
+        return _et_close_at(day, zone, 13)
+    return day
+
+
+#: The two ways the six barstate columns can be derived from one fetch.
+#:
+#: ⭐⭐ ``calendar`` IS WHAT SHIPS AND THIS FLAG DOES NOT CHANGE THAT. It is the
+#: engine's own reading: a bar is realtime while its period is open, confirmed
+#: once the period has ended, and ``ishistory`` is an alias of ``isconfirmed``
+#: because a static fetch has no way to distinguish a bar it LOADED from one it
+#: WATCHED.
+#:
+#: ⭐ ``vendor`` REPRODUCES WHAT TRADINGVIEW WAS MEASURED DOING, on three axes that
+#: are INDEPENDENT rather than a tri-state:
+#:   isrealtime  := this is the last bar of a LIVE dataset  (position, not time)
+#:   ishistory   := the complement of that
+#:   isconfirmed := the bar's closing update has happened   (time, not position)
+#: which is why the vendor can and does read ``isrealtime = 1`` and
+#: ``isconfirmed = 1`` on the same bar — a state our tri-state cannot spell.
+#:
+#: ⛔ THE FLAG EXISTS TO BE REPLAYED, NOT FLIPPED. Switching it is a member-visible
+#: change to every barstate column and needs the confirmation instant MEASURED
+#: rather than hypothesised — see ``nyse_calendar.EXTENDED_CLOSE_HOUR``.
+BARSTATE_MODE_CALENDAR = "calendar"
+BARSTATE_MODE_VENDOR = "vendor"
+BARSTATE_MODES = (BARSTATE_MODE_CALENDAR, BARSTATE_MODE_VENDOR)
+
+
+def confirmation_instant(bars: List[dict], tf, holidays=None, early_closes=None,
+                         extended_hour=None, early_extended_hour=None
+                         ) -> Optional[float]:
+    """WHEN THE NEWEST BAR'S CLOSING UPDATE IS EXPECTED, or ``None``.
+
+    ⚠️ HYPOTHESISED, NOT MEASURED — the hours come from
+    ``nyse_calendar.EXTENDED_CLOSE_HOUR`` / ``EARLY_EXTENDED_CLOSE_HOUR`` and the
+    only thing established about them is a bracket: the vendor had not confirmed
+    at 19:22 ET and had by 20:55 ET on 2026-09-10.
+
+    ⛔ INTRADAY HAS NO SEPARATE CONFIRMATION INSTANT. A 5-minute bar's closing
+    update is its period ending, which ``scheduled_close_seconds`` already answers;
+    returning something different here would invent a second clock for a question
+    that has one. ``None`` for every intraday timeframe is the honest answer, and
+    it is what makes ``vendor`` mode fall back to the scheduled close there.
+    """
+    from api.services import nyse_calendar
+    if not bars or tf not in ("D", "W", "M"):
+        return None
+    newest = bars[-1].get("t") if isinstance(bars[-1], dict) else None
+    if not isinstance(newest, (int, float)) or isinstance(newest, bool):
+        return None
+    if newest < VWAP_MIN_INSTANT:
+        return None
+    close = scheduled_close_seconds(newest, tf, holidays, early_closes)
+    if close is None:
+        return None
+    hour = (nyse_calendar.EXTENDED_CLOSE_HOUR if extended_hour is None
+            else extended_hour)
+    early = (nyse_calendar.EARLY_EXTENDED_CLOSE_HOUR if early_extended_hour is None
+             else early_extended_hour)
+    zone = _et_zone()
+    if zone is None:
+        return None
+    # ⭐ THE HOUR IS DECIDED ON THE DAY THE CLOSE WALK LANDED ON, exactly as
+    # `scheduled_close_seconds` decides its own: deciding it earlier would apply
+    # the wrong day's hour to a week or a month.
+    if early_closes and _et_ymd(close, zone) in early_closes:
+        return _et_close_at(close, zone, early)
+    return _et_close_at(close, zone, hour)
+
+
+def historical_instant(bars: List[dict], tf, holidays=None, early_closes=None):
+    """Instant B — when the newest bar stops being the vendor's LIVE bar.
+
+    ⛔⛔ ALWAYS ``None``, AND THAT IS THE MEASUREMENT, NOT A STUB. The flip was
+    observed between 20:55 and 23:57 ET on 2026-09-10 (timeline rows 6 and 7) and
+    nothing narrows it further: unlike instant A, which at least has 20:00 — the
+    extended-hours close — as a candidate that fits its bracket, **no mechanism has
+    been proposed for this one at all**.
+
+    ⭐ IT EXISTS SO THE ANSWER HAS A HOME. When rows through 21:00-00:00 ET pin it,
+    this is the single place that learns the rule, and `compute_clock`'s `historical`
+    input is what it would feed. Until then the honest answer is "nobody knows", and
+    a caller that needs the column must OBSERVE it rather than compute it.
+
+    ⚠️ Returning a guess here would be worse than returning nothing: it would make
+    every barstate column downstream confident on a three-hour-wide bracket.
+    """
+    return None
+
+
+def bar_close_state_full(bars: List[dict], tf, now: Optional[float] = None,
+                         holidays=None, early_closes=None):
+    """``(forming, confirmed)`` — the tri-state, and whether the closing update
+    is expected to have happened by ``now``.
+
+    ⭐⭐ THE SECOND OUTPUT IS WHY THIS EXISTS. ``vendor`` mode needs a fact the
+    tri-state cannot carry: the vendor's ``isconfirmed`` is about TIME and its
+    ``isrealtime`` is about POSITION, so one boolean cannot serve both. Producing
+    it HERE keeps the rule that the calendar never crosses the JS seam — the
+    browser is handed two booleans and still never a date set.
+
+    ⛔ ``confirmed`` IS ``None`` WHENEVER THE INSTANT IS UNKNOWN, and ``None`` is an
+    answer: it is what makes ``vendor`` mode blank rather than guess, the same way
+    the tri-state's ``None`` does.
+    """
+    forming = bar_close_state(bars, tf, now, holidays, early_closes)
+    at = confirmation_instant(bars, tf, holidays, early_closes)
+    if at is None or not isinstance(now, (int, float)) or isinstance(now, bool):
+        return forming, None
+    return forming, bool(now >= at)
+
+
+def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
+                    holidays=None, early_closes=None) -> Optional[bool]:
+    """IS THE NEWEST BAR STILL FORMING? ``True`` / ``False`` / ``None``.
+
+    ⭐⭐ THIS IS THE ONE VALUE THAT CROSSES THE JS SEAM, and it is produced HERE,
+    in Python, because this is the side the trading calendar lives on. The
+    browser is handed a tri-state and never a date set -- see ``compute_clock``.
+
+    ⛔ ``None`` IS AN ANSWER, NOT A FAILURE. Without a ``now``, without a known
+    timeframe, or without a usable newest instant, this cannot say -- and saying
+    "not forming" instead would hand the column layer a confident
+    ``isconfirmed = 1`` on a bar that may still be open.
+
+    ⚠️ ``now`` IS A PARAMETER, NEVER ``time.time()`` READ IN HERE. Two bindings of
+    one fetch must agree bar for bar, and a function that reads the wall clock
+    cannot be asked the same question twice -- which is what the stability rails
+    ask it.
+    """
+    if not bars or tf not in CLOCK_TIMEFRAMES:
+        return None
+    if not isinstance(now, (int, float)) or isinstance(now, bool):
+        return None
+    if now <= VWAP_MIN_INSTANT:
+        return None
+    newest = bars[-1].get("t") if isinstance(bars[-1], dict) else None
+    if not isinstance(newest, (int, float)) or isinstance(newest, bool):
+        return None
+    if newest < VWAP_MIN_INSTANT:
+        return None
+    close = scheduled_close_seconds(newest, tf, holidays, early_closes)
+    if close is None:
+        return None
+    return close > now
+
+
+def compute_clock(bars: List[dict], tf: Optional[str] = None,
+                  newest_bar_is_forming: Optional[bool] = None,
+                  confirmed: Optional[bool] = None,
+                  mode: str = BARSTATE_MODE_CALENDAR,
+                  historical: Optional[bool] = None,
+                  ) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
     Mirrors ``computeClock`` in ``indicators.js``, value for value.
@@ -1429,6 +1765,110 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[
     # in ``ast_interpret`` so the clock has ONE owner: a second place that knew
     # what bar number a bar is would be a second authority over a compared value.
     cols["barindex"] = [float(i) for i in range(n)]
+
+    # ⭐ THE EXTENT PAIR reads no ``t`` and no clock, so it answers above the
+    # unit gate -- the same line ``barindex`` sits on, for the same reason. It
+    # can never blank: there is no input it could be missing.
+    cols["isfirst"] = [1.0 if i == 0 else 0.0 for i in range(n)]
+    cols["islast"] = [1.0 if i == n - 1 else 0.0 for i in range(n)]
+
+    # ⛔⛔ THE REALTIME FOUR ARE TRI-STATE AND FAIL CLOSED FIRST.
+    # ``newest_bar_is_forming`` is ``True`` / ``False`` / ``None``, and ``None``
+    # means UNKNOWN -- never "not forming". A confident ``isconfirmed = 1`` on a
+    # bar that is still open is the one wrong answer these columns exist to
+    # prevent, so an unknown blanks all four rather than guessing either way.
+    #
+    # ⛔⛔ NO TRADING CALENDAR IS CONSULTED HERE, AND THAT IS THE LOAD-BEARING
+    # DESIGN DECISION. Whether the newest bar is still forming is settled ONCE,
+    # upstream, by ``bar_close_state`` -- on the side the calendar actually lives
+    # (``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`` +
+    # ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD``). Restating either set in
+    # the JS twin would put a SECOND AUTHORITY over one value in a second
+    # language, where the two drift silently and each looks correct alone. The
+    # seam carries the tri-state; the calendar does not cross it.
+    for name in CLOCK_REALTIME:
+        cols[name] = [None] * n
+
+    # ⭐⭐ THE SECOND DERIVATION, AND IT IS OFF BY DEFAULT. `vendor` reproduces
+    # what TradingView was measured doing on 2026-09-10; `calendar` is what ships
+    # and is what every caller gets unless it asks otherwise. Both live HERE, in
+    # one place — a second function would drift, and the whole reason this exists
+    # is that two engines disagreed about one bar.
+    if mode not in BARSTATE_MODES:
+        raise ValueError("unknown barstate mode %r" % (mode,))
+
+    if mode == BARSTATE_MODE_VENDOR:
+        # ⛔ THREE INDEPENDENT AXES, NOT A TRI-STATE. `isrealtime` is POSITION
+        # (the last bar of a live dataset), `isconfirmed` is TIME (the closing
+        # update has happened), `ishistory` is the complement of the first. That
+        # is why the vendor reads 1/1/0 in the post-confirm, pre-open window — a
+        # combination `calendar` cannot spell, because there `isconfirmed` is
+        # `1 - isrealtime` by construction.
+        # ⛔ AND IT STILL FAILS CLOSED: without the tri-state we do not know the
+        # dataset is live; without `confirmed` we do not know the instant. Either
+        # missing blanks all four rather than guessing.
+        if (newest_bar_is_forming is not None and confirmed is not None
+                and historical is not None):
+            # ⛔⛔ VENDOR MODE HAS **TWO** TIME AXES AND THIS ENGINE PINS NEITHER.
+            #
+            #   instant A — `confirmed`: the closing update happened.
+            #               Bracketed (19:22, 20:55) ET. Hypothesis: 20:00, the
+            #               extended-hours close (`nyse_calendar.EXTENDED_CLOSE_HOUR`).
+            #   instant B — `historical`: the bar stopped being the live one.
+            #               Bracketed (20:55, 23:57) ET. NO hypothesis at all.
+            #
+            # ⭐⭐ THEY ARE DIFFERENT INSTANTS, HOURS APART, ON ONE BAR — measured
+            # across timeline rows 1-7 on 2026-09-10/11. That is the whole finding:
+            # a tri-state cannot express two flags that flip at different times, so
+            # this is a different NUMBER OF AXES, not a calibration difference.
+            #
+            # ⛔ BOTH ARRIVE AS INPUTS AND BOTH FAIL CLOSED. `None` means nobody
+            # told us, and the four columns blank rather than guess — the same rule
+            # `newest_bar_is_forming` has always had. A default of "live" would be
+            # this function quietly asserting instant B had not passed, which is
+            # precisely the guess the ruling forbids.
+            #
+            # ⚰️ ROW 7 IS WHY `historical` EXISTS. This branch hard-coded "the
+            # newest bar is the realtime one". At 23:57 ET the SAME daily bar that
+            # had read isrealtime=1 for seven and a half hours — across three
+            # separate page loads, so not a fetch artifact — read isrealtime=0,
+            # ishistory=1, islastconfirmedhistory=1.
+            last_i = n - 1
+            live = not bool(historical)
+            rt_i = last_i if live else -1
+            cols["isrealtime"] = [1.0 if i == rt_i else 0.0 for i in range(n)]
+            cols["ishistory"] = [1.0 - v for v in cols["isrealtime"]]
+            done = bool(confirmed)
+            cols["isconfirmed"] = [1.0 if (i < last_i or done) else 0.0
+                                   for i in range(n)]
+            # ⚠️ `islastconfirmedhistory` IS THE BAR BEFORE THE REALTIME ONE —
+            # while there IS one. Measured: it read 0 on the newest bar in all six
+            # LIVE timeline rows, including the one where that bar was already
+            # confirmed, so it is not "the newest confirmed bar". ⭐ And row 7
+            # completes the shape rather than contradicting it: with no realtime
+            # bar to sit behind, it lands ON the last bar.
+            lch = last_i - 1 if live else last_i
+            cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
+                                              for i in range(n)]
+    elif newest_bar_is_forming is not None:
+        forming = bool(newest_bar_is_forming)
+        last_i = n - 1
+        cols["isrealtime"] = [1.0 if (forming and i == last_i) else 0.0
+                              for i in range(n)]
+        cols["isconfirmed"] = [1.0 - v for v in cols["isrealtime"]]
+        # ⚠️ ``ishistory`` IS AN ALIAS OF ``isconfirmed`` HERE AND IS NOT ONE IN
+        # PINE. TradingView distinguishes a bar the chart loaded as history from
+        # one it watched form; this engine evaluates a STATIC FETCH, where every
+        # closed bar arrived the same way, so the distinction has no referent.
+        # Recorded rather than hidden -- ``divergences.json`` and
+        # ``closedTable.json::_barstate``.
+        cols["ishistory"] = list(cols["isconfirmed"])
+        # The newest bar that is not still forming: the last bar normally, the
+        # one before it while the last is forming, and NO bar when a 1-bar
+        # series is still forming.
+        lch = last_i - 1 if forming else last_i
+        cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
+                                          for i in range(n)]
 
     # THE UNIT GATE — before ``_et_zone()``, so a refused series costs no tz
     # lookup, and before any accumulation so the answer is all-or-nothing.

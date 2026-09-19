@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f8734584d97f4e589ad127bc8f9c3316",
+ "title": "RenderingNature SMC Reversal Engine v7.1",
+ "author": "renderingnature1",
+ "url": "https://www.tradingview.com/script/sO1DwYda-renderingnature-smc-reversal-engine-v7-1/",
+ "agreeCount": 4667,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+ "our_status": "committed"
+}
