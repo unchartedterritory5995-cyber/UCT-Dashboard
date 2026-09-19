@@ -115,14 +115,24 @@ describe('(j) j.3 / R30 — a fill is drawn as runs', () => {
       .toEqual(['save', 'restore'])
   })
 
-  it('⛔ CONTROL — a STATIC fill with an na HOLE is still ONE fillStyle, several polygons', () => {
+  it('⛔ CONTROL — a STATIC fill with an na HOLE never diverges colour across polygons', () => {
     // ⭐ THE CASE THAT SEPARATES THE TWO LEVELS. Geometry splits; colour does not.
-    // If "run" meant one thing, this would assign fillStyle three times and the
+    // If "run" meant one thing, this would paint three DIFFERENT colours and the
     // control above would be a lie for every shipped band that has a gap.
+    //
+    // ⚰️ This used to assert `fillStyles()` had exactly ONE entry — true when a
+    // static fill assigned `fillStyle` once, globally, and never touched it
+    // again. The compounding fix (2026-09-19) erases each polygon's own
+    // footprint before painting it (so a stray sibling primitive can't compound
+    // underneath), which means a REAL restore-and-paint per polygon even in the
+    // static case. The colour these three restores paint is still the SAME one
+    // every time — the actual invariant this test is for — so that is what is
+    // asserted now, not the raw count of property writes it takes to do it.
     const holed = [10, 10, NaN, 10, 10, NaN, 10]
     const rec = drawWith({ upper: holed })
-    expect(rec.fillStyles(), 'an na hole must NOT introduce a second fillStyle')
-      .toEqual([STATIC_DRAWN])
+    expect(rec.fillStyles(), 'an na hole must NOT introduce a second colour').toEqual([
+      STATIC_DRAWN, STATIC_DRAWN, STATIC_DRAWN,
+    ])
     expect(rec.polygons().length, 'the hole must split the band into three polygons').toBe(3)
   })
 
@@ -176,6 +186,86 @@ describe('(j) j.3 / R30 — a fill is drawn as runs', () => {
       .toEqual([[0, 2, UP], [3, 3, DOWN], [5, 5, DOWN], [6, 6, UP]])
     // …and with no colour array it is exactly what it has always been.
     expect(fillRuns(UPPER, LOWER).map((r) => [r.from, r.to])).toEqual([[0, 6]])
+  })
+})
+
+// ─── THE COMPOUNDING FIX — a stack of thin, chained fills does not saturate ──
+//
+// `binder.js` attaches ONE INDEPENDENT `createFillPrimitive` per Pine fill()
+// call in a chained stack (Uncharted Clouds: 21 hidden plots, 20 fills). Every
+// one of those draws onto the SAME series canvas, in attachment order. Where
+// the underlying plots run close together, several of those independently-
+// alpha-blended layers land on the SAME pixels, and plain `source-over`
+// compositing lets them compound: `1-(1-a)^n` climbs toward full opacity fast
+// even for a modest per-layer `a`. Measured on the real fixture, this rendered
+// a converging fast/slowMA stretch as a nearly SOLID block of colour instead
+// of the soft 5-55%-opacity gradient the script asked for.
+//
+// The fix is in `fillPrimitive.js`'s draw loop: erase this polygon's own
+// footprint (`destination-out`, fully opaque) immediately before painting it
+// (`source-over`, the real — possibly translucent — colour). Whatever any
+// EARLIER draw left in that exact footprint — a sibling primitive, or this
+// same primitive's own prior polygon — is gone before the real paint lands,
+// so nothing compounds under it.
+describe('the compounding fix — erase-then-paint, never fill-on-fill', () => {
+  it('⛔⛔ every visible paint is IMMEDIATELY preceded by an OPAQUE erase of its own shape', () => {
+    const rec = drawWith({ colors: coloursFor(COND) })
+    const fills = rec.ops.filter((o) => o.op === 'fill')
+    // 3 runs (UP, DOWN, UP) -> 3 polygons -> 3 (erase, paint) pairs = 6 fill()s.
+    expect(fills.length, 'one erase + one paint per polygon').toBe(6)
+    for (let i = 0; i < fills.length; i += 2) {
+      expect(fills[i].compositeOp, `pair ${i / 2}: erase comes first`).toBe('destination-out')
+      expect(fills[i + 1].compositeOp, `pair ${i / 2}: then the real paint`).toBe('source-over')
+      // The erase pass's OWN colour is irrelevant to `destination-out` (only its
+      // coverage matters) but it must be a plain, fully OPAQUE colour — a
+      // translucent erase would only PARTIALLY clear what a prior draw left,
+      // which is the exact compounding this fix removes. A bare 3-digit hex
+      // literal cannot itself carry an alpha channel, so this is a real check,
+      // not a restatement: `withAlpha` on anything BUT full opacity would
+      // produce an `rgba(...)` string, never survive as a plain hex triplet.
+      expect(fills[i].style, 'the erase pass is a plain opaque hex colour')
+        .toMatch(/^#[0-9a-f]{3,6}$/i)
+    }
+    // …and the visible colours are exactly the R30 sequence, untouched by the
+    // erase passes now interleaved with them.
+    expect(rec.fillStyles()).toEqual([UP, DOWN, UP])
+  })
+
+  it('⛔⛔ NON-VACUITY — a mutation that skips the erase pass is CAUGHT', () => {
+    // A rail that cannot fail is not a rail. Simulate the pre-fix shape (paint
+    // only, no erase) directly against the same recorder and confirm THIS
+    // test's own assertion shape would have failed it.
+    const rec = createRecordingCtx()
+    rec.ctx.fillStyle = UP
+    rec.ctx.beginPath(); rec.ctx.moveTo(0, 0); rec.ctx.lineTo(1, 1); rec.ctx.closePath()
+    rec.ctx.fill()
+    const fills = rec.ops.filter((o) => o.op === 'fill')
+    expect(fills.length).toBe(1)
+    expect(fills[0].compositeOp, 'no erase pass at all — the defect this fix removed')
+      .not.toBe('destination-out')
+  })
+
+  it('⭐⭐ CROSS-PRIMITIVE: a SECOND, overlapping fill erases the FIRST one\'s footprint before repainting it', () => {
+    // The actual failure mode: two SEPARATE primitives (two adjacent hostedFills
+    // layers) sharing one canvas. Draw two identical-geometry static fills, back
+    // to back, onto the SAME recorder — exactly what `binder.js` does when two
+    // chained layers' thin bands land on the same pixels.
+    const fake = createFakeChart()
+    const rec = createRecordingCtx()
+    const series = fake.chart.addSeries(fake.LWC.LineSeries, {}, 0)
+    const layerA = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#111111', opacity: 0.3 })
+    const layerB = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#222222', opacity: 0.3 })
+    drawPrimitive(layerA.primitive, { chart: fake.chart, series, recorder: rec })
+    drawPrimitive(layerB.primitive, { chart: fake.chart, series, recorder: rec })
+    const fills = rec.ops.filter((o) => o.op === 'fill')
+    // layer A: erase, paint(#111111 @0.3) — layer B: erase, paint(#222222 @0.3).
+    expect(fills.length).toBe(4)
+    expect(fills[2].compositeOp, 'layer B erases before it paints, over layer A\'s own footprint')
+      .toBe('destination-out')
+    expect(fills[3].compositeOp).toBe('source-over')
+    // Layer B's own paint is UNCHANGED by what layer A drew — no accumulated
+    // opacity, no third colour. This is the property compounding breaks.
+    expect(rec.fillStyles()).toEqual([withAlpha('#111111', 0.3), withAlpha('#222222', 0.3)])
   })
 })
 

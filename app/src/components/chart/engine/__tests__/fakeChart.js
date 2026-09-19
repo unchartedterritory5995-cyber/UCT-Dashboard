@@ -181,25 +181,41 @@ export function createFakeChart(coords) {
 export function createRecordingCtx() {
   const ops = []
   let fillStyleValue = null
+  // ⭐⭐ THE COMPOUNDING FIX (2026-09-19) makes every polygon fill TWICE — an
+  // opaque `destination-out` pass that erases its own footprint (killing
+  // cross-primitive alpha compounding on a stack of chained fills; see
+  // fillPrimitive.js), then the REAL `source-over` paint. Both go through
+  // `fillStyle`/`fill()`, so a recorder that cannot tell them apart sees the
+  // erase pass's throwaway colour as if it were a second R30 run. Tracked the
+  // same way `fillStyle` already is — as its own accessor — for the same
+  // reason: order and WHICH mode a fill happened under both matter here.
+  let compositeOpValue = 'source-over'
   const ctx = {
     get fillStyle() { return fillStyleValue },
     set fillStyle(v) { fillStyleValue = v; ops.push({ op: 'fillStyle', value: v }) },
+    get globalCompositeOperation() { return compositeOpValue },
+    set globalCompositeOperation(v) { compositeOpValue = v },
     save: () => ops.push({ op: 'save' }),
     restore: () => ops.push({ op: 'restore' }),
     beginPath: () => ops.push({ op: 'beginPath' }),
     moveTo: (x, y) => ops.push({ op: 'moveTo', x, y }),
     lineTo: (x, y) => ops.push({ op: 'lineTo', x, y }),
     closePath: () => ops.push({ op: 'closePath' }),
-    fill: () => ops.push({ op: 'fill' }),
+    fill: () => ops.push({ op: 'fill', compositeOp: compositeOpValue, style: fillStyleValue }),
   }
   /** What lightweight-charts hands a renderer's `draw`. */
   const target = { useMediaCoordinateSpace: (fn) => fn({ context: ctx }) }
+  // A `destination-out` fill paints nothing a viewer ever sees — it only
+  // clears the way for the `source-over` fill right behind it. R30 is a claim
+  // about visible paint, so these two helpers read PAST it, not through it.
+  const isRealPaint = (o) => o.op === 'fill' && o.compositeOp !== 'destination-out'
   return {
     ctx,
     target,
     ops,
-    /** Every `fillStyle` assignment, in order — the R30 sequence. */
-    fillStyles: () => ops.filter((o) => o.op === 'fillStyle').map((o) => o.value),
+    /** Every `fillStyle` assignment that actually painted something, in
+     *  order — the R30 sequence. */
+    fillStyles: () => ops.filter(isRealPaint).map((o) => o.style),
     /** One entry per `beginPath`…`fill`, each the vertices in draw order. */
     polygons: () => {
       const out = []
@@ -211,17 +227,9 @@ export function createRecordingCtx() {
       }
       return out
     },
-    /** The `fillStyle` in force when each polygon was filled, in order. */
-    polygonColours: () => {
-      const out = []
-      let style = null
-      for (const o of ops) {
-        if (o.op === 'fillStyle') style = o.value
-        if (o.op === 'fill') out.push(style)
-      }
-      return out
-    },
-    reset: () => { ops.length = 0; fillStyleValue = null },
+    /** The `fillStyle` that actually painted each polygon, in order. */
+    polygonColours: () => ops.filter(isRealPaint).map((o) => o.style),
+    reset: () => { ops.length = 0; fillStyleValue = null; compositeOpValue = 'source-over' },
   }
 }
 
