@@ -34,13 +34,16 @@ def _manifest() -> dict:
 
 def test_both_findings_are_non_empty_and_name_a_real_file():
     m = _manifest()
-    free_pages = m["free_pages_TRIPLICATED"]
-    assert len(free_pages["entries"]) == 3
-    for e in free_pages["entries"]:
+    free_pages = m["free_pages"]
+    assert (_REPO / free_pages["source"]).exists(), "named source is missing"
+    assert len(free_pages["consumers"]) == 3
+    for e in free_pages["consumers"]:
         assert (_REPO / e["file"]).exists(), f"named but missing: {e['file']}"
 
     mirrored = m["paid_plan_literal_MIRRORED_ACROSS_LANES"]
-    assert len(mirrored["js_call_sites"]) == 3
+    assert len(mirrored["js_call_sites"]) == 2, (
+        "Login.jsx's copy was retired 2026-09-19 -- two remain by design "
+        f"(AuthContext.jsx, Pricing.jsx): {mirrored['js_call_sites']}")
     for e in mirrored["js_call_sites"]:
         assert (_REPO / e["file"]).exists(), f"named but missing: {e['file']}"
 
@@ -74,11 +77,8 @@ def test_the_derivation_rail_CAN_FAIL(tmp_path):
     """⛔ THE MUTATION, RUN IN-PROCESS. A copy, corrupted, never the real file."""
     m = _manifest()
     corrupted = dict(m)
-    corrupted["free_pages_TRIPLICATED"] = dict(m["free_pages_TRIPLICATED"])
-    corrupted["free_pages_TRIPLICATED"]["entries"] = [
-        dict(e) for e in m["free_pages_TRIPLICATED"]["entries"]
-    ]
-    corrupted["free_pages_TRIPLICATED"]["entries"][0]["values"] = ["/some-other-page"]
+    corrupted["free_pages"] = dict(m["free_pages"])
+    corrupted["free_pages"]["values"] = ["/some-other-page"]
     corrupted_path = tmp_path / "entitlements_manifest.json"
     corrupted_path.write_text(json.dumps(corrupted, indent=2), encoding="utf-8")
 
@@ -92,22 +92,34 @@ def test_the_derivation_rail_CAN_FAIL(tmp_path):
 # THE TWO DUPLICATION FINDINGS — the reason CP1 exists
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_FREE_PAGES_values_agree_across_all_three_files():
-    """⛔ THE DUPLICATION RAIL GATE-S9 §3 CALLS FOR. Fails the moment one of the
-    three hand-typed copies diverges from the other two — which today happens
-    silently, with only a code comment asking a human to remember."""
+def test_FREE_PAGES_is_one_source_with_three_real_importers():
+    """⛔ THE DUPLICATION RAIL GATE-S9 §3 CALLED FOR, closed rather than just
+    monitored: retired 2026-09-19 from three hand-typed copies onto one
+    `constants/freePages.js` export. This asserts the fix HOLDS — every
+    consumer imports the shared source and none re-declares its own copy,
+    which is exactly how the original defect would reappear."""
     m = _manifest()
-    fp = m["free_pages_TRIPLICATED"]
-    values = [tuple(e["values"]) for e in fp["entries"]]
-    assert len(set(values)) == 1, (
-        f"FREE_PAGES has diverged across its three copies: {fp['entries']}")
-    assert fp["values_agree"] is True, "the manifest's own agree flag disagrees with its own data"
+    fp = m["free_pages"]
+    assert fp["values"] == ["/morning-wire"]
+    assert len(fp["consumers"]) == 3
+    for c in fp["consumers"]:
+        assert c["imports_shared_source"] is True, (
+            f"{c['file']} does not import the shared FREE_PAGES source")
+        assert c["redeclares_locally"] is False, (
+            f"{c['file']} re-declares its own FREE_PAGES — the original defect is back")
+    assert fp["all_import_the_shared_source"] is True
 
 
 def test_the_FREE_PAGES_rail_CAN_FAIL():
-    """⛔ MUTATION-PROVED. Three distinct value sets must NOT agree."""
-    values = [("/morning-wire",), ("/morning-wire",), ("/DIFFERENT-PAGE",)]
-    assert len(set(values)) != 1, "the divergence check cannot see three-way disagreement"
+    """⛔ MUTATION-PROVED. A consumer that stops importing (or starts
+    re-declaring) must be caught, not silently pass as "still fine"."""
+    consumers = [
+        {"file": "a", "imports_shared_source": True, "redeclares_locally": False},
+        {"file": "b", "imports_shared_source": True, "redeclares_locally": False},
+        {"file": "c", "imports_shared_source": False, "redeclares_locally": True},
+    ]
+    all_ok = all(c["imports_shared_source"] and not c["redeclares_locally"] for c in consumers)
+    assert all_ok is False, "the check cannot see a consumer that regressed to a local copy"
 
 
 def test_paid_plan_literal_mirrors_the_python_source_everywhere_it_appears():
@@ -138,12 +150,27 @@ def test_the_trial_clause_finding_is_recorded_accurately():
     assert by_file["app/src/context/AuthContext.jsx"] is True, (
         "AuthContext.jsx's isPaid is the canonical predicate and ORs in trial.active"
     )
-    assert by_file["app/src/pages/Login.jsx"] is False, (
-        "Login.jsx's post-login routing check does not carry the trial clause"
-    )
     assert by_file["app/src/pages/Pricing.jsx"] is False, (
         "Pricing.jsx's trulyPaid is deliberately narrower than isPaid"
     )
+    assert "app/src/pages/Login.jsx" not in by_file, (
+        "Login.jsx's copy of the paid-plan literal was retired 2026-09-19 -- "
+        "its reappearance here means the fix regressed"
+    )
+
+
+def test_login_jsx_no_longer_carries_the_paid_plan_literal_and_reads_paid_equiv():
+    """⛔ THE FIX ITSELF, confirmed in the real source — not just its absence
+    from the manifest's scan. A regex miss and a genuine fix look identical to
+    the manifest; this reads the file directly."""
+    raw = (_REPO / "app/src/pages/Login.jsx").read_text(encoding="utf-8")
+    plan_re = re.compile(
+        r"\[\s*['\"]pro['\"]\s*,\s*['\"]premium['\"]\s*,\s*['\"]lifetime['\"]\s*\]"
+        r"\s*\.\s*includes\s*\(")
+    assert not plan_re.search(raw), (
+        "Login.jsx still carries the old hand-typed paid-plan literal")
+    assert "data?.paid_equiv" in raw or "data.paid_equiv" in raw, (
+        "Login.jsx no longer reads paid_equiv -- what does it route on now?")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
