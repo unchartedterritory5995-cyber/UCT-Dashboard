@@ -1,0 +1,52 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 5 cell(s) to run · stamp 2026-09-19T17-27-16Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ append_widget_embed  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T17:27:34.596943+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-19T17:27:34.596943+00:00', 'marker': None, 'ring': ['2026-09-19T17:27:34.596943+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast: LATCHED while on screen
+      guard toast seen: True · queued for this note: 1 · /embeds calls: 0
+      cleanup: {'err': 502}
+   ⇒ DEFERRED-BY-GUARD  the door was driven to completion and the capture chokepoint DEFERRED: the member was shown the sentence, no call to the door's endpoint was made, and
+
+═══ append_widget_embed  ·  marker LIVE
+      /api/auth/me → 502: a deploy swap. Waiting for a pod to settle (bounded 360s)…
+      swap-wait: status=502 uptime=None bundle=None (0s)
+      swap-wait: status=502 uptime=None bundle=None (40s)
+      swap-wait: status=200 uptime=40 bundle=BeyMoeez (50s)
+      swap-wait: status=200 uptime=50 bundle=BeyMoeez (60s)
+      swap-wait: status=200 uptime=60 bundle=BeyMoeez (70s)
+      settled after 70.9s — uptime 40→60s strictly monotonic over 3 readings, bundle BeyMoeez; re-asking auth ONCE
+      auth is back — resuming the cell
+      warmed /charts, back to the editor
+      ⛔ cleanup failed (TargetClosedError) — orphans may remain
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.goto: Target page, context or browser has been closed
+
+═══ append_widget_embed  ·  marker EXPIRED
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+
+═══ append_widget_embed  ·  slow PUT (landed, ring populated)
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+
+═══ append_widget_embed  ·  reload mid-flight (marker from a dead tab)
+   ⇒ INCONCLUSIVE  the cell raised TargetClosedError: Page.evaluate: Target page, context or browser has been closed
+opt-out restored in-session: 'ERR: TargetClosedError' (NOT PROVEN — see the on-disk check below)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → C:\Users\Patrick\uct-worktrees\notebook-k\docs\notebook\wave-q1-f5-production-matrix.md
+(node:13168) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:64260) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

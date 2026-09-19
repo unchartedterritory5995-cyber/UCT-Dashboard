@@ -1,0 +1,6 @@
+
+=== WINDOW OPEN 12:29:20 · 1 staged ===
+   ▶ p3-append-door-restored-guard-unknown-only: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T122920-p3-append-door-restored-guard-unknown-only (540B raw)
+   ⇒ p3-append-door-restored-guard-unknown-only: exit 1 in 6.0s
+queue empty — nothing staged
