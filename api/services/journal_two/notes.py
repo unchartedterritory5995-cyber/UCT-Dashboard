@@ -1612,6 +1612,18 @@ def get_note_graph(
     trashed note would render a node the member cannot open, so both ends are
     gated here. The two functions disagree on purpose.
 
+    ⛔ AND `degree` GATES TRASH THE SAME WAY THE EDGES DO — the `m` join is
+    there for exactly that. Counting a link whose far end is in the trash leaves
+    the surviving note with degree 1 and no line attached, so the renderer draws
+    it as LINKED while the member's real situation is that it has just become an
+    orphan. The two halves of one picture have to agree about what exists.
+
+    ⚠️ `degree` is deliberately NOT capped the way the edges are: a note linked
+    to a live note that fell outside `limit` still counts as linked, because it
+    IS. That can leave a node with degree 2 and one drawn line on a truncated
+    graph, which is why `truncated` is returned and said out loud on screen —
+    the alternative, reporting a real link as no link, is the worse lie.
+
     `degree` is computed in SQL rather than by counting edges client-side, so
     the renderer can size nodes without walking the edge list twice.
     """
@@ -1623,8 +1635,13 @@ def get_note_graph(
         rows = conn.execute(
             "SELECT n.id, n.title, n.folder_id, n.updated_at,"
             "       (SELECT COUNT(*) FROM j2_note_links l"
+            "          JOIN j2_notes m"
+            "            ON m.user_id = l.user_id"
+            "           AND m.id = CASE WHEN l.note_id = n.id"
+            "                           THEN l.target_note_id ELSE l.note_id END"
             "          WHERE l.user_id = n.user_id"
-            "            AND (l.note_id = n.id OR l.target_note_id = n.id)) AS degree"
+            "            AND (l.note_id = n.id OR l.target_note_id = n.id)"
+            "            AND m.deleted_at IS NULL) AS degree"
             " FROM j2_notes n"
             " WHERE n.user_id = ? AND n.deleted_at IS NULL"
             " ORDER BY n.updated_at DESC"

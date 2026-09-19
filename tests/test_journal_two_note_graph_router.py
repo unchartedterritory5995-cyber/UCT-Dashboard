@@ -193,3 +193,30 @@ def test_an_edge_whose_far_end_missed_the_cap_is_dropped(app, client):
     body = client.get("/api/j2/notes/graph?limit=1").json()
     assert len(body["nodes"]) == 1
     assert body["edges"] == []
+
+
+def test_a_link_to_a_TRASHED_note_does_not_count_toward_degree(app, client):
+    """⛔ THE DEGREE AND THE DRAWN EDGES MUST AGREE ABOUT TRASH.
+
+    The edge query gates `deleted_at IS NULL` on BOTH ends, so trashing a target
+    removes the line. If the degree subquery does not gate the same way, the
+    surviving source keeps degree=1 and the renderer draws it as a LINKED node
+    with no line attached to it -- while the member's real situation is that the
+    note is now orphaned, which is the one thing a graph view exists to show.
+    """
+    _login_as(app, "u1")
+    target = _create_note(client, title="Target")
+    source = _create_note(client, title="Source", body_json=_link_doc(target))
+
+    before = {n["id"]: n for n in client.get("/api/j2/notes/graph").json()["nodes"]}
+    assert before[source]["degree"] == 1, "precondition: the link counts while the target lives"
+
+    assert client.delete(f"/api/j2/notes/{target}").status_code == 200
+
+    body = client.get("/api/j2/notes/graph").json()
+    after = {n["id"]: n for n in body["nodes"]}
+    assert body["edges"] == [], "precondition: the line is gone"
+    assert after[source]["degree"] == 0, (
+        "the source still counts a link to a note that is in the trash -- it will "
+        "render as linked-but-lineless instead of as the orphan it now is"
+    )
