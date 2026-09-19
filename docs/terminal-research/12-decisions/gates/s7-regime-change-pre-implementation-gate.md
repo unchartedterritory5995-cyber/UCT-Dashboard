@@ -2,7 +2,7 @@
 id: GATE-S7-REGIME-CHANGE
 title: S7 trigger type — `regime-change` pre-implementation gate
 role: the approval packet for the type the completion plan sequences LAST. It absorbs TWO legacy emitters, not one, and its in-app-only delivery is a STRUCTURAL ACCIDENT rather than a rule — §3 is the measurement that says so, and it is the reason this packet exists before any code.
-status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3, CP4 and the flip each need a new line.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3 SIGNED 2026-09-13 (fingerprint `9f0575340`) and BUILT `fd3c6aaaa`, dark and since ARMED in production (`ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1`, owner ruling 2026-09-13 16:00 UTC) — nothing flips yet, this only widens the dark comparison sample. CP4 and the flip each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §1 row 7, DEC-13 (regime authority), GATE-S12-ROLLOUT

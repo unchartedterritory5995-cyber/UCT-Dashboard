@@ -2,7 +2,7 @@
 id: GATE-S7-POSITION-RISK
 title: S7 trigger type — `position-risk` pre-implementation gate
 role: the approval packet for the FOURTH absorption candidate. It is HALF an absorption and HALF a new capability, and §2 is the measurement that says which half is which. Nothing builds past the scope on an approval line.
-status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3, CP4 and the flip each need a new line.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3 SIGNED 2026-09-13 (fingerprint `ec2b197f8`) and BUILT/MERGED `6a67a4b5d`, dark, verified in-pod (flag reads unset — nothing armed). CP4 and the flip each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §1 row 5 / §4, GATE-S12-ROLLOUT
