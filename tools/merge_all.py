@@ -187,6 +187,7 @@ UNITS = [
     # "ranking could shift — must be proved identical" (proved identical by
     # the build record's mutation test).
     ("s6-cp3-build-record", ["a35762d0d"], True),           # impEff derives weightBuckets, MEMBER-VISIBLE
+    ("d5-cp6-build-record", ["1a937192f"], False),          # confirmed-rename producer, renamed-only, api/services only
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")
