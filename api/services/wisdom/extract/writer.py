@@ -696,9 +696,30 @@ def write_output(conn, *, segment: dict, source: dict, output: Any, extractor_ve
             continue
         dedupe_key = ids.sha24(segment.get("source_id"), segment.get("source_version"), extractor_version,
                                ch.record_type, ch.ticker or "", normalize_quote_key(ch.quote))
-        if conn.execute("SELECT 1 FROM wisdom_extract_record_keys WHERE dedupe_key = ?", (dedupe_key,)).fetchone():
-            counts["dedupe_overlapping_window"] += 1
-            continue
+        # ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): this key carries no
+        # segment/position information, so it cannot tell "the same statement read through two
+        # OVERLAPPING windows" (the documented intent, module docstring line 52) from "the
+        # identical short phrase spoken again later, in a genuinely separate, non-overlapping
+        # segment" -- two unrelated occurrences of e.g. "Watching TTTT over 55 now." hours apart
+        # silently collapsed into one stored record with no row and no review item for the second.
+        # segmenter.py's own windows only overlap their IMMEDIATE neighbour (FALLBACK_OVERLAP_S
+        # seconds), so adjacency is `abs(ordinal difference) <= 1` within the same source -- which
+        # the key's own scope (source_id + source_version) already guarantees for anything found
+        # here. A match from a NON-adjacent segment is a genuinely distinct later occurrence and
+        # must be written, not dropped.
+        prior = conn.execute(
+            "SELECT s.ordinal AS ordinal FROM wisdom_extract_record_keys k "
+            "JOIN wisdom_records r ON r.record_id = k.record_id "
+            "JOIN wisdom_segments s ON s.segment_id = r.segment_id "
+            "WHERE k.dedupe_key = ?", (dedupe_key,)).fetchone()
+        if prior is not None:
+            prior_ordinal, this_ordinal = prior["ordinal"], segment.get("ordinal")
+            adjacent = (prior_ordinal is not None and this_ordinal is not None
+                       and abs(int(prior_ordinal) - int(this_ordinal)) <= 1)
+            if adjacent:
+                counts["dedupe_overlapping_window"] += 1
+                continue
+            counts["dedupe_key_reused_by_non_adjacent_segment"] += 1
         record_id = record_id_for(segment_id, extractor_version, ch.record_hash)
         f = ch.fields
         t_start = segmenter.time_at(cue_map, ch.q_start - 0) if cue_map else segment.get("t_start_s")

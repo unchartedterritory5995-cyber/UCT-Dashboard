@@ -24,7 +24,8 @@ import os
 import pathlib
 from typing import Optional
 
-from api.services.wisdom.extract.reconcile import MANIFEST_FILE, RECORDS_FILE, gate_runs_root
+from api.services.wisdom.extract.reconcile import (MANIFEST_FILE, RECORDS_FILE, SEGMENTS_SEEN_FILE,
+                                                    gate_runs_root)
 
 
 def record_row(ch, *, segment: dict, run_id: str, phase: str, extractor_version: str,
@@ -129,10 +130,14 @@ def touch_segment(run_id: str, segment_id: str, *, root=None) -> None:
     no records from a segment would otherwise be missing that id — so three good passes could
     refuse to reconcile because one of them found nothing in one paragraph. The empty marker keeps
     the sets equal without inventing a record.
+
+    ⛔ `reconcile.load_run` is the ONE reader of this file (2026-09-19 fix) — before that fix this
+    marker was written and never read, so it kept the sets equal in name only. Never hand-roll a
+    second reader; import `SEGMENTS_SEEN_FILE` if one is ever needed elsewhere.
     """
     d = run_dir(run_id, root=root)
     d.mkdir(parents=True, exist_ok=True)
-    seen = d / "segments_seen.jsonl"
+    seen = d / SEGMENTS_SEEN_FILE
     tmp = seen.with_suffix(".jsonl.tmp")
     existing = seen.read_text(encoding="utf-8") if seen.exists() else ""
     if f'"{segment_id}"' in existing:

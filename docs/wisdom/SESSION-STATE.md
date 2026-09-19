@@ -1,11 +1,88 @@
 ---
 id: WISDOM-LOOP-SESSION-STATE
 title: UCT Wisdom Loop — session state (SINGLE RESUME AUTHORITY)
-status: current — OVERNIGHT AUTONOMOUS RUN in progress (owner plan 2026-09-13 23:30 CT)
-written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after merge 1
+status: STALE BELOW THIS POINT (frozen 2026-09-13/14, "session ~4/5") — see the 2026-09-19 entry
+  immediately below for current state. Golden-v1/seven-build-streams content further down is a
+  valid HISTORICAL record of that phase; do not read "Merged to master: nothing" etc. as current.
+written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after merge 1; refreshed
+  2026-09-19 (this top entry only — see note above)
 ---
 
 # Session state
+
+> ## ⭐⭐ LATEST — 2026-09-19, session 28 (continued): the day's real work, in one place
+>
+> **⛔⛔ THIS FILE HAD NOT BEEN UPDATED SINCE 2026-09-13/14 UNTIL NOW — 14+ sessions of real work
+> (through "session 28") happened with this file frozen at golden-v1/seven-build-streams. Every
+> entry below this one is HISTORY from that earlier phase, not current state.** The actual current
+> running log for this programme is **`docs/wisdom/HARD-RULES.md`**, appended to continuously —
+> read it, not this file's stale body, for anything past 2026-09-14. This entry exists so a
+> session that (correctly) opens this file FIRST is not misled by its own frozen middle.
+>
+> **Where the programme actually stands, verified from source (git + a live Railway read), not
+> asserted from memory:**
+>
+> | | |
+> |---|---|
+> | Golden-v1 | **FROZEN** long ago (this file's own §6 "NOT FROZEN" is stale — see HARD-RULES R43/R98 for the identity rules ruled since) |
+> | Extraction system | **N-pass (N=3) voting + reconciliation, live in production code, armed for real** — this is a completely different, much later architecture than the single-pass golden-gate work this file's body describes |
+> | Sources live | Zoom/YouTube (unchanged, complete) · Substack/Sunday Scans (65+ sources) · Discord (6 authors: tsdr/bracco/manrav/chartmaster/jersace/attheask, + Main Chat + 18 Setup Examples channels) · Twitter/X (tsdr/bracco/chartmaster official accounts) |
+> | Extraction budget | **ARMED at the owner-chosen moderate pilot scale** — `WISDOM_EXTRACT_BUDGET_USD=175`, `WISDOM_EXTRACT_DAILY_BUDGET_USD=28`, `WISDOM_DAILY_SEGMENT_LIMIT=315` — **read live via `railway variables --service web --kv` on 2026-09-19**, not assumed. (Down from an earlier same-session $1800/$400 arming the owner explicitly rejected as a 15x scale-up nobody chose.) |
+> | Listeners | `WISDOM_DISCORD_LISTENER_ENABLED=1`, `WISDOM_TWITTER_LISTENER_ENABLED=1` — **same live read** |
+> | First real extraction run | **Happened, 2026-09-19 morning** — 302 requests, ~$27.95, 338 records (44 MARKET_SIGNAL / 143 MENTION / 151 PRINCIPLE). **Permanently stuck at `stability=NULL`** — a real N-pass parity bug (see below) let pass 3 ship a partial 92/105-segment subset, so `reconcile()` correctly refuses to score it forever. This data is a known, accepted, non-recoverable loss; the bug that caused it is fixed (see below) so it should not recur. |
+> | Adversarial review | A 4-dimension review of the whole `extract/` subsystem found **9 real bugs, all independently verified (9/9 confirmed, 0 rejected)**. **All 9 are now fixed** (the N-pass parity bug that caused the loss above, plus 8 more — full list with root cause / fix / mutation-proof for each in `HARD-RULES.md`'s "Session 28, part 3" section and its "all 8 findings fixed" update, including the hardest one, a budget TOCTOU race, closed last). |
+>
+> ✅✅ **RESOLVED, SAME DAY: ALL FIXES ARE NOW LANDED AND DEPLOYED (2026-09-19, later this session).**
+> The paragraph below is kept, struck-through in spirit rather than deleted, because it was true
+> when written and the correction matters more than a clean rewrite — this file has already paid
+> once for a stale claim standing unmarked. ~~THE FIX CODE IS NOT YET IN PRODUCTION, AND PRODUCTION
+> IS ARMED RIGHT NOW.~~ It now is: `origin/master` is `f8fd3c5ac` ("Merge branch 'feat/wisdom-loop'
+> into HEAD"), `git merge-base --is-ancestor ed7dad1d3 origin/master` confirms the branch tip
+> (carrying all 10 commits — the 9 adversarial-review fixes incl. the TOCTOU race, the two
+> pre-existing test regressions the full-suite sweep caught, and this file's own earlier refresh)
+> is an ancestor. Railway `web` deployed that exact commit (`status: SUCCESS`), confirmed against
+> the **artifact, not the status field**: `GET /api/health` returned `uptime_seconds: 41` — a
+> genuinely fresh process boot. Landed via `tools/land_master_first.py feat/wisdom-loop`, run
+> directly by the owner in a real terminal (the classifier that refused a `--no-push` dry run for
+> an agent session did not apply to the owner's own invocation) after two real concurrent-deploy
+> refusals from `pre_push_guard.py` (a stacked D-05-shaped queue, then a single settling deploy)
+> both cleared naturally. **This closes the actual urgency**: Monday 2026-09-22's scheduled daily
+> chain run now executes the fixed code, not the pre-fix code this entry originally warned about.
+>
+> ⛔ **The mechanism, for the next time this comes up:** landing to master via any tool that reads
+> as a production-deploy action is refused for an AGENT session by Claude Code's own permission
+> classifier (`[Production Deploy]`) — confirmed again this session, including for a `--no-push`
+> dry run that pushes nothing. It is not refused for the account owner typing the same command
+> themselves in their own terminal. There is no way to route around this from inside a session; the
+> correct move (used here) is to hand the owner the exact commands and verify the result afterward,
+> not to keep retrying the blocked tool call.
+>
+> **NEEDS THE OWNER (all four items below predate this fix and are UNCHANGED by landing it —
+> "landing to master" itself is done and removed from this list):**
+> 1. **`R106` (a monthly extraction spend line/ceiling) — an open owner question from session 27,
+>    never resolved** (searched HARD-RULES.md for a resolution; found none as of this entry).
+> 2. **Whether to broaden the Discord storage filter for Main Chat / Setup Examples beyond the
+>    named CALL authors** (to capture other members' posts as MENTION-only) — explicitly flagged
+>    in HARD-RULES.md ("session 28... Discord scope changed") as "OPEN, NOT DECIDED... needs its
+>    own explicit owner ruling," a real change to the `S0.4e` privacy guarantee, not a config flip.
+> 3. Two smaller open threads named in HARD-RULES.md's own text, not re-verified here: the
+>    `AtTheAsk`/`alex-jones` channel identity question, and whether `#jersace`'s Discord user id
+>    has been filled in now that the channel grant went through (it was left `null`/PENDING at
+>    grant time, per the record).
+>
+> **Everything else already happened this session with the owner directly in the loop** (the
+> budget re-arm from $1800/$400 to $175/$28, all six Discord/Twitter/Substack source grants, the
+> first real extraction run) — do not re-ask about those; `HARD-RULES.md` records each ruling with
+> its date.
+>
+> ⚠️ **Not verified this refresh, and worth checking before trusting it:** whether the RUNNING
+> container process actually has these `--kv` values (this repo's own standing caveat: `--kv`
+> shows service CONFIG, which is not proof the live process read it) — HARD-RULES.md's session-28
+> close-out entry says these were "confirmed in-process," which corroborates but was not
+> independently re-verified in-process during this refresh. Also not verified: `PROGRAM-MANIFEST.md`
+> §status line ("nothing merged to master") and `CONTRACTS.md` are themselves stale in the same
+> way this file was — they were not updated as part of this refresh; treat their headline status
+> lines with the same skepticism this entry is correcting here, and read `HARD-RULES.md` instead.
 
 > ## ⚖️ OWNER RULINGS — 2026-09-14 morning. Wave 1 CLOSED on master; Wave 1.5 starts now.
 >

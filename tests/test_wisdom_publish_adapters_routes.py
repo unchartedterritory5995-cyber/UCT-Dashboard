@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import datetime
 
 import pytest
 from fastapi import APIRouter, FastAPI
 
-from api.services.wisdom.core import store
+from api.services.wisdom.core import store, timeutil
 from api.services.wisdom.publish.adapters import clips, modelbook, routes
 from tests.test_wisdom_publish_adapters_store import adapters_db, seeded  # noqa: F401
 
@@ -81,6 +82,17 @@ def test_admin_routes_answer_401_403_200(seeded, real_app, client, monkeypatch):
 
     app, _ = real_app
     monkeypatch.delenv("WISDOM_BADGES_ENABLED", raising=False)
+    # ⛔⛔ `badges_for` anchors its "last WISDOM_BADGES_LOOKBACK_DAYS days" window to the REAL
+    # wall clock (`timeutil.now_et()`) whenever it isn't given an explicit `now` -- and this test
+    # drives the badges route over real HTTP, which has no way to pass one through. Every OTHER
+    # caller of `badges_for` in this test suite (test_wisdom_publish_adapters_consumers.py etc.)
+    # passes `now=` explicitly for exactly this reason. The seed fixture's records are dated
+    # 2026-09-06/08 (`T0` in test_wisdom_publish_adapters_store.py); this test silently went from
+    # green to a false "no records" failure the moment real time crossed 2026-09-18 (T0 + the
+    # default 10-day lookback) -- caught here, not by anything that ran this test in the interim.
+    # Pinning `now_et` reproduces the "pass now=" pattern for the one caller that can't do it
+    # directly, so this test can never again rot with the calendar.
+    monkeypatch.setattr(timeutil, "now_et", lambda: datetime(2026, 9, 10, 12, 0, tzinfo=timeutil.ET))
     for path in ADMIN_PATHS:
         assert client.get(path).status_code == 401, path
     with signed_in_as(FREE_MEMBER, app):

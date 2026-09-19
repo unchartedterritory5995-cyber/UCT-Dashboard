@@ -108,7 +108,7 @@ def estimate(sources, *, model: str, calibration: dict) -> dict:
 
 def submit(sources, args) -> int:
     from api.services.wisdom.core import store, timeutil
-    from api.services.wisdom.extract import batch, segmenter
+    from api.services.wisdom.extract import batch, golden, segmenter
 
     store.init_db()
     now = timeutil.iso_et(timeutil.now_et())
@@ -118,7 +118,33 @@ def submit(sources, args) -> int:
                          "title, ingest_version, ingested_at) VALUES (?, ?, ?, 1, ?, ?, 'catalog-tool', ?)",
                          (src["source_id"], src["stream"], src["external_ref"], src["raw_sha256"], src["title"], now))
             segmenter.write_segments(conn, src["source_id"], 1, src["segments"])
-    ctx = common.job_context(dry_run=False)
+    # ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): this door used to call
+    # batch.submit_pending directly with NEITHER the WISDOM_EXTRACT_ENABLED kill switch NOR the
+    # golden gate checked, despite this module's own docstring claiming "the budget and the gate
+    # still apply" -- only the raw numeric budget cap actually applied. An operator who set
+    # WISDOM_EXTRACT_ENABLED=0 believing it was THE kill switch (as budget.py's own docstring
+    # says) would still have this door spend real money.
+    #
+    # ⛔ force=False HERE, DELIBERATELY, NOT the tool default of True. R64 is absolute: "a forced
+    # run can NEVER spend, whatever any flag says" -- so force=True would make spend_allowed()
+    # unconditionally refuse and this door would never work at all. That is backwards: this tool
+    # IS R64's "dedicated paid action that shows the projected cost" (the default dry-run mode
+    # above prints exactly that estimate) and `--i-understand-this-spends` IS the operator
+    # echoing it back -- the human confirmation R64 requires before a deliberate one-off may
+    # spend. `force` here is about bypassing SCHEDULING (trading-day checks, the master switch),
+    # which is meaningless for a manual CLI invocation; it was never about whether THIS action,
+    # once the human has confirmed it, may spend.
+    ctx = common.job_context(dry_run=False, force=False)
+    if not batch.spend_allowed(ctx):
+        out = {"status": "refused", "reason": batch.spend_refusal(ctx)}
+        print(json.dumps(out, indent=1, default=str))
+        return 1
+    with store.read() as conn:
+        gate = golden.gate_status(conn)
+    if not gate.get("accepted"):
+        out = {"status": "blocked_by_gate", "gate": {k: gate.get(k) for k in ("accepted", "run_id", "reason")}}
+        print(json.dumps(out, indent=1, default=str))
+        return 1
     out = batch.submit_pending(ctx, limit=args.submit_limit)
     print(json.dumps({k: v for k, v in out.items() if k != "build"}, indent=1, default=str))
     return 0

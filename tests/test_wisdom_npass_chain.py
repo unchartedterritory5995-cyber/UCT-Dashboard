@@ -27,7 +27,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from api.services.wisdom.core import store, timeutil  # noqa: E402
-from api.services.wisdom.extract import batch, run_records  # noqa: E402
+from api.services.wisdom.extract import batch, budget, run_records  # noqa: E402
 
 
 @pytest.fixture()
@@ -244,15 +244,38 @@ def test_an_unusable_nightly_budget_stops_the_night_before_any_request(env, monk
 
 
 def test_the_nightly_cap_never_RAISES_the_programme_total(env, monkeypatch):
-    """⛔⛔ THE DIRECTION THAT MATTERS. A per-night value sits INSIDE the programme total; if it
-    were passed through unconditionally, setting it to 9999 would raise a ceiling it is supposed to
-    tighten. The tightest binds — always."""
-    import inspect
+    """⛔⛔ THE DIRECTION THAT MATTERS, TESTED AS BEHAVIOR — NOT AS SOURCE TEXT. R65's own comment
+    narrates the real incident this guards: "$75 of night-1 actuals against a combined cap of 75.0
+    allowed 0 of 10 on night 2, while $45 of programme headroom sat unused." The bug was
+    `cap = min(programme_cap, night_cap)` used as THE cap, then compared against CUMULATIVE
+    PROGRAMME spend -- so a small night-1 cap, once spent, poisoned every later night's check even
+    though each night is supposed to get its OWN fresh allowance against its OWN spend.
 
-    src = inspect.getsource(batch.submit_pending)
-    assert "min(programme_cap" in src, (
-        "the nightly cap is not combined with min() — a large nightly value could raise the "
-        "programme total instead of tightening it")
+    ⚰️ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): the prior version of this
+    test asserted `"min(programme_cap" in inspect.getsource(batch.submit_pending)`. The ONLY place
+    that substring appears in the real source is inside the R65 comment NARRATING the removed bug;
+    the current code two lines later explicitly does the opposite. The test passed on prose
+    describing a fixed bug, not on any code path — it would stay green through a real revert to the
+    pre-R65 min() shape (nobody deletes the comment explaining why the code looks the way it does)
+    and would go red on a harmless comment rewording. Same disease as the calibration bug this
+    session already fixed, one test away."""
+    with store.write() as conn:
+        # Night 1 (2026-09-18) already spent its own $5 night cap in full.
+        conn.execute("INSERT INTO wisdom_batches (batch_id, kind, extractor_version, model, "
+                     "submitted_at, status, request_count, cost_usd_actual, budget_cap_usd) VALUES "
+                     "('b-night1', 'extract', 'v0', 'm', '2026-09-18T20:00:00-04:00', 'reaped', "
+                     "1, 5.0, 120.0)")
+    with store.read() as conn:
+        # Night 2 is a DIFFERENT date with its own $5 night cap and $115 of unused PROGRAMME
+        # headroom ($120 total, only night 1's $5 spent) -- it must get a fresh allowance.
+        d = budget.select_within_budget(conn, "v0", [2.0, 2.0, 2.0], cap=120.0,
+                                        night_cap=5.0, night_date="2026-09-19")
+    assert d.allowed_count == 2, (
+        f"expected night 2's OWN $5 cap (unrelated to night 1's already-spent $5) to admit "
+        f"exactly 2 of 3 $2 items -- got {d.allowed_count}. If this is 0, the night cap was "
+        f"min()'d with the programme cap and checked against CUMULATIVE programme spend "
+        f"(night 1's $5) instead of night 2's own ($0) -- exactly the R65 incident.")
+    assert "night budget stop" in (d.reason or ""), d.reason
 
 
 def test_the_night_budget_shrinks_as_passes_are_submitted(env, monkeypatch):
@@ -309,6 +332,90 @@ def test_a_pass_that_would_cross_the_night_budget_submits_NOTHING(env, monkeypat
     assert calls == [1, 2], f"pass 3 was submitted past the night's budget: {calls}"
     stops = [r for r in out["pass_results"] if r.get("status") == "night_budget_stop"]
     assert len(stops) == 1 and stops[0]["pass_index"] == 3
+
+
+def test_run_daily_asks_every_pass_to_refuse_rather_than_ship_a_partial(env, monkeypatch):
+    """⛔ THE WIRING CHECK. `all_or_nothing` is a real guard inside `submit_pending` (proved by the
+    non-mocked test below), but `run_daily` still has to ASK for it on every pass — a spy on
+    `submit_pending` is what catches a caller that added the parameter and forgot to pass it."""
+    monkeypatch.setenv(batch.PASSES_ENV, "3")
+    monkeypatch.setattr(batch, "segment_pending_sources", lambda **kw: {"segmented": 0})
+    monkeypatch.setattr(batch.golden, "gate_status",
+                        lambda conn, **kw: {"accepted": True, "run_id": "g", "reason": None})
+    monkeypatch.setattr(batch, "pending_segments", lambda conn, v, n: [{"segment_id": "s1"}])
+    monkeypatch.setattr(batch, "retry_rows", lambda *a, **k: [])
+    seen: list = []
+
+    def fake_submit(ctx, **kw):
+        seen.append(kw.get("all_or_nothing"))
+        return {"status": "submitted", "selected_estimate_usd": 0.0,
+                "pass_index": kw.get("pass_index"), "run_id": kw.get("run_id")}
+
+    monkeypatch.setattr(batch, "submit_pending", fake_submit)
+    batch.run_daily(_ctx(), client=object())
+    assert seen == [True, True, True], (
+        f"expected every one of the 3 passes to ask submit_pending for all_or_nothing, got {seen}")
+
+
+def test_a_partial_fit_ships_by_default_and_is_refused_with_all_or_nothing(env, monkeypatch):
+    """⛔⛔ THE PRODUCTION BUG, REPRODUCED WITHOUT MOCKING `submit_pending` OR `select_within_budget`.
+
+    Found 2026-09-19, session 28's first real night: pass 1 and pass 2 of a 3-pass run cost
+    slightly more than their planned 1/3 share, leaving pass 3 a REMAINING night budget that was
+    POSITIVE but too small for its full segment list. `run_daily`'s own pre-check
+    (`remaining <= 0`) never saw a problem — it only catches full exhaustion — so `submit_pending`
+    ran, `select_within_budget` trimmed the segment list down to what fit, and pass 3 shipped 92
+    of the 105 segments passes 1 and 2 had covered. `reconcile.reconcile()` then permanently
+    refused to score that night: three passes over three DIFFERENT segment sets is not
+    "the extractor disagreed", it is "we never asked the same question three times."
+
+    Three real, identical-cost segments (same source, same text) and a night cap sized to cover
+    exactly 1.5 of them reproduce the exact shape: enough budget to look fine at a glance
+    (`remaining > 0`), not enough to cover the pass.
+    """
+    from api.services.wisdom.extract import segmenter
+    from tests.test_wisdom_extract_batch import FakeClient, TEXTS
+
+    monkeypatch.setattr(batch.golden, "gate_status",
+                        lambda conn, **kw: {"accepted": True, "run_id": "g", "reason": None})
+    with store.write() as conn:
+        conn.execute("INSERT INTO wisdom_sources (source_id, stream, external_ref, version, raw_sha256, "
+                     "published_at_et, ingest_version, ingested_at) VALUES ('src1','sunday_scans','t:1',1,'x',"
+                     "'2026-09-06T08:00:00-04:00','t','2026-09-06T09:00:00-04:00')")
+        segs = [segmenter.Segment(ordinal=i, kind="section", text=TEXTS[0], char_start=0, char_end=len(TEXTS[0]),
+                                  path="INTRO", author_id="tsdr", speaker_confidence="medium")
+                for i in range(3)]
+        segmenter.write_segments(conn, "src1", 1, segs)
+    with store.read() as conn:
+        segment_rows = batch.pending_segments(conn, batch.prompt.extractor_version(), 10)
+    assert len(segment_rows) == 3, "fixture must produce exactly 3 identical-cost segments"
+
+    night = "2026-09-19"
+    # A generous budget to measure this fixture's real per-segment cost -- never hand-typed.
+    probe = batch.submit_pending(_ctx(dry_run=True), client=FakeClient(), segment_rows=segment_rows,
+                                 include_retries=False, night_cap_usd=1000.0, night_date=night)
+    per_item = probe["selected_estimate_usd"] / 3
+    assert per_item > 0, "the probe call selected nothing; this test would be vacuous"
+    night_cap = per_item * 1.5   # room for 1 of 3, not all 3 -- and NOT <= 0, so the coarse
+                                 # pre-check in run_daily cannot see this case at all.
+
+    default = batch.submit_pending(_ctx(), client=FakeClient(), segment_rows=segment_rows,
+                                   include_retries=False, night_cap_usd=night_cap, night_date=night,
+                                   pass_index=2, run_id="r-p2-default")
+    assert 0 < default["selected"] < 3, (
+        f"expected the DEFAULT (all_or_nothing=False) call to reproduce the bug with a partial "
+        f"trim, got {default['selected']}/3 -- if this is 0 or 3 the fixture's budget math drifted")
+
+    guarded = batch.submit_pending(_ctx(), client=FakeClient(), segment_rows=segment_rows,
+                                   include_retries=False, night_cap_usd=night_cap, night_date=night,
+                                   pass_index=3, run_id="r-p3-guarded", all_or_nothing=True)
+    assert guarded["selected"] == 0, guarded
+    assert guarded["selected_estimate_usd"] == 0.0
+    assert guarded["status"] == "would_break_pass_parity"
+    with store.read() as conn:
+        shipped = conn.execute(
+            "SELECT COUNT(*) FROM wisdom_extract_requests WHERE run_id = 'r-p3-guarded'").fetchone()[0]
+    assert shipped == 0, "all_or_nothing refused the pass but a request row was written anyway"
 
 
 # ── the migration ────────────────────────────────────────────────────────────

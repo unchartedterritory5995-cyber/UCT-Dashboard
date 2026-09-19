@@ -1,7 +1,14 @@
 ---
 id: WISDOM-LOOP-MANIFEST
 title: UCT Wisdom Loop — Program Manifest
-status: Wave 1 IN BUILD (owner GO v2.0, 2026-09-13) · D1–D20 YES · D16 split (D16a YES / D16b DEFERRED) · build contract = CONTRACTS.md · 25 gates declared dark · nothing merged to master
+status: STALE STATUS LINE (frozen 2026-09-13) — corrected 2026-09-19: Wave 1 has been merged to
+  master and deployed multiple times since (verify current state via `docs/wisdom/HARD-RULES.md`,
+  the continuously-appended running log, not this line); "25 gates declared dark" no longer holds
+  either — several are legitimately armed (see `docs/feature_flags.json`). The mission/architecture
+  content below this frontmatter is a design document, not a status log, and is not known to be
+  stale by the same measure — only this status line was re-verified as part of the 2026-09-19
+  session-state refresh. D1–D20 YES · D16 split (D16a YES / D16b DEFERRED) · build contract =
+  CONTRACTS.md (as of 2026-09-13; not re-verified)
 branch: feat/wisdom-loop (cut from f4fc5d1c1; rebased on origin/master f34ce660b, 2026-09-13)
 owner: Patrick (TSDR) · decisions: §12 · former owner-only tasks, now agent-run: §13
 ---

@@ -297,6 +297,16 @@ def test_exactly_six_call_authors_and_exact_alias_matching():
 
 
 def test_every_gate_defaults_off_is_read_by_name_and_is_declared_dark(monkeypatch):
+    # ⛔ "declared dark" used to mean the LEDGER status, not just the code default -- but session
+    # 28 legitimately armed four gates (WISDOM_CONTEXT_SNAPSHOT_ENABLED/OUTCOMES/REPLAY/METRICS,
+    # owner-GO'd D11-D20 work, `docs/feature_flags.json` "armed") without ever re-running this
+    # test, so it silently rotted from "every gate is dark today" (a snapshot) into a false
+    # universal claim. The property this test actually needs to hold -- and the only one true of
+    # BOTH a not-yet-shipped gate and a shipped-and-armed one -- is CODE-LEVEL: unset always reads
+    # False (checked above), and the ledger has a real, named, non-trivial entry for it (never
+    # missing, never a placeholder). "Every gate defaults off" stays literally true (a gate
+    # defaults off in CODE regardless of whether the owner has since armed it in the ledger); only
+    # the "and is declared dark" half is now "and is declared, one of the two real statuses."
     ledger = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
     envs = [env for env, _, _ in flags.GATES]
     assert len(envs) == len(set(envs))
@@ -308,7 +318,7 @@ def test_every_gate_defaults_off_is_read_by_name_and_is_declared_dark(monkeypatc
         assert reader() is True, env
         monkeypatch.delenv(env)
         entry = ledger.get(env)
-        assert entry and entry["status"] == "dark" and len(entry["note"].strip()) >= 20, env
+        assert entry and entry["status"] in ("dark", "armed") and len(entry["note"].strip()) >= 20, env
     readers = sorted(n for n, v in vars(flags).items() if callable(v) and n.endswith("_enabled"))
     assert readers == sorted(r.__name__ for _, r, _ in flags.GATES)
 

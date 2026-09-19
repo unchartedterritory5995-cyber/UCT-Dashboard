@@ -40,8 +40,9 @@ PACKET_VERSION = "recognition-packet-v0"
 # CONTRACTS §6.5 metric names (test_wisdom_publish_admin_report derives them from the contract).
 EXPECTED_METRICS = (
     "uct_see_rate_any", "uct_see_rate_topn", "uct_see_rate_setup", "false_positive_rate",
-    "outcome_weighted_see_rate", "grounding_faithfulness", "grounding_citation_validity",
-    "grounding_coverage", "extractor_precision", "extractor_recall", "capture_health",
+    "outcome_weighted_see_rate", "call_track_record", "grounding_faithfulness",
+    "grounding_citation_validity", "grounding_coverage", "extractor_precision", "extractor_recall",
+    "capture_health",
 )
 
 FIRST_WEEKLY_REPORT_DUE = date(2026, 9, 20)  # W1 §9.1 scheduled gate

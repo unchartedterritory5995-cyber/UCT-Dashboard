@@ -502,6 +502,79 @@ def test_it_is_NOT_a_registered_JobSpec_so_a_quiet_night_cannot_page(env):
     assert same_night.JOB_ID not in ids
 
 
+def _two_night_fixture(root):
+    """Two DISTINCT, complete nights (OTHER_NIGHT older/backlogged, NIGHT newer), each with its
+    OWN record content -- so a stability value proves WHICH night's directories were actually
+    reconciled, rather than merely that reconciliation ran."""
+    # ⚠️ Idents share NO word tokens with each other (R43's MARKET_SIGNAL clustering merges any
+    # pair at Jaccard >= 0.5; a shared prefix like "sig-alpha"/"sig-beta" shares 2 of 4 tokens
+    # and merges anyway) -- distinct real words keep the two "odd one" signals from clustering
+    # into the stable one and washing out the 2/3 stability this test depends on.
+    older_stable = _row("seg-1", "PRINCIPLE", ident="older-size-down", record_id="r_older_prin")
+    older_signal_a = _row("seg-1", "MARKET_SIGNAL", ident="breadth-washout", record_id="r_older_sig_a")
+    older_signal_b = _row("seg-1", "MARKET_SIGNAL", ident="volume-collapsing", record_id="r_older_sig_b")
+    _write_run(root, f"{OTHER_NIGHT}-chain-p1", [older_stable, older_signal_a])
+    _write_run(root, f"{OTHER_NIGHT}-chain-p2", [older_stable, older_signal_a])
+    _write_run(root, f"{OTHER_NIGHT}-chain-p3", [older_stable, older_signal_b])
+
+    newer_stable = _row("seg-1", "PRINCIPLE", ident="newer-size-down", record_id="r_newer_prin")
+    newer_signal_a = _row("seg-1", "MARKET_SIGNAL", ident="tape-improving", record_id="r_newer_sig_a")
+    newer_signal_b = _row("seg-1", "MARKET_SIGNAL", ident="credit-tightening", record_id="r_newer_sig_b")
+    _write_run(root, f"{NIGHT}-chain-p1", [newer_stable, newer_signal_a])
+    _write_run(root, f"{NIGHT}-chain-p2", [newer_stable, newer_signal_a])
+    _write_run(root, f"{NIGHT}-chain-p3", [newer_stable, newer_signal_b])
+
+
+def _insert_record(conn, record_id, rtype):
+    conn.execute(
+        "INSERT INTO wisdom_records (record_id, record_type, segment_id, source_id, "
+        "source_version, extractor_version, record_hash, author_id, extraction_confidence, "
+        "created_at) VALUES (?, ?, 'seg-1', 'src1', 1, ?, ?, 'tsdr', 'high', ?)",
+        (record_id, rtype, VERSION, record_id, timeutil.iso_et(timeutil.now_et())))
+
+
+def test_a_backlog_of_two_nights_reconciles_EACH_nights_OWN_records(env, monkeypatch):
+    """⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): `reconcile.score_silently`
+    used to ignore WHICH night it was scoring and always reconcile whichever `floor.MIN_RUNS` run
+    directories were alphabetically LAST under the shared root -- correct for the single newest
+    pending night, wrong the moment a BACKLOG of 2+ nights is pending in one tick (an outage, or
+    scoring simply falling behind, both real and already anticipated by MAX_NIGHTS_PER_TICK). The
+    OLDER night would silently reconcile the NEWER night's own run directories a second time,
+    succeed (no version/segment mismatch -- they ARE a valid triple, just not this night's), and
+    `registry.run_tracked` would mark the OLDER night's claim 'ok' anyway (it only checks whether
+    the callable raised) -- permanently starving the older night's own records at
+    stability=NULL, with `_already_scored` never retrying a claim already 'ok'.
+
+    This is the REAL path end to end (no mocked `reconcile.score_silently`), unlike
+    `test_the_backlog_is_bounded_and_the_newest_night_is_never_starved` above, which spies on
+    exactly the function whose internal scoping is at fault here and so could not have caught
+    this."""
+    _two_night_fixture(env.root)
+    with store.write() as conn:
+        for rid, rtype in (("r_older_prin", "PRINCIPLE"), ("r_older_sig_a", "MARKET_SIGNAL"),
+                          ("r_older_sig_b", "MARKET_SIGNAL"), ("r_newer_prin", "PRINCIPLE"),
+                          ("r_newer_sig_a", "MARKET_SIGNAL"), ("r_newer_sig_b", "MARKET_SIGNAL")):
+            _insert_record(conn, rid, rtype)
+    night_rows(OTHER_NIGHT, ["done", "done", "done"])
+    night_rows(NIGHT, ["done", "done", "done"])
+
+    out = same_night.score_completed_nights(ctx())
+    statuses = {s["night"]: s["status"] for s in out["scored"]}
+    assert statuses == {OTHER_NIGHT: "ok", NIGHT: "ok"}, statuses
+
+    with store.read() as conn:
+        rows = {r["record_id"]: (r["stability"], r["stability_runs"])
+                for r in conn.execute("SELECT record_id, stability, stability_runs FROM wisdom_records")}
+    # Each night's OWN 3/3-stable PRINCIPLE must be scored from ITS OWN passes, not the other
+    # night's -- under the bug, the older night's records stay untouched (None, None) because the
+    # reconciled result never contains their record_ids at all.
+    assert rows["r_older_prin"] == (1.0, 3), rows["r_older_prin"]
+    assert rows["r_newer_prin"] == (1.0, 3), rows["r_newer_prin"]
+    # Each night's OWN 2/3 MARKET_SIGNAL (the "a" variant, present in passes 1+2 of THAT night).
+    assert round(rows["r_older_sig_a"][0], 3) == round(2 / 3, 3), rows["r_older_sig_a"]
+    assert round(rows["r_newer_sig_a"][0], 3) == round(2 / 3, 3), rows["r_newer_sig_a"]
+
+
 def test_the_night_question_is_indexed_and_the_migration_is_additive(env):
     """⚠️ The scan runs at :16 and :46 forever over a ledger that only grows."""
     from api.services.wisdom.extract import schema

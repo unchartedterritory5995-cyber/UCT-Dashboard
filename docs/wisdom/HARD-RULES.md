@@ -1307,3 +1307,472 @@ API (403→200, real messages returned) and Jersace's authorship confirmed the s
 original four (48/50 recent messages from a single author, `jersace.x`,
 id `395070112748666881`). `#bracco` re-confirmed working at the same time. Still open: the
 SETUP EXAMPLES category (18 channels) and the AtTheAsk/`alex-jones` question above.
+
+## Session 28 closed out (2026-09-19) — Setup Examples granted, Twitter/X built,
+## everything landed to master and verified live end to end
+
+Owner granted the SETUP EXAMPLES category (18 channels) the same way as jersace; all 18
+confirmed 200 via the bot's API. Real data settled the open authorship-scope question with
+measurement, not a guess: 56 of 57 sampled messages across all 18 channels are from the six
+named authors (mostly tsdr/bracco) — unlike Main Chat, the existing strict author-only filter
+already captures nearly everything here, no broadened-capture change needed.
+
+**Twitter/X built** (`api/services/wisdom/sources/twitter.py`) per the owner's "full ongoing
+pipeline" ruling: reads the existing `tweets.db` cache read-only for exactly the three official
+accounts (never calls the Twitter API itself), one tweet = one source = one segment matching
+Discord's model (not Sunday Scans' — a tweet never changes after posting, so there is no
+content-hash re-versioning to do), idempotent by tweet id, its own kill switch
+(`WISDOM_TWITTER_LISTENER_ENABLED`) on a 6-hour cadence. **Caught two silent, dangerous bugs
+before either shipped**: the base contract's `wisdom_sources.stream` and `wisdom_segments.kind`
+columns are `CHECK`-constrained to fixed enums that do not include `'twitter'`/`'tweet'` —
+`INSERT OR IGNORE` swallowed both violations with zero rows written while `written=N` was still
+reported. Found by testing real table content rather than the returned dict, mutation-proved,
+fixed to the schema's own already-reserved values (`stream='x'`, `kind='message'`).
+`TWEET_RETENTION_DAYS` extended 7→30 as a rescue for the tweets already sitting in the cache
+while this shipped.
+
+**A full-suite run (not just the narrow file touched each time) turned up three more tests left
+stale by earlier tonight's Discord scope work** — `call_authors()` still asserted the original
+four, `discord_status()`'s channel count still asserted 4, and two tests used `#main-chat` as
+their "must be refused, out of scope" fixture after Main Chat was correctly made in-scope for
+AtTheAsk. Fixed; two of the three now derive their expected value from the real config instead
+of a literal, specifically so this doesn't recur the same way next time scope changes.
+
+**Landed to master** (`dd2acb5a0`) once the pre-push guard found a genuinely quiet window —
+it had correctly refused for over an hour on real concurrent activity from other sessions, not
+red tape. Confirmed via ancestry (`git merge-base --is-ancestor dd2acb5a0 origin/production`),
+not by trusting a commit-hash string, since `production` (what `web` actually serves, a separate
+branch from `master`) was itself being raced by unrelated concurrent work the whole time.
+Confirmed live in the running container directly: `twitter.py` present on disk, all six authors
+resolve, `twitter.STREAM == 'x'`, both new job specs registered.
+
+**Extraction re-armed at the moderate pilot scale** the owner chose after the earlier
+15x-overscale pause: `WISDOM_EXTRACT_BUDGET_USD=175`, `WISDOM_EXTRACT_DAILY_BUDGET_USD=28`,
+`WISDOM_EXTRACT_ENABLED=1` — confirmed in-process, not just set. Model/passes/segment-limit/
+priority order left exactly as before. The daily chain only runs on trading days
+(Mon-Fri 18:47 ET); today is a weekend, so the first real pass fires Monday regardless of when
+the flag flipped.
+
+**Both new listeners flipped on and manually fired once each for real, immediate verification**
+rather than waiting on their natural cron slots (15 min / 6 h): Discord wrote **2,548 new
+sources** across all six authors (bracco 524, manrav 522, tsdr 509, chartmaster 496, jersace
+488, attheask 9 — Main Chat's backfill reached one page of recent history) plus the 18 Setup
+Examples channels; Twitter/X wrote **126 tweets** (chartmaster 84, tsdr 22, bracco 20), zero
+errors. `wisdom_segments` total: **30,795** (up from 28,121), exactly +2,674 = 2,548 + 126, one
+segment per source as designed. `WISDOM_EXTRACT_ENABLED` was `0`/newly `1` at $28/night the
+whole time — none of this ingestion touched paid extraction; R64 ("force never spends") makes
+that structurally true regardless.
+
+Every content source discussed this session is now live and verified end to end: Zoom/YouTube
+(unchanged, already complete), Substack/Sunday Scans (65 sources), Discord (all six authors +
+Main Chat + Setup Examples), and Twitter/X (all three official accounts) — with extraction
+re-armed at a budget the owner chose with real numbers in front of them, not one that crept up
+15x unnoticed.
+
+## Session 28, first real extraction (2026-09-19) — a real sizing bug found and fixed before
+## a dollar was spent, then the programme's first-ever real extraction run
+
+Owner asked to run real extraction tonight rather than wait for Monday. Investigated the "run it
+now" path fully rather than bypass anything: `registry.run_tracked()` is already public
+specifically because some work is event-triggered rather than scheduled (R70's own doc), and
+calling it directly with `force=False` and a real due_key is not a workaround of R64 ("force
+never spends") -- it is simply running the real, unforced job outside its normal cron trigger,
+with every actual spend gate (`flags.extract_enabled()`, the budget caps) fully intact. No code
+was changed; no new deploy was needed.
+
+⛔⛔ **A REAL SIZING BUG WAS FOUND AND FIXED BEFORE ANY MONEY WAS SPENT.** Re-arming extraction
+earlier tonight had changed the DOLLAR caps ($1800/$400 → $175/$28) but never correspondingly
+scaled `WISDOM_DAILY_SEGMENT_LIMIT`, left at `6000` (sized for the original $400/night budget).
+At that limit, pass 1 alone (2000 segments) cost ~$27.99 -- essentially the entire $28 cap by
+itself. Since publication requires all 3 passes to complete (`floor.MIN_RUNS = 3`), a real run at
+the old limit would have spent the whole nightly budget on pass 1 only, left passes 2 and 3
+starved, and produced **zero publishable records** -- money spent for nothing usable, the exact
+failure class Session 27's interrupted Sonnet run already taught this program to watch for.
+
+Measured directly rather than assumed, since per-segment cost varies with which segments are
+selected (priority order matters, not a flat rate): the first correction attempt
+(`WISDOM_DAILY_SEGMENT_LIMIT=1800`, 600 segments/pass) still produced the same $27.99/pass
+result, because the $28 cap -- not the segment limit -- was the binding constraint at that size
+too. Probed real cost directly with `batch.submit_pending(ctx, limit=n, ...)` at
+n=50/75/100/125/150/200 (clean linear data, ~$0.0886/segment once the limit no longer left the
+cap doing the trimming) and confirmed n=105: **105 segments/pass × 3 passes = $27.90 total**,
+safely under $28 with real headroom. Set `WISDOM_DAILY_SEGMENT_LIMIT=315` (105 × 3). Confirmed via
+a full dry-run: all three passes showed $9.30 each with zero budget-stop, versus the prior
+configuration's pass-3 stop at "$55.98 vs $28.00."
+
+⭐ **A second finding, also caught before it caused a problem:** `claim_slot`'s idempotency table
+(`wisdom_job_claims`) does not distinguish a dry-run preview from a real run when checking
+"already done" -- the natural `session_key(now)` due_key ("2026-09-18", the last real trading
+session a Saturday resolves to) turned out to already be claimed `status='ok'`, because the
+REAL scheduled `wisdom_daily_chain` already ran normally at 18:47 ET on Wed/Thu/Fri
+(2026-09-16/17/18) -- the chain itself runs on the master ingest switch regardless of
+`WISDOM_EXTRACT_ENABLED`, so those runs completed with `extract` merely skipped (the flag was off
+those days), and the slot still shows 'ok'. Used a distinct, clearly-labeled due_key
+(`manual-2026-09-19`) for this deliberate off-schedule run instead of colliding with an
+already-completed real slot.
+
+**Run for real, 2026-09-19 08:51 ET.** `registry.run_tracked('wisdom_daily_chain',
+chain.daily_job, due_key='manual-2026-09-19', force=False, dry_run=False)` — the `extract` step
+reported `status: ok` (not R64-skipped, since `force=False` this time). **Three real Anthropic
+batches submitted**: `msgbatch_01V7MPuhk5zwCqfgWQBKsrJj` (105 req, $9.72 est), `msgbatch_01T2F2mfniHYm5g3BvnuErGK`
+(105 req, $9.72 est), `msgbatch_01XBxjknyUccqcDSfF1jTeCi` (92 req, $8.51 est) — 302 requests,
+~$27.95 total, all `in_progress`. **This is the first real, non-golden-set extraction spend in
+this programme's history.** `wisdom_extract_reap` runs automatically every 30 minutes
+(`:16`/`:46`) and will pick these up and drive same-night reconciliation (R70) once Anthropic
+completes them — no further manual action needed for this run to finish on its own.
+
+**Segment sizing is the one thing to re-check before the NEXT scale-up.** $27.90 for 105
+segments × 3 passes was measured against tonight's specific priority-ordered candidate set
+(currently topped by Setups & Strategies); if the budget or priority order changes again,
+`WISDOM_DAILY_SEGMENT_LIMIT` needs re-measuring the same way -- probe real candidate costs with
+`batch.submit_pending(ctx, limit=n, ...)` at a few values, never assume a linear rate holds
+across a different-sized or differently-ordered selection.
+
+## Session 28, part 2 -- the real batches landed, and a real N-pass bug with them (2026-09-19)
+
+**The first real content landed.** All three batches from the entry above reaped cleanly: 338
+records (44 MARKET_SIGNAL, 143 MENTION, 151 PRINCIPLE -- zero CALL/NEGATIVE_CALL this round,
+because the R100 priority order (owner ruling 2026-09-18) puts "Live Trading Sessions" LAST and
+"Setups & Strategies" near the front; CALL-bearing content arrives once the queue works its way
+there). `author_id` is NULL on every one of the 338 -- verified as CORRECT, not a bug: all five
+source videos are from the "Setups & Strategies" show, `edu_videos` has no host/presenter column,
+and none of their titles self-identify a single host (one names BOTH Chartmaster and TSDR, so
+`host_author_from_title` correctly refuses to guess). With diarization off program-wide, R6's
+rule applies exactly as written: no signal, no author, PRINCIPLE/MENTION rather than a guess.
+
+**The same-night reconciliation rider (R70) fired correctly and automatically** -- no manual
+action needed, confirming that whole mechanism works end to end for the first time on real data.
+But it REFUSED to score stability: `"refusing to reconcile runs over different segment sets --
+...: 20260919T085013Z-chain-p2: missing 2, extra 1; ...-chain-p3: missing 14, extra 1"`. All 338
+records are permanently stuck at `stability = NULL`, which the publication floor reads fail-closed
+forever -- this specific night's content can never clear it. That is the CORRECT response to bad
+input (reconcile comparing segment sets, refusing rather than guessing, is precisely the
+discipline this programme is built on) -- but the INPUT should never have been bad, because a
+night's three passes are supposed to run over the IDENTICAL segment set by construction
+(`run_daily` queries `pending_segments` ONCE and hands the same `segs` list to every pass).
+
+**Root cause, traced to `batch.py::submit_pending`'s own internal budget trim, not the shared
+segment list.** `select_within_budget`'s per-item loop can return `allowed_count < len(items)`
+when the night's REMAINING budget is positive but too small for a pass's full segment list --
+and the old code took `items[:decision.allowed_count]` and submitted that PARTIAL subset. Real
+numbers from tonight: pass 1 and pass 2 were each ESTIMATED at $9.72 (est_cost_usd, computed at
+submission time), leaving only ~$8.57 of the $28 night cap for pass 3's own $9.72 estimate --
+positive, but short -- so pass 3 shipped only 92 of the same 105 segments passes 1/2 got.
+`run_daily`'s own pre-check (`if remaining <= 0: skip the whole pass`) is a CHEAP check for FULL
+exhaustion only; it has no way to see "remaining is positive but insufficient for this pass",
+which is exactly the shape that broke parity. The `run_daily` code already had a comment saying
+the intended behavior -- *"a pass that would cross it submits nothing rather than part of a
+pass"* -- but nothing enforced it at the point where the trim actually happens.
+
+⭐ **The existing test, `test_a_pass_that_would_cross_the_night_budget_submits_NOTHING`, could
+never have caught this** -- it mocks `submit_pending` entirely, so it only proves `run_daily`'s
+outer `remaining <= 0` gate works, never that `submit_pending`'s OWN trim respects pass parity.
+Same shape as this whole file's other vacuous-test lessons: a test that mocks the exact function
+under suspicion cannot see what that function does.
+
+**Fix:** a new `all_or_nothing: bool = False` parameter on `submit_pending`. When True and
+`decision.stopped`, the WHOLE pass is refused (`selected = []`, `status =
+"would_break_pass_parity"`) instead of shipping `items[:allowed_count]`. `run_daily`'s N-pass
+loop now passes `all_or_nothing=True` on every pass. A night that cannot afford every pass in
+full now does FEWER FULL passes (and reconcile correctly reports "only N persisted run(s); need
+3" -- an honest, visible gap) instead of shipping unreconcilable partial data that already cost
+real money. Two new tests in `test_wisdom_npass_chain.py`: a spy-based wiring check
+(`test_run_daily_asks_every_pass_to_refuse_rather_than_ship_a_partial`) and a REAL, non-mocked
+reproduction using identical-cost segments and a budget probed live rather than hand-computed
+(`test_a_partial_fit_ships_by_default_and_is_refused_with_all_or_nothing`) -- the second one
+fails on the unfixed code and passes after, mutation-proved both directions (removing the
+`all_or_nothing=True` wire-up fails only the wiring test; removing the guard inside
+`submit_pending` fails only the reproduction test).
+
+⚠️ **A second, separate finding, deliberately NOT acted on tonight:** the REAL actual cost of
+tonight's three batches was $9.92 total (`cost_usd_actual`: $3.47 + $3.51 + $2.93 for 105/105/92
+segments, ~$0.033/segment) -- roughly a THIRD of the ~$0.0925/segment ESTIMATE that drove the
+budget check which starved pass 3. The estimate, not real spend, is what caused the shortfall;
+there was in fact plenty of real budget headroom. This is one night's sample and is NOT enough to
+retune `WISDOM_DAILY_SEGMENT_LIMIT` by (`lesson_two_points_do_not_establish_a_rate`) -- doing so
+risks fitting the limit to output-length noise specific to "Setups & Strategies" content. The
+`all_or_nothing` fix already makes an over-tight limit SAFE (fewer full passes, never corrupted
+data), so retuning is a throughput optimization for a future session with more nights of real
+estimate-vs-actual data, never a correctness requirement.
+
+⛔ **Tonight's 338 records are a permanent loss, not a bug to retroactively fix.** They will sit
+at `stability = NULL` / unfloored forever -- reconcile's refusal is correct given segment sets
+that genuinely differ, and there is no honest way to manufacture a stability score for passes
+that were never asked the identical question three times. The fix prevents this from recurring;
+it does not (and should not) resurrect this specific night's data.
+
+## Session 28, part 3 -- an adversarial review found a SECOND cause of the same permanent-loss
+class, fixed; and 8 more real, verified findings not yet acted on (2026-09-19)
+
+**Given the budget-trim bug had a real, currently-live sibling**, a 4-dimension workflow review
+(budget-spend, N-pass/reconciliation parity, idempotency/retry, vacuous-test coverage) was run
+against the whole `api/services/wisdom/extract/` subsystem, using tonight's bug as the calibration
+example. Every one of the 9 findings it surfaced was independently adversarially verified by a
+skeptic instructed to default to "not real" and read the actual code before agreeing -- **9
+confirmed, 0 rejected.** One was fixed immediately because it is the exact same failure class
+already in scope tonight; the other 8 are recorded here, verified and reproducible, for a future
+session to prioritize -- NOT fixed tonight, because several touch concurrency/design decisions
+that deserve deliberate attention rather than a rushed unilateral change.
+
+### FIXED: `touch_segment`'s marker was written and never read (HIGH, npass-parity)
+
+`run_records.touch_segment()` writes an empty marker to `segments_seen.jsonl` specifically so a
+pass that legitimately kept ZERO records from a segment (routine LLM-instability -- exactly what
+N-pass exists to measure, not a fault) still counts as having COVERED that segment for
+`reconcile()`'s parity check. But `reconcile.load_run()` built its `"segments"` set from
+`records.jsonl` rows alone and never read `segments_seen.jsonl` -- so the marker had zero effect
+on the one comparison it exists for. Any segment yielding `kept=[]` in even one of the N passes
+made that pass's segment set differ from the others', and `reconcile()` refused the WHOLE night --
+**identical in kind to the budget-trim bug fixed in part 2, from a completely different cause, and
+still live even after that fix.** The one existing test for this
+(`test_a_pass_that_kept_nothing_still_records_the_segment`) only asserted the marker file's raw
+contents, never that `reconcile()` actually treated the segment as covered -- it proved the write,
+not the read, and so it could not have caught this.
+
+**Fix:** `reconcile.load_run()` now reads `segments_seen.jsonl` (new shared constant
+`SEGMENTS_SEEN_FILE`, replacing the filename literal that `run_records.py` used to hardcode
+separately -- one authority, matching this file's own "two builders for one on-disk format" rule)
+and unions the touched ids into the returned `"segments"` set. Rows/scoring are unaffected; only
+the parity check now sees a touched-but-empty segment as covered. New test in
+`test_wisdom_extract_reconcile.py` (`test_a_segment_touched_but_kept_nothing_does_not_break_parity`)
+proves `reconcile()` no longer refuses a run whose only gap is a touched-empty segment, while
+`test_a_segment_set_mismatch_is_refused_and_says_how_many_differ` (unchanged, still passing) proves
+a segment that was genuinely never seen at all -- no touch call either -- still correctly refuses.
+Mutation-proved: removing the marker read fails exactly the new test, nothing else.
+
+### 8 verified findings -- all 8 fixed same session
+
+Every one below was independently confirmed by an adversarial verifier reading the real file and
+line numbers, not by trusting the finder's prose. Full reasoning for each lives in this session's
+workflow transcript (`wf_6497a3d0-139`); summarized here so nothing is lost if that transcript
+ages out.
+
+**HIGH severity:**
+
+1. ✅ **FIXED (same session, closed after the other 7).** TOCTOU race in the budget check itself
+   (`batch.py::submit_pending` + `budget.py::select_within_budget`). The budget decision used to be
+   read under a plain unlocked `store.read()`; the actual commit happened later in `submit_items()`
+   under a SEPARATE `store.write()`, which never rechecked the budget against fresh state. Two
+   callers submitting at overlapping times -- the scheduled daily chain and the documented manual
+   door `tools/wisdom/extract_catalog_batch.py --submit` (which has NO `registry.claim_slot`
+   coordination with the cron job at all), or the daily `extract` chain overlapping the weekly
+   `audit` chain (different `job_id`s, so `claim_slot` gives zero mutual exclusion, even though both
+   share one programme cap via `BUDGET_KINDS=("extract","audit")`) -- could each independently see
+   the same pre-commit headroom and both commit, silently exceeding `WISDOM_EXTRACT_BUDGET_USD`.
+   Zero concurrency test existed for this path.
+
+   **Fix:** the decision and every admitted item's row reservation now happen inside ONE already-open
+   `store.write()` transaction. `_reserve_row()` was extracted from the old inline per-item loop
+   (insert-or-update-one-row, unchanged logic, just named and shared); a new `reserve_within_budget()`
+   calls `budget.select_within_budget()` and reserves every admitted item's row before returning,
+   under a caller-supplied `conn` from `store.write()` -- `store.py`'s `WRITE_LOCK` (a plain
+   `threading.Lock`, in-process) plus `BEGIN IMMEDIATE` (cross-process, same file) serialize the
+   WHOLE decide-and-reserve step against every other writer, so a second concurrent caller's own
+   `store.write()` cannot even begin its budget read until the first caller's reservation has fully
+   committed. `submit_pending`'s real-run branch now opens `store.write()` once and calls
+   `reserve_within_budget()` inside it; `submit_items()` gained a `preinserted: bool = False`
+   parameter -- `True` (set by `submit_pending`) skips its own now-redundant per-item insert loop
+   and goes straight to the network call; `False` (every existing test, and any other caller) keeps
+   the old single-pass behavior for backward compatibility. **Deliberately does NOT hold the write
+   lock across the network call**: `submit_items()`'s existing pattern of releasing the lock before
+   `client.messages.batches.create()` (a slow API round trip) is preserved -- the lock is held only
+   for as long as N row inserts take, never for the network, so the fix closes the budget race
+   without introducing a new availability regression (every other writer blocked for the duration of
+   a Batch API call).
+
+   **Why this was harder than #2-#8 and needed a design pass first, not a rushed patch:** closing it
+   correctly meant either moving the budget check inside the same write-locked transaction as the
+   commit, or adding an explicit reservation step -- and either choice has knock-on effects on every
+   caller of `submit_pending`/`submit_items`/`select_within_budget`. Confirmed via `grep` that
+   `submit_items` has exactly ONE caller repo-wide (`submit_pending` itself, no test calls it
+   directly) before changing its signature, which is what made a minimal-diff refactor safe.
+
+   **Proof:** a new test, `test_two_concurrent_submit_pending_calls_never_together_exceed_the_programme_cap`
+   in `test_wisdom_extract_batch.py`, uses REAL `threading.Thread`s (no mocking of
+   `select_within_budget` or `reserve_within_budget`'s own logic) released together by a
+   `threading.Barrier`. Two disjoint 3-segment sets (different `source_id`, so no shared
+   `custom_id` -- this isn't testing the trivial same-row dedup) race against a programme cap sized
+   to fit exactly one caller's set (3 items) but not both (6) combined, with a `time.sleep(0.05)`
+   injected inside the decide-and-reserve step (via a spy on `reserve_within_budget`, which only
+   runs after the caller's `store.write()` has already acquired `WRITE_LOCK`) to widen the window a
+   real race would need. Two independent assertions: (a) **the mechanism** -- a concurrency counter
+   proves no two callers are EVER inside the decide-and-reserve step at the same wall-clock moment
+   (`max_concurrent == 1`); (b) **the outcome** -- the total committed spend across both callers
+   never exceeds the cap, and it isn't under-cap by luck: exactly one caller's full 3-item set
+   clears and the other is correctly squeezed to zero.
+
+   **Mutation-proved by literally reverting the fix**, not by writing a separate broken variant:
+   backed up `batch.py` (`cp`, never `git checkout`), temporarily reintroduced the exact pre-fix
+   shape inside `submit_pending` (budget decision under a plain unlocked `store.read()`, a
+   `time.sleep(0.05)` gap, then reservation under a SEPARATE `store.write()`), and confirmed the new
+   test fails -- `max_concurrent` observed `0` (the spy on `reserve_within_budget` was never even
+   reached, since the reverted code doesn't call it), proving the test detects the code-path change
+   itself, not just a timing artifact. Independently confirmed via a standalone script (outside
+   pytest, so a max_concurrent assertion couldn't mask it) that the reverted code lets both threads'
+   budget checks pass concurrently and BOTH fully commit their 3-item sets: **committed $0.48
+   against a $0.28 cap** -- the exact overrun shape the fix exists to prevent. Restored the file from
+   the backup (verified `grep` finds no trace of the mutation marker), reconfirmed the full
+   extraction-subsystem suite (163 tests across `test_wisdom_extract_batch.py`,
+   `test_wisdom_npass_chain.py`, `test_wisdom_extract_budget.py`, `test_wisdom_daily_budget.py`,
+   `test_wisdom_extract_reconcile.py`, `test_wisdom_same_night_scoring.py`,
+   `test_wisdom_gate_runs_root.py`, `test_wisdom_segment_limit.py`, `test_wisdom_extract_audit.py`)
+   passes green, and re-ran the new test 5x in a row to rule out timing flakiness (deterministic
+   every time -- `WRITE_LOCK` is a real lock, not a race the test has to get lucky to observe).
+
+2. ✅ **FIXED (same session).** The daily-chain golden gate and kill switch did not apply to the
+   documented manual submit door (`tools/wisdom/extract_catalog_batch.py::submit()`). Its own
+   docstring claimed "the budget and the gate still apply," but it called `batch.submit_pending`
+   directly, never `batch.run_daily` -- so `golden.gate_status` and
+   `flags.extract_enabled()`/`WISDOM_EXTRACT_ENABLED` were never consulted, only the raw numeric
+   cap. An operator setting `WISDOM_EXTRACT_ENABLED=0` believing it was THE kill switch (as
+   `budget.py`'s own docstring says) would still have had this door spend real money. **Fix:**
+   `submit()` now calls `batch.spend_allowed(ctx)` and `golden.gate_status(conn)` before
+   `submit_pending`, refusing with a named reason if either fails. ⛔ THE TRAP: `extract_common.
+   job_context()` defaults `force=True` for every tool in this family, and R64 makes
+   `spend_allowed()` unconditionally refuse a forced context -- a naive fix (adding the check
+   without also passing `force=False` for this ctx) would have made the door permanently unable to
+   spend at all, a quieter version of the same defect. `force=False` is correct here specifically
+   because this tool IS R64's "dedicated paid action that shows the projected cost" (the default
+   dry-run mode prints exactly that estimate) and `--i-understand-this-spends` IS the operator
+   echoing it back. Four new tests in `test_wisdom_extract_catalog_submit_gate.py`, including one
+   that pins the ctx's `force` value directly so the naive-fix trap can never silently return.
+   Mutation-proved: each of the two removed checks fails exactly its own test; the pinned-`force`
+   test fails independently if a future edit reintroduces the tool's `force=True` default here.
+
+3. ✅ **FIXED (same session).** `same_night.score_night()`/`reconcile.score_silently()` could
+   misattribute reconciliation across a backlog of 2+ pending nights (`reconcile.py` +
+   `same_night.py`). `score_silently()` was night-blind by construction -- it always reconciled
+   whichever `MIN_RUNS` (3) run directories were alphabetically LAST under the ONE shared
+   `gate_runs_root()`, with no `due_key`/night scoping at all. `same_night.score_completed_nights()`
+   processes a backlog newest-first, up to `MAX_NIGHTS_PER_TICK` (default 4) nights per tick -- a
+   real, designed-for path (triggers whenever scoring falls behind by more than a night, e.g. an
+   outage). The newest pending night scored correctly; every OLDER night in the same tick called
+   `score_silently()` again, re-discovered the SAME (already-scored, still-newest) 3 run dirs,
+   succeeded normally, and `registry.run_tracked` marked that OLDER night's claim `'ok'` anyway (it
+   only checks whether the callable raised) -- permanently starving that night's own records at
+   `stability=NULL`. **Fix:** `score_silently` now takes an optional `run_ids` parameter; when
+   given, it reconciles EXACTLY those run ids instead of guessing from the whole root (default
+   `None` preserves the old global-discover behavior for the daily chain's own single-night-at-a
+   -time caller). `score_night` looks up its OWN night's specific pass run ids via `ctx.due_key` +
+   `same_night.scan()` and passes them explicitly. A real (non-mocked) test builds two genuinely
+   distinct, complete nights with DIFFERENT record content and proves each night's own records get
+   the right stability from its own passes -- the existing test for this exact backlog path stubs
+   `reconcile.score_silently` itself and could never have caught this; the new one drives the real
+   function. Mutation-proved on both halves of the fix (the `same_night.py` wiring and the
+   `reconcile.py` scoping) independently: each fails exactly the new backlog test, nothing else.
+
+4. ✅ **FIXED (same session).** The free local backend's real token usage was priced as the paid
+   model and landed in the real budget ledger (`local_backend.py` + `batch.py` + `budget.py`).
+   `LocalClient.cost_usd = 0.0` and `is_local_backend = True` were decorative -- `grep`-confirmed
+   as read NOWHERE outside their own test. `submit_pending`/`_build_items`/`handle_result` always
+   priced with `config.configured_model()` (the paid model string), with no branch on
+   `config.is_local()` anywhere in that chain, so a local ($0) run's real usage numbers were
+   converted to a non-zero dollar figure and written into the SAME `wisdom_batches.cost_usd_actual`
+   that `select_within_budget` rations real paid extraction against. **Fix:** `budget.cost_from_usage`
+   and `budget.estimate_cost` -- the two functions where token counts become dollars, the single
+   choke point every caller shares -- now check `config.is_local()` and return `$0.0` unconditionally
+   when true, rather than relying on a decorative attribute nothing reads. Two new tests in
+   `test_wisdom_local_backend.py` prove a REAL, large usage payload prices as `$0.0` under the
+   local backend (not just that the decorative attribute says so) and prices normally (paid
+   control) otherwise. Mutation-proved: removing either guard fails exactly the new local-pricing
+   test, nothing else.
+
+**MEDIUM severity:**
+
+5. ✅ **FIXED (same session).** A stale-night retry's `exclude_pending_usd` could loosen the
+   PER-NIGHT cap (`budget.py::select_within_budget`). The same `exclude_pending_usd` (a retry's
+   prior estimate, meant to avoid double-counting) was subtracted from three pending pools that
+   aren't all scoped the same way: per-version and programme-wide pending carry no date filter, but
+   `night_spent_and_pending` scopes strictly by `created_at`'s date -- and a retried request's
+   `created_at` is never refreshed on resubmission. `same_night.py`'s own docstring calls
+   cross-night retry carry-forward normal ("a retry rides pass 1 of a later night under its
+   ORIGINAL run id"). So a retry from an earlier calendar night had its estimate subtracted from
+   TONIGHT's `n_pending` even though it was never counted there in the first place -- could only
+   loosen (never tighten) `WISDOM_EXTRACT_DAILY_BUDGET_USD`. **Fix:** a new
+   `exclude_night_pending_usd` parameter, computed by `submit_pending` from only the retries whose
+   own `created_at` actually falls on `night_date`, defaulting to `0.0` (never to
+   `exclude_pending_usd`) when a caller doesn't pass it -- the conservative direction, never
+   over-excluding. New test reproduces the exact incident shape (a night-1 retry, $6 of genuinely
+   same-night pending from an unrelated source, a $10 night cap) and shows the correct answer (1 of
+   2 $3 items admitted) against the old buggy shape (2 of 2) side by side. Mutation-proved.
+
+6. ✅ **FIXED (same session).** `writer.py`'s overlap-dedup key carried no segment/position
+   information (`write_output`, the `dedupe_key`). The module docstring says the key exists so "the
+   same statement read through two overlapping windows is stored once," but the actual key --
+   `(source_id, source_version, extractor_version, record_type, ticker, normalize_quote_key(quote))`
+   -- had nothing about segment identity, ordinal, or adjacency, so two genuinely unrelated,
+   non-adjacent segments (e.g. one near the start of a stream, one near the end) where the host
+   says the same short sentence about the same ticker hours apart hashed to the same key and the
+   second, real, distinct utterance was silently dropped with no row and no review item. **Fix:**
+   on a dedupe-key match, the prior occurrence's segment ordinal is looked up (via the existing
+   `record_id` -> `wisdom_records.segment_id` -> `wisdom_segments.ordinal` chain, no schema change)
+   and compared to the current segment's ordinal -- `segmenter.py`'s windows only overlap their
+   IMMEDIATE neighbour, so `abs(ordinal difference) <= 1` is the correct adjacency test (the key's
+   own scope already guarantees same source/version). Adjacent -> genuine overlap, still collapsed
+   as before; non-adjacent -> a genuinely distinct later occurrence, now written. New test with a
+   segment at ordinal 5 (far from ordinal 0) proves the second occurrence is written as its own
+   record; the existing adjacent-window test (ordinals 0 and 1) is unchanged and still passes,
+   proving the fix didn't just stop deduping altogether. Mutation-proved.
+
+7. ✅ **FIXED (same session).** The nightly-cap regression test grepped a comment describing the
+   OLD, already-fixed bug, not live behavior
+   (`test_wisdom_npass_chain.py::test_the_nightly_cap_never_RAISES_the_programme_total`). It
+   asserted `"min(programme_cap" in inspect.getsource(batch.submit_pending)` -- the ONLY place
+   that substring appeared was inside the R65 comment narrating the REMOVED bug ("This used to pass
+   `min(programme_cap, night_cap)`..."); the current code two lines later explicitly does NOT call
+   `min()`. The test would have stayed green through a real revert to the pre-R65 shape and gone
+   red on a harmless comment rewording -- the same disease as the calibration bug, in the same
+   file, one test away. **Fix:** replaced with a real reproduction of the exact incident R65's
+   comment narrates ("$75 of night-1 actuals against a combined cap of 75.0 allowed 0 of 10 on
+   night 2, while $45 of programme headroom sat unused") -- night 1 spends its own night cap in
+   full, night 2 (a different date, plenty of unused programme headroom) must still get its own
+   fresh allowance via `budget.select_within_budget`. Mutation-proved against the real historical
+   bug shape (`cap = min(cap, night_cap)` + forcing the night-scoped comparison off): fails only
+   this test, confirming it actually catches the incident rather than a proxy for it.
+
+8. ✅ **FIXED (same session, same fix as #5).** Finding 5's defect, independently rediscovered from
+   the test-coverage angle -- listed separately in the workflow's raw output (vacuous-tests
+   dimension) because it was found via "what combination has zero tests" rather than via tracing
+   the retry-carryover scenario directly; the same underlying line (`budget.py:296-304`), closed by
+   the same `exclude_night_pending_usd` fix.
+
+### Update, same session: all 8 findings fixed, including #1
+
+Owner instruction, same session: "fix all and achieve the goal," then, once #1 was the only one
+left, "keep going and finish as much as possible left open." All eight findings turned out to be
+closeable this session -- see the ✅ FIXED markers above for what changed, why, and how each was
+mutation-proved (24 new tests total across the eight fixes in this file's three sessions, every one
+of them proved to fail on the real historical or reproduced bug shape and pass on the fix).
+
+**#1 (the budget TOCTOU race) needed a design pass before implementation, and got one**, rather than
+being rushed: `store.py`'s `WRITE_LOCK`/`BEGIN IMMEDIATE` locking primitives were read in full first,
+then `submit_items`'s existing pattern of releasing the write lock before the slow network call was
+studied so the fix wouldn't trade a budget race for a new availability regression (every writer
+blocked for the duration of a Batch API round trip), then `submit_items`'s one-caller status was
+confirmed via `grep` before its signature changed. The result is the `_reserve_row`/
+`reserve_within_budget`/`preinserted` refactor documented above: the network call stays outside any
+held lock; only the decide-and-reserve step (N row inserts, no I/O) is now atomic. Proved with a real
+`threading`-based concurrency test (no mocked internals), mutation-proved by reverting the fix itself
+via a backed-up file (never `git checkout`) and confirming the new test catches the exact historical
+race shape, and the full 163-test extraction-subsystem suite stays green.
+
+**A full 96-file wisdom-suite sweep (not just the scoped 9-file extraction subset) turned up two
+MORE pre-existing regressions**, neither related to the TOCTOU work, both predating it: a gate-ledger
+test that never got updated when four gates were legitimately armed earlier this session
+(`test_wisdom_skeleton.py`), and a time-bomb test whose fixture dates a badges-endpoint fixture at a
+fixed calendar day while the endpoint's own lookback window anchors to real wall-clock time
+(`test_wisdom_publish_adapters_routes.py`) -- it silently expired around 2026-09-18 and nothing
+caught it until this sweep. Both fixed, mutation-proved; full 96-file suite green (1653 passed, 1
+environmental skip, 0 failed).
+
+**✅✅ LANDED AND DEPLOYED, same day, 2026-09-19.** All 10 commits (the 9 adversarial-review fixes
+including the TOCTOU race, plus the two regressions above) are on `origin/master` at `f8fd3c5ac`
+("Merge branch 'feat/wisdom-loop' into HEAD"; `ed7dad1d3` confirmed an ancestor via
+`git merge-base --is-ancestor`). Landed via `tools/land_master_first.py feat/wisdom-loop`, run
+directly by the owner (an agent session's own attempt -- including a completely inert `--no-push`
+dry run -- was refused outright by Claude Code's permission classifier, reason `[Production
+Deploy]`; the owner's own invocation of the identical command was not). Railway `web` deployed that
+exact commit (`status: SUCCESS`), confirmed against the artifact, not the status field: `GET
+/api/health` returned `uptime_seconds: 41`, a genuinely fresh boot. This landed well ahead of the
+next real scheduled daily-chain run (Monday 2026-09-22), closing the window in which production was
+armed and running the pre-fix code.

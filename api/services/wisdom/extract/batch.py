@@ -376,42 +376,111 @@ def _build_items(client, segs: list[dict], retries: list[dict], *, extractor_ver
         items.append({"custom_id": cid, "source_id": seg["source_id"], "source_version": seg["source_version"],
                       "segment_id": seg["segment_id"], "params": params, "est_input_tokens": tokens,
                       "est_output_tokens": out_tokens, "est_cost_usd": est, "retry": row is not None,
-                      "prior_est": float(row.get("est_cost_usd") or 0.0) if row is not None else 0.0})
+                      "prior_est": float(row.get("est_cost_usd") or 0.0) if row is not None else 0.0,
+                      # ⛔ night-scoped exclusion needs to know WHICH night this retry's prior
+                      # estimate is actually counted in (see select_within_budget's
+                      # exclude_night_pending_usd) -- created_at is never refreshed on retry.
+                      "retry_created_at": (row.get("created_at") if row is not None else None)})
     return items, counts
+
+
+def _reserve_row(conn, it: dict, *, extractor_version: str, purpose: str, model: str,
+                 pass_index: Optional[int], run_id: Optional[str], now: str) -> bool:
+    """Insert or update ONE request row as 'submitting', under the caller's OWN write
+    transaction. Returns True if the item is now reserved (live), False if its row exists in a
+    non-retryable state (already submitted/done/failed-permanently) and must be skipped.
+
+    ⛔ Split out of the old `submit_items` so the budget decision and every item's reservation can
+    happen inside ONE transaction (see `reserve_within_budget`) — this function itself does not
+    open a transaction; it assumes one is already held.
+    """
+    row = conn.execute("SELECT status FROM wisdom_extract_requests WHERE custom_id = ?",
+                       (it["custom_id"],)).fetchone()
+    if row is None:
+        conn.execute(
+            "INSERT INTO wisdom_extract_requests (custom_id, batch_id, source_id, source_version, "
+            "segment_ids_json, extractor_version, attempt, status, segment_id, purpose, model, "
+            "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at, "
+            "pass_index, run_id) "
+            "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (it["custom_id"], it["source_id"], it["source_version"], json.dumps([it["segment_id"]]),
+             extractor_version, it["segment_id"], purpose, model, it["est_input_tokens"],
+             it["est_output_tokens"], it["est_cost_usd"], now, now, pass_index, run_id))
+        return True
+    if row["status"] == "retry":
+        conn.execute(
+            "UPDATE wisdom_extract_requests SET status = 'submitting', attempt = attempt + 1, "
+            "batch_id = NULL, error = NULL, error_type = NULL, est_cost_usd = ?, updated_at = ? "
+            "WHERE custom_id = ?", (it["est_cost_usd"], now, it["custom_id"]))
+        return True
+    return False
+
+
+def reserve_within_budget(conn, items: list[dict], *, extractor_version: str, purpose: str, model: str,
+                          pass_index: Optional[int], run_id: Optional[str], cap: float,
+                          exclude_pending_usd: float, exclude_night_pending_usd: float,
+                          night_cap_usd: Optional[float], night_date: Optional[str],
+                          all_or_nothing: bool):
+    """Decide how many of `items` fit the budget AND reserve their rows, atomically.
+
+    ⛔⛔ BUG FOUND 2026-09-19 (TOCTOU race, adversarial review session 28 part 3): the budget
+    decision used to be read under a plain `store.read()`, then the row reservation happened
+    LATER, separately, under `store.write()` -- an arbitrary gap in which a CONCURRENT caller
+    (the documented manual door `tools/wisdom/extract_catalog_batch.py --submit`, which has no
+    `registry.claim_slot` coordination with the cron job at all; or the daily `extract` chain
+    overlapping the weekly `audit` chain, two different job_ids sharing one programme cap via
+    `BUDGET_KINDS`) could see the SAME pre-commit headroom and both proceed, silently exceeding
+    `WISDOM_EXTRACT_BUDGET_USD` with no error, no page, and no test covering it.
+
+    ⭐ THE FIX: this function must be called with an ALREADY-OPEN write transaction (`conn` from
+    `store.write()`), and does the fresh budget read, the trim decision, AND every admitted
+    item's row reservation before returning -- `store.write()`'s `WRITE_LOCK` (in-process) plus
+    `BEGIN IMMEDIATE` (the same file, across processes) serialize this against every other writer,
+    so the second of two concurrent callers sees the first one's already-committed rows before it
+    decides anything. Deliberately does NOT touch the network — reservation only, so the write
+    lock is held for as long as N inserts take, never for a Batch API round trip.
+    """
+    decision = budget.select_within_budget(
+        conn, extractor_version, [it["est_cost_usd"] for it in items], cap=cap,
+        exclude_pending_usd=exclude_pending_usd, exclude_night_pending_usd=exclude_night_pending_usd,
+        night_cap=night_cap_usd, night_date=night_date)
+    selected = [] if (all_or_nothing and decision.stopped) else items[:decision.allowed_count]
+    now = _now_iso()
+    live, skipped_not_retryable = [], 0
+    for it in selected:
+        if _reserve_row(conn, it, extractor_version=extractor_version, purpose=purpose, model=model,
+                        pass_index=pass_index, run_id=run_id, now=now):
+            live.append(it)
+        else:
+            skipped_not_retryable += 1
+    return decision, selected, live, skipped_not_retryable
 
 
 def submit_items(items: list[dict], client, *, extractor_version: str, model: str, purpose: str,
                  pass_index: Optional[int] = None, run_id: Optional[str] = None,
-                 cap: float) -> dict:
+                 cap: float, preinserted: bool = False) -> dict:
+    """`preinserted=True` (set by `submit_pending`'s real-run path): every item in `items` was
+    already reserved (its row already exists as 'submitting') by `reserve_within_budget` under
+    the SAME write transaction as the budget decision — this call does ONLY the network
+    submission and the post-submission record, never a second row-insert pass. `preinserted=False`
+    (the single-pass / no-budget-race path, and every existing test) keeps the old behavior of
+    inserting/updating each row here, for backward compatibility."""
     report: Counter = Counter()
     batch_ids: list[str] = []
     for start in range(0, len(items), MAX_REQUESTS_PER_BATCH):
         chunk = items[start:start + MAX_REQUESTS_PER_BATCH]
         now = _now_iso()
-        live: list[dict] = []
-        with store.write() as conn:
-            for it in chunk:
-                row = conn.execute("SELECT status FROM wisdom_extract_requests WHERE custom_id = ?",
-                                   (it["custom_id"],)).fetchone()
-                if row is None:
-                    conn.execute(
-                        "INSERT INTO wisdom_extract_requests (custom_id, batch_id, source_id, source_version, "
-                        "segment_ids_json, extractor_version, attempt, status, segment_id, purpose, model, "
-                        "est_input_tokens, est_output_tokens, est_cost_usd, created_at, updated_at, "
-                        "pass_index, run_id) "
-                        "VALUES (?, NULL, ?, ?, ?, ?, 1, 'submitting', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (it["custom_id"], it["source_id"], it["source_version"], json.dumps([it["segment_id"]]),
-                         extractor_version, it["segment_id"], purpose, model, it["est_input_tokens"],
-                         it["est_output_tokens"], it["est_cost_usd"], now, now, pass_index, run_id))
-                elif row["status"] == "retry":
-                    conn.execute(
-                        "UPDATE wisdom_extract_requests SET status = 'submitting', attempt = attempt + 1, "
-                        "batch_id = NULL, error = NULL, error_type = NULL, est_cost_usd = ?, updated_at = ? "
-                        "WHERE custom_id = ?", (it["est_cost_usd"], now, it["custom_id"]))
-                else:
-                    report["skipped_not_retryable"] += 1
-                    continue
-                live.append(it)
+        if preinserted:
+            live = list(chunk)
+        else:
+            live = []
+            with store.write() as conn:
+                for it in chunk:
+                    if _reserve_row(conn, it, extractor_version=extractor_version, purpose=purpose,
+                                    model=model, pass_index=pass_index, run_id=run_id, now=now):
+                        live.append(it)
+                    else:
+                        report["skipped_not_retryable"] += 1
         if not live:
             continue
         try:
@@ -526,7 +595,8 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
                    out: Optional[dict] = None, run_id: Optional[str] = None,
                    pass_index: Optional[int] = None, include_retries: bool = True,
                    night_cap_usd: Optional[float] = None,
-                   night_date: Optional[str] = None) -> dict:
+                   night_date: Optional[str] = None,
+                   all_or_nothing: bool = False) -> dict:
     # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
     limit = daily_segment_limit() if limit is None else int(limit)
     out = dict(out or {})
@@ -549,20 +619,73 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
     items, counts = _build_items(client, segs, retries, extractor_version=version, model=model, effort=effort,
                                  purpose=purpose, salt=salt, dry_run=ctx.dry_run, out_tokens=out_tokens)
     out["build"] = dict(counts)
-    with store.read() as conn:
-        # ⛔⛔ R65: TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS.
-        # This used to pass `min(programme_cap, night_cap)` as THE cap, which
-        # `select_within_budget` then compared against CUMULATIVE PROGRAMME spend — so a
-        # night line clamped the whole programme to that number and the SECOND night got
-        # nothing while programme headroom sat unused. The programme total is measured
-        # against programme spend; the night line against THAT NIGHT's spend.
-        programme_cap = budget.budget_cap_usd()
-        decision = budget.select_within_budget(
-            conn, version, [it["est_cost_usd"] for it in items], cap=programme_cap,
-            exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]),
-            night_cap=night_cap_usd, night_date=night_date)
+    # ⛔⛔ R65: TWO CEILINGS, TWO SCOPES, NEVER A min() OF THE CAPS.
+    # This used to pass `min(programme_cap, night_cap)` as THE cap, which
+    # `select_within_budget` then compared against CUMULATIVE PROGRAMME spend — so a
+    # night line clamped the whole programme to that number and the SECOND night got
+    # nothing while programme headroom sat unused. The programme total is measured
+    # against programme spend; the night line against THAT NIGHT's spend.
+    programme_cap = budget.budget_cap_usd()
+    exclude_uniform = sum(it["prior_est"] for it in items if it["retry"])
+    # ⛔ NIGHT-SCOPED EXCLUSION IS A DIFFERENT SUM THAN THE VERSION/PROGRAMME ONE (bug found
+    # 2026-09-19). A retry's prior estimate is only actually present in tonight's night-scoped
+    # pending pool if the retry's own (never-refreshed) created_at falls on `night_date` --
+    # excluding it unconditionally, as if it always were, can only loosen the per-night cap.
+    exclude_tonight = sum(
+        it["prior_est"] for it in items
+        if it["retry"] and night_date and str(it.get("retry_created_at") or "")[:10] == night_date)
+
+    skipped_not_retryable = 0
+    if ctx.dry_run:
+        # A dry run must never write -- read-only preview, same semantics as always. Nothing is
+        # reserved, so this is not race-safe, which is fine: a dry run spends nothing either way.
+        with store.read() as conn:
+            decision = budget.select_within_budget(
+                conn, version, [it["est_cost_usd"] for it in items], cap=programme_cap,
+                exclude_pending_usd=exclude_uniform, exclude_night_pending_usd=exclude_tonight,
+                night_cap=night_cap_usd, night_date=night_date)
+        selected = [] if (all_or_nothing and decision.stopped) else items[:decision.allowed_count]
+        live = []
+    else:
+        # ⛔⛔ BUG FOUND 2026-09-19 (TOCTOU race, adversarial review session 28 part 3): the
+        # budget decision used to be read here, under a plain unlocked `store.read()`, and the
+        # row reservation happened LATER, separately, inside `submit_items`'s own `store.write()`
+        # -- an arbitrary gap in which a concurrent caller (the documented manual door
+        # `tools/wisdom/extract_catalog_batch.py --submit`, uncoordinated with the cron job; or
+        # the daily `extract` chain overlapping the weekly `audit` chain, two job_ids sharing one
+        # programme cap) could see the same pre-commit headroom and both proceed, silently
+        # exceeding `WISDOM_EXTRACT_BUDGET_USD`. `reserve_within_budget` now does the fresh read,
+        # the trim, AND every admitted item's row reservation inside ONE write transaction --
+        # `store.write()`'s WRITE_LOCK (in-process) plus BEGIN IMMEDIATE (cross-process, same
+        # file) serialize this against every other writer.
+        with store.write() as conn:
+            decision, selected, live, skipped_not_retryable = reserve_within_budget(
+                conn, items, extractor_version=version, purpose=purpose, model=model,
+                pass_index=pass_index, run_id=run_id, cap=programme_cap,
+                exclude_pending_usd=exclude_uniform, exclude_night_pending_usd=exclude_tonight,
+                night_cap_usd=night_cap_usd, night_date=night_date, all_or_nothing=all_or_nothing)
+
     out["budget"] = decision.as_dict()
-    selected = items[:decision.allowed_count]
+    if all_or_nothing and decision.stopped:
+        # ⛔⛔ BUG FOUND IN PRODUCTION 2026-09-19 (session 28, the programme's first real night):
+        # an N-pass night's segment set must be IDENTICAL across every pass, or
+        # `reconcile.reconcile()` permanently refuses to score it (it compares SEGMENT SETS, not
+        # content) -- a `budget_stop` PARTIAL trim here is not a smaller pass, it is
+        # unreconcilable data that already cost real money. run_daily's own pre-check only
+        # catches a FULLY exhausted night (`remaining <= 0`); it cannot see "remaining is
+        # positive but too small for this pass's full segment list", which is exactly the shape
+        # that shrank pass 3 of 105 segments to 92 that night and left all 338 records stuck
+        # unreconciled forever. Refuse the WHOLE pass instead: a night that cannot afford every
+        # pass in full does fewer FULL passes, never one partial one.
+        out["candidates"] = len(items)
+        out["selected"] = 0
+        out["selected_estimate_usd"] = 0.0
+        out["status"] = "would_break_pass_parity"
+        out["reason"] = decision.reason
+        ctx.log(f"{purpose} pass {pass_index}: refused all {len(items)} segment(s) rather than a "
+                f"partial {decision.allowed_count}/{len(items)} -- remaining budget cannot cover "
+                f"the full pass ({decision.reason})")
+        return out
     out["candidates"] = len(items)
     out["selected"] = len(selected)
     out["selected_estimate_usd"] = round(sum(it["est_cost_usd"] for it in selected), 6)
@@ -577,9 +700,11 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
     if not selected:
         out["status"] = "budget_stop"
         return out
-    out["submit"] = submit_items(selected, client, extractor_version=version, model=model, purpose=purpose,
+    out["submit"] = submit_items(live, client, extractor_version=version, model=model, purpose=purpose,
                                  pass_index=pass_index, run_id=run_id,
-                                 cap=decision.cap_usd)
+                                 cap=decision.cap_usd, preinserted=True)
+    if skipped_not_retryable:
+        out["submit"]["skipped_not_retryable"] = out["submit"].get("skipped_not_retryable", 0) + skipped_not_retryable
     out["status"] = "budget_stop" if decision.stopped else "submitted"
     ctx.log(f"{purpose}: submitted {out['submit'].get('submitted', 0)} request(s), estimate "
             f"${out['selected_estimate_usd']:.2f}; budget remaining ${decision.remaining_usd:.2f}")
@@ -737,6 +862,7 @@ def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional
                              run_id=run_id, pass_index=p, include_retries=(p == 1),
                              night_cap_usd=night_cap,
                              night_date=ctx.now_et.date().isoformat(),
+                             all_or_nothing=True,
                              out={"pass_index": p, "run_id": run_id})
         out.setdefault("pass_results", []).append(
             {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",
