@@ -28,6 +28,7 @@ import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
+import { chordById, matchesChord } from './command/chords.js'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -37,6 +38,11 @@ import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
 const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 const fetcher = (url) => fetch(url).then(r => r.json())
+
+// S2 CP5 — resolved ONCE at module scope: a lookup inside the handler would
+// re-scan the table on every keystroke, and a miss would silently disable
+// the binding. Mirrors ChartPane.jsx / GridChartCell.jsx / Watchlists.jsx.
+const SHIFT_F = chordById('SHIFT_F')
 
 // "8:25 AM" in ET — matches the Scanner widget footer's timestamp format.
 function fmtEtTime(iso) {
@@ -1193,17 +1199,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useEffect(() => {
     if (!selectedSym) return
     const handler = (e) => {
-      // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
-      // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
-      // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
-      // a TOGGLE leaves the flag on whichever parity the release happens to catch.
-      // Reported 2026-08-29.
-      // ⛔ AND `!e.ctrlKey && !e.altKey && !e.metaKey`, ADDED 2026-09-14 (F-S2-1).
-      // Without them this fired on Ctrl+Shift+F / Cmd+Shift+F too — the platform
-      // accelerator chord — so a member reaching for the browser got a silent write
-      // to their flag list. ChartPane.jsx is the shape copied.
-      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat
-          && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
+      // set out inline. Behaviour is identical by construction and proved so in
+      // ThemeTrackerPage.chordAdoption.test.jsx.
+      // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats
+      // ~30x/sec and this binding is a TOGGLE, a property of the binding, not
+      // the chord's identity.
+      if (matchesChord(e, SHIFT_F) && !e.repeat) {
         const willFlag = !isFlagged(selectedSym)
         toggleFlag(selectedSym)
         setFlagToast(willFlag ? 'added' : 'removed')
