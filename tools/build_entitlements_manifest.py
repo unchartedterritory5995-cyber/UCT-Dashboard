@@ -59,9 +59,12 @@ SCHEMA_VERSION = 1
 _AUTH_MIDDLEWARE = _ROOT / "api" / "middleware" / "auth_middleware.py"
 _ENTITLEMENTS = _ROOT / "api" / "services" / "entitlements.py"
 
-#: The three files GATE-S9 §2 names, each with its own FREE_PAGES literal and
-#: its own matching semantics against it (read alongside, never assumed).
-_FREE_PAGES_FILES = [
+#: ⚰️ RETIRED 2026-09-19 — these three used to each hand-type their OWN
+#: `FREE_PAGES` literal. Now they import the single source below; this list
+#: is what `_free_pages_consumers()` verifies actually imports it, not what
+#: independently defines a value.
+_FREE_PAGES_SOURCE = _ROOT / "app" / "src" / "constants" / "freePages.js"
+_FREE_PAGES_CONSUMERS = [
     _ROOT / "app" / "src" / "components" / "AuthGuard.jsx",
     _ROOT / "app" / "src" / "components" / "mobile" / "MoreSheet.jsx",
     _ROOT / "app" / "src" / "components" / "NavBar.jsx",
@@ -146,20 +149,32 @@ def _strip_js_comments(text: str) -> str:
     return re.sub(r"//[^\n]*", "", text)
 
 
-def _free_pages_entry(path: pathlib.Path) -> dict:
-    code = _strip_js_comments(path.read_text(encoding="utf-8"))
+def _free_pages_value() -> list[str]:
+    """The ONE array, from the ONE source. Since 2026-09-19 (S9 CP1 follow-up)
+    `constants/freePages.js` is the sole definition."""
+    code = _strip_js_comments(_FREE_PAGES_SOURCE.read_text(encoding="utf-8"))
     m = _FREE_PAGES_RE.search(code)
-    assert m, f"no FREE_PAGES array literal found in {path.name} — the regex missed, not empty"
-    literal = m.group(1)
-    # A JS array of quoted strings is valid JSON once single quotes are swapped —
-    # true for every current entry ('/morning-wire'); assert rather than assume.
-    json_literal = literal.replace("'", '"')
-    values = json.loads(json_literal)
-    assert isinstance(values, list) and values, f"{path.name}'s FREE_PAGES parsed empty"
+    assert m, "no FREE_PAGES array literal found in constants/freePages.js"
+    values = json.loads(m.group(1).replace("'", '"'))
+    assert isinstance(values, list) and values, "FREE_PAGES parsed empty"
+    return values
+
+
+#: A real ES import of the shared source — not a re-declaration. The relative
+#: specifier differs per consumer's depth (`../constants/freePages` vs
+#: `../../constants/freePages`), so this matches the tail common to both.
+_FREE_PAGES_IMPORT_RE = re.compile(
+    r"import\s*\{\s*FREE_PAGES\s*\}\s*from\s*['\"][./]*constants/freePages['\"]")
+
+
+def _free_pages_consumer_entry(path: pathlib.Path) -> dict:
+    code = _strip_js_comments(path.read_text(encoding="utf-8"))
     rel = str(path.relative_to(_ROOT)).replace("\\", "/")
-    # The consumer expression, read within 80 chars of the FREE_PAGES.<method>(
-    # call so "startsWith" is only credited to a `.some()` that actually calls
-    # it, never to an unrelated later use of the word in the same file.
+    imports_shared = bool(_FREE_PAGES_IMPORT_RE.search(code))
+    # ⛔ A LOCAL RE-DECLARATION WOULD BE THE OLD DEFECT BACK. If a consumer
+    # ever hand-types `const FREE_PAGES = [...]` again instead of importing,
+    # this must say so by name, not just "imports_shared: false".
+    redeclares = bool(re.search(r"(?:const|let|var)\s+FREE_PAGES\s*=", code))
     m2 = re.search(r"FREE_PAGES\s*\.\s*(some|includes)\s*\(", code)
     semantics = "(undetermined)"
     if m2:
@@ -170,13 +185,19 @@ def _free_pages_entry(path: pathlib.Path) -> dict:
             semantics = "prefix (some+startsWith)"
         else:
             semantics = "some (unrecognised predicate)"
-    return {"file": rel, "values": values, "match_semantics": semantics}
+    return {"file": rel, "imports_shared_source": imports_shared,
+            "redeclares_locally": redeclares, "match_semantics": semantics}
 
 
 #: The literal every JS re-implementation of "is this plan paid" carries,
-#: single- or double-quoted. Exactly THREE sites carry it today (measured
-#: 2026-09-19) — a fourth would be a NEW copy this rail should catch, and the
-#: non-vacuity control below asserts the count is not silently zero either.
+#: single- or double-quoted. THREE sites carried it at first measurement
+#: (2026-09-19); Login.jsx's copy was retired the same day (fixed to read
+#: `data.paid_equiv`, the backend's own answer, instead of re-deriving it —
+#: closing the finding that a trial member could be routed to the free page
+#: right after signing in). TWO remain by design: AuthContext.jsx (canonical)
+#: and Pricing.jsx (deliberately narrower). A THIRD reappearing would be a NEW
+#: copy this rail should catch, and the non-vacuity control below asserts the
+#: count is not silently zero either.
 _PAID_PLAN_LIST_RE = re.compile(
     r"\[\s*['\"]pro['\"]\s*,\s*['\"]premium['\"]\s*,\s*['\"]lifetime['\"]\s*\]"
     r"\s*\.\s*includes\s*\(")
@@ -231,9 +252,8 @@ def _gate_call_sites() -> dict:
 def build() -> dict:
     paid_plans = _paid_plans()
     toolkits = _toolkit_names()
-    free_pages = [_free_pages_entry(p) for p in _FREE_PAGES_FILES]
-    values_seen = {tuple(e["values"]) for e in free_pages}
-    semantics_seen = {e["match_semantics"] for e in free_pages}
+    free_pages_value = _free_pages_value()
+    free_pages_consumers = [_free_pages_consumer_entry(p) for p in _FREE_PAGES_CONSUMERS]
     paid_checks = _paid_check_call_sites()
     call_sites = _gate_call_sites()
 
@@ -268,31 +288,34 @@ def build() -> dict:
             "js_call_sites": paid_checks,
             "note": "THE REAL SHAPE OF GATE-S9's 'PAID_PLANS is copied twice' "
                     "finding: not a second Python copy, but THREE independent "
-                    "JS re-implementations of the same literal. "
-                    "context/AuthContext.jsx (the canonical isPaid) ORs in an "
-                    "active trial; pages/Pricing.jsx deliberately does not "
-                    "(a narrower, intentionally-named trulyPaid predicate for "
-                    "pricing-page messaging); pages/Login.jsx also does not, "
-                    "and its use is ROUTING (paid -> /dashboard, else -> "
-                    "/morning-wire) -- the same purpose isPaid serves, missing "
-                    "the term isPaid has. RECORDED, NOT FIXED: a member on an "
-                    "active trial may be routed to the free page immediately "
-                    "after logging in. CP1 changes no gate.",
+                    "JS re-implementations of the same literal, found "
+                    "2026-09-19. context/AuthContext.jsx (the canonical isPaid) "
+                    "ORs in an active trial; pages/Pricing.jsx deliberately "
+                    "does not (a narrower, intentionally-named trulyPaid "
+                    "predicate for pricing-page messaging) -- both REMAIN, by "
+                    "design, two different concepts. pages/Login.jsx's copy "
+                    "was the third: same purpose as isPaid (ROUTING: paid -> "
+                    "/dashboard, else -> /morning-wire), missing the term "
+                    "isPaid has -- FIXED the same day, now reads "
+                    "`data.paid_equiv` (the backend's own already-computed "
+                    "answer) instead of re-deriving anything.",
         },
-        "free_pages_TRIPLICATED": {
-            "source": [e["file"] for e in free_pages],
-            "entries": free_pages,
-            "values_agree": len(values_seen) == 1,
-            "match_semantics_agree": len(semantics_seen) == 1,
-            "note": "THE REAL DUPLICATION GATE-S9 §2 NAMED (against the wrong "
-                    "variable). Three hand-typed copies of one list, each "
-                    "commented 'keep in sync with' the other two. values_agree "
-                    "is the duplication rail this checkpoint's test asserts on. "
-                    "match_semantics_agree is RECORDED, NOT FIXED (CP1 changes "
-                    "no gate): AuthGuard.jsx matches by prefix (startsWith), "
-                    "MoreSheet.jsx and NavBar.jsx match by exact string "
-                    "(includes) -- identical today only because every declared "
-                    "page is currently list-item-shaped with no sub-routes.",
+        "free_pages": {
+            "source": "app/src/constants/freePages.js",
+            "values": free_pages_value,
+            "consumers": free_pages_consumers,
+            "all_import_the_shared_source": all(
+                c["imports_shared_source"] and not c["redeclares_locally"]
+                for c in free_pages_consumers),
+            "note": "RETIRED 2026-09-19 — was hand-typed identically in all "
+                    "three consumers below (GATE-S9 §2's finding, against the "
+                    "wrong variable name). Now ONE export, three importers. "
+                    "match_semantics is DELIBERATELY NOT unified: AuthGuard.jsx "
+                    "tests a live location.pathname (needs prefix/startsWith, "
+                    "since a member could visit a nested sub-path); "
+                    "MoreSheet.jsx/NavBar.jsx test one fixed NAV_ITEMS target "
+                    "string (exact/includes is correct there, never a bug to "
+                    "converge). Only the VALUE was ever actually duplicated.",
         },
         "gate_call_sites": {
             "source": "api/**/*.py, CODE only (docstrings/comments stripped)",
@@ -327,17 +350,17 @@ def main(argv=None) -> int:
             print("[entitlements-manifest] STALE — the checked-in manifest is not "
                   "what the declarations derive. Re-run without --check.")
             return 1
-        print("[entitlements-manifest] OK — values_agree=%s match_semantics_agree=%s"
-              % (manifest["free_pages_TRIPLICATED"]["values_agree"],
-                 manifest["free_pages_TRIPLICATED"]["match_semantics_agree"]))
+        print("[entitlements-manifest] OK — free_pages consumers all import "
+              "the shared source: %s"
+              % manifest["free_pages"]["all_import_the_shared_source"])
         return 0
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(text, encoding="utf-8")
     print("[entitlements-manifest] wrote %s" % OUT_PATH)
-    print("[entitlements-manifest] free_pages values_agree=%s match_semantics_agree=%s"
-          % (manifest["free_pages_TRIPLICATED"]["values_agree"],
-             manifest["free_pages_TRIPLICATED"]["match_semantics_agree"]))
+    print("[entitlements-manifest] free_pages consumers all import the "
+          "shared source: %s"
+          % manifest["free_pages"]["all_import_the_shared_source"])
     return 0
 
 

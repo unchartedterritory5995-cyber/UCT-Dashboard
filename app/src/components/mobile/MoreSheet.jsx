@@ -5,6 +5,7 @@ import Sheet from './Sheet'
 import UIcon from '../ui/UIcon'
 import styles from './MoreSheet.module.css'
 import uctLogo from '../intro/assets/compass-mark.png'
+import { FREE_PAGES } from '../../constants/freePages'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -65,8 +66,6 @@ const NAV_SECTIONS = [
   },
 ]
 
-// Keep in sync with FREE_PAGES in AuthGuard.jsx + NavBar.jsx.
-const FREE_PAGES = ['/morning-wire']
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function MoreSheet({ open, onClose }) {

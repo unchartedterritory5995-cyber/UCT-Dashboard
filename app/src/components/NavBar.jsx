@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import { NAV_GROUPS } from './navGroups'
+import { FREE_PAGES } from '../constants/freePages'
 import styles from './NavBar.module.css'
 import uctLogo from './intro/assets/compass-mark.png'
 
@@ -41,9 +42,6 @@ export const NAV_ITEMS = [
 ]
 
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
-
-// Keep in sync with FREE_PAGES in AuthGuard.jsx + MoreSheet.jsx.
-const FREE_PAGES = ['/morning-wire']
 
 // Bucket NAV_ITEMS under the shared taxonomy's groups (./navGroups.js) —
 // MobileTabBar's bottom tab bar groups the same routes, so the two surfaces
