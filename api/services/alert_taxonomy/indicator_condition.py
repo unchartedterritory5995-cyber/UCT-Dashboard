@@ -120,18 +120,45 @@ layer, which would be a second authority over a metric's cadence and is the
 
 So the packet's accepted consequence — *"at CP1 every `ohlcv.*` predicate
 refuses"* — understates it in one direction and overstates it in another. At
-CP1 **every predicate the legacy lane can express refuses**, and for all 31 the
-anchor is `REFUSAL_ADDRESS_UNRESOLVED`, not `REFUSAL_CADENCE_UNDECLARED`: the
-lane cannot even NAME an `ohlcv.*` metric. `close` and `ohlcv.c` are the same
-quantity under two names and NOTHING joins them.
+CP1, BEFORE GATE-D2 CP4 EXISTED, **every predicate the legacy lane can express
+refuses**, and for all 31 the anchor is `REFUSAL_ADDRESS_UNRESOLVED`, not
+`REFUSAL_CADENCE_UNDECLARED`: the lane cannot even NAME an `ohlcv.*` metric.
+`close` and `ohlcv.c` are the same quantity under two names and NOTHING joins
+them.
 
 ⛔ **THE JOIN IS NOT BUILT HERE, AND THAT IS THE RULING BEING FOLLOWED, NOT AN
 OMISSION.** An alias map from the alert lane's 31 addresses to the book's
 metrics would be a SECOND AUTHORITY over metric identity — precisely the
 `_LEDGER_TIMEFRAME` / `pct_above_50ma` shape that owner ruling D2-C killed, and
-precisely why this type was sequenced behind D2 at all. It is reported so the
-next checkpoint can be sized against it. The comparison harness's `legacy_only`
-column is what makes the cost visible per predicate.
+precisely why this type was sequenced behind D2 at all.
+
+⭐⭐ **D2 CP4 (signed 2026-09-13, AFTER this section was written) BUILT EXACTLY
+ONE JOIN — NOT AN ALIAS MAP OF THIRTY-ONE, THE OWNER'S OWN — and this gate now
+asks it.** `indicator_axis.RENAMES = {"close": "ohlcv.c"}` is CP4's own
+declaration, the SAME one `indicator_condition_projection.comparability()`
+(CP3) already calls COMPARABLE. `_canonical_metric_name()` (below) asks that
+SAME declaration before this gate looks a metric up in the book — never a
+second table, never the other thirty. **FOUND BY MEASUREMENT:** until this
+fix, this gate never asked it, so `close` — the ONE predicate CP3 calls
+comparable — refused `REFUSAL_ADDRESS_UNRESOLVED` here anyway, a wrong reason
+for an address D2 CP4 already names, and two checkpoints of the SAME feature
+disagreeing about whether one address resolves.
+
+⛔⛔ **AND THE OUTCOME DOES NOT CHANGE, WHICH IS THE REAL FINDING.** `close`
+now refuses `REFUSAL_CADENCE_UNDECLARED` — the SAME reason `ohlcv.c` itself
+already refuses on, because `close` and `ohlcv.c` are, correctly, now treated
+as the identical address, and **the bars store still declares no cadence
+(F-D2-2)**. So the true remaining size of THE FLIP is not "thirty more
+addresses" (D2 CP4 already declares and can compute all thirty-one) and not
+"a comparison engine" (CP1-CP3 already built one) — it is exactly ONE
+declaration, at the ONE place F-D2-2 already names, and it is deferred for a
+real, physical reason: `bars_fetch.py`/`bars_sqlite.py` are
+reachable-but-unwatched by flow-worker, so declaring it there is a
+BEHAVIOUR-CHANGING edit under the watch-coverage rail and ships after-hours
+with a marker bump, never inside a dark checkpoint like this one. The
+comparison harness's `legacy_only` column is what makes that cost visible per
+predicate once F-D2-2 lands — today it still cannot be, for `close` or for the
+other thirty, and for the SAME one reason.
 
 ──────────────────────────────────────────────────────────────────────────────
 3. ⛔ WHERE THE GATE LIVES, AND WHAT DOES NOT CALL IT YET
@@ -445,6 +472,52 @@ def declared_cadences() -> frozenset:
         if isinstance(m, dict) and m.get("cadence"))
 
 
+def _canonical_metric_name(name: str) -> str:
+    """`name`, or D2 CP4's rename target when the axis declares one for it.
+
+    ⛔⛔ FOUND BY MEASUREMENT, NOT DESIGNED IN. Before this helper existed,
+    `cadence_for`/`registration_refusal` looked up a predicate's RAW metric
+    name in the book directly, and GATE-S7-INDICATOR-CONDITION CP3's own
+    `comparability()` (`indicator_condition_projection.py`) asked D2 CP4's axis
+    first and calls `close` COMPARABLE via its declared `close` -> `ohlcv.c`
+    rename. Those two answers disagreed: `_book.metric("close")` is `None` (only
+    `ohlcv.c` exists), so the ONE predicate CP3 calls comparable refused
+    REFUSAL_ADDRESS_UNRESOLVED here — a wrong reason for an address the axis
+    already names, and TWO AUTHORITIES DISAGREEING about whether one address
+    resolves. This closes it by asking the SAME axis CP3 already asks, so both
+    checkpoints agree on one answer.
+
+    ⛔ NOT FLAG-GATED, matching `comparability()`'s own reasoning exactly:
+    `declarations()` carries no flag, only `resolve()` does, and gating a
+    RENAME behind `CANONICAL_INDICATOR_AXIS_ENABLED` would make `close` refuse
+    for a different reason depending on whether an owner has set it — the same
+    disagreement this helper exists to end, just moved behind a flag instead
+    of removed.
+
+    ⛔ Lazy import, mirroring `indicator_condition_compare.legacy_eval_mode`:
+    the axis module imports `indicator_alert_evaluator` at its own top level, a
+    2,630-line INERT STRAND this type module must not carry in its closure.
+
+    ⛔ THE TARGET MUST EXIST IN THE BOOK, checked here rather than trusted —
+    the same guard `indicator_axis.rename_target_exists()` runs, so a rename
+    pointing nowhere cannot silently swap one unresolved name for another.
+    """
+    try:
+        from api.services.canonical import indicator_axis as _axis
+    except Exception:                                          # noqa: BLE001
+        return name
+    try:
+        decl = _axis.declarations().get(name)
+    except Exception:                                          # noqa: BLE001
+        return name
+    if decl is None:
+        return name
+    target = decl.get("renames_to")
+    if target and _book.metric(target) is not None:
+        return target
+    return name
+
+
 def cadence_for(address: str) -> Optional[str]:
     """The cadence of ONE ADDRESS, or `None` when it is not declared.
 
@@ -466,7 +539,7 @@ def cadence_for(address: str) -> Optional[str]:
     parsed = parse_address(address)
     if parsed is None:
         return None
-    metric = _book.metric(parsed["metric"] or "")
+    metric = _book.metric(_canonical_metric_name(parsed["metric"] or ""))
     if not metric:
         return None
     code = parsed["timeframe"] or ""
@@ -518,7 +591,8 @@ def registration_refusal(params: dict[str, Any], *, entity_ref: str) -> Optional
     """
     metric_name = str(params.get("indicator") or "").strip()
     code = str(params.get("tf") or "").strip()
-    address = build_address(metric_name, str(entity_ref or "").strip(), code)
+    address = build_address(_canonical_metric_name(metric_name),
+                            str(entity_ref or "").strip(), code)
 
     parsed = parse_address(address)
     declaration = _book.metric(parsed["metric"]) if parsed else None
