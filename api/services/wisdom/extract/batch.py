@@ -526,7 +526,8 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
                    out: Optional[dict] = None, run_id: Optional[str] = None,
                    pass_index: Optional[int] = None, include_retries: bool = True,
                    night_cap_usd: Optional[float] = None,
-                   night_date: Optional[str] = None) -> dict:
+                   night_date: Optional[str] = None,
+                   all_or_nothing: bool = False) -> dict:
     # ⛔ R53: resolved PER CALL, never captured as a default argument (see daily_segment_limit).
     limit = daily_segment_limit() if limit is None else int(limit)
     out = dict(out or {})
@@ -562,6 +563,26 @@ def submit_pending(ctx, *, client=None, limit: Optional[int] = None, purpose: st
             exclude_pending_usd=sum(it["prior_est"] for it in items if it["retry"]),
             night_cap=night_cap_usd, night_date=night_date)
     out["budget"] = decision.as_dict()
+    if all_or_nothing and decision.stopped:
+        # ⛔⛔ BUG FOUND IN PRODUCTION 2026-09-19 (session 28, the programme's first real night):
+        # an N-pass night's segment set must be IDENTICAL across every pass, or
+        # `reconcile.reconcile()` permanently refuses to score it (it compares SEGMENT SETS, not
+        # content) -- a `budget_stop` PARTIAL trim here is not a smaller pass, it is
+        # unreconcilable data that already cost real money. run_daily's own pre-check only
+        # catches a FULLY exhausted night (`remaining <= 0`); it cannot see "remaining is
+        # positive but too small for this pass's full segment list", which is exactly the shape
+        # that shrank pass 3 of 105 segments to 92 that night and left all 338 records stuck
+        # unreconciled forever. Refuse the WHOLE pass instead: a night that cannot afford every
+        # pass in full does fewer FULL passes, never one partial one.
+        out["candidates"] = len(items)
+        out["selected"] = 0
+        out["selected_estimate_usd"] = 0.0
+        out["status"] = "would_break_pass_parity"
+        out["reason"] = decision.reason
+        ctx.log(f"{purpose} pass {pass_index}: refused all {len(items)} segment(s) rather than a "
+                f"partial {decision.allowed_count}/{len(items)} -- remaining budget cannot cover "
+                f"the full pass ({decision.reason})")
+        return out
     selected = items[:decision.allowed_count]
     out["candidates"] = len(items)
     out["selected"] = len(selected)
@@ -737,6 +758,7 @@ def run_daily(ctx, *, client=None, limit: Optional[int] = None, loader: Optional
                              run_id=run_id, pass_index=p, include_retries=(p == 1),
                              night_cap_usd=night_cap,
                              night_date=ctx.now_et.date().isoformat(),
+                             all_or_nothing=True,
                              out={"pass_index": p, "run_id": run_id})
         out.setdefault("pass_results", []).append(
             {k: sub.get(k) for k in ("status", "submitted", "batch_id", "reason", "pass_index",

@@ -1427,3 +1427,76 @@ segments × 3 passes was measured against tonight's specific priority-ordered ca
 `WISDOM_DAILY_SEGMENT_LIMIT` needs re-measuring the same way -- probe real candidate costs with
 `batch.submit_pending(ctx, limit=n, ...)` at a few values, never assume a linear rate holds
 across a different-sized or differently-ordered selection.
+
+## Session 28, part 2 -- the real batches landed, and a real N-pass bug with them (2026-09-19)
+
+**The first real content landed.** All three batches from the entry above reaped cleanly: 338
+records (44 MARKET_SIGNAL, 143 MENTION, 151 PRINCIPLE -- zero CALL/NEGATIVE_CALL this round,
+because the R100 priority order (owner ruling 2026-09-18) puts "Live Trading Sessions" LAST and
+"Setups & Strategies" near the front; CALL-bearing content arrives once the queue works its way
+there). `author_id` is NULL on every one of the 338 -- verified as CORRECT, not a bug: all five
+source videos are from the "Setups & Strategies" show, `edu_videos` has no host/presenter column,
+and none of their titles self-identify a single host (one names BOTH Chartmaster and TSDR, so
+`host_author_from_title` correctly refuses to guess). With diarization off program-wide, R6's
+rule applies exactly as written: no signal, no author, PRINCIPLE/MENTION rather than a guess.
+
+**The same-night reconciliation rider (R70) fired correctly and automatically** -- no manual
+action needed, confirming that whole mechanism works end to end for the first time on real data.
+But it REFUSED to score stability: `"refusing to reconcile runs over different segment sets --
+...: 20260919T085013Z-chain-p2: missing 2, extra 1; ...-chain-p3: missing 14, extra 1"`. All 338
+records are permanently stuck at `stability = NULL`, which the publication floor reads fail-closed
+forever -- this specific night's content can never clear it. That is the CORRECT response to bad
+input (reconcile comparing segment sets, refusing rather than guessing, is precisely the
+discipline this programme is built on) -- but the INPUT should never have been bad, because a
+night's three passes are supposed to run over the IDENTICAL segment set by construction
+(`run_daily` queries `pending_segments` ONCE and hands the same `segs` list to every pass).
+
+**Root cause, traced to `batch.py::submit_pending`'s own internal budget trim, not the shared
+segment list.** `select_within_budget`'s per-item loop can return `allowed_count < len(items)`
+when the night's REMAINING budget is positive but too small for a pass's full segment list --
+and the old code took `items[:decision.allowed_count]` and submitted that PARTIAL subset. Real
+numbers from tonight: pass 1 and pass 2 were each ESTIMATED at $9.72 (est_cost_usd, computed at
+submission time), leaving only ~$8.57 of the $28 night cap for pass 3's own $9.72 estimate --
+positive, but short -- so pass 3 shipped only 92 of the same 105 segments passes 1/2 got.
+`run_daily`'s own pre-check (`if remaining <= 0: skip the whole pass`) is a CHEAP check for FULL
+exhaustion only; it has no way to see "remaining is positive but insufficient for this pass",
+which is exactly the shape that broke parity. The `run_daily` code already had a comment saying
+the intended behavior -- *"a pass that would cross it submits nothing rather than part of a
+pass"* -- but nothing enforced it at the point where the trim actually happens.
+
+⭐ **The existing test, `test_a_pass_that_would_cross_the_night_budget_submits_NOTHING`, could
+never have caught this** -- it mocks `submit_pending` entirely, so it only proves `run_daily`'s
+outer `remaining <= 0` gate works, never that `submit_pending`'s OWN trim respects pass parity.
+Same shape as this whole file's other vacuous-test lessons: a test that mocks the exact function
+under suspicion cannot see what that function does.
+
+**Fix:** a new `all_or_nothing: bool = False` parameter on `submit_pending`. When True and
+`decision.stopped`, the WHOLE pass is refused (`selected = []`, `status =
+"would_break_pass_parity"`) instead of shipping `items[:allowed_count]`. `run_daily`'s N-pass
+loop now passes `all_or_nothing=True` on every pass. A night that cannot afford every pass in
+full now does FEWER FULL passes (and reconcile correctly reports "only N persisted run(s); need
+3" -- an honest, visible gap) instead of shipping unreconcilable partial data that already cost
+real money. Two new tests in `test_wisdom_npass_chain.py`: a spy-based wiring check
+(`test_run_daily_asks_every_pass_to_refuse_rather_than_ship_a_partial`) and a REAL, non-mocked
+reproduction using identical-cost segments and a budget probed live rather than hand-computed
+(`test_a_partial_fit_ships_by_default_and_is_refused_with_all_or_nothing`) -- the second one
+fails on the unfixed code and passes after, mutation-proved both directions (removing the
+`all_or_nothing=True` wire-up fails only the wiring test; removing the guard inside
+`submit_pending` fails only the reproduction test).
+
+⚠️ **A second, separate finding, deliberately NOT acted on tonight:** the REAL actual cost of
+tonight's three batches was $9.92 total (`cost_usd_actual`: $3.47 + $3.51 + $2.93 for 105/105/92
+segments, ~$0.033/segment) -- roughly a THIRD of the ~$0.0925/segment ESTIMATE that drove the
+budget check which starved pass 3. The estimate, not real spend, is what caused the shortfall;
+there was in fact plenty of real budget headroom. This is one night's sample and is NOT enough to
+retune `WISDOM_DAILY_SEGMENT_LIMIT` by (`lesson_two_points_do_not_establish_a_rate`) -- doing so
+risks fitting the limit to output-length noise specific to "Setups & Strategies" content. The
+`all_or_nothing` fix already makes an over-tight limit SAFE (fewer full passes, never corrupted
+data), so retuning is a throughput optimization for a future session with more nights of real
+estimate-vs-actual data, never a correctness requirement.
+
+⛔ **Tonight's 338 records are a permanent loss, not a bug to retroactively fix.** They will sit
+at `stability = NULL` / unfloored forever -- reconcile's refusal is correct given segment sets
+that genuinely differ, and there is no honest way to manufacture a stability score for passes
+that were never asked the identical question three times. The fix prevents this from recurring;
+it does not (and should not) resurrect this specific night's data.
