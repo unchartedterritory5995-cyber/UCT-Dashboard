@@ -449,6 +449,11 @@ export default function BreadthChartsV2({ keys, from, to }) {
     ? Math.max(360, panels.length * 130 + 40)
     : Math.max(420, panels.length * 150 + 90)
   const loadError = !s.tooWide && s.error ? describeLoadError(s.error) : null
+  // The view chips (follow-through days, log scale, table) describe HOW to draw, not
+  // WHAT was drawn, so they stay put while a range loads — gating them on the built
+  // option made the whole row blink out on every range change. They hide only where
+  // there is no chart to act on: V2-2 off, a refused range, or a failed first load.
+  const viewChips = v22 && !s.tooWide && !(loadError && !merged.series)
 
   return (
     <section className={styles.root} data-testid="breadth-charts-v2" aria-label="Data Charts">
@@ -588,7 +593,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
           )}
 
           <div className={styles.toolbarEnd}>
-            {option && (
+            {viewChips && (
               <button
                 type="button"
                 aria-pressed={showFtd}
@@ -600,7 +605,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
               </button>
             )}
             {/* ⛔ A LOG CONTROL THAT DID NOTHING MUST SAY WHY — see the refusal below. */}
-            {option && logCandidates.length > 0 && (
+            {viewChips && logCandidates.length > 0 && (
               <div className={styles.logGroup} data-testid="v2-log-toggles">
                 {logCandidates.map(p => (
                   <button
@@ -616,7 +621,7 @@ export default function BreadthChartsV2({ keys, from, to }) {
                 ))}
               </div>
             )}
-            {option && (
+            {viewChips && (
               <button
                 type="button"
                 data-testid="v2-table-toggle"

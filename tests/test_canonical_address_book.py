@@ -302,6 +302,56 @@ def test_the_book_is_committed_data_not_a_build_artifact():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D2 §4-CP3 — the frontend's slice of the timeframe axis, generated not typed
+#
+# ⛔ Retires three hand-typed copies of the same eight-entry map onto the book's
+# `axes.timeframe.code_to_label` (`_LEDGER_TIMEFRAME` in
+# indicator_alert_evaluator.py, `TF_LABELS` in GridChartCell.jsx, and this file
+# proves the frontend export those pointed at is not a fourth one).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_TF_LABELS_PATH = (_REPO / "app" / "src" / "components" / "chart" / "engine"
+                    / "ast" / "timeframeLabels.json")
+
+
+def test_the_frontend_timeframe_export_is_committed_data_not_a_build_artifact():
+    """Same reasoning as the book itself: a generated file nobody reviews in a
+    diff is a second authority with extra steps."""
+    assert _TF_LABELS_PATH.exists()
+    r = subprocess.run(["git", "ls-files", "--error-unmatch",
+                        str(_TF_LABELS_PATH.relative_to(_REPO)).replace("\\", "/")],
+                       cwd=str(_REPO), capture_output=True, text=True)
+    assert r.returncode == 0, "timeframeLabels.json is not tracked by git"
+
+
+def test_the_frontend_export_IS_the_books_timeframe_axis_and_nothing_else():
+    """⛔ A SLICE, NEVER A SEPARATE READ of `_BARS_STORE_TF_KEYS`. Byte-for-byte
+    against the book's own `axes.timeframe.code_to_label` — not against a
+    hand-typed expectation here, which would just be a FOURTH copy of the map
+    this checkpoint exists to stop writing."""
+    book_tf = _book()["axes"]["timeframe"]["code_to_label"]
+    exported = json.loads(_TF_LABELS_PATH.read_text(encoding="utf-8"))
+    assert book_tf, "the book's timeframe axis came back empty"
+    assert exported == book_tf, (
+        f"the frontend export drifted from the book: {exported} != {book_tf}")
+
+
+def test_the_frontend_export_rail_CAN_FAIL(tmp_path):
+    """⛔ THE MUTATION, RUN IN-PROCESS. A copy, corrupted, never the real file."""
+    book_tf = _book()["axes"]["timeframe"]["code_to_label"]
+    corrupted = dict(book_tf)
+    a_key = sorted(corrupted)[0]
+    corrupted[a_key] = corrupted[a_key] + "-CORRUPTED"
+    corrupted_path = tmp_path / "timeframeLabels.json"
+    corrupted_path.write_text(json.dumps(corrupted, indent=2), encoding="utf-8")
+
+    reloaded = json.loads(corrupted_path.read_text(encoding="utf-8"))
+    assert reloaded != book_tf, (
+        "the corrupted copy still equals the book — the comparison this rail "
+        "relies on would not notice a real drift either")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CP2 — THE FIRST NON-SCREENER STORE
 #
 # ⛔ Every oracle below re-reads `bars_sqlite.py` ITSELF. Importing the builder's
