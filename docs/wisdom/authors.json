@@ -104,6 +104,21 @@
         "jersace"
       ],
       "substack_sections": []
+    },
+    {
+      "author_id": "attheask",
+      "display_name": "AtTheAsk",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": null,
+      "discord_username": null,
+      "discord_verified": "PENDING — owner ruled this a 6th author 2026-09-19, posting in #main-chat rather than a dedicated channel (unlike the other five). Checked the last 100 main-chat messages by both username and global_name (2026-09-19): none obviously matched 'AtTheAsk', so discord_user_id/discord_username are still unset. Needs the owner's exact Discord handle before this author's messages can be reliably separated from main-chat's ~17 other regular posters.",
+      "x_handle": null,
+      "aliases": [
+        "AtTheAsk",
+        "attheask"
+      ],
+      "substack_sections": []
     }
   ],
   "ambiguous_speaker_labels": [
@@ -152,7 +167,9 @@
       "Manrav": "the author_id itself",
       "manrav": "Discord username, lowercase",
       "Jersace": "the author_id itself, a stage name, not observed as anyone's given name in this room",
-      "jersace": "Discord username / channel name, lowercase"
+      "jersace": "Discord username / channel name, lowercase",
+      "AtTheAsk": "the author_id itself, a stage name, not observed as anyone's given name in this room",
+      "attheask": "lowercase form of the stage name"
     }
   }
 }
