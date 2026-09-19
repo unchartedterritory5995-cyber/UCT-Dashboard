@@ -102,6 +102,7 @@ from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
+from api.routers import tracings as tracings_router
 from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
@@ -8324,6 +8325,7 @@ app.include_router(entity_master_admin_router.router)  # /api/admin/entity-maste
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
+app.include_router(tracings_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
