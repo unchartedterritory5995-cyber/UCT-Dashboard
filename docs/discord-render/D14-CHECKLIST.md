@@ -619,8 +619,25 @@ un-maximises).
      inside 3,000 ms, read from the WIRE). Mover: the private-network harness run (R46) or, if NO-GO twice,
      canary traffic under D2 with `source=canary`, min N=50 — an honest new SOURCE, contract updated to accept it.
   4. **NOT MEASURABLE — "mutation NOT-APPLIED = 0"** · re-verified live 2026-09-19: **16** harnesses
-     now (was 15 — one more landed since), only 6 answer `--dry-check`. Mover unchanged:
-     `--run-mutations`, or read the merge row. Unblocked and cheap; do it early in W1.
+     now (was 15 — one more landed since), only 6 answer `--dry-check`.
+     ⭐ **All 6 dry-check-capable harnesses now verified clean, 2026-09-19** (was 4/6 — the gate's
+     own `--run-mutations` run from THIS tree correctly refuses `mutation_harness_adapters.py` and
+     `mutation_harness_image_delivery.py` with `rc=86`: both edit real source files in place even
+     for `--dry-check` and their own `harness_guard` requires a genuine `.mutation-sandbox` marker,
+     which the integrator's tree correctly does not carry — this is the safety guard working, not
+     a defect). Ran those two directly in an EXISTING, already-marked throwaway sandbox
+     (`uct-worktrees/drender-gate-mut`, `.mutation-sandbox` = `throwaway`, updated to this branch's
+     current tip `148299bd1` first) rather than creating a new one: `mutation_harness_adapters.py`
+     → `PASS mutations=75 stale=0` (76 anchors), `mutation_harness_image_delivery.py` → `PASS
+     mutations=38 stale=0` (38 anchors) — both clean, both confirmed the sandbox was left with zero
+     lingering changes afterward (`git status --short` empty). Combined with the 97 anchors already
+     verified directly in this tree: **211 total anchors across all 6 dry-check-capable harnesses,
+     zero stale.** ⛔ **This is a MANUAL verification, not something the automated gate can
+     reproduce from the integrator's tree** — the row will keep reporting the same rc=86 refusal
+     every time `--run-mutations` runs here, correctly, since that refusal is the guard doing its
+     job. Full closure of this row (all 16, not just the 6 that can answer `--dry-check` at all)
+     needs `dry_check` functions added to the other 10 harnesses — a real, if modest, code change,
+     not attempted here. Mover unchanged: `--run-mutations`, or read the merge row.
   5. ✅ **ROW MOVED 2026-09-19: "canary scope narrowed to the declared ids" NOT MEASURABLE → MET.**
      Not stale documentation — a genuine live re-read. The row's own evidence had aged to 76.2h
      (limit 24h); refreshed it exactly per the check's own documented procedure (read the RUNNING
