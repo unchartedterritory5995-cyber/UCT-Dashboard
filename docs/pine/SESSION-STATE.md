@@ -120,17 +120,27 @@
 
 > ### ✅ R38 5.5 — rollback plan, stated before merging (required in this order by the gate itself)
 >
-> If gate 5.7's post-deploy check finds a regression: `git revert -m 1
-> <merge-commit-sha>` committed and pushed directly to `master` — **never**
-> `git reset --hard` and **never** a force-push. `-m 1` is required because
-> the commit being undone is itself a merge: reverting a merge commit needs
-> the mainline-parent number, and parent 1 is `master`'s own prior history
-> (parent 2 is `feat/indicator-r0r1`) — reverting against the wrong parent
-> silently re-applies the branch instead of removing it. The revert is an
-> ordinary new commit on top of history, reviewable, and rewrites nothing.
-> `<merge-commit-sha>` is filled in once gate 5.6 actually produces one —
-> it cannot exist before the merge does, so this states the *procedure*, not
-> yet the *SHA*, which is what "before merging" means here.
+> ⚰️ **CORRECTED before the actual click, not after** — the merge-status panel
+> shows this repo's configured method is **Squash and merge** (the only
+> primary button offered), not a merge commit. A squash produces a single
+> new commit on `master` with ONE parent (master's own prior tip) — there is
+> no second parent to disambiguate, so the original `git revert -m 1
+> <merge-commit-sha>` text below was written for the wrong shape and is
+> struck rather than silently swapped.
+>
+> **The actual plan:** if gate 5.7's post-deploy check finds a regression,
+> `git revert <squash-commit-sha>` (no `-m` flag — a squash commit has one
+> parent, so there is no mainline to name) committed and pushed directly to
+> `master` — **never** `git reset --hard` and **never** a force-push. The
+> revert is an ordinary new commit on top of history, reviewable, and
+> rewrites nothing. `<squash-commit-sha>` is filled in the moment gate 5.6
+> actually produces one.
+>
+> ☠️ ~~If gate 5.7's post-deploy check finds a regression: `git revert -m 1
+> <merge-commit-sha>`... `-m 1` is required because the commit being undone
+> is itself a merge...~~ — struck: this branch does not merge as a merge
+> commit, so `-m 1` never applied. Kept, marked, rather than deleted, since
+> a reader mid-incident should see why the obvious `-m 1` form is wrong here.
 
 > ### ⏱️ 2026-09-18 18:2X ET — R38 continuing: gate 5.4 remerged again; gate 5.2 re-verdict queued; the Ready click is BLOCKED on Gate v2.1, not skipped.
 >
