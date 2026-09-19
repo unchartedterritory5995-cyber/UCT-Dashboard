@@ -2,7 +2,11 @@
 id: GATE-S7-INDICATOR-CONDITION
 title: S7 trigger type — `indicator-condition` pre-implementation gate
 role: the approval packet for the type sequenced behind D2. Its gate has THREE clauses (s7-alerts-completion-plan.md §2b); §2 measures that clauses 1 and 2 are now SATISFIED and makes clause 3 a CP1 deliverable. The undeclared-cadence question in §4 is the sharpest design question in the four S7 packets written today.
-status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3, CP4 and the flip each need a new line.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3 SIGNED 2026-09-12/13 and BUILT (`d31b78b75`,
+  `54cb66513`). CP4 SIGNED 2026-09-19 (fingerprint `6625998e8`) — widens the rollout:s7-dark
+  cohort to all production members (6 -> 29), executed via railway ssh (see the approval
+  block for before/after counts). THE FLIP still needs a new line — member-visible, owner's
+  call.
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §2b / §1 row 3, PRD-D2 §7 / §9, GATE-D2-CANONICAL-DATA-MODEL (CP1 + CP2), GATE-S12-ROLLOUT
@@ -634,3 +638,61 @@ SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3, restated VERBATIM from th
                   ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF in this
                      checkpoint. Arming is the owner's flip.
 ```
+
+## ✅ APPROVAL — CHECKPOINT 4 (a FOURTH line; all three blocks above untouched)
+
+**Scope, per §7's own row:** *"CP4 — all members, still dark. A tag assignment (`rollout.py:258`),
+not a code path."* Widen the `rollout:s7-dark` cohort from its current admin-seeded population to
+every account in `users`, via `rollout.seed_cohort_all_members("s7-dark")` — already built, tested
+(`tests/test_rollout.py`, idempotency proved: a second call returns 0 added), and reversible
+(`remove_from_cohort` undoes it by named account). No code changed by this checkpoint; the function
+predates it.
+
+⚠️ **MEASURED BEFORE THIS LINE WAS WRITTEN, AND IT CHANGES WHAT "STILL DARK" MEANS HERE.** §7's own
+framing ("still dark") was written when CP3 shipped with its sweep flag
+(`ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED`) OFF. Read live on `web`, 2026-09-19: **the flag
+is `1`.** It was armed for the admin-only cohort at some point after CP3 shipped, by a decision this
+line did not make and does not need to re-litigate — it is simply the fact that makes CP4
+non-trivial: the sweep is ALREADY running, and widening the cohort widens WHO it runs against, live,
+the moment the tags land. "Still dark" remains true in the sense that matters for a member (no
+delivery, no visible change, a comparison log only) — it is not true in the sense of "nothing is
+running."
+
+**Before state, measured via `railway ssh` (read-only):** `rollout:s7-dark` cohort = **6** accounts;
+`users` table = **29** accounts. CP4 widens the cohort by **23** rows.
+
+**Executed:** `rollout.seed_cohort_all_members("s7-dark")` run once against production via
+`railway ssh`, in-process (the same idiom `tools/smoke_login_link.py`-adjacent one-off admin
+actions in this repo use — no raw SQL, the product's own tested function). Before/after counts
+recorded in the same session that ran it, immediately below this block.
+
+**No code change. No schema change. No delivery. No member-visible effect** — the dark projection
+writes a comparison log (`legacy:indicator-condition:<id>` predicate rows), never a notification,
+never `alert_fires`. `require_paid`/`AuthGuard`/every member-facing surface is untouched.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  6625998e8
+SCOPE APPROVED:   CP4 -- all members, still dark. A tag assignment (rollout.py's seed_cohort_all_members, already built and tested), not a code path. Widens the rollout:s7-dark cohort from its admin-seeded population (6 accounts) to every account in users (29 accounts, +23), via rollout.seed_cohort_all_members("s7-dark") run once against production. Measured before signing: the sweep's own flag (ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED) is already 1 (armed) in production for the admin-only cohort, so widening the cohort widens who the already-running dark sweep processes -- "still dark" means no delivery/no member-visible change (a comparison log only), not "nothing is running." No code change, no schema change, no delivery, reversible via remove_from_cohort.
+```
+
+### ✅ EXECUTED 2026-09-19 — exact before/after, both verified via `railway ssh`
+
+```
+before_cohort=6  before_total_tags=18  before_users=29
+seed_cohort_all_members("s7-dark") -> added=23
+after_cohort=29  after_total_tags=41
+```
+
+⭐ **`after_total_tags - before_total_tags == added == 23`, exactly.** The total `user_tags` row
+count moved by precisely the number of rows the function itself reported adding — proving no OTHER
+tag (a different cohort, a color tag, anything) was touched by this call. `after_cohort == 29 ==
+before_users`, confirming every account, not a subset, is now in the cohort.
+
+**Idempotency reconfirmed on the live database, immediately after:** a second call to
+`seed_cohort_all_members("s7-dark")` returned `added=0`, matching `tests/test_rollout.py`'s own
+idempotency proof and confirming the write is stable, not a race.
+
+**Rollback, if ever needed:** `rollout.remove_from_cohort("s7-dark", <ids>)` — takes named accounts
+out; an empty `user_ids` list raises rather than silently doing nothing, by design.
