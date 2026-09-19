@@ -156,3 +156,27 @@ describe('follow-through days (V1 had them; V2 shipped without)', () => {
     await waitFor(() => expect(screen.getByTestId('v2-ftd-toggle')).toHaveAttribute('aria-pressed', 'true'))
   })
 })
+
+describe('the view chips do not blink out while a range loads', () => {
+  it('follow-through, log and table stay visible while the next range is loading', async () => {
+    stubPrefs({ breadth_charts_state: JSON.stringify({ selected: ['new_52w_highs'] }) })
+    mockUseBreadthSeries.mockImplementation(keys => ({
+      ...fixture(keys), dates: [], series: null, isLoading: true,
+    }))
+    mount()
+    await waitFor(() => expect(lastKeys()).toContain('new_52w_highs'))
+    expect(screen.queryByTestId('echart')).toBeNull()          // genuinely loading: no chart yet
+    expect(screen.getByTestId('v2-ftd-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('v2-log-count')).toBeInTheDocument()
+    expect(screen.getByTestId('v2-table-toggle')).toBeInTheDocument()
+  })
+
+  it('⭐ CONTROL — a refused range has no chart to act on, so the chips are not offered', async () => {
+    stubPrefs()
+    mockUseBreadthSeries.mockImplementation(keys => ({ ...fixture(keys), series: null, tooWide: true }))
+    mount()
+    await screen.findByTestId('v2-range-refused')
+    expect(screen.queryByTestId('v2-ftd-toggle')).toBeNull()
+    expect(screen.queryByTestId('v2-table-toggle')).toBeNull()
+  })
+})
