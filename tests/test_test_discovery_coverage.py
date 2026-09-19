@@ -65,6 +65,15 @@ NOT_A_SUITE = {
         "smoke tests (snaptrade_smoke_test.py, twitterapi_io_smoke_test.py) that must "
         "never auto-collect, so widening testpaths to reach this one file would open "
         "collection to those too.",
+    "tools/test_vendor_parity_capture.py":
+        "a genuine, safe unit suite (PIL-generated fixture images + scikit-image "
+        "SSIM scoring, no network, no browser launch) for the vendor-parity "
+        "comparator, colocated with the tool it covers — same "
+        "tools/test_pine_member_pane_capture.py precedent, run via its own explicit "
+        "path (`python -m pytest tools/test_vendor_parity_capture.py`), never via a "
+        "bare `pytest`. Not added to testpaths for the same reason as that "
+        "precedent: tools/ also holds live-account smoke tests that must never "
+        "auto-collect.",
 }
 
 
