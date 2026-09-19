@@ -206,6 +206,23 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
   - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - **Graph view** (`GET /api/j2/notes/graph` → `notes.get_note_graph`; renderer
+    `journal-2-0/components/notebook/NoteGraphView.jsx`, third `viewMode` beside
+    list/table in `NotebookTab`). Obsidian's signature surface, over the
+    `j2_note_links` projection Wave D already maintains — a read endpoint plus a
+    renderer, never a data-model change. ⛔ **Two queries, never N+1**, and an
+    UNLINKED note is still a node (an inner join against the edges would hide
+    exactly what a member opens this view to find). ⛔ **Trash is excluded on both
+    ends of every edge AND from `degree`** — deliberately stricter than
+    `get_note_backlinks`, which does not gate its target; a test pins the
+    difference so it cannot be tidied into consistency. ⛔ The renderer is
+    **canvas with no new dependency**, its force simulation is **bounded and
+    stops** (an unsettling loop is rule H14), and **hover must never re-run it**
+    — a fresh run re-seeds every node onto the start ring, and because the
+    layout is deterministic, position equality CANNOT catch that; the rail
+    asserts a hover costs one frame (mutation-proved: the defect makes it 221).
+    ⚠️ `create_saved_view` accepts only `("list", "table")`, so the Save-view
+    control is hidden in graph mode rather than offering a button that 400s.
   - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Dropbox OAuth; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
   - **OneNote + OneDrive** joined the connector roster shipped dark 2026-08-12, same branch — Microsoft Graph OAuth, one shared Azure app (`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET`), same `note_sync.py` router and the same `NOTE_SYNC_ENABLED` + per-provider msgraph-config double-gate as above. OneNote syncs via a resumable per-tick watermark queue (bounded enumeration + paced content fetch across ticks), not a one-shot pull.
   - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
