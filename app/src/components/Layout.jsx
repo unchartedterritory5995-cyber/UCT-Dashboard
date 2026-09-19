@@ -17,6 +17,7 @@ import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
 import { initBarsPack } from '../lib/barsPackClient'
 import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars, writeThemeCache } from '../styles/appThemes'
+import { titleForPath } from '../surfaces/pageTitle.js'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -43,8 +44,31 @@ function usePageTracking() {
   }, [location.pathname])
 }
 
+// S1 CP2 — the shell's ONE consumer of the CP1 surface manifest (`kind`).
+// Mirrors usePageTracking's own dedup shape: one effect keyed on the pathname,
+// a ref so an unrelated re-render never re-runs it. `titleForPath` returns
+// `null` for anything the manifest does not classify `'surface'` (or that
+// `NAV_ITEMS` names no label for) -- `null` means LEAVE `document.title` AS IT
+// STANDS, never reset it to a generic default. A child/detail route under a
+// surface therefore keeps that surface's title rather than losing it, and a
+// route CP2 does not cover behaves exactly as it did before this shipped.
+function usePageTitle() {
+  const location = useLocation()
+  const lastPath = useRef(null)
+
+  useEffect(() => {
+    const path = location.pathname
+    if (path === lastPath.current) return
+    lastPath.current = path
+
+    const title = titleForPath(path)
+    if (title) document.title = title
+  }, [location.pathname])
+}
+
 export default function Layout({ children }) {
   usePageTracking()
+  usePageTitle()
   const { prefs } = usePreferences()
 
   // Pre-seed IndexedDB with the Universe Bars Pack so D/W/M charts are instant
