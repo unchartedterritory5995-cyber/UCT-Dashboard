@@ -37,6 +37,17 @@ Same shape, three surfaces:
     of `_build_by_contract`'s selection and direction logic remains a named
     gap, not a promise.
 
+    ⛔ STALENESS GUARD (2026-09-19). The raw-tape check is only meaningful
+    against a flow.db that actually HOLDS the card's date. `flow_db_freshness()`
+    reads the table's own newest `CreatedDate` first; if it predates the
+    card's window end, `run_flow_check` SKIPS `check_flow_against_raw_tape`
+    entirely and reports the fact in `tape_check_note` instead of a mismatch.
+    Without this, running on a non-flow-worker host — `web`'s `/data/flow.db`
+    is a documented FROZEN pre-cutover copy (CLAUDE.md "P5 cutover") — makes
+    EVERY shown contract look like "zero raw rows for this ticker/date", a
+    systematic false positive that is really a fact about which host served
+    the audit, not about the code under audit.
+
 Every check in this module is EITHER a pure function (no I/O — exercised by
 --self-check, which proves each one can both fire on a planted defect and stay
 quiet on a clean input) OR a thin runner around one, so the mutation-proof lives
@@ -233,6 +244,49 @@ def check_flow_internal_consistency(payload: dict) -> list[str]:
             if prems != sorted(prems, reverse=True):
                 problems.append("contracts_not_sorted_descending_by_premium")
     return problems
+
+
+def _parse_flow_date(s) -> tuple[int, int, int] | None:
+    """Parse a flow.db-shaped date into a (year, month, day) tuple comparable
+    with plain `<`/`>`. Handles both shapes seen in this pipeline: ISO
+    'YYYY-MM-DD' (the adapter payload's `window.end`) and the raw table's US
+    'M/D/YYYY' (`CreatedDate`, `ExpirationDate`). NEVER compare these as
+    strings — 'M/D/YYYY' does not sort chronologically as text (e.g. the text
+    '9/2/2026' > '10/1/2026'), and ISO vs US shapes are not even the same
+    alphabet order. Returns None on anything unparseable."""
+    s = str(s).strip()
+    try:
+        if "-" in s:
+            y, m, d = s.split("-")[:3]
+        elif "/" in s:
+            m, d, y = s.split("/")[:3]
+        else:
+            return None
+        return (int(y), int(m), int(d))
+    except (TypeError, ValueError):
+        return None
+
+
+def flow_db_freshness(db_path: str) -> str | None:
+    """The single newest `CreatedDate` anywhere in flow.db — no ticker/date
+    scoping, no filtering. Exists ONLY to detect when
+    `check_flow_against_raw_tape` is about to bound a payload against a
+    database that cannot possibly hold that date's data: web's own
+    `/data/flow.db` is a documented FROZEN pre-cutover copy of flow-worker's
+    live tape (this repo's CLAUDE.md, "P5 cutover"), and running this audit
+    on `web` against a card for a date newer than the freeze produces a
+    systematic 'every contract shows zero raw rows' false mismatch — an
+    environmental fact about WHICH HOST served the audit, not a code defect.
+    Read-only; raises FileNotFoundError/sqlite3.Error same as its sibling
+    `independent_flow_raw_totals`."""
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(db_path)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        row = conn.execute("SELECT MAX(CreatedDate) FROM flow").fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
 
 
 def independent_flow_raw_totals(db_path: str, ticker: str, created_date: str) -> dict:
@@ -436,13 +490,30 @@ def run_flow_check(ticker: str) -> dict:
     if contracts and end_date:
         db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
         try:
-            raw_totals = independent_flow_raw_totals(db_path, ticker, end_date)
+            newest = flow_db_freshness(db_path)
         except FileNotFoundError:
             tape_note = f"{db_path} not reachable from this host — raw-tape check skipped"
         except sqlite3.Error as exc:
             tape_note = f"sqlite error reading {db_path} for the raw-tape check: {exc}"
         else:
-            problems = problems + check_flow_against_raw_tape(contracts, raw_totals)
+            newest_parsed = _parse_flow_date(newest) if newest else None
+            end_parsed = _parse_flow_date(end_date)
+            if newest_parsed and end_parsed and newest_parsed < end_parsed:
+                tape_note = (f"{db_path}'s newest row is {newest}, older than the "
+                             f"card's window end {end_date} — this host's flow.db "
+                             f"cannot bound this date (see CLAUDE.md 'P5 cutover': "
+                             f"a non-flow-worker host's copy is a FROZEN pre-cutover "
+                             f"snapshot, not the live tape). Raw-tape check SKIPPED — "
+                             f"this is a stale-database fact, not a mismatch")
+            else:
+                try:
+                    raw_totals = independent_flow_raw_totals(db_path, ticker, end_date)
+                except FileNotFoundError:
+                    tape_note = f"{db_path} not reachable from this host — raw-tape check skipped"
+                except sqlite3.Error as exc:
+                    tape_note = f"sqlite error reading {db_path} for the raw-tape check: {exc}"
+                else:
+                    problems = problems + check_flow_against_raw_tape(contracts, raw_totals)
 
     out = {"ticker": ticker, "surface": "flow",
            "status": "mismatch" if problems else "matched", "problems": problems,
@@ -597,6 +668,27 @@ def self_check() -> int:
              {"net": None, "contracts": [{"premium": 100}, {"premium": 200}]}), True)
     case("flow: empty contracts never flags (nothing to check)",
          check_flow_internal_consistency({"net": None, "contracts": []}), False)
+
+    # _parse_flow_date — the staleness-guard comparator. `case()` treats a
+    # falsy/None result as "did not flag", so these assert on EQUALITY via a
+    # wrapper rather than truthiness (a (0,0,0) tuple would misreport).
+    def date_case(name, got, want):
+        nonlocal declared, bad
+        declared += 1
+        ok = got == want
+        if not ok:
+            bad += 1
+        print(f"  {'ok  ' if ok else 'FAIL'} {name} -> {got!r}")
+
+    date_case("parse-date: ISO shape",
+              _parse_flow_date("2026-09-19"), (2026, 9, 19))
+    date_case("parse-date: US M/D/YYYY shape",
+              _parse_flow_date("7/14/2026"), (2026, 7, 14))
+    date_case("parse-date: unparseable returns None",
+              _parse_flow_date("not-a-date"), None)
+    date_case("parse-date: text order would get this WRONG if compared as strings "
+              "('9/2/2026' > '10/1/2026' lexicographically) — tuple order is correct",
+              _parse_flow_date("9/2/2026") < _parse_flow_date("10/1/2026"), True)
 
     # check_flow_against_raw_tape
     case("flow-tape: shown values within the raw bound does not flag",

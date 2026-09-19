@@ -32,6 +32,7 @@ check_chart_vs_snapshot = _w8.check_chart_vs_snapshot
 check_buzz_counts = _w8.check_buzz_counts
 check_flow_internal_consistency = _w8.check_flow_internal_consistency
 check_flow_against_raw_tape = _w8.check_flow_against_raw_tape
+_parse_flow_date = _w8._parse_flow_date
 
 
 class TestOhlcInvariants:
@@ -239,3 +240,25 @@ class TestFlowAgainstRawTape:
     def test_empty_contracts_never_flags(self):
         raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
         assert check_flow_against_raw_tape([], raw) == []
+
+
+class TestParseFlowDate:
+    """`_parse_flow_date` — the staleness-guard comparator (2026-09-19).
+    Exists because flow.db's `CreatedDate` is US 'M/D/YYYY' text while the
+    adapter payload's `window.end` is ISO 'YYYY-MM-DD' — comparing either
+    shape as a plain string sorts wrong (US shape does not sort
+    chronologically as text at all, and the two shapes are not even the same
+    alphabet order)."""
+
+    def test_iso_shape(self):
+        assert _parse_flow_date("2026-09-19") == (2026, 9, 19)
+
+    def test_us_m_d_y_shape(self):
+        assert _parse_flow_date("7/14/2026") == (2026, 7, 14)
+
+    def test_unparseable_returns_none(self):
+        assert _parse_flow_date("not-a-date") is None
+
+    def test_us_shape_string_order_would_be_wrong_tuple_order_is_correct(self):
+        # '9/2/2026' > '10/1/2026' as text; the parsed tuples compare correctly.
+        assert _parse_flow_date("9/2/2026") < _parse_flow_date("10/1/2026")
