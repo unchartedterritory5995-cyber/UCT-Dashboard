@@ -616,6 +616,22 @@ un-maximises).
      MEASURABLE -> MET`, snapshot `20260919T042310Z-59bc103ee.json` vs. `20260919T042014Z-59bc103ee.json`.
      Tally: **MET 5→6, NOT MEASURABLE 3→2.** Overall verdict unchanged (`NOT MET — do not flip`) —
      rows 1–4 above are still open. Fresh read written to `evidence/canary-scope.json`.
+  6. ⛔⛔ **NOT MET — "soak clean for >= 24 h" — genuinely open, NOT a stale-artifact issue like
+     items 1/4/5 above.** Checked the same way: read the actual soak log the gate reads
+     (`C:\Users\Patrick\uct-render-soak\soak.log`, a LOCAL file outside the repo, not one this
+     correction can commit). It ends in a `KeyboardInterrupt` traceback at **23:15:02 ET tonight**
+     — the soak process was manually stopped, not this session's doing and not a crash. **The tail
+     entries BEFORE that stop are real, repeating FAILs**, not old history: `stale_leases reached 2`
+     / `stuck_jobs reached 1` — *"a job nobody owns and nobody will answer (S7)"* — appearing
+     consistently across many consecutive ticks right up to the point it was killed. This is the
+     same "sums the whole log, one bad entry poisons it forever" shape as `check_smoke`'s documented
+     defect, but here the poison is CURRENT, not stale: the standing S7 lease/stuck-job problem was
+     apparently live at the moment the process stopped, not fixed-then-forgotten.
+     ⛔ **Deliberately not restarted or debugged here** — this needs its own investigation into WHY
+     leases go stale / jobs go unowned (durable-job-lease code, not looked at in this pass), and
+     restarting a 24h soak on top of an unfixed cause just produces the same 147/474-shaped result
+     again. Flagging rather than forcing: this is real, open work, distinct from every other row in
+     this section tonight.
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.
