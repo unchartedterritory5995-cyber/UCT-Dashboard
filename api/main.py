@@ -8437,6 +8437,8 @@ app.include_router(flow_scoreboard_router)
 app.include_router(flow_explain_router)
 app.include_router(schwab_router)
 app.include_router(calendar_router.router)
+from api.routers import member as member_router      # S6 CP4: GET /api/member/interest
+app.include_router(member_router.router)
 from api.routers import wire as wire_router          # earnings wire (Phase 1)
 app.include_router(wire_router.router)
 

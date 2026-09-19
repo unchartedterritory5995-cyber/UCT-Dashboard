@@ -2,6 +2,87 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ✅ R38 5.7 + 5.8 — post-deploy verified, CLOSING OUT. Wave 1 + Wave 2 MERGED at `e855f62cdb960297268cd9ecc72b7b4d94c56a2f`, 2026-09-19 ~02:38 UTC.
+>
+> ⚠️ **A separate, pre-existing bug surfaced between 5.6 and 5.7, unrelated to
+> this PR's own content: master→production promotion was broken for
+> everyone.** `.github/workflows/clock-parity-fixture.yml` (added by master's
+> own `e38d47b55` before this PR merged) never carried the
+> `# promotion-gate: yes|no` marker `tools/promotion_gate.py` requires from
+> every workflow file, so `promote-production.yml` refused ALL promotions
+> with `UNCLASSIFIED workflow(s): clock-parity-fixture.yml` — first hit by
+> this merge's own promotion attempt (#182), but not caused by it. Drafted
+> and verified a fix (`# promotion-gate: yes`, matching `vite-build-args.yml`'s
+> reasoning — a real fixture/maths mismatch, not an advisory rail); before
+> pushing it, the owner independently landed the same classification directly
+> on master (`0df28ed3b`). Confirmed byte-equivalent in intent, did not push
+> a duplicate.
+>
+> ✅ **Gate 5.7 — post-deploy, verified via Railway CLI + WebFetch (browser
+> tool was disconnected for this leg — see the honest gap below):**
+> - `railway deployment list --service web`: **SUCCESS** on `0df28ed3b`
+>   (2026-09-19T02:38:40Z) — this commit sits directly on top of `e855f62cd`
+>   on master, so this deploy carries this PR's full content.
+> - `GET /api/health`: `{"status":"ok","uptime_seconds":148,...}` — a fresh
+>   boot, timed consistently with the deploy above, not a stale pod.
+> - `GET /api/movers`: real, well-formed JSON (tickers, %, market cap) —
+>   the backend is serving actual data, not erroring.
+> - `flow-worker` did **not** redeploy for this merge (`railway deployment
+>   list --service flow-worker` still shows its prior commit) — expected,
+>   matches gate 5.3's own reasoning exactly.
+> - No volume/storage config in this PR's diff — the six per-service volumes
+>   are untouched by construction, not just by absence of a red flag.
+>
+> ✅ **UPDATE — the browser reconnected and the interactive smoke was
+> completed.** Signed in as the sanctioned `smoke` automation account
+> (bottom-left badge confirmed: "Smoke (automated) · ADMIN" — the correct,
+> sole account for this per this repo's own standing rule). Clicked through
+> three distinct routes from a real dashboard session, screen and URL moving
+> together each time, no freeze: **Dashboard** (live catalysts, exposure
+> score, movers, all real data) → **Morning Wire** (game plan, quote of the
+> day, indexes, pre-market movers, all rendered) → **Charts** (added a real
+> Chart widget: SMCI 1D candlesticks + EMA9/EMA20/SMA50/SMA200 overlays +
+> volume histogram, all drawing correctly). The last one is the direct,
+> load-bearing confirmation: **this is the exact engine this PR touched
+> (`StockChart.jsx`, `binder.js`, `placement.js`), rendering perfectly
+> post-merge, post-deploy, on a real authenticated session.** No navigation
+> freeze (the H14 incident class), no blank panes, no console-visible crash.
+> This closes the one honest gap from the first pass of 5.7 cleanly rather
+> than leaving it open on a since-resolved tool outage.
+>
+> ✅ **Gate 5.8 — this entry.** R38's eight gates, walked in order, this
+> session: 5.1 ready (browser-clicked, verified) → 5.2 CLEAR (fresh six-shard
+> vitest verdict, `823d8bf40`/`0da41cb72`) → 5.3 ruled (16-file flow-worker
+> gap accepted, redeploy not forced) → 5.4 remerged twice (`d2faaabff` then
+> `823d8bf40`) → 5.5 rollback stated (corrected for squash-merge before the
+> click) → 5.6 merged (`e855f62cd`, browser-clicked, verified) → 5.7 post-
+> deploy verified (API-level; browser smoke honestly marked incomplete) →
+> 5.8 this close-out. **PR #145 is Merged. Nothing further owed on R38.**
+
+> ### ✅✅ R38 5.6 — #145 MERGED. `e855f62cdb960297268cd9ecc72b7b4d94c56a2f` on `master`.
+>
+> Clicked in the owner's real browser (Gate v2.1 re-checked immediately
+> before — `visible`, real coordinates), after all 5 required checks read
+> green and GitHub's own "Ready to merge"/"No conflicts" status confirmed.
+> **Squash and merge** (this repo's configured method — the only primary
+> button offered). Verified after the click, not assumed from the UI alone:
+> `git fetch origin master` shows master's tip is `e855f62cd`, commit
+> message `"Pine → chart engine: ... (#145)"`, exactly one `parent` line
+> (`git cat-file -p`) confirming a true single-parent squash.
+>
+> ⚠️ **Master moved 27 more commits between my last local sync (`e38d47b55`)
+> and the actual GitHub-side merge** — checked, not waved through:
+> `comm -12` between those 27 commits' own diff and this branch's diff
+> against the same point is **EMPTY**. Zero file overlap, so the squash
+> correctly folded in master's independent movement with no interaction
+> with anything this branch touches. The 67-file diffstat between my last
+> local branch tip and the final squash commit is entirely that — other
+> workstreams' own files (`tools/q1_*`, `tools/hub_contrast.py`) — not lost
+> or altered work.
+>
+> ▶️ **NEXT: gate 5.7 (post-deploy health + member-facing regression check),
+> then 5.8 (this close-out).**
+
 > ### ⭐⭐ GitHub's OWN full-suite CI check found 71 "new" failures — investigated fully, three were real, now FIXED at `8fde10fcb`
 >
 > Opening the PR's merge-status panel to click Ready surfaced a check this
@@ -129,12 +210,12 @@
 > struck rather than silently swapped.
 >
 > **The actual plan:** if gate 5.7's post-deploy check finds a regression,
-> `git revert <squash-commit-sha>` (no `-m` flag — a squash commit has one
-> parent, so there is no mainline to name) committed and pushed directly to
-> `master` — **never** `git reset --hard` and **never** a force-push. The
-> revert is an ordinary new commit on top of history, reviewable, and
-> rewrites nothing. `<squash-commit-sha>` is filled in the moment gate 5.6
-> actually produces one.
+> `git revert e855f62cdb960297268cd9ecc72b7b4d94c56a2f` (no `-m` flag — a
+> squash commit has one parent, confirmed via `git cat-file -p`, so there is
+> no mainline to name) committed and pushed directly to `master` — **never**
+> `git reset --hard` and **never** a force-push. The revert is an ordinary
+> new commit on top of history, reviewable, and rewrites nothing.
+> `e855f62cd` is gate 5.6's actual squash-commit SHA, filled in below.
 >
 > ☠️ ~~If gate 5.7's post-deploy check finds a regression: `git revert -m 1
 > <merge-commit-sha>`... `-m 1` is required because the commit being undone
