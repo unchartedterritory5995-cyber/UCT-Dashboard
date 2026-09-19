@@ -1,0 +1,53 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 154,
+    "missing": 0,
+    "baseline": 155,
+    "current": 154,
+    "current_ran": 50274,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 155 = unchanged 154 + fixed 1 + missing 0  |  current 154 = unchanged 154 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35448113392",
+  "current_run_id": "35449928439",
+  "baseline_sha": "8636def02f824a0cc3369c02a3dda437bddc4965",
+  "current_sha": "d478b91cdbf84d822d04f1329f548e6707f0a7d7",
+  "commit_range": "8636def02f824a0cc3369c02a3dda437bddc4965..d478b91cdbf84d822d04f1329f548e6707f0a7d7",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8636def02..d478b91cd touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}

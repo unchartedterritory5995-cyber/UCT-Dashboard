@@ -1,0 +1,314 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+..........................................ss.............ss...s......... [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+..............x......................................................... [ 37%]
+........FFF.F........................................................... [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 74%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+...................................................sssss................ [ 95%]
+........................................................................ [ 99%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_______________ test_NO_variable_points_at_the_shared_data_root ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_NO_variable_points_at_the0')
+
+    def test_NO_variable_points_at_the_shared_data_root(tmp_path):
+        """The one property this tool exists for."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_NO_variable_points_at_the0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+__________________ test_the_BARE_ROOT_pins_are_redirected_too __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_BARE_ROOT_pins_are_re0')
+
+    def test_the_BARE_ROOT_pins_are_redirected_too(tmp_path):
+        """⛔ The specific bug this file was written for.
+    
+        A pin whose literal is `/data` itself must land on the sandbox ROOT, not be
+        passed through. Asserted by NAME rather than by count, so the case survives a
+        future pin joining or leaving the group."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_BARE_ROOT_pins_are_re0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+________________ test_it_REDIRECTS_EVERY_pin_the_census_derives ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_it_REDIRECTS_EVERY_pin_th0')
+
+    def test_it_REDIRECTS_EVERY_pin_the_census_derives(tmp_path):
+        """⛔ The non-vacuity guard. A sandbox that redirected three variables would
+        pass the check above trivially. The set it covers must be the census's own
+        set — not a subset, and not a hand-typed list that drifts from it."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_it_REDIRECTS_EVERY_pin_th0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+_________ test_the_quiet_flags_blank_a_webhook_rather_than_removing_it _________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_quiet_flags_blank_a_w0')
+
+    def test_the_quiet_flags_blank_a_webhook_rather_than_removing_it(tmp_path):
+        """⚠️ A blank webhook posts nothing; an ABSENT one lets a default re-appear.
+        This repo has paged production from a test suite once, and that is the
+        distinction that prevents it."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_quiet_flags_blank_a_w0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_ast_tf_sym.py: 15 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/ast_interpret.py:345: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1503: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1504: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert year >= _dt.datetime.utcnow().year - 1, f"from_date {d} is unbounded"
+
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:72: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    eight_days_ago = int(_dt.datetime.utcnow().timestamp()) - 8 * 86400
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_coverage.py::test_coverage_stats_probes_freshness_by_list
+tests/test_bars_data_auth.py::test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py:320: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+
+tests/test_bars_data_auth.py: 50 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1741: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1744: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_bars_fetch_validation_wired.py::test_production_inner_invokes_fetch_with_validation_on_cold_fetch
+tests/test_bars_fetch_validation_wired.py::test_production_path_returns_empty_when_all_sources_corrupt
+tests/test_bars_fetch_validation_wired.py::test_production_path_returns_empty_when_all_sources_corrupt_tf60
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1154: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1331: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:80: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:91: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:120: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:137: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:163: durable grouped-daily frame cache not present on this machine
+XFAIL tests/test_ast_tc2000_remainder.py::test_aroonUp_matches_the_published_formula_over_a_shaped_series - OPEN OWNER RULING, raised 2026-09-09 — TWO REAL AUTHORITIES DISAGREE ABOUT A TIE, and neither is obviously wrong. `days_since_extreme` above encodes the PUBLISHED words — 'the number of periods elapsed since the MOST RECENT x-day high' — so a tie resolves to the NEWEST bar holding the extreme. On 2026-09-08 `ta.highestbars` was measured on TradingView and ties resolve to the OLDEST bar (380/0 against 193/187 for the other reading); `aroonUp` is built on that walk, so it moved with it. ⚠️ TradingView has no built-in `ta.aroon` — its stock Aroon is Pine written over `ta.highestbars`, so TradingView's OWN Aroon presumably disagrees with the published words too, and that is the measurement that would settle this. Until somebody reads it off a TradingView Aroon pane, changing either side would be picking an authority rather than following one. ⛔ STRICT: the day the tie rule or the oracle moves, this goes RED and the decision gets recorded instead of quietly landing. Blast radius, RE-MEASURED 2026-09-09 over 2,031 real SPY daily bars: aroon differs on 0.6% of bars at both n=14 and n=25 (median 7.1 points on a 0-100 scale, max 14.3); the underlying highestbars tie moves 0.3-0.6% depending on field and length. An earlier note said 6-10% and was wrong by an order of magnitude. and NO live member definition calls aroon/highestbars/lowestbars today (count-only prod query 2026-09-09: 0 of 5).
+FAILED tests/test_audit_sandbox_env.py::test_NO_variable_points_at_the_shared_data_root - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_the_BARE_ROOT_pins_are_redirected_too - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_it_REDIRECTS_EVERY_pin_the_census_derives - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_the_quiet_flags_blank_a_webhook_rather_than_removing_it - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+4 failed, 1722 passed, 10 skipped, 1 xfailed, 96 warnings in 138.13s (0:02:18)
