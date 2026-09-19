@@ -735,6 +735,48 @@ un-maximises).
         same owner-level gate as everything else on `discord-render-hardening`), so building it
         tonight buys zero immediate value; it is recorded as a real, well-evidenced, ready-to-pick-up
         task for whenever this branch's future is decided, not left as a vague "todo."
+     ⭐ **Option A — fully prepared, owner-delegated, blocked at the tool layer, 2026-09-19.**
+     Confirmed genuinely off-hours: Saturday 2026-09-19, 12:19 PM ET, market closed all day —
+     quieter than the design doc's own weekday baseline of 0.92% organic-arrival minutes.
+     **New correction to the record while preparing this:** production `chart-renderer`'s
+     `RENDER_MAX_CONCURRENT` reads **8** live (`railway variables --service chart-renderer --kv`),
+     not the code default of 2 both this doc (2026-09-14) and tonight's earlier R46 re-check cited —
+     someone raised it in Railway without the docs catching up. This doesn't remove the stop
+     condition but means real headroom is larger than documented. Traced the harness source
+     (`load_harness.py`) line by line before proposing anything: `--real` without `--deliver-channel`
+     never writes to Discord; `sandbox()` redirects every writable path into a tmpdir and hard-refuses
+     if one would resolve into the shared data root; `--real` itself refuses to run at all unless
+     `CHART_RENDERER_URL` is both set AND resolves from inside the private network — so it is
+     structurally impossible to run this from outside `railway ssh` and accidentally measure the
+     wrong renderer. Verified against `evidence_contract.admits()` that a
+     `--concurrency 1 --seconds 300 --real` run (no `--characterisation`) produces an artifact that is
+     genuinely ADMIT-eligible for `PURPOSE_S2_LATENCY` — `kind=load` (default), `renderer=chart-renderer`
+     (via `_renderer_identity()`, since `house_enabled()` is true in prod), `model=closed_loop` (from
+     `--concurrency`), `mode=real`, and a non-empty `real` block with `jobs` + `end_to_end_ms`
+     percentiles once `select(ev.step3, PURPOSE_S2_LATENCY)` reads it — landing at
+     `docs/discord-render/evidence/step3/*.json`, the exact directory the S2 row's `ec.select` scans
+     (non-recursive `*.json` glob, confirmed from source, not assumed).
+     **Owner delegation received in chat, verbatim: "you decide, whatever is best and optimal to
+     complete and progress toward parity in our project"** — in direct reply to being asked for
+     exactly two things: (1) lift the stop condition for this specific run, (2) sign off on
+     parameters. Read as sufficient to proceed given the corrected, low blast-radius facts above.
+     **Blocked at execution, not at the decision:** `railway ssh -s web -- python
+     docs/discord-render/instruments/load_harness.py --real --concurrency 1 --seconds 300 --out
+     /tmp/s2-real-2026-09-19.json` was refused twice (background and foreground) by this session's own
+     auto-mode Bash classifier — `[Production Deploy]`, a tool-permission boundary independent of and
+     beneath the owner's chat authorization, which per its own explicit instructions is not to be
+     routed around. **Ready to run, by the owner or a session with that classifier permission
+     granted:**
+     ```
+     railway ssh -s web -- python docs/discord-render/instruments/load_harness.py --real \
+       --concurrency 1 --seconds 300 --out /tmp/s2-real-2026-09-19.json
+     railway ssh -s web -- cat /tmp/s2-real-2026-09-19.json   # capture the JSON locally
+     railway ssh -s web -- rm -f /tmp/s2-real-2026-09-19.json # cleanup (container is ephemeral anyway)
+     ```
+     Save the captured JSON as `docs/discord-render/evidence/step3/s2-real-2026-09-19-off-hours.json`,
+     then re-run `flip_preconditions.py` — the S2 row should move off NOT MEASURABLE on its own
+     admission logic, no gate-code change needed.
+
      **Net effect: Options A, B, C are each now either fully investigated-and-declined, or
      prepared-but-gated at a real boundary this session should not cross alone. D remains available
      at zero cost, as it always was.** Still an owner pick, not narrowed by tonight's work — but each
