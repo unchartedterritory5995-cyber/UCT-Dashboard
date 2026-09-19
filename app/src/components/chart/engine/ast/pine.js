@@ -8888,8 +8888,16 @@ function mutatorTargets(toks) {
  *  — a second hand-typed list is the drift this engine keeps paying for. */
 const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
 
-/** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
-function functionParams(toks, arrow) {
+/** The parameter names of `f(a, b) =>`, or null if the header is not that shape.
+ *
+ *  ⭐⭐ EXPORTED FOR THE RUNTIME FRONT END, which kept its own copy of this loop
+ *  until 2026-09-19. That copy pushed every `ident` token in the header, so
+ *  `f(float a)` was read as TWO parameters and the call was refused as an arity
+ *  error — in one lane, while the other accepted the same line. One grammar, one
+ *  parser; a second one is a second answer waiting to diverge, and this one
+ *  diverged on the normal v5/v6 spelling.
+ */
+export function functionParams(toks, arrow) {
   if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
   const close = toks.findIndex((t) => isPunct(t, ')'))
   if (close < 0 || close > arrow) return null
