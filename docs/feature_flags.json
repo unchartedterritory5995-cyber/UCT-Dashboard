@@ -1453,16 +1453,17 @@
 
     },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
-      "status": "dark",
+      "status": "live",
       "where": [
         "web"
       ],
       "owner": "indicator r0/r1 programme",
-      "railway_value": "UNSET — never set on any service",
-      "baked_value": "undefined (the variable is not set, so the bundle has no value)",
-      "baked_measured_on": "e6ca532c6 — the commit that made a set value REACHABLE",
-      "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
-      "note": "Whether a member's own translated Pine script may reach a chart pane. Read in ONE place, app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled, as `=== '1'` — absent, '', '0', 'true' and 'yes' are all OFF and only the literal '1' opens it; a build with no import.meta.env fails CLOSED. OFF is the only state any deploy has seen. ⚰️ UNTIL e6ca532c6 THIS FLAG COULD NOT HAVE BEEN TURNED ON AT ALL: Dockerfile.web declared no ARG for it, Railway drops an undeclared build arg silently, so `=1` would have reached the bundle as undefined and every test, audit and ledger row would still have said it was ready. Caught by tests/test_dockerfile_vite_build_args.py on the merged tree. Flipping it is a DEPLOY, not a variable change, because it is a build constant. The reader-level record is docs/frontend_feature_flags.json."
+      "owner_decision": "2026-09-19, owner chat instruction ('do it so it is fully live') after being shown vendor-parity evidence and explicitly asked to confirm the flip",
+      "railway_value": "1 — set 2026-09-19T04:01:32Z",
+      "baked_value": "'1', confirmed by live behavior (the attach control renders; a real member-door round trip drew Uncharted Clouds' 20-layer gradient correctly on a live SMCI chart)",
+      "baked_measured_on": "e855f62cd+ (this PR's own merge) — flip deploy landed on top of it",
+      "last_changed": "2026-09-19T04:01:32Z",
+      "note": "Whether a member's own translated Pine script may reach a chart pane. Read in ONE place, app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled, as `=== '1'` — absent, '', '0', 'true' and 'yes' are all OFF and only the literal '1' opens it; a build with no import.meta.env fails CLOSED. ⚰️ UNTIL e6ca532c6 THIS FLAG COULD NOT HAVE BEEN TURNED ON AT ALL: Dockerfile.web declared no ARG for it, Railway drops an undeclared build arg silently, so `=1` would have reached the bundle as undefined. That gap is closed (verified: tests/test_dockerfile_vite_build_args.py green, and the live flip actually took). Flipping it is a DEPLOY, not a variable change, because it is a build constant — confirmed by watching an actual rebuild (`railway variables --set` auto-triggered it) rather than assuming one would follow. The reader-level record is docs/frontend_feature_flags.json."
     },
     "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
       "status": "dark",

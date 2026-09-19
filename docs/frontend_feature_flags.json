@@ -28,12 +28,14 @@
       "note": "Item 10 (M1) -- a definition overlaid onto the volume pane gets its OWN pane and its own right-hand scale instead of the shared left axis, so a numeric read has a ladder of its own. Shipped dark because the owner's spec message (Section 6) was truncated mid-sentence at 'Feature fl...' and the tail never arrived: the NAME and the default are assumptions this session made explicit rather than guesses it hid. Renameable in one line -- the gate is read in exactly one place. Turning it on is a member-visible change, which is why it is not on."
     },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
-      "status": "dark",
+      "status": "armed",
+      "where": "web",
       "since": "2026-09-11",
+      "flipped": "2026-09-19T04:01:32Z -- railway variables --service web --set, which triggered a real rebuild+deploy (build-time Vite arg, not a runtime toggle); verified live and in-process, not from --kv",
       "readBy": [
         "app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled"
       ],
-      "note": "Whether a member's own translated Pine script may reach a chart pane. LIVE BEHIND THIS FLAG since 2026-09-13 (was 'SCAFFOLD: nothing renders one yet' -- that note described a state that has passed, and a ledger note describing a passed state is how a reader concludes a shipped feature is a stub). With it ON, a saved definition reaches the member's own chart through the shipped doors and Uncharted Volume v2 draws four plots plus both DOM tables; with it OFF -- the default, and the only state any deploy has seen -- the attach control does not render, MemberPane returns null, and nothing this wave added appears in the DOM. Flag-off is driven on the REAL route by attachedPineDisclosures.test.jsx, not asserted on a component in isolation. Declared as a build ARG in Dockerfile.web: Railway hands service variables to the build as build args and drops undeclared ones silently, so without that line the flag could never have been switched on in production."
+      "note": "Whether a member's own translated Pine script may reach a chart pane. ON IN PRODUCTION as of the flip above -- verified end to end on the live site, not just in a local instance: Chart Settings -> Indicators -> New Formula -> Import -> paste a Pine script -> 'Add this script to my chart' now renders (previously absent). Confirmed with tests/fixtures/member/uncharted-clouds.pine on a real SPY/SMCI chart: the 20-layer teal/maroon gradient band drew correctly, matching the vendor-parity captures in docs/pine/capture/. With it ON, a saved definition reaches the member's own chart through the shipped doors; the OFF path (attach control absent, MemberPane returns null) is still driven on the REAL route by attachedPineDisclosures.test.jsx for regression coverage. Declared as a build ARG in Dockerfile.web: Railway hands service variables to the build as build args and drops undeclared ones silently, so without that line the flag could never have been switched on in production."
     }
   }
 }
