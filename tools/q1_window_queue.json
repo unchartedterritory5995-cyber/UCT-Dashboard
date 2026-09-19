@@ -435,7 +435,7 @@
     },
     {
       "id": "p2-2.8b-marker-expired-append_document_excerpt",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b single cell: `append_document_excerpt` x `marker EXPIRED`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -456,14 +456,14 @@
       ],
       "timeout": 807,
       "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
-      "attempts": 0,
+      "attempts": 1,
       "result": {
         "exit": 0,
-        "seconds": 249.9,
-        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
-        "inconclusive": true,
+        "seconds": 103.1,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T13:03:48.688289+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T204843-p2-2.8b-marker-expired-append_document_excerpt",
+        "evidence": "docs/notebook/evidence/20260919T080329-p2-2.8b-marker-expired-append_document_excerpt",
         "evidence_ok": true
       },
       "restaged_why": "\u2b50 Re-staged with attempts reset because THE PRODUCT CHANGED UNDER IT. All three prior attempts ran against a bundle carrying the fix-6 defect these very cells exposed: `persist` computed `source = prev` once a note was dirty, so the typed sentence never reached the durable copy \u2014 which is precisely the 'sentence on screen, not in durable copy' reading that made them INCONCLUSIVE. The provenance split (4fb98d904) is now an ancestor of origin/production, so this is a different experiment against different code, not a fourth try at the same one. \u26d4 If they STILL fail the same way, the fix did not reach the cause and that is a finding, not a retry."
@@ -674,7 +674,7 @@
     },
     {
       "id": "p2-2.8b-marker-live-append_document_excerpt",
-      "status": "pending",
+      "status": "done",
       "why": "2.8b single cell: `append_document_excerpt` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -695,14 +695,14 @@
       ],
       "timeout": 807,
       "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
-      "attempts": 0,
+      "attempts": 1,
       "result": {
         "exit": 0,
-        "seconds": 178.4,
-        "tail": "\u21d2 INCONCLUSIVE  the rig never got the sentence into a queued outbox entry (on screen: True, in durable copy: False, entries for this note: 1) \u2014 an INSTRUMENT answer,",
-        "inconclusive": true,
+        "seconds": 102.3,
+        "tail": "\u21d2 GREEN  offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-19T13:05:31.731383+00:00` \u00b7 5 request(s) carried the sentence (la",
+        "inconclusive": false,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260918T221237-p2-2.8b-marker-live-append_document_excerpt",
+        "evidence": "docs/notebook/evidence/20260919T080513-p2-2.8b-marker-live-append_document_excerpt",
         "evidence_ok": true
       },
       "restaged_why": "\u2b50 Re-staged with attempts reset because THE PRODUCT CHANGED UNDER IT. All three prior attempts ran against a bundle carrying the fix-6 defect these very cells exposed: `persist` computed `source = prev` once a note was dirty, so the typed sentence never reached the durable copy \u2014 which is precisely the 'sentence on screen, not in durable copy' reading that made them INCONCLUSIVE. The provenance split (4fb98d904) is now an ancestor of origin/production, so this is a different experiment against different code, not a fourth try at the same one. \u26d4 If they STILL fail the same way, the fix did not reach the cause and that is a finding, not a retry."
@@ -925,7 +925,18 @@
         "slow PUT (landed, ring populated)",
         "reload mid-flight (marker from a dead tab)"
       ],
-      "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not."
+      "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not.",
+      "attempts": 1,
+      "released_why": "Re-held.",
+      "result": {
+        "exit": 124,
+        "seconds": 900.6,
+        "tail": "\u21d2 INCONCLUSIVE  the outbox still held this note's entry after 240.0s \u2014 the drain had not finished, so the server read would measure the clock rather than the product.",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260919T081701-p3-append-door-restored-guard-unknown-only",
+        "evidence_ok": true
+      }
     },
     {
       "id": "2.2-ring-on-the-drivable-door",

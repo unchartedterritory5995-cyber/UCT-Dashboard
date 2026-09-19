@@ -1,0 +1,7 @@
+
+=== WINDOW OPEN 08:17:01 · 1 staged ===
+   ▶ p3-append-door-restored-guard-unknown-only: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+  [runner] timed-out cell: tore down the rig browser BY MARKER (profile kept) so the next cell can start
+   💾 evidence: docs/notebook/evidence/20260919T081701-p3-append-door-restored-guard-unknown-only (7412B raw)
+   ⇒ p3-append-door-restored-guard-unknown-only: INCONCLUSIVE (attempt 1, requeued) in 900.6s
+   ▶ p3-append-door-restored-guard-unknown-only: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
