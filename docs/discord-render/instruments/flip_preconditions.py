@@ -289,6 +289,17 @@ N_SOAK = "soak clean for >= 24 h"
 
 
 def check_soak_24h(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
+    """⛔⛔ JUDGE ONLY THE MOST RECENT `SOAK_TICKS_FOR_24H` TICKS, NEVER THE WHOLE LOG'S HISTORY.
+    Fixed 2026-09-19, found by `d21_window_watch.py` while checking whether this row could ever
+    reach MET by waiting alone — it could not have: `soak.log` carries 149+ real historical FAIL
+    ticks from before that night's `soak_job.py` fixes, and the old code summed EVERY
+    `TOTALS soak_job` line ever written, so one old FAIL anywhere in the log's lifetime held this
+    row NOT MET permanently, no matter how many clean ticks accumulated afterward. The exact
+    "sums across all history, one bad entry poisons it forever" shape this repo names repeatedly
+    elsewhere — `check_smoke`'s cross-index sum and `soak_job.py`'s own `ABSOLUTE_ZERO` check were
+    both the same defect, fixed the same night; this is that class's third instance, this time in
+    the gate itself. `SOAK_TICKS_FOR_24H`'s own comment already says what this should have been
+    doing: "24 h of 15-minute ticks" — a sliding window, not an ever-growing sum."""
     text, why = _read_text(ev.soak_log)
     if why:
         return _row(N_SOAK, NOT_MEASURABLE, f"no readable soak log: {why}")
@@ -299,13 +310,16 @@ def check_soak_24h(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
         return _row(N_SOAK, NOT_MEASURABLE,
                     f"{ev.soak_log.name} exists ({len(text.splitlines())} line(s)) but carries no "
                     f"`TOTALS soak_job` line — a log with no verdict is not a run")
-    passes = [L for L in lines if "TOTALS soak_job PASS" in L]
-    if len(lines) != len(passes):
-        return _row(N_SOAK, NOT_MET, f"{len(lines) - len(passes)} non-PASS tick(s) of {len(lines)}")
+    window = lines[-SOAK_TICKS_FOR_24H:]
+    non_pass = [L for L in window if "TOTALS soak_job PASS" not in L]
+    ever_note = f" ({len(lines)} tick(s) ever recorded)" if len(lines) > len(window) else ""
+    if non_pass:
+        return _row(N_SOAK, NOT_MET,
+                    f"{len(non_pass)} non-PASS tick(s) in the most recent {len(window)}{ever_note}")
     # ⛔ A CLEAN SHORT RUN IS NOT A CLEAN RUN. The whole question a soak answers is whether anything
     # GROWS, and an hour cannot answer it however green the hour is.
-    return _row(N_SOAK, MET if len(passes) >= SOAK_TICKS_FOR_24H else NOT_MEASURABLE,
-                f"{len(passes)} clean tick(s); {SOAK_TICKS_FOR_24H} needed for 24 h")
+    return _row(N_SOAK, MET if len(window) >= SOAK_TICKS_FOR_24H else NOT_MEASURABLE,
+                f"{len(window)} clean tick(s){ever_note}; {SOAK_TICKS_FOR_24H} needed for 24 h")
 
 
 N_SHADOW = "/chart is shadowed (structural)"

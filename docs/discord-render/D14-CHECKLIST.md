@@ -815,6 +815,34 @@ un-maximises).
      live) to accumulate before the gate itself reads MET. That is a calendar fact, not a
      hedge — no amount of code review substitutes for the soak actually running clean for the
      stated duration.
+     ⛔⛔ **A THIRD, DISTINCT INSTANCE of the same defect class was found the same night, in the
+     GATE FUNCTION itself — `d21_window_watch.py` found it while checking whether this row could
+     ever reach MET by waiting alone, and it could not have.** `check_soak_24h` in
+     `flip_preconditions.py` summed **every** `TOTALS soak_job` line ever written to `soak.log`
+     (going back to whenever the file was first created), not a sliding window — so ANY single
+     historical FAIL, including the 149+ real pre-fix FAILs already in this log, would have held
+     this row NOT MET **permanently**, no matter how many clean ticks accumulated afterward.
+     `SOAK_TICKS_FOR_24H`'s own comment already said what this should have been: "24 h of
+     15-minute ticks" — a window, not an ever-growing sum. Fourth instance overall tonight of
+     "sums across all history, one bad entry poisons it forever" (`check_smoke`'s cross-index sum
+     and `soak_job.py`'s own `ABSOLUTE_ZERO` check were the first two, fixed earlier the same
+     night). **Fixed:** `check_soak_24h` now takes `lines[-SOAK_TICKS_FOR_24H:]` — the most recent
+     window only — and reports how many ticks exist "ever recorded" for transparency without
+     letting them count. Mutation-proved: new case plants an old FAIL outside the window followed
+     by a full clean window, asserts MET; reverting the windowing (`lines[-N:]` → `lines`) reds
+     exactly and only that case (71/71 → 70/71, named), restored, clean 71/71 again;
+     `tests/test_flip_gate_cannot_lie.py` 77/77.
+     **Verified against the real log, with an honest ETA, not just "MET":** read live 2026-09-19 —
+     `85 non-PASS tick(s) in the most recent 90 (481 tick(s) ever recorded)`. Read the log's own
+     tail directly: the transition is real and clean — the 5 MOST RECENT ticks are all PASS
+     (matching exactly when the analyse()-window fix took effect), preceded by a long unbroken run
+     of FAIL ticks logged *before* that fix landed (their verdicts are historical facts about what
+     ran at the time; the later code fix cannot retroactively rewrite what an earlier tick logged).
+     At the current ~15-minute tick cadence, the window needs roughly (90 − 5) × 15 min ≈ **21
+     more hours** of continued clean ticking before it is entirely populated by post-fix PASS
+     ticks and this row reads MET — a real, checkable number, not an open-ended "eventually."
+     `d21_window_watch.py` (registered as Task Scheduler task `UCT-D21-Window-Watch`, 15-min
+     cadence) will flag the moment this row actually flips.
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.

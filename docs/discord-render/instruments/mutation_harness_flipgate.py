@@ -364,6 +364,18 @@ def _cases() -> list[Case]:
                    "a log with lines but no TOTALS verdict — no TOTALS line is not a run",
                    lambda r, s: _w(s / "soak.log", "starting up\nconnected\nstill here\n"),
                    says="carries no `TOTALS soak_job` line"))
+    # ⛔⛔ THE ACTUAL REGRESSION TEST FOR THE 2026-09-19 FIX. An old FAIL sitting OUTSIDE the
+    # most recent SOAK_TICKS_FOR_24H-tick window, with every tick inside the window clean, must
+    # read MET — the old code summed the whole log and could never reach MET again after a
+    # single historical FAIL, however many clean ticks followed it.
+    cs.append(Case("soak_24h", PASS_PLANTED, MET,
+                   "an old FAIL outside the most recent 24h window does not poison a clean "
+                   "window that followed it",
+                   lambda r, s: _w(s / "soak.log",
+                                   "tick -5 TOTALS soak_job FAIL rss grew 40MB\n"
+                                   + "".join(f"tick {i} TOTALS soak_job PASS\n"
+                                             for i in range(fp.SOAK_TICKS_FOR_24H + 4))),
+                   says="clean tick"))
 
     # ── shadow_chart ───────────────────────────────────────────────────────
     three("shadow_chart", "tests/test_discord_render_shadow_reaches_chart.py",
