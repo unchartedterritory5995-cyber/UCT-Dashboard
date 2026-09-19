@@ -554,14 +554,85 @@ def test_the_legacy_alert_lane_and_the_book_share_NO_metric_names():
 
 
 def test_every_legacy_address_refuses_today_and_the_anchor_is_the_ADDRESS_one():
+    """⛔ `close` IS EXCLUDED, and deliberately: D2 CP4 (signed AFTER this test
+    was first written) declared exactly one rename for it
+    (`close` -> `ohlcv.c`), and this gate now asks that declaration — the SAME
+    one GATE-S7-INDICATOR-CONDITION CP3's own `comparability()` already calls
+    COMPARABLE. `close` gets its own test below. The other thirty carry no
+    rename and are unaffected."""
     from api.services import indicator_alert_evaluator as ev
     for address in sorted(ev.all_addresses()):
+        if address == "close":
+            continue
         refusal = ic.registration_refusal(
             {"indicator": address, "condition": "above", "threshold": 1.0, "tf": "D"},
             entity_ref="AAPL")
         assert refusal is not None, f"{address} was ADMITTED by the cadence gate"
         assert ic.REFUSAL_ADDRESS_UNRESOLVED in refusal, (
             f"{address} refused for a reason other than the missing join: {refusal}")
+
+
+def test_close_resolves_through_D2_CP4s_own_rename_and_refuses_for_cadence_not_address():
+    """⛔⛔ FOUND BY MEASUREMENT. Before `_canonical_metric_name()` existed,
+    `close` — the ONE predicate `indicator_condition_projection.comparability()`
+    (CP3) calls COMPARABLE via D2 CP4's own `close` -> `ohlcv.c` rename —
+    refused `REFUSAL_ADDRESS_UNRESOLVED` here anyway: two checkpoints of the
+    SAME feature disagreeing about whether one address resolves.
+
+    ⛔⛔ AND THE REFUSAL DOES NOT GO AWAY — that is the real finding, asserted
+    here rather than left implicit. `close` now refuses for the EXACT SAME
+    reason `ohlcv.c` itself already refuses on: the bars store still declares
+    no cadence (F-D2-2). Fixing the disagreement does not fix F-D2-2; it makes
+    the two checkpoints agree on why `close` cannot yet be armed."""
+    refusal = ic.registration_refusal(
+        {"indicator": "close", "condition": "above", "threshold": 1.0, "tf": "D"},
+        entity_ref="AAPL")
+    assert refusal is not None, "close was ADMITTED by the cadence gate"
+    assert ic.REFUSAL_CADENCE_UNDECLARED in refusal, (
+        f"close refused for the wrong reason (should match ohlcv.c, not the "
+        f"missing-join reason the other thirty carry): {refusal}")
+    assert ic.REFUSAL_ADDRESS_UNRESOLVED not in refusal
+    assert "bars_sqlite" in refusal, "close must resolve to the SAME store ohlcv.c does"
+
+    ohlcv_c_refusal = ic.registration_refusal(
+        {"indicator": "ohlcv.c", "condition": "above", "threshold": 1.0, "tf": "D"},
+        entity_ref="AAPL")
+    assert ic.REFUSAL_CADENCE_UNDECLARED in (ohlcv_c_refusal or ""), (
+        "the control is broken: ohlcv.c itself no longer refuses for cadence")
+
+
+def test_canonical_metric_name_only_moves_the_ONE_declared_rename():
+    """⛔ NOT A SECOND ALIAS TABLE. Every one of the other thirty legacy
+    addresses, and every already-canonical book metric, must round-trip
+    UNCHANGED — this helper may only ever act on the one rename D2 CP4 itself
+    declared, never invent a second one."""
+    from api.services import indicator_alert_evaluator as ev
+    for address in sorted(ev.all_addresses()):
+        if address == "close":
+            continue
+        assert ic._canonical_metric_name(address) == address, (
+            f"{address} was renamed — this helper must move only 'close'")
+    assert ic._canonical_metric_name("close") == "ohlcv.c"
+    # already-canonical book metrics (not in the axis's 31-address vocabulary
+    # at all) must also round-trip unchanged
+    for metric in ("ohlcv.c", "ohlcv.o", "no_such_metric_xyz"):
+        assert ic._canonical_metric_name(metric) == metric
+
+
+def test_canonical_metric_name_is_not_gated_by_the_axis_flag(monkeypatch):
+    """⛔⛔ MIRRORS `test_comparability_does_not_depend_on_the_axis_flag`
+    EXACTLY, and for the identical reason: `declarations()` carries no flag,
+    only `resolve()` does. Gating this rename behind
+    `CANONICAL_INDICATOR_AXIS_ENABLED` would reintroduce the very disagreement
+    this fix exists to end — `close` would refuse ADDRESS_UNRESOLVED whenever
+    an owner has not set a flag CP3's own comparability check never consults."""
+    from api.services.canonical import indicator_axis as _axis
+    monkeypatch.delenv(_axis.FLAG, raising=False)
+    off = ic._canonical_metric_name("close")
+    monkeypatch.setenv(_axis.FLAG, "1")
+    on = ic._canonical_metric_name("close")
+    assert off == on == "ohlcv.c", (
+        "the rename depended on the axis flag — it must not")
 
 
 # ══════════════════════════════════════════════════════════════════════════
