@@ -286,3 +286,49 @@ checkpoints) are buildable now that OI-06's own narrow question is closed. Build
 the actual A/B/C palette UI is the real bet, and it stays open pending either a
 keystroke/latency measurement or an explicit owner call on which of A/B/C (if any)
 to build.
+
+### 7c · Owner asked to reopen the HY-05 HOLD ("FIND A WAY") — CONFIRMED, not
+### lifted; the register's stale citations corrected — 2026-09-19
+
+**The owner's instruction was not "keep it held" or "lift it" — it was to do
+everything resolvable from the evidence on file and be precise about the one
+thing that is not.** This pass re-read `command-grammars.md` (C4-01) in its
+current, fully-updated form — including the Gödel composition-syntax and
+TradingView keybinding closures landed the SAME DAY (`1ee7a4904`, 2026-09-19
+12:31, after this card's own 7a/7b ruling) — specifically to check whether
+either closure moves HY-05. It does not: both are design-space detail (Gödel's
+confirmed four-slot `NVDA US EQ DES` syntax; TradingView's full ~130-binding
+inventory showing no chord takes a typed argument), not a keystroke, latency,
+or retention measurement. C4-01's own `evidence_ceiling` says so directly — no
+product was operated with a live seat, and every "feels fast / is learnable"
+claim in the file is 🔴. **7b's HOLD is CONFIRMED, not lifted — there is no new
+measurement to lift it on, and inventing one would be manufacturing progress
+the owner explicitly asked this program not to do.**
+
+**What "finding a way" actually produces, concretely:**
+
+1. **`hypothesis-register.md`'s HY-05 row and its three surrounding notes (§1D
+   line, §2 RECOMMENDATION, §GAPS) were stale** — they still said C4-01 was
+   unread and pointed at OI-06 as a HY-05 unblocker, five days after this
+   card's own 7a closed OI-06 and independently confirmed the C4-01 read
+   changes nothing. Corrected in place (⚰️, sourced) rather than restated as a
+   fresh row, so both documents now agree.
+2. **The low-risk infrastructure this card already cleared (S1 CP2, S2 CP3)
+   is reconfirmed buildable today**, unblocked by neither OI-06 nor a
+   retention measurement — nothing about it is held. If it has not moved since
+   7b, that is a scheduling fact, not a re-opening of the ruling.
+3. **OI-06's real remaining substance is separated out and named precisely,**
+   because 7a closed OI-06's *formal registration* (the program will not ask
+   the question again) without ever putting the question to Patrick — the
+   2026-09-14 answer is a conservative default chosen because telemetry
+   cannot see third-party tool use, not Patrick's own account of his day.
+   **The one narrow thing only Patrick can supply, quoted exactly as
+   registered** (`OWNER_INPUTS_REQUESTED.md` §A3): *"Of thinkorswim,
+   TradingView, Finviz, Market Chameleon, Unusual Whales, SpotGamma — which do
+   you and the partner open by hand on a trading day, and does the desk run
+   any TradingView alerts?"* — plus, separately and only if he wants HY-05's
+   causal bet resolved rather than left on infrastructure-only footing, **an
+   explicit choice among C4-01 §11's Grammar A / B / C** (or a keystroke/
+   latency measurement of one workflow). Neither answer is required to keep
+   building S1 CP2 / S2 CP3; both are required before any visible palette UI
+   ships.
