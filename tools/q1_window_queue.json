@@ -435,7 +435,7 @@
     },
     {
       "id": "p2-2.8b-marker-expired-append_document_excerpt",
-      "status": "inconclusive",
+      "status": "pending",
       "why": "2.8b single cell: `append_document_excerpt` x `marker EXPIRED`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -456,7 +456,7 @@
       ],
       "timeout": 807,
       "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
-      "attempts": 3,
+      "attempts": 0,
       "result": {
         "exit": 0,
         "seconds": 249.9,
@@ -465,7 +465,8 @@
         "declared_fail": false,
         "evidence": "docs/notebook/evidence/20260918T204843-p2-2.8b-marker-expired-append_document_excerpt",
         "evidence_ok": true
-      }
+      },
+      "restaged_why": "\u2b50 Re-staged with attempts reset because THE PRODUCT CHANGED UNDER IT. All three prior attempts ran against a bundle carrying the fix-6 defect these very cells exposed: `persist` computed `source = prev` once a note was dirty, so the typed sentence never reached the durable copy \u2014 which is precisely the 'sentence on screen, not in durable copy' reading that made them INCONCLUSIVE. The provenance split (4fb98d904) is now an ancestor of origin/production, so this is a different experiment against different code, not a fourth try at the same one. \u26d4 If they STILL fail the same way, the fix did not reach the cause and that is a finding, not a retry."
     },
     {
       "id": "p2-2.8b-marker-live-folder",
@@ -673,7 +674,7 @@
     },
     {
       "id": "p2-2.8b-marker-live-append_document_excerpt",
-      "status": "inconclusive",
+      "status": "pending",
       "why": "2.8b single cell: `append_document_excerpt` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved.",
       "expect": "GREEN",
       "cells": 1,
@@ -694,7 +695,7 @@
       ],
       "timeout": 807,
       "timeout_why": "1 cell x ~87s + 360s swap-wait + 240s drain ceiling + 120s browser startup = 807s. Every term measured, none guessed.",
-      "attempts": 3,
+      "attempts": 0,
       "result": {
         "exit": 0,
         "seconds": 178.4,
@@ -703,7 +704,8 @@
         "declared_fail": false,
         "evidence": "docs/notebook/evidence/20260918T221237-p2-2.8b-marker-live-append_document_excerpt",
         "evidence_ok": true
-      }
+      },
+      "restaged_why": "\u2b50 Re-staged with attempts reset because THE PRODUCT CHANGED UNDER IT. All three prior attempts ran against a bundle carrying the fix-6 defect these very cells exposed: `persist` computed `source = prev` once a note was dirty, so the typed sentence never reached the durable copy \u2014 which is precisely the 'sentence on screen, not in durable copy' reading that made them INCONCLUSIVE. The provenance split (4fb98d904) is now an ancestor of origin/production, so this is a different experiment against different code, not a fourth try at the same one. \u26d4 If they STILL fail the same way, the fix did not reach the cause and that is a finding, not a retry."
     },
     {
       "id": "p2-2.8b-marker-expired",
