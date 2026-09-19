@@ -2036,7 +2036,20 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # Both of these cells therefore do what a member does next — leave —
         # which releases the entry WITHOUT firing any door in this context.
         # ⭐ Identical in both cells, so it cannot be the difference between them.
-        if NO_DOOR["on"] or SECOND_WRITER["on"]:
+        # ⚰️ AND FOR AN APPEND FAMILY IN THE ORDINARY MODE TOO — this was gated
+        # to the two controlled experiments only, directly beneath a comment
+        # saying sitting on the note is "a state in which queued words never
+        # leave". P3 runs in NORMAL mode, so it never released, the entry stayed
+        # `excludeNoteId`'s, and three of three cells died on "the outbox still
+        # held this note's entry" (2026-09-19, both P3 runs).
+        #
+        # ⭐ WHY THE METADATA DOORS NEVER NEEDED IT, which is why the gap hid: a
+        # metadata door's own PUT carries the note body, so the EDITOR delivers
+        # the sentence and the queue empties without the sweep. An append door
+        # POSTs to /embeds and carries no body, so the words can only leave via
+        # the sweep — and the sweep skips the open note. The two paths differ in
+        # exactly the way that made this invisible.
+        if NO_DOOR["on"] or SECOND_WRITER["on"] or family in APPEND:
             page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded")
             page.wait_for_timeout(5000)
             log("      released the note (editor closed) so the drain may take the entry")
