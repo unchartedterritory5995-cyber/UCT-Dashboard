@@ -46,6 +46,21 @@
 > record appeared). **R69 is done: real scope found, fixed, tested, mutation-proved,
 > live in production.**
 >
+> ✅✅ **R49 NEGATIVE-CONTROL REHEARSAL RUN AND PASSED (2026-09-19T01:24:26Z–01:29:42Z / 21:24–
+> 21:29 ET).** ⛔ The "~20:23 ET" release time below was wrong by exactly one hour — this box's
+> Windows clock is Central Time, not Eastern, and PID 25724's `Get-Process`-reported StartTime
+> was misread as ET when it was CDT. True deadline was 21:23 ET; confirmed against the poller's
+> own UTC-stamped log line, not the OS API's local-time field. The poller exited cleanly right on
+> that corrected schedule (`poller_window_ended`, lock released), and the staged negative control
+> (`--minutes 5 --interval 30 --rollback-phase canary`) was run immediately after with the
+> owner's explicit go-ahead, having been told the real risk first (a genuine stall landing in the
+> window would have made it a real rollback, not a rehearsal). **Result: 10 clean polls, zero
+> gaps, `poller_window_ended`, `.rollback_fired.json` never created — confirmed via `find`, not
+> log silence.** Full account added to `evidence/d18/R49-rollback-watchdog-2026-09-18.md`.
+> ⏳ **Still open:** the live POSITIVE-path rehearsal (synthetic trigger → one real rollback call
+> → confirmed boot → page) — deliberately still staged, not run, given tonight's forced-redeploy
+> collision risk; needs a calmer window.
+>
 > **NEXT WAKE REASON (D-21):** read the next ≥3 real boot-window receipts against R72's new
 > sub-timers (live now that its push landed — see below) and name, by field, which SQLite
 > touch carries the 80-110s; R49 LIVE REHEARSAL (**deferred again, ~20:23 ET or later today,

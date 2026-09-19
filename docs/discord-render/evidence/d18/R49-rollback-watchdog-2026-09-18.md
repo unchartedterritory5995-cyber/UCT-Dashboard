@@ -123,3 +123,36 @@ turbulence, but because the staged procedure's own lock file is legitimately bus
 work. **Next window: after ~20:23 ET when the current 360-minute poller window ends naturally,
 or the weekend, or a coordinated pause of the overnight poller if the owner wants it sooner.**
 Nothing about this changes R49's own readiness — the gate is external, not the tool.
+
+⛔ **The "~20:23 ET" figure above was wrong by exactly one hour — this box's Windows clock is
+Central Time, not Eastern** (`Get-TimeZone` → `Central Standard Time` / UTC-6 base, CDT active).
+`Get-Process`'s `StartTime` for PID 25724 read `2:23:01 PM` and was taken at face value as ET; it
+is CDT, i.e. **3:23:01 PM ET**. True deadline with `--minutes 360`: **21:23 ET**, not 20:23 ET.
+Confirmed against the poller's own UTC-stamped `poller_started` log line
+(`2026-09-18T19:23:01Z` = 15:23:01 ET) — the artifact, not the OS API's local-time field, is what
+resolved it. Worth a look at any other "ET" timestamp in this evidence tree derived the same way.
+
+## Live rehearsal — NEGATIVE CONTROL RUN AND PASSED, 2026-09-19T01:24:26Z–01:29:42Z (21:24–21:29 ET)
+
+The moment the corrected deadline passed, PID 25724 exited cleanly (`poller_window_ended` at
+`2026-09-19T01:23:48Z`, lock file gone). Ran the staged command exactly as written above:
+
+```
+python docs/discord-render/instruments/d14_monitor.py --minutes 5 --interval 30 --rollback-phase canary
+```
+
+**Result: clean pass, negative control confirmed.**
+- `poller_started` (`rollback_phase: canary`) → 10 polls at the configured 30s interval, zero
+  gaps, zero `probe_*` errors → `poller_window_ended`. Full 5-minute window, nothing truncated.
+- `.rollback_fired.json` was never created — checked directly (`find`, not inferred from log
+  silence) — confirming the armed watchdog never had cause to act, exactly the expected outcome
+  with `DISCORD_RENDER_V2_ENABLED` unset and no real tier-1 stall or blindness condition landing
+  in this specific 5-minute window (tonight's stall log shows several real tier-1 events at OTHER
+  times, so this was a genuine — not guaranteed — pass, not a vacuous one).
+- Ran with the owner's explicit go-ahead, having been told the real risk beforehand: a genuine
+  stall landing inside the window would have made this a REAL rollback, not a rehearsal.
+
+**Still open, unchanged from above:** the live POSITIVE-path rehearsal (a synthetic trigger
+actually producing one rollback call, a real boot, a confirmed read, a page) is still staged, not
+run — deliberately, given the forced-redeploy collision risk on a night this turbulent. That
+remains for a window without that risk.
