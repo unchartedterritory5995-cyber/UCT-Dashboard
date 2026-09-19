@@ -88,44 +88,41 @@ def _w(path: pathlib.Path, text: str) -> pathlib.Path:
     return path
 
 
-FAKE_HARNESS_PASS = '''"""A stand-in harness whose only job is to answer --dry-check."""
-import sys
+#: ⛔ REBUILT 2026-09-19 alongside `check_mutations_applied`'s rewrite to use
+#: `anchor_check.check_tree()` (static-source, never executes a harness) instead of shelling
+#: out to each harness's own `--dry-check`. The old fixtures below were themselves fake
+#: `--dry-check` printers with no real `MUTATIONS` list — exactly the shape the new checker
+#: cannot see at all (`extract_controls` finds zero controls in a file with no `MUTATIONS =`
+#: assignment). A real anchor, a real target file, and a real mismatch are what the new
+#: mechanism actually reads.
+MUT_TARGET_REL = "docs/discord-render/instruments/_mutation_sandbox_target.py"
+MUT_TARGET_OK = "def f():\n    return True\n"
+MUT_TARGET_STALE = "def f():\n    return False\n"          # anchor text no longer present
 
+MUT_HARNESS_OK = ('"""Stand-in harness with one real, valid anchor control."""\n'
+                  'MUTATIONS = [\n'
+                  '    {"name": "M1 stand-in mutation", "file": "%s",\n'
+                  '     "old": "    return True\\n", "new": "    return False\\n",\n'
+                  '     "tests": []},\n'
+                  ']\n') % MUT_TARGET_REL
 
-def dry_check():
-    print("TOTALS mutation_harness_sandbox --dry-check PASS mutations=3 stale=0")
-    return 0
+#: A control whose "file" points at a path that will never exist in the sandbox — the read
+#: fails inside `check_tree` itself (OSError), not inside `extract_controls`.
+MUT_HARNESS_MISSING_TARGET = ('"""Stand-in harness whose target file does not exist."""\n'
+                              'MUTATIONS = [\n'
+                              '    {"name": "M1 points nowhere", '
+                              '"file": "docs/discord-render/instruments/_does_not_exist.py",\n'
+                              '     "old": "irrelevant\\n", "new": "irrelevant2\\n",\n'
+                              '     "tests": []},\n'
+                              ']\n')
 
+#: A harness with a real Python syntax error — `extract_controls` cannot even parse it, so it
+#: contributes a harness-level error and zero controls of its own, never a silent pass.
+MUT_HARNESS_SYNTAX_ERROR = "def broken(:\n    pass\n"
 
-if "--dry-check" in sys.argv:
-    raise SystemExit(dry_check())
-raise SystemExit("this stand-in never mutates anything")
-'''
-
-FAKE_HARNESS_FAIL = FAKE_HARNESS_PASS.replace(
-    "--dry-check PASS mutations=3 stale=0", "--dry-check FAIL mutations=3 stale=2")
-
-#: ⛔ THE HARNESS THAT CANNOT ANSWER. 11 of the 13 real harnesses look like this: `sys.argv[1]` is
-#: the repo ROOT and there is no `--dry-check` handler anywhere. Invoking one with the flag made it
-#: die in harness_guard printing a refusal banner — no "NOT APPLIED" string — which the old row
-#: read as SUCCESS.
-FAKE_HARNESS_NO_DRYCHECK = '''import sys
-from pathlib import Path
-ROOT = Path(sys.argv[1]).resolve()
-raise SystemExit("would have mutated files under " + str(ROOT))
-'''
-
-FAKE_HARNESS_SILENT = '''import sys
-
-
-def dry_check():
-    print("checked some things")   # --dry-check but NO TOTALS line
-    return 0
-
-
-if "--dry-check" in sys.argv:
-    raise SystemExit(dry_check())
-'''
+#: Declares the list but leaves it empty — the exact "declares nothing" shape the old
+#: `mutations=0` vacuous-pass case existed to catch, now expressed as zero extracted controls.
+MUT_HARNESS_EMPTY = '"""Stand-in harness declaring no mutations at all."""\nMUTATIONS = []\n'
 
 #: ⛔ A 3.5 INDEX DECLARES ITSELF IN ITS OWN TITLE. The row used to find its evidence by directory
 #: name; it now reads the document. A fixture whose title does not declare the smoke is not a
@@ -269,9 +266,10 @@ def plant_passing_tree(root: pathlib.Path, soak_dir: pathlib.Path,
        "2026-09-14T10:00Z RENDER_ALERTS_ACCESS HTTP 200\n"
        "2026-09-14T11:00Z RENDER_ALERTS_ACL ACL_OK overwrites=2\n")
 
-    # mutations_applied — one stand-in harness that answers --dry-check affirmatively
+    # mutations_applied — one real MUTATIONS control whose anchor matches its target exactly once
+    _w(root / MUT_TARGET_REL, MUT_TARGET_OK)
     _w(root / "docs" / "discord-render" / "instruments" / "mutation_harness_sandbox.py",
-       FAKE_HARNESS_PASS)
+       MUT_HARNESS_OK)
 
     return fp.Evidence(root=root, soak_log=soak)
 
@@ -643,27 +641,31 @@ def _cases() -> list[Case]:
                    says="has not written an ACL line"))
 
     # ── mutations_applied ──────────────────────────────────────────────────
+    # ⛔ REBUILT 2026-09-19 for `check_mutations_applied`'s `anchor_check.check_tree()` rewrite
+    # (static-source, covers every harness's real MUTATIONS list — never shells out to a
+    # per-harness --dry-check flag, so these fixtures are real anchors/targets, not fake printers.
     harn = f"{D}/instruments/mutation_harness_sandbox.py"
     three("mutations_applied", f"{D}/instruments",
-          lambda r, s: _w(r / harn, FAKE_HARNESS_FAIL),
-          "a harness whose anchors have gone stale", says_fail="stale anchors in",
-          says_gone="no harnesses found", run=True)
+          lambda r, s: _w(r / MUT_TARGET_REL, MUT_TARGET_STALE),
+          "the target file no longer contains the anchor text — a real stale anchor",
+          says_fail="stale/ambiguous anchor", says_gone="no harnesses found", run=True)
     cs.append(Case("mutations_applied", UNREADABLE, NOT_MEASURABLE,
-                   "⛔⛔ THE OLD ROW'S EXACT DEFECT: a harness with no --dry-check handler. It was "
-                   "invoked anyway, died in harness_guard, printed no 'NOT APPLIED' — and the row "
-                   "read that silence as success and printed MET having checked nothing",
-                   lambda r, s: _w(r / harn, FAKE_HARNESS_NO_DRYCHECK),
-                   {"run": True}, says="declares a --dry-check handler"))
+                   "a second harness with a real Python syntax error contributes a harness-level "
+                   "error, not a silent pass, even though the baseline harness's own anchor is "
+                   "still clean",
+                   lambda r, s: _w(r / f"{D}/instruments/mutation_harness_broken.py",
+                                   MUT_HARNESS_SYNTAX_ERROR),
+                   {"run": True}, says="could not parse"))
     cs.append(Case("mutations_applied", UNREADABLE, NOT_MEASURABLE,
-                   "a harness that answers --dry-check and prints no TOTALS line — a run with no "
-                   "TOTALS line is not a run, whatever the exit code says",
-                   lambda r, s: _w(r / harn, FAKE_HARNESS_SILENT),
-                   {"run": True}, says="no TOTALS --dry-check line"))
+                   "a control naming a 'file' that does not exist on disk is UNREADABLE, not a "
+                   "silent zero — the read failure is named, not swallowed",
+                   lambda r, s: _w(r / harn, MUT_HARNESS_MISSING_TARGET),
+                   {"run": True}, says="target file could not be read"))
     cs.append(Case("mutations_applied", UNREADABLE, NOT_MEASURABLE,
-                   "a harness declaring mutations=0 — it passes its own dry check trivially",
-                   lambda r, s: _w(r / harn, FAKE_HARNESS_PASS.replace(
-                       "mutations=3 stale=0", "mutations=0 stale=0")),
-                   {"run": True}, says="vacuous dry check"))
+                   "a harness declaring MUTATIONS = [] — zero controls enumerated is not a clean "
+                   "sweep, mirroring the old 'mutations=0 is a vacuous pass' case one level down",
+                   lambda r, s: _w(r / harn, MUT_HARNESS_EMPTY),
+                   {"run": True}, says="zero controls found"))
     return cs
 
 

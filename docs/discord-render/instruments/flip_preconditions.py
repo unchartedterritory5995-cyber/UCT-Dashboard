@@ -65,7 +65,6 @@ import json
 import os
 import pathlib
 import re
-import subprocess
 import sys
 
 try:
@@ -464,109 +463,83 @@ def check_canary_scope(ev: Evidence = DEFAULT_EVIDENCE, now: _dt.datetime | None
 
 N_MUTATIONS = "mutation NOT-APPLIED = 0"
 
-#: The affirmative line a harness prints for `--dry-check`. ⛔ Anything else — a traceback, a
-#: refusal banner, silence — is NOT MEASURABLE, never a pass.
-_DRY_TOTALS = re.compile(
-    r"TOTALS\s+(?P<harness>\S+)\s+--dry-check\s+(?P<verdict>PASS|FAIL)"
-    r"(?:\s+mutations=(?P<mutations>\d+))?(?:\s+stale=(?P<stale>\d+))?")
-
-
-def _declares_dry_check(src: str) -> bool | None:
-    """True / False / None (the source does not parse). ⛔⛔ ONLY INVOKE A HARNESS THAT CAN ANSWER
-    THE QUESTION BEING ASKED.
-
-    Measured 2026-09-14: 11 of the 13 harnesses take `sys.argv[1]` as the repo ROOT and have no
-    `--dry-check` handler at all. The old row ran `[python, harness, "--dry-check"]` with NO root
-    argument, so `--dry-check` WAS the root — every one of them died in `harness_guard` (exit 86,
-    a refusal banner) and printed no "NOT APPLIED" string, which the old row read as success. The
-    row printed **MET, "every mutation applies exactly once"**, having checked exactly zero.
-
-    ⛔ And two of those eleven — `mutation_harness_cache.py`, `mutation_harness_delivery.py` —
-    default ROOT to the repo root when given no argument and ignore the flag entirely. In a tree
-    marked `.mutation-sandbox` (which is precisely where anyone runs a mutation harness) the old
-    row would not have merely failed to check them: it would have STARTED A FULL MUTATION RUN
-    against the caller's working tree, from inside a precondition check.
-
-    ⛔ AN AST, NEVER A GREP — measured on this file's own first version. `mutation_harness_flipgate.py`
-    carries stand-in harness SOURCE in string literals, so a grep for `def dry_check(` and
-    `"--dry-check"` said yes about a module that had neither. Reading a module-level FunctionDef
-    asks the question that actually matters: is there a `dry_check` to call?
-    """
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return None
-    has_fn = any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "dry_check"
-                 for n in tree.body)
-    return has_fn and "--dry-check" in src
-
 
 def check_mutations_applied(ev: Evidence = DEFAULT_EVIDENCE, run: bool = False) -> dict:
-    """⛔ NOT-APPLIED != 0 FAILS (owner ruling, 2026-09-14). Reads the harnesses' dry check rather
-    than running them — a 25-minute set is not something a precondition check should trigger."""
-    harnesses = sorted(ev.instruments.glob("mutation_harness*.py")) if ev.instruments.exists() else []
-    if not harnesses:
+    """⛔ NOT-APPLIED != 0 FAILS (owner ruling, 2026-09-14).
+
+    ⛔⛔ REWRITTEN 2026-09-19 to use `anchor_check.check_tree()` — the SAME static-source
+    mechanism `harness_guard.preflight_anchors()` already trusts as its own B5 safety gate
+    before allowing a real mutation run — instead of shelling out to each harness's own
+    `--dry-check` flag. The old design covered only the 6 of 16 harnesses that happened to
+    declare `dry_check()`; the other 10 (11 of 13 at the time this was first written) were
+    silently `unknown` forever, and this exact gap let a REAL stale anchor
+    (`mutation_harness_renderer.py`'s "A1 scrub is a no-op", invalidated when `scrub()` grew
+    a third substitution) sit undetected until `anchor_check.check_tree()` was run directly
+    and found it — one STALE among 316 anchors across all 16 harnesses.
+
+    `anchor_check.check_tree()` never imports or executes a harness module (it extracts the
+    `MUTATIONS` list via AST, never `exec`), so it never trips `harness_guard`'s sandbox
+    requirement and carries none of the subprocess/25-minute-run risk the old docstring
+    warned about — there is no reason left to gate it behind `--run-mutations`, and it now
+    runs unconditionally. `run`/`--run-mutations` is accepted for backward compatibility
+    with existing call sites and is otherwise a no-op."""
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import anchor_check
+    except ImportError as exc:
+        return _row(N_MUTATIONS, NOT_MEASURABLE,
+                    f"anchor_check.py could not be imported ({type(exc).__name__}: {exc}) — "
+                    f"the universal anchor sweep cannot run")
+
+    # ⛔⛔ `instruments_dir` MUST be passed explicitly. Its default in `anchor_check.py` is
+    # `Path(__file__).resolve().parent` — anchor_check's OWN file location, not `ev.root`'s
+    # instruments directory. Omitting it silently scanned the REAL repo's harnesses even when
+    # `ev.root` pointed at an isolated mutation-proof sandbox, which is exactly the kind of
+    # "checked the wrong tree and reported real numbers" defect this file exists to prevent
+    # elsewhere. Caught by the mutation-proof self-check itself: a sandboxed PASS case read
+    # 316 real anchors with 26 stale, from files the sandbox never wrote.
+    rep = anchor_check.check_tree(ev.root, instruments_dir=ev.instruments)
+    if not rep.harnesses:
         return _row(N_MUTATIONS, NOT_MEASURABLE, f"no harnesses found under {ev.instruments}")
 
-    capable, incapable, unreadable = [], [], []
-    for h in harnesses:
-        src, why = _read_text(h)
-        declares = None if why else _declares_dry_check(src)
-        if why:
-            unreadable.append(f"{h.name} ({why})")
-        elif declares is None:
-            unreadable.append(f"{h.name} (does not parse — it cannot be invoked safely)")
-        elif declares:
-            capable.append(h)
-        else:
-            incapable.append(h.name)
-
-    if not run:
+    counts = rep.counts()
+    total = sum(counts.values())
+    # ⛔ NON-VACUITY: a sweep that enumerated zero controls has not checked anything, whatever
+    # the (empty) defect list says. `anchor_check.check_tree` itself refuses this case with a
+    # loud error inside `harness_guard.preflight_anchors`; mirror the same refusal here.
+    if total == 0:
         return _row(N_MUTATIONS, NOT_MEASURABLE,
-                    f"{len(harnesses)} harness(es), {len(capable)} of them answer --dry-check; "
-                    f"pass --run-mutations, or read the merge row")
-    if not capable:
-        return _row(N_MUTATIONS, NOT_MEASURABLE,
-                    f"NONE of the {len(harnesses)} harness(es) declares a --dry-check handler — "
-                    f"there is nothing here that can answer, and invoking them anyway is how this "
-                    f"row used to print MET having checked nothing")
+                    f"{len(rep.harnesses)} harness(es) enumerated, zero controls found in any "
+                    f"of them — a sweep that checks nothing is not a clean sweep")
 
-    failed, unknown, applied = [], list(unreadable), 0
-    for h in capable:
-        try:
-            r = subprocess.run([sys.executable, str(h), str(ev.root), "--dry-check"],
-                               cwd=str(ev.root), capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=180)
-        except (subprocess.TimeoutExpired, OSError) as exc:
-            # ⛔ This used to be an uncaught TimeoutExpired: one slow harness took the whole gate
-            # down with a traceback rather than making one row unmeasurable.
-            unknown.append(f"{h.name} ({type(exc).__name__})")
-            continue
-        m = _DRY_TOTALS.search(r.stdout + r.stderr)
-        if not m:
-            # ⛔⛔ A RUN WITH NO TOTALS LINE IS NOT A RUN, whatever the exit code says.
-            unknown.append(f"{h.name} (no TOTALS --dry-check line, rc={r.returncode})")
-            continue
-        n = int(m.group("mutations") or 0)
-        stale = int(m.group("stale") or 0)
-        if m.group("verdict") == "FAIL" or stale:
-            failed.append(f"{h.name} (stale={stale} of {n})")
-        elif n == 0:
-            # ⛔ NON-VACUITY: a harness declaring zero mutations passes its own dry check trivially.
-            unknown.append(f"{h.name} (PASS over mutations=0 — a vacuous dry check)")
-        else:
-            applied += n
+    stale_or_ambiguous = [f for f in rep.defects if f.outcome in (anchor_check.STALE,
+                                                                  anchor_check.AMBIGUOUS)]
+    unreadable = [f for f in rep.defects if f.outcome == anchor_check.UNREADABLE]
 
-    if incapable:
-        unknown.append(f"{len(incapable)} harness(es) answer no --dry-check: {', '.join(incapable)}")
-    if failed:
-        return _row(N_MUTATIONS, NOT_MET, f"stale anchors in: {', '.join(failed)}"
-                    + (f" | unmeasured: {'; '.join(unknown)}" if unknown else ""))
-    if unknown:
+    if stale_or_ambiguous:
+        names = [f"{pathlib.Path(f.control.harness).name}::{f.control.name}"
+                 for f in stale_or_ambiguous]
+        return _row(N_MUTATIONS, NOT_MET,
+                    f"{len(stale_or_ambiguous)} stale/ambiguous anchor(s) of {total}: "
+                    f"{', '.join(names[:8])}" + (", …" if len(names) > 8 else "")
+                    + (f" | {len(rep.errors)} harness-level error(s): {'; '.join(rep.errors[:3])}"
+                       if rep.errors else ""))
+    if unreadable or rep.errors:
+        detail = []
+        if unreadable:
+            # ⛔ Name the DETAIL, not just a count — "target file could not be read at ..." vs
+            # "control declares no 'file'" are different facts, and a reader fixing this needs
+            # to know which one it is without re-running the sweep themselves.
+            names = [f"{pathlib.Path(f.control.harness).name}::{f.control.name} ({f.detail})"
+                     for f in unreadable[:5]]
+            detail.append(f"{len(unreadable)} unreadable control(s): {', '.join(names)}")
+        if rep.errors:
+            detail.append(f"{len(rep.errors)} harness-level error(s): {'; '.join(rep.errors[:3])}")
         return _row(N_MUTATIONS, NOT_MEASURABLE,
-                    f"{applied} anchor(s) verified, but: {'; '.join(unknown)}")
+                    f"{counts[anchor_check.OK]}/{total} anchors verified OK, but " + "; ".join(detail))
     return _row(N_MUTATIONS, MET,
-                f"{applied} anchor(s) across {len(capable)} harness(es) each match exactly once")
+                f"{total} anchor(s) across {len(rep.harnesses)} harness(es), all match exactly "
+                f"once — read via anchor_check.check_tree(), never by invoking a harness")
 
 
 # ── rows this tool cannot reach, named rather than assumed ──────────────────
@@ -1215,7 +1188,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--run-mutations", action="store_true",
-                    help="dry-check every mutation harness (slower, still not a full run)")
+                    help="no-op, kept for backward compatibility — the mutation-anchor sweep "
+                         "(anchor_check.check_tree) is static-source and now runs unconditionally")
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--root", default=None,
                     help="evaluate against another tree (the mutation set uses a sandbox)")

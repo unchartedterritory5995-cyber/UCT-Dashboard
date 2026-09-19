@@ -24,6 +24,7 @@ from pathlib import Path
 
 _ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 SELF_CHECK = "--self-check" in sys.argv
+DRY_CHECK = "--dry-check" in sys.argv
 ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3]
 
 # ⛔ B4/B5 — ONE shared guard, imported, never copy-pasted (a guard repeated is a guard
@@ -325,7 +326,32 @@ def self_check():
     return 0 if not bad else 1
 
 
+def dry_check() -> int:
+    """Does every mutation still find its anchor, exactly once? One second, no tests run.
+
+    Same contract as `mutation_harness_adapters.py::dry_check` — an anchor that matches zero or
+    more than once is a proof that did not happen, and it is otherwise discovered only at the end
+    of an 18-minute run. Exit 1 on any anchor that matches anything other than exactly once."""
+    bad = []
+    for mut in MUTATIONS:
+        path = ROOT / mut["file"]
+        if not path.exists():
+            bad.append((mut["name"], "file missing")); continue
+        text = path.read_bytes().decode("utf-8")
+        eol = "\r\n" if "\r\n" in text else "\n"
+        n = text.count(mut["old"].replace("\n", eol))
+        if n != 1:
+            bad.append((mut["name"], f"{n} matches"))
+    for name, why in bad:
+        print(f"  NOT APPLIED ({why}): {name}")
+    print(f"TOTALS mutation_harness_badge --dry-check "
+          f"{'PASS' if not bad else 'FAIL'} mutations={len(MUTATIONS)} stale={len(bad)}")
+    return 0 if not bad else 1
+
+
 def main():
+    if DRY_CHECK:
+        return dry_check()
     if SELF_CHECK:
         return self_check()
     print(f"root: {ROOT}\n")

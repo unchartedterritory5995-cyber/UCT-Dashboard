@@ -26,8 +26,17 @@ IDS = "api/services/discord_render/ids.py"
 
 MUTATIONS = [
     {"name": "A1 scrub is a no-op", "file": APP,
+     # ⛔⛔ STALE ANCHOR, FOUND AND FIXED 2026-09-19 by anchor_check.check_tree() (the same
+     # check harness_guard's own B5 preflight already runs) -- this mutation's old 2-line
+     # anchor stopped matching when scrub() grew a third substitution (header-shaped
+     # credential redaction, see the docstring's own "THE THIRD SUBSTITUTION IS NEW" note):
+     # line 2 changed from `return _SECRET_PARAM.sub(...)` to `s = _SECRET_PARAM.sub(...)`
+     # once it stopped being the last line. A silently-unappliable A1 would have proven
+     # NOTHING about scrub()'s no-op case while reading as a passing control. Anchor now
+     # matches the current 3-line body exactly; "new" still collapses it to the same no-op.
      "old": '    s = _URL_QUERY.sub(lambda m: m.group(1) + "?[redacted]", str(text))\n'
-            '    return _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)\n',
+            '    s = _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)\n'
+            '    return _SECRET_HEADER.sub(lambda m: m.group(1) + m.group(2) + "[redacted]", s)\n',
      "new": "    return str(text)\n",
      "tests": [P + "test_scrub_removes_every_query_string_and_named_secret",
                P + "test_a_browser_error_never_puts_the_token_in_a_log_or_the_response",
