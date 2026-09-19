@@ -46,3 +46,19 @@ def test_size_mismatch_is_reported_not_silently_resized():
         result = vpc.compare(a, b)
         assert result["size_mismatch"] is True
         assert result["score"] is None
+
+
+def test_verdict_flags_low_score_for_review():
+    assert vpc.verdict({"score": 0.5, "size_mismatch": False}) == "NEEDS_REVIEW"
+
+
+def test_verdict_passes_high_score():
+    assert vpc.verdict({"score": 0.95, "size_mismatch": False}) == "OK"
+
+
+def test_verdict_reports_size_mismatch_before_looking_at_score():
+    assert vpc.verdict({"score": None, "size_mismatch": True}) == "SIZE_MISMATCH"
+
+
+def test_verdict_threshold_is_overridable():
+    assert vpc.verdict({"score": 0.82, "size_mismatch": False}, threshold=0.90) == "NEEDS_REVIEW"

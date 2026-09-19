@@ -45,3 +45,18 @@ def compare(a_path: pathlib.Path, b_path: pathlib.Path) -> dict:
     score = structural_similarity(a_arr, b_arr, channel_axis=-1)
     return {"score": float(score), "a_size": list(a.size), "b_size": list(b.size),
              "size_mismatch": False}
+
+
+#: Starting point, not a calibrated constant. No real vendor-pair SSIM
+#: measurements exist yet — recalibrate once the first several real
+#: comparisons have been run and a human has judged whether each one
+#: "looked right." Override with --threshold; the CLI (Task 6) requires a
+#: stated reason when overriding, mirroring chart_parity.py's own
+#: --tolerance/--tolerance-reason pairing.
+DEFAULT_THRESHOLD = 0.80
+
+
+def verdict(compare_result: dict, threshold: float = DEFAULT_THRESHOLD) -> str:
+    if compare_result["size_mismatch"]:
+        return "SIZE_MISMATCH"
+    return "OK" if compare_result["score"] >= threshold else "NEEDS_REVIEW"
