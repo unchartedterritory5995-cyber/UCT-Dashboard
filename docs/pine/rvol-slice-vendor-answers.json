@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "subject": "Pine runtime lane, wave 1 -- the RVOL slice. Vendor semantics measured on TradingView BEFORE the matching code is written.",
+  "procedure": "docs/pine/rvol-slice-vendor-packet.md",
+  "design": "docs/superpowers/specs/universal-indicator-ecosystem/2026-09-19-pine-runtime-rvol-slice-design.md",
+  "rail": "app/src/components/chart/engine/ast/vendorAnswers.test.js",
+  "measured_by": "the owner, by hand, at their own signed-in TradingView session. Nothing here is automated with the owner's credentials.",
+  "statuses": {
+    "unmeasured": "not taken yet; every answer value stays null",
+    "measured": "taken, and EVERY answer field carries what the screen said",
+    "blocked": "attempted and could not be taken; notes must say why"
+  },
+  "answer_types": [
+    "string",
+    "number",
+    "boolean",
+    "enum"
+  ],
+  "note_on_placeholders": "na, n/a, NaN, 0 and false are REAL vendor answers in this fixture, not placeholders -- write them literally where that is what the screen said. The rail refuses TBD, ?, -, unknown, pending and friends, and deliberately does not refuse those five.",
+  "measurements": [
+    {
+      "id": "M1",
+      "slug": "request_merge",
+      "question": "What value lands on the last bar for request.security(sym, \"D\", close) on an intraday chart and request.security(sym, \"30\", close) on a daily chart, historical versus realtime; what the default lookahead and gaps arguments do; and what comes back before the requested series has its first bar.",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m1--request-merge",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "intraday_chart_tf": { "type": "string", "value": null },
+        "intraday_req_D_last_bar": { "type": "string", "value": null },
+        "intraday_req_D_matches_on_last_bar": {
+          "type": "enum",
+          "allowed": ["chart close (today, still forming)", "previous day's daily close", "neither"],
+          "value": null
+        },
+        "intraday_req_D_on_a_closed_historical_bar": {
+          "type": "enum",
+          "allowed": ["that day's own daily close", "the previous day's daily close", "neither"],
+          "value": null
+        },
+        "default_lookahead_matches": {
+          "type": "enum",
+          "allowed": ["lookahead_off", "lookahead_on", "neither"],
+          "value": null
+        },
+        "default_gaps_matches": {
+          "type": "enum",
+          "allowed": ["gaps_off", "gaps_on", "neither"],
+          "value": null
+        },
+        "daily_chart_tf": { "type": "string", "value": null },
+        "daily_req_30_last_bar": { "type": "string", "value": null },
+        "daily_req_30_which_30m_bar": {
+          "type": "enum",
+          "allowed": ["the LAST 30-minute bar of that day", "the FIRST 30-minute bar of that day", "neither / something else"],
+          "value": null
+        },
+        "daily_req_30_oldest_bar_with_a_value": { "type": "string", "value": null },
+        "value_before_requested_series_first_bar": { "type": "string", "value": null },
+        "na_bars_before_late_symbol_first_bar": { "type": "number", "value": null },
+        "late_symbol_used": { "type": "string", "value": null },
+        "late_symbol_first_value_date": { "type": "string", "value": null }
+      },
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "slug": "request_session_default",
+      "question": "Inside request.security, does a plain string ticker resolve to the regular session only, or extended hours too -- and does it follow the chart's own session setting?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m2--the-session-a-plain-string-ticker-uses",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "syminfo_session_with_chart_eth_on": { "type": "string", "value": null },
+        "syminfo_session_with_chart_eth_off": { "type": "string", "value": null },
+        "premarket_bar_chart_close": { "type": "string", "value": null },
+        "premarket_bar_plain_string_req": { "type": "string", "value": null },
+        "premarket_bar_session_regular_req": { "type": "string", "value": null },
+        "premarket_bar_session_extended_req": { "type": "string", "value": null },
+        "premarket_bar_tickerid_req": { "type": "string", "value": null },
+        "na_counts_plain_regular_extended": { "type": "string", "value": null },
+        "plain_string_session": {
+          "type": "enum",
+          "allowed": ["regular only", "extended too", "follows the chart's own session setting", "inconclusive"],
+          "value": null
+        },
+        "tickerid_session": {
+          "type": "enum",
+          "allowed": ["regular only", "extended too", "follows the chart's own session setting", "inconclusive"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "slug": "daily_bar_time",
+      "question": "For a US equity on a daily chart, what instant does Pine's `time` name, and in which timezone?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m3--the-time-of-a-daily-bar-for-a-us-equity",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "syminfo_timezone": { "type": "string", "value": null },
+        "time_ms_raw": { "type": "string", "value": null },
+        "time_utc": { "type": "string", "value": null },
+        "time_america_new_york": { "type": "string", "value": null },
+        "time_exchange_tz": { "type": "string", "value": null },
+        "time_close_ms_raw": { "type": "string", "value": null },
+        "time_close_america_new_york": { "type": "string", "value": null },
+        "prev_bar_time_america_new_york": { "type": "string", "value": null },
+        "prev_bar_time_utc": { "type": "string", "value": null },
+        "instant_the_time_field_names": {
+          "type": "enum",
+          "allowed": ["the session OPEN of that day", "midnight exchange time", "midnight UTC", "something else"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "slug": "wrong_exchange_spelling",
+      "question": "Is a wrong-exchange spelling invalid -- NASDAQ:JPM, where JPM is NYSE-listed -- and what does ignore_invalid_symbol = true then yield?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m4--a-wrong-exchange-spelling",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "part_a_compiles": { "type": "boolean", "value": null },
+        "part_a_error_text": { "type": "string", "value": null },
+        "part_a_value": { "type": "string", "value": null },
+        "wrong_exchange_is_invalid": {
+          "type": "enum",
+          "allowed": ["yes - it errors", "no - TradingView resolves it anyway", "inconclusive"],
+          "value": null
+        },
+        "part_b_wrong_with_ignore": { "type": "string", "value": null },
+        "part_b_right_with_ignore": { "type": "string", "value": null },
+        "part_b_bogus_control_with_ignore": { "type": "string", "value": null },
+        "ignore_invalid_symbol_yields": {
+          "type": "enum",
+          "allowed": ["na for every bar", "the correct exchange's series", "something else"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "slug": "request_call_ceiling",
+      "question": "What is the maximum number of unique request.*() calls a script may make on the owner's plan?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m5--the-maximum-number-of-unique-requestcalls",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "plan_name": { "type": "string", "value": null },
+        "control_calls_made_at_n_10": { "type": "number", "value": null },
+        "largest_n_that_ran": { "type": "number", "value": null },
+        "smallest_n_that_failed": { "type": "number", "value": null },
+        "error_text": { "type": "string", "value": null }
+      },
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "slug": "rounding_at_half",
+      "question": "How do str.tostring(x, \"#\") and math.round(x) round at exactly .5, for 0.5, 1.5, 2.5, -0.5 (and -1.5, -2.5), and do the two agree?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m6--strtostringx--and-mathroundx-at-5",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "tostring_hash_0_5": { "type": "string", "value": null },
+        "tostring_hash_1_5": { "type": "string", "value": null },
+        "tostring_hash_2_5": { "type": "string", "value": null },
+        "tostring_hash_neg_0_5": { "type": "string", "value": null },
+        "tostring_hash_neg_1_5": { "type": "string", "value": null },
+        "tostring_hash_neg_2_5": { "type": "string", "value": null },
+        "math_round_0_5": { "type": "string", "value": null },
+        "math_round_1_5": { "type": "string", "value": null },
+        "math_round_2_5": { "type": "string", "value": null },
+        "math_round_neg_0_5": { "type": "string", "value": null },
+        "math_round_neg_1_5": { "type": "string", "value": null },
+        "math_round_neg_2_5": { "type": "string", "value": null },
+        "tostring_rule": {
+          "type": "enum",
+          "allowed": ["half up (away from zero)", "half even (banker's)", "half toward +infinity", "something else"],
+          "value": null
+        },
+        "math_round_rule": {
+          "type": "enum",
+          "allowed": ["half up (away from zero)", "half even (banker's)", "half toward +infinity", "something else"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "slug": "sort_indices_tie_order",
+      "question": "When array.sort_indices meets equal keys, in what order do their original indices come out?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m7--arraysort_indices-tie-order",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "input_array_a": { "type": "string", "value": null },
+        "asc_indices_a": { "type": "string", "value": null },
+        "desc_indices_a": { "type": "string", "value": null },
+        "all_equal_indices_asc": { "type": "string", "value": null },
+        "all_equal_indices_desc": { "type": "string", "value": null },
+        "control_descending_input_asc": { "type": "string", "value": null },
+        "tie_order_ascending": {
+          "type": "enum",
+          "allowed": ["stable - original index order", "reverse original index order", "neither / not stable"],
+          "value": null
+        },
+        "tie_order_descending": {
+          "type": "enum",
+          "allowed": ["stable - original index order", "reverse original index order", "neither / not stable"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M8",
+      "slug": "timeframe_period_in_request",
+      "question": "Inside a requested context, does timeframe.period report the requested timeframe or the chart's?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m8--timeframeperiod-inside-a-requested-context",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "chart_timeframe_period": { "type": "string", "value": null },
+        "requested_timeframe_multiplier": { "type": "string", "value": null },
+        "requested_timeframe_isdaily": { "type": "string", "value": null },
+        "requested_timeframe_isintraday": { "type": "string", "value": null },
+        "part_b_compiles": { "type": "boolean", "value": null },
+        "requested_timeframe_period": { "type": "string", "value": null },
+        "part_b_error_text": { "type": "string", "value": null },
+        "timeframe_period_inside_request_reports": {
+          "type": "enum",
+          "allowed": ["the REQUESTED timeframe", "the CHART's timeframe", "inconclusive"],
+          "value": null
+        }
+      },
+      "notes": null
+    },
+    {
+      "id": "M9",
+      "slug": "hour_across_dst",
+      "question": "What does hour(time, \"America/New_York\") do across a US daylight-saving boundary, including the repeated autumn hour?",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m9--hourtime-americanew_york-across-a-dst-boundary",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "v6",
+      "answers": {
+        "hour_2026_03_08_0600Z_ny": { "type": "string", "value": null },
+        "hour_2026_03_08_0700Z_ny": { "type": "string", "value": null },
+        "hour_2026_11_01_0500Z_ny": { "type": "string", "value": null },
+        "hour_2026_11_01_0600Z_ny": { "type": "string", "value": null },
+        "hour_2026_11_01_0700Z_ny": { "type": "string", "value": null },
+        "hour_2026_07_01_1430Z_ny": { "type": "string", "value": null },
+        "hour_2026_01_05_1430Z_ny": { "type": "string", "value": null },
+        "live_bar_hour_ny": { "type": "string", "value": null },
+        "live_bar_hour_utc": { "type": "string", "value": null },
+        "live_bar_hour_default_tz": { "type": "string", "value": null },
+        "dst_is_respected": {
+          "type": "enum",
+          "allowed": ["yes - the same UTC instant maps to a different NY hour across the boundary", "no - a fixed offset", "inconclusive"],
+          "value": null
+        },
+        "repeated_hour_behaviour": { "type": "string", "value": null }
+      },
+      "notes": null
+    },
+    {
+      "id": "M10",
+      "slug": "chart_data_feed",
+      "question": "For a US stock on the owner's account, what does the chart legend say the data feed is -- a real-time exchange feed, Cboe BZX, or delayed? It decides whether TradingView's own in-session volume is comparable to ours.",
+      "how": "docs/pine/rvol-slice-vendor-packet.md#m10--what-the-chart-legend-says-the-data-feed-is",
+      "status": "unmeasured",
+      "measured_at": null,
+      "symbol": null,
+      "timeframe": null,
+      "pine_version": "n/a -- no Pine needed",
+      "answers": {
+        "legend_feed_label": { "type": "string", "value": null },
+        "symbol_info_feed_label": { "type": "string", "value": null },
+        "delayed_badge_present": { "type": "boolean", "value": null },
+        "delay_minutes": { "type": "number", "value": null },
+        "plan_name": { "type": "string", "value": null },
+        "feed_kind": {
+          "type": "enum",
+          "allowed": ["real-time exchange feed", "Cboe BZX", "delayed", "inconclusive"],
+          "value": null
+        },
+        "in_session_volume_comparable": {
+          "type": "enum",
+          "allowed": ["yes", "no", "inconclusive"],
+          "value": null
+        }
+      },
+      "notes": null
+    }
+  ]
+}
