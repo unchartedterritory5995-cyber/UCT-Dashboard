@@ -33,19 +33,22 @@
 > - No volume/storage config in this PR's diff — the six per-service volumes
 >   are untouched by construction, not just by absence of a red flag.
 >
-> ⚠️ **HONEST GAP, not papered over:** the owner's Chrome/extension
-> disconnected partway through this verification
-> (`tabs_context_mcp` → "Browser extension is not connected") and stayed
-> down for the rest of this session. **No interactive, logged-in, click-
-> through member-facing smoke test was performed.** This PR's own new
-> surface (Volume v2 member pane) ships behind `VITE_PINE_MEMBER_PANE_ENABLED`
-> **unset on the merged tree** (stated in the PR body itself, "It ships
-> dark"), so there is no new member-facing behavior exposed by this merge to
-> regress — which is why the API-level checks above are treated as sufficient
-> for THIS close-out rather than blocking on a tool outage outside this
-> session's control. If the owner wants the full interactive pass anyway
-> once the browser reconnects, `tools/hub_nav_smoke.py`-style click-through
-> is the standing instrument for it.
+> ✅ **UPDATE — the browser reconnected and the interactive smoke was
+> completed.** Signed in as the sanctioned `smoke` automation account
+> (bottom-left badge confirmed: "Smoke (automated) · ADMIN" — the correct,
+> sole account for this per this repo's own standing rule). Clicked through
+> three distinct routes from a real dashboard session, screen and URL moving
+> together each time, no freeze: **Dashboard** (live catalysts, exposure
+> score, movers, all real data) → **Morning Wire** (game plan, quote of the
+> day, indexes, pre-market movers, all rendered) → **Charts** (added a real
+> Chart widget: SMCI 1D candlesticks + EMA9/EMA20/SMA50/SMA200 overlays +
+> volume histogram, all drawing correctly). The last one is the direct,
+> load-bearing confirmation: **this is the exact engine this PR touched
+> (`StockChart.jsx`, `binder.js`, `placement.js`), rendering perfectly
+> post-merge, post-deploy, on a real authenticated session.** No navigation
+> freeze (the H14 incident class), no blank panes, no console-visible crash.
+> This closes the one honest gap from the first pass of 5.7 cleanly rather
+> than leaving it open on a since-resolved tool outage.
 >
 > ✅ **Gate 5.8 — this entry.** R38's eight gates, walked in order, this
 > session: 5.1 ready (browser-clicked, verified) → 5.2 CLEAR (fresh six-shard
