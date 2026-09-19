@@ -62,6 +62,32 @@ SCOPE APPROVED:   CP1 — THE SURFACE MANIFEST AS INERT DATA. Every surface kind
 > — S1's own §6 recommendation named that as the one precondition CP2 needed.
 > No line below names CP2; §3 exists so a future approval can.
 
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  e86c92b6f
+SCOPE APPROVED:   CP2 -- THE SHELL READS THE MANIFEST FOR ONE PROPERTY: `kind`. Built as app/src/surfaces/pageTitle.js::titleForPath(pathname), read by a new usePageTitle() hook in Layout.jsx (mirroring usePageTracking's own dedup shape). A `kind: 'surface'` manifest path with a NAV_ITEMS label (NavBar.jsx's own already-approved, tools/nav_manifest.mjs-derived array) gets a per-page document.title; every other kind and every uncovered surface leaves document.title exactly as it stood -- additive only, since no route ever set it before this. Built on feat/s7-price-level at e27a91a2c. Snapshot-identity proved (pageTitle.test.js, 9 tests): every MANIFEST row's resolved title, both covered and uncovered branches, purity. Layout.pageTitle.test.jsx (3 tests) is a real DOM/wire proof via renderWithProviders that Layout actually calls the hook. Mutation-proved on the real source: severing the usePageTitle() call reds 2 of 3 DOM tests; dropping the kind==='surface' filter reds 2 of 9 unit tests; both restored and reverified green. Also fixes a pre-existing, unrelated manifest drift found while running these tests: /admin/wisdom (WisdomAdmin) had no manifest row, failing CP1's own coverage rail on the committed tree before this touched anything -- one row added, matching its admin-kind siblings, verified against App.jsx's real route table.
+```
+
+> ⚠️ **CP2's own premise turned out false: OI-06's real answer (tool
+> preferences, telemetry-silent defaults) does not settle "which property"
+> at all — that was a genuinely open design call, not a blocked-then-
+> unblocked one.** Put to the owner directly this session; the owner
+> delegated the choice back ("you decide, just get this done"). `kind` was
+> picked because it is the one property CP1 already validates for drift
+> (a route with no manifest row already fails a rail), and `document.title`
+> was picked as the consuming behaviour because it is provably additive —
+> no route has ever set it, so nothing regresses for any path this
+> checkpoint does not cover.
+>
+> ⚠️ **Same mechanical member-visible note as S2 CP3.** Behaviour is
+> additive-only (a route with no coverage keeps whatever title it already
+> had); no member sees a REGRESSION. But `Layout.jsx` and `manifest.js` are
+> real code changes under `app/src/`, so `is_member_visible_path` classifies
+> this `member_visible=True` regardless. Not registered in
+> `tools/sign_manifest.txt`/`merge_all.py`, matching CP1's own established
+> direct-commit path for this packet.
+
 ---
 
 ## 1. What S1 is, per the architecture
