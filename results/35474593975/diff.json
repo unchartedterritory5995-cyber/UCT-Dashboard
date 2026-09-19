@@ -1,0 +1,60 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 2,
+    "unchanged": 157,
+    "missing": 0,
+    "baseline": 159,
+    "current": 157,
+    "current_ran": 50334,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 159 = unchanged 157 + fixed 2 + missing 0  |  current 157 = unchanged 157 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35471901291",
+  "current_run_id": "35474593975",
+  "baseline_sha": "dd452c0baf780a172c14bdd4c1d7a0d4e8fd492b",
+  "current_sha": "33e05f73309b743f5b2e33d2a4b46b6ad241cec1",
+  "commit_range": "dd452c0baf780a172c14bdd4c1d7a0d4e8fd492b..33e05f73309b743f5b2e33d2a4b46b6ad241cec1",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "pytest|tests.test_token_slots|test_no_token_value_is_ever_written"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in dd452c0ba..33e05f733 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    },
+    "pytest|tests.test_token_slots|test_no_token_value_is_ever_written": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in dd452c0ba..33e05f733 touched tests/test_token_slots.py or anything it imports"
+    }
+  }
+}
