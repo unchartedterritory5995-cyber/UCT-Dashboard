@@ -1,0 +1,64 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 153,
+    "missing": 0,
+    "baseline": 154,
+    "current": 156,
+    "current_ran": 50233,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 154 = unchanged 153 + fixed 1 + missing 0  |  current 156 = unchanged 153 + new 1 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35422248158",
+  "current_run_id": "35423287118",
+  "baseline_sha": "9751466ee8e174727795eac5bfc7670661af4db5",
+  "current_sha": "492ec494b838cbf1ca2f31e4adb7e140dda2d7de",
+  "commit_range": "9751466ee8e174727795eac5bfc7670661af4db5..492ec494b838cbf1ca2f31e4adb7e140dda2d7de",
+  "first_run": false,
+  "new": [
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_vite_flag_ledger|test_every_row_is_complete_and_a_dark_row_says_why"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9751466ee..492ec494b touched src/hooks/usePreferences.additionsOnly.test.js or anything it imports"
+    },
+    "pytest|tests.test_vite_flag_ledger|test_every_row_is_complete_and_a_dark_row_says_why": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9751466ee..492ec494b touched tests/test_vite_flag_ledger.py or anything it imports"
+    }
+  }
+}
