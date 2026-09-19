@@ -1,0 +1,103 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 4,
+    "unchanged": 154,
+    "missing": 0,
+    "baseline": 158,
+    "current": 158,
+    "current_ran": 50295,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 158 = unchanged 154 + fixed 4 + missing 0  |  current 158 = unchanged 154 + new 4 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35455471879",
+  "current_run_id": "35458072218",
+  "baseline_sha": "ba11769a3478ad2caf502602564db042e59cf66a",
+  "current_sha": "1c6a3d40e8a0a1ace6648dbb83c19bfbc2b81e3e",
+  "commit_range": "ba11769a3478ad2caf502602564db042e59cf66a..1c6a3d40e8a0a1ace6648dbb83c19bfbc2b81e3e",
+  "first_run": false,
+  "new": [
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > a requires_totp response swaps to the code step and verifies",
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > normal accounts log straight in \u2014 no code step",
+    "vitest|src/pages/formulas/formulaLibrary.route.test.jsx|\ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail",
+    "vitest|src/pages/journal-2-0/shareTarget.contract.test.js|the landing route is registered, and OUTSIDE the auth guard > \u26d4 the share path does not join FREE_PAGES by accident"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/context/AuthContext.test.jsx|AuthContext fetchUser \u2014 transient vs definitive session-check failures > 503 on a REFETCH with a logged-in user \u2192 user and plan state PRESERVED"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > a requires_totp response swaps to the code step and verifies": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/pages/Login.totp.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > normal accounts log straight in \u2014 no code step": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/pages/Login.totp.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/formulas/formulaLibrary.route.test.jsx|\ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/pages/formulas/formulaLibrary.route.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/shareTarget.contract.test.js|the landing route is registered, and OUTSIDE the auth guard > \u26d4 the share path does not join FREE_PAGES by accident": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/pages/journal-2-0/shareTarget.contract.test.js or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched tests/test_mutation_check.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/components/chart/engine/__tests__/stockChartWiring.test.jsx or anything it imports"
+    },
+    "vitest|src/context/AuthContext.test.jsx|AuthContext fetchUser \u2014 transient vs definitive session-check failures > 503 on a REFETCH with a logged-in user \u2192 user and plan state PRESERVED": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ba11769a3..1c6a3d40e touched src/context/AuthContext.test.jsx or anything it imports"
+    }
+  }
+}
