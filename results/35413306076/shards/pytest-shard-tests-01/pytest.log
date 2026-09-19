@@ -1,0 +1,133 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+...............................................................s........ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+..........................s............................................. [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+......................................F................................. [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+...............                                                          [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8795 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8841 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+________ test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it _________
+
+    def test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it():
+        """⛔ GATE §6 — `scan_store.py` is an INERT STRAND: flow-worker RUNS it and
+        will not redeploy for a change to it, so an edit there leaves flow-worker on
+        the old copy with every test green. The retention guarantee is asserted from
+        `tests/`, which flow-worker does not run.
+    
+        Read from git rather than from `git status`: provenance is
+        `git show <sha>:<file>`, never the working tree.
+        """
+        import subprocess
+        top = subprocess.run(["git", "-C", str(_REPO), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        legacy_paths = ["api/services/screener/scan_store.py",
+                        "api/services/screener/screen_alerts.py"]
+    
+        # ⛔ NON-VACUITY, AND IT MUST NOT DEPEND ON THIS BRANCH HAVING CHANGES —
+        # after a merge the diff is legitimately empty and a "the diff is empty ⇒
+        # broken" control would go red on master forever. Instead: prove git answers
+        # and that the two paths are things it can actually name.
+        tracked = subprocess.run(["git", "-C", top, "ls-files", *legacy_paths],
+                                 capture_output=True, text=True, check=True).stdout.split()
+        assert sorted(tracked) == sorted(legacy_paths), (
+            f"git did not resolve the legacy paths — the check is broken, not green: {tracked}")
+    
+        base = subprocess.run(["git", "-C", top, "merge-base", "HEAD", "origin/master"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        assert base, "could not resolve the merge-base — the check is broken, not green"
+        changed = subprocess.run(
+            ["git", "-C", top, "diff", "--name-only", f"{base}..HEAD"],
+            capture_output=True, text=True, check=True).stdout.split()
+        for path in legacy_paths:
+>           assert path not in changed, (
+                f"this branch edited {path}. `scan_store.py` is an INERT STRAND "
+                "(flow-worker runs it and will not redeploy) and `screen_alerts.py` "
+                "is the incumbent the absorption default leaves untouched.")
+E           AssertionError: this branch edited api/services/screener/scan_store.py. `scan_store.py` is an INERT STRAND (flow-worker runs it and will not redeploy) and `screen_alerts.py` is the incumbent the absorption default leaves untouched.
+E           assert 'api/services/screener/scan_store.py' not in ['.gitattributes', '.github/workflows/clock-parity-fixture.yml', '.gitignore', 'CLAUDE.md', 'Dockerfile.web', 'THIRD_PARTY_NOTICES.md', ...]
+
+tests/test_alert_taxonomy_scan_membership_change_schema.py:591: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:470: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+FAILED tests/test_alert_taxonomy_scan_membership_change_schema.py::test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it - AssertionError: this branch edited api/services/screener/scan_store.py. `scan_store.py` is an INERT STRAND (flow-worker runs it and will not redeploy) and `screen_alerts.py` is the incumbent the absorption default leaves untouched.
+assert 'api/services/screener/scan_store.py' not in ['.gitattributes', '.github/workflows/clock-parity-fixture.yml', '.gitignore', 'CLAUDE.md', 'Dockerfile.web', 'THIRD_PARTY_NOTICES.md', ...]
+1 failed, 2892 passed, 2 skipped, 5 warnings in 423.26s (0:07:03)
