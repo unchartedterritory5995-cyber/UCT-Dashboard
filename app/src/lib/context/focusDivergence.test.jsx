@@ -256,3 +256,48 @@ describe('HubContext is mounted, and its own header now says so', () => {
     expect(hubSrc.slice(0, grave)).toContain('MOUNTED APP-WIDE')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// S4 CHECKPOINT 2 — S4-B RULED: `useAppFocus` is THE promoted authority.
+// Docs + rail only. No product file touched — this ratifies CP1's own wiring.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('S4-B is ruled, and CP1 is built on the ruled authority — not a rival', () => {
+  const divSrc = fs.readFileSync(path.join(SRC, 'lib/context/focusDivergence.js'), 'utf8')
+  const linkSrc = fs.readFileSync(path.join(SRC, 'lib/chartDeepLink.js'), 'utf8')
+
+  it('⛔ the divergence module imports its symbol from useAppFocus, not from a rival authority', () => {
+    // S4-B: useAppFocus is promoted (owner ruling, quoted in useAppFocus.js:
+    // "charts Group A IS the app focus … There is exactly ONE value, so there
+    // is no second authority to drift"). CP1 reads useHub() too, but ONLY to
+    // compare against it -- never to treat it as the source of the current
+    // symbol. This is the rail that would catch someone "fixing" CP1 by
+    // swapping its derivation to read HubContext or WorkspaceContext first.
+    const code = stripJsComments(divSrc)
+    expect(code).toMatch(/import\s+useAppFocus\s+from\s+['"][^'"]*\/hooks\/useAppFocus['"]/)
+  })
+
+  it('⛔ WorkspaceContext.groupSyms is never imported as a symbol SOURCE here', () => {
+    // S4-B's rejected alternative: promoting groupSyms directly would also
+    // promote crosshairBus/aiSearchBus with it, which product-architecture.md
+    // forbids. The rail fails BY NAME if a future edit reaches for it anyway.
+    const code = stripJsComments(divSrc)
+    expect(code).not.toMatch(/from\s+['"][^'"]*WorkspaceContext['"]/)
+  })
+
+  it('⭐ the "an instruction is not a channel" rule (S4 CP2) is recorded where a reviewer meets it', () => {
+    // chartDeepLink.js:13-17's own words -- a URL param applies through an
+    // EXISTING authority and strips itself, never becoming a second source of
+    // truth. CP2 asks that this rule be written down as a review rule, not
+    // left as one file's private comment; this assertion is that rule made
+    // executable -- it fails BY NAME if the comment is ever deleted without a
+    // replacement statement of the same rule.
+    const code = linkSrc
+    expect(code).toMatch(/rather than a second source of truth/i)
+  })
+
+  it('⛔ CONTROL: the instruction-is-not-a-channel check can see a real deletion', () => {
+    const mutated = linkSrc.replace(/rather than a second source of truth/i, 'REMOVED')
+    expect(mutated).not.toMatch(/rather than a second source of truth/i)
+  })
+})
