@@ -95,13 +95,14 @@
       "display_name": "Jersace",
       "role": "team",
       "can_author_calls": true,
-      "discord_user_id": null,
-      "discord_username": null,
-      "discord_verified": "PENDING — owner ruled this a 5th author 2026-09-19, but the bot has no VIEW_CHANNEL grant on #jersace (403) yet, so authorship could not be measured the way it was for the other four. Grant the bot access, then re-verify via GET /channels/1216768669598613514/messages?limit=50 and fill in discord_user_id/discord_username before this author's messages are trusted for CALL attribution.",
+      "discord_user_id": "395070112748666881",
+      "discord_username": "jersace.x",
+      "discord_verified": "48/50 most recent #jersace messages (bot read after the 2026-09-19 grant); other 2 = manrav and alexjonesindustrialaverage guest posts",
       "x_handle": null,
       "aliases": [
         "Jersace",
-        "jersace"
+        "jersace",
+        "jersace.x"
       ],
       "substack_sections": []
     },
