@@ -3,8 +3,10 @@
 **This is the resolution of `append_document_excerpt-durable-write.md`. That file
 asked whether a rig INCONCLUSIVE was hiding a product bug. It was.**
 
-Status: **reproduced, railed, NOT fixed.** A fix was written and reverted because
-it traded this bug for a worse one. See "Why it is not fixed".
+Status: ✅ **REPRODUCED, RAILED, AND FIXED** — by splitting the predicate by
+PROVENANCE. The first attempt at a fix was reverted because it traded this bug
+for a worse one; that attempt and why it failed are kept below, because the
+reason is the design.
 
 ## The defect
 
@@ -47,7 +49,7 @@ five runs** while everything around it passed, and why it spent the evening
 labelled *"an INSTRUMENT answer, not a finding"*. The rig was right to keep
 flagging it. The label was wrong.
 
-## Why it is not fixed
+## The first fix, and why it was reverted
 
 A directional fix — "does `incoming` still CARRY prev's words?" — makes `persist`
 correct and **breaks `settleLandedSave`**: a door passing LOCAL state as `acked`
@@ -58,7 +60,34 @@ Measured, not predicted: `selfForkDoors.test.jsx > a door must NOT pass local
 state as \`acked\`` went **11 passed → 1 failed**, and re-running it against
 `HEAD~1` proved the regression was the fix's and not master's.
 
-## ⭐ The real finding: one predicate cannot answer both callers
+## ✅ THE FIX: split by provenance
+
+The two callers get predicates that encode **what they are handed**:
+
+| caller | receives | predicate |
+|---|---|---|
+| `persist` | the **editor's own content** | `editorStateDiscardsUnsentWork` — containment |
+| `settleLandedSave` | the **server's ack** (a claim) | `discardsUnsentWork` — strict, unchanged |
+
+Same invariant, two questions. On the SAME pair of records the right answer
+differs, and the rail asserts both:
+
+- editor path: member typed more ⇒ **not** a discard ⇒ their words are written.
+- ack path: a door passing that same content as `acked` ⇒ **still** a discard ⇒
+  the queue is kept.
+
+**Verified:** 134 passed across `fix6KeepsTyping`, `selfForkDoors`,
+`q1AppendWriterCensus`, the 47-case `offlineWordsSurvive` property suite,
+`outboxDrain`, `doorDefersWhileUnsent`, `recoverLocalState` and `sourcesAreText`.
+Mutation-proved: gutting the containment check reds the editor test (exit 1);
+restored is exit 0, 8 passed.
+
+⚠️ **A deletion still reads as a discard on both paths, deliberately.** Keeping
+the longer copy is the pre-existing behaviour and the correct failure direction
+for a system whose charter is never to lose words. Narrowing it needs its own
+evidence.
+
+## ⭐ The finding that produced the fix: one predicate cannot answer both callers
 
 | caller | what `incoming` is | what the right answer depends on |
 |---|---|---|

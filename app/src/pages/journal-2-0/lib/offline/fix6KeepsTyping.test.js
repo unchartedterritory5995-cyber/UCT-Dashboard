@@ -1,55 +1,49 @@
 /**
- * ⛔⛔ A RAILED, REPRODUCED DEFECT — fix 6 drops words the member is still typing.
+ * Q1 FIX 6 — the guard vs a member who is still typing, on BOTH provenances.
  *
- * These tests PIN THE CURRENT (WRONG) BEHAVIOUR ON PURPOSE. They are green, and
- * the thing they assert is a bug. If someone fixes it they will go red, and the
- * message will tell them to delete the pin rather than "repair" the test.
+ * ── THE DEFECT THIS FILE FOUND ───────────────────────────────────────────────
  *
- * ── THE DEFECT ───────────────────────────────────────────────────────────────
- *
- * `discardsUnsentWork` documents itself as DIRECTIONAL:
+ * `discardsUnsentWork` documented itself as DIRECTIONAL and was implemented as
+ * SYMMETRIC:
  *
  *     @returns true when `prev` is carrying words `incoming` does not have
- *
- * and is implemented as SYMMETRIC inequality:
- *
  *     return !sameAuthoredContent(incoming, prev)
  *
- * The difference is the member still typing. Once a note is dirty, every further
- * keystroke makes `incoming` differ from `prev` — in the direction where incoming
- * has MORE — and `persist` does `source = unsentWork ? prev : state`, so it
- * writes `prev`. The member's newer words never reach the durable copy. The
- * editor keeps showing them; a reload does not.
+ * Once a note is dirty, every further keystroke makes `incoming` differ from
+ * `prev` — in the direction where incoming has MORE — and `persist` does
+ * `source = unsentWork ? prev : state`, so it wrote `prev`. A member with unsent
+ * work who kept typing had their newer words written NOWHERE. The editor kept
+ * showing them; a reload did not.
  *
  * ── WHY 86 GREEN PRODUCTION CELLS COULD NOT SEE IT ───────────────────────────
  *
- * Every F5 rig cell types its sentinel in ONE burst, which a single debounce
- * window captures while the record is still CLEAN. The failure needs a note
- * ALREADY dirty when the typing starts — exactly the state
- * `append_document_excerpt`'s setup leaves behind, which is why that one cell
- * failed reproducibly across five runs and was labelled an instrument answer.
+ * Every F5 rig cell types its sentinel in ONE burst, captured by a single
+ * debounce while the record is still CLEAN. The failure needs a note ALREADY
+ * dirty when typing starts — exactly what `append_document_excerpt`'s setup
+ * leaves behind, which is why that ONE cell failed reproducibly across five runs
+ * while everything around it passed, and spent an evening labelled an instrument
+ * answer. The rig was right; the label was wrong.
  *
- * ── WHY IT IS NOT FIXED HERE ─────────────────────────────────────────────────
+ * ── THE FIX: SPLIT BY PROVENANCE ─────────────────────────────────────────────
  *
- * ⚰️ A directional fix WAS written and REVERTED, because it traded this bug for
- * a worse one. Making the guard ask "does `incoming` still CARRY prev's words?"
- * fixes `persist` and breaks `settleLandedSave`: a door passing LOCAL state as
- * `acked` also carries prev's words, so the queue got cleared and unsent work was
- * deleted — the original fix 4 defect, measured by
- * `selfForkDoors.test.jsx > a door must NOT pass local state as `acked``
- * (11 passed before, 1 failed after).
+ * ⚰️ The obvious single fix is WRONG and was measured to be: making the ONE
+ * predicate directional fixes `persist` and BREAKS `settleLandedSave`, because a
+ * door passing local state as `acked` also carries prev's words, so the queue
+ * clears and unsent work is deleted — the original fix 4 defect.
+ * `selfForkDoors.test.jsx` went 11 passed to 1 failed, and re-running it against
+ * the parent commit proved the regression was the change's, not master's.
  *
- * ⭐ THE REAL FINDING IS THAT ONE PREDICATE CANNOT ANSWER BOTH CALLERS.
- *   - `persist` receives the EDITOR's live content, which is authoritative and
- *     legitimately newer than the durable copy.
- *   - `settleLandedSave` receives what the SERVER ACKED, which may be a door's
- *     lie about what the server has.
- * Fix 6 merged them for "one authority" and that was right about the invariant
- * and wrong about the question. Separating them needs its own design and its own
- * evidence, and must not be improvised on the note-saving path.
+ * ⭐ So the two callers get predicates that encode WHAT THEY ARE HANDED:
+ *     persist           the EDITOR's own content   -> editorStateDiscardsUnsentWork
+ *     settleLandedSave  the SERVER's ACK (a claim) -> discardsUnsentWork
+ *
+ * These tests assert BOTH, on the SAME pair of records, because the whole point
+ * is that the right answer differs by provenance.
  */
 import { describe, it, expect } from 'vitest'
-import { discardsUnsentWork, sameAuthoredContent } from './recoverLocalState'
+import {
+  discardsUnsentWork, editorStateDiscardsUnsentWork, sameAuthoredContent,
+} from './recoverLocalState'
 
 const doc = (text) => ({
   type: 'doc',
@@ -59,22 +53,32 @@ const record = (text, dirty = 1) => ({
   title: 'n', subtitle: '', bodyJson: doc(text), dirty,
 })
 
-const PIN = 'PINNED DEFECT — if this now fails, the bug is FIXED. Delete the pin, '
-  + 'do not adjust it. See the file header.'
-
 describe('fix 6 · the guard vs a member who keeps typing', () => {
   it('a CLEAN prev is never treated as unsent work', () => {
     expect(discardsUnsentWork(record('hello', 0), record('hello world'))).toBe(false)
     expect(discardsUnsentWork(null, record('hello'))).toBe(false)
   })
 
-  it('⛔ PINNED DEFECT: the member typing MORE is wrongly read as a discard', () => {
+  it('⭐ FIXED: the member typing MORE is not a discard, on the EDITOR path', () => {
     const prev = record('the member wrote this offline')
     const incoming = record('the member wrote this offline and then kept typing')
-    // Nothing of prev's is being lost — `incoming` contains it in full. The
-    // correct answer is false. It returns TRUE, so `persist` writes `prev` and
-    // the newer words are dropped from the durable copy.
-    expect(discardsUnsentWork(prev, incoming), PIN).toBe(true)
+    // Nothing of prev's is lost — incoming contains it in full.
+    expect(editorStateDiscardsUnsentWork(prev, incoming)).toBe(false)
+  })
+
+  it('⛔ and the ACK path still refuses it — a door may not pass local state', () => {
+    const prev = record('the member wrote this offline')
+    const doorLie = record('the member wrote this offline and then kept typing')
+    // The SAME two records, asked of the ack path, must still block: the server
+    // has not seen these words and `acked` is only a claim that it has.
+    expect(discardsUnsentWork(prev, doorLie)).toBe(true)
+  })
+
+  it('the editor path still refuses a genuine discard', () => {
+    expect(editorStateDiscardsUnsentWork(record('the member wrote this offline'),
+                                         record('a server echo'))).toBe(true)
+    expect(editorStateDiscardsUnsentWork(record('a long sentence typed'),
+                                         record('a long sentence'))).toBe(true)
   })
 
   it('answers YES when incoming genuinely drops the unsent words (correct)', () => {
