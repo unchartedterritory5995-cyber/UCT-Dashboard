@@ -94,6 +94,7 @@ export const MANIFEST = [
   { path: "/admin/patterns", pathKind: "literal", element: "PatternAdmin", kind: "admin", order: null },
   { path: "/admin/pattern-review", pathKind: "literal", element: "PatternReview", kind: "admin", order: null },
   { path: "/admin/landing-analytics", pathKind: "literal", element: "LandingAnalytics", kind: "admin", order: null },
+  { path: "/admin/wisdom", pathKind: "literal", element: "WisdomAdmin", kind: "admin", order: null },
 ];
 
 /** Surfaces with a measured rank, best-first. Excludes anything telemetry is silent on. */
