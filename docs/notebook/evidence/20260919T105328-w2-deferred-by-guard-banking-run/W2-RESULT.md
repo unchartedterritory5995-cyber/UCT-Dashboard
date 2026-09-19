@@ -1,4 +1,34 @@
-# W2 — ran, banked a raw artifact, did NOT bank the DEFERRED reading
+# ⚰️ W2 — RESOLVED: it was the RIG, and it could never have worked
+
+**The "two explanations" below were settled the same day. It was (1), and not
+occasionally — structurally.**
+
+```
+useJournalToast.jsx:17   setTimeout(() => setJournalMsg(null), 2200)
+q1_f5_matrix.py          page.wait_for_timeout(5000)  then read the toast
+```
+
+The product clears the deferral toast at **2200 ms**; the rig slept **5000 ms**
+and then looked. The toast was gone before every read, so `toast_seen` was
+structurally always False and `DEFERRED-BY-GUARD` was **unreachable**. W2 could
+never have banked its reading.
+
+⭐ And the member IS told. Proved independently of any rig by rendered DOM text:
+`deferralReachesTheMember.test.jsx` renders the real `useJournalToast` +
+`JournalToast` chain and asserts `getByText(STILL_SYNCING_MESSAGE)` — 4 passed,
+mutation-proved by reintroducing the historical wrong-prop defect (`message`
+for `msg`), which reds it 2 of 4.
+
+⛔ THE RAIL GAP WAS REAL EVEN THOUGH THE PRODUCT WAS FINE.
+`doorDefersWhileUnsent.test.js` asserted the RETURN VALUE and never rendered
+anything, so nothing proved the sentence reached a member — which is exactly
+what the standing rule forbids, and why this looked like a live product
+suspicion for an hour.
+
+---
+
+## Original write-up, kept
+
 
 `append_widget_embed`, all five orderings, guard `full` (verified in-process).
 

@@ -1914,7 +1914,26 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             return {"verdict": "INCONCLUSIVE",
                     "why": f"the `{family}` door was {tag}: {why}"}
 
-        page.wait_for_timeout(5000)
+        # ⛔⛔ LATCH THE TOAST WHILE IT IS ON SCREEN. The product clears the
+        # deferral toast at 2200ms (`useJournalToast.jsx`), so a blind 5000ms
+        # sleep followed by a read could NEVER see it — `toast_seen` was
+        # structurally always False and DEFERRED-BY-GUARD was unreachable.
+        # ⭐ Same 5s ceiling (20 x 250ms), so nothing that passed can start
+        # failing; a toast alive at ANY instant inside it is now caught.
+        latched_toast = None
+        for _ in range(20):
+            page.wait_for_timeout(250)
+            if latched_toast:
+                continue
+            try:
+                _g = page.evaluate(GUARD_TOAST_JS)
+                _t = (_g or {}).get("text")
+                if _t:
+                    latched_toast = _t
+            except Exception:                        # noqa: BLE001
+                # ⛔ UNREADABLE is not ABSENT. Leave it None and let the read
+                # below report the failure in its own words.
+                pass
 
         # For an append family the row only counts if its OWN endpoint was hit.
         if family in APPEND and not (NO_DOOR["on"] or SECOND_WRITER["on"]):
@@ -1922,12 +1941,18 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             # ⛔ READ THE TOAST BEFORE JUDGING THE ABSENCE OF A CALL. Since D1
             # the chokepoint defers while a note has unsent work, so "no call"
             # is now THREE different facts and the cell must name which.
-            rendered = None
-            try:
-                got = page.evaluate(GUARD_TOAST_JS)
-                rendered = (got or {}).get("text")
-            except Exception as e:                       # noqa: BLE001
-                log(f"      guard toast: UNREADABLE ({type(e).__name__})")
+            # ⭐ The LATCHED sighting first — it is the only one that can have
+            # seen a toast the product already cleared. The live read stays as
+            # a fallback for a toast still on screen.
+            rendered = latched_toast
+            if rendered is None:
+                try:
+                    got = page.evaluate(GUARD_TOAST_JS)
+                    rendered = (got or {}).get("text")
+                except Exception as e:                   # noqa: BLE001
+                    log(f"      guard toast: UNREADABLE ({type(e).__name__})")
+            else:
+                log("      guard toast: LATCHED while on screen")
             expected = guard_sentence()
             if expected is None:
                 log("      guard toast: the product's sentence could not be DERIVED "
