@@ -32,6 +32,7 @@ import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
+import { chordById, matchesChord } from '../../../pages/command/chords.js'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -45,6 +46,14 @@ import styles from '../../../pages/charts/ChartsWorkspace.module.css'
 const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 const DWM = ['D', 'W', 'M']
+
+// S2 CP3 — this pane is the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx,
+// ThemeTrackerPage.jsx and TickerPopup.jsx each say in their own comments "ChartPane.jsx
+// is the shape copied." Reading the declared chord table here (rather than the fourth
+// surface) collapses the duplication at its source. Resolved ONCE at module scope: a
+// lookup inside the handler would re-scan the table on every keystroke, and a miss
+// would silently disable the binding.
+const SHIFT_F = chordById('SHIFT_F')
 
 /**
  * ChartPane — the chart shell every surface mounts.
@@ -658,8 +667,12 @@ function ChartPane({
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
     // Shift+F flags the chart's current ticker — works even while interacting with
     // the chart. stopPropagation so it doesn't also fire the theme widget's Shift+F.
-    // ⛔ `!e.repeat`: a held chord auto-repeats ~30x/sec and this is a TOGGLE.
-    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // S2 CP3 — this surface reads the DECLARED chord table instead of spelling the
+    // modifier set out inline. Behaviour is identical by construction and proved so
+    // in ChartPane.chordAdoption.test.jsx.
+    // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats ~30x/sec
+    // and this binding is a TOGGLE. That is a property of the binding, not the chord.
+    if (matchesChord(e, SHIFT_F) && !e.repeat) {
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)
       toggleFlag(sym)

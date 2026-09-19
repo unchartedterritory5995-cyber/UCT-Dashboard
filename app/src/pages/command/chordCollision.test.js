@@ -15,15 +15,21 @@
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * The 2026-08-28 collision (HY-35) was *"one chord flagged a ticker in two
- * widgets at once"*, fixed by making widget ownership explicit. Measured today,
- * **five surfaces claim Shift+F and they do not agree on which modifiers they
- * respond to**:
+ * widgets at once"*, fixed by making widget ownership explicit. Measured on
+ * 2026-09-13, **five surfaces claim Shift+F and they do not agree on which
+ * modifiers they respond to**:
  *
  *   ChartPane.jsx        shift && (F|f) && !repeat && !ctrl && !alt && !meta
  *   GridChartCell.jsx    shift && (F|f) && !repeat && !ctrl && !alt && !meta
  *   TickerPopup.jsx      shift && (F|f) && !repeat
  *   ThemeTrackerPage.jsx shift && (F|f) && !repeat
  *   Watchlists.jsx       shift && (F|f) && !repeat && selectedSym
+ *
+ * ⚰️ S2 CP3 (2026-09-19) moved ChartPane.jsx onto the declared table too — it now
+ * reads `matchesChord(e, SHIFT_F)` (see `tableReadersOf` below) rather than
+ * spelling the modifier set inline. The population count and the modifier
+ * signatures above are the 2026-09-13 snapshot the collision fixture is measured
+ * against; `claimsOf`/`tableReadersOf` are what stay live.
  *
  * ⭐ **So `Ctrl+Shift+F` — and its platform alias `Cmd+Shift+F` — is an
  * UNDECLARED chord that nevertheless flags the ticker on three surfaces while
