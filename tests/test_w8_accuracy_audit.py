@@ -31,6 +31,7 @@ check_bar_ordering = _w8.check_bar_ordering
 check_chart_vs_snapshot = _w8.check_chart_vs_snapshot
 check_buzz_counts = _w8.check_buzz_counts
 check_flow_internal_consistency = _w8.check_flow_internal_consistency
+check_flow_against_raw_tape = _w8.check_flow_against_raw_tape
 
 
 class TestOhlcInvariants:
@@ -147,26 +148,94 @@ class TestBuzzCounts:
 
 
 class TestFlowInternalConsistency:
-    def test_consistent_net_and_sorted_contracts_is_clean(self):
-        payload = {"net": 300, "contracts": [{"value": 200}, {"value": 100}]}
+    """Against the REAL `_compute_ticker_flow` payload shape: `net` is a dict
+    `{bull, bear, unclassified, dir}`, contracts carry `premium` (not `value`).
+
+    ⛔ FIXED 2026-09-19 — every case here previously exercised a shape
+    `_compute_ticker_flow` has never produced. Against a real payload the old
+    net check always raised `unparseable_contracts_or_net` (net is a dict, not
+    a float) and the old sort check read every `c.get("value", 0)` as 0 — an
+    all-zero list is vacuously sorted, so it could never catch a real ordering
+    bug. Both bugs shared the same wrong fixture, which is why they went
+    unnoticed: the tests agreed with the code, and neither agreed with reality.
+    See `check_flow_internal_consistency`'s own docstring for the full account.
+    """
+
+    def test_dir_agreeing_with_bull_over_bear_is_clean(self):
+        payload = {"net": {"bull": 300, "bear": 100, "dir": "BULL"}, "contracts": []}
         assert check_flow_internal_consistency(payload) == []
 
-    def test_net_not_matching_contract_sum_flags(self):
-        payload = {"net": 999, "contracts": [{"value": 200}, {"value": 100}]}
+    def test_dir_disagreeing_with_bull_bear_flags(self):
+        payload = {"net": {"bull": 300, "bear": 100, "dir": "BEAR"}, "contracts": []}
         problems = check_flow_internal_consistency(payload)
-        assert any("net_mismatch" in p for p in problems)
+        assert any("net_dir_mismatch" in p for p in problems)
 
-    def test_contracts_out_of_order_flags(self):
-        payload = {"net": 300, "contracts": [{"value": 100}, {"value": 200}]}
+    def test_dir_neutral_when_bull_equals_bear_is_clean(self):
+        payload = {"net": {"bull": 100, "bear": 100, "dir": "NEUTRAL"}, "contracts": []}
+        assert check_flow_internal_consistency(payload) == []
+
+    def test_net_as_a_bare_scalar_flags(self):
+        # The shape every case in this class used to assume — now itself a
+        # detected defect, not the fixture.
+        problems = check_flow_internal_consistency({"net": 300, "contracts": []})
+        assert any("net_wrong_shape" in p for p in problems)
+
+    def test_contracts_sorted_descending_by_premium_is_clean(self):
+        payload = {"net": None, "contracts": [{"premium": 200}, {"premium": 100}]}
+        assert check_flow_internal_consistency(payload) == []
+
+    def test_contracts_out_of_order_by_premium_flags(self):
+        payload = {"net": None, "contracts": [{"premium": 100}, {"premium": 200}]}
         problems = check_flow_internal_consistency(payload)
-        assert "contracts_not_sorted_descending" in problems
+        assert "contracts_not_sorted_descending_by_premium" in problems
 
     def test_empty_contracts_never_flags(self):
-        assert check_flow_internal_consistency({"net": 0, "contracts": []}) == []
+        assert check_flow_internal_consistency({"net": None, "contracts": []}) == []
 
-    def test_signed_value_preferred_over_value(self):
-        # signed_value is what the runner actually sums; a short vs long leg
-        # with the same absolute |value| must still reconcile against net.
-        payload = {"net": 0, "contracts": [{"value": 100, "signed_value": 100},
-                                            {"value": 100, "signed_value": -100}]}
-        assert check_flow_internal_consistency(payload) == []
+
+class TestFlowAgainstRawTape:
+    """`check_flow_against_raw_tape` — the raw-tape upper-bound leg (2026-09-19).
+    Deliberately NOT a re-implementation of `_build_by_contract`'s business
+    rules (color gate, per-day caps, sweep-only filtering) — a filtered
+    subset's total can never exceed its own unconstrained superset, which is
+    what makes this a sound, TRUE independent check rather than a second copy
+    of the same logic that could share its bugs."""
+
+    def test_shown_values_within_the_raw_bound_is_clean(self):
+        contracts = [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 500, "volume": 10}]
+        raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
+        assert check_flow_against_raw_tape(contracts, raw) == []
+
+    def test_shown_value_exactly_at_the_raw_boundary_is_clean(self):
+        contracts = [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 1000, "volume": 20}]
+        raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
+        assert check_flow_against_raw_tape(contracts, raw) == []
+
+    def test_zero_raw_rows_flags(self):
+        contracts = [{"cp": "C", "strike": 999.0, "exp": "1/1/2027", "premium": 500, "volume": 10}]
+        problems = check_flow_against_raw_tape(contracts, {})
+        assert any("ZERO raw flow.db rows" in p for p in problems)
+
+    def test_zero_raw_rows_flags_even_at_premium_and_volume_zero(self):
+        # Isolates the zero-rows guard from the exceeds-bound checks, which a
+        # shown 0 would never trip on their own — caught a mutation that
+        # deleted the guard while leaving this case's premium/volume nonzero.
+        contracts = [{"cp": "C", "strike": 999.0, "exp": "1/1/2027", "premium": 0, "volume": 0}]
+        problems = check_flow_against_raw_tape(contracts, {})
+        assert any("ZERO raw flow.db rows" in p for p in problems)
+
+    def test_shown_premium_exceeding_the_raw_total_flags(self):
+        contracts = [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 5000, "volume": 10}]
+        raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
+        problems = check_flow_against_raw_tape(contracts, raw)
+        assert any("exceeds raw" in p and "premium" in p for p in problems)
+
+    def test_shown_volume_exceeding_the_raw_total_flags(self):
+        contracts = [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 500, "volume": 500}]
+        raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
+        problems = check_flow_against_raw_tape(contracts, raw)
+        assert any("exceeds raw" in p and "volume" in p for p in problems)
+
+    def test_empty_contracts_never_flags(self):
+        raw = {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}
+        assert check_flow_against_raw_tape([], raw) == []

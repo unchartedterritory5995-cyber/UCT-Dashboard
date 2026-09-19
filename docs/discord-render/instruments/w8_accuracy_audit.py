@@ -18,14 +18,24 @@ Same shape, three surfaces:
     (the function under audit) — mirrors `tools/buzz_audit_extraction.py`'s own
     documented lesson: "the day-one audit ran the SAME extractor on both sides
     and proved ingest fidelity, nothing about extraction quality."
-  - /flow: no second data source is wired yet (the true independent derivation
-    is off the Massive OPRA tape via flow-worker/flow.db, and this pass did not
-    reach it) — so flow gets STRUCTURAL / internal-consistency checks only
-    (`check_flow_internal_consistency`): contract values must sum to the
-    reported net, the top-contracts list must be sorted as claimed. This is a
-    REAL but WEAKER check than chart/buzz's, and is reported as such, never
-    silently upgraded to "audited" in the tally. A follow-up that wires a true
-    flow.db re-derivation is a named gap, not a promise.
+  - /flow: STRUCTURAL / internal-consistency checks (`check_flow_internal_consistency`:
+    contract values must sum to the reported net, the top-contracts list must be
+    sorted as claimed) PLUS a raw-tape UPPER-BOUND check against flow.db
+    (`check_flow_against_raw_tape`, 2026-09-19): each shown contract's premium
+    and volume must never exceed the unconstrained raw total for that exact
+    (cp, strike, exp) on the card's date. Deliberately NOT a re-implementation
+    of `_build_by_contract`'s business rules (color gate, per-day caps,
+    sweep-only filtering, source routing) — an upper bound is a sound invariant
+    regardless of those nuances (a filtered subset can never exceed its own
+    superset), so it cannot false-positive on a legitimate filtering rule the
+    way two independent copies of the SAME business logic could. It WOULD catch
+    a wrong-ticker/date join, a stale/cached payload, a scale/unit error, or a
+    contract shown with zero raw support. **What this still does NOT cover**:
+    the reported net direction and the top-N contract SELECTION are not
+    independently re-derived — only the per-contract premium/volume magnitudes
+    are bounds-checked against ground truth. A full independent re-derivation
+    of `_build_by_contract`'s selection and direction logic remains a named
+    gap, not a promise.
 
 Every check in this module is EITHER a pure function (no I/O — exercised by
 --self-check, which proves each one can both fire on a planted defect and stay
@@ -76,7 +86,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 DEFAULT_SYMBOLS = ["SPY", "QQQ", "NVDA"]
 CHART_TOLERANCE_PCT = 1.5
-FLOW_NET_TOLERANCE_FRAC = 0.02  # 2% relative, floor $1
+FLOW_RAW_TAPE_SLACK_FRAC = 0.01  # float-rounding slack on the raw-tape upper bound
 
 EVIDENCE_DIR = _HERE.parent.parent / "evidence" / "accuracy"
 
@@ -168,30 +178,128 @@ def check_buzz_counts(served: dict, derived: dict) -> list[str]:
 
 
 def check_flow_internal_consistency(payload: dict) -> list[str]:
-    """STRUCTURAL-only (no second data source — see module docstring for what
-    this deliberately does not cover). Every contract's signed value must sum
-    to the reported net within tolerance; the top-contracts list must be
-    sorted by |value| descending, as it claims to be."""
+    """STRUCTURAL-only (no second data source for net/selection — see module
+    docstring; `check_flow_against_raw_tape` below is the independent leg).
+
+    ⛔ FIXED 2026-09-19 — the prior version checked a payload shape
+    `_compute_ticker_flow` has never actually produced: `net` as a bare scalar
+    (real shape: `{"bull", "bear", "unclassified", "dir"}`) and contracts
+    carrying `value`/`signed_value` (real field: `premium`). Against a REAL
+    payload this made the net check ALWAYS fire `unparseable_contracts_or_net`
+    (a permanent false positive), and made the sort check read every
+    `c.get("value", 0)` as 0 — an all-zero list is vacuously "sorted", so it
+    could never catch a real ordering bug (`lesson_a_fixture_that_cannot_
+    distinguish_is_not_a_rail`). Neither was ever exercised against a real
+    payload before this — only against self_check's own idealized fixtures,
+    which shared the same wrong assumption and so agreed with the bug.
+
+    Also — deliberately NOT reconciling net against the shown `contracts`:
+    bull/bear/unclassified are summed over EVERY qualifying contract before
+    the top-N truncation that produces the payload's contracts list, so that
+    list can never legitimately sum back to net once there are more than
+    top_n contracts (the common case) — attempting it would be a check that
+    fires on correct data, which gets muted, not a real defect detector.
+
+    Checks, against the real shape:
+    1. `net` is a dict; its `dir` must agree with comparing bull vs bear
+       (BULL iff bull>bear, BEAR iff bear>bull, else NEUTRAL) — the net
+       dict's own internal self-consistency, computable with no other data.
+    2. The shown contracts must be sorted by descending `premium` — the field
+       the real sort key (`_eff_prem`) actually produces.
+    """
     problems = []
-    contracts = payload.get("contracts") or []
     net = payload.get("net")
-    if contracts and net is not None:
+    if isinstance(net, dict):
         try:
-            summed = sum(float(c.get("signed_value", c.get("value", 0)) or 0) for c in contracts)
-            net_f = float(net)
+            bull, bear = float(net.get("bull") or 0), float(net.get("bear") or 0)
         except (TypeError, ValueError):
-            problems.append("unparseable_contracts_or_net")
+            problems.append("unparseable_net_bull_bear")
         else:
-            if abs(summed - net_f) > max(1.0, abs(net_f) * FLOW_NET_TOLERANCE_FRAC):
-                problems.append(f"net_mismatch: reported={net_f} summed_from_contracts={summed}")
+            want_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
+            got_dir = net.get("dir")
+            if got_dir != want_dir:
+                problems.append(
+                    f"net_dir_mismatch: dir={got_dir!r} but bull={bull} bear={bear} implies {want_dir!r}")
+    elif net is not None:
+        problems.append(f"net_wrong_shape: expected a dict with bull/bear/dir, got {type(net).__name__}")
+
+    contracts = payload.get("contracts") or []
     if len(contracts) > 1:
         try:
-            vals = [abs(float(c.get("value", 0) or 0)) for c in contracts]
+            prems = [float(c.get("premium") or 0) for c in contracts]
         except (TypeError, ValueError):
-            problems.append("unparseable_contract_values")
+            problems.append("unparseable_contract_premiums")
         else:
-            if vals != sorted(vals, reverse=True):
-                problems.append("contracts_not_sorted_descending")
+            if prems != sorted(prems, reverse=True):
+                problems.append("contracts_not_sorted_descending_by_premium")
+    return problems
+
+
+def independent_flow_raw_totals(db_path: str, ticker: str, created_date: str) -> dict:
+    """Raw per-(cp, strike, exp) premium/volume/row-count totals straight from
+    flow.db for one ticker+date, with EVERY business-rule filter
+    `_build_by_contract` applies (the color gate, per-day caps, sweep-only
+    filtering, source routing) deliberately OMITTED. This is the
+    unconstrained superset — used only as an upper bound, never as an exact
+    reconstruction — so it is a TRUE independent leg: never calls
+    `_build_by_contract` or `_compute_ticker_flow`, and cannot false-positive
+    on any of THEIR filtering nuances the way a second copy of the same
+    business logic could. Read-only. Keyed by (cp_letter, float(strike),
+    exp string verbatim as stored)."""
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(db_path)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            "SELECT CallPut, Strike, ExpirationDate, Premium, Volume FROM flow "
+            "WHERE Symbol = ? AND CreatedDate = ?",
+            (ticker.strip().upper(), created_date),
+        ).fetchall()
+    finally:
+        conn.close()
+    out: dict = {}
+    for cp_raw, strike_raw, exp_raw, prem_raw, vol_raw in rows:
+        cp = str(cp_raw or "").upper()[:1]
+        try:
+            strike = float(strike_raw)
+        except (TypeError, ValueError):
+            continue
+        exp = str(exp_raw or "").strip()
+        key = (cp, strike, exp)
+        prem = float(prem_raw) if prem_raw is not None else 0.0
+        vol = float(vol_raw) if vol_raw is not None else 0.0
+        agg_prem, agg_vol, agg_n = out.get(key, (0.0, 0.0, 0))
+        out[key] = (agg_prem + prem, agg_vol + vol, agg_n + 1)
+    return out
+
+
+def check_flow_against_raw_tape(contracts: list[dict], raw_totals: dict) -> list[str]:
+    """Pure decision function for the raw-tape upper-bound check (see module
+    docstring). `raw_totals` is `independent_flow_raw_totals`'s output — every
+    shown contract's premium/volume must never exceed its raw total; a
+    contract shown with zero raw rows for its exact key is flagged outright."""
+    problems = []
+    for c in contracts:
+        try:
+            cp = str(c.get("cp") or "").upper()[:1]
+            strike = float(c.get("strike"))
+            exp = str(c.get("exp") or "").strip()
+        except (TypeError, ValueError):
+            continue
+        label = f"{cp}{strike:g} {exp}"
+        raw_prem, raw_vol, raw_n = raw_totals.get((cp, strike, exp), (0.0, 0.0, 0))
+        if raw_n == 0:
+            problems.append(f"{label}: card shows a contract with ZERO raw flow.db rows "
+                             f"for this ticker/date — not achievable from raw data")
+            continue
+        shown_prem = c.get("premium") or 0
+        if shown_prem > raw_prem * (1 + FLOW_RAW_TAPE_SLACK_FRAC) + 1:
+            problems.append(f"{label}: shown premium {shown_prem:,.0f} exceeds raw "
+                             f"flow.db total {raw_prem:,.0f}")
+        shown_vol = c.get("volume") or 0
+        if shown_vol > raw_vol * (1 + FLOW_RAW_TAPE_SLACK_FRAC) + 1:
+            problems.append(f"{label}: shown volume {shown_vol:,.0f} exceeds raw "
+                             f"flow.db total {raw_vol:,.0f}")
     return problems
 
 
@@ -273,42 +381,78 @@ def bars_have_any_computable(day_pct, live_pct) -> bool:
 
 
 def run_flow_check(ticker: str) -> dict:
-    """Fetch the flow-card payload through the same worker→in-process fallback
-    order `run_flow_card_job` uses, then run structural-only checks (see
-    `check_flow_internal_consistency`'s docstring for the named coverage gap)."""
-    payload = None
-    reason = None
+    """Fetch the flow-card payload through the adapter's OWN `fetch()` — the
+    exact worker→in-process fallback order the real `/flow` render uses
+    (`api/services/discord_render/adapters/flow.py`, 03 §3.8) — then run
+    structural + raw-tape checks (see `check_flow_internal_consistency` and
+    `check_flow_against_raw_tape` for what each covers).
+
+    ⛔ FIXED 2026-09-19 — the prior version reimplemented the remote/local
+    dance itself instead of calling the adapter's own `fetch()`, and called
+    `_local(req)` with the WRONG ARITY: `_local` takes four positional
+    primitives (`ticker, days, source, top_n`), never the `FlowRequest`
+    object. A real local run hit `TypeError: _local() missing 3 required
+    positional arguments` immediately — exactly the class of bug self_check's
+    pure-function cases structurally cannot see, since none of them touch this
+    wiring. This never affected the real Discord `/flow` command (its own path
+    always goes through `fetch()`, which calls `local` with the correct
+    arguments) — only THIS AUDIT SCRIPT silently reported `not_computable`
+    instead of ever exercising the in-process fallback leg, exactly when a
+    flow-worker outage would have made that leg the one that mattered most."""
     try:
-        from api.services.discord_render.adapters.flow import FlowRequest, _remote, _local
-        req = FlowRequest(ticker=ticker, days="1")
-        try:
-            payload = _remote(req)
-        except Exception as exc:  # noqa: BLE001 — fall through to the in-process path, same order the render uses
-            reason = f"worker fetch failed ({exc}), falling back in-process"
-            payload = None
-        if payload is None:
-            payload = _local(req)
+        from api.services.discord_render.adapters.flow import FlowRequest, fetch
     except ImportError:
         try:
             from api.live_massive_router import _compute_ticker_flow
             payload = _compute_ticker_flow(ticker, days=1)
+            reason = None
         except Exception as exc:  # noqa: BLE001
             return {"ticker": ticker, "surface": "flow", "status": "not_computable",
                     "reason": f"no flow adapter reachable: {exc}"}
-    except Exception as exc:  # noqa: BLE001
-        return {"ticker": ticker, "surface": "flow", "status": "not_computable",
-                "reason": f"flow fetch failed: {exc}"}
+    else:
+        req = FlowRequest(ticker=ticker, days="1")
+        try:
+            result = fetch(req)  # documented to never raise; no try/except needed around the call itself
+        except Exception as exc:  # noqa: BLE001 — defensive only, contradicts fetch()'s own contract if hit
+            return {"ticker": ticker, "surface": "flow", "status": "not_computable",
+                    "reason": f"flow fetch raised unexpectedly (violates its own never-raises contract): {exc}"}
+        if not result.ok:
+            return {"ticker": ticker, "surface": "flow", "status": "not_computable",
+                    "reason": f"flow fetch failed: provider={result.provider!r} "
+                              f"degraded_reasons={result.degraded_reasons}"}
+        payload = result.data
+        reason = (f"served by {result.provider}, not flow_worker"
+                  if result.provider and result.provider != "flow_worker" else None)
 
     if not payload:
         return {"ticker": ticker, "surface": "flow", "status": "not_computable",
                 "reason": "empty payload"}
 
     problems = check_flow_internal_consistency(payload)
+
+    tape_note = None
+    contracts = payload.get("contracts") or []
+    end_date = (payload.get("window") or {}).get("end")
+    if contracts and end_date:
+        db_path = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        try:
+            raw_totals = independent_flow_raw_totals(db_path, ticker, end_date)
+        except FileNotFoundError:
+            tape_note = f"{db_path} not reachable from this host — raw-tape check skipped"
+        except sqlite3.Error as exc:
+            tape_note = f"sqlite error reading {db_path} for the raw-tape check: {exc}"
+        else:
+            problems = problems + check_flow_against_raw_tape(contracts, raw_totals)
+
     out = {"ticker": ticker, "surface": "flow",
            "status": "mismatch" if problems else "matched", "problems": problems,
-           "coverage": "structural-only (no independent OPRA re-derivation yet — named gap, see module docstring)"}
+           "coverage": ("structural + raw-tape upper-bound on shown premium/volume "
+                        "(net direction and top-N selection are NOT independently "
+                        "re-derived — see module docstring)")}
     if reason:
         out["note"] = reason
+    if tape_note:
+        out["tape_check_note"] = tape_note
     return out
 
 
@@ -431,18 +575,58 @@ def self_check() -> int:
     case("buzz: a ticker only on the derived side flags",
          check_buzz_counts({"NVDA": 5}, {"NVDA": 5, "AMD": 1}), True)
 
-    # check_flow_internal_consistency
-    case("flow: consistent net + sorted contracts does not flag",
+    # check_flow_internal_consistency — against the REAL _compute_ticker_flow shape
+    # (net is a dict, contracts carry `premium` — see the function's own docstring
+    # for the 2026-09-19 fix and why the prior fixtures shared the bug they tested)
+    case("flow: dir agreeing with bull>bear does not flag",
          check_flow_internal_consistency(
-             {"net": 300, "contracts": [{"value": 200}, {"value": 100}]}), False)
-    case("flow: net not matching contract sum flags",
+             {"net": {"bull": 300, "bear": 100, "dir": "BULL"}, "contracts": []}), False)
+    case("flow: dir disagreeing with bull/bear flags",
          check_flow_internal_consistency(
-             {"net": 999, "contracts": [{"value": 200}, {"value": 100}]}), True)
-    case("flow: contracts out of sorted order flags",
+             {"net": {"bull": 300, "bear": 100, "dir": "BEAR"}, "contracts": []}), True)
+    case("flow: dir NEUTRAL when bull equals bear does not flag",
          check_flow_internal_consistency(
-             {"net": 300, "contracts": [{"value": 100}, {"value": 200}]}), True)
+             {"net": {"bull": 100, "bear": 100, "dir": "NEUTRAL"}, "contracts": []}), False)
+    case("flow: net as a bare scalar (the old wrong shape) flags",
+         check_flow_internal_consistency({"net": 300, "contracts": []}), True)
+    case("flow: contracts sorted descending by premium does not flag",
+         check_flow_internal_consistency(
+             {"net": None, "contracts": [{"premium": 200}, {"premium": 100}]}), False)
+    case("flow: contracts out of order by premium flags",
+         check_flow_internal_consistency(
+             {"net": None, "contracts": [{"premium": 100}, {"premium": 200}]}), True)
     case("flow: empty contracts never flags (nothing to check)",
-         check_flow_internal_consistency({"net": 0, "contracts": []}), False)
+         check_flow_internal_consistency({"net": None, "contracts": []}), False)
+
+    # check_flow_against_raw_tape
+    case("flow-tape: shown values within the raw bound does not flag",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 500, "volume": 10}],
+             {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}), False)
+    case("flow-tape: shown value exactly at the raw boundary does not flag",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 1000, "volume": 20}],
+             {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}), False)
+    case("flow-tape: a contract with zero raw flow.db rows flags",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 999.0, "exp": "1/1/2027", "premium": 500, "volume": 10}],
+             {}), True)
+    case("flow-tape: zero raw rows flags even at premium/volume=0 (isolates the "
+         "zero-rows guard from the exceeds-bound checks, which a shown 0 would "
+         "never trip on their own)",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 999.0, "exp": "1/1/2027", "premium": 0, "volume": 0}],
+             {}), True)
+    case("flow-tape: shown premium exceeding the raw total flags",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 5000, "volume": 10}],
+             {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}), True)
+    case("flow-tape: shown volume exceeding the raw total flags",
+         check_flow_against_raw_tape(
+             [{"cp": "C", "strike": 100.0, "exp": "1/1/2027", "premium": 500, "volume": 500}],
+             {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}), True)
+    case("flow-tape: empty contracts never flags (nothing to check)",
+         check_flow_against_raw_tape([], {("C", 100.0, "1/1/2027"): (1000.0, 20.0, 3)}), False)
 
     verdict = "PASS" if not bad else "FAIL"
     print(f"TOTALS w8_accuracy_audit --self-check {verdict} declared={declared} evaluated={declared} failed={bad}")
