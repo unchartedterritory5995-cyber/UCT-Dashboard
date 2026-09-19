@@ -175,6 +175,44 @@ export function fillPolygons(args) {
 }
 
 /**
+ * Traces a smooth curve through `points` onto the CURRENT path, assuming the
+ * path's current point is already `points[0]` (a prior `moveTo`/`lineTo`).
+ * Quadratic-through-midpoints: the standard, cheap technique for a smooth
+ * polyline — each interior point becomes a control point, the curve passing
+ * NEAR it rather than through it, while the first and last points are hit
+ * exactly, same as a straight-segment path would.
+ *
+ * ⭐⭐ WHY THIS EXISTS (2026-09-19). TradingView's own rendering of a Pine
+ * fill's boundary is a smooth curve — confirmed by a direct pixel-level crop
+ * of a real vendor capture, no kinks visible at any bar position even at 7x
+ * zoom. This engine's fill boundary was a literal polyline: one straight
+ * `lineTo` per bar. On smooth data the difference is subtle; on anything with
+ * real bar-to-bar noise (which is most real price-derived MAs) it reads as a
+ * visibly faceted, "scaled" edge next to TradingView's flowing one — a SEPARATE
+ * defect from the opacity-compounding fix above, confirmed by the SAME
+ * technique (measure the real pixels, not the plausible theory) after that fix
+ * shipped and the shape was still visibly more angular than the reference.
+ *
+ * ⛔ ONLY 2 POINTS ⇒ A STRAIGHT LINE, UNCHANGED. There is nothing to smooth
+ * with one segment, and this is what keeps the single-bar run's exact pinned
+ * corner (`{x±0.5, y}`) byte-identical to before — the geometry from
+ * `runPolygon` is untouched either way; only 3+ point edges change shape.
+ */
+function tracePath(ctx, points) {
+  const n = points.length
+  if (n <= 1) return
+  if (n === 2) { ctx.lineTo(points[1].x, points[1].y); return }
+  for (let i = 1; i < n - 1; i += 1) {
+    const midX = (points[i].x + points[i + 1].x) / 2
+    const midY = (points[i].y + points[i + 1].y) / 2
+    ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY)
+  }
+  const last = points[n - 1]
+  const secondLast = points[n - 2]
+  ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y)
+}
+
+/**
  * A lightweight-charts series primitive that fills between its host series'
  * column and a second one.
  *
@@ -227,8 +265,18 @@ export function createFillPrimitive(initial) {
             const style = ctx.fillStyle
             for (const poly of group.polys) {
               ctx.beginPath()
-              ctx.moveTo(poly[0].x, poly[0].y)
-              for (let i = 1; i < poly.length; i += 1) ctx.lineTo(poly[i].x, poly[i].y)
+              // poly is [...top, ...bottom.reverse()] with top.length ===
+              // bottom.length always (runPolygon pushes both in lockstep) —
+              // so the midpoint split recovers each edge exactly. Smooth
+              // WITHIN each edge; the two cross-edges (the run's actual
+              // start/end, a real vertical wall in the data) stay straight.
+              const half = poly.length / 2
+              const top = poly.slice(0, half)
+              const bottomRev = poly.slice(half)
+              ctx.moveTo(top[0].x, top[0].y)
+              tracePath(ctx, top)
+              ctx.lineTo(bottomRev[0].x, bottomRev[0].y)
+              tracePath(ctx, bottomRev)
               ctx.closePath()
               // ⭐⭐ THE COMPOUNDING FIX (Uncharted Clouds, 2026-09-19). `binder.js`
               // gives a "chained" stack of fills (its hostedFills — one
