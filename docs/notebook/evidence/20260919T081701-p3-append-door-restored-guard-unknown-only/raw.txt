@@ -1,0 +1,54 @@
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 5 cell(s) to run · stamp 2026-09-19T13-17-01Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'unknown-only'}
+
+═══ append_widget_embed  ·  drain-first (the editor could NOT report local state)
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T13:17:22.416172+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'no marker (the drain decides from the wire)', 'baseUpdatedAt': '2026-09-19T13:17:22.416172+00:00', 'marker': None, 'ring': ['2026-09-19T13:17:22.416172+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast seen: False · queued for this note: 1 · /embeds calls: 1
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '72+00:00', True)]
+      drain: STILL QUEUED after 240.0s
+      wire: POST /→200 · POST /83e61f5ed38c4bc1b3b74574991151a7/opened→200 · PUT /83e61f5ed38c4bc1b3b74574991151a7→200 · POST /83e61f5ed38c4bc1b3b74574991151a7/opened→200 · PUT /83e61f5ed38c4bc1b3b74574991151a7+SENT→None · PUT /83e61f5ed38c4bc1b3b74574991151a7+SENT→None · PUT /83e61f5ed38c4bc1b3b74574991151a7+SENT→None · POST /83e61f5ed38c4bc1b3b74574991151a7/embeds→200 · PUT /83e61f5ed38c4bc1b3b74574991151a7+SENT→409 · POST /83e61f5ed38c4bc1b3b74574991151a7/opened→200 · POST /83e61f5ed38c4bc1b3b74574991151a7/images→200 · PUT /83e61f5ed38c4bc1b3b74574991151a7→200
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the outbox still held this note's entry after 240.0s — the drain had not finished, so the server read would measure the clock rather than the product.
+
+═══ append_widget_embed  ·  marker LIVE
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 2, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T13:22:21.039868+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, this tab, live', 'baseUpdatedAt': '2026-09-19T13:22:21.039868+00:00', 'marker': {'sessionId': 'this-tab', 'startedAt': 1789824158049, 'baseUpdatedAt': '2026-09-19T13:22:21.039868+00:00'}, 'ring': None}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast seen: False · queued for this note: 1 · /embeds calls: 1
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '68+00:00', True)]
+      drain: STILL QUEUED after 240.0s
+      wire: POST /→200 · PUT /83e61f5ed38c4bc1b3b74574991151a7→404 · POST /3e454679e10244e5a6517ab55a8b7daa/opened→None · PUT /3e454679e10244e5a6517ab55a8b7daa→None · POST /3e454679e10244e5a6517ab55a8b7daa/opened→200 · PUT /3e454679e10244e5a6517ab55a8b7daa+SENT→None · PUT /3e454679e10244e5a6517ab55a8b7daa+SENT→None · PUT /3e454679e10244e5a6517ab55a8b7daa+SENT→None · POST /3e454679e10244e5a6517ab55a8b7daa/embeds→200 · PUT /3e454679e10244e5a6517ab55a8b7daa+SENT→409 · POST /3e454679e10244e5a6517ab55a8b7daa/opened→200 · POST /3e454679e10244e5a6517ab55a8b7daa/images→200 · PUT /3e454679e10244e5a6517ab55a8b7daa→200
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the outbox still held this note's entry after 240.0s — the drain had not finished, so the server read would measure the clock rather than the product.
+
+═══ append_widget_embed  ·  marker EXPIRED
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 3, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T13:27:00.076438+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, dead session, aged past the TTL', 'baseUpdatedAt': '2026-09-19T13:27:00.076438+00:00', 'marker': {'sessionId': 'gone', 'startedAt': 1789824425765, 'baseUpdatedAt': '2026-09-19T13:27:00.076438+00:00'}, 'ring': ['2026-09-19T13:27:00.076438+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      door: {'ok': True, 'via': 'Send to Journal → Current note'}
+      guard toast seen: False · queued for this note: 1 · /embeds calls: 1
+      store trail (queued, dirty, base, sentence-in-record): [(1, True, '38+00:00', True)]
+      drain: STILL QUEUED after 240.0s
+      wire: POST /→200 · PUT /3e454679e10244e5a6517ab55a8b7daa→404 · POST /1295981ef22747719ac5e1ada0de303f/opened→200 · PUT /1295981ef22747719ac5e1ada0de303f→200 · POST /1295981ef22747719ac5e1ada0de303f/opened→200 · PUT /1295981ef22747719ac5e1ada0de303f+SENT→None · PUT /1295981ef22747719ac5e1ada0de303f+SENT→None · PUT /1295981ef22747719ac5e1ada0de303f+SENT→None · POST /1295981ef22747719ac5e1ada0de303f/embeds→200 · PUT /1295981ef22747719ac5e1ada0de303f+SENT→409 · POST /1295981ef22747719ac5e1ada0de303f/opened→200 · POST /1295981ef22747719ac5e1ada0de303f/images→200 · PUT /1295981ef22747719ac5e1ada0de303f→200
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ INCONCLUSIVE  the outbox still held this note's entry after 240.0s — the drain had not finished, so the server read would measure the clock rather than the product.
+
+═══ append_widget_embed  ·  slow PUT (landed, ring populated)
+      warmed /charts, back to the editor
+(node:30892) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+
+⛔ TIMED OUT after 900s — the run was KILLED here. Everything above is what it had already said; what it would have said next is genuinely unknown.

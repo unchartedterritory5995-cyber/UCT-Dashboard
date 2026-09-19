@@ -1,0 +1,9 @@
+
+=== WINDOW OPEN 08:03:29 · 2 staged ===
+   ▶ p2-2.8b-marker-expired-append_document_excerpt: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_document_excerpt --ordering marker EXPIRED --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260919T080329-p2-2.8b-marker-expired-append_document_excerpt (4502B raw)
+   ⇒ p2-2.8b-marker-expired-append_document_excerpt: ok in 103.1s
+   ▶ p2-2.8b-marker-live-append_document_excerpt: python tools/q1_f5_matrix.py --second-writer --second-writer-door folder --family append_document_excerpt --ordering marker LIVE --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent --out docs/notebook/wave-q1-f5-production-matrix.md
+   💾 evidence: docs/notebook/evidence/20260919T080513-p2-2.8b-marker-live-append_document_excerpt (4484B raw)
+   ⇒ p2-2.8b-marker-live-append_document_excerpt: ok in 102.3s
+queue empty — nothing staged
