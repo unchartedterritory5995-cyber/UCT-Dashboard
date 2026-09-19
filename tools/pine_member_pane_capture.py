@@ -54,11 +54,31 @@ import pathlib
 import shutil
 import sys
 import time
+import uuid
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "tests" / "fixtures" / "member" / "uncharted-clouds.pine"
+#: ⛔ NOT the literal served filename — see `_unique_served_name()`. Kept as
+#: the naming PATTERN (and for anything that only needs to recognize the
+#: shape, e.g. a log grep) rather than an exact path, because this exact
+#: hardcoded filename used to BE the served path: two concurrent invocations
+#: (this script and vendor_parity_capture.py's capture_member_pane(), or two
+#: instances of either) would race on the same file — one process's
+#: shutil.copyfile could overwrite the other's between its own copy and its
+#: own page fetching the URL, corrupting the sha16 check or silently serving
+#: the wrong script entirely.
 SERVED_NAME = "rig-member-fixture.txt"
 SERVED_DIR = REPO / "app" / "dist" / "assets"
+
+
+def _unique_served_name() -> str:
+    """A fresh filename per call, so concurrent captures never share one
+    served path. `capture_member_pane()` and `main()` each call this once
+    and thread the SAME name through both the copyfile destination and the
+    PASTE_JS fetch URL — never reference the module-level SERVED_NAME
+    constant directly as an actual path."""
+    stem, _, ext = SERVED_NAME.rpartition(".")
+    return f"{stem}-{uuid.uuid4().hex[:12]}.{ext}"
 
 #: ⭐ THE CANONICAL THREE, read off `app/src/styles/breakpoints.js`'s own tiers —
 #: phone <= 640, tablet 641-1024, desktop >= 1025. Never a fourth literal.
@@ -123,8 +143,9 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
 
     raw = script_path.read_bytes()
     want = sha16(raw)
+    served_name = _unique_served_name()
     SERVED_DIR.mkdir(parents=True, exist_ok=True)
-    served = SERVED_DIR / SERVED_NAME
+    served = SERVED_DIR / served_name
     shutil.copyfile(script_path, served)
     print(f"[capture] fixture {script_path.name}: {len(raw)} bytes, sha256 {want}...")
 
@@ -153,7 +174,7 @@ def capture_member_pane(base: str, script_path: pathlib.Path, out_dir: pathlib.P
                         "reason": f"no Import tab: {opened}", "kind": "inconclusive"}
 
             page.wait_for_timeout(1500)
-            paste = page.evaluate(PASTE_JS, f"/assets/{SERVED_NAME}")
+            paste = page.evaluate(PASTE_JS, f"/assets/{served_name}")
             if paste.get("sha") != want:
                 return {"ok": False, "shot": None, "plots": 0, "fills": 0, "hidden": 0,
                         "reason": f"textarea sha {paste.get('sha')} != file sha {want}",
@@ -241,8 +262,9 @@ def main() -> int:
 
     raw = FIXTURE.read_bytes()
     want = sha16(raw)
+    served_name = _unique_served_name()
     SERVED_DIR.mkdir(parents=True, exist_ok=True)
-    served = SERVED_DIR / SERVED_NAME
+    served = SERVED_DIR / served_name
     shutil.copyfile(FIXTURE, served)
     print(f"[capture] fixture {FIXTURE.name}: {len(raw)} bytes, sha256 {want}...")
 
@@ -272,7 +294,7 @@ def main() -> int:
                 return 2
 
             page.wait_for_timeout(1500)
-            paste = page.evaluate(PASTE_JS, f"/assets/{SERVED_NAME}")
+            paste = page.evaluate(PASTE_JS, f"/assets/{served_name}")
             if paste.get("sha") != want:
                 print(f"[capture] MEASURED FAILURE: textarea sha {paste.get('sha')} "
                       f"!= file sha {want}")
