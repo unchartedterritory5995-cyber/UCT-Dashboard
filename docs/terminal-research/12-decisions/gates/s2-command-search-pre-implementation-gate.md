@@ -4,7 +4,8 @@ title: Command / Search — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
 status: ✅ CP1 SIGNED 2026-09-13 (`7ae6d9ca2`, real owner approval) · CP2 BUILT AND
   MERGED (`095f27f97`, 2026-09-14) but its own approval was left MALFORMED (blank
-  SCOPE) -- corrected 2026-09-19. CP3+ is unblocked: OI-06 was answered 2026-09-14
+  SCOPE) -- corrected 2026-09-19 · CP3 BUILT AND SIGNED 2026-09-19 (`60f712ab6`,
+  ChartPane.jsx adopts the table). CP4+ is unblocked: OI-06 was answered 2026-09-14
   (verification/2026-09-14/OI-06-telemetry-derived-defaults.md).
 date: 2026-09-13
 ---
@@ -80,6 +81,27 @@ SCOPE APPROVED:   CP2 — ONE SURFACE READS THE TABLE INSTEAD OF ITS LOCAL
 > rest adopt" has genuinely not started. No line below names CP3; §3 exists so a
 > future approval can.
 
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  ad0abe637
+SCOPE APPROVED:   CP3 -- A SECOND SURFACE READS THE DECLARED TABLE, per §6's own "pick ONE more surface to adopt chords.js" recommendation. ChartPane.jsx -- the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx, ThemeTrackerPage.jsx and TickerPopup.jsx each say in their own comments "ChartPane.jsx is the shape copied" -- now reads matchesChord(e, SHIFT_F) instead of spelling the modifier set out inline, converging the duplication at its source rather than at a fourth copy. Built on feat/s7-price-level at 60f712ab6. Snapshot-identity proved (ChartPane.chordAdoption.test.jsx): the full modifier matrix against ChartPane's own pre-CP3 expression, a source-text regression rail, and three real DOM/RTL tests (fires on Shift+F, does NOT fire on Ctrl+Shift+F per the already-closed F-S2-1, a held repeat does not re-fire). Mutation-proved on the real source: dropping the forbids modifiers reds the F-S2-1 test and the source rail; dropping !e.repeat reds the repeat test; both restored and reverified green.
+```
+
+> ⚠️ **§5 said "no member-visible change at any checkpoint below CP1" — CP3 is a
+> partial exception, mechanically, not behaviourally.** Behaviour is proved
+> byte-identical to what shipped under CP2 (the modifier-matrix + DOM tests
+> above); no member sees any difference. But `ChartPane.jsx` is a real
+> (non-comment-only) code change under `app/src/`, one of `merge_all.py`'s two
+> member-surface roots, so `is_member_visible_path` classifies it
+> `member_visible=True` regardless of behavioural equivalence — the same
+> "reachable, not necessarily rendered/changed" conservatism that caught D5
+> CP7, S6 CP4 and (twice, before correction) D3 CP3 this session. Recorded
+> here rather than silently overridden. Not registered in
+> `tools/sign_manifest.txt`/`merge_all.py`, matching CP1/CP2's own established
+> direct-commit path for this packet — the member-visible classification
+> governs a push through THAT pipeline, which this checkpoint does not use.
+
 ---
 
 ## 1. What S2 is, per the architecture
@@ -102,7 +124,8 @@ SCOPE APPROVED:   CP2 — ONE SURFACE READS THE TABLE INSTEAD OF ITS LOCAL
 |---|---|---|---|
 | **CP1** | The binding table as **INERT DATA** plus a **collision rail**: every chord declared once, and a test that fails by name when two surfaces claim the same chord in the same context. Derived from source, never hand-listed. **No handler changed.** | measure at build | **S/M** |
 | **CP2** | ONE surface reads the table instead of its local constants, with snapshot-identity on its key handling. | measure at build | **M** |
-| **CP3+** | The rest adopt. Needs OI-06. | — | — |
+| **CP3** | A SECOND surface adopts the table (ChartPane.jsx), converging the duplication at its source. | measure at build | **S** |
+| **CP4+** | The rest adopt (Watchlists.jsx, ThemeTrackerPage.jsx, TickerPopup.jsx). | — | — |
 
 ---
 
