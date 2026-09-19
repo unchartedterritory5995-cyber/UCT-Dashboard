@@ -522,6 +522,19 @@ const ICONS = {
     </>
   ),
 
+  // A linked graph: a hub with three satellites. Edges are drawn FIRST so the
+  // node circles paint over their ends -- at 14px a line meeting a circle's
+  // edge reads as a whisker if it is drawn on top.
+  graph: (
+    <>
+      <path d="M12 12L5.5 6.5M12 12l6.5-5M12 12v6" />
+      <circle cx="12" cy="12" r="2.6" />
+      <circle cx="4.5" cy="5.5" r="2" />
+      <circle cx="19.5" cy="6" r="2" />
+      <circle cx="12" cy="19.5" r="2" />
+    </>
+  ),
+
   // ── Note connectors (Microsoft Graph wave) ─────────────────────────────
   // Generic four-square "Microsoft family" mark — filled squares (not
   // outlined, unlike `dashboard` above) so it reads as a distinct glyph

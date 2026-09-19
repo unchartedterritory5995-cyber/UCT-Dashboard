@@ -7,6 +7,7 @@ import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
+import NoteGraphView from '../components/notebook/NoteGraphView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -710,7 +711,25 @@ export default function NotebookTab() {
               >
                 <UIcon name="columns" size={14} gold={false} />
               </button>
-              {!activeView && (
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'graph' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('graph')}
+                disabled={Boolean(activeView)}
+                title="Graph view"
+              >
+                <UIcon name="graph" size={14} gold={false} />
+              </button>
+              {/*
+                ⛔ NO "Save this view" IN GRAPH MODE. A saved view stores a
+                propertyFilter/propertySort pair and `create_saved_view` refuses
+                any view_type outside ("list", "table") -- so leaving the button
+                up here would offer the member a control that 400s. The graph
+                has no per-view state to save, so the honest thing is not to
+                offer it rather than to widen the server's enum for a spec the
+                graph would never read back.
+              */}
+              {!activeView && viewMode !== 'graph' && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -835,7 +854,31 @@ export default function NotebookTab() {
           </div>
         ) : (
           <>
-            {viewMode === 'table' && !isTrashView ? (
+            {/*
+              ⛔ GRAPH IS TESTED BEFORE TABLE AND EXCLUDED FROM TRASH, for the
+              same reason the table is: the trash view lists deleted notes, and
+              the graph endpoint filters `deleted_at IS NULL` on BOTH ends of
+              every edge -- so a member who opened Trash in graph mode would get
+              a drawing of their LIVE notebook above a header that says Trash.
+              Falling back to the card grid keeps the surface honest.
+              ⛔ It also does NOT receive `notes`. The graph reads the whole
+              notebook from /api/j2/notes/graph; handing it this page's
+              folder/tag/property-filtered slice would draw edges to notes that
+              are not on screen and silently drop the rest.
+            */}
+            {viewMode === 'graph' && !isTrashView ? (
+              /*
+                ⛔ THE GRAPH EMITS AN ID; `openNote` READS `.id` OFF A NOTE
+                OBJECT. Passing `openNote` straight through type-checks fine,
+                renders fine, and opens the editor on `undefined` -- caught by
+                NotebookTab.graphView.test.jsx, never by anything structural.
+                The adapter lives HERE rather than in the graph because the
+                graph genuinely only knows ids: its nodes are {id, title,
+                degree}, not notes, and giving it a fake note object to satisfy
+                a caller would be the more dishonest of the two shapes.
+              */
+              <NoteGraphView onOpenNote={(id) => openNote({ id })} />
+            ) : viewMode === 'table' && !isTrashView ? (
               <NotesTableView
                 notes={notes}
                 propertyDefs={propertyDefs}

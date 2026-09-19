@@ -1690,6 +1690,25 @@ def note_backlinks_endpoint(
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
 
 
+@router.get("/notes/graph")
+def note_graph_endpoint(
+    limit: int = 1500,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The member's whole note-link graph — `{nodes, edges, truncated}`.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, for the same reason
+    `/notes/backlinks` and `/notes/tags` do: FastAPI matches in DECLARATION
+    order, so that route would swallow "graph" as a note id and answer 404 for
+    a note that does not exist. This repo has paid for that ordering twice (the
+    live-drill route order, then Wave D's link-targets).
+
+    ⛔ ONE REQUEST FOR THE WHOLE GRAPH, not one per node. The per-note read is
+    `/notes/backlinks`; using it to draw a graph would be an N+1 against the
+    pod, which is the defect class this file's own comments keep naming."""
+    return notes_service.get_note_graph(user["id"], limit=limit)
+
+
 @router.get("/notes/link-targets")
 def note_link_targets_endpoint(
     ids: str = "",

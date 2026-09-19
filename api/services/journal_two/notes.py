@@ -1590,6 +1590,90 @@ def get_note_backlinks(
             conn.close()
 
 
+def get_note_graph(
+    user_id: str, limit: int = 1500, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """The whole note-link graph for one member: `{nodes: [...], edges: [...]}`.
+
+    ⛔ TWO QUERIES, NEVER N+1. `get_note_backlinks` answers "who links to THIS
+    note" and is the right shape for a note page; asking it once per note to
+    draw a graph would be one round trip per node. This reads the edge list and
+    the node list once each, which is the whole difference between a graph that
+    opens instantly and one that hammers the pod.
+
+    ⛔ A NODE IS EVERY NOTE, NOT EVERY LINKED NOTE. An unlinked note is a real
+    and interesting fact about a member's notebook — it is the thing a graph
+    view exists to make visible — so isolated nodes are returned rather than
+    filtered out by an inner join against the edges.
+
+    ⛔ TRASH IS EXCLUDED ON BOTH ENDS. `get_note_backlinks` deliberately does
+    NOT gate on the target being trashed, because "who links here" is a fact
+    about the LINKING notes. A graph is the opposite case: drawing an edge to a
+    trashed note would render a node the member cannot open, so both ends are
+    gated here. The two functions disagree on purpose.
+
+    `degree` is computed in SQL rather than by counting edges client-side, so
+    the renderer can size nodes without walking the edge list twice.
+    """
+    out: dict[str, Any] = {"nodes": [], "edges": [], "truncated": False}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cap = max(1, min(limit, 5000))
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.folder_id, n.updated_at,"
+            "       (SELECT COUNT(*) FROM j2_note_links l"
+            "          WHERE l.user_id = n.user_id"
+            "            AND (l.note_id = n.id OR l.target_note_id = n.id)) AS degree"
+            " FROM j2_notes n"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY n.updated_at DESC"
+            " LIMIT ?",
+            (user_id, cap + 1),
+        ).fetchall()
+        # ⭐ cap + 1 so "there are more" is a MEASUREMENT, not an assumption that
+        # hitting the cap exactly means truncation.
+        out["truncated"] = len(rows) > cap
+        rows = rows[:cap]
+        out["nodes"] = [{
+            "id": r["id"],
+            "title": r["title"] or "Untitled",
+            "folderId": r["folder_id"],
+            "updatedAt": r["updated_at"],
+            "degree": int(r["degree"] or 0),
+        } for r in rows]
+
+        ids = {r["id"] for r in rows}
+        if not ids:
+            return out
+        # ⛔ DEDUPLICATED BY PAIR. A note linking to another five times is ONE
+        # relationship with weight 5, not five overlapping lines — the same
+        # ruling get_note_backlinks applies to its own rows (directive §64).
+        edge_rows = conn.execute(
+            "SELECT l.note_id AS s, l.target_note_id AS t, COUNT(*) AS w"
+            " FROM j2_note_links l"
+            " JOIN j2_notes a ON a.id = l.note_id        AND a.user_id = l.user_id"
+            " JOIN j2_notes b ON b.id = l.target_note_id AND b.user_id = l.user_id"
+            " WHERE l.user_id = ?"
+            "   AND a.deleted_at IS NULL AND b.deleted_at IS NULL"
+            " GROUP BY l.note_id, l.target_note_id",
+            (user_id,),
+        ).fetchall()
+        out["edges"] = [
+            {"source": e["s"], "target": e["t"], "weight": int(e["w"] or 0)}
+            for e in edge_rows
+            # ⛔ Both ends must be in the RETURNED node set. When the node list
+            # is capped, an edge to a note that did not make the cut would be a
+            # line to nothing — a renderer cannot draw it and should not have to
+            # guess what it meant.
+            if e["s"] in ids and e["t"] in ids
+        ]
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
 def resolve_note_link_targets(
     user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None,
 ) -> dict[str, dict[str, Any]]:
