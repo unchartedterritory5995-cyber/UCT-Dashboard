@@ -1,0 +1,55 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 152,
+    "missing": 0,
+    "baseline": 153,
+    "current": 153,
+    "current_ran": 50246,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 153 = unchanged 152 + fixed 1 + missing 0  |  current 153 = unchanged 152 + new 0 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35425478808",
+  "current_run_id": "35441989653",
+  "baseline_sha": "173f81a5f3795a97de918beea3348bab8f1fd64e",
+  "current_sha": "46b69fd501cd29d4be1b8bbe8ea3507f711e0ae0",
+  "commit_range": "173f81a5f3795a97de918beea3348bab8f1fd64e..46b69fd501cd29d4be1b8bbe8ea3507f711e0ae0",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 173f81a5f..46b69fd50 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
