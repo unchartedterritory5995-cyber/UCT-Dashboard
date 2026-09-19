@@ -1,0 +1,7 @@
+//@version=6
+// UCT rendering-parity fixture — exercises `plot.style_baseline` only.
+// Added 2026-09-19 to close a zero-coverage gap found by the primitive coverage matrix
+// (controller ruling — see .superpowers/sdd/2026-09-19-pine-primitive-coverage-matrix/progress.md).
+indicator(title = "Fixture: baseline coverage", overlay = false)
+mom = ta.mom(close, 10)
+plot(mom, title = "Momentum", style = plot.style_baseline, color = color.new(color.teal, 0))

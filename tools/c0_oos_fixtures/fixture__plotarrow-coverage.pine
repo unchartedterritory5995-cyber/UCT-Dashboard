@@ -1,0 +1,6 @@
+//@version=6
+// UCT rendering-parity fixture — exercises `plotarrow` only.
+// Added 2026-09-19 to close a zero-coverage gap found by the primitive coverage matrix.
+indicator(title = "Fixture: plotarrow coverage", overlay = false)
+mom = ta.mom(close, 10)
+plotarrow(mom, colorup = color.teal, colordown = color.maroon)

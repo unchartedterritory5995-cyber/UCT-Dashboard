@@ -1,0 +1,6 @@
+//@version=6
+// UCT rendering-parity fixture — exercises explicit `plot.style_area` only.
+// Added 2026-09-19 to close a zero-coverage gap found by the primitive coverage matrix.
+indicator(title = "Fixture: area style coverage", overlay = false)
+r = ta.rsi(close, 14)
+plot(r, title = "RSI", style = plot.style_area, color = color.new(color.blue, 40))

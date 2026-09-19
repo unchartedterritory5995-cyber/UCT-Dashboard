@@ -1,0 +1,9 @@
+//@version=6
+// UCT rendering-parity fixture — exercises `plotbar` (thin coverage: 1 script before this).
+// Added 2026-09-19 per the primitive coverage matrix.
+indicator(title = "Fixture: plotbar coverage", overlay = true)
+smoothO = ta.sma(open, 3)
+smoothH = ta.sma(high, 3)
+smoothL = ta.sma(low, 3)
+smoothC = ta.sma(close, 3)
+plotbar(smoothO, smoothH, smoothL, smoothC, title = "Smoothed Bars")

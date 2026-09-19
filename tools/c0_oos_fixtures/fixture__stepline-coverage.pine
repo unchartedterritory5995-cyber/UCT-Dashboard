@@ -1,0 +1,6 @@
+//@version=6
+// UCT rendering-parity fixture — exercises `plot.style_stepline` (thin coverage: 1 script before this).
+// Added 2026-09-19 per the primitive coverage matrix.
+indicator(title = "Fixture: stepline coverage", overlay = false)
+donchianMid = (ta.highest(high, 20) + ta.lowest(low, 20)) / 2
+plot(donchianMid, title = "Donchian Mid", style = plot.style_stepline, linewidth = 2)
