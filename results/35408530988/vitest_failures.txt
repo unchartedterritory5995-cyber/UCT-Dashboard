@@ -1,0 +1,20 @@
+src/hooks/pollingSites.rail.test.js :: polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved
+    A bare `useSWR(..., { refreshInterval })` site appeared that the 2026-08-09 census did not hold. That is a decision, not a lint nit:   • `useMobileSWR` HALVES the tick on a touch client — take it if a phone renders this;   • bare `useSWR` keeps the app-global `revalidateOnFocus: false` from App.jsx —     the wrapper overrides that to `true`, which is MORE requests on desktop focus,     plus a visibilitychange listener and a 60s useMarketOpen timer per call site. Pick one, then add the row below with your reason. Do NOT add a row to silence this.: expected [ …(4) ] to deeply equal []
+src/surfaces/manifest.test.js :: S1 CP1 — the surface manifest is derived, not typed > every Layout-hosted route has a declaration
+    routes with no manifest row: /admin/wisdom: expected [ '/admin/wisdom' ] to deeply equal []
+src/styles/tapFloor.test.js :: the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only
+    declared a finger target at <=640px but not at <=1024px — tablet is touch too: pages/journal-2-0/components/notebook/CaptureDialog.module.css: .actions: expected [ Array(1) ] to deeply equal []
+src/components/screener/reachable.test.js :: 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing
+    these modules are BUILT and possibly GREEN, and no route a member can navigate to reaches them. Their own test files will stay green forever — component tests are structurally blind to a severed wire. Mount them, delete them, or record the decision in AWAITING_A_DECISION above with a reason; do not leave them looking shipped.: expected [ …(2) ] to deeply equal []
+src/pages/breadth/heatmapRegistry.golden.test.js :: the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move
+    expected { …(4) } to deeply equal { …(4) }
+src/lib/journal-2-0/format.test.js :: dateShort (MM/DD/YY) > ISO date → short format
+    expected '04/08/26' to be '04/09/26' // Object.is equality
+src/lib/journal-2-0/format.test.js :: dateLong (MM/DD/YYYY) > Date object → long format
+    expected '04/08/2026' to be '04/09/2026' // Object.is equality
+src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js :: no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear
+    app/dist/assets missing — run `npm run build`; this rail reads BUILT output and with no build it measures nothing: expected false to be true // Object.is equality
+src/components/chart/engine/ast/manifestProse.test.js :: the strip is safe, and the rail derives what safe means > ⛔⛔ every key the product READS survives the strip
+    these manifest keys are READ but would be stripped: _session: expected [ '_session' ] to deeply equal []
+src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js :: our own export round-trips through our own importer
+    roundtrip_export_fixture.py failed (exit 1): Traceback (most recent call last):   File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/roundtrip_export_fixture.py", line 100, in <module>     main()   File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/roundtrip_export_fixture.py", line 43, in main     from api.services.journal_two.notes_export import build_export_zip   File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/notes_export.py", line 63, in <module>     import anyio ModuleNotFoundError: No module named 'anyio'
