@@ -224,11 +224,57 @@ export function createFillPrimitive(initial) {
           if (!dynamic) ctx.fillStyle = withAlpha(opts.color, opts.opacity) || opts.color
           for (const group of groups) {
             if (dynamic) ctx.fillStyle = group.color
+            const style = ctx.fillStyle
             for (const poly of group.polys) {
               ctx.beginPath()
               ctx.moveTo(poly[0].x, poly[0].y)
               for (let i = 1; i < poly.length; i += 1) ctx.lineTo(poly[i].x, poly[i].y)
               ctx.closePath()
+              // ⭐⭐ THE COMPOUNDING FIX (Uncharted Clouds, 2026-09-19). `binder.js`
+              // gives a "chained" stack of fills (its hostedFills — one
+              // createFillPrimitive PER Pine fill() call) one INDEPENDENT primitive
+              // per layer, all attached to the SAME series, all drawn onto the SAME
+              // shared canvas. Where the underlying plots run close together (near
+              // an MA crossover, or really anywhere the 21 interpolated levels
+              // compress into a few pixels), several of those independent layers'
+              // thin bands geometrically land on the SAME pixels — and each layer
+              // composites there with plain `source-over`, so a pixel FIFTEEN
+              // layers touch gets fifteen ROUNDS of alpha blending, not one.
+              // `1-(1-a)^n` climbs toward full opacity fast even for a modest `a`:
+              // measured on the real fixture's own transparency range, a run of
+              // bars with a converging fast/slowMA rendered as a nearly SOLID block
+              // of the base colour, not the soft 5-55%-opacity gradient the script
+              // asked for — which is the "excess opacity" / "scaled" texture this
+              // was reported against, and it reproduces with NO other primitive
+              // involved: a single isolated thin band, drawn 15-20 times over
+              // itself, saturates the same way a real chained stack does.
+              //
+              // ⛔ NEITHER A STROKE NOR A DIFFERENT GLOBAL BLEND MODE FIXES THIS —
+              // both were tried and measured. Stroking a many-vertex, per-bar
+              // polyline boundary makes the boundary's own bar-to-bar zigzag
+              // visible as a fine ribbed texture (worse, not better). `lighten`
+              // still compounds: canvas blend functions only change the RESULT
+              // colour, never the alpha math, and alpha compositing onto an
+              // already-opaque destination is alpha=1 after the FIRST draw
+              // regardless of blend mode — so a second "lighten" pass still pulls
+              // the destination toward the new source via its own `(1-as)*Cb` term.
+              //
+              // ⭐ THE FIX: erase this polygon's OWN footprint before drawing it.
+              // `destination-out` with the path's own antialiased coverage clears
+              // exactly the pixels (fully or partially, matching real sub-pixel
+              // coverage) this polygon is about to repaint — wiping out whatever
+              // ANY earlier layer (a sibling primitive, or this same primitive's
+              // own previous run) left there — so `source-over` then draws THIS
+              // layer's colour at ITS OWN alpha with nothing underneath to compound
+              // with. The net effect at a genuinely SHARED boundary between two
+              // adjacent (non-overlapping) bands is the same fractional-coverage
+              // antialiasing blend a smooth edge always had; the fix only changes
+              // pixels where MULTIPLE layers actually overlap.
+              ctx.globalCompositeOperation = 'destination-out'
+              ctx.fillStyle = '#000'
+              ctx.fill()
+              ctx.globalCompositeOperation = 'source-over'
+              ctx.fillStyle = style
               ctx.fill()
             }
           }
