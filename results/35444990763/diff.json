@@ -1,0 +1,61 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 157,
+    "missing": 0,
+    "baseline": 158,
+    "current": 158,
+    "current_ran": 50262,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 158 = unchanged 157 + fixed 1 + missing 0  |  current 158 = unchanged 157 + new 1 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35442603853",
+  "current_run_id": "35444990763",
+  "baseline_sha": "efd010a28b1c4af26e3d977eba88e0668f0cde4d",
+  "current_sha": "27ed1d2e7b047e6659060e549eca86f222a362ec",
+  "commit_range": "efd010a28b1c4af26e3d977eba88e0668f0cde4d..27ed1d2e7b047e6659060e549eca86f222a362ec",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins"
+  ],
+  "missing": [],
+  "fixed": [
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in efd010a28..27ed1d2e7 touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in efd010a28..27ed1d2e7 touched src/components/chart/engine/__tests__/stockChartWiring.test.jsx or anything it imports"
+    }
+  }
+}
