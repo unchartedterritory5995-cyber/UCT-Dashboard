@@ -2,7 +2,7 @@
 id: GATE-S5-PERSISTENCE-USER-STATE
 title: S5 — Persistence & User State — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. Line 3 (S5-C RULED, CP3 named) SIGNED 2026-09-19 (fingerprint `41ffcc91c`) — Tracings moves off `user_preferences` to its own store; CP3 BUILT 2026-09-19 (`tracings_documents` table + `api/services/tracings_store.py` CAS + `GET/PUT /api/tracings`, 14 tests, DARK — no frontend caller yet, inertness rail asserts it). CP4-CP5 each need a new line.
+status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. Line 3 (S5-C RULED, CP3) SIGNED 2026-09-19 (fingerprint `41ffcc91c`) and BUILT — Tracings moves off `user_preferences` to its own store (`tracings_documents` table, CAS service, `GET/PUT /api/tracings`, 14 tests, DARK, inertness rail asserts it). Line 4 (CP4) SIGNED by the owner directly 2026-09-19 (fingerprint `ea7178473`) and BUILT — Tracings wired to the store behind a compiled OFF constant. CP5 (browser-certification, member-visible) needs a new line.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-S5-PERSISTENCE-USER-STATE
@@ -90,13 +90,13 @@ SCOPE APPROVED:   CP3 (S5-C RULED): the second adopter's A-1 obligation (SPEC §
 ## ⛔ APPROVAL — LINE 4 (**CP4**). Lines 1-3 above stand as granted, unchanged.
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  ea7178473
+SCOPE APPROVED:   CP4: Tracings adopts the CP3 store, behind its own compiled constant (TRACINGS_STORE_ENABLED, tracingsStoreFlag.js), defaulting OFF. The pre-existing preferences-path implementation is unchanged (renamed useTracingsSyncViaPreferences, byte-identical body, its own 16 pre-existing tests still pass unmodified). A second implementation, useTracingsSyncViaStore, reads/writes /api/tracings using the CP3 revision as its CAS baseline (A-1/A-2), forks on every 409 by adopting the server's copy rather than merging since Tracings has no server-side appender to reconcile against (A-5), and reserves the unsyncedCopy.js vocabulary for CP5 when this path first becomes member-visible (A-9). A-7 (a generalised/second store layer) and A-8 (its own lock name) are explicitly NOT built at CP4: with one hook instance and no concurrent-push case (a single in-flight debounce, never two at once), there is no real need yet for an outbox or leader-election lock to arbitrate -- recorded so a later pass builds them against a measured need, not a forecast one, rather than silently dropping the spec's A-7/A-8 line items. Dark: the flag stays false, no member is on this path, no product behavior changes while off. Does NOT authorize CP5 (browser-certification, member-visible, needs its own line) or flipping the compiled constant.
 ```
 
-### ✅ EXECUTED 2026-09-19 — CP4 built
+### ✅ EXECUTED 2026-09-19 — CP4 built and SIGNED (fingerprint `ea7178473`, owner direct)
 
 - `app/src/components/chart/tracingsStoreFlag.js` — `TRACINGS_STORE_ENABLED = false`, a compiled
   constant (not a runtime/localStorage flag, unlike Notebook's evolved `offlineFlag.js` — CP5 is
