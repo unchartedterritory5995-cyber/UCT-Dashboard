@@ -30,7 +30,7 @@ import pytest
 
 from api.services.wisdom import registry
 from api.services.wisdom.core import flags, store, timeutil
-from api.services.wisdom.extract import batch, config, golden, jobs, prompt, segmenter
+from api.services.wisdom.extract import batch, budget, config, golden, jobs, prompt, segmenter
 
 CUSTOM_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
@@ -550,3 +550,122 @@ def test_the_client_is_built_with_an_explicit_timeout(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     with pytest.raises(batch.ExtractUnavailable):
         batch.make_client()
+
+
+# ── 7. the TOCTOU race (finding #1, adversarial review session 28 part 3) ────
+
+def test_two_concurrent_submit_pending_calls_never_together_exceed_the_programme_cap(env, monkeypatch):
+    """⛔⛔ FINDING #1, THE LAST OF THE 8 ADVERSARIAL-REVIEW FINDINGS -- REAL THREADS, NO MOCKING OF
+    `select_within_budget` OR `reserve_within_budget`'S OWN LOGIC.
+
+    The bug: the budget CHECK used to run under a plain, unlocked `store.read()`, and the row
+    RESERVATION happened later, separately, under its own `store.write()` -- an arbitrary gap in
+    which a second concurrent caller (the documented manual door
+    `tools/wisdom/extract_catalog_batch.py --submit`, uncoordinated with the cron job; or the
+    daily `extract` chain overlapping the weekly `audit` chain, two job_ids sharing one programme
+    cap via `BUDGET_KINDS`) could see the SAME pre-commit headroom and both proceed, silently
+    exceeding `WISDOM_EXTRACT_BUDGET_USD`.
+
+    Two real `threading.Thread`s, released together by a `threading.Barrier`, each submit a
+    DISJOINT 3-segment set (different `source_id` -> no shared `custom_id`, so this isn't testing
+    the trivial same-row dedup) against a programme cap sized to fit exactly ONE caller's set
+    (3 items) but not both (6 items) combined.
+
+    Two independent things are proved:
+    1. **THE MECHANISM** -- `max_concurrent` proves no two callers are EVER inside the
+       decide-and-reserve step at the same wall-clock moment. A `time.sleep` is injected inside
+       that step (via a spy on `reserve_within_budget`, which only runs after the caller's
+       `store.write()` has already acquired `WRITE_LOCK`) to widen the window a real race would
+       need -- if the decide-and-reserve step were not atomic under one write transaction, the
+       sleep would give the second thread's unlocked read a wide-open door to walk through.
+    2. **THE OUTCOME** -- the total committed spend across BOTH callers never exceeds the cap, and
+       it isn't "under cap by luck": exactly one caller's full 3-item set clears and the other is
+       correctly squeezed to zero by the first's already-committed spend.
+    """
+    import threading
+    import time
+
+    from api.services.wisdom.extract import segmenter
+
+    with store.write() as conn:
+        conn.execute("INSERT INTO wisdom_sources (source_id, stream, external_ref, version, raw_sha256, "
+                     "published_at_et, ingest_version, ingested_at) VALUES ('src2', 'sunday_scans', 'test:2', 1, "
+                     "'x', '2026-09-06T08:00:00-04:00', 't', '2026-09-06T09:00:00-04:00')")
+        segs2 = [segmenter.Segment(ordinal=i, kind="section", text=t, char_start=0, char_end=len(t),
+                                   path="INTRO", author_id="tsdr", speaker_confidence="medium")
+                 for i, t in enumerate(TEXTS)]
+        segmenter.write_segments(conn, "src2", 1, segs2)
+
+    version = prompt.extractor_version()
+    with store.read() as conn:
+        rows_a = [r for r in batch.pending_segments(conn, version, 20) if r["source_id"] == "src1"]
+        rows_b = [r for r in batch.pending_segments(conn, version, 20) if r["source_id"] == "src2"]
+        # ⭐ derived from the same functions the code prices requests with, never hand-typed --
+        # this fixture's fixed `count_tokens` response (FakeMessages) always returns 2000, and a
+        # fresh test DB has no calibration rows so output defaults to DEFAULT_OUTPUT_TOKENS.
+        model = config.configured_model()
+        per_item = budget.estimate_cost(model, 2000, budget.output_token_estimate(conn, model, "medium"),
+                                        batch=True)
+    assert len(rows_a) == 3 and len(rows_b) == 3
+    assert per_item > 0, "the cost model returned $0 -- this test would be vacuous"
+
+    # Room for exactly one caller's 3 items (3 * per_item), not both (6 * per_item).
+    cap = per_item * 3.5
+    monkeypatch.setenv("WISDOM_EXTRACT_BUDGET_USD", str(cap))
+
+    entered: list = []
+    max_concurrent = [0]
+    spy_lock = threading.Lock()
+    real_reserve = batch.reserve_within_budget
+
+    def spy_reserve(conn, *a, **kw):
+        with spy_lock:
+            entered.append(1)
+            max_concurrent[0] = max(max_concurrent[0], len(entered))
+        try:
+            time.sleep(0.05)
+            return real_reserve(conn, *a, **kw)
+        finally:
+            with spy_lock:
+                entered.pop()
+
+    monkeypatch.setattr(batch, "reserve_within_budget", spy_reserve)
+
+    barrier = threading.Barrier(2)
+    results: dict = {}
+    errors: list = []
+
+    def run(name, rows):
+        try:
+            barrier.wait(timeout=5)
+            results[name] = batch.submit_pending(ctx(), client=FakeClient(), segment_rows=rows,
+                                                 include_retries=False, run_id=f"r-{name}")
+        except BaseException as exc:  # surfaced explicitly -- a thread's exception must not vanish
+            errors.append(exc)
+
+    t1 = threading.Thread(target=run, args=("a", rows_a))
+    t2 = threading.Thread(target=run, args=("b", rows_b))
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    assert not errors, f"a submitting thread raised: {errors}"
+    assert set(results) == {"a", "b"}
+    assert max_concurrent[0] == 1, (
+        f"two concurrent callers were inside the decide-and-reserve step AT THE SAME TIME "
+        f"(observed {max_concurrent[0]} concurrent) -- the TOCTOU race is open again")
+
+    with store.read() as conn:
+        committed = conn.execute(
+            "SELECT COALESCE(SUM(est_cost_usd), 0) FROM wisdom_extract_requests "
+            "WHERE status IN ('submitting', 'submitted')").fetchone()[0]
+    assert committed <= cap + 1e-9, (
+        f"two concurrent callers committed ${committed:.4f} against a ${cap:.4f} cap -- the "
+        f"TOCTOU race let them both spend against the same stale headroom")
+
+    total_selected = results["a"]["selected"] + results["b"]["selected"]
+    assert total_selected == 3, (
+        f"expected exactly one caller's 3 items to clear and the other's to be fully squeezed "
+        f"out by the first's already-committed spend, got a={results['a']['selected']} "
+        f"b={results['b']['selected']}")

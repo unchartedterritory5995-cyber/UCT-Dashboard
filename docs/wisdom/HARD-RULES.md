@@ -1540,7 +1540,7 @@ proves `reconcile()` no longer refuses a run whose only gap is a touched-empty s
 a segment that was genuinely never seen at all -- no touch call either -- still correctly refuses.
 Mutation-proved: removing the marker read fails exactly the new test, nothing else.
 
-### 8 verified findings -- 7 fixed same session, 1 (#1) deliberately left open
+### 8 verified findings -- all 8 fixed same session
 
 Every one below was independently confirmed by an adversarial verifier reading the real file and
 line numbers, not by trusting the finder's prose. Full reasoning for each lives in this session's
@@ -1549,16 +1549,75 @@ ages out.
 
 **HIGH severity:**
 
-1. **TOCTOU race in the budget check itself** (`batch.py::submit_pending` + `budget.py::select_within_budget`).
-   The budget decision is read under a plain unlocked `store.read()`; the actual commit happens
-   later in `submit_items()` under `store.write()`, which never rechecks the budget against fresh
-   state. Two callers submitting at overlapping times -- the scheduled daily chain and the
-   documented manual door `tools/wisdom/extract_catalog_batch.py --submit` (which has NO
-   `registry.claim_slot` coordination with the cron job at all), or the daily `extract` chain
-   overlapping the weekly `audit` chain (different `job_id`s, so `claim_slot` gives zero mutual
-   exclusion, even though both share one programme cap via `BUDGET_KINDS=("extract","audit")`) --
-   can each independently see the same pre-commit headroom and both commit, silently exceeding
-   `WISDOM_EXTRACT_BUDGET_USD`. Zero concurrency test exists for this path.
+1. ✅ **FIXED (same session, closed after the other 7).** TOCTOU race in the budget check itself
+   (`batch.py::submit_pending` + `budget.py::select_within_budget`). The budget decision used to be
+   read under a plain unlocked `store.read()`; the actual commit happened later in `submit_items()`
+   under a SEPARATE `store.write()`, which never rechecked the budget against fresh state. Two
+   callers submitting at overlapping times -- the scheduled daily chain and the documented manual
+   door `tools/wisdom/extract_catalog_batch.py --submit` (which has NO `registry.claim_slot`
+   coordination with the cron job at all), or the daily `extract` chain overlapping the weekly
+   `audit` chain (different `job_id`s, so `claim_slot` gives zero mutual exclusion, even though both
+   share one programme cap via `BUDGET_KINDS=("extract","audit")`) -- could each independently see
+   the same pre-commit headroom and both commit, silently exceeding `WISDOM_EXTRACT_BUDGET_USD`.
+   Zero concurrency test existed for this path.
+
+   **Fix:** the decision and every admitted item's row reservation now happen inside ONE already-open
+   `store.write()` transaction. `_reserve_row()` was extracted from the old inline per-item loop
+   (insert-or-update-one-row, unchanged logic, just named and shared); a new `reserve_within_budget()`
+   calls `budget.select_within_budget()` and reserves every admitted item's row before returning,
+   under a caller-supplied `conn` from `store.write()` -- `store.py`'s `WRITE_LOCK` (a plain
+   `threading.Lock`, in-process) plus `BEGIN IMMEDIATE` (cross-process, same file) serialize the
+   WHOLE decide-and-reserve step against every other writer, so a second concurrent caller's own
+   `store.write()` cannot even begin its budget read until the first caller's reservation has fully
+   committed. `submit_pending`'s real-run branch now opens `store.write()` once and calls
+   `reserve_within_budget()` inside it; `submit_items()` gained a `preinserted: bool = False`
+   parameter -- `True` (set by `submit_pending`) skips its own now-redundant per-item insert loop
+   and goes straight to the network call; `False` (every existing test, and any other caller) keeps
+   the old single-pass behavior for backward compatibility. **Deliberately does NOT hold the write
+   lock across the network call**: `submit_items()`'s existing pattern of releasing the lock before
+   `client.messages.batches.create()` (a slow API round trip) is preserved -- the lock is held only
+   for as long as N row inserts take, never for the network, so the fix closes the budget race
+   without introducing a new availability regression (every other writer blocked for the duration of
+   a Batch API call).
+
+   **Why this was harder than #2-#8 and needed a design pass first, not a rushed patch:** closing it
+   correctly meant either moving the budget check inside the same write-locked transaction as the
+   commit, or adding an explicit reservation step -- and either choice has knock-on effects on every
+   caller of `submit_pending`/`submit_items`/`select_within_budget`. Confirmed via `grep` that
+   `submit_items` has exactly ONE caller repo-wide (`submit_pending` itself, no test calls it
+   directly) before changing its signature, which is what made a minimal-diff refactor safe.
+
+   **Proof:** a new test, `test_two_concurrent_submit_pending_calls_never_together_exceed_the_programme_cap`
+   in `test_wisdom_extract_batch.py`, uses REAL `threading.Thread`s (no mocking of
+   `select_within_budget` or `reserve_within_budget`'s own logic) released together by a
+   `threading.Barrier`. Two disjoint 3-segment sets (different `source_id`, so no shared
+   `custom_id` -- this isn't testing the trivial same-row dedup) race against a programme cap sized
+   to fit exactly one caller's set (3 items) but not both (6) combined, with a `time.sleep(0.05)`
+   injected inside the decide-and-reserve step (via a spy on `reserve_within_budget`, which only
+   runs after the caller's `store.write()` has already acquired `WRITE_LOCK`) to widen the window a
+   real race would need. Two independent assertions: (a) **the mechanism** -- a concurrency counter
+   proves no two callers are EVER inside the decide-and-reserve step at the same wall-clock moment
+   (`max_concurrent == 1`); (b) **the outcome** -- the total committed spend across both callers
+   never exceeds the cap, and it isn't under-cap by luck: exactly one caller's full 3-item set
+   clears and the other is correctly squeezed to zero.
+
+   **Mutation-proved by literally reverting the fix**, not by writing a separate broken variant:
+   backed up `batch.py` (`cp`, never `git checkout`), temporarily reintroduced the exact pre-fix
+   shape inside `submit_pending` (budget decision under a plain unlocked `store.read()`, a
+   `time.sleep(0.05)` gap, then reservation under a SEPARATE `store.write()`), and confirmed the new
+   test fails -- `max_concurrent` observed `0` (the spy on `reserve_within_budget` was never even
+   reached, since the reverted code doesn't call it), proving the test detects the code-path change
+   itself, not just a timing artifact. Independently confirmed via a standalone script (outside
+   pytest, so a max_concurrent assertion couldn't mask it) that the reverted code lets both threads'
+   budget checks pass concurrently and BOTH fully commit their 3-item sets: **committed $0.48
+   against a $0.28 cap** -- the exact overrun shape the fix exists to prevent. Restored the file from
+   the backup (verified `grep` finds no trace of the mutation marker), reconfirmed the full
+   extraction-subsystem suite (163 tests across `test_wisdom_extract_batch.py`,
+   `test_wisdom_npass_chain.py`, `test_wisdom_extract_budget.py`, `test_wisdom_daily_budget.py`,
+   `test_wisdom_extract_reconcile.py`, `test_wisdom_same_night_scoring.py`,
+   `test_wisdom_gate_runs_root.py`, `test_wisdom_segment_limit.py`, `test_wisdom_extract_audit.py`)
+   passes green, and re-ran the new test 5x in a row to rule out timing flakiness (deterministic
+   every time -- `WRITE_LOCK` is a real lock, not a race the test has to get lucky to observe).
 
 2. ✅ **FIXED (same session).** The daily-chain golden gate and kill switch did not apply to the
    documented manual submit door (`tools/wisdom/extract_catalog_batch.py::submit()`). Its own
@@ -1677,19 +1736,22 @@ ages out.
    the retry-carryover scenario directly; the same underlying line (`budget.py:296-304`), closed by
    the same `exclude_night_pending_usd` fix.
 
-### Update, same session: #2/#3/#4/#5/#6/#7/#8 all fixed; only #1 remains open
+### Update, same session: all 8 findings fixed, including #1
 
-Owner instruction, same session: "fix all and achieve the goal." Six of the eight findings turned
-out to be well-bounded, no-design-judgment-required fixes and were done -- see the ✅ FIXED markers
-above for what changed, why, and how each was mutation-proved (23 new tests total across the eight
-fixes in this file's two sessions, every one of them proved to fail on the real historical or
-reproduced bug shape and pass on the fix). **#1 (the budget TOCTOU race) is the one deliberately
-left open.** It is a genuine concurrency/architecture question -- closing it correctly means either
-moving the budget check inside the SAME write-locked transaction as the commit (`submit_items`'s
-`store.write()` already serializes writers; the check currently runs earlier, under an unlocked
-`store.read()`) or adding an explicit reservation step, and either choice has knock-on effects on
-every caller of `submit_pending`/`select_within_budget` that deserve a design pass and the owner's
-eyes, not a rushed patch decided alone under time pressure. Recorded above with file:line and two
-concrete concurrent-caller scenarios (the manual CLI door racing the cron job; the daily `extract`
-chain racing the weekly `audit` chain) so the next session does not have to re-derive what a
-13-agent review already proved -- only decide how to close it.
+Owner instruction, same session: "fix all and achieve the goal," then, once #1 was the only one
+left, "keep going and finish as much as possible left open." All eight findings turned out to be
+closeable this session -- see the ✅ FIXED markers above for what changed, why, and how each was
+mutation-proved (24 new tests total across the eight fixes in this file's three sessions, every one
+of them proved to fail on the real historical or reproduced bug shape and pass on the fix).
+
+**#1 (the budget TOCTOU race) needed a design pass before implementation, and got one**, rather than
+being rushed: `store.py`'s `WRITE_LOCK`/`BEGIN IMMEDIATE` locking primitives were read in full first,
+then `submit_items`'s existing pattern of releasing the write lock before the slow network call was
+studied so the fix wouldn't trade a budget race for a new availability regression (every writer
+blocked for the duration of a Batch API round trip), then `submit_items`'s one-caller status was
+confirmed via `grep` before its signature changed. The result is the `_reserve_row`/
+`reserve_within_budget`/`preinserted` refactor documented above: the network call stays outside any
+held lock; only the decide-and-reserve step (N row inserts, no I/O) is now atomic. Proved with a real
+`threading`-based concurrency test (no mocked internals), mutation-proved by reverting the fix itself
+via a backed-up file (never `git checkout`) and confirming the new test catches the exact historical
+race shape, and the full 163-test extraction-subsystem suite stays green.
