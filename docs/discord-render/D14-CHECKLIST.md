@@ -290,23 +290,32 @@
 > **BLOCKED-until-FRIDAY** — W6 / R57 / OI-13 step 6 (R29 span), ~08:23 ET.
 > **BLOCKED-permission** — C2/C3 Task Scheduler entries (owner action, unchanged).
 
-## ⛔ R56 — C-09 CANNOT BE CLOSED ON THE CITED EVIDENCE (BLOCKED-evidence)
+## ⚰️ R56 — C-09 CANNOT BE CLOSED (STRUCK — closed 28 minutes after this was written)
 
-R56 directs recording C-09 CLOSED on *"RenderGate live in-process on ≥ 2 pods; real-path races
-50/50; M1-M4 RED"*. **RenderGate is verified live** (`api/services/discord_interactions.py:77`,
-`RENDER_SLOTS = RenderGate(render_slot_count())`). The races half is not citable:
+This section correctly identified a real evidence gap when it was written (`19cba1424`,
+2026-09-17 12:19:45): the tool was genuinely absent from THIS branch's tree, the cited
+50/50 number was pre-rebase, and no result artifact existed. **All three were resolved
+28 minutes later** (`445cc7a67`, 12:47:39) — see the "✅ W4 DONE" line above. Left here,
+struck rather than deleted, because this file has repeatedly paid for the opposite mistake
+(a resolved block never marked as such, read by a later session as still-open); this is the
+same defect from the other direction — the closure landed elsewhere in the file and this
+section was simply never come back to.
 
-- `docs/discord-render/D09-PREFLIGHT-DELTA-2026-09-15.md:148-149` lists, as outstanding step 6:
-  *"**Re-run the real-path races** (`c09_real_path_races.py`) on the rebased tip — the existing
-  50/50 result was measured **pre-rebase**, and a rebase over 151 commits…"*
-- **`c09_real_path_races.py` is not in `docs/discord-render/instruments/`** (only `c09_c02_probe.py`).
-- No result artifact exists under `docs/discord-render/evidence/`.
-
-⛔ So the one number R56 rests on was measured against a different tree, its own preflight queued
-it for re-measurement, and the tool that produced it is absent. **R-CITE: a citation you cannot
-quote is struck.** Closing a gate row on it would be the exact failure this programme has paid
-for — and it moves a row toward MET, which is the direction that needs the most evidence, not the
-least. The row stays 🔴 OPEN pending a re-run on the current tip.
+**What actually happened, verified fresh 2026-09-19 rather than re-trusted:** `git log --all`
+found `c09_real_path_races.py` in history (`b12920907`, blob `74c011fe7e11`) — recovered, not
+rebuilt — and it was re-run **in a throwaway worktree at MASTER's tip** (`77dad414d`), not this
+branch's own tip. That distinction matters and is worth stating explicitly: `RenderGate`
+(`api/services/render_gate.py`, `RENDER_SLOTS = RenderGate(render_slot_count())` at
+`discord_interactions.py:77`) exists on `origin/master` and nowhere on
+`discord-render-hardening` — confirmed via `git show <ref>:<path>` on both, not by reading
+either working tree. **That is correct, not a regression**: this branch is a scoped
+instrumentation branch 730+ commits behind master by design and was never going to carry
+every unrelated master feature. C-09 is a claim about PRODUCTION's live behavior, and
+production runs off master — testing against master's tip in a disposable worktree is the
+right target, not a shortcut around this branch's own missing file. Confirmed the artifact is
+real and reads as claimed: `evidence/c09-races/2026-09-17-races-on-77dad414d.txt` —
+`{'member': 50, 'background': 0, 'nobody': 0}` wired vs. `{'member': 0, 'background': 50,
+'nobody': 0}` for the old classless valve, a control that fires hard. **C-09 stays CLOSED.**
 
 # D-14 — the durable checklist. READ THIS FIRST ON RESUME.
 
