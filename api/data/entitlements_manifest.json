@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "generated_by": "tools/build_entitlements_manifest.py",
+  "what_this_is": "GATE-S9 CP1 — the entitlement axis, enumerated from source. Every value below is derived, none is typed here. No gate is read or changed by this file; CP2+ (the first reader) is NOT PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered by the owner.",
+  "who_may": {
+    "paid_plans": {
+      "source": "api/middleware/auth_middleware.py::PAID_PLANS",
+      "values": [
+        "lifetime",
+        "premium",
+        "pro"
+      ],
+      "note": "single definition; every other module IMPORTS this one. GATE-S9's own 2026-09-13 finding called this 'copied twice' -- measured 2026-09-19, it is not. See free_pages below for the duplication that is actually live."
+    },
+    "toolkits": {
+      "source": "api/services/entitlements.py::TOOLKITS",
+      "names": [
+        "all"
+      ],
+      "note": "a DIFFERENT axis (how much, not whether) -- single definition, not a duplicate of paid_plans."
+    }
+  },
+  "paid_plan_literal_MIRRORED_ACROSS_LANES": {
+    "python_source": "api/middleware/auth_middleware.py::PAID_PLANS",
+    "python_values": [
+      "lifetime",
+      "premium",
+      "pro"
+    ],
+    "js_call_sites": [
+      {
+        "file": "app/src/context/AuthContext.jsx",
+        "ors_in_trial_active": true
+      },
+      {
+        "file": "app/src/pages/Login.jsx",
+        "ors_in_trial_active": false
+      },
+      {
+        "file": "app/src/pages/Pricing.jsx",
+        "ors_in_trial_active": false
+      }
+    ],
+    "note": "THE REAL SHAPE OF GATE-S9's 'PAID_PLANS is copied twice' finding: not a second Python copy, but THREE independent JS re-implementations of the same literal. context/AuthContext.jsx (the canonical isPaid) ORs in an active trial; pages/Pricing.jsx deliberately does not (a narrower, intentionally-named trulyPaid predicate for pricing-page messaging); pages/Login.jsx also does not, and its use is ROUTING (paid -> /dashboard, else -> /morning-wire) -- the same purpose isPaid serves, missing the term isPaid has. RECORDED, NOT FIXED: a member on an active trial may be routed to the free page immediately after logging in. CP1 changes no gate."
+  },
+  "free_pages_TRIPLICATED": {
+    "source": [
+      "app/src/components/AuthGuard.jsx",
+      "app/src/components/mobile/MoreSheet.jsx",
+      "app/src/components/NavBar.jsx"
+    ],
+    "entries": [
+      {
+        "file": "app/src/components/AuthGuard.jsx",
+        "values": [
+          "/morning-wire"
+        ],
+        "match_semantics": "prefix (some+startsWith)"
+      },
+      {
+        "file": "app/src/components/mobile/MoreSheet.jsx",
+        "values": [
+          "/morning-wire"
+        ],
+        "match_semantics": "exact (includes)"
+      },
+      {
+        "file": "app/src/components/NavBar.jsx",
+        "values": [
+          "/morning-wire"
+        ],
+        "match_semantics": "exact (includes)"
+      }
+    ],
+    "values_agree": true,
+    "match_semantics_agree": false,
+    "note": "THE REAL DUPLICATION GATE-S9 §2 NAMED (against the wrong variable). Three hand-typed copies of one list, each commented 'keep in sync with' the other two. values_agree is the duplication rail this checkpoint's test asserts on. match_semantics_agree is RECORDED, NOT FIXED (CP1 changes no gate): AuthGuard.jsx matches by prefix (startsWith), MoreSheet.jsx and NavBar.jsx match by exact string (includes) -- identical today only because every declared page is currently list-item-shaped with no sub-routes."
+  },
+  "gate_call_sites": {
+    "source": "api/**/*.py, CODE only (docstrings/comments stripped)",
+    "population": {
+      "PAID_PLANS": [
+        "api/bars_auth.py",
+        "api/chart_edge_token.py",
+        "api/middleware/auth_middleware.py",
+        "api/routers/auth.py",
+        "api/routers/broker_sync.py",
+        "api/routers/note_sync.py",
+        "api/routers/ticker_search.py",
+        "api/services/journal_two/broker/sync.py",
+        "api/services/trial.py"
+      ],
+      "require_plan": [
+        "api/middleware/auth_middleware.py",
+        "api/routers/broker_sync.py",
+        "api/routers/note_sync.py"
+      ],
+      "meets_plan_gate": [
+        "api/bars_auth.py",
+        "api/chart_edge_token.py",
+        "api/middleware/auth_middleware.py",
+        "api/routers/note_sync.py",
+        "api/routers/ticker_search.py"
+      ],
+      "require_admin": [
+        "api/auth_surface_check.py",
+        "api/event_loop_watchdog.py",
+        "api/main.py",
+        "api/middleware/auth_middleware.py",
+        "api/routers/admin_api_health.py",
+        "api/routers/admin_chart_health.py",
+        "api/routers/admin_patterns.py",
+        "api/routers/admin_purge.py",
+        "api/routers/admin_twitter.py",
+        "api/routers/ai_search.py",
+        "api/routers/alert_taxonomy.py",
+        "api/routers/auth.py",
+        "api/routers/bars.py",
+        "api/routers/broker_sync.py",
+        "api/routers/calendar.py",
+        "api/routers/catalysts.py",
+        "api/routers/community.py",
+        "api/routers/company_news.py",
+        "api/routers/cot.py",
+        "api/routers/desk.py",
+        "api/routers/education.py",
+        "api/routers/entity_master_admin.py",
+        "api/routers/journal_two.py",
+        "api/routers/landing_analytics.py",
+        "api/routers/modelbook.py",
+        "api/routers/news_catalysts.py",
+        "api/routers/patterns.py",
+        "api/routers/research.py",
+        "api/routers/screener.py",
+        "api/routers/single_stock_etfs.py",
+        "api/routers/theme_engine.py",
+        "api/routers/theme_performance.py",
+        "api/routers/user_playbook.py",
+        "api/routers/waitlist.py",
+        "api/routers/wisdom_capture.py",
+        "api/routers/wisdom_core.py",
+        "api/routers/wisdom_evals.py",
+        "api/routers/wisdom_extract.py",
+        "api/routers/wisdom_publish.py",
+        "api/routers/wisdom_sources.py",
+        "api/services/wisdom/core/owner.py",
+        "api/services/wisdom/publish/adapters/routes.py"
+      ],
+      "is_paid_user": [
+        "api/flow_explain.py",
+        "api/middleware/auth_middleware.py",
+        "api/routers/ai_search.py",
+        "api/routers/analyst.py",
+        "api/routers/backtest.py",
+        "api/routers/breadth_monitor.py",
+        "api/routers/calendar.py",
+        "api/routers/community.py",
+        "api/routers/company_news.py",
+        "api/routers/cot.py",
+        "api/routers/definition_record.py",
+        "api/routers/delisted.py",
+        "api/routers/desk.py",
+        "api/routers/earnings_intel.py",
+        "api/routers/education.py",
+        "api/routers/engine_data.py",
+        "api/routers/expected_move.py",
+        "api/routers/fundamentals.py",
+        "api/routers/groups.py",
+        "api/routers/insider.py",
+        "api/routers/intelligence.py",
+        "api/routers/journal_two.py",
+        "api/routers/member.py",
+        "api/routers/modelbook.py",
+        "api/routers/news_catalysts.py",
+        "api/routers/nhnl.py",
+        "api/routers/patterns.py",
+        "api/routers/regime.py",
+        "api/routers/rs_ranking.py",
+        "api/routers/scan_live.py",
+        "api/routers/scan_results.py",
+        "api/routers/scan_run.py",
+        "api/routers/scans.py",
+        "api/routers/scatter.py",
+        "api/routers/screener.py",
+        "api/routers/screener_backtest.py",
+        "api/routers/sector_strength.py",
+        "api/routers/signature.py",
+        "api/routers/single_stock_etfs.py",
+        "api/routers/stock_brief.py",
+        "api/routers/theme_index.py",
+        "api/routers/theme_performance.py",
+        "api/routers/theme_sets.py",
+        "api/routers/traders.py",
+        "api/routers/user_definitions.py",
+        "api/routers/volume_scan.py",
+        "api/services/ai_search_briefings.py"
+      ],
+      "requires_voice_access": [
+        "api/middleware/auth_middleware.py",
+        "api/routers/voice.py"
+      ],
+      "require_paid": [
+        "api/auth_surface_check.py",
+        "api/flow_explain.py",
+        "api/routers/ai_search.py",
+        "api/routers/analyst.py",
+        "api/routers/backtest.py",
+        "api/routers/breadth_monitor.py",
+        "api/routers/calendar.py",
+        "api/routers/cot.py",
+        "api/routers/definition_record.py",
+        "api/routers/delisted.py",
+        "api/routers/desk.py",
+        "api/routers/earnings_intel.py",
+        "api/routers/education.py",
+        "api/routers/engine_data.py",
+        "api/routers/expected_move.py",
+        "api/routers/fundamentals.py",
+        "api/routers/groups.py",
+        "api/routers/indicator_vision.py",
+        "api/routers/insider.py",
+        "api/routers/intelligence.py",
+        "api/routers/journal_two.py",
+        "api/routers/member.py",
+        "api/routers/modelbook.py",
+        "api/routers/news_catalysts.py",
+        "api/routers/nhnl.py",
+        "api/routers/note_sync.py",
+        "api/routers/patterns.py",
+        "api/routers/regime.py",
+        "api/routers/rs_ranking.py",
+        "api/routers/scan_live.py",
+        "api/routers/scan_results.py",
+        "api/routers/scan_run.py",
+        "api/routers/scans.py",
+        "api/routers/scatter.py",
+        "api/routers/screener.py",
+        "api/routers/screener_backtest.py",
+        "api/routers/sector_strength.py",
+        "api/routers/signature.py",
+        "api/routers/single_stock_etfs.py",
+        "api/routers/stock_brief.py",
+        "api/routers/theme_index.py",
+        "api/routers/theme_performance.py",
+        "api/routers/theme_sets.py",
+        "api/routers/traders.py",
+        "api/routers/user_definitions.py",
+        "api/routers/volume_scan.py"
+      ]
+    },
+    "note": "a population, not a duplication finding by itself -- CP2+ is where an owner-informed consolidation would use this inventory. Reported so it exists BEFORE that answer, not assembled by hand at that point."
+  }
+}
