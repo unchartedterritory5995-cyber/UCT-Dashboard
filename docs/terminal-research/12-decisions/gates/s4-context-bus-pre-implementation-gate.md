@@ -2,7 +2,7 @@
 id: GATE-S4-CONTEXT-BUS
 title: S4 — Context Bus — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ CP1 APPROVED 2026-09-13 and BUILT. CP2-CP7 unsigned.
+status: ✅ CP1 APPROVED 2026-09-13 and BUILT. CP2 (S4-B ruled: `useAppFocus` promoted) SIGNED and BUILT 2026-09-19 (fingerprint `f6df6dca1`). CP3-CP7 unsigned — CP3 needs a real browser run first (§7), not source reading.
 date: 2026-09-12
 measured_against: origin/master @ ffa8102c7
 pairs_with: SPEC-S4-CONTEXT-BUS
@@ -33,7 +33,7 @@ sources: >
   `app/src/pages/journal-2-0/components/notebook/frozenWorkspace.test.jsx`
 ---
 
-# ⛔ UNAPPROVED — S4 Context Bus pre-implementation gate
+# ✅ APPROVED — CP1 + CP2 signed and built. CP3-CP7 unsigned.
 
 ## ⛔ APPROVAL
 
@@ -58,6 +58,20 @@ SCOPE APPROVED:   CP1 ONLY - a derivation + a divergence rail. Read-only.
 
 > ⛔⛔ **CP2 THROUGH CP7 ARE NOT AUTHORIZED.** §4's order is load-bearing — **CP1 measures, CP2
 > rules, CP3+ move** — and a line naming CP1 authorizes CP1 and nothing after it.
+
+## ⛔ APPROVAL — LINE 2 (**CP2**). CP1's block above stands as granted, unchanged.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  f6df6dca1
+SCOPE APPROVED:   CP2: S4-B RULED as `useAppFocus` -- already the owner's own prior call, quoted verbatim in useAppFocus.js ("charts Group A IS the app focus ... There is exactly ONE value, so there is no second authority to drift"). Written down as a review rule, not left as one file's private comment, backed by a source-derived rail (app/src/lib/context/focusDivergence.test.jsx, new describe block "S4-B is ruled") asserting: (1) the CP1 divergence module imports its symbol derivation from useAppFocus, never treats a rival authority as the source; (2) WorkspaceContext.groupSyms is never imported here as a symbol SOURCE (promoting it would drag in crosshairBus/aiSearchBus per product-architecture.md, which this line does not authorize); (3) chartDeepLink.js's "an instruction is not a channel" rule is asserted present, with a mutation control proving the assertion can fail. Docs + rail only -- zero product files touched, zero live consumers migrated, zero member-visible change. Does NOT authorize CP3 (the first checkpoint touching a live consumer) or S4-C/S4-D/S4-E, each of which needs its own line.
+```
+
+> ⛔⛔ **CP3 THROUGH CP7 REMAIN NOT AUTHORIZED BY THIS LINE.** CP2 is docs + a rail only — no
+> product file is touched, no live consumer migrates. CP3 (the first checkpoint that touches a
+> live consumer, `HubContext.symbol`) still needs its own line, and per §7 must not be approved on
+> source reading — it needs a real browser run first, given the 2026-09-10 render-freeze precedent.
 
 ### ⚠️ ONE EDIT BEYOND "FILES EDITED: 0", DECLARED
 
