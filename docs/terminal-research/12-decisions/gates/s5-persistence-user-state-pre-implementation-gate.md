@@ -2,7 +2,7 @@
 id: GATE-S5-PERSISTENCE-USER-STATE
 title: S5 — Persistence & User State — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. Line 3 (S5-C RULED, CP3 named) SIGNED 2026-09-19 (fingerprint `41ffcc91c`) — Tracings moves off `user_preferences` to its own store; CP3 not yet built. CP4-CP5 each need a new line.
+status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. Line 3 (S5-C RULED, CP3 named) SIGNED 2026-09-19 (fingerprint `41ffcc91c`) — Tracings moves off `user_preferences` to its own store; CP3 BUILT 2026-09-19 (`tracings_documents` table + `api/services/tracings_store.py` CAS + `GET/PUT /api/tracings`, 14 tests, DARK — no frontend caller yet, inertness rail asserts it). CP4-CP5 each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-S5-PERSISTENCE-USER-STATE
@@ -63,6 +63,29 @@ APPROVED ON:      2026-09-19
 APPROVED AT SHA:  41ffcc91c
 SCOPE APPROVED:   CP3 (S5-C RULED): the second adopter's A-1 obligation (SPEC §5's "hard one") is answered as MOVE TRACINGS OFF `user_preferences`, not grow `POST /api/auth/preferences` a compare-and-set. Reasoning: every other established second-storage pattern in this codebase (Notebook, broker-sync, COT, catalysts) gives a new subsystem its own table rather than growing shared generic infrastructure's concurrency semantics for one consumer; `/api/auth/preferences` has 70 non-Tracings call sites that would otherwise inherit exposure to expected-value/409 handling they do not need. This ruling authorizes CP3 to be BUILT under `persistence-user-state-spec.md` §5's A-1..A-10 list, Tracings-sized per §6's table (a dedicated `tracings_documents`-shaped store keyed `tracings:<userId>`, its own CAS/revision, its own outbox key, its own lock name `uct.tracings.sync.${accountId}`, fork-on-every-409 per A-5 since Tracings has no server-side appender). THIS LINE DOES NOT AUTHORIZE CP4 (Tracings actually adopting the new store, still dark/OFF) OR CP5 (default-ON, member-visible) -- each needs its own line per the packet's own section-4-naming rule. Not authorized: any change to `POST /api/auth/preferences`'s existing semantics for its other 70 call sites, any change to the Notebook layer, any change to `_PREFERENCE_KEYS`.
 ```
+
+### ✅ EXECUTED 2026-09-19 — CP3 built
+
+- `api/services/auth_db.py` — `tracings_documents` table (`user_id` PK/FK → `users`, `doc`,
+  `revision` INTEGER starting at 1, `updated_at`). One row per member, per SPEC A-3.
+- `api/services/tracings_store.py` — `get_tracings`/`set_tracings`, mirroring
+  `journal_two/notes.py::update_note`'s compare-and-set shape (`expected_updated_at` there,
+  `expected_revision` here — an explicit counter rather than a reused timestamp, so there is no
+  clock-skew ambiguity in what "unchanged since your baseline" means). `None` baseline is
+  last-writer-wins, matching `update_note`'s own default. `TracingsConflictError` on a stale
+  baseline; nothing is written on a refusal.
+- `api/routers/tracings.py` — `GET /api/tracings`, `PUT /api/tracings` (409 on conflict), mounted
+  in `api/main.py`. Auth-gated via the existing `get_current_user` dependency.
+- `tests/test_tracings_store.py` — 14 tests: CAS conflict + a positive-path control proving the
+  same two writes succeed on a fresh baseline, last-writer-wins on `None`, per-member isolation
+  (service AND HTTP layer), auth-gating, and an INERTNESS rail (source-derived scan of
+  `app/src/**/*.js*`, 100+ files) asserting no frontend path calls `/api/tracings` yet — CP4 is
+  what wires a live consumer, and this rail fails BY NAME the day something does that early.
+- `tools/flow_worker_watch_coverage.py` against all four changed/new files: **OK**, no new strand
+  — none of them sit in flow-worker's reachable-but-unwatched set. No marker bump needed.
+- **NOT done at CP3, deliberately:** `useTracingsSync.js` is untouched. The client-side outbox,
+  the lock name (`uct.tracings.sync.${accountId}`), fork-on-every-409, and the compiled
+  default-OFF constant are CP4's scope, not this one's.
 
 ### ⏸️ F-S5-1 — THE EXTRACTION, DEFERRED WITH A NAMED CONDITION
 
