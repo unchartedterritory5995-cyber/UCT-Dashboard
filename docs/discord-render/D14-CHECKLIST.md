@@ -579,40 +579,52 @@ un-maximises).
   canary-scope between 9/16 and tonight, and it is now re-MET (item 5, below) via a fresh read, not
   a restored one. The five rows and their movers:
 
-  1. ⚰️ **STALE — re-verified against `01-failure-forensics.md` 2026-09-19.** Both movers named below
+  1. ✅ **RESOLVED, owner ruling 2026-09-19 — C-02 counts as closed.** Both movers named below
      already happened: **C-09 closed `2026-09-17`** (see the R56 correction above — this row was
      never updated after that landed) and **C-13 closed `2026-09-18`** (OI-13 rotation, all 7 steps,
-     `D14-LOG.md` entry `2026-09-18 08:52 ET`). Current forensics-doc state, read fresh rather than
-     re-trusted: **13/14 rows read ✅ CLOSED. Only C-02 remains not fully closed**, and its own row
-     already states why: "🟡 PARTLY CLOSED — the V2-attributable half is now CLOSED ON EVIDENCE; the
-     shared-event-loop half is not this programme's (D-04, `instruments/c09_c02_probe.py`)." ⛔ **Left
-     as a judgment call, not resolved here:** whether a class whose IN-SCOPE half is closed-with-a-
-     commit and whose remaining half is EXPLICITLY declared out of this programme's scope satisfies
-     "every forensics class closed with a commit" is a call about the gate criterion's own wording,
-     not a fact this correction can settle unilaterally — that is the owner's / gate-writer's to make,
-     not mine to upgrade toward MET on my own reading. What is settled: the count is 13/14 CLOSED
-     plus one explicitly-scoped partial, not "11/14 closed; open: C-02, C-09, C-13."
-  2. ⚰️ **STALE — every mover in this row already happened; re-verified by RUNNING `check_smoke()`
-     live 2026-09-19, not by re-trusting the old writeup.** `SMOKE_ROWS_TOTAL = 14` has been set
-     since 2026-09-17 (`flip_preconditions.py:941`) — the "denominator is 15" mover is done. A real,
-     comprehensive run against the 14-row script happened 2026-09-17
-     (`evidence/smoke-2026-09-17/INDEX.md`): **10 PASS, 0 FAIL, 4 deliberately NOT RUN** (rows 2/3/5/7,
-     unreachable by construction while V2 is dark — correctly NOT scored as failures). The
-     "2026-09-15 marks" mover this row asked for is superseded by a strictly better artifact — the
-     "remaining rows (W1)" mover is done too.
-     ⛔⛔ **What is STILL genuinely NOT MET, verified by running the actual gate function just now:**
-     `check_smoke()` returns `NOT MET — 1 FAIL mark(s) (12/14 rows marked PASS, 0 row(s) no mark
-     speaks for)`. Root cause, already diagnosed and documented in the 09-17 evidence file itself
-     (§"A SCORER DEFECT FOUND WHILE DOING THIS, DELIBERATELY NOT FIXED"): `check_smoke` sums PASS/FAIL
-     marks across **every** declared 3.5 index in the tree, so `smoke-2026-09-14/INDEX.md`'s one
-     stale FAIL (a channel-gate refusal, long since fixed) **permanently** holds this row red no
-     matter how clean a later run is. ⛔ **Deliberately NOT fixed here, matching the prior session's
-     own correct call**, which is worth repeating rather than relitigating: changing a scorer's
-     semantics so a gate reads better is an owner-level decision (*"the move that needs an owner's
-     name on it"*), not a session's to make unilaterally. **Recommended fix, unchanged from the
-     09-17 writeup**: make `check_smoke` judge only the newest declared index and report older ones
-     as history. Until an owner makes that call, this row is honestly NOT MET for a three-day-old
-     superseded FAIL, not for anything wrong with the product.
+     `D14-LOG.md` entry `2026-09-18 08:52 ET`). C-02's own row: its V2-attributable half is
+     CLOSED ON EVIDENCE; its shared-event-loop half is EXPLICITLY out of this programme's scope
+     (D-04, `instruments/c09_c02_probe.py`). ⛔ **This was previously left as a judgment call for the
+     owner rather than resolved unilaterally — the owner has now made it**, conditioned on the
+     in-scope half being "100% ready and working fully." Verified rather than assumed before
+     applying the ruling: `test_v2_chart_is_offered_and_deferred_without_a_background_task` passes
+     live (`1 passed`); the structural claims in `01-failure-forensics.md` (`_enqueue` returns the
+     defer before any render begins, `record_ack` posts to a writer queue with no store I/O,
+     `observe._loop_alerts` genuinely exists as the separate detector for the excluded half) were
+     each confirmed by reading the actual current source, not re-trusted from the write-up; and
+     `c09_c02_probe.py` was re-run **5 consecutive times live**, every run: 150/150 offers queued,
+     `over_3s: 0`, sub-millisecond acks (p50 0.0022 ms, max 0.019–0.025 ms), self-check 9/9 PASS —
+     zero flakiness. `01-failure-forensics.md`'s C-02 row and `flip_preconditions.py`'s own
+     `check_forensics_closed()` both now read the class as closed; the gate function itself
+     confirms **14/14 closed** (was 13/14) — the "every forensics class closed with a commit" row
+     is now **MET**.
+  2. ✅ **FIXED, owner ruling 2026-09-19 — same night as the soak-24h "sums across all history" bug,
+     same shape.** `SMOKE_ROWS_TOTAL = 14` has been set since 2026-09-17
+     (`flip_preconditions.py:941`) — the "denominator is 15" mover is done. A real, comprehensive
+     run against the 14-row script happened 2026-09-17 (`evidence/smoke-2026-09-17/INDEX.md`):
+     **10 PASS, 0 FAIL, 4 deliberately NOT RUN** (rows 2/3/5/7, unreachable by construction while V2
+     is dark — correctly NOT scored as failures).
+     ⛔⛔ **Root cause, previously diagnosed and deliberately left unfixed pending an owner
+     decision — the owner has now made it.** `check_smoke()` summed PASS/FAIL marks across
+     **every** declared 3.5 index in the tree, so `smoke-2026-09-14/INDEX.md`'s one stale FAIL (a
+     channel-gate refusal, long since fixed) permanently held this row red regardless of a later
+     clean run — the identical "sums across all history, one bad entry poisons it forever" shape as
+     `soak_job.py`'s `ABSOLUTE_ZERO` bug fixed earlier the same night. **Fixed:** `check_smoke` now
+     selects the single newest declared index by file mtime (never a parsed date from a directory
+     name — the function's own docstring already warned that is not what makes an index this row's
+     index) and judges only that one; older indexes are named in the evidence string as
+     "superseded", never erased, but their marks no longer count. **Mutation-proved**: rewrote the
+     obsolete cross-index "double-counted" self-check case (which tested summing behavior that can
+     no longer occur by construction) into a same-index over-count case, and added the real
+     regression test — an old FAIL index (`os.utime`-pinned to 2001) superseded by a newer fully
+     clean index (`os.utime`-pinned to 2033) must read MET. Reverting the fix (`judged` → `indexes`)
+     reds exactly and only that new case (70 → 69 pass, 1 named failure), restored, clean 70/70
+     again; `tests/test_flip_gate_cannot_lie.py` 76/76 green. **Verified against real data**: the
+     row now reads `NOT MET — only 10/14 rows PASS in the newest index (4 NOT RUN mark(s) …), 1
+     older index(es) superseded` — genuinely NOT MET tonight (the 09-17 run itself only completed
+     10/14 rows), but for the HONEST reason, not the stale FAIL. The gate's own diff confirms
+     "evidence only (NOT MET)" — the verdict is unchanged tonight, but the reason it gives is no
+     longer false.
   3. **NOT MEASURABLE — "S2 measured in --real mode and within SLO"** · zero admissible latency artifacts:
      1 void (open-loop mislabelled as concurrency), 12 inconclusive (ack-path only / `renderer=fallback` /
      unlabelled load model / pre-label). **S5 MET, S5b MET, S5c MET** (4,444 refusals all reached the member

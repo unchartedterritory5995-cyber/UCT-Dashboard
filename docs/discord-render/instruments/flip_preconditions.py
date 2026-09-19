@@ -980,13 +980,33 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     ⛔ SCREENSHOTS WITHOUT AN INDEX ARE UNREADABLE EVIDENCE, NOT A FAILED SMOKE. The version fixed
     earlier on 2026-09-14 printed `NOT MET — only 0/15` for a directory of images with no index,
     which says the smoke was run and failed. It says nothing of the sort: nobody has written down
-    what those pictures show. That is NOT MEASURABLE, and it names the index it wants."""
+    what those pictures show. That is NOT MEASURABLE, and it names the index it wants.
+
+    ⛔⛔ JUDGE ONLY THE NEWEST DECLARED INDEX, NEVER SUM ACROSS ALL OF THEM. Fixed 2026-09-19: a
+    stale 🔴 FAIL mark from `smoke-2026-09-14/INDEX.md` (superseded three days later by a clean,
+    comprehensive `smoke-2026-09-17/INDEX.md` — 10 PASS, 0 FAIL, 4 deliberately NOT RUN) kept this
+    row NOT MET for the wrong reason indefinitely: a run is SUPERSEDED by a later run, not merged
+    with it, and the old code summed `_SMOKE_MARKS` counts across every declared index it could
+    find. The exact "sums across all history, one bad entry poisons it forever" defect this repo
+    names repeatedly elsewhere — `soak_job.py`'s own `ABSOLUTE_ZERO` check had the identical shape,
+    fixed the same night. "Newest" is decided by the INDEX FILE'S OWN mtime — the filesystem's
+    real timestamp, never a date parsed out of a directory name, which this function's own
+    docstring already warns is not what makes an index this row's index. Older declared indexes
+    are still located and named in the evidence string (so a superseded run is visible, not
+    erased) but their marks are no longer counted."""
     if not ev.evidence_dir.exists():
         return _row(N_SMOKE, NOT_MEASURABLE, f"no evidence directory at {ev.evidence_dir}")
     indexes, other = _smoke_indexes(ev)
-    # Screenshots are counted from the subtree of a DECLARED index, so the count describes the run
-    # this row is judging rather than every image under a directory whose name starts with "smoke".
-    shots = [q for idx, _ in indexes for q in idx.parent.rglob("*")
+    if indexes:
+        newest_idx, newest_text = max(indexes, key=lambda pair: pair[0].stat().st_mtime)
+        superseded = [idx for idx, _ in indexes if idx != newest_idx]
+        judged = [(newest_idx, newest_text)]
+    else:
+        judged, superseded = [], []
+    # Screenshots are counted from the subtree of the JUDGED (newest) index only, so the count
+    # describes the run this row is actually judging rather than every image under every
+    # directory whose name starts with "smoke", including superseded ones.
+    shots = [q for idx, _ in judged for q in idx.parent.rglob("*")
              if q.suffix.lower() in _SHOT_SUFFIXES]
     if not indexes:
         # ⛔ "SCREENSHOTS BUT NO INDEX" AND "NOTHING AT ALL" ARE DIFFERENT FACTS, and the row must
@@ -1007,15 +1027,18 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
                        if other else "")
                     + ("; the typed script is ready at evidence/smoke-script.md"
                        if script.exists() else "; no script written either"))
-    # Count the rows the INDEX itself marks. ⛔ Read the verdict, never the artifact count.
+    # Count the rows the JUDGED (newest) INDEX itself marks. ⛔ Read the verdict, never the
+    # artifact count, and never an older superseded index's verdict either.
+    superseded_note = f", {len(superseded)} older index(es) superseded" if superseded else ""
     marks = {k: 0 for k in _SMOKE_MARKS}
-    for _, text in indexes:
+    for _, text in judged:
         for key, pattern in _SMOKE_MARKS.items():
             marks[key] += len(re.findall(pattern, text))
     if not any(marks.values()):
         return _row(N_SMOKE, NOT_MEASURABLE,
-                    f"{len(indexes)} INDEX file(s) carrying no row verdict at all — an index that "
-                    f"marks nothing is prose, and prose is not a result")
+                    f"the newest declared index ({judged[0][0].name} in "
+                    f"{judged[0][0].parent.name}) carrying no row verdict at all{superseded_note} "
+                    f"— an index that marks nothing is prose, and prose is not a result")
     # ⛔ A MARK IS NOT A ROW, and this index proves it: one cell reading `| 1–7, 10–15 | ⛔ NOT RUN |`
     # covers THIRTEEN rows and matches the pattern ONCE. Every count below is therefore reported as
     # marks, and `unaccounted` is what a reader actually needs — the rows no mark speaks for.
@@ -1026,26 +1049,29 @@ def check_smoke(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
     unaccounted = max(0, SMOKE_ROWS_TOTAL - accounted)
     if marks["failed"]:
         return _row(N_SMOKE, NOT_MET,
-                    f"{marks['failed']} FAIL mark(s) ({marks['passed']}/{SMOKE_ROWS_TOTAL} rows "
-                    f"marked PASS, {unaccounted} row(s) no mark speaks for) — a smoke with a red "
-                    f"row is a smoke that found something")
+                    f"{marks['failed']} FAIL mark(s) in the newest index "
+                    f"({marks['passed']}/{SMOKE_ROWS_TOTAL} rows marked PASS, {unaccounted} "
+                    f"row(s) no mark speaks for{superseded_note}) — a smoke with a red row is a "
+                    f"smoke that found something")
     outstanding = marks["notrun"] + marks["partial"] + unaccounted
     if marks["passed"] >= SMOKE_ROWS_TOTAL and outstanding:
-        # ⛔ MORE PASS MARKS THAN ROWS, WHILE ROWS ARE STILL UNRUN. Two partial indexes that both
-        # claim row 1 would otherwise sum to 15 and carry the row to MET. The arithmetic, not the
-        # evidence, would have been what flipped it.
+        # ⛔ MORE PASS MARKS THAN ROWS, WHILE ROWS ARE STILL UNRUN. A single index whose own table
+        # double-counts a row would otherwise carry more PASS marks than the row total while rows
+        # are still unrun. The arithmetic, not the evidence, would have been what flipped it.
         return _row(N_SMOKE, NOT_MET,
-                    f"{marks['passed']} PASS mark(s) across {len(indexes)} index(es) — but "
+                    f"{marks['passed']} PASS mark(s) in the newest index — but "
                     f"{marks['notrun']} NOT RUN and {marks['partial']} PARTIAL are still "
-                    f"outstanding, so the marks are being double-counted, not earned")
+                    f"outstanding, so the marks are being double-counted, not earned"
+                    f"{superseded_note}")
     if marks["passed"] >= SMOKE_ROWS_TOTAL:
         return _row(N_SMOKE, MET,
-                    f"{marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS across {len(indexes)} "
-                    f"index(es), {len(shots)} screenshot(s), 0 outstanding")
+                    f"{marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS in the newest index "
+                    f"({judged[0][0].parent.name}), {len(shots)} screenshot(s), 0 outstanding"
+                    f"{superseded_note}")
     return _row(N_SMOKE, NOT_MET,
-                f"only {marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS "
+                f"only {marks['passed']}/{SMOKE_ROWS_TOTAL} rows PASS in the newest index "
                 f"({marks['notrun']} NOT RUN mark(s), {marks['partial']} PARTIAL, {unaccounted} "
-                f"row(s) no mark speaks for, {len(shots)} screenshot(s), {len(indexes)} index(es)) "
+                f"row(s) no mark speaks for, {len(shots)} screenshot(s)){superseded_note} "
                 f"— a partial smoke is not a smoke; the unrun rows are the ones nobody has seen "
                 f"fail")
 

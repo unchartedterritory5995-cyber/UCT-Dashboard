@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -572,16 +573,44 @@ def _cases() -> list[Case]:
                                    + "| 1 | ✅ **PASS** |\n| 5 | 🟡 **PARTIAL** |\n"
                                      "| 2-15 | ⛔ **NOT RUN** |\n"),
                    says=f"only 1/{fp.SMOKE_ROWS_TOTAL}"))
+    # ⚰️ THIS CASE USED TO PLANT PASS MARKS ACROSS TWO INDEXES AND EXPECT THEM SUMMED. Obsolete
+    # 2026-09-19: the row now judges only the newest declared index (see the case just below,
+    # which is the actual regression test for that change), so "double-counting across indexes"
+    # can no longer happen by construction — there is only ever one index whose marks are read.
+    # The over-count failure mode this case exists to catch still exists, just inside ONE index's
+    # own table (a row marked PASS twice, or a range mark whose count the reader mis-adds).
     cs.append(Case("smoke", FAIL_PLANTED, NOT_MET,
-                   "⛔ fifteen PASS marks spread over two indexes while rows are still NOT RUN — "
+                   "⛔ more PASS marks than rows in a SINGLE index while rows are still NOT RUN — "
                    "the arithmetic flipping the row, not the evidence",
-                   lambda r, s: (_w(r / idx, SMOKE_TITLE
-                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))),
-                                 _w(r / D / "evidence/smoke-second/INDEX.md",
-                                    SMOKE_TITLE
-                                    + "".join("| n | ✅ **PASS** |\n" for _ in range(8))
-                                    + "| rest | ⛔ **NOT RUN** |\n")),
+                   lambda r, s: _w(r / idx, SMOKE_TITLE
+                                   + "".join("| n | ✅ **PASS** |\n"
+                                             for _ in range(fp.SMOKE_ROWS_TOTAL))
+                                   + "| extra | ⛔ **NOT RUN** |\n"),
                    says="double-counted"))
+    # ⛔⛔ THE ACTUAL REGRESSION TEST FOR THE 2026-09-19 FIX. Before it, `check_smoke` summed
+    # `_SMOKE_MARKS` across EVERY declared index it found — the exact "sums across all history,
+    # one bad entry poisons it forever" shape this repo names repeatedly elsewhere. An OLDER index
+    # with a real FAIL, superseded days later by a NEWER, fully clean, comprehensive run, must
+    # read MET off the newer run alone — not NOT_MET from a run nobody would call current.
+    # `os.utime` gives explicit, unambiguous ordering rather than trusting two `_w()` calls
+    # executed microseconds apart on a filesystem whose mtime resolution can be coarser than that.
+    def _plant_superseded_fail_then_clean(r, s):
+        old = _w(r / D / "evidence/smoke-2026-09-14/INDEX.md",
+                 SMOKE_TITLE + "| 1 | ✅ **PASS** |\n| 8 | 🔴 **FAIL** |\n"
+                 + "".join("| n | ⛔ **NOT RUN** |\n" for _ in range(fp.SMOKE_ROWS_TOTAL - 2)))
+        os.utime(old, (1000000000, 1000000000))          # 2001-09-08 -- unambiguously old
+        new = _w(r / D / "evidence/smoke-2026-09-17/INDEX.md",
+                 SMOKE_TITLE
+                 + "".join("| n | ✅ **PASS** |\n" for _ in range(fp.SMOKE_ROWS_TOTAL)))
+        os.utime(new, (2000000000, 2000000000))          # 2033-05-18 -- unambiguously newer
+        _rm(r / idx)                                      # the default passing-tree fixture would
+                                                            # otherwise be a THIRD, undated index
+
+    cs.append(Case("smoke", PASS_PLANTED, MET,
+                   "an old FAIL, superseded by a newer clean comprehensive run, reads MET off "
+                   "the newer run — the old FAIL is history, not a vote",
+                   _plant_superseded_fail_then_clean,
+                   says="superseded"))
     cs.append(Case("smoke", UNREADABLE, NOT_MEASURABLE,
                    "an INDEX that marks nothing — prose is not a result",
                    lambda r, s: _w(r / idx, SMOKE_TITLE
