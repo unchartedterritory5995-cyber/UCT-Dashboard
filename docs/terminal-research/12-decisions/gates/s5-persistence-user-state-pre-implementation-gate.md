@@ -2,7 +2,7 @@
 id: GATE-S5-PERSISTENCE-USER-STATE
 title: S5 — Persistence & User State — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. CP3-CP5 each need a new line.
+status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. Line 3 (S5-C RULED, CP3 named) SIGNED 2026-09-19 (fingerprint `41ffcc91c`) — Tracings moves off `user_preferences` to its own store; CP3 not yet built. CP4-CP5 each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-S5-PERSISTENCE-USER-STATE
@@ -54,6 +54,15 @@ SCOPE APPROVED:   CP2 - THE ADDITIONS-ONLY RAIL, exactly as §4 names it. One
 > ⛔ **THE FINGERPRINT CONVENTION WITH TWO BLOCKS:** `git hash-object` of this packet as it stood
 > at approval **with THIS block's `APPROVED AT SHA` blank** and every other block left as it
 > stands. "This field", in the packet's own words, is the field in the block you are signing.
+
+## ⛔ APPROVAL — LINE 3 (S5-C RULED). CP3 named, not yet built.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  41ffcc91c
+SCOPE APPROVED:   CP3 (S5-C RULED): the second adopter's A-1 obligation (SPEC §5's "hard one") is answered as MOVE TRACINGS OFF `user_preferences`, not grow `POST /api/auth/preferences` a compare-and-set. Reasoning: every other established second-storage pattern in this codebase (Notebook, broker-sync, COT, catalysts) gives a new subsystem its own table rather than growing shared generic infrastructure's concurrency semantics for one consumer; `/api/auth/preferences` has 70 non-Tracings call sites that would otherwise inherit exposure to expected-value/409 handling they do not need. This ruling authorizes CP3 to be BUILT under `persistence-user-state-spec.md` §5's A-1..A-10 list, Tracings-sized per §6's table (a dedicated `tracings_documents`-shaped store keyed `tracings:<userId>`, its own CAS/revision, its own outbox key, its own lock name `uct.tracings.sync.${accountId}`, fork-on-every-409 per A-5 since Tracings has no server-side appender). THIS LINE DOES NOT AUTHORIZE CP4 (Tracings actually adopting the new store, still dark/OFF) OR CP5 (default-ON, member-visible) -- each needs its own line per the packet's own section-4-naming rule. Not authorized: any change to `POST /api/auth/preferences`'s existing semantics for its other 70 call sites, any change to the Notebook layer, any change to `_PREFERENCE_KEYS`.
+```
 
 ### ⏸️ F-S5-1 — THE EXTRACTION, DEFERRED WITH A NAMED CONDITION
 
