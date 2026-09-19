@@ -1,0 +1,26 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 1 cell(s) to run · stamp 2026-09-19T01-31-21Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 1, 'deadNotes': 1, 'removed': 1}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ folder  ·  marker EXPIRED
+      warmed /charts, back to the editor
+      cleanup: {'err': 502}
+   ⇒ INCONCLUSIVE  the editor never mounted within 30000ms of going offline, so the sentence was never typed — an INSTRUMENT answer, not a finding
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): 'M' THE RIG IS NOT OPTED OUT
+   on-disk restore did not stick — respawning once to redo it
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+   retry opt_out -> (True, '0')
+   after retry, ON DISK: '0'
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:51892) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:61276) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

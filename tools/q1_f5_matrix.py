@@ -2026,7 +2026,17 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # the transition in the act, so the cell can NAME which one happened.
         drained, waited = False, 0
         trail = []
-        for _ in range(48):
+        # ⚰️ 48 -> 96 polls (120s -> 240s) on 2026-09-18. A `marker-expired` cell
+        # died on *"the outbox still held this note's entry after 120.0s — the
+        # drain had not finished"*, which is explicitly NOT a loss: the tool says
+        # so in the same breath ("Not 'lost'; not yet delivered").
+        # ⭐ Same asymmetry as every other budget raised today: this loop BREAKS
+        # the instant the queue empties, so the ceiling is only ever spent by a
+        # cell that is already failing, and widening it cannot slow a healthy one.
+        # ⛔ It also cannot manufacture a GREEN — the verdict still comes from
+        # whether the sentence is in the SERVER's body afterwards; this only
+        # decides whether the cell gets to be measured at all.
+        for _ in range(96):
             page.wait_for_timeout(2500)
             waited += 2.5
             q2 = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
