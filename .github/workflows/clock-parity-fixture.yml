@@ -1,3 +1,8 @@
+# promotion-gate: yes — a red here means the committed clock-parity fixture no
+#   longer matches what compute_clock produces, i.e. the clock's answers moved
+#   without anyone reading the diff. Narrow and fast by design (imports exactly
+#   THREE repo modules per its own header below), so it cannot cry wolf.
+#
 # Clock-parity fixture guard.
 #
 # `tests/fixtures/ast/clock_parity.json` is the clock ORACLE: 21 bars and every
