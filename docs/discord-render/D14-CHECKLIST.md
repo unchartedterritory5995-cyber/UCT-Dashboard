@@ -701,6 +701,44 @@ un-maximises).
      deployed, no Railway service was created or touched.** A future session or the owner can now go
      directly to the design doc's own §1.5 step 2 without re-deriving anything. The decision of
      whether to actually build Option B remains exactly as owner-gated as before.
+     ⭐ **Option C investigated in full, 2026-09-19 — genuinely cannot be executed tonight, and a
+     real structural gap was found while trying.** Option C means "accept `#render-smoke` itself as
+     the S2 instrument" — real humans typing real `/chart` commands in that already-authorised,
+     zero-organic-member channel, with their real latency harvested into a `kind=load,
+     renderer=chart-renderer, purpose=slo` artifact. Three real blockers, each checked rather than
+     assumed:
+     1. **A slash-command interaction can only originate from a real Discord client.** I cannot
+        synthesize one myself — crafting a fake Ed25519-signed payload and POSTing it straight to
+        `/api/discord/interactions` would bypass Discord's own delivery path entirely, which is not
+        "Option C," it is a different, unauthorised action.
+     2. **The 2026-09-14/15/17 smoke runs' own timing data is gone.** `railway logs` only replays
+        the CURRENT boot's stream, and today's several redeploys (including tonight's own R49
+        rehearsal) already rotated it out — checked directly, not assumed.
+     3. **Even brand-new real usage right now could not be honestly attributed.** Read
+        `chart-renderer`'s live logs directly (`services/chart_renderer/app.py:785`,
+        `log.info("render cid=%s path=%s status=%s ms=%.0f prio=%s ready=%s bytes=%s", ...)`):
+        every single render tonight — 30+ of them — carries `cid=-`. Traced why:
+        `api/services/discord_render/ids.py`'s correlation-id binding (`ids.bind()` /
+        `render_headers()`) exists and IS imported by the pre-V2 path
+        (`discord_chart_house.py:341`), but **`ids.bind()` is never actually called anywhere on
+        that path** (grepped both `discord_chart_house.py` and `discord_interactions.py` — zero
+        hits) — so `render_headers()` always sees an unbound thread-local and sends no
+        `X-Correlation-Id` at all. **This means the SAME gap blocks Option C AND the checklist's
+        own "canary traffic under D2, source=canary" fallback equally**: neither can currently
+        distinguish a `#render-smoke` test render, a real member's render, or a canary-tagged
+        render from one another — they are all just `cid=-` in the log, regardless of who asked
+        for it. Confirmed this is a genuine gap, not a quick miswiring: closing it means changing
+        `render_house_chart()`'s own signature (currently `(sym, tf, stats, options=None, *,
+        client=None)` — no interaction/channel parameter at all) and threading the real
+        interaction id through every call site, not a one-line fix. **Deliberately not attempted
+        here** — it would not even take effect until this branch's own future merge-to-master (the
+        same owner-level gate as everything else on `discord-render-hardening`), so building it
+        tonight buys zero immediate value; it is recorded as a real, well-evidenced, ready-to-pick-up
+        task for whenever this branch's future is decided, not left as a vague "todo."
+     **Net effect: Options A, B, C are each now either fully investigated-and-declined, or
+     prepared-but-gated at a real boundary this session should not cross alone. D remains available
+     at zero cost, as it always was.** Still an owner pick, not narrowed by tonight's work — but each
+     option's true cost is now precisely known rather than estimated.
   4. ✅ **ROW MOVED 2026-09-19: "mutation NOT-APPLIED = 0" NOT MEASURABLE → MET, fixed properly
      rather than manually patched around.** The gate's own `check_mutations_applied` shelled out to
      each harness's own `--dry-check` flag — only 6 of 16 harnesses declared one, so the row could
