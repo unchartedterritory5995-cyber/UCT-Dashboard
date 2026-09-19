@@ -100,6 +100,14 @@ class BarBroadcaster:
         # Phase 2 A-close guard: monotonic-ms of the last SIP-eligible T trade that set
         # the close, per (sym, tf). The A-close-nudge yields to a recent real close.
         self._last_real_close_ms: dict[tuple[str, str], int] = {}
+        # D3 CP3 (G3): monotonic-ms of the last AM/A/T event received for this symbol,
+        # across every tf -- the bars lane's own staleness answer, mirroring
+        # realtime_stream.get_last_seen for the quote lane. Per-SYMBOL, not per
+        # (sym, tf): "has this symbol gone quiet" doesn't care which tf a tick
+        # happened to bucket into. Written once per push_aggregate call, read by
+        # last_tick_age(). No caller yet -- see the inertness rail in
+        # tests/test_d3_cp3_staleness_reader.py.
+        self._last_tick_wall_ms: dict[str, int] = {}
 
     # ── Subscription management (called from SSE endpoint coroutines) ──
 
@@ -217,6 +225,19 @@ class BarBroadcaster:
             return None
         return {"price": c, "ts": p.get("t"), "volume": self._day_volume.get(su)}
 
+    def last_tick_age(self, sym: str) -> Optional[float]:
+        """D3 CP3 (G3) -- the bars lane's own staleness answer, mirroring
+        realtime_stream.get_last_seen for the quote lane. Seconds since the last
+        AM/A/T event for this symbol arrived, across any tf, or None if this
+        symbol has never had one. Read-only; no product code calls this yet
+        (see the inertness rail in tests/test_d3_cp3_staleness_reader.py) --
+        this is a read path with no caller, and D3's own gate packet names
+        that exact shape as the defect to avoid shipping again."""
+        ms = self._last_tick_wall_ms.get(sym.upper())
+        if ms is None:
+            return None
+        return (_time.monotonic() * 1000 - ms) / 1000.0
+
     # ── Inbound from bar_stream ──
 
     def push_aggregate(self, sym: str, payload: dict, kind: str) -> None:
@@ -255,6 +276,12 @@ class BarBroadcaster:
         price wins and c/h/l/v accumulation handles it gracefully).
         """
         sym = sym.upper()
+        # D3 CP3 (G3): stamp arrival for EVERY kind (AM/A/T), before the
+        # per-kind branches -- staleness cares that *something* arrived for
+        # this symbol, not which kind or which tf it bucketed into. Single-key
+        # dict assignment is GIL-atomic (same reasoning as _day_volume below);
+        # no lock needed for a write nothing else reads inside the lock.
+        self._last_tick_wall_ms[sym] = int(_time.monotonic() * 1000)
 
         if kind == "T":
             # Trade tick path — payload is {t, p, s, c?}
