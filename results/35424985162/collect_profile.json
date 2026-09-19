@@ -1,0 +1,43 @@
+{
+  "dirs_total": 5,
+  "dirs_measured": 5,
+  "dirs_unmeasured": [],
+  "sum_collected": 27591,
+  "rows": [
+    {
+      "dir": "tests",
+      "collected": 24552,
+      "seconds": 137.75,
+      "rss_mb": 569.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/pattern_engine",
+      "collected": 2625,
+      "seconds": 18.42,
+      "rss_mb": 303.7,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/api",
+      "collected": 293,
+      "seconds": 16.52,
+      "rss_mb": 242.9,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_engine",
+      "collected": 64,
+      "seconds": 8.22,
+      "rss_mb": 122.2,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_curation",
+      "collected": 57,
+      "seconds": 11.63,
+      "rss_mb": 108.3,
+      "result": "ok"
+    }
+  ]
+}

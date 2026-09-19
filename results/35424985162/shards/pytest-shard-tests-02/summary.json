@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1684,
+  "passed": 1678,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 106.43,
+  "failed_files": [
+    "tests/test_bars_server_include_today.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1678 passed, 5 skipped, 96 warnings in 106.43s (0:01:46)",
+  "ok": true
+}
