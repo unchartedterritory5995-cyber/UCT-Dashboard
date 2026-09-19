@@ -1251,3 +1251,59 @@ export's correct role is exactly the one-time seed it's already slotted as.
 **`The Mental Game` dropped from `WISDOM_EXTRACT_PRIORITY`** by owner ruling (an old,
 no-longer-produced segment) — the DB is at least consistent with this: all 54 sources cluster on
 a single day (2026-06-19) rather than a spread of episodes, unlike every other category.
+
+## Session 28 continued (2026-09-19) — Sunday Scans (Substack) ingested for the first time;
+## it was already fully built and armed, never fired
+
+Owner asked to widen source scope to "the Substack stuff" (The Desk's weekly market-prep
+posts) alongside the Zoom/YouTube content (already fully covered, no change needed) and
+Discord. Investigation (forked) found **there was nothing to build**: Sunday Scans ingestion
+(`api/services/wisdom/sources/sunday_scans.py`, spec `docs/wisdom/methodology/sources-v1.md`
+§4) already existed in full — HTML→text conversion, section-based segmentation
+(`segmenter.py::segment_sunday_scans`), and per-section author resolution
+(`segmenter.py::section_author`) — and was already wired into the `wisdom_weekly_chain` job
+(cron Sun 19:52 ET), gated by the two master ingest flags, **both already on**.
+
+⛔⛔ **IT HAD NEVER FIRED, and the reason was pure timing, not a bug.** Built and armed
+2026-09-13 (a Sunday); `wisdom_job_runs` had zero rows for the weekly chain before this
+session, and `wisdom_sources` had zero `sunday_scans`/substack rows despite everything reading
+armed. The weekly cron's first real opportunity would have been 2026-09-20 (the next Sunday)
+— less than one full week had passed since it was built. Confirmed via
+`registry.run_job('wisdom_weekly_chain', force=True, dry_run=True)` before touching anything
+for real.
+
+**D4 ruling (the section-attribution design), confirmed exact and already coded:** unsigned
+Sunday Scans sections resolve to `tsdr` (never `team-unresolved`, never skipped) —
+`section_author()` matches a section heading against `authors.author_for_alias()` first
+(e.g. "Bracco's Breakdown" → bracco, high confidence) and falls back to `("tsdr", "medium")`
+only when nothing matches. This is the SAME distinction, worked out correctly here on the
+first pass, that the Discord authorship work earlier this session had to learn by mistake
+(AtTheAsk misidentified once) and by design (§0.4e's author-allowlist) — a fallback with a
+LOWER confidence tier, never an unattributed or fabricated one.
+
+**Run for real, 2026-09-18 23:03-23:04 ET.** `registry.run_job('wisdom_weekly_chain',
+force=True, dry_run=False)` — three real steps all `ok` (`sunday_scans`, `contradictions`,
+`weekly_report`); the fourth, `extract_audit`, self-skipped under **R64: "force never spends"**
+— a forced/manual chain run can never trigger paid extraction, by design, regardless of any
+env var. Result: **65 new `wisdom_sources` rows** (`stream='sunday_scans'`, all
+`host_author_id='tsdr'` at the source level), **1,533 new `wisdom_segments`** (28,121 total,
+up from the prior session's count). Verified the per-section resolution actually worked, not
+just ran: 443 segments `author_id=tsdr`/high (signed TSDR sections), 70 `author_id=bracco`/high
+(signed Bracco sections), 685 `author_id=tsdr`/medium (unsigned sections — INTRO, Market
+Breadth Data, Earnings & Economic Calendar, Index & ETFs — correctly defaulted per D4, not
+dropped). No chartmaster/manrav/jersace/attheask sections appear in this corpus, which is
+expected — Sunday Scans is TSDR's own weekly post with occasional Bracco sections; those other
+four authors' content lives in Discord/Zoom, not here.
+
+**Zero paid extraction touched by any of this.** `WISDOM_EXTRACT_ENABLED` is still `0`
+(paused earlier this session on the owner's cost concern) and nothing above required or
+enabled it — ingestion and segmentation are free; only the extraction pass costs money, and
+R64 makes that structurally true regardless of how the ingestion job is triggered.
+
+**Discord grants completed by the owner directly** (Claude Code's own `[Permission Grant]`
+classifier declined to perform this write, from both the terminal and mid-click in the
+browser): `#jersace` granted View Channel + Read Message History; verified live via the bot's
+API (403→200, real messages returned) and Jersace's authorship confirmed the same way as the
+original four (48/50 recent messages from a single author, `jersace.x`,
+id `395070112748666881`). `#bracco` re-confirmed working at the same time. Still open: the
+SETUP EXAMPLES category (18 channels) and the AtTheAsk/`alex-jones` question above.
