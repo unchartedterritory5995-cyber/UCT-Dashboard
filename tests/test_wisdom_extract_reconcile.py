@@ -166,6 +166,33 @@ def test_one_run_is_refused():
                               "segments": set(), "manifest": {}}])
 
 
+def test_a_segment_touched_but_kept_nothing_does_not_break_parity(tmp_path):
+    """⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 2): `touch_segment` writes an
+    empty marker specifically so a pass that legitimately kept zero records from a segment still
+    counts as having covered it -- `persist_result`'s own docstring says a segment can legitimately
+    contain no records. But `load_run` used to build "segments" from `records.jsonl` rows alone, so
+    the marker had NO effect on the exact comparison it exists for: a routine LLM-instability
+    outcome (one pass finding nothing in one paragraph) refused the WHOLE run, identical in kind to
+    the N-pass budget-trim bug fixed earlier tonight. This proves `load_run` now reads the marker
+    and `reconcile` no longer refuses over it."""
+    from api.services.wisdom.extract import run_records
+
+    _write_run(tmp_path, "r1", [_row("seg-1", "CALL", ident="NVDA", record_id="a"),
+                                _row("seg-2", "CALL", ident="AMD", record_id="b")])
+    _write_run(tmp_path, "r2", [_row("seg-1", "CALL", ident="NVDA", record_id="c")])
+    run_records.touch_segment("r2", "seg-2", root=tmp_path)   # pass 2 saw seg-2, kept nothing
+
+    loaded = _load(tmp_path, ["r1", "r2"])
+    assert loaded[1]["segments"] == {"seg-1", "seg-2"}, "the touched segment must widen load_run's set"
+
+    result = reconcile.reconcile(loaded)   # must NOT raise ReconcileRefused
+    by_ident = {tuple(s["identity"]): s for s in result["scores"]}
+    assert by_ident[("CALL", "NVDA", None, None)]["stability"] == 1.0
+    assert by_ident[("CALL", "AMD", None, None)]["stability"] == 0.5, (
+        "seg-2's CALL was only kept by r1 -- touching seg-2 in r2 must not manufacture a record "
+        "for it, only excuse r2's absence from the parity check")
+
+
 # ── writers ──────────────────────────────────────────────────────────────────
 
 def _store() -> sqlite3.Connection:

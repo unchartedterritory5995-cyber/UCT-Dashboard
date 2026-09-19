@@ -49,6 +49,8 @@ from typing import Iterable, Optional
 
 RECORDS_FILE = "records.jsonl"
 MANIFEST_FILE = "manifest.json"
+#: `run_records.touch_segment` writes this; `load_run` below is the ONE reader (2026-09-19 fix).
+SEGMENTS_SEEN_FILE = "segments_seen.jsonl"
 
 #: R56 (owner ruling, 2026-09-15). The persisted-runs root, resolved ONCE, here.
 #:
@@ -153,9 +155,28 @@ def load_run(root, run_id: str, *, phase: str = "gate") -> dict:
     if (d / MANIFEST_FILE).exists():
         manifest = json.loads((d / MANIFEST_FILE).read_text(encoding="utf-8"))
     versions = {r.get("extractor_version") for r in rows}
+    # ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 2): `run_records.touch_segment`
+    # writes an EMPTY marker to segments_seen.jsonl specifically so a segment that legitimately
+    # kept zero records still counts as SEEN for the parity check below (`reconcile`'s segment-set
+    # comparison) -- a pass finding nothing in one paragraph is routine LLM-instability, not a
+    # fault, and `persist_result`'s own docstring says so. But this function used to build
+    # "segments" from `rows` alone, so that marker had ZERO effect on the comparison it exists
+    # for: any segment with kept=[] in even one pass made that pass's segment set differ from the
+    # others', and `reconcile()` refused the WHOLE night -- the identical permanent-loss failure
+    # mode as the N-pass budget-trim bug fixed earlier tonight, from an entirely different cause.
+    # The marker file is read here, unioned into "segments", and is the ONLY thing this dict
+    # exposes about it -- rows (and therefore scoring) are unaffected by a segment having no kept
+    # records; only the parity check now sees it as covered.
+    seen_path = d / SEGMENTS_SEEN_FILE
+    seen_ids = {r.get("segment_id") for r in rows}
+    if seen_path.exists():
+        for line in seen_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            seen_ids.add(json.loads(line).get("segment_id"))
     return {"run_id": run_id, "rows": rows, "manifest": manifest,
             "extractor_version": versions.pop() if len(versions) == 1 else None,
-            "segments": {r.get("segment_id") for r in rows}}
+            "segments": seen_ids}
 
 
 class _Union:
@@ -474,7 +495,7 @@ def discover(root) -> list:
     return sorted(p.name for p in base.iterdir() if (p / RECORDS_FILE).exists())
 
 
-def score_silently(ctx, *, root=None) -> dict:
+def score_silently(ctx, *, root=None, run_ids: Optional[list] = None) -> dict:
     """Daily-chain entry point. A no-op unless enough compatible runs are persisted.
 
     ⛔ `N` comes from the number of runs actually reconciled, never from a literal — so a
@@ -482,12 +503,25 @@ def score_silently(ctx, *, root=None) -> dict:
 
     ⛔ `root=None` resolves PER CALL via `gate_runs_root()` (R56). It is not a constant default,
     because a default argument binds once at import — see the note beside `gate_runs_root`.
+
+    ⛔⛔ `run_ids=None` (BUG FOUND 2026-09-19, adversarial review session 28 part 3): without it,
+    this reconciles whichever `floor.MIN_RUNS` run directories are alphabetically LAST under the
+    ENTIRE shared root — correct for the single newest pending night (the daily chain's own
+    `reconcile_stability` step, one pending night at a time), but wrong the moment a BACKLOG of
+    2+ complete-but-unscored nights exists in one tick (`same_night.score_completed_nights`,
+    R70): every older night in that backlog would silently reconcile the SAME still-newest dirs a
+    second time, succeed (no version/segment mismatch, since they ARE a valid triple — just not
+    THIS night's), and `registry.run_tracked` would mark that OLDER night's claim `'ok'` anyway
+    (it only checks whether the callable raised) — permanently starving its own records at
+    `stability=NULL`, with no retry since `_already_scored` skips a claim already `'ok'`. A caller
+    that knows which specific night it is scoring (`same_night.score_night`, via `ctx.due_key`)
+    passes that night's own pass run ids here instead of letting `discover()` guess globally.
     """
     from api.services.wisdom.core import store
     from api.services.wisdom.publish import floor
 
     root = gate_runs_root() if root is None else root
-    ids = discover(root)
+    ids = discover(root) if run_ids is None else list(run_ids)
     if len(ids) < floor.MIN_RUNS:
         return {"skipped": f"only {len(ids)} persisted run(s); need {floor.MIN_RUNS}",
                 "runs": len(ids)}

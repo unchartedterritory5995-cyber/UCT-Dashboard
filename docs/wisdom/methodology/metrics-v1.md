@@ -1,6 +1,6 @@
 ---
 id: WISDOM-METHODOLOGY-METRICS-V1
-title: Wisdom Loop evaluation methodology — outcomes, context, CALL-REPLAY, metrics 6.1–6.4
+title: Wisdom Loop evaluation methodology — outcomes, context, CALL-REPLAY, metrics 6.1–6.5
 status: current
 versions: outcomes-v1 · context-v1 · replay-v1 · metrics-v1 (weight quality-v1) · grounding-v1
 code: api/services/wisdom/evals/
@@ -128,6 +128,22 @@ same calls is always beside it (`notes.raw`, `notes.raw_value`; the admin displa
   `R = return% / stated risk%` when a stop is stated (`risk% = |anchor − stop| / anchor`), else
   `clip(0.5 + return%/20)`;
 - undefined when nothing has matured.
+
+### 6.5 Call track record — `call_track_record`
+
+The question 6.1–6.3 do not answer: **did the call's own stated levels work**, never mind whether
+UCT's own scanner already knew about the ticker. Over the outcomes-v1 population (§1: every CALL,
+hindsight included per D8, plus a NEGATIVE_CALL that carries a direction) — no dependency on
+CALL-REPLAY, so it is populated the moment outcomes-v1 has a matured row, with or without
+`WISDOM_REPLAY_ENABLED`.
+
+`numerator` = records whose `horizons_json.first_hit == "target"`; `denominator` = that plus
+`first_hit == "stop"`. A record with neither a stated stop nor a stated target, or a same-bar hit
+`resolved_with_intraday` could not settle (`first_hit == "ambiguous"`), is named in `notes` and kept
+out of both — the same "never a miss without proof" discipline as 6.1–6.3. `notes.avg_ret_10` is the
+mean `ret_10` over every record in the population with a matured 10-session return (its own count in
+`notes.avg_ret_10_n`); it is reported beside the hit rate, never folded into it — a name can have a
+high hit rate on tight targets and a mediocre `avg_ret_10`, and collapsing the two would hide that.
 
 ### Slices
 

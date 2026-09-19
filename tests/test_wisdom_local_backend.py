@@ -95,6 +95,35 @@ def test_the_local_client_reports_zero_cost(local):
     assert batch.make_client().cost_usd == 0.0
 
 
+# ── 2b. the CLAIM of zero cost is actually enforced in the real ledger path ──
+
+def test_real_local_usage_prices_as_zero_not_as_the_paid_model(local):
+    """⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): `LocalClient.cost_usd
+    == 0.0` above is a claim about an attribute NOTHING in the real cost path ever reads --
+    `grep -rn '\\.cost_usd\\b' api/` has exactly one reader, this test. The real path is
+    `budget.cost_from_usage`/`budget.estimate_cost`, which priced real local token usage as if it
+    were the configured PAID model and wrote the result into `wisdom_batches.cost_usd_actual` --
+    the same ledger real paid extraction is rationed against. A big, realistic usage payload
+    proves the actual function returns $0 under the local backend, not just that a decorative
+    attribute says so."""
+    from api.services.wisdom.extract import budget
+
+    usage = {"input_tokens": 50_000, "output_tokens": 8_000, "cache_read_input_tokens": 5_000}
+    assert budget.cost_from_usage("claude-opus-5", usage, batch=True) == 0.0
+    assert budget.estimate_cost("claude-opus-5", 50_000, 8_000) == 0.0
+
+
+def test_the_control_the_same_usage_is_NOT_free_on_the_paid_backend(monkeypatch):
+    """⭐ CONTROL for the test above: without it, a bug that always returned $0 (e.g. a broken
+    price table) would pass local's zero-cost test for the wrong reason."""
+    from api.services.wisdom.extract import budget, config
+
+    monkeypatch.delenv(config.BACKEND_ENV, raising=False)
+    usage = {"input_tokens": 50_000, "output_tokens": 8_000}
+    assert budget.cost_from_usage("claude-opus-5", usage, batch=True) > 0.0
+    assert budget.estimate_cost("claude-opus-5", 50_000, 8_000) > 0.0
+
+
 # ── 3 and 4. versions cannot collide, and paid cannot move ───────────────────
 
 def test_a_local_run_carries_a_DIFFERENT_extractor_version(local):

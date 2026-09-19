@@ -1134,9 +1134,11 @@
       "note": "Wisdom D12 daily archive capture jobs (stream S-A) kill switch. Internal: writes only R2 wisdom/ and wisdom.db. Read in api/services/wisdom/core/flags.py."
     },
     "WISDOM_CONTEXT_SNAPSHOT_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom D11 CONTEXT_SNAPSHOT at call time (stream S-E). Read-only on existing stores; internal wisdom.db writes only."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom D11 CONTEXT_SNAPSHOT at call time (stream S-E). Read-only on existing stores; internal wisdom.db writes only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, alongside its three S-E siblings (WISDOM_OUTCOMES_ENABLED, WISDOM_REPLAY_ENABLED, WISDOM_METRICS_ENABLED) -- D11-D20 owner-GO per PROGRAM-MANIFEST.md, no paid API in any of the four steps (pipeline.py docstring), verify boot before trusting."
     },
     "WISDOM_DESK_MARKERS_ENABLED": {
       "status": "dark",
@@ -1184,9 +1186,11 @@
       "note": "D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
     },
     "WISDOM_METRICS_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom metrics computation and the grounding eval (stream S-E, W1 Part 6). Internal; results shown on the admin dashboard only."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom metrics computation and the grounding eval (stream S-E, W1 Part 6). Internal; results shown on the admin dashboard only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, with its three S-E siblings; now also computes the new call_track_record metric (CONTRACTS §6.5)."
     },
     "WISDOM_MODELBOOK_DRAFTS_ENABLED": {
       "status": "dark",
@@ -1194,9 +1198,11 @@
       "note": "MEMBER-VISIBLE when on: Model Book / Setup Library drafts and the 17 playbooks, approval queue first (D19). Owner flips."
     },
     "WISDOM_OUTCOMES_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom OUTCOME engine over stated CALLs (stream S-E). Read-only on bars; internal wisdom.db writes only."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom OUTCOME engine over stated CALLs (stream S-E). Read-only on bars; internal wisdom.db writes only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, with its three S-E siblings. Zero real (non-golden) CALL records exist yet at flip time -- the extract batch(es) submitted this session are still in_progress -- so this activates ahead of data, matching how the daily chain's other steps already run."
     },
     "WISDOM_PV_EXAMPLES_ENABLED": {
       "status": "dark",
@@ -1204,9 +1210,11 @@
       "note": "MEMBER-VISIBLE when on: owner charts as Pattern Vision examples. Drafts only while the Pattern Intelligence Lab is paused. Owner flips."
     },
     "WISDOM_REPLAY_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom CALL-REPLAY against recorded UCT scan outputs (stream S-E, W1 §6.1-6.3). Internal metrics only."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom CALL-REPLAY against recorded UCT scan outputs (stream S-E, W1 §6.1-6.3). Internal metrics only. ARMED 2026-09-19 13:24 UTC on `web`, session 28, with its three S-E siblings."
     },
     "WISDOM_RETRIEVAL_INDEX_ENABLED": {
       "status": "dark",

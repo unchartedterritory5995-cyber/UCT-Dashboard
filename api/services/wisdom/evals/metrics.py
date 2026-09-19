@@ -1,4 +1,4 @@
-"""Metrics 6.1-6.3 (W1 Part 6; docs/wisdom/methodology/metrics-v1.md; CONTRACTS §6.5).
+"""Metrics 6.1-6.3 and 6.5 (W1 Part 6; docs/wisdom/methodology/metrics-v1.md; CONTRACTS §6.5).
 
 Every row carries numerator and denominator; value is NULL at 0/0 and renders "0/0", never a
 percentage. Unproven records are NOT in any denominator — they are counted by name in notes,
@@ -10,6 +10,10 @@ flattering number this program must not print.
                                    and never enter), flagged with the MATCHING setup that session
 6.3 outcome_weighted_see_rate      the any-level see rate weighted by quality-v1 outcome weight;
                                    the raw rate over the same records sits beside it in notes
+6.5 call_track_record              did the call's OWN stated levels work (target before stop), over
+                                   the outcomes-v1 population (hindsight included, per D8) — no
+                                   dependency on CALL-REPLAY, unlike 6.1/6.3. avg_ret_10 rides beside
+                                   it in notes, never folded into the rate. (6.4 is grounding.py.)
 
 Slices: overall, and one dimension at a time (setup, author, stream, month), each for
 status confirmed | provisional | combined.
@@ -32,6 +36,7 @@ DIMENSIONS = ("setup", "author", "stream", "month")
 SEE_RATE_METRICS = {"any": "uct_see_rate_any", "topn": "uct_see_rate_topn", "setup": "uct_see_rate_setup"}
 FALSE_POSITIVE = "false_positive_rate"
 OUTCOME_WEIGHTED = "outcome_weighted_see_rate"
+CALL_TRACK_RECORD = "call_track_record"
 GROUNDING_METRICS = ("grounding_faithfulness", "grounding_citation_validity", "grounding_coverage")
 
 
@@ -43,6 +48,13 @@ def is_see_rate_call(r: dict) -> bool:
 def is_explicit_pass(r: dict) -> bool:
     return (r.get("record_type") == "NEGATIVE_CALL" and (r.get("stance") or "") in ("passed", "avoid")
             and bool((r.get("ticker") or "").strip()))
+
+
+def is_outcome_population(r: dict) -> bool:
+    """The outcomes-v1 population (methodology §1): every CALL, hindsight included (D8), plus a
+    NEGATIVE_CALL that carries a direction. Mirrors pipeline._records' own filter exactly — this
+    predicate must never drift from what run_outcomes actually computed rows for."""
+    return bool((r.get("ticker") or "").strip()) and (r.get("record_type") == "CALL" or bool(r.get("direction")))
 
 
 def load_records(conn: sqlite3.Connection) -> list[dict]:
@@ -147,7 +159,8 @@ def compute(conn: sqlite3.Connection, *, vocab: Optional[replay_mod.VocabLookup]
                     slice_[dim] = value_key
                 calls = [e for e in items if is_see_rate_call(e[0])]
                 passes = [e for e in items if is_explicit_pass(e[0])]
-                if dim is not None and not calls and not passes:
+                outcome_pop = [e for e in items if is_outcome_population(e[0])]
+                if dim is not None and not calls and not passes and not outcome_pop:
                     continue
                 for level, metric in SEE_RATE_METRICS.items():
                     tally = _tally(calls, level)
@@ -159,6 +172,7 @@ def compute(conn: sqlite3.Connection, *, vocab: Optional[replay_mod.VocabLookup]
                      _rate(tally["hit"], tally["hit"] + tally["miss"]), dict(tally, level="setup",
                                                                              population=len(passes)))
                 emit(OUTCOME_WEIGHTED, slice_, *_weighted(calls, outcome_rows))
+                emit(CALL_TRACK_RECORD, slice_, *_call_accuracy(outcome_pop, outcome_rows))
     return rows
 
 
@@ -201,6 +215,44 @@ def _weighted(calls: list, outcome_rows: dict) -> tuple:
              "weighted_hits": round(weighted_hits, 6), "raw_value": _rate(numerator, denominator),
              "raw": f"{numerator}/{denominator}", "no_matured_outcome": no_outcome,
              "unproven_or_not_replayed": unproven, "population": len(calls)}
+    return numerator, denominator, value, notes
+
+
+def _call_accuracy(outcome_pop: list, outcome_rows: dict) -> tuple:
+    """call_track_record — did the call's OWN stated levels work, never mind whether UCT already
+    knew about the ticker. numerator = first_hit == target, denominator = first_hit in
+    {target, stop}; a call with no stated stop/target, or an unresolved same-bar hit, is counted
+    in notes and kept out of both (never scored as a miss — same discipline as 6.1-6.3)."""
+    numerator = denominator = 0
+    no_level_stated = unresolved = no_matured_outcome = 0
+    ret_10_values: list[float] = []
+    for r, _rv, _levels in outcome_pop:
+        outcome = outcome_rows.get(r["record_id"])
+        if not outcome:
+            no_matured_outcome += 1
+            continue
+        try:
+            detail = json.loads(outcome.get("horizons_json") or "{}")
+        except ValueError:
+            detail = {}
+        first = detail.get("first_hit")
+        if first == "target":
+            numerator += 1
+            denominator += 1
+        elif first == "stop":
+            denominator += 1
+        elif detail.get("stop_used") is None and detail.get("target_used") is None:
+            no_level_stated += 1
+        else:
+            unresolved += 1          # ambiguous same-bar hit, or matured with no hit yet either way
+        ret_10 = outcome.get("ret_10")
+        if ret_10 is not None:
+            ret_10_values.append(float(ret_10))
+    value = _rate(numerator, denominator)
+    notes = {"hits": numerator, "misses": denominator - numerator, "no_level_stated": no_level_stated,
+             "unresolved": unresolved, "no_matured_outcome": no_matured_outcome,
+             "avg_ret_10": round(sum(ret_10_values) / len(ret_10_values), 4) if ret_10_values else None,
+             "avg_ret_10_n": len(ret_10_values), "population": len(outcome_pop)}
     return numerator, denominator, value, notes
 
 

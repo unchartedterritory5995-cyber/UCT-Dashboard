@@ -362,10 +362,19 @@ flags are internal and are armed by the integrator after the merges, in one vari
 - Outcomes per manifest §7.3; bars via `bars_sqlite.get_bars_before/get_bars_since`, read-only; same-bar stop+target →
   `same_bar_ambiguity=1` unresolved unless 5-minute bars exist.
 - CALL-REPLAY sources and top-N per the eval-inputs map; levels (a) any, (b) top-N, (c) setup via `wisdom_vocab_maps`.
+- **Call track record (`call_track_record`).** Over the outcomes-v1 population (every CALL, hindsight
+  included per D8; a NEGATIVE_CALL only when it carries a direction): `numerator` = matured records
+  whose stated target traded before the stated stop; `denominator` = that plus stop-first. A record with
+  no stated stop or target, or an unresolved same-bar hit, is named in notes and kept out of both —
+  the call's own accuracy, independent of whether UCT's own scanner already knew about the ticker
+  (that question is `uct_see_rate_*`/`outcome_weighted_see_rate` above). `notes.avg_ret_10` carries the
+  mean 10-session return over records with a matured `ret_10`, reported alongside, never in place of, the
+  hit rate.
 - `wisdom_metrics` rows: `numerator`, `denominator`, `value` NULL when denominator is 0. Metric names:
   `uct_see_rate_any`, `uct_see_rate_topn`, `uct_see_rate_setup`, `false_positive_rate`, `outcome_weighted_see_rate`,
-  `grounding_faithfulness`, `grounding_citation_validity`, `grounding_coverage`, `extractor_precision`, `extractor_recall`,
-  `capture_health`. `slice_json` keys: `setup`, `author`, `stream`, `month`, `status` (confirmed | provisional | combined).
+  `call_track_record`, `grounding_faithfulness`, `grounding_citation_validity`, `grounding_coverage`,
+  `extractor_precision`, `extractor_recall`, `capture_health`. `slice_json` keys: `setup`, `author`, `stream`,
+  `month`, `status` (confirmed | provisional | combined).
 - Scripts under `tools/wisdom/evals_*.py` call the same package functions the jobs call.
 
 ### 6.6 S-F admin and publish

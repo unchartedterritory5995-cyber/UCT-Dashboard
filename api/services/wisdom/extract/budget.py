@@ -164,7 +164,21 @@ def usage_dict(usage: Any) -> dict:
 
 
 def cost_from_usage(model: str, usage: Any, *, batch: bool) -> float:
-    """USD for one response. input_tokens excludes cached tokens (API semantics)."""
+    """USD for one response. input_tokens excludes cached tokens (API semantics).
+
+    ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): the local ($0) backend's
+    real token usage used to be priced here as if it were the paid model, and the resulting
+    dollar figure was written into the SAME `wisdom_batches.cost_usd_actual` ledger real paid
+    extraction is rationed against — so dev/testing work on the free local backend could silently
+    eat into (or exhaust) the real programme budget. `LocalClient.cost_usd = 0.0` /
+    `is_local_backend = True` existed as a claim about this but were never actually read by the
+    pricing path. `config.is_local()` reads the SAME programme-wide backend switch every request
+    in a run shares, so gating here — the one place token counts become dollars — is correct for
+    every caller, present and future, without each one needing to remember to check."""
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        return 0.0
     u = usage_dict(usage)
     price_in, price_out = price_for(model)
     write_1h = u["ephemeral_1h_input_tokens"]
@@ -182,7 +196,15 @@ def cost_from_usage(model: str, usage: Any, *, batch: bool) -> float:
 def estimate_cost(model: str, input_tokens: int, output_tokens: int, *, batch: bool = True,
                   cached_input_tokens: int = 0) -> float:
     """cached_input_tokens > 0 prices that share as cache reads (the 'expected' view);
-    the budget check always passes 0 (the conservative view)."""
+    the budget check always passes 0 (the conservative view).
+
+    ⛔ Local-backend gate: see `cost_from_usage`'s docstring — the same reasoning applies to the
+    pre-flight estimate. Zeroing it here too keeps `select_within_budget`'s admitted-count honest
+    for a local run instead of spuriously rationing $0-real-cost requests against a paid cap."""
+    from api.services.wisdom.extract import config
+
+    if config.is_local():
+        return 0.0
     price_in, price_out = price_for(model)
     cached = max(0, min(int(cached_input_tokens), int(input_tokens)))
     usd = ((int(input_tokens) - cached) * price_in + cached * price_in * CACHE_READ_MULT
@@ -288,10 +310,25 @@ def program_spent_and_pending(conn) -> tuple[float, float]:
 
 def select_within_budget(conn, extractor_version: str, estimates: list[float], *,
                          cap: Optional[float] = None, exclude_pending_usd: float = 0.0,
+                         exclude_night_pending_usd: Optional[float] = None,
                          night_cap: Optional[float] = None,
                          night_date: Optional[str] = None) -> BudgetDecision:
     """How many of `estimates` (in order) fit. exclude_pending_usd removes rows that
-    are themselves among `estimates` (retries already counted as pending)."""
+    are themselves among `estimates` (retries already counted as pending) from the
+    per-version and programme-wide pools, which carry no date filter.
+
+    ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): `exclude_pending_usd` used
+    to be subtracted from the NIGHT-scoped pool too, but `night_spent_and_pending` filters
+    strictly by `created_at`'s date, and a retry's `created_at` is never refreshed on
+    resubmission -- `same_night.py` calls cross-night retry carry-forward NORMAL ("a retry rides
+    pass 1 of a later night under its ORIGINAL run id"). So a retry from an EARLIER calendar night
+    had its prior estimate subtracted from TONIGHT's `n_pending` even though it was never counted
+    there in the first place (its `created_at` doesn't match tonight's date) -- silently loosening
+    (never tightening) the per-night cap. `exclude_night_pending_usd` is the CORRECTLY
+    night-scoped exclusion -- a caller that knows which of its retries actually fall on
+    `night_date` passes it explicitly. It defaults to 0, never to `exclude_pending_usd`, so a
+    caller that does not pass it gets the conservative (never over-excluding, never admits more
+    than it should) answer instead of silently inheriting the bug's direction."""
     cap = budget_cap_usd() if cap is None else float(cap)
     actual, pending = spent_and_pending(conn, extractor_version)
     pending = max(0.0, pending - exclude_pending_usd)
@@ -301,7 +338,8 @@ def select_within_budget(conn, extractor_version: str, estimates: list[float], *
     # comparisons, never a min() of the two caps against one cumulative total.
     n_on = night_cap is not None and bool(night_date)
     n_actual, n_pending = (night_spent_and_pending(conn, night_date) if n_on else (0.0, 0.0))
-    n_pending = max(0.0, n_pending - exclude_pending_usd)
+    n_exclude = 0.0 if exclude_night_pending_usd is None else float(exclude_night_pending_usd)
+    n_pending = max(0.0, n_pending - n_exclude)
     running, allowed = 0.0, 0
     reason = None
     for est in estimates:

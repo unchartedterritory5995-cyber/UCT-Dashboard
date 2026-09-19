@@ -153,12 +153,27 @@ def score_night(ctx) -> dict:
     ⛔ No copy of either function's gates lives here. `reconcile.score_silently` refuses below
     `floor.MIN_RUNS` persisted runs and on a version or segment-set mismatch; `floor.score_silently`
     enqueues before it retracts. Calling them is how those stay true of this path.
+
+    ⛔⛔ BUG FOUND 2026-09-19 (adversarial review, session 28 part 3): this used to call
+    `reconcile.score_silently(ctx)` with no run ids, which reconciles whichever `floor.MIN_RUNS`
+    run directories are alphabetically LAST under the whole shared root — correct only when
+    `ctx.due_key` happens to be the single newest pending night. `score_completed_nights` can
+    process a BACKLOG of 2+ pending nights in one tick (an outage, or scoring simply falling
+    behind), and every older night in that backlog would silently reconcile the SAME newest dirs
+    a second time, succeed, and still get marked `'ok'` — permanently starving its OWN records at
+    `stability=NULL` with no retry. `ctx.due_key` IS this night (`score_completed_nights` sets it
+    from `same_night.scan`'s own key), so its specific pass run ids are looked up here and handed
+    to the reconciler explicitly, instead of letting it guess from the whole root.
     """
+    from api.services.wisdom.core import store
     from api.services.wisdom.extract import reconcile
+
+    with store.read() as conn:
+        run_ids = sorted(scan(conn)["nights"].get(ctx.due_key, {"runs": {}})["runs"])
+    out = {"night": ctx.due_key, "run_ids": run_ids}
+    out["reconcile"] = reconcile.score_silently(ctx, run_ids=run_ids)
     from api.services.wisdom.publish import floor
 
-    out = {"night": ctx.due_key}
-    out["reconcile"] = reconcile.score_silently(ctx)
     out["floor"] = floor.score_silently(ctx)
     return out
 
