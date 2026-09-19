@@ -167,6 +167,24 @@ export function buildTable(tb, doc) {
         continue
       }
       const px = TEXT_SIZE_PX[(cell && cell.text_size) || 'normal'] || TEXT_SIZE_PX.normal
+      // ⭐⭐ THE AUTHOR'S `text_formatting`, AND IT IS TWO INDEPENDENT AXES.
+      //
+      // ⚰️ THERE WAS NO `fontWeight` IN THIS FILE AT ALL. Pine's
+      // `text_formatting = text.format_bold` travelled from the member's script
+      // as far as… nowhere: `CELL_PROPS` never listed it, so the translator's
+      // cell pass `continue`d past it without a word, and a header row drew in
+      // exactly the same weight as the rows under it. A dashboard whose header
+      // does not read as a header is a dashboard with one less column of
+      // meaning, and nothing in the product said anything had been lost.
+      //
+      // ⛔ TWO PROPERTIES, NOT ONE ENUM. `bold_italic` is a real value (Pine
+      // combines with `+` — see `TEXT_FORMAT_FLAGS` in `pine.js`), so mapping
+      // the canonical string to a single CSS declaration would have to invent a
+      // fourth case; asking each axis its own question cannot. `'none'` answers
+      // no to both, which is also what an ABSENT value does — Pine's own default
+      // for the argument is `text.format_none`, so the two really are the same
+      // picture and neither writes a declaration.
+      const fmt = (cell && typeof cell.text_formatting === 'string') ? cell.text_formatting : ''
       setStyle(td, {
         padding: `${Math.round(CELL_PAD_PX / 2)}px ${CELL_PAD_PX}px`,
         fontSize: `${px}px`,
@@ -181,6 +199,8 @@ export function buildTable(tb, doc) {
         // symbols. It is the author's, deliberately — "prevents the closing `)`
         // from being clipped against the price scale".
         whiteSpace: 'pre',
+        ...(fmt.includes('bold') ? { fontWeight: 'bold' } : {}),
+        ...(fmt.includes('italic') ? { fontStyle: 'italic' } : {}),
         ...(cell.bgcolor ? { background: cell.bgcolor } : {}),
         ...(tb.border_width > 0 && tb.border_color
           ? { border: `${tb.border_width}px solid ${tb.border_color}` }

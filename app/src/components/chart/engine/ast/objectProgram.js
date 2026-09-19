@@ -105,9 +105,23 @@ export const FAMILY_PROPS = Object.freeze({
 })
 
 /** The per-cell vocabulary. Tables are the biggest reachable demand, and a cell
- *  is not a `set_*` on the table — it is addressed by (column, row). */
+ *  is not a `set_*` on the table — it is addressed by (column, row).
+ *
+ *  ⭐⭐ `text_formatting` IS HERE BECAUSE A DASHBOARD'S HEADER ROW IS BOLD.
+ *  ⚰️ It was missing, and that absence was not a refusal — `pine.js`'s cell pass
+ *  read `if (!OBJECT_CELL_PROPS.includes(k)) continue`, a bare `continue` with
+ *  no count, no name and no line number, so `text_formatting = text.format_bold`
+ *  left the member's header row indistinguishable from its data rows and left
+ *  no record anywhere that they had asked for anything. `text.format_bold` is
+ *  0.6% of the measured constant demand (`docs/pine/demand-constants.md:194`),
+ *  which for a table-shaped corpus is a header row in a great many dashboards.
+ *
+ *  ⛔ `text_font_family` IS STILL NOT HERE AND THAT IS A DECISION. A font this
+ *  renderer does not have is a font it would have to substitute, and a
+ *  substituted typeface silently changes every column width in the table. It is
+ *  named in `objectDiagnostics.unsupportedProps` instead. */
 export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'text_halign',
-  'text_valign', 'bgcolor', 'width', 'height', 'tooltip'])
+  'text_valign', 'bgcolor', 'width', 'height', 'tooltip', 'text_formatting'])
 
 /** Properties whose VALUE IS ANOTHER OBJECT. ⛔ These may only ever hold a
  *  `refExpr` of the stated family — this is where cross-family misuse is

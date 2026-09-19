@@ -44,9 +44,33 @@ export const CREATE_POSITIONAL = Object.freeze({
 })
 
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
- *  ADDRESS, not properties, so they are split out by the reader. */
+ *  ADDRESS, not properties, so they are split out by the reader.
+ *
+ *  ⭐ SLOTS 9 AND 10 WERE ADDED FOR `text_formatting`, WHICH IS PINE'S
+ *  FOURTEENTH ARGUMENT. `docs/pine/pine-presentation-spec.md:1604` prints the
+ *  vendor's own signature:
+ *
+ *    table.cell(table_id, column, row, text, width, height, text_color,
+ *               text_halign, text_valign, text_size, bgcolor, tooltip,
+ *               text_font_family, text_formatting)
+ *
+ *  so `text_formatting` cannot be reached positionally unless `text_font_family`
+ *  holds the slot in front of it. ⛔ IT IS A PLACEHOLDER AND NOT A CAPABILITY:
+ *  `text_font_family` is deliberately absent from `CELL_PROPS`, so a script that
+ *  writes one gets a NAMED refusal (`cell.text_font_family@<line>`) instead of a
+ *  font this renderer would have had to invent.
+ *
+ *  ⚠️⚠️ AND SLOTS 6–8 BELOW DISAGREE WITH THAT SIGNATURE — `text_size`,
+ *  `bgcolor` and `tooltip` are the right three names in the wrong order (the
+ *  vendor's is `text_size, bgcolor, tooltip`). That is a PRE-EXISTING defect and
+ *  it is left alone ON PURPOSE: correcting it changes what already-imported
+ *  scripts render today, which is a behaviour change that needs its own
+ *  evidence and its own commit, not a drive-by inside a different one. It costs
+ *  nothing here because slots 9 and 10 sit AFTER all three however they are
+ *  ordered — the permutation is closed within 6–8. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size'])
+  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  'text_font_family', 'text_formatting'])
 
 /**
  * A Pine setter name → the canonical properties it writes, in the order its
@@ -113,8 +137,8 @@ export function collectObjectOps(stmts, h) {
     const dot = word.indexOf('.')
     return dot > 0 ? word.slice(0, dot) : null
   }
-  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
-
+  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+
   /** Every name a block REASSIGNS with `:=`, at any depth inside it.
    *
    *  ⛔ `:=` ONLY. A plain `=` inside the block declares a name local to THAT
