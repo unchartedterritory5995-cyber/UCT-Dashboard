@@ -616,22 +616,41 @@ un-maximises).
      MEASURABLE -> MET`, snapshot `20260919T042310Z-59bc103ee.json` vs. `20260919T042014Z-59bc103ee.json`.
      Tally: **MET 5→6, NOT MEASURABLE 3→2.** Overall verdict unchanged (`NOT MET — do not flip`) —
      rows 1–4 above are still open. Fresh read written to `evidence/canary-scope.json`.
-  6. ⛔⛔ **NOT MET — "soak clean for >= 24 h" — genuinely open, NOT a stale-artifact issue like
-     items 1/4/5 above.** Checked the same way: read the actual soak log the gate reads
-     (`C:\Users\Patrick\uct-render-soak\soak.log`, a LOCAL file outside the repo, not one this
-     correction can commit). It ends in a `KeyboardInterrupt` traceback at **23:15:02 ET tonight**
-     — the soak process was manually stopped, not this session's doing and not a crash. **The tail
-     entries BEFORE that stop are real, repeating FAILs**, not old history: `stale_leases reached 2`
-     / `stuck_jobs reached 1` — *"a job nobody owns and nobody will answer (S7)"* — appearing
-     consistently across many consecutive ticks right up to the point it was killed. This is the
-     same "sums the whole log, one bad entry poisons it forever" shape as `check_smoke`'s documented
-     defect, but here the poison is CURRENT, not stale: the standing S7 lease/stuck-job problem was
-     apparently live at the moment the process stopped, not fixed-then-forgotten.
-     ⛔ **Deliberately not restarted or debugged here** — this needs its own investigation into WHY
-     leases go stale / jobs go unowned (durable-job-lease code, not looked at in this pass), and
-     restarting a 24h soak on top of an unfixed cause just produces the same 147/474-shaped result
-     again. Flagging rather than forcing: this is real, open work, distinct from every other row in
-     this section tonight.
+  6. ✅✅ **"soak clean for >= 24 h" — ROOT-CAUSED AND FIXED 2026-09-19, same session as the finding.**
+     Was genuinely NOT MET (not a stale-artifact issue): the real soak log
+     (`C:\Users\Patrick\uct-render-soak\soak.log`, a local file outside the repo) ended in a
+     `KeyboardInterrupt` at 23:15:02 ET, with 147 consecutive real FAIL ticks before that, all
+     reporting the identical `stale_leases=2, stuck_jobs=1` — a FROZEN residue (confirmed:
+     every one of the 147 FAIL lines shares the exact same `samples=5000`, a true rolling-window
+     cap per `save_state`'s `[-max_samples:]` slice, so this was one real drift event that never
+     cleared, not 147 independent bad measurements).
+     **Root cause, traced to source, not guessed:** `soak_job.py`'s own `soak()` function creates a
+     fresh `JobRuntime` every ~13-minute Task-Scheduler tick but never called `rt.resume_pending()`
+     after `.start()` — unlike EVERY other real caller of `JobRuntime` in this codebase (production
+     boot, `commands.py:140`; `chaos_scenarios.py`; `oi40_producer_probe.py`; the test suite).
+     `JobRuntime.stop()` → `store.release_all(owner)` clears a job's lease but deliberately leaves
+     `state='running'` unchanged ("the next pod resumes AT ONCE" is the documented contract) —
+     `resume_pending()` is the ONLY thing that ever reclaims or terminally-finishes such a row. A
+     job caught mid-flight at any tick boundary was therefore stuck in `('queued','running')`
+     forever, tripping `store.stuck(60s)` on every subsequent tick with no way to ever clear.
+     **This is a bug in the soak harness's own lifecycle usage, not in the shared production
+     `JobRuntime`/`JobsStore` code** — production's `commands.py` calls `resume_pending()` correctly.
+     **Fixed:** added the missing `rt.resume_pending()` call right after `.start()`, with a full
+     explanation inline. **Mutation-proved the RIGHT way after getting it wrong once**: the first
+     self-check case (`"resume_pending()" in inspect.getsource(soak)`) was a plain text search, and
+     its own explanatory comment ALSO contains the literal string `resume_pending()` — so deleting
+     the real call left the check GREEN, matching the comment instead of the code (the exact
+     "code, never prose" class this repo's own CLAUDE.md names repeatedly). Rewritten as an AST walk
+     over actual `Call` nodes (`ast.parse` + `ast.walk`, checking for `.start`/`.resume_pending`
+     method-call nodes, never a string search) — re-tested: mutation reds exactly the new case and
+     nothing else (12/13 pass, 1 fail, named), reverted, self-check clean at **13/13**.
+     ⛔ **Still open, deliberately not attempted here:** actually restarting the standing soak
+     Task Scheduler job to prove the fix clears the real backlog and runs clean for 24h — that is
+     itself standing infrastructure not mine to restart without the same coordination this session
+     already applied to the R49 poller. The fix is on disk now (this exact worktree's file path is
+     what the scheduled task invokes), so its NEXT natural tick will pick it up and should
+     immediately clear the 1-2 stuck rows via `resume_pending()`'s own reclaim/abandon logic — worth
+     checking the log after that tick to confirm, not assumed.
 
   ⭐ Note the gate's `#render-alerts locked to admins` row is **MET** and is a DIFFERENT channel from
   `#system-alerts` (OI-46). Do not conflate them.

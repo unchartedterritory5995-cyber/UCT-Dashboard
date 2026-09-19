@@ -242,6 +242,23 @@ def soak(minutes: float, rate: float, sample_s: float, state: dict, *, max_sampl
     store = JobsStore(os.environ["DISCORD_RENDER_DB_PATH"])
     rt = JobRuntime(store=store, handlers={"chart": _work}, edit_fn=stub.edit_fn, delivery=stub,
                     owner="soak-pod").start()
+    # ⛔⛔ WITHOUT THIS, A JOB IN-FLIGHT AT ANY PRIOR TICK'S `stop()` BOUNDARY IS STUCK FOREVER.
+    # `stop()` -> `store.release_all(owner)` clears `lease_until` but leaves `state='running'`
+    # unchanged (by design -- release_all's own contract is "next pod resumes AT ONCE", not
+    # "mark it done"). Every OTHER real caller of JobRuntime in this codebase --
+    # `commands.py:140` (production boot), `chaos_scenarios.py`, `oi40_producer_probe.py`, and
+    # the test suite -- calls `resume_pending()` right after `.start()` for exactly this reason:
+    # it re-queues resumable rows and `finish()`-terminates expired ones, which is the ONLY thing
+    # that ever clears a released-but-not-finished row out of ('queued','running'). This soak
+    # restarts JobRuntime fresh every ~13-minute tick (Task Scheduler cadence), and every restart
+    # is a `stop()` boundary a job can be caught mid-flight at -- so omitting this call is not a
+    # cosmetic gap, it is a permanent, non-clearing false-FAIL generator: `stale_leases`/
+    # `stuck_jobs` accumulate a small residue at a restart boundary and then read non-zero on
+    # EVERY subsequent tick forever, because nothing between here and `sample()` ever reclaims
+    # them. Measured 2026-09-19 against the real soak log: 147 consecutive FAIL ticks, all
+    # reporting the identical `stale_leases=2, stuck_jobs=1` -- a frozen residue, not growing
+    # drift, exactly the shape this fix predicts and clears.
+    rt.resume_pending()
     offered = refused = 0
     started = time.time()
     next_offer = started
@@ -360,6 +377,32 @@ def self_check() -> int:
                   len(back["samples"]) == 20 and back["samples"][-1]["t"] == 49.0))
     cases.append(("a missing state file resumes from empty, not from a crash",
                   load_state(str(tmp.parent / "nope.json")) == {"samples": [], "runs": 0}))
+
+    # …and `soak()` actually calls `resume_pending()` after `.start()`. Derived from the real
+    # source, never a comment: a job in-flight at any prior tick's `stop()` boundary is left in
+    # `state='running'` (release_all clears the lease, not the state -- by design, so "the next
+    # pod resumes AT ONCE"), and `resume_pending()` is the ONLY thing that ever reclaims or
+    # terminally-finishes such a row. Every other real JobRuntime caller in this codebase
+    # (production's commands.py:140, chaos_scenarios.py, oi40_producer_probe.py, the test suite)
+    # calls it; this soak restarts JobRuntime fresh every ~13-minute tick, so a call missing here
+    # is not cosmetic -- it is a permanent, non-clearing false-FAIL generator (measured
+    # 2026-09-19: 147 consecutive real FAIL ticks, frozen at the identical stale_leases=2,
+    # stuck_jobs=1, because nothing between `.start()` and the offer loop ever reclaimed the
+    # residue). `resume_pending()`'s OWN correctness is tested elsewhere
+    # (tests/test_discord_render_v2_core.py) -- this only proves the call site exists, matching
+    # this repo's "derive from source, never a comment" convention.
+    # ⛔ AST, never a text search — this file's OWN comment above contains the literal string
+    # "resume_pending()" (explaining why the call matters), so a bare `"resume_pending()" in
+    # source` check matches the comment and passes even with the call deleted. Measured: the
+    # first version of this case did exactly that and stayed green through the mutation it
+    # exists to catch. Parse the real syntax tree and look for an actual method-call node.
+    import ast
+    import inspect
+    _soak_tree = ast.parse(inspect.getsource(soak))
+    _calls = [n.func.attr for n in ast.walk(_soak_tree)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    cases.append(("soak() calls resume_pending() after start() -- a stuck-job leak otherwise",
+                  "start" in _calls and "resume_pending" in _calls))
 
     for name, ok_ in cases:
         print(f"  {'ok  ' if ok_ else 'FAIL'} {name}")
