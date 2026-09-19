@@ -188,6 +188,12 @@ UNITS = [
     # the build record's mutation test).
     ("s6-cp3-build-record", ["a35762d0d"], True),           # impEff derives weightBuckets, MEMBER-VISIBLE
     ("d5-cp6-build-record", ["1a937192f"], False),          # confirmed-rename producer, renamed-only, api/services only
+    # ⛔ member_visible_files derives True here: api/routers/member.py is a new
+    # file under api/routers/, a real (non-comment-only) code change -- same
+    # "reachable, unrendered" reasoning already applied to D5 CP7 (no UI caller
+    # yet, but a genuine new HTTP endpoint a member's authenticated client can
+    # reach). #!last: moves to this checkpoint.
+    ("s6-cp4-build-record", ["359190d4d"], True),           # GET /api/member/interest, MEMBER-VISIBLE (new route, paid-gated)
 ]
 
 _AFTER = re.compile(r"^#!after:\s*(\S+)\s*<-\s*(\S+)\s*$")

@@ -219,3 +219,20 @@ deployment list read at attestation time:
   e38d47b55 REMOVED   2026-09-18T22:21:19.517Z
 attested by: Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
 
+=== ET 2026-09-18 21:40 EDT Fri ===
+batch: d5-cp6-build-record
+guard refusal:
+[pre-push] web is SUCCESS on f9d6dadc7, 634s settled — safe to push.
+[pre-push] 3 distinct web deploys in the last 60 min (f9d6dadc7, 7899ae8d5, 09be672f4) — master is under concurrent development and a build may be in flight from a session this one cannot see. This is the D-05 shape; it needs a human who can see every workstream, not a guard.
+[pre-push] ⛔ REFUSING THE PUSH. One master merge at a time, repo-wide.
+[pre-push]    This is a BURST-only refusal with recency and in-flight passing on their own. A human who can see every workstream may attest: set UCT_BURST_ATTESTED_BY and UCT_BURST_ATTESTED_AT (ISO, within 15m) and push again.
+error: failed to push some refs to 'https://github.com/unchartedterritory5995-cyber/UCT-Dashboard.git'
+deployment list read at attestation time:
+  f9d6dadc7 SUCCESS   2026-09-19T01:29:36.642Z
+  7899ae8d5 REMOVED   2026-09-19T01:16:15.476Z
+  09be672f4 REMOVED   2026-09-19T01:14:55.744Z
+  09be672f4 REMOVED   2026-09-19T01:02:49.187Z
+  09be672f4 SKIPPED   2026-09-19T00:14:56.406Z
+  a4257400a REMOVED   2026-09-18T23:39:16.284Z
+attested by: Patrick (owner; delegated to the running Claude Code session, 2026-09-17)
+
