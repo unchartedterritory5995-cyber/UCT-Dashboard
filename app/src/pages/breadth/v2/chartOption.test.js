@@ -326,3 +326,14 @@ describe('reader choices survive a rebuild', () => {
     expect(opt.dataZoom.map(z => z.type)).toEqual(['inside'])
   })
 })
+
+describe('⚰️ the reconstructed band is drawn once per PANEL, never once per line', () => {
+  it('three lines in one panel carry one band between them, not three stacked', () => {
+    const pcts = ALL_METRICS.filter(m => unitOf(m.key) === UNIT.PCT).slice(0, 3).map(m => m.key)
+    const vals = Object.fromEntries(pcts.map(k => [k, [1, 2, 3, 4]]))
+    const coverage = { regions: {}, runs: [{ fromIndex: 0, toIndex: 2 }] }
+    const opt = buildOption(DATES, vals, pcts, { coverage })
+    const withBand = opt.series.filter(s => s.markArea?.data?.length)
+    expect(withBand).toHaveLength(1)
+  })
+})

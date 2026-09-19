@@ -60,9 +60,14 @@ export const LOG_UNITS = new Set([UNIT.COUNT, UNIT.INDEX, UNIT.CUM])
 //: exactly the "nearly invisible" audit finding — and a reader cannot act on
 //: a caveat they cannot see. The border gives the region a legible boundary
 //: even at a fill opacity light enough not to obscure the series drawn over it.
-const NOT_RECORDED_FILL = 'rgba(139, 133, 120, 0.22)'
+//: ⚰️ At 0.22/0.18 AND drawn once per SERIES, a three-line panel stacked the
+//: reconstructed band three times (~45%) and on the Max range washed the whole
+//: plot solid blue (production, 2026-09-19). The band is now drawn once per
+//: PANEL (`coverageMarks`' `withRuns`), so a lighter fill reads the same in every
+//: panel and the edge still carries the boundary.
+const NOT_RECORDED_FILL = 'rgba(139, 133, 120, 0.14)'
 const NOT_RECORDED_BORDER = 'rgba(139, 133, 120, 0.55)'
-const RECONSTRUCTED_FILL = 'rgba(96, 165, 250, 0.18)'
+const RECONSTRUCTED_FILL = 'rgba(96, 165, 250, 0.09)'
 const RECONSTRUCTED_BORDER = 'rgba(96, 165, 250, 0.55)'
 
 /**
@@ -175,7 +180,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
   const grids = gridFor(panels, {
     top: pct(30) ?? 6,
     bottom: pct(slider ? 70 : 30) ?? 14,
-    gap: pct(30) ?? 4,
+    gap: pct(40) ?? 4,
     endLabels,
   })
   const { indexOf } = panelIndexByKey(panels)
@@ -308,7 +313,7 @@ export function buildOption(dates, valuesByKey, selected, opts = {}) {
       // panel's coordinate space, not just within one series' own labels.
       labelLayout: { moveOverlap: 'shiftY' },
       emphasis: { focus: 'series' },
-      ...coverageMarks(coverage, key, dates),
+      ...coverageMarks(coverage, key, dates, firstKeyOfPanel[panelIdx] === key),
       ...(lines.length
         ? { markLine: { silent: true, symbol: ['none', 'none'], animation: false, data: lines } }
         : {}),
@@ -430,7 +435,7 @@ function panelLines(panel, panelIdx, { refLines, extremes, live, dates, chrome }
  * flat", which is precisely the lie A-10 names: *"Series that begin 2026-01-02 simply
  * start mid-plot."*
  */
-function coverageMarks(coverage, key, dates) {
+function coverageMarks(coverage, key, dates, withRuns = true) {
   if (!coverage) return {}
   const areas = []
 
@@ -444,7 +449,9 @@ function coverageMarks(coverage, key, dates) {
   }
   // The provenance strip: reconstructed sessions are REAL readings with a caveat, so they
   // are tinted differently from "not recorded at all" — two different facts, two inks.
-  for (const run of coverage.runs ?? []) {
+  // ⛔ The runs are a property of the SESSION, not of a series, so they are drawn once
+  // per panel (on its first series) — never once per line, which stacked the tint.
+  for (const run of withRuns ? (coverage.runs ?? []) : []) {
     areas.push([
       { xAxis: dates[run.fromIndex],
         itemStyle: { color: RECONSTRUCTED_FILL, borderColor: RECONSTRUCTED_BORDER, borderWidth: 1 } },
