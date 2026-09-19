@@ -1458,7 +1458,7 @@
 
     },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
-      "status": "live",
+      "status": "armed",
       "where": [
         "web"
       ],
