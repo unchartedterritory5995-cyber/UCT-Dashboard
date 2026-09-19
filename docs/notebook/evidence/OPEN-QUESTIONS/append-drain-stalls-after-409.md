@@ -1,85 +1,76 @@
-# ⛔ D3's REMAINING BLOCKER — the append drain stalls after its first 409
+# ⚰️ TITLE RETAINED, CLAIM WITHDRAWN — the append drain is not stalling, it is SKIPPING
 
-**Status: precisely characterised, NOT resolved. This is the last thing between
-the programme and D3, and it is a specific testable hypothesis rather than an
-INCONCLUSIVE.**
+**This file first said "the append drain stalls after its first 409". That was
+wrong, and the correction is the finding.**
 
 Evidence: `evidence/20260919T081701-p3-append-door-restored-guard-unknown-only/`
 
-## What the wire shows, in order
+## What actually happens
 
-```
-POST /                      → 200    create
-POST /<id>/opened           → 200
-PUT  /<id>                  → 200    baseline save
-POST /<id>/opened           → 200
-PUT  /<id>+SENT             → None   ×3   offline — correct
-POST /<id>/embeds           → 200    ⭐ the append door FIRES AND SUCCEEDS
-PUT  /<id>+SENT             → 409    the embed moved the revision; entry is stale
-POST /<id>/opened           → 200
-POST /<id>/images           → 200
-PUT  /<id>                  → 200    (no +SENT — a different write)
+`app/src/pages/journal-2-0/tabs/NotebookTab.jsx:77`
+
+```js
+const drain = useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
 ```
 
-Then nothing. **No second `+SENT` attempt for 240 s.**
+`app/src/pages/journal-2-0/lib/offline/outboxDrain.js:288`
 
-## Why that is surprising
-
-`useOutboxDrain.js:32` — `RETRY_INTERVAL_MS = 60000`, and `:288` re-drains on
-that interval whenever `pendingRef.current > 0`. Four retries should have fired
-inside the window. **One 409, then silence.**
-
-And the durable store agrees that nothing moved:
-
-```
-store trail (queued, dirty, base, sentence-in-record):
-  [(1, True, '72+00:00', True)]        ← ONE entry, for the whole 240 s
+```js
+if (excludeNoteId && entry.noteId === excludeNoteId) {
+  results.push({ ..., outcome: SKIPPED })
+  continue
+}
 ```
 
-A GREEN metadata cell shows a transition — `[(1,True,…), (0,False,…)]`. This shows
-none. The entry was neither sent, nor rebased, nor forked.
+**The sweep never touches the note the editor has open.** That is designed, it is
+documented in three places, and its reason is in the parameter doc: *"the note the
+editor currently owns — two writers on…"*. The editor is responsible for sending
+its own open note.
 
-## What SHOULD have happened
+The P3 wire shows `POST /<id>/opened` **after** the embed: the cell returns to the
+note. From that moment the entry is `excludeNoteId`'s, and the drain correctly
+skips it forever.
 
-`outboxDrain.js` has a path for exactly this. On a 409 where the ring cannot vouch
-for the revision, it asks the DIFF (`classifyServerChange`): an embed is an
-`APPEND_ONLY` change, so `mergeAppends` should put the server's appended node back
-onto the queued body and resend. That path requires
-`mine?.serverNote && isUsableBaseline(mine.serverUpdatedAt)`.
+## ⛔ So the INCONCLUSIVE is an INSTRUMENT result, not a product stall
 
-## The hypotheses, in the order worth testing
+The cell's completion condition is *"wait until the outbox no longer holds this
+note's entry"*. For a note the member still has open, **that condition can never
+be satisfied by the drain**, by design. The rig was measuring for an event that
+the product has deliberately arranged not to happen.
 
-1. **The pre-send server read returned nothing** (`mine.serverNote` null), so both
-   the ring path and the diff path were skipped and the entry fell through to
-   `KEPT` — words preserved, never delivered.
-2. **`pendingRef.current` is 0** despite the entry being queued, so the 60 s
-   retry never fires. That would make the stall permanent, not slow.
-3. **The leader lock is not held by this tab**, so no drain runs at all. The
-   probe read `locksHeldPending: '1/0'` at setup time; it was not re-read during
-   the wait.
+⭐ This is the same class the session already paid for twice — a cell reporting a
+true sentence about the wrong subsystem. *"The drain had not finished"* is
+accurate and reads as a product fault; the drain had not STARTED on that entry,
+and would not.
 
-⭐ These are distinguishable by ONE instrumented run: log the drain's own
-`results[]` outcome (`SENT` / `KEPT` / forked) and `pendingRef.current` on each
-interval tick. The rig currently reads the STORE and the WIRE, and both are
-consistent with all three hypotheses — which is exactly why reading harder will
-not settle it.
+## What I had wrong, and what refuted it
 
-## ⛔ What this is NOT
+| I wrote | what the code says |
+|---|---|
+| "four retries should have fired inside the window" | they did fire; each one hit the `SKIPPED` branch before any network call, which is why the wire shows nothing after the 409 |
+| "hypothesis 2 — `pendingRef.current` is 0 so the retry never fires" | **refuted**: `countPending()` runs after every drain (`useOutboxDrain.js:268`), so the count is refreshed |
+| "hypothesis 1 — the pre-send server read returned nothing" | not reached; the entry never got that far |
 
-- **Not a loss.** `RED = 0`. The member's words are in the durable copy and in
-  the queue the entire time. The tool's own words: *"Not 'lost'; not yet
-  delivered."*
-- **Not the guard.** `DEFERRED-BY-GUARD = 0` — the door was genuinely open.
-- **Not fix 6, and not the provenance split.** Both are upstream of the send;
-  this is the drain's 409 handling.
-- **Not visible before now.** Every previous append run had the guard `full`, so
-  the door deferred and no drain ever started. Opening the door is what made this
-  measurable — which is what P3 was for.
+## What would make the cell measurable
 
-## Why the rig cannot just wait longer
+Either of these, and they answer different questions:
 
-The 240 s ceiling was already raised from 120 s this session. If hypothesis 2 or 3
-is right the entry never drains at all, and a larger ceiling buys a longer wait
-for the same answer. ⛔ **Do not close this by raising the budget again** — that
-is the third time today that lever would have hidden a finding instead of
-answering it.
+1. **Close/leave the note before waiting** — then the entry becomes the sweep's
+   (`NoteEditorPage.jsx:807`: *"this is exactly when the note leaves
+   `excludeNoteId` and becomes the sweep's"*) and the existing drain-wait is
+   valid. This measures the SWEEP's handling of an append 409.
+2. **Wait for the EDITOR to send it** instead of for the outbox to empty — a
+   different completion condition, measuring the path a member on the open note
+   actually takes.
+
+⛔ **Not by raising the ceiling.** The entry will never drain while the note is
+open; a longer wait buys a longer wait. That lever would have hidden this three
+times today.
+
+## Unchanged and still true
+
+- **RED = 0.** The member's words are in the durable copy and in the queue
+  throughout. Nothing was lost.
+- **DEFERRED-BY-GUARD = 0.** The flip was genuinely live; the door was open.
+- Neither fix 6 nor the provenance split is implicated — both sit upstream of the
+  send.
