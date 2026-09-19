@@ -135,7 +135,8 @@ def test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them():
     """Re-asserted per the brief: the switch surface has not moved under the tool."""
     from api.services.wisdom.core import flags
 
-    assert len(flags.GATES) == 25, len(flags.GATES)
+    # Was 25; WISDOM_TWITTER_LISTENER_ENABLED added by session 28 (2026-09-19).
+    assert len(flags.GATES) == 26, len(flags.GATES)
     names = {row[0] for row in flags.GATES}
     for switch in ingest.SWITCHES:
         assert switch in names, switch

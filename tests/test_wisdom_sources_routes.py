@@ -98,7 +98,11 @@ def test_an_admin_reads_status_and_coverage_without_any_text(real_app, client, w
         status = client.get("/api/admin/wisdom/sources/discord/status")
         coverage = client.get("/api/admin/wisdom/sources/transcripts/coverage")
         verify = client.get("/api/admin/wisdom/sources/sunday-scans/verify")
-    assert status.status_code == 200 and len(status.json()["channels"]) == 4
+    from api.services.wisdom.sources import discord as dc
+
+    # Derived, not hardcoded: the in-scope set grew from 4 to 24 in session 28
+    # (2026-09-19, Jersace/Main Chat/Setup Examples) and will keep moving.
+    assert status.status_code == 200 and len(status.json()["channels"]) == len(dc.in_scope_channel_ids())
     assert coverage.status_code == 200 and coverage.json()["threshold"] == 0.98
     assert verify.status_code == 200 and verify.json()["started"] is False  # no limit, nothing starts
 
@@ -159,7 +163,10 @@ def test_the_machine_route_requires_the_push_secret(client, wisdom_db, monkeypat
     assert client.post(path, json=body, headers={"Authorization": "Bearer wrong"}).status_code == 401
     ok = client.post(path, json=body, headers={"Authorization": "Bearer s3cret-test"})
     assert ok.status_code == 200 and ok.json()["inserted"] == 2
-    bad_channel = client.post(path, json={**body, "channel_id": "1216816863313657886"},
+    # #main-chat (1216816863313657886) was out of scope until session 28 (2026-09-19)
+    # added it for AtTheAsk; #alex-jones stays out of scope by owner ruling the same
+    # session ("doesn't really bring much value") -- still a valid out-of-scope fixture.
+    bad_channel = client.post(path, json={**body, "channel_id": "1216760919254892545"},
                               headers={"Authorization": "Bearer s3cret-test"})
     assert bad_channel.status_code == 422
     monkeypatch.setenv("PUSH_SECRET", "")

@@ -1758,3 +1758,48 @@ numbers, and stops. Re-arming is never automatic — a stop is a ruling request,
 
 `railway variables --service web --set "WISDOM_EXTRACT_ENABLED=0"` — stops submission **and
 reaping** (same variable). Passes already persisted survive; open batches strand until re-armed.
+
+## R95 re-ruling — N3_PRIORITY_TO_CEILING (2026-09-18)
+
+Owner ruling, verbatim: **"rule N3_PRIORITY_TO_CEILING, fund the Sonnet finish."** This supplies
+the two values Session 27 left as owner-only: which extraction path re-arms (the Session 26
+Opus N=3 priority-to-ceiling build, exactly as built and armed — the Session 27 prescreen/
+targeted-N levers were measured, not authorized, and stay unwired), and what funds the
+interrupted Sonnet golden-gate verdict.
+
+**N3_PRIORITY_TO_CEILING — ARMED, verified in-process:**
+
+```
+WISDOM_EXTRACT_ENABLED=1          (railway variables --kv, and echoed by the running
+                                    container's own python: flags.extract_enabled() == True)
+WISDOM_EXTRACT_MODEL=claude-opus-5
+WISDOM_EXTRACT_PASSES=3
+WISDOM_DAILY_SEGMENT_LIMIT=6000
+WISDOM_EXTRACT_BUDGET_USD=1800    (program) / WISDOM_EXTRACT_DAILY_BUDGET_USD=400 (night)
+WISDOM_EXTRACT_PRIORITY=<the 15-category R100 order, unchanged from Session 26>
+WISDOM_EXTRACT_PRESCREEN_ENABLED  unset (Session 27's lever, not part of this ruling)
+```
+
+**Sonnet finish — BLOCKED, not funded.** Two prior attempts at the real 83-segment run hit
+infra interruptions (container sleep-when-idle mid-run once; a second attempt's shell died
+before it reached its own ledger init, confirmed **$0 spent** both times — no
+`spend-ledger.json` was ever written on the second attempt and `wisdom_batches`/
+`wisdom_extract_requests` stayed at 0 in its scratch db). Stale empty artifacts
+(`/tmp/gate-sonnet-v2.db`, `/tmp/gate-sonnet-v2-out/`) were cleared and a fresh dry-run
+confirmed clean (83 segments, $6.00 cap, extractor `wx-v0-claude-sonnet-5-fc47bc97`).
+
+The actual launch command was refused by Claude Code's own auto-mode security classifier
+(`[Real-World Transactions]`) — it is a direct real-money spend action, and per this
+programme's standing discipline this session never routes around a classifier block. The
+owner must run it directly:
+
+```
+railway ssh --service web "cd /app && PYTHONPATH=/app /opt/venv/bin/python -u \
+  tools/wisdom/extract_golden_gate.py --data-dir /data/wisdom/scratch \
+  --golden-file golden-v1.1.jsonl --db /tmp/gate-sonnet-v2.db \
+  --out-dir /tmp/gate-sonnet-v2-out --model claude-sonnet-5 --max-usd 6.0 --phases gate"
+```
+
+Run it backgrounded (survives an SSH disconnect via the script's own batch-submit-then-poll
+design) and check back via `--db`'s ledger; recovery-by-custom-id is documented in Session 27's
+recon record if a third interruption strands an in-flight batch.

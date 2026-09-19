@@ -283,8 +283,10 @@ def test_r2_writes_are_immutable_and_confined_to_the_wisdom_prefix(monkeypatch):
 
 # ── 7. authors and gates ─────────────────────────────────────────────────────
 
-def test_exactly_four_call_authors_and_exact_alias_matching():
-    assert authors.call_authors() == frozenset({"tsdr", "bracco", "chartmaster", "manrav"})
+def test_exactly_six_call_authors_and_exact_alias_matching():
+    # Was four; Jersace and AtTheAsk were added by owner ruling 2026-09-19 (session 28).
+    assert authors.call_authors() == frozenset(
+        {"tsdr", "bracco", "chartmaster", "manrav", "jersace", "attheask"})
     assert authors.author_for_alias("patrick (tsdr)") == "tsdr"
     assert authors.author_for_alias("Braczyy") == "bracco"
     assert authors.author_for_alias("Ravi") is None
