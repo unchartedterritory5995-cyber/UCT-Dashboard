@@ -86,3 +86,18 @@ def test_write_report_creates_md_and_json_with_expected_naming(tmp_path):
     assert data["verdict"] == v
     assert data["score"] == result["score"]
     assert "test-indicator" in paths["md"].read_text()
+
+
+def test_main_requires_vendor_screenshot_argument(capsys):
+    import sys
+    old_argv = sys.argv
+    sys.argv = ["vendor_parity_capture.py", "--script", "x.pine", "--slug", "x"]
+    try:
+        raised = False
+        try:
+            vpc.main()
+        except SystemExit:
+            raised = True
+        assert raised, "argparse should reject a missing required --vendor-screenshot"
+    finally:
+        sys.argv = old_argv

@@ -89,3 +89,59 @@ def write_report(out_dir: pathlib.Path, slug: str, tag: str, member_shot: pathli
         f"{'⛔ Size mismatch — the two captures are not directly comparable.' if verdict_str == 'SIZE_MISMATCH' else ''}\n"
     )
     return {"md": md_path, "json": json_path}
+
+
+import argparse
+import sys
+
+import tools.pine_member_pane_capture as pmpc
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--base", default="http://127.0.0.1:8131",
+                     help="the local member-pane rig (see docs/pine/wip/rig/boot_rig.py)")
+    ap.add_argument("--script", required=True, type=pathlib.Path,
+                     help="path to the .pine fixture to attach on our own side")
+    ap.add_argument("--slug", required=True,
+                     help="short name for output files, e.g. 'rsi-divergence'")
+    ap.add_argument("--vendor-screenshot", required=True, type=pathlib.Path,
+                     help="path to the ALREADY-CAPTURED TradingView screenshot — a human "
+                          "must produce this; this tool never opens or logs into TradingView")
+    ap.add_argument("--out", default="docs/pine/capture", type=pathlib.Path)
+    ap.add_argument("--tag", default=time.strftime("%Y-%m-%d"))
+    ap.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
+    ap.add_argument("--threshold-reason", default="",
+                     help="REQUIRED when --threshold differs from the default; printed in "
+                          "the report, mirroring chart_parity.py's --tolerance-reason")
+    args = ap.parse_args()
+
+    if args.threshold != DEFAULT_THRESHOLD and not args.threshold_reason:
+        ap.error("--threshold-reason is required when --threshold overrides the default")
+
+    if not args.vendor_screenshot.exists():
+        print(f"[vendor-parity] INCONCLUSIVE: vendor screenshot not found: "
+              f"{args.vendor_screenshot}")
+        return 2
+
+    captured = pmpc.capture_member_pane(
+        base=args.base, script_path=args.script, out_dir=args.out,
+        tag=args.tag, slug=args.slug,
+    )
+    if not captured["ok"]:
+        print(f"[vendor-parity] INCONCLUSIVE: member-side capture failed: {captured['reason']}")
+        return 2
+
+    result = compare(captured["shot"], args.vendor_screenshot)
+    v = verdict(result, threshold=args.threshold)
+    paths = write_report(
+        out_dir=args.out, slug=args.slug, tag=args.tag,
+        member_shot=captured["shot"], vendor_shot=args.vendor_screenshot,
+        compare_result=result, verdict_str=v,
+    )
+    print(f"[vendor-parity] {v} — score={result['score']!r} — report: {paths['md']}")
+    return 0 if v == "OK" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
