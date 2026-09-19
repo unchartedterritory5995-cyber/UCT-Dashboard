@@ -80,17 +80,22 @@ export function panelsFor(selected) {
  * confusion A-05 is about, reintroduced by layout after being fixed by structure.
  *
  * @param panels  from `panelsFor`
- * @param opts    { top, bottom, gap } in percent
+ * @param opts    { top, bottom, gap } in percent; `endLabels: false` drops the label gutter
  */
-export function gridFor(panels, { top = 6, bottom = 14, gap = 4 } = {}) {
+export function gridFor(panels, { top = 6, bottom = 14, gap = 4, endLabels = true } = {}) {
   const n = panels.length
   if (!n) return []
   const totalWeight = panels.reduce((s, p) => s + p.weight, 0)
   const usable = 100 - top - bottom - gap * (n - 1)
+  // ⛔⛔ ONE RIGHT EDGE FOR THE WHOLE STACK. A per-panel margin gave each panel its own
+  // plot width, so one date landed at different x in each panel and the linked crosshair
+  // visibly broke into two lines (found on production 2026-09-19: 430px vs 417px). The
+  // stack takes the widest panel's label gutter; alignment in time beats a tighter panel.
+  const right = endLabels ? Math.max(...panels.map(rightMarginFor)) : NO_LABEL_RIGHT_MARGIN_PX
   let y = top
   return panels.map(p => {
     const h = (usable * p.weight) / totalWeight
-    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right: rightMarginFor(p) }
+    const rect = { top: `${round(y)}%`, height: `${round(h)}%`, left: 56, right }
     y += h + gap
     return rect
   })
@@ -107,11 +112,15 @@ const round = v => Math.round(v * 100) / 100
  * (Close)" (no `short` override in the registry) the moment a member picked
  * one of the longer Highs/Lows metrics.
  *
- * ⭐ PER-PANEL, NOT ONE GLOBAL MARGIN. A short-label panel (e.g. "Health")
- * keeps its margin tight instead of borrowing space sized for a Highs/Lows
- * panel elsewhere in the same stack.
+ * ⚰️ THIS WAS PER-PANEL ("a short-label panel keeps its margin tight"), and that
+ * gave the panels different plot widths — one date at two x positions, the linked
+ * crosshair drawn as two lines. `gridFor` now applies the WIDEST panel's margin to
+ * the whole stack; this function still sizes it from the real labels.
  */
 const MIN_RIGHT_MARGIN_PX = 72
+// With no end labels (phone: the readout above the plot carries identity) the plot
+// runs to the edge instead of leaving an empty label gutter.
+const NO_LABEL_RIGHT_MARGIN_PX = 16
 const CHAR_WIDTH_PX = 6.2   // ~11px sans-serif label text, measured generously
 const LABEL_PADDING_PX = 44 // endLabel's own `distance` + breathing room
 

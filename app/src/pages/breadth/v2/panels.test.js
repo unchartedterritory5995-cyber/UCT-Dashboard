@@ -111,13 +111,24 @@ describe('gridFor · the stack', () => {
     const [longPanel] = gridFor(panelsFor([longLabelKey]))
     expect(parseFloat(longPanel.right)).toBeGreaterThan(72)
 
-    // ⭐ PER-PANEL, not one global margin: a short-label panel elsewhere in the
-    // same stack keeps a tight margin rather than borrowing space sized for
-    // the long-label panel.
+    // A stack whose labels are all short keeps a tighter gutter than one holding a
+    // long label — the margin is sized from the labels, not a constant.
     const shortLabelKey = 'breadth_score'
     expect(shortOf(shortLabelKey).length).toBeLessThan(shortOf(longLabelKey).length)
     const [shortPanel] = gridFor(panelsFor([shortLabelKey]))
     expect(parseFloat(shortPanel.right)).toBeLessThan(parseFloat(longPanel.right))
+  })
+
+  it('⛔⛔ every panel in one stack shares ONE right edge — so one date is one x', () => {
+    // ⚰️ Per-panel margins gave the panels different plot widths: on production
+    // (2026-09-19) the linked crosshair sat at 430px in the percent panel and 417px
+    // in the stocks panel for the same session.
+    const rects = gridFor(panelsFor(['breadth_score', 'new_52w_highs']))
+    expect(rects.length).toBe(2)
+    expect(new Set(rects.map(r => r.right)).size).toBe(1)
+    expect(new Set(rects.map(r => r.left)).size).toBe(1)
+    const [widest] = gridFor(panelsFor(['new_52w_highs']))
+    expect(rects[0].right).toBe(widest.right)
   })
 })
 

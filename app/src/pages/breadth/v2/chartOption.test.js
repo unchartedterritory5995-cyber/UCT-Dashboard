@@ -237,3 +237,103 @@ describe('the option survives the empty and the odd', () => {
     expect(() => buildOption(DATES, {}, [a])).not.toThrow()
   })
 })
+
+// ── 2026-09-19 · the presentation layer V2 shipped without ─────────────────────
+describe('the tooltip and crosshair a member actually reads', () => {
+  const [a, b] = pickTwoFamilies()
+  const vals = { [a]: [1, 2, 3, 4], [b]: [1500, 2500, 3500, 4500] }
+  const opt = buildOption(DATES, vals, [a, b])
+  const params = [
+    { seriesId: a, seriesName: shortOf(a), color: '#111', axisValue: DATES[1], value: 2 },
+    { seriesId: b, seriesName: shortOf(b), color: '#222', axisValue: DATES[1], value: 2500 },
+  ]
+
+  it('⚰️ prints the date ONCE for the whole stack, not once per panel', () => {
+    const html = opt.tooltip.formatter(params)
+    expect(html.match(/Wed, Sep 2, 2026/g)).toHaveLength(1)
+    expect(html).not.toContain(DATES[1])            // the raw ISO string never reaches a member
+  })
+
+  it('puts the value first, thousands-separated', () => {
+    const html = opt.tooltip.formatter(params)
+    expect(html).toContain('2,500')
+    expect(html.indexOf('2,500')).toBeLessThan(html.indexOf(shortOf(b)))
+  })
+
+  it('escapes a series name rather than interpolating it as HTML', () => {
+    const html = opt.tooltip.formatter([{ ...params[0], seriesName: '<img src=x>' }])
+    expect(html).not.toContain('<img')
+    expect(html).toContain('&lt;img src=x&gt;')
+  })
+
+  it('⚰️ is a vertical hairline, never a cross — a cross left a stale y reading on the other panel', () => {
+    expect(opt.tooltip.axisPointer.type).toBe('line')
+  })
+})
+
+describe('lines that belong to one panel stay on that panel', () => {
+  const pct = ALL_METRICS.find(m => unitOf(m.key) === UNIT.PCT).key
+  const cnt = ALL_METRICS.find(m => unitOf(m.key) === UNIT.COUNT).key
+  const vals = { [pct]: [10, 50, 90, 60], [cnt]: [5, 50, 500, 60] }
+
+  it('the MA extremes draw on the percentage panel only', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt], { extremes: true })
+    const byId = Object.fromEntries(opt.series.map(s => [s.id, s]))
+    expect(byId[pct].markLine.data.map(d => d.yAxis)).toEqual(expect.arrayContaining([90, 10]))
+    expect(byId[cnt].markLine).toBeUndefined()
+  })
+
+  it('⭐ CONTROL — with extremes off the percentage panel carries none', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt])
+    expect(opt.series.find(s => s.id === pct).markLine).toBeUndefined()
+  })
+
+  it('a reference line lands on the panel of its own unit', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt], { refLines: [{ unit: UNIT.COUNT, at: 100, label: 'x' }] })
+    const byId = Object.fromEntries(opt.series.map(s => [s.id, s]))
+    expect(byId[cnt].markLine.data).toEqual([expect.objectContaining({ yAxis: 100 })])
+    expect(byId[pct].markLine).toBeUndefined()
+  })
+
+  it('the LIVE rule crosses every panel but is labelled once', () => {
+    const opt = buildOption(DATES, vals, [pct, cnt], { live: { index: 3, clock: '2:47 PM' } })
+    const rules = opt.series.map(s => s.markLine.data.find(d => d.xAxis === DATES[3]))
+    expect(rules.every(Boolean)).toBe(true)
+    expect(rules.filter(r => r.label.show !== false)).toHaveLength(1)
+    expect(opt.series.every(s => s.showSymbol === true)).toBe(true)
+  })
+})
+
+describe('reader choices survive a rebuild', () => {
+  const [a, b] = pickTwoFamilies()
+  const vals = { [a]: [1, 2, 3, 4], [b]: [10, 20, 30, 40] }
+
+  it('a series hidden in the readout stays hidden in the rebuilt option', () => {
+    const opt = buildOption(DATES, vals, [a, b], { hidden: new Set([a]) })
+    expect(opt.legend.selected).toEqual({ [shortOf(a)]: false, [shortOf(b)]: true })
+  })
+
+  it('with no end labels (phone) the plot runs to the edge instead of an empty gutter', () => {
+    const withLabels = buildOption(DATES, vals, [a, b])
+    const without = buildOption(DATES, vals, [a, b], { endLabels: false })
+    for (let i = 0; i < without.grid.length; i += 1) {
+      expect(without.grid[i].right).toBeLessThan(withLabels.grid[i].right)
+    }
+  })
+
+  it('with no slider (phone) there is still an inside zoom', () => {
+    const opt = buildOption(DATES, vals, [a, b], { slider: false })
+    expect(opt.dataZoom.map(z => z.type)).toEqual(['inside'])
+  })
+})
+
+describe('⚰️ the reconstructed band is drawn once per PANEL, never once per line', () => {
+  it('three lines in one panel carry one band between them, not three stacked', () => {
+    const pcts = ALL_METRICS.filter(m => unitOf(m.key) === UNIT.PCT).slice(0, 3).map(m => m.key)
+    const vals = Object.fromEntries(pcts.map(k => [k, [1, 2, 3, 4]]))
+    const coverage = { regions: {}, runs: [{ fromIndex: 0, toIndex: 2 }] }
+    const opt = buildOption(DATES, vals, pcts, { coverage })
+    const withBand = opt.series.filter(s => s.markArea?.data?.length)
+    expect(withBand).toHaveLength(1)
+  })
+})

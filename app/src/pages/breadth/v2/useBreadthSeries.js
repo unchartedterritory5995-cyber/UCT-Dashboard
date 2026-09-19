@@ -117,7 +117,7 @@ export default function useBreadthSeries(keys, from, to) {
   }, [])
   useEffect(() => () => abortRef.current?.abort(), [])
 
-  const { data, error, isLoading } = useSWR(req.url, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(req.url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,     // a dark endpoint 404s; retrying it is noise
   })
@@ -142,5 +142,8 @@ export default function useBreadthSeries(keys, from, to) {
     maxSessions: MAX_SESSIONS,
     error: realError,
     isLoading: !!req.url && isLoading && !realError,
+    // The error state's Retry button. Retries never happen on their own (above), so
+    // asking again is always the member's decision.
+    retry: () => mutate(),
   }
 }

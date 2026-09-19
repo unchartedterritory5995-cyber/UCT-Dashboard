@@ -88,3 +88,39 @@ export function collisionsWithin(selected) {
 
 /** The whole map, frozen — for rails and for debugging, never to be mutated. */
 export const STICKY_COLOURS = STICKY
+
+/**
+ * The colours a selection is DRAWN in: sticky while selected, and never two alike when
+ * the ramp has room (02-design §4 Colour, A-13).
+ *
+ * ⚰️ THE REGISTRY MAP ALONE COLLIDED ON THE DEFAULT VIEW. `breadth_score` and
+ * `pct_above_50sma` are both neutral and sit a whole ramp apart in `ALL_METRICS`, so
+ * `stickyColour` gave them the SAME blue — and they share the percentage panel. Every
+ * member opening V2 saw two identical lines (2026-09-18, owner's screenshot).
+ *
+ * ⭐ The rule that keeps what the module above was written for: a metric that stays
+ * selected KEEPS its colour (`previous`), so removing one never repaints the survivors.
+ * Only a NEWLY added metric chooses — its registry colour if nobody on screen holds it,
+ * else the first colour of its tone's ramp that is free. Rank never enters it.
+ *
+ * @param selected  keys in pick order
+ * @param previous  { key: colour } from the last call (the component keeps it)
+ * @returns { key: colour }
+ */
+export function assignColours(selected, previous = {}) {
+  const out = {}
+  const used = new Set()
+  for (const key of selected ?? []) {
+    const kept = previous[key]
+    if (kept && !used.has(kept)) { out[key] = kept; used.add(kept) }
+  }
+  for (const key of selected ?? []) {
+    if (out[key]) continue
+    const ramp = TONE_RAMP[toneOf(key)] ?? TONE_RAMP.neutral
+    const own = stickyColour(key)
+    const pick = !used.has(own) ? own : (ramp.find(c => !used.has(c)) ?? own)
+    out[key] = pick
+    used.add(pick)
+  }
+  return out
+}

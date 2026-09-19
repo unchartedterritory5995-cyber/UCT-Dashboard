@@ -22,9 +22,14 @@ const format = v => (v == null ? '—' : v % 1 === 0 ? String(v) : v.toFixed(2))
  * A-12: the percentile names its basis ("8th of 62 shown") — a rank within the
  * window on screen, not within history. A-10: a reading older than its cadence
  * allows carries the date it was last reported and never passes as today's.
+ *
+ * `colors` lets a caller that owns its own colour map (V2's sticky colours) hand it
+ * in, so the swatch is always the colour of the line on the chart. Without it the
+ * readout resolves V1's colours from the selection, exactly as before.
  */
-export default function MetricReadout({ rows, selected, hidden, onToggle }) {
-  const colors = useMemo(() => resolveColors(selected), [selected])
+export default function MetricReadout({ rows, selected, hidden, onToggle, colors: colorsProp }) {
+  const resolved = useMemo(() => resolveColors(selected), [selected])
+  const colors = colorsProp ?? resolved
 
   const items = useMemo(() => {
     const newest = rows.length ? rows[rows.length - 1].date : null
