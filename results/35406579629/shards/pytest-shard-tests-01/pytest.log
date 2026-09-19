@@ -1,0 +1,296 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+...............................................................s........ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+..........................s............................................. [ 72%]
+........................................................................ [ 74%]
+........................................FF.F............................ [ 77%]
+................................F.....F................................. [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+...............                                                          [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8795 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8841 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+_________ test_the_mirror_matches_the_real_run_nightly_for_every_mode __________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_mirror_matches_the_re2/screener.db')
+
+    def test_the_mirror_matches_the_real_run_nightly_for_every_mode(store):
+        """⭐ Every mode, in one drive each, against the real store. A mirror without
+        a rail is a second authority over one value."""
+        _sweep(20260909, ["AAPL", "MSFT"])
+        _sweep(20260910, ["AAPL", "NVDA"])          # NVDA entered, MSFT left
+    
+        for mode, params, want_in, want_out in (
+                ("both", EITHER, ["NVDA"], ["MSFT"]),
+                ("entry", ENTERED, ["NVDA"], []),
+                ("exit", LEFT, [], ["MSFT"])):
+            sent, receipt = _drive_real_legacy(mode, user=f"u-{mode}")
+            mine = [k for k in sent if k["extra_data"]["def_hash"] == H]
+>           assert len(mine) == 1, (
+                f"control: the real legacy really did decide to alert for {mode}: {receipt}")
+E           AssertionError: control: the real legacy really did decide to alert for both: {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+E           assert 0 == 1
+E            +  where 0 = len([])
+
+tests/test_alert_taxonomy_scan_membership_change_compare.py:197: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-18 23:48:38,543 INFO api.services.screener.screen_alerts: [screen-alerts] dropped dangling subscription: user=u-both def_id=def-1 (definition deleted or gone)
+2026-09-18 23:48:38,544 INFO api.services.screener.screen_alerts: [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+------------------------------ Captured log call -------------------------------
+INFO     api.services.screener.screen_alerts:screen_alerts.py:242 [screen-alerts] dropped dangling subscription: user=u-both def_id=def-1 (definition deleted or gone)
+INFO     api.services.screener.screen_alerts:screen_alerts.py:301 [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+________________________ test_the_mirror_rail_CAN_FAIL _________________________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_mirror_rail_CAN_FAIL1/screener.db')
+
+    def test_the_mirror_rail_CAN_FAIL(store):
+        """⛔ THE CONTROL ON THE MIRROR RAIL. If the driver silently decided nothing,
+        the assertions above would compare two empty answers and pass. This proves
+        the driver distinguishes a firing decision from a non-firing one — on the
+        same store, in the same run, with only the DATA changed."""
+        _sweep(20260909, ["AAPL"])
+        _sweep(20260910, ["AAPL"])                  # membership unchanged
+    
+        sent, receipt = _drive_real_legacy("both", user="u-quiet")
+        assert [k for k in sent if k["extra_data"]["def_hash"] == H] == [], (
+            f"an unchanged screen must send nothing: {receipt}")
+>       assert receipt["skipped_quiet"] >= 1, (
+            "the legacy reached its quiet branch — that is the state being mirrored")
+E       AssertionError: the legacy reached its quiet branch — that is the state being mirrored
+E       assert 0 >= 1
+
+tests/test_alert_taxonomy_scan_membership_change_compare.py:223: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-18 23:48:38,804 INFO api.services.screener.screen_alerts: [screen-alerts] dropped dangling subscription: user=u-quiet def_id=def-1 (definition deleted or gone)
+2026-09-18 23:48:38,804 INFO api.services.screener.screen_alerts: [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+------------------------------ Captured log call -------------------------------
+INFO     api.services.screener.screen_alerts:screen_alerts.py:242 [screen-alerts] dropped dangling subscription: user=u-quiet def_id=def-1 (definition deleted or gone)
+INFO     api.services.screener.screen_alerts:screen_alerts.py:301 [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+____________________ test_the_mirror_matches_the_real_DEDUP ____________________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_mirror_matches_the_re4/screener.db')
+
+    def test_the_mirror_matches_the_real_DEDUP(store):
+        """A second run over the same session must send nothing — the legacy's
+        `skipped_dedup`, and the mirror's `REASON_DEDUPED`."""
+        _sweep(20260909, ["AAPL"])
+        _sweep(20260910, ["AAPL", "NVDA"])
+    
+        sent1, r1 = _drive_real_legacy("both", user="u-dedup")
+>       assert r1["sent"] == 1 and len(sent1) == 1, f"control: the first run sent one: {r1}"
+E       AssertionError: control: the first run sent one: {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+E       assert (0 == 1)
+
+tests/test_alert_taxonomy_scan_membership_change_compare.py:258: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-18 23:48:38,873 INFO api.services.screener.screen_alerts: [screen-alerts] dropped dangling subscription: user=u-dedup def_id=def-1 (definition deleted or gone)
+2026-09-18 23:48:38,873 INFO api.services.screener.screen_alerts: [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+------------------------------ Captured log call -------------------------------
+INFO     api.services.screener.screen_alerts:screen_alerts.py:242 [screen-alerts] dropped dangling subscription: user=u-dedup def_id=def-1 (definition deleted or gone)
+INFO     api.services.screener.screen_alerts:screen_alerts.py:301 [screen-alerts] {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+______ test_scan_store_prune_has_ZERO_CALLERS_and_the_search_CAN_SEE_ONE _______
+
+    def test_scan_store_prune_has_ZERO_CALLERS_and_the_search_CAN_SEE_ONE():
+        """⛔⛔ FINDING A, RE-MEASURED EVERY RUN.
+    
+        Two consecutive cycles are retained by the ABSENCE of a caller, not by a
+        policy. The day `prune` acquires one whose horizon can reach the previous
+        session, `diff_for` returns `(None, [], [])` silently and members stop being
+        told. This rail goes red the moment that caller appears, so somebody has to
+        reason about the horizon rather than discover it from a support ticket.
+    
+        ⛔ CODE, NEVER PROSE, and the absence claim CARRIES ITS CONTROL: the same
+        search finds real `.prune(` call sites elsewhere, so it could have seen one
+        here.
+        """
+        parsed, unparsable = 0, []
+        scan_store_prune, dot_prune = [], []
+        for p in sorted(_API.rglob("*.py")):
+            try:
+                code = _code_only(p)
+            except SyntaxError as exc:  # noqa: PERF203
+                unparsable.append((str(p), str(exc)))
+                continue
+            parsed += 1
+            rel = str(p.relative_to(_REPO)).replace("\\", "/")
+            for i, line in enumerate(code.splitlines(), 1):
+                if "scan_store.prune" in line:
+                    scan_store_prune.append((rel, i, line.strip()))
+                if ".prune(" in line:
+                    dot_prune.append((rel, i, line.strip()))
+    
+        # NON-VACUITY: the walk really reached the tree and really parsed it.
+        assert parsed > 1000, f"the module walk found almost nothing ({parsed} files)"
+        assert not unparsable, f"unparsable modules make the absence claim hollow: {unparsable}"
+    
+        # ⛔ THE CONTROL — the searcher can see a `.prune(` call.
+        assert len(dot_prune) >= 3, (
+            "the search found fewer than the three known `.prune(` call sites — it "
+            f"is broken, not green. Saw: {dot_prune}")
+        assert all("scan_store" not in rel for rel, _i, _l in dot_prune)
+    
+        # ...and it sees NONE for this one.
+>       assert scan_store_prune == [], (
+            "`scan_store.prune` has acquired a caller. That is not automatically "
+            "wrong — but the diff's previous session can now VANISH, and "
+            "`diff_for` reports that as `no_previous` with no error. Establish that "
+            "the horizon cannot reach session N-1 before updating this rail: "
+            f"{scan_store_prune}")
+E       AssertionError: `scan_store.prune` has acquired a caller. That is not automatically wrong — but the diff's previous session can now VANISH, and `diff_for` reports that as `no_previous` with no error. Establish that the horizon cannot reach session N-1 before updating this rail: [('api/main.py', 972, 'r = scan_evaluator.scan_store.prune_old()')]
+E       assert [('api/main.p...prune_old()')] == []
+E         
+E         Left contains one more item: ('api/main.py', 972, 'r = scan_evaluator.scan_store.prune_old()')
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'api/main.py',
+E         +         972,
+E         +         'r = scan_evaluator.scan_store.prune_old()',
+E         +     ),
+E         + ]
+
+tests/test_alert_taxonomy_scan_membership_change_schema.py:442: AssertionError
+________ test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it _________
+
+    def test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it():
+        """⛔ GATE §6 — `scan_store.py` is an INERT STRAND: flow-worker RUNS it and
+        will not redeploy for a change to it, so an edit there leaves flow-worker on
+        the old copy with every test green. The retention guarantee is asserted from
+        `tests/`, which flow-worker does not run.
+    
+        Read from git rather than from `git status`: provenance is
+        `git show <sha>:<file>`, never the working tree.
+        """
+        import subprocess
+        top = subprocess.run(["git", "-C", str(_REPO), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        legacy_paths = ["api/services/screener/scan_store.py",
+                        "api/services/screener/screen_alerts.py"]
+    
+        # ⛔ NON-VACUITY, AND IT MUST NOT DEPEND ON THIS BRANCH HAVING CHANGES —
+        # after a merge the diff is legitimately empty and a "the diff is empty ⇒
+        # broken" control would go red on master forever. Instead: prove git answers
+        # and that the two paths are things it can actually name.
+        tracked = subprocess.run(["git", "-C", top, "ls-files", *legacy_paths],
+                                 capture_output=True, text=True, check=True).stdout.split()
+        assert sorted(tracked) == sorted(legacy_paths), (
+            f"git did not resolve the legacy paths — the check is broken, not green: {tracked}")
+    
+        base = subprocess.run(["git", "-C", top, "merge-base", "HEAD", "origin/master"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        assert base, "could not resolve the merge-base — the check is broken, not green"
+        changed = subprocess.run(
+            ["git", "-C", top, "diff", "--name-only", f"{base}..HEAD"],
+            capture_output=True, text=True, check=True).stdout.split()
+        for path in legacy_paths:
+>           assert path not in changed, (
+                f"this branch edited {path}. `scan_store.py` is an INERT STRAND "
+                "(flow-worker runs it and will not redeploy) and `screen_alerts.py` "
+                "is the incumbent the absorption default leaves untouched.")
+E           AssertionError: this branch edited api/services/screener/scan_store.py. `scan_store.py` is an INERT STRAND (flow-worker runs it and will not redeploy) and `screen_alerts.py` is the incumbent the absorption default leaves untouched.
+E           assert 'api/services/screener/scan_store.py' not in ['.gitattributes', '.github/workflows/clock-parity-fixture.yml', '.gitignore', 'CLAUDE.md', 'Dockerfile.web', 'THIRD_PARTY_NOTICES.md', ...]
+
+tests/test_alert_taxonomy_scan_membership_change_schema.py:570: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:470: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+FAILED tests/test_alert_taxonomy_scan_membership_change_compare.py::test_the_mirror_matches_the_real_run_nightly_for_every_mode - AssertionError: control: the real legacy really did decide to alert for both: {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_alert_taxonomy_scan_membership_change_compare.py::test_the_mirror_rail_CAN_FAIL - AssertionError: the legacy reached its quiet branch — that is the state being mirrored
+assert 0 >= 1
+FAILED tests/test_alert_taxonomy_scan_membership_change_compare.py::test_the_mirror_matches_the_real_DEDUP - AssertionError: control: the first run sent one: {'definitions': 1, 'compared': 1, 'no_previous': 0, 'sent': 0, 'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'skipped_dangling': 1, 'errors': 0}
+assert (0 == 1)
+FAILED tests/test_alert_taxonomy_scan_membership_change_schema.py::test_scan_store_prune_has_ZERO_CALLERS_and_the_search_CAN_SEE_ONE - AssertionError: `scan_store.prune` has acquired a caller. That is not automatically wrong — but the diff's previous session can now VANISH, and `diff_for` reports that as `no_previous` with no error. Establish that the horizon cannot reach session N-1 before updating this rail: [('api/main.py', 972, 'r = scan_evaluator.scan_store.prune_old()')]
+assert [('api/main.p...prune_old()')] == []
+  
+  Left contains one more item: ('api/main.py', 972, 'r = scan_evaluator.scan_store.prune_old()')
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'api/main.py',
+  +         972,
+  +         'r = scan_evaluator.scan_store.prune_old()',
+  +     ),
+  + ]
+FAILED tests/test_alert_taxonomy_scan_membership_change_schema.py::test_CP1_does_not_edit_scan_store_because_flow_worker_runs_it - AssertionError: this branch edited api/services/screener/scan_store.py. `scan_store.py` is an INERT STRAND (flow-worker runs it and will not redeploy) and `screen_alerts.py` is the incumbent the absorption default leaves untouched.
+assert 'api/services/screener/scan_store.py' not in ['.gitattributes', '.github/workflows/clock-parity-fixture.yml', '.gitignore', 'CLAUDE.md', 'Dockerfile.web', 'THIRD_PARTY_NOTICES.md', ...]
+5 failed, 2888 passed, 2 skipped, 5 warnings in 423.05s (0:07:03)
