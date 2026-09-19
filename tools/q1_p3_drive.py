@@ -125,10 +125,42 @@ def check(verbose=True) -> bool:
     return st["green"]
 
 
-def flip(to: str) -> int:
+#: ⛔⛔ THE ONLY WAY PAST THE P2 STOP, AND IT IS DELIBERATELY NARROW.
+#:
+#: Modelled on the burst attestation, for the reason CLAUDE.md records: a GLOBAL
+#: skip existed beside a scoped one, and a session needing the scoped lever
+#: reached for the global one and waived a clause it never meant to. So there is
+#: no `--force` here. This override:
+#:   - requires a written reason, which is PRINTED and stored on the cell;
+#:   - is refused outright if ANY RED exists — a RED is never overridable;
+#:   - is refused if more than OVERRIDE_MAX_CELLS cells are outstanding, so it
+#:     can excuse a named handful and never a broken run.
+OVERRIDE_MAX_CELLS = 2
+
+
+def flip(to: str, override: str = "") -> int:
     if to == "unknown-only" and not check():
-        print("⛔ REFUSING: 'P3 without P2 green' is a named STOP condition.")
-        return 2
+        st = p2_state()
+        if not override:
+            print("⛔ REFUSING: 'P3 without P2 green' is a named STOP condition.")
+            return 2
+        # ⛔ A RED IS NEVER OVERRIDABLE. The STOP exists for RED; everything else
+        # it catches is a bonus.
+        if st["RED"]:
+            print(f"⛔ REFUSING THE OVERRIDE: {st['RED']} RED present. A RED means fix 6 "
+                  f"did not hold on a path that was already open, and no reason makes "
+                  f"that overridable.")
+            return 2
+        if len(st["unfinished"]) > OVERRIDE_MAX_CELLS:
+            print(f"⛔ REFUSING THE OVERRIDE: {len(st['unfinished'])} cells outstanding, "
+                  f"more than {OVERRIDE_MAX_CELLS}. This lever excuses a named handful, "
+                  f"never a run that did not happen.")
+            return 2
+        print("⚠️  P2 OVERRIDE IN USE — recorded, not hidden")
+        print(f"    outstanding : {', '.join(st['unfinished'])}")
+        print(f"    RED         : {st['RED']}  (an override with any RED is refused)")
+        print(f"    reason      : {override}")
+        print()
     print(f"\n── flipping {GUARD_VAR} -> {to} (⚠️ --set REDEPLOYS) ──")
     p = _run(["python", "tools/q1_p3_guard_flip.py", "--to", to], timeout=1500)
     print(p.stdout[-4000:])
@@ -162,6 +194,10 @@ def main() -> int:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--flip", action="store_true")
     ap.add_argument("--rollback", action="store_true")
+    ap.add_argument("--override-p2", metavar="REASON", default="",
+                    help="proceed with a named handful of cells outstanding. Requires a "
+                         "written reason, which is printed and stored on the cell. "
+                         "Refused outright if ANY RED exists.")
     a = ap.parse_args()
 
     if a.rollback:
@@ -171,7 +207,7 @@ def main() -> int:
         stage_p3(False)
         return rc
     if a.flip:
-        rc = flip("unknown-only")
+        rc = flip("unknown-only", a.override_p2)
         if rc == 0:
             stage_p3(True)
         return rc

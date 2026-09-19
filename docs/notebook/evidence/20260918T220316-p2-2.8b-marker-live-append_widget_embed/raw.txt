@@ -1,0 +1,31 @@
+⚠️ SECOND-WRITER-WHILE-AWAY: queue offline, leave to /charts, a SECOND signed-in context moves the folder, return, reconnect, drain. CONTROLLED EXPERIMENT, not a table row.
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  ·  kill marker: canary-chrome-profile-persistent
+⭐ 1 cell(s) to run · stamp 2026-09-19T03-03-16Z
+rig window clear (no Q1 task due within 60 min)
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+opt-in: key was '0' -> None (None = opted in by the server default)
+outbox litter from earlier runs: {'entries': 0, 'deadNotes': 0, 'removed': 0}
+signed in · account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d · notebook config: {'notebook_offline_default_on': True, 'notebook_offline_read_on': False, 'notebook_conflict_ux_on': False, 'notebook_attachments_on': False, 'notebook_door_guard': 'full'}
+
+═══ append_widget_embed  ·  marker LIVE
+      warmed /charts, back to the editor
+      queued: {'entryStatus': None, 'entryAttempts': None, 'entryError': '', 'entryKeys': 'mutationId,noteId,kind,patch,baseUpdatedAt,generation,sessionId,queuedAt', 'locksHeldPending': '1/0', 'lockClaimable': True, 'onLine': False, 'outboxTotal': 1, 'queuedForThisNote': 1, 'sentenceInDurableCopy': True, 'sentenceInQueuedEntry': True, 'sentenceOnScreen': True, 'baseUpdatedAt': '2026-09-19T03:03:34.234048+00:00', 'dirty': True}
+      arranged: {'ok': True, 'arranged': 'inflight marker, this tab, live', 'baseUpdatedAt': '2026-09-19T03:03:34.234048+00:00', 'marker': {'sessionId': 'this-tab', 'startedAt': 1789787035472, 'baseUpdatedAt': '2026-09-19T03:03:34.234048+00:00'}, 'ring': ['2026-09-19T03:03:34.234048+00:00']}
+      offline nav: {'path': '/charts', 'search': '', 'editor': False, 'offline': True}
+      second writer door (folder): {'ok': True, 'via': 'select.change'}
+      door: {'ok': True, 'via': "SECOND CONTEXT - folder door (member's own control)", 'server_before': '2026-09-19T03:03:34.234048+00:00', 'server_after': '2026-09-19T03:04:02.011169+00:00'}
+      reconnected (server has moved; now the member returns)
+      released the note (editor closed) so the drain may take the entry
+      store trail (queued, dirty, base, sentence-in-record): [(0, False, 'None', True)]
+      drain: emptied after 2.5s
+      wire: POST /→200 · POST /64a9ac752ef54a1e83be1a1f8002a12c/opened→200 · PUT /64a9ac752ef54a1e83be1a1f8002a12c[54+00:00]→200 · POST /64a9ac752ef54a1e83be1a1f8002a12c/opened→200 · PUT /64a9ac752ef54a1e83be1a1f8002a12c+SENT[48+00:00]→None · PUT /64a9ac752ef54a1e83be1a1f8002a12c+SENT[48+00:00]→None · PUT /64a9ac752ef54a1e83be1a1f8002a12c+SENT[48+00:00]→None · PUT /64a9ac752ef54a1e83be1a1f8002a12c+SENT[48+00:00]→409 · PUT /64a9ac752ef54a1e83be1a1f8002a12c+SENT[69+00:00]→200 · POST /64a9ac752ef54a1e83be1a1f8002a12c/opened→200
+      the door fired after call #7; successful sends carrying the sentence before it: 0
+      cleanup: {'found': 1, 'deleted': 1}
+   ⇒ GREEN  offline sentence in the server body: **True** · queued 1 entry(s), baseline `2026-09-19T03:03:34.234048+00:00` · 5 request(s) carried the sentence (la
+   (controlled experiment — NOT written to the table)
+opt-out restored in-session: '0' (ok)
+opt-out ON DISK (browser dead): '0' the rig IS opted out
+
+table → docs/notebook/wave-q1-f5-production-matrix.md
+(node:24824) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)

@@ -1,0 +1,22 @@
+{
+  "id": "p2-2.8b-marker-live-append_document_excerpt",
+  "cmd": [
+    "python",
+    "tools/q1_f5_matrix.py",
+    "--second-writer",
+    "--second-writer-door",
+    "folder",
+    "--family",
+    "append_document_excerpt",
+    "--ordering",
+    "marker LIVE",
+    "--profile",
+    "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent",
+    "--out",
+    "docs/notebook/wave-q1-f5-production-matrix.md"
+  ],
+  "exit": 0,
+  "started": "2026-09-18T22:06:25",
+  "seconds": 195.0,
+  "why": "2.8b single cell: `append_document_excerpt` x `marker LIVE`, second writer on the folder door. Identical member interleaving to the chunk it came from; only the process boundary moved."
+}
