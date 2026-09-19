@@ -44,9 +44,85 @@ export const CREATE_POSITIONAL = Object.freeze({
 })
 
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
- *  ADDRESS, not properties, so they are split out by the reader. */
+ *  ADDRESS, not properties, so they are split out by the reader.
+ *
+ *  ⭐ SLOTS 9 AND 10 WERE ADDED FOR `text_formatting`, WHICH IS PINE'S
+ *  FOURTEENTH ARGUMENT. `docs/pine/pine-presentation-spec.md:1604` prints the
+ *  vendor's own signature:
+ *
+ *    table.cell(table_id, column, row, text, width, height, text_color,
+ *               text_halign, text_valign, text_size, bgcolor, tooltip,
+ *               text_font_family, text_formatting)
+ *
+ *  so `text_formatting` cannot be reached positionally unless `text_font_family`
+ *  holds the slot in front of it. ⛔ IT IS A PLACEHOLDER AND NOT A CAPABILITY:
+ *  `text_font_family` is deliberately absent from `CELL_PROPS`, so a script that
+ *  writes one gets a NAMED refusal (`cell.text_font_family@<line>`) instead of a
+ *  font this renderer would have had to invent.
+ *
+ *  ⚠️⚠️ AND SLOTS 6–8 BELOW DISAGREE WITH THAT SIGNATURE — `text_size`,
+ *  `bgcolor` and `tooltip` are the right three names in the wrong order (the
+ *  vendor's is `text_size, bgcolor, tooltip`). That is a PRE-EXISTING defect and
+ *  it is left alone ON PURPOSE: correcting it changes what already-imported
+ *  scripts render today, which is a behaviour change that needs its own
+ *  evidence and its own commit, not a drive-by inside a different one. It costs
+ *  nothing here because slots 9 and 10 sit AFTER all three however they are
+ *  ordered — the permutation is closed within 6–8. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size'])
+  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  'text_font_family', 'text_formatting'])
+
+/**
+ * `table.clear(table_id, start_column, start_row, end_column, end_row)` — the
+ * table_id is the ADDRESS, so the four that remain are the rectangle.
+ *
+ * ⭐ `end_column` AND `end_row` ARE OPTIONAL AND DEFAULT TO THE START, which is
+ * the vendor's own wording at `docs/pine/pine-presentation-spec.md:1689`:
+ * `table.clear(t, 2, 3)` clears exactly cell (2,3). The corpus writes that
+ * two-argument form for real
+ * (`supertrend-relative-volume-kernel-optimized-flux-charts.pine:217`), so a
+ * reader that demanded five arguments would refuse a live script and leave
+ * every stale row of its dashboard on the member's chart.
+ */
+export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
+  'end_column', 'end_row'])
+
+/**
+ * ⭐⭐ `table.cell_set_*(table_id, column, row, value)` → the ONE cell property
+ * each one patches.
+ *
+ * ⛔⛔ IT IS A SEPARATE TABLE FROM `SETTER_PROPS` BECAUSE IT IS A SEPARATE
+ * OPERATION. A `table.set_*` writes a property of the TABLE and takes its value
+ * straight after the handle; a `cell_set_*` writes a property of ONE CELL and
+ * carries an ADDRESS in between. ⚰️ Neither shape was here at all, which is why
+ * every one of these fell through to the `SETTER_PROPS` lookup below and was
+ * filed as an unsupported method: a member's script could ask to recolour a cell
+ * on every bar and the cell never changed.
+ *
+ * ⭐ AND PINE DRAWS A LINE HERE THAT THIS TABLE EXISTS TO KEEP. The reference,
+ * quoted at `docs/pine/pine-presentation-spec.md:1630`: "**Each `table.cell()`
+ * call overwrites all previously defined properties of a cell.** … If you want,
+ * instead, to modify any of the cell's properties, use the `table.cell_set_*()`
+ * functions." The spec's own ruling follows: "Implement them as two distinct
+ * operations. Never implement `cell()` as a merge."
+ *
+ * ⛔ TEN OF PINE'S ELEVEN. `cell_set_text_font_family` is deliberately absent —
+ * `CELL_PROPS` has no `text_font_family`, for the reason given there, and an
+ * entry here would promise a patch the program model cannot carry. It stays a
+ * named refusal in `diagnostics.unsupported`.
+ */
+export const CELL_SETTER_PROPS = Object.freeze({
+  cell_set_text: 'text',
+  cell_set_text_color: 'text_color',
+  cell_set_bgcolor: 'bgcolor',
+  cell_set_text_size: 'text_size',
+  cell_set_text_halign: 'text_halign',
+  cell_set_text_valign: 'text_valign',
+  cell_set_text_formatting: 'text_formatting',
+  cell_set_tooltip: 'tooltip',
+  cell_set_width: 'width',
+  cell_set_height: 'height',
+})
 
 /**
  * A Pine setter name → the canonical properties it writes, in the order its
@@ -113,8 +189,8 @@ export function collectObjectOps(stmts, h) {
     const dot = word.indexOf('.')
     return dot > 0 ? word.slice(0, dot) : null
   }
-  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
-
+  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+
   /** Every name a block REASSIGNS with `:=`, at any depth inside it.
    *
    *  ⛔ `:=` ONLY. A plain `=` inside the block declares a name local to THAT
@@ -379,9 +455,44 @@ export function collectObjectOps(stmts, h) {
       ops.push({ k: 'delete', family: ns, target, guards, locals: scope, at: toks[0], line: st.header[0].line })
       return
     }
+    // ⭐⭐ `table.clear` IS NOT A SETTER AND NEVER WAS. ⚰️ It used to fall
+    // through to the `SETTER_PROPS` lookup at the bottom of this function,
+    // which has no `clear` key, so every one of the corpus's 20 call sites was
+    // filed under `diagnostics.unsupported` and emitted NOTHING. The Pine idiom
+    // for a dashboard is "clear the block, then write today's rows"
+    // (`strong-start-rvol-dashboard.pine:179` clears rows 1..40 before writing
+    // as many rows as it has symbols) — so with the clear a no-op, a list that
+    // had eight rows yesterday and three today drew three fresh rows OVER five
+    // stale ones. The stale five are last bar's numbers in the same format,
+    // with nothing on screen saying they are old, which is the one thing worse
+    // than a missing number.
+    //
+    // ⛔ It is a RANGE, not a property write, so it gets its own op kind rather
+    // than being bent into `update` — a setter's arguments are values for named
+    // properties, and these four are an address.
+    if (ns === 'table' && method === 'clear') {
+      ops.push({
+        k: 'clear', target, args: rest,
+        guards, locals: scope, at: toks[0], line: st.header[0].line,
+      })
+      return
+    }
     if (ns === 'table' && method === 'cell') {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
+        guards, locals: scope, at: toks[0], line: st.header[0].line,
+      })
+      return
+    }
+    // ⭐ A CELL SETTER SHARES `cell`'s ADDRESS SHAPE AND NOT ITS MEANING. Same
+    // `(column, row)` in the same two slots, but exactly one property follows —
+    // and the op kind stays distinct so that the day `cell` becomes the true
+    // REPLACE the reference describes, a `cell_set_text` does not start wiping
+    // the colours off the row it was only asked to relabel.
+    if (ns === 'table' && CELL_SETTER_PROPS[method]) {
+      ops.push({
+        k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
+        target, col: rest[0], row: rest[1], args: rest.slice(2),
         guards, locals: scope, at: toks[0], line: st.header[0].line,
       })
       return
