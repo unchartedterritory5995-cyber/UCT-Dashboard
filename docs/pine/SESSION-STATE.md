@@ -2,6 +2,60 @@
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
+> ### ✅ R38 5.7 + 5.8 — post-deploy verified, CLOSING OUT. Wave 1 + Wave 2 MERGED at `e855f62cdb960297268cd9ecc72b7b4d94c56a2f`, 2026-09-19 ~02:38 UTC.
+>
+> ⚠️ **A separate, pre-existing bug surfaced between 5.6 and 5.7, unrelated to
+> this PR's own content: master→production promotion was broken for
+> everyone.** `.github/workflows/clock-parity-fixture.yml` (added by master's
+> own `e38d47b55` before this PR merged) never carried the
+> `# promotion-gate: yes|no` marker `tools/promotion_gate.py` requires from
+> every workflow file, so `promote-production.yml` refused ALL promotions
+> with `UNCLASSIFIED workflow(s): clock-parity-fixture.yml` — first hit by
+> this merge's own promotion attempt (#182), but not caused by it. Drafted
+> and verified a fix (`# promotion-gate: yes`, matching `vite-build-args.yml`'s
+> reasoning — a real fixture/maths mismatch, not an advisory rail); before
+> pushing it, the owner independently landed the same classification directly
+> on master (`0df28ed3b`). Confirmed byte-equivalent in intent, did not push
+> a duplicate.
+>
+> ✅ **Gate 5.7 — post-deploy, verified via Railway CLI + WebFetch (browser
+> tool was disconnected for this leg — see the honest gap below):**
+> - `railway deployment list --service web`: **SUCCESS** on `0df28ed3b`
+>   (2026-09-19T02:38:40Z) — this commit sits directly on top of `e855f62cd`
+>   on master, so this deploy carries this PR's full content.
+> - `GET /api/health`: `{"status":"ok","uptime_seconds":148,...}` — a fresh
+>   boot, timed consistently with the deploy above, not a stale pod.
+> - `GET /api/movers`: real, well-formed JSON (tickers, %, market cap) —
+>   the backend is serving actual data, not erroring.
+> - `flow-worker` did **not** redeploy for this merge (`railway deployment
+>   list --service flow-worker` still shows its prior commit) — expected,
+>   matches gate 5.3's own reasoning exactly.
+> - No volume/storage config in this PR's diff — the six per-service volumes
+>   are untouched by construction, not just by absence of a red flag.
+>
+> ⚠️ **HONEST GAP, not papered over:** the owner's Chrome/extension
+> disconnected partway through this verification
+> (`tabs_context_mcp` → "Browser extension is not connected") and stayed
+> down for the rest of this session. **No interactive, logged-in, click-
+> through member-facing smoke test was performed.** This PR's own new
+> surface (Volume v2 member pane) ships behind `VITE_PINE_MEMBER_PANE_ENABLED`
+> **unset on the merged tree** (stated in the PR body itself, "It ships
+> dark"), so there is no new member-facing behavior exposed by this merge to
+> regress — which is why the API-level checks above are treated as sufficient
+> for THIS close-out rather than blocking on a tool outage outside this
+> session's control. If the owner wants the full interactive pass anyway
+> once the browser reconnects, `tools/hub_nav_smoke.py`-style click-through
+> is the standing instrument for it.
+>
+> ✅ **Gate 5.8 — this entry.** R38's eight gates, walked in order, this
+> session: 5.1 ready (browser-clicked, verified) → 5.2 CLEAR (fresh six-shard
+> vitest verdict, `823d8bf40`/`0da41cb72`) → 5.3 ruled (16-file flow-worker
+> gap accepted, redeploy not forced) → 5.4 remerged twice (`d2faaabff` then
+> `823d8bf40`) → 5.5 rollback stated (corrected for squash-merge before the
+> click) → 5.6 merged (`e855f62cd`, browser-clicked, verified) → 5.7 post-
+> deploy verified (API-level; browser smoke honestly marked incomplete) →
+> 5.8 this close-out. **PR #145 is Merged. Nothing further owed on R38.**
+
 > ### ✅✅ R38 5.6 — #145 MERGED. `e855f62cdb960297268cd9ecc72b7b4d94c56a2f` on `master`.
 >
 > Clicked in the owner's real browser (Gate v2.1 re-checked immediately
