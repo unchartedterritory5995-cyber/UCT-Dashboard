@@ -67,6 +67,7 @@ Pillow>=10.0.0
 # also used by api/services/journal_two/document_extraction.py.
 pypdf>=5.0.0
 praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool
+playwright==1.47.0  # Browser automation for chart parity testing and visual journey tools
 # Brokerage aggregator (read-only); see api/services/journal_two/broker/
 # UPPER BOUND IS LOAD-BEARING — every call site is verified against 11.0.x.
 # 12.0.0 changed SnapTrade.__init__ to (configuration=None, **kwargs), so our
