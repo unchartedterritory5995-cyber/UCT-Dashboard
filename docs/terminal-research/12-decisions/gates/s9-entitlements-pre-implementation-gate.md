@@ -141,3 +141,57 @@ pre-declared BEHAVIOUR-CHANGING **because the measurement had already been taken
 ## 6. Recommendation
 
 **Sign nothing.** ⭐ CP1 (enumerate the duplication, change no gate) is real work that is correct under either answer, and it is the only part of S9 that is. Everything else waits on a contract. ⚠️ A14 Portfolio & Risk is blocked behind this AND behind D8, so S9 answering does not by itself unblock A14.
+
+---
+
+## 7. ✅ APPROVAL — the two mechanical findings CP1 recorded, now closed
+
+⛔⛔ **NOT "S9 CP2." §3 is unchanged: CP2+ (consolidating or enforcing entitlements) remains NOT
+PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered.** This line authorizes exactly two narrow,
+independent bug fixes CP1's own enumeration surfaced — using data and logic that ALREADY EXISTS,
+building no new entitlement architecture, and deciding nothing about the blocked question.
+
+**Fix 1 — `Login.jsx`'s trial-routing gap, closed.** CP1 recorded: a member on an active trial,
+immediately after signing in, may be routed to `/morning-wire` instead of `/dashboard`, because
+`Login.jsx`'s post-login routing check re-derived the paid-plan literal WITHOUT the trial clause
+`AuthContext.jsx`'s canonical `isPaid` carries. Fixed by reading `data.paid_equiv` — the backend's
+own already-computed answer (`api/routers/auth.py::_access_payload`, the same `is_paid_or_trial()`
+chokepoint `isPaid` mirrors), already present on every `/login` and `/login/totp-verify` response.
+Nothing re-derived; nothing new computed. Mutation-proved: reverting to the old inline check reds
+the new `Login.test.jsx`'s trial-member test specifically, while the free/paid/admin cases stay
+green — restored and reverified.
+
+**Fix 2 — `FREE_PAGES`'s triplication, retired.** CP1 recorded three hand-typed copies of
+`['/morning-wire']` (`AuthGuard.jsx`, `mobile/MoreSheet.jsx`, `NavBar.jsx`), each commented "keep in
+sync with" the other two, with divergent matching semantics per consumer (prefix in AuthGuard.jsx,
+exact in the other two). **The matching semantics are UNCHANGED, deliberately** — AuthGuard.jsx
+tests a live `location.pathname` (a member could visit a nested sub-path, so prefix matching is
+correct there); NavBar.jsx/MoreSheet.jsx test one fixed `NAV_ITEMS` target string (exact matching
+is correct there too) — converging them would make one side wrong to fix the other. Only the VALUE
+was ever duplicated: retired onto one export, `app/src/constants/freePages.js`, all three consumers
+now import it. `tools/build_entitlements_manifest.py` extended to verify this holds (each consumer
+imports the shared source and does not re-declare locally) — mutation-proved by planting a local
+`const FREE_PAGES = [...]` back into `AuthGuard.jsx` alongside its import: `--check` correctly goes
+STALE and the derivation test reds; restored and reverified.
+
+**Flow-worker classification, measured:** none of the changed files (`Login.jsx`, `AuthGuard.jsx`,
+`NavBar.jsx`, `MoreSheet.jsx`, `constants/freePages.js`, `tools/build_entitlements_manifest.py`,
+`api/data/entitlements_manifest.json`, both test files) are under `api/services/` or otherwise
+reachable from `api/flow_worker_main.py`'s entry point — `verdict()` returns `ok=True, bad=set()`.
+Zero flow-worker risk.
+
+**Full regression:** 80 backend tests (`test_entitlements.py` + `test_entitlements_manifest.py`,
+both extended for the new reality) + 50 frontend tests (`Login.test.jsx` new — 4 tests — plus every
+existing suite touching the four edited components), all green.
+
+**Member-visible effect, stated plainly:** a member on an active trial who signs in now lands on
+`/dashboard` instead of `/morning-wire` — a bug fix, not a new capability. Nothing else changes for
+any member; `FREE_PAGES`'s value and each consumer's matching behaviour are byte-identical to
+before.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  d4a4138a0
+SCOPE APPROVED:   Section 7 -- the two mechanical findings CP1 recorded, now closed. NOT S9 CP2 -- section 3 is unchanged, CP2+ (consolidating or enforcing entitlements) remains NOT PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered. This line authorizes exactly two narrow, independent bug fixes using data and logic that already exists: (1) Login.jsx's trial-routing gap -- fixed by reading data.paid_equiv (the backend's own already-computed answer, already present on every login response) instead of re-deriving the paid-plan literal without the trial clause AuthContext.jsx's canonical isPaid carries; a member on an active trial now correctly lands on /dashboard instead of /morning-wire right after signing in. (2) FREE_PAGES's triplication across AuthGuard.jsx/MoreSheet.jsx/NavBar.jsx retired onto one export, app/src/constants/freePages.js -- matching semantics per consumer left deliberately unchanged (prefix for AuthGuard.jsx's live-pathname check, exact for the other two's fixed nav-item check), since converging them would make one side wrong to fix the other; only the duplicated VALUE is closed. Flow-worker classification measured: none of the changed files are reachable from flow_worker_main.py's entry point, zero risk. Mutation-proved both fixes on both arms (Login.jsx: reverting to the old check reds the trial-member test specifically; FREE_PAGES: planting a local redeclaration reds the derivation --check). Full regression: 80 backend + 50 frontend tests green. Member-visible effect stated plainly: a bug fix for trial members' post-login routing, nothing else changes for anyone.
+```
