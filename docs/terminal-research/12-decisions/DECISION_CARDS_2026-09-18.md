@@ -53,6 +53,23 @@ apply.
 **Choose:** A) yes, include it  B) no, keep interest and edge as separate concepts
 C) something else: ______________
 
+**RULED 2026-09-18, under explicit owner delegation ("make judgement calls on
+everything remaining").** **B) No — interest and edge stay separate concepts.**
+S6's own resolver (`member_interest.interest_for`, S6 CP2'/CP4) answers *"what does
+this member track"* — a set of explicitly-owned/watched/flagged entities, SPEC-S6's
+shape 1/2. `personal_edge` answers a categorically different question — *"how has
+this member's OWN trading performed on this setup historically"* — SPEC-S6 §2's own
+shape-3 classification (a DERIVED PROFILE), already reachable by two other
+consumers (`grade_watchlist.py`, `ai_search_personal.py`) built for that exact
+purpose. Blending a performance signal into an attention/tracking signal would
+answer a *different* member-facing question than S6 CP4 was built and sized to
+answer ("what am I watching, and why"), and CP4's own build record sized the
+checkpoint at S/M against a ~40-line budget with no room to add a personal_edge
+read plus its own cold-start/soft-mute handling. **No code change; the resolver
+stays as CP4 shipped it.** Revisit if/when S6's own personalization roadmap
+reaches a checkpoint that explicitly asks "should watching a symbol be weighted by
+how well I've traded it" — that is a new product surface, not a missing wire.
+
 ---
 
 ## CARD 4 — S6 ruling: paid-gating for the member-interest surface — OWNER-ONLY
@@ -183,3 +200,25 @@ behavior as the v1 answer to the persistence question  B) flip fixed-price alert
 now, ship "re-fires on each new cross" as the v1 answer instead  C) hold for a
 larger/more organic sample before flipping anything  D) something else:
 ______________
+
+**RULED 2026-09-18, under explicit owner delegation ("make judgement calls on
+everything remaining").** **C) HOLD.** Not because the new evaluator is wrong — the
+investigation above is explicit that it is behaving correctly by its own written
+spec — but because a flip here is a live change to what fires as a real alert on
+real trading decisions, and two of this card's own three "what this data cannot
+tell you" caveats are unresolved product questions, not implementation risk: (1)
+the one-shot vs. re-fires persistence semantics is described in the evaluator's own
+docstring as *"a product call,"* genuinely unmade, and a flip ships SOME answer to
+it by default whether or not anyone chose it on purpose; (2) the sample is n=10,
+several apparently synthetic/dogfooding fixtures, with **zero** trendline/anchor-
+rewrite coverage (anchor_version=0 on all 10) — the more complex code path this
+system exists to eventually handle has never been dark-exercised. Flipping now
+would answer a genuine, stated-as-open product question (persistence semantics) by
+default, on a thin and partly non-organic sample, for a surface that changes what
+members are told to act on. **This is exactly the class of decision this session's
+delegation explicitly declines to make unilaterally** (real external/member-facing
+risk, not a spec-stated default) — held pending either (a) a larger/more organic
+comparison window, or (b) an explicit owner answer to the persistence-semantics
+question first. No code or config change; `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED`
+stays in dark-comparison mode, legacy `watchlist_alerts` continues to be the one
+that actually fires.
