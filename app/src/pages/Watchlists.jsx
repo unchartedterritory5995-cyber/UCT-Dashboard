@@ -82,11 +82,18 @@ import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mer
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 import { resolveCommunityPick, ALIAS_PREFIX } from './watchlist/communityPick'
+import { chordById, matchesChord } from './command/chords.js'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
 // its `{detail}` body is truthy, so every `!data` loading guard below is
 // skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
 import fetcher from '../utils/jsonFetcher'
+
+// S2 CP4 — resolved ONCE at module scope: a lookup inside the handler would
+// re-scan the table on every keystroke, and a miss would silently disable
+// the binding. Mirrors ChartPane.jsx / GridChartCell.jsx exactly.
+const SHIFT_F = chordById('SHIFT_F')
+
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -1348,17 +1355,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // `flagToast === 'added'` branch below was unreachable the day it was
     // written: a rendered state with no writer. It TOGGLES now, the same verb
     // ChartPane, GridChartCell, Breadth and the Theme Tracker already use.
-    // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
-    // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
-    // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
-    // a TOGGLE leaves the flag on whichever parity the release happens to catch.
-    // Reported 2026-08-29.
-    // ⛔ AND `!e.ctrlKey && !e.altKey && !e.metaKey`, ADDED 2026-09-14 (F-S2-1).
-    // Without them this fired on Ctrl+Shift+F / Cmd+Shift+F too — the platform
-    // accelerator chord — so a member reaching for the browser got a silent write
-    // to their flag list. ChartPane.jsx is the shape copied.
-    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat
-        && !e.ctrlKey && !e.altKey && !e.metaKey && selectedSym) {
+    // S2 CP4 — reads the DECLARED chord table instead of spelling the modifier
+    // set out inline. Behaviour is identical by construction and proved so in
+    // Watchlists.chordAdoption.test.jsx.
+    // ⛔ `!e.repeat` and `selectedSym` stay HERE, not in the table: a held
+    // chord auto-repeats ~30x/sec (this binding is a TOGGLE) and an empty
+    // selection is a STATE guard, not a property of the chord's identity.
+    if (matchesChord(e, SHIFT_F) && !e.repeat && selectedSym) {
       e.preventDefault()
       const willFlag = !flagged.includes(selectedSym)
       toggleFlag(selectedSym)

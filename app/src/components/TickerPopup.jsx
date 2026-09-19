@@ -18,6 +18,7 @@ import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
 import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerPopup.module.css'
+import { chordById, matchesChord } from '../pages/command/chords.js'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -31,6 +32,12 @@ const TheStreetPanel = lazy(() => import('./fundamentals/TheStreetPanel'))
 // seeds ChartPane's timeframe), but the visible button row is ChartPane's now.
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
+
+// S2 CP6 — resolved ONCE at module scope: a lookup inside the handler would
+// re-scan the table on every keystroke, and a miss would silently disable
+// the binding. Mirrors ChartPane.jsx / GridChartCell.jsx / Watchlists.jsx /
+// ThemeTrackerPage.jsx.
+const SHIFT_F = chordById('SHIFT_F')
 
 export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
@@ -152,17 +159,13 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     if (!modalOpen) return
     const handleKey = (e) => {
       if (e.key === 'Escape') { closeModal(); return }
-      // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
-      // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
-      // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
-      // a TOGGLE leaves the flag on whichever parity the release happens to catch.
-      // Reported 2026-08-29.
-      // ⛔ AND `!e.ctrlKey && !e.altKey && !e.metaKey`, ADDED 2026-09-14 (F-S2-1).
-      // Without them this fired on Ctrl+Shift+F / Cmd+Shift+F too — the platform
-      // accelerator chord — so a member reaching for the browser got a silent write
-      // to their flag list. ChartPane.jsx is the shape copied.
-      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat
-          && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier
+      // set out inline. Behaviour is identical by construction and proved so in
+      // TickerPopup.chordAdoption.test.jsx.
+      // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats
+      // ~30x/sec and this binding is a TOGGLE, a property of the binding, not
+      // the chord's identity.
+      if (matchesChord(e, SHIFT_F) && !e.repeat) {
         const willFlag = !isFlagged(activeSym)
         toggleFlag(activeSym)
         setFlagToast(willFlag ? 'added' : 'removed')
