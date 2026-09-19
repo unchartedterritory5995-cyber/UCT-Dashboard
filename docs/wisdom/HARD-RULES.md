@@ -1776,3 +1776,49 @@ exact commit (`status: SUCCESS`), confirmed against the artifact, not the status
 /api/health` returned `uptime_seconds: 41`, a genuinely fresh boot. This landed well ahead of the
 next real scheduled daily-chain run (Monday 2026-09-22), closing the window in which production was
 armed and running the pre-fix code.
+
+### A second TOCTOU race, found the same day by a fresh review pass, closed the same day
+
+Once the eight findings above were landed, a fresh adversarial review pass was run over territory
+the original review deliberately skipped -- the capture/ingestion pipelines (Discord, Twitter,
+Sunday Scans) and the publish adapters (badges, brainkb, askai, modelbook, clips, d20, drafts).
+Both capture and every adapter but one came back clean at the HIGH/MEDIUM confidence bar this
+programme now holds reviews to.
+
+**One real bug, same class as the budget TOCTOU race, in a completely different place:**
+`api/services/wisdom/publish/adapters/drafts.py::decide()`'s `modelbook_example` approval path.
+The draft was read under a separate `store.read()`, with each status transition committed later in
+its OWN `store.write()` -- the identical shape of gap that let the extraction budget race exceed
+its cap, here letting two near-simultaneous `decide(draft_id, "approve", ...)` calls (a double-click
+on the admin approve button; two admin sessions) both pass the initial check, both see
+`published_ref IS NULL`, and both call `modelbook_service.create_setup_example` -- producing TWO
+rows in a `require_paid`, member-facing table with only one ever tracked by `published_ref` (the
+other silently orphaned, findable only by hand).
+
+**Fix:** the read, every status transition, and the `modelbook_example` path's
+`create_setup_example` call now all happen inside ONE already-open `store.write()` transaction,
+mirroring `review.py::act()`'s own established "read and decide inside one transaction" pattern --
+`WRITE_LOCK` (in-process) + `BEGIN IMMEDIATE` (cross-process) serialize the whole thing against
+every other writer. Safe to hold the lock across `create_setup_example` specifically because it's a
+single fast local SQLite INSERT into `modelbook.db` (verified directly: no network call, no AI
+generation) -- unlike the extraction budget fix, which had to keep its slow Batch API submission
+OUTSIDE the lock to avoid trading one bug for an availability regression.
+
+**Proved** with a real `threading.Thread` + `threading.Barrier` concurrency test (only
+`create_setup_example` is stubbed, mirroring the existing single-threaded test's own pattern;
+`decide()`'s real logic runs). **Mutation-proved** by reverting the fix via a backed-up file (never
+`git checkout`), confirming the test fails on the reverted code (`max_concurrent=2` -- both threads
+observed inside `create_setup_example` at the same wall-clock moment, reproducing the exact race),
+then restoring and reconfirming green. 113 tests pass across the affected files; the full 96-file
+wisdom suite reconfirmed green (1654 passed, 1 environmental skip, 0 failed) after the fix.
+
+**✅✅ LANDED AND DEPLOYED, same day.** `origin/master` is `871d1b4c5` ("Merge branch
+'feat/wisdom-loop' into HEAD"), with `174dcc9cb` (this fix's tip, plus the SESSION-STATE/
+PROGRAM-MANIFEST/CONTRACTS.md doc corrections from earlier the same day) confirmed an ancestor.
+Landed the same way as the first batch -- `tools/land_master_first.py feat/wisdom-loop`, run by the
+owner after the identical `--no-push` dry-run classifier refusal for an agent session. Railway
+`web` deployed it (superseded moments later by yet another session's unrelated master push,
+`33e05f733` -- confirmed to still contain this fix via `git merge-base --is-ancestor`, since
+Railway only tracks the newest commit and a later push doesn't undo an earlier one already merged
+into master's history); confirmed live via `GET /api/health` returning `uptime_seconds: 73`, a
+fresh boot after the commit landed.

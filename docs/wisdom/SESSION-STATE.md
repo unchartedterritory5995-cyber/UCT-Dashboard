@@ -55,7 +55,26 @@ written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after mer
 > dry run that pushes nothing. It is not refused for the account owner typing the same command
 > themselves in their own terminal. There is no way to route around this from inside a session; the
 > correct move (used here) is to hand the owner the exact commands and verify the result afterward,
-> not to keep retrying the blocked tool call.
+> not to keep retrying the blocked tool call. ⚠️ Confirmed to be a HARD wall, not a socially
+> engineerable one: the owner explicitly said "you have full approval to do all of that fully" in
+> chat and a retry was still refused with the identical reason — the classifier evaluates the
+> action pattern itself, and chat-level approval does not change what it sees. The only lever that
+> would is the owner adding a Bash permission rule in their own Claude Code settings, outside any
+> conversation.
+>
+> ✅✅ **A SECOND TOCTOU RACE, found by a fresh review pass over previously-unreviewed territory
+> (capture pipelines + publish adapters), fixed and landed the SAME DAY.**
+> `api/services/wisdom/publish/adapters/drafts.py::decide()`'s `modelbook_example` approval path
+> had the identical bug shape as the extraction budget race: two near-simultaneous admin approvals
+> of the same draft could both call `modelbook_service.create_setup_example`, producing two rows in
+> a paid, member-facing table with only one tracked. Fixed the same way (read + every transition +
+> the external insert now inside ONE `store.write()` transaction), proved with a real threading
+> concurrency test, mutation-proved. `origin/master` is now `871d1b4c5` (later superseded in
+> Railway's deploy history by an unrelated session's `33e05f733`, which still contains this fix —
+> confirmed via `git merge-base --is-ancestor`), live-confirmed via `/api/health`
+> `uptime_seconds: 73`. Full detail in `HARD-RULES.md`'s "A second TOCTOU race" section. The rest
+> of that review pass (Discord/Twitter/Sunday-Scans capture, badges/brainkb/askai/modelbook/clips
+> floor compliance) came back clean at the confidence bar this programme holds reviews to.
 >
 > **NEEDS THE OWNER (all four items below predate this fix and are UNCHANGED by landing it —
 > "landing to master" itself is done and removed from this list):**
