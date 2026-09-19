@@ -868,7 +868,7 @@
     },
     {
       "id": "w2-deferred-by-guard-banking-run",
-      "status": "held",
+      "status": "pending",
       "why": "W2. ONE banking run of `append_widget_embed` with the FOURTH OUTCOME live and the guard STILL FULL, to bank the DEFERRED-BY-GUARD reading with a raw artifact. It is not trying to reproduce anything: D1 closed the loss path, so this records, once, that the door was driven to completion and the capture chokepoint stopped it WITH THE MEMBER TOLD.",
       "expect": "DEFERRED-BY-GUARD",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD unset or full",
@@ -886,11 +886,23 @@
         "--profile",
         "C:\\Users\\Patrick\\uct-worktrees\\notebook-primary-platform\\.worktrees\\canary-chrome-profile-persistent"
       ],
-      "held_why": "Not blocked by anything \u2014 it needs NO flag change and does not depend on P2. It is held only because 2.8b owns the current window. Release it in any window 2.8b is not using."
+      "held_why": "Not blocked by anything \u2014 it needs NO flag change and does not depend on P2. It is held only because 2.8b owns the current window. Release it in any window 2.8b is not using.",
+      "attempts": 0,
+      "released_why": "Released. Its only stated blocker was that 2.8b owned the window; 2.8b is done (18/18). It needs no flag change and the mode value is back to its safe default, which is exactly the state this cell measures.",
+      "result": {
+        "exit": 0,
+        "seconds": 231.3,
+        "tail": "\u21d2 INCONCLUSIVE  a SILENT NOTHING: no call to the door's endpoint and no deferral sentence on screen. The click may have missed, or the toast may have shipped invisibl",
+        "inconclusive": true,
+        "declared_fail": false,
+        "evidence": "docs/notebook/evidence/20260919T105722-w2-deferred-by-guard-banking-run",
+        "evidence_ok": true
+      },
+      "restaged_why": "Re-staged after the toast latch. Its three prior attempts could NEVER have banked: the product clears the toast at 2200ms and the rig read it at 5000ms, so the outcome this cell exists to record was structurally unreachable. The instrument changed, so this is a different experiment."
     },
     {
       "id": "p3-append-door-restored-guard-unknown-only",
-      "status": "held",
+      "status": "inconclusive",
       "why": "P3 stage 2, and D3's ACTUAL PROOF. The same five orderings of `append_widget_embed` \u2014 the DISCRIMINATING cell \u2014 with `NOTEBOOK_DOOR_GUARD=unknown-only`, so the guard no longer suppresses the door and fix 6's `discardsUnsentWork` is what has to hold the member's words. These five were RED 5/5 against fix 5 (commit `9e7c67e73`), with the signature `record went CLEAN while queued: True` \u2014 which is exactly the write `persist` now guards. GREEN here is what closes D3.",
       "expect": "GREEN",
       "flag_state_required": "NOTEBOOK_DOOR_GUARD=unknown-only, VERIFIED IN-PROCESS on the pod",
@@ -926,15 +938,15 @@
         "reload mid-flight (marker from a dead tab)"
       ],
       "banked": "\u2b50 Unlike 2.8b, this runs in NORMAL mode, so its verdicts ARE written to wave-q1-f5-production-matrix.json and become table rows. That is what makes it capable of closing D3 \u2014 a controlled experiment could not.",
-      "attempts": 1,
+      "attempts": 3,
       "released_why": "Re-held.",
       "result": {
-        "exit": 124,
-        "seconds": 900.5,
-        "tail": "\u21d2 INCONCLUSIVE  the outbox still held this note's entry after 240.0s \u2014 the drain had not finished, so the server read would measure the clock rather than the product.",
+        "exit": 0,
+        "seconds": 208.5,
+        "tail": "\u21d2 INCONCLUSIVE  a SILENT NOTHING: no call to the door's endpoint and no deferral sentence on screen. The click may have missed, or the toast may have shipped invisibl",
         "inconclusive": true,
         "declared_fail": false,
-        "evidence": "docs/notebook/evidence/20260919T101925-p3-append-door-restored-guard-unknown-only",
+        "evidence": "docs/notebook/evidence/20260919T104229-p3-append-door-restored-guard-unknown-only",
         "evidence_ok": true
       },
       "next_run_why": "Ready to re-run once the mode value is set again. The previous run produced 0 RED and 0 DEFERRED with the door open - the substantive result - but 3 INCONCLUSIVE because the wait asked for the outbox to empty, which the product deliberately never does for the note the editor has open. The wait now also accepts the SERVER having the sentence."
@@ -1085,7 +1097,7 @@
     },
     {
       "id": "matrix-remainder",
-      "status": "blocked",
+      "status": "pending",
       "timeout": 3600,
       "why": "Running the remainder first would spend window minutes on cells the fix is about to change, and the rig window is the scarcest resource in this programme.",
       "cmd": [
@@ -1098,7 +1110,9 @@
         "docs/notebook/wave-q1-f5-production-matrix.md"
       ],
       "blocked_on": "the fix4 re-run, which rewrites five of the cells this would otherwise re-read",
-      "release_when": "fix4-production-re-run reaches a DECIDED verdict on all five cells."
+      "release_when": "fix4-production-re-run reaches a DECIDED verdict on all five cells.",
+      "attempts": 0,
+      "released_why": "Released. Its blocker was \"cells the fix is about to change\" - all three fixes have since landed and P2 is green (18/18, zero RED), so the rationale is spent. --resume is correct HERE because this runs in NORMAL mode, where verdicts ARE banked; the same flag would be wrong in second-writer mode, where they are not."
     },
     {
       "id": "fix5-production-re-run",

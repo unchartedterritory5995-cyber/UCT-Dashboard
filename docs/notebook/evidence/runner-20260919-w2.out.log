@@ -1,0 +1,12 @@
+
+=== WINDOW OPEN 10:49:06 · 1 staged ===
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T104906-w2-deferred-by-guard-banking-run (7255B raw)
+   ⇒ w2-deferred-by-guard-banking-run: INCONCLUSIVE (attempt 1, requeued) in 261.3s
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T105328-w2-deferred-by-guard-banking-run (8246B raw, +1 artifact(s))
+   ⇒ w2-deferred-by-guard-banking-run: INCONCLUSIVE (attempt 2, requeued) in 233.0s
+   ▶ w2-deferred-by-guard-banking-run: python tools/q1_f5_matrix.py --family append_widget_embed --profile C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent
+   💾 evidence: docs/notebook/evidence/20260919T105722-w2-deferred-by-guard-banking-run (8245B raw)
+   ⇒ w2-deferred-by-guard-banking-run: INCONCLUSIVE (attempt 3, giving up — needs a human) in 231.3s
+=== WINDOW CLOSED · 3 executed ===
