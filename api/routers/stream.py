@@ -438,8 +438,22 @@ def stream_status():
     Carries the admission-control counters too — `chat_stream.stats()` and
     `/curated-stream-status` already publish theirs, and a cap nobody can see
     hit is a cap nobody knows they hit.
+
+    D3-D: `bars_overlay_live` names the SAME degradation the same sentence
+    above already covers, one layer up. `/api/stream/prices`'s Massive
+    broadcaster coupling is a best-effort `try/except: _bb = None` — if the
+    bars overlay never initialized (`init_broadcaster` only runs under
+    `STREAM_BARS_ENABLED == "1"`), every live quote silently falls back to
+    Finnhub-only and nothing anywhere said so until now. Additive and
+    read-only; no existing caller's behaviour changes.
     """
     out = dict(get_stream_status() or {})
     out["max_subscribers"] = MAX_SUBSCRIBERS
     out["subscribers"] = {name: len(conns) for name, conns in _subscribers.items()}
+    try:
+        from api.services.bar_broadcaster import get_broadcaster
+        get_broadcaster()
+        out["bars_overlay_live"] = True
+    except Exception:
+        out["bars_overlay_live"] = False
     return out
