@@ -1,0 +1,82 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 3,
+    "fixed": 2,
+    "unchanged": 151,
+    "missing": 0,
+    "baseline": 153,
+    "current": 154,
+    "current_ran": 50192,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 153 = unchanged 151 + fixed 2 + missing 0  |  current 154 = unchanged 151 + new 3 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35419353536",
+  "current_run_id": "35420965228",
+  "baseline_sha": "bda2aa363365305ab54b6f28a03a1208e5955b4d",
+  "current_sha": "dd2acb5a0adefb4a68a0371f94b56b6478d0dba6",
+  "commit_range": "bda2aa363365305ab54b6f28a03a1208e5955b4d..dd2acb5a0adefb4a68a0371f94b56b6478d0dba6",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_vite_flag_ledger|test_every_row_is_complete_and_a_dark_row_says_why",
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > the ledger declares it, and names the reader that really reads it"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bda2aa363..dd2acb5a0 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_vite_flag_ledger|test_every_row_is_complete_and_a_dark_row_says_why": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bda2aa363..dd2acb5a0 touched tests/test_vite_flag_ledger.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > the ledger declares it, and names the reader that really reads it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bda2aa363..dd2acb5a0 touched src/components/chart/engine/__tests__/memberPaneGate.test.js or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bda2aa363..dd2acb5a0 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bda2aa363..dd2acb5a0 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    }
+  }
+}
