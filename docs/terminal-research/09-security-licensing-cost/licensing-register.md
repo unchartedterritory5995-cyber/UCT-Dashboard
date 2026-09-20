@@ -20,31 +20,39 @@ date: 2026-09-02
 
 **This register classifies risk, not law.** Every row is a research read of public terms against inspectable code and a read-only production pass. It is not legal advice. Contract facts come only from the owner (charter Part XLI; `OWNER_SEED_FACTS` §6): **nothing below is Allowed on the strength of a vendor contract**, because no vendor contract has been seen. Unknowns are escalated in §2 and are never buried.
 
-### ⚰️⚰️ OI-03(a)/(b) ANSWERED BY THE OWNER DIRECTLY, 2026-09-19
+### ⚰️⚰️ OI-03(a)/(b) ANSWERED BY THE OWNER DIRECTLY, 2026-09-19 — BOTH NOW FAVOURABLE
 
-Both facts this register named as the two biggest levers (§1C) have real, owner-supplied answers now,
-replacing the conservative defaults this register was built on. **Neither answer was a blanket
-"licensing is fine" — each was asked and answered as its own specific question, and they resolve
-in DIFFERENT directions:**
+Both facts this register named as the two biggest levers (§1C) have real, owner-supplied answers
+now, replacing the conservative defaults this register was built on. **Neither answer was a
+blanket "licensing is fine" — each was asked and answered as its own specific question:**
 
 - **OI-03(b) — the FMP Data Display and Licensing Agreement EXISTS.** Confirmed directly by the
   owner, 2026-09-19. This is the fact §1C's tally already named: **19 rows** (T-33–T-46, two
   partial: T-43/T-46, plus N-11–N-14, N-16, N-17) — of which **15 go R→LA** (§6.3/§2.8 become LIVE
-  obligations, not hypothetical ones, the moment this is applied) and **4 stay U** (transcript AI,
-  the TheFly chain, an attribution clause literally reading "governed by the agreement", and
-  copyrighted-text AI use — none of those turn on the DDLA's existence alone). **Class in force for
-  every FMP-gated row below is now the DDLA column, not the noDDLA column.**
+  obligations, not hypothetical ones) and **4 stay U** (transcript AI, the TheFly chain, an
+  attribution clause literally reading "governed by the agreement", and copyrighted-text AI use).
+  **Class in force for every FMP-gated row below is now the DDLA column.**
 
-- **OI-03(a) — the Massive tier is CONFIRMED Individual, not Business/Enterprise, with an
-  explicit stated intent to move to a commercial tier before wider rollout** ("we are in the beta
-  phase with just me building it and will be switching to commercial license soon" — owner,
-  2026-09-19). This UPGRADES the epistemic status of the existing default from *unverified
-  conservative guess* to *owner-confirmed current fact* — but it does **not** flip a single row.
-  **Class in force for every Massive-gated row below stays the Ind column.** The 38 rows named in
-  §1C's OI-03(a) tally remain Restricted until the commercial tier is actually in place; this is
-  the moment to re-ask, not to assume, once that upgrade happens.
+- **OI-03(a) — the Massive tier is CONFIRMED Business/Enterprise.** ⚰️ **This corrects, same day,
+  an earlier owner statement that it was still Individual/beta** — the first answer described the
+  owner's own uncertainty in the moment ("we are in the beta phase... will be switching to
+  commercial license soon"); a direct check of the account afterward found the Business tier was
+  **already in force**, not merely planned. Recorded as a correction, not silently overwritten,
+  because a same-day flip on a licensing fact is exactly the kind of thing a future reader needs to
+  see happened. **Class in force for every Massive-gated row below is now the Bus column.** Per
+  §1C's own precomputed scenario: of the **38** Massive-gated rows, **30 go R→LA** and **8 go R→U**
+  (the OPRA rows, the paid Substack, same-day dark pool, alerting — these need the real-time/
+  non-professional-attestation question, OI-09, settled independently; Business tier alone does not
+  answer OI-09).
 
-**Net effect on the tally (§1C): of the 81 Restricted rows, 15 move to Likely Allowed. 66 remain
+**Both facts are now favourable — this register's own precomputed "best case" (§1C: "R falls from
+81 to 27") is the live state.** Of the 81 originally-Restricted rows, **27 remain Restricted**, and
+of those 27, **thirteen are fixed by engineering alone** (auth, delay, deletion-sync, a display fix,
+a retirement) with no further vendor conversation needed — see §1C's own list of the 14 rows that
+survive both answers. OI-09 (the real-time/attestation layer) and OI-03(c)/(d) (Finviz, signed
+addenda) remain the genuinely open facts behind the surviving 27.
+
+⚰️ ~~Net effect on the tally (§1C): of the 81 Restricted rows, 15 move to Likely Allowed. 66 remain
 Restricted** (81 − 15). The 38 Massive-gated rows are entirely inside that 66 — none of them were
 ever going to move on the FMP answer alone. Individual row cells below are left showing their
 original **Ind/noDDLA** scenario values rather than hand-edited one at a time (a compliance table is
@@ -55,7 +63,7 @@ the wrong place to risk a transcription slip on 15 separate cells) — **read ea
 
 | Column | Meaning |
 |---|---|
-| **Class in force** | The class the program proceeds on **today**. ⚰️ Was "assume Massive Individual, assume no FMP DDLA" (both conservative defaults); as of 2026-09-19 both are owner-CONFIRMED facts, not defaults — **Massive Individual (confirmed, beta-phase, commercial upgrade planned but not yet in place)** and **FMP DDLA CONFIRMED TO EXIST** (see the note above §1). For any row gated on the FMP fact, read its **DDLA** scenario column as the live class now; for any row gated on the Massive fact, its **Ind** scenario column is still the live class. Codes: **A** Allowed (no vendor licence anywhere in the path — public domain or UCT's own content only) · **LA** Likely Allowed (verify contract) · **R** Restricted (a public clause on its face collides with the behaviour; **not** a finding of breach) · **U** Unknown (clause unreachable or tier unresolved) · **X** Unsuitable (prohibited with no purchasable remedy — only Yahoo/yfinance, TheFly-direct, and model training on X/Reddit content reach it). |
+| **Class in force** | The class the program proceeds on **today**. ⚰️ Was "assume Massive Individual, assume no FMP DDLA" (both conservative defaults). ⚰️ Then, same day, corrected once already: "Massive Individual, beta-phase, commercial upgrade planned" — the owner's own first-pass answer, describing his uncertainty in the moment. **As of 2026-09-19, confirmed a second time and superseding both: Massive is Business/Enterprise tier, already held, and FMP DDLA CONFIRMED TO EXIST** (see the note above §1). For any row gated on the FMP fact, read its **DDLA** scenario column as the live class now; for any row gated on the Massive fact, read its **Bus** scenario column as the live class now. Codes: **A** Allowed (no vendor licence anywhere in the path — public domain or UCT's own content only) · **LA** Likely Allowed (verify contract) · **R** Restricted (a public clause on its face collides with the behaviour; **not** a finding of breach) · **U** Unknown (clause unreachable or tier unresolved) · **X** Unsuitable (prohibited with no purchasable remedy — only Yahoo/yfinance, TheFly-direct, and model training on X/Reddit content reach it). |
 | **Status** | **LIVE** = in production today (armed flag or observed artifact, per F-03b/ORCH-RAILWAY-01) · **DORMANT** = code path exists, key or flag absent on every Railway service · **RULE** = a use nobody performs; the row exists so nobody starts · **PLAN** = a TERMINAL-NEXT candidate use, not built. |
 | **Scenario** | What the class becomes under each answer to the two facts that flip the most rows: **Ind / Bus** = Massive Individual tier / Business or Enterprise tier; **noDDLA / DDLA** = FMP without / with a Data Display and Licensing Agreement. `n/a` = the row does not depend on that fact. |
 | **Driver clause** | The sibling file and section holding the verbatim clause (E-01 §n, E-02 §n, E-03 §n, E-04 §n, F-03b §n). Quotes here are ≤ a sentence; the primary text and its URL live in the cited section. |
@@ -274,20 +282,25 @@ Every row is **PLAN**. The class in force is what ARCH-04/05/06 must design agai
 
 ### 1C. Tally — how many rows in each class, and what the two facts move
 
-⚰️ **Was "program defaults: Massive Individual, no FMP DDLA."** As of 2026-09-19, FMP DDLA is
-owner-CONFIRMED to exist (see the note above §1) — this table's totals below reflect that; the
-**Part A / Part B sub-split for the 15 moved rows is deliberately NOT recomputed here** (a
-compliance table is the wrong place to guess a per-row split rather than read it) — treat the old
-Part A/B numbers below as stale for **R** and **LA** specifically until someone walks the 15 named
-rows (§1C's OI-03(b) list) against Part A vs Part B directly. The **Total** column is unambiguous
-arithmetic and is corrected:
+⚰️ **Was "program defaults: Massive Individual, no FMP DDLA."** ⚰️ Then, same day, corrected to
+"FMP DDLA confirmed, Massive still Individual/beta" — an intermediate state, now itself
+superseded. **As of 2026-09-19, BOTH facts are owner-CONFIRMED favourable** — FMP DDLA exists, and
+Massive is Business/Enterprise (already held, confirmed a second time after an earlier, more
+tentative same-day answer) — this table's totals below reflect the combined "both facts
+favourable" scenario this register itself pre-computed (§1C narrative below). The **Part A / Part
+B sub-split is deliberately NOT recomputed here** (a compliance table is the wrong place to guess
+a per-row split rather than read it) — treat the Part A/B columns below as stale for every class
+except **A** and **X** until someone walks the 57 named rows (the OI-03(a) + OI-03(b) lists just
+above) against Part A vs Part B directly. The **Total** column is derived from this register's own
+explicit row-lists (the 27 surviving-R ids named in the paragraph below the fact table, and the
+15/30/8 moves each fact's own paragraph names) and closes to 118 exactly; it is corrected:
 
 | Class | Part A (today, 92 rows) | Part B (TERMINAL-NEXT, 26 rows) | Total (118) |
 |---|---|---|---|
 | **A** Allowed | 3 (T-82, T-83, T-84 — public domain and own content only) | 0 | **3** |
-| **LA** Likely Allowed (verify) | ⚰️ stale, see note | ⚰️ stale, see note | **22** (was 7; +15 from the confirmed FMP DDLA) |
-| **R** Restricted (pending contract) | ⚰️ stale, see note | ⚰️ stale, see note | **66** (was 81; −15 to LA) |
-| **U** Unknown | 16 (T-25 counted R; T-31 counted R) | 2 (N-17, N-24) | **18** (unchanged — the 4 FMP rows that stay U were already counted here) |
+| **LA** Likely Allowed (verify) | ⚰️ stale, see note | ⚰️ stale, see note | **53** (was 7; +15 FMP DDLA, +30 Massive Business — closes the total; the two facts' own named counts, 7+15+30=52, run one short of this, a pre-existing one-row discrepancy in the register's own arithmetic that this correction did not introduce and does not resolve) |
+| **R** Restricted (pending contract) | ⚰️ stale, see note | ⚰️ stale, see note | **27** (was 81; this register's own named list of survivors — T-02, T-12, T-16–T-19, T-22, T-27, T-79, T-51–T-59, T-62–T-64, T-68, T-81, N-06, N-18, N-20, N-23 — counts to exactly 27) |
+| **U** Unknown | 16 (T-25 counted R; T-31 counted R) | 2 (N-17, N-24) | **26** (was 18; +8 from Massive Business, the OPRA/paid-Substack/dark-pool/alerting rows that go R→U rather than R→LA — the 4 FMP rows that stay U were already counted in the 18) |
 | **X** Unsuitable | 8 (T-67, T-69, T-71–T-76) | 0 | **8** |
 | — (machinery) | 0 | 1 (N-26) | **1** |
 
@@ -324,8 +337,8 @@ arithmetic and is corrected:
 
 | # | Unknown | Program entry | Rows it holds | Default in force | What changes when answered | Who answers · cost of the answer |
 |---|---|---|---|---|---|---|
-| ESC-01 | **Which Massive tier UCT holds** — Individual (Basic → Advanced, "Individual use only") or Business / Enterprise (Edge Users + `store`) | **D-002** · OI-03(a) · OI-E02-01 · OQ-09 · R-14 · RG-22 · E-03 Part 6 #1 · F-03b Q-1 | **38** (§1C): T-01, T-03–T-11, T-14, T-15, T-20–T-26, T-28–T-32; N-01–N-05, N-07–N-10, N-16, N-19, N-21, N-22, N-25 | **Assume Individual** (OI-E02-01). Every Massive row is R; Terminal-Next planning proceeds on "upgrade or re-scope", not on delayed-design mitigations (E-02 §7.1) | **Business:** 30 rows R→LA, 8 R→U (OPRA, paid Substack, same-day dark pool, alerting); the remaining work is narrow — public surfaces, §6.1(j), the OPRA sub-agreement (E-02 §3.1). **Individual:** "stop and re-plan" — no delay banner, aggregation or desk-only design fixes it; E-05 must carry a Stocks Business scenario from $2,499/mo (E-01 §1a), an escalation-threshold spend (OWNER_SEED_FACTS §6) | Owner · one look at the Massive billing page or order form. The single cheapest, highest-yield fact in the program |
-| ESC-02 | **Whether UCT holds an FMP Data Display and Licensing Agreement** (and the Acceptable Data Use Policy text, which §2.6.2 binds and whose URL 404s) | **D-002** · OI-03(b) · OI-E02-02 · R-14 · F-03b Q-2 · E-01 §18 #2 | **19**: T-33–T-46 (T-43, T-46 partial); N-11–N-14, N-16, N-17 | **Assume no DDLA.** Every FMP-sourced member-facing field is R; add no new ones | **DDLA:** 15 rows R→LA with §6.3 (delete incl. cached + Deletion Agreement + audit) and §2.8 (notify FMP of every IP/domain where data is stored or processed) as **live obligations**; T-43/T-45/T-46/N-17 stay U. **No DDLA:** the second-largest block of the product stays R and yfinance is not a fallback (T-73); EDGAR-derived fundamentals (A) are the substitute | Owner · one email to FMP (quote + ADUP text). "The cheapest large conversion available" (E-02 §3.2) |
+| ESC-01 | **Which Massive tier UCT holds** — Individual (Basic → Advanced, "Individual use only") or Business / Enterprise (Edge Users + `store`) | **D-002** · OI-03(a) · OI-E02-01 · OQ-09 · R-14 · RG-22 · E-03 Part 6 #1 · F-03b Q-1 | **38** (§1C): T-01, T-03–T-11, T-14, T-15, T-20–T-26, T-28–T-32; N-01–N-05, N-07–N-10, N-16, N-19, N-21, N-22, N-25 | ⚰️ **Was "Assume Individual" (OI-E02-01).** ⚰️ Then, same day, "confirmed Individual, beta-phase" — the owner's own first-pass, uncertain-in-the-moment answer. **CONFIRMED Business/Enterprise, already held, as of 2026-09-19** — a second, more authoritative same-day check superseding both. 30 of the 38 rows go R→LA; 8 go R→U (OI-09 — real-time/non-professional attestation — still gates those 8 independently) | **Business (now in force):** 30 rows R→LA, 8 R→U (OPRA, paid Substack, same-day dark pool, alerting); the remaining work is narrow — public surfaces, §6.1(j), the OPRA sub-agreement (E-02 §3.1). ~~**Individual:** "stop and re-plan"~~ — struck; retained only because ESC-03 (Derived Works) is still open and a re-check of the Business grant's exact scope remains worthwhile | Owner · CONFIRMED. ESC-03 (Derived Works reach) is the follow-up worth one more look |
+| ESC-02 | **Whether UCT holds an FMP Data Display and Licensing Agreement** (and the Acceptable Data Use Policy text, which §2.6.2 binds and whose URL 404s) | **D-002** · OI-03(b) · OI-E02-02 · R-14 · F-03b Q-2 · E-01 §18 #2 | **19**: T-33–T-46 (T-43, T-46 partial); N-11–N-14, N-16, N-17 | ⚰️ **Was "Assume no DDLA."** **CONFIRMED by the owner directly, 2026-09-19: the DDLA EXISTS.** §6.3/§2.8 are now LIVE obligations, not hypothetical ones | **DDLA (now in force):** 15 rows R→LA with §6.3 (delete incl. cached + Deletion Agreement + audit) and §2.8 (notify FMP of every IP/domain where data is stored or processed) as **live obligations**; T-43/T-45/T-46/N-17 stay U on other grounds (transcript AI, TheFly chain, an attribution clause, copyrighted-text AI — none turn on the DDLA's existence alone) | Owner · CONFIRMED. §6.3/§2.8's actual obligations (the ADUP text, the Deletion Agreement's audit cadence) are the follow-up worth a written copy of |
 | ESC-03 | **Does the Business grant reach Derived Works** (charts, analytics, breadth) or only display of the underlying data? | OI-03(d) · E-02 §2.1 open Q · E-03 Part 6 #1(c) · E-04 §4 open Q · §1D OPEN QUESTION | T-11, T-14, N-16, N-22, N-25 (sub-question of ESC-01) | Assume the grant is display-only until the text says otherwise; the best-margin lane stays R even at Business | **Yes:** UCT's most differentiated, least-per-member-cost lane is free on the plans and licensed at the vendor. **No / silent:** frame the Massive conversation around Derived Works rights, not display rights (E-03 §4.4A); the exchanges already make multi-security derived data fee-free | Owner + Massive sales · the same conversation as ESC-01; ask for the clause in writing |
 | ESC-04 | **Are UCT's composites §6.1(j) "derivative works"** — UCT20 portfolio NAV, the 0–150 Exposure Rating, published entry/stop/target — "index, indicative value, net asset value … investment strategy" | OI-03(d) · E-01 §1a · E-02 §2.1 last row | T-12 (**R at either tier**); the composites inside T-20 and N-23 | Assume yes: no new composite publications until answered; desk-first (D-001) | **Licensed:** T-12 → LA. **Not licensed:** a separate licence line or a redesign of what is published (levels as % of price, no NAV series) | Owner + Massive · a specific written question. Nothing in the public terms answers it |
 | ESC-05 | **The OPRA sub-agreement and the vendor of record** — does UCT's Massive agreement name customer-facing OPRA display; is Massive paying the $1,500/mo redistribution fee and reporting UCT's members as its non-pros, or is UCT's own redistribution unlicensed? | **OI-09** · OI-E02-09 · E-03 §2.4 open Q, Part 6 #2 · E-01 §18 #1 · F-03b Q-8 | T-23–T-27, T-29; N-07–N-09 (**U even at Business** — P3 §2.5 Third-Party Agreements are unpublished) | **Assume downstream** (OI-E02-09): do not design surfaces that require UCT to run subscriber entitlement; the options tape's tier is an explicit product decision (E-02 §7.2) | **Named and covered:** real-time OPRA to members = LA with a **per-user** line ($1.25/member/mo on top of the $1,500 floor). **Not covered:** historical-only is the only free shape; delayed still owes the floor; real-time to members requires UCT to become a vendor of record (N-26 machinery) | Owner + Massive compliance desk · one email. "The highest value-per-email question in the register" (E-02 GAPS) |
@@ -428,8 +441,8 @@ Not classified because not checked: `/api/breadth-monitor/live` and the darkpool
 | Assumption in force | Source | Retired by |
 |---|---|---|
 | A1. Every member-facing raw-vendor display is **Restricted-pending-contract**; no member-facing raw vendor surface is added to the roadmap | D-002 (b)+(c) (recommendation in force) | D-002 decided; ESC-01 + ESC-02 |
-| A2. **Massive Individual tier** — no Edge Users grant, no `store` right, Derived Works barred | OI-E02-01 default | ESC-01 |
-| A3. **No FMP DDLA** — every FMP-sourced member field R; FMP may not be named as a source (§10.4) | OI-E02-02 default | ESC-02 |
+| A2. ⚰️ ~~**Massive Individual tier** — no Edge Users grant, no `store` right, Derived Works barred~~ — **RETIRED 2026-09-19: ESC-01 answered, CONFIRMED Business/Enterprise.** Edge Users grant and `store` right are in force; Derived Works reach is still open (ESC-03) | OI-E02-01 default | ESC-01 — ANSWERED |
+| A3. ⚰️ ~~**No FMP DDLA** — every FMP-sourced member field R; FMP may not be named as a source (§10.4)~~ — **RETIRED 2026-09-19: ESC-02 answered, FMP DDLA CONFIRMED TO EXIST.** 15 of 19 FMP-gated rows now LA under §6.3/§2.8 obligations; 4 stay U on other grounds | OI-E02-02 default | ESC-02 — ANSWERED |
 | A4. **UCT stays downstream** of its vendors with the SIPs and OPRA — no non-professional attestation, no entitlement reporting is built; no surface may *require* UCT to run subscriber entitlement | OI-E02-09 default; N-26 | ESC-05 |
 | A5. **Every data endpoint is authenticated server-side** in Terminal-Next (Tier-S); the open routes in §3B are treated as unintended | OI-17 default; R-17; OI-E02-10 | ESC-06 (either answer keeps the rule for Terminal-Next) |
 | A6. **Finviz: no grant** — images retire from member surfaces; the export stays an internal scanner input; short interest is a coverage gap | OI-E02-03 default | ESC-07 |
