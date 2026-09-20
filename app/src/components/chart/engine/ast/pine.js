@@ -1507,6 +1507,43 @@ const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ `ta.correlation(source1, source2, length)` — THE PEARSON CORRELATION
+  // COEFFICIENT, and it costs this table ZERO NEW VOCABULARY. TradingView's own
+  // page: "Describes the degree to which two series tend to deviate from their
+  // ta.sma() values" — which is covariance-over-stdevs by definition:
+  //
+  //     correlation = (sma(x*y,n) - sma(x,n)*sma(y,n)) / (stdev(x,n) * stdev(y,n))
+  //
+  // `sma`, `stdev`, `*`, `-`, `/` are all already declared. This is the SAME
+  // formula thinkorswim's own Correlation page publishes in terms of its
+  // Covariance — `thinkscript.js::TS_EXPANSIONS.correlation` builds the identical
+  // tree from the identical citation, so the two frontends cannot drift onto two
+  // different numbers for one name.
+  //
+  // ⭐ THE na-HANDLING IS INHERITED, NOT REBUILT. TradingView's own REMARKS: "na
+  // values in the source series are ignored; the function calculates on the
+  // length quantity of non-na values" — and `sma`/`stdev` are BOTH already
+  // `NA.SKIP` in this engine (`interpret.js::FINITE_WINDOW`), so composing them
+  // reproduces that convention for free rather than approximating it.
+  //
+  // ⛔ THE LENGTH MUST BE A WHOLE NUMBER >= 2, checked here rather than left to
+  // `sma`/`stdev`: the expansion uses it FOUR times, so a bad window would
+  // produce up to four refusals pointing at functions the member never wrote —
+  // the same reasoning `vwma` above states for its own length. `stdev` of a
+  // single sample is a divide-by-zero waiting to happen, so 2 is the floor.
+  correlation: (a) => {
+    const n = a[2] && a[2].type === 'num' ? Number(a[2].value) : NaN
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 2) return null
+    const [x, y] = a
+    const covariance = cOp('-', [
+      cCall('sma', [cOp('*', [x, y]), cNum(n)]),
+      cOp('*', [cCall('sma', [x, cNum(n)]), cCall('sma', [y, cNum(n)])]),
+    ])
+    return cOp('/', [
+      covariance,
+      cOp('*', [cCall('stdev', [x, cNum(n)]), cCall('stdev', [y, cNum(n)])]),
+    ])
+  },
   // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
   // Channel Width. TradingView's own published `f_kcw` reference-manual
   // source, verbatim:
