@@ -171,7 +171,7 @@ blocker class.
 | S12 | ✅ | migration 1, 2 | both | none |
 | S4 | ✅ | CP1 | CP1 | CP2 unsigned |
 | S7 `price-level` | ✅ | CP1–CP3, CP3b | all | dark read pending |
-| S7 `event-proximity` | ✅ | CP1, CP2 | both | dark read pending |
+| S7 `event-proximity` | ✅ | CP1–CP3 | all | ⚰️ was *"CP1, CP2 declared/built, dark read pending"* — **CP3 (the dark-projection sweep) is also merged**, `c97e2a501` per `LEDGER.md`, and `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED` reads armed in-process (§3.1). The dark comparison read itself is still pending — a live `railway ssh` query against `event_proximity_comparison_spans` was attempted 2026-09-20 to pull real agreed/new-only/legacy-only numbers and was blocked by this session's own tooling permissions; the owner or a session with that access can run it |
 | S7 `catalyst-match` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `position-risk` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `scan-membership-change` | ✅ | CP1–CP3 | all | dark read pending |
