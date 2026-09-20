@@ -777,7 +777,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # node type, argument kind or lookback form moved. New bar-corpus case:
     # `pine_floor_rounds_toward_negative_infinity`. The scalar half is
     # untouched at 137 -- `floor` names no per-symbol column.
-    assert len(parts["bar"]) == 112 and len(parts["scalar"]) == 137
+    # ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    # `ta.percentile_linear_interpolation` -- a new windowed function, three
+    # arguments (`series, int, int`), `lookback: "arg1"`. New bar-corpus case:
+    # `pine_percentile_linear_interpolation_between_two_ranks`. The scalar half
+    # is untouched at 137 -- it names no per-symbol column.
+    assert len(parts["bar"]) == 113 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

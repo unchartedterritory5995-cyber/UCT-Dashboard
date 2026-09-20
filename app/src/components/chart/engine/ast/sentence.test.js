@@ -363,6 +363,15 @@ const FORMS = [
   // number' does not occur inside ' rounded to a whole number' (nor the other
   // way -- 'down' is the discriminator either grammar has to consume).
   { kind: 'call', name: 'floor', parts: [0, ' rounded down to a whole number'] },
+  // ⭐ `percentileLinearInterpolation` (2026-09-20) -- hand-typed from the
+  // manifest's own sentence, like every row above. ⚠️ NOT ambiguous with
+  // `percentrank`'s row: `matchForm` anchors on the literal FOLLOWING each
+  // leaf, and 'th percentile of ' does not occur inside '-bar percent rank
+  // of ' (nor the other way around).
+  { kind: 'call',
+    name: 'percentileLinearInterpolation',
+    parts: ['the ', 2, 'th percentile of ', 0, ' over the last ', 1,
+      ' bars, linearly interpolated between the two nearest ranks'] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
@@ -1082,6 +1091,10 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      // `percentileLinearInterpolation` (2026-09-20): Pine's
+      // `ta.percentile_linear_interpolation`, routed via `PINE_CALL_SHAPES`.
+      // One named entry, not a bumped count.
+      'function:percentileLinearInterpolation',
       'function:percentrank',
       'function:pivothigh',
       'function:pivotlow',
@@ -1115,7 +1128,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19), an ordinary clock entry:
     // it renders a sentence, round-trips, and is ASCII, the same as `islast`.
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
-    expect(entries.length).toBe(112)
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    expect(entries.length).toBe(113)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1126,7 +1140,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
-    expect(subjects.length).toBe(112)
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    expect(subjects.length).toBe(113)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2451,6 +2466,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'median_close_4',
       'percentrank_close_10',
       'bbw_close_20_2',
+      // ⭐ `percentileLinearInterpolation` (2026-09-20) — TradingView's own
+      // published NA-PROPAGATE convention (median/percentrank beside it
+      // SKIP), and the percentage=50 identity with `median` is measured
+      // separately in `pinePercentileLinearAccept.test.js`.
+      'pine_percentile_linear_interpolation_between_two_ranks',
       // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
       // discipline: one corpus case per function, each resolved by a real
       // TradingView capture (`tests/fixtures/vendor/observations/
@@ -2526,7 +2546,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // its own and the table half moves on its own, and a single literal would
     // hide which one did.
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
-    expect(sentences.length).toBe(CORPUS.cases.length + 112)
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 113)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

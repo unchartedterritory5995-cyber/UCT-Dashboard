@@ -2802,10 +2802,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function"
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:state"
       ]
     },
     {

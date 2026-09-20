@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 20 clock, 15 operators, 72 functions and 137 scalars — 249 names, one grammar', () => {
+  it('declares 5 series, 20 clock, 15 operators, 73 functions and 137 scalars — 250 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -539,7 +539,14 @@ describe('the manifest', () => {
     // blocker on a real corpus script (`renko-candles-overlay__d76a18d49e.pine`).
     // Ordinary pointwise entry, `lookback: 0`, one `series` argument -- no new
     // node type, argument kind or lookback form. `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(72)
+    // ⭐ 72 -> 73 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    // `ta.percentile_linear_interpolation` -- routed onto this camelCase
+    // manifest key via `PINE_CALL_SHAPES` (identity build, three args
+    // straight through), vetted against a real TradingView capture. Three
+    // arguments (`series, int, int`), `lookback: "arg1"` -- the same
+    // already-used lookback form every `arg1` window declares -- no new node
+    // type, argument kind or lookback form. `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(73)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -636,10 +643,12 @@ describe('the manifest', () => {
     // rather than being restated in JS. Scalar half untouched at 137.
     // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19) -- see the clock-count note above.
     // ⭐ 111 -> 112 IS `floor` (2026-09-20) -- see the functions-count note above.
-    // Scalar half untouched at 137, which is what makes the total 249, not 250.
-    expect(bar.size).toBe(112)
+    // ⭐ 112 -> 113 IS `percentileLinearInterpolation` (2026-09-20) -- see the
+    // functions-count note above. Scalar half untouched at 137, which is what
+    // makes the total 250, not 251.
+    expect(bar.size).toBe(113)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(249)
+    expect(declared.size).toBe(250)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

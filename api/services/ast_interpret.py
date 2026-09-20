@@ -942,6 +942,38 @@ def _window_median(series: Sequence[float], lo: int, hi: int) -> float:
     return (a + b) / 2
 
 
+def _window_percentile_linear(series: Sequence[float], lo: int, hi: int,
+                               percentage: float) -> float:
+    """``ta.percentile_linear_interpolation(source, length, percentage)`` --
+    TradingView's own page: "Calculates percentile using method of linear
+    interpolation between the two nearest ranks" and "na values in the source
+    series are included in calculations and will produce an na result" --
+    PROPAGATE, not SKIP, unlike ``sma``/``stdev``/``median`` beside it.
+
+    ⭐⭐ AT ``percentage = 50`` THIS IS ``_window_median``, BY CONSTRUCTION.
+    The standard rank position is ``pos = (n-1) * percentage/100``; at 50 with
+    even ``n``, ``pos`` lands exactly halfway between the two middle ranks, so
+    ``sorted[lower] + frac*(sorted[upper]-sorted[lower])`` is exactly
+    ``(sorted[n/2-1] + sorted[n/2]) / 2`` -- ``_window_median``'s own
+    even-length answer, which that function's own docstring cites a real
+    vendor capture for. The JS twin is ``interpret.js::windowPercentileLinear``.
+    """
+    vals = []
+    for i in range(lo, hi + 1):
+        v = series[i]
+        if _isnan(v):
+            return NAN
+        vals.append(v)
+    vals.sort()
+    n = len(vals)
+    pos = (n - 1) * percentage / 100
+    lower = math.floor(pos)
+    upper = math.ceil(pos)
+    if lower == upper:
+        return vals[lower]
+    return vals[lower] + (pos - lower) * (vals[upper] - vals[lower])
+
+
 def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
     """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
     current) / length``. NOT expressible via a running ``sum`` (each ``sum``
@@ -1729,6 +1761,12 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
     "falling": lambda series, n: _monotone_col(series, n, False),
     "median": _window_fn("median", _window_median),
+    # ⭐ NOT a `_window_fn(...)` entry -- its reducer takes `percentage` too,
+    # constant across the column, not itself a series. Same shape as `bbw`
+    # below: a bespoke lambda in this table rather than a generic window
+    # helper that has no slot for a third argument.
+    "percentileLinearInterpolation": lambda series, n, percentage: _rolling(
+        series, n, lambda s, lo, hi: _window_percentile_linear(s, lo, hi, percentage), NA_PROPAGATE),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
     ],

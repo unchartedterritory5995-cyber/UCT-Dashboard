@@ -4467,6 +4467,39 @@
       }
     },
     {
+      "id": "pine_percentile_linear_interpolation_between_two_ranks",
+      "source": "percentileLinearInterpolation(high - low, 20, 90)",
+      "why": "TradingView's own page: 'Calculates percentile using method of linear interpolation between the two nearest ranks', and 'na values in the source series are included in calculations and will produce an na result' -- PROPAGATE, not SKIP, unlike `median`/`percentrank` immediately beside it in this corpus. At percentage=50 this is exactly `median` by construction (the interpolation fraction lands on the mean of the two middle ranks for an even window) -- measured across four window parities in `pinePercentileLinearAccept.test.js`, not merely asserted here.",
+      "ast": {
+        "type": "call",
+        "name": "percentileLinearInterpolation",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          },
+          {
+            "type": "num",
+            "value": 90
+          }
+        ]
+      }
+    },
+    {
       "id": "falling_close_3",
       "source": "falling(close, 3)",
       "why": "Vendor-Backed Unserved Builtins, Batch 1 -- covers falling, resolved by an INDEPENDENT real TradingView capture (not assumed by symmetry with rising) to strict monotone DECREASE over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions.falling_resolution).",

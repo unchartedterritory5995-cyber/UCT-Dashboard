@@ -286,7 +286,13 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # infinite input, where JS's `Math.floor` does not -- `_guarded_floor`
     # (`api/services/ast_interpret.py`) closes that the same way `_guarded_round`
     # already does. The scalar half is untouched (see the sibling assertion).
-    assert len(ast_table.bar_names()) == 112, len(ast_table.bar_names())
+    # ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    # `ta.percentile_linear_interpolation` -- routed onto this camelCase
+    # manifest key via `PINE_CALL_SHAPES`, vetted against a real TradingView
+    # capture. Three arguments (`series, int, int`), `lookback: "arg1"` -- an
+    # already-declared lookback form -- no new node type, argument kind or
+    # lookback form. The scalar half is untouched (see the sibling assertion).
+    assert len(ast_table.bar_names()) == 113, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -318,7 +324,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # moved, the scalar half is untouched at 137.
     # 248 -> 249 (2026-09-20): `floor`. The bar half moved 111 -> 112, the
     # scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 249, f"the table declares {len(declared)} names, not 249"
+    # 249 -> 250 (2026-09-20): `percentileLinearInterpolation`. The bar half
+    # moved 112 -> 113, the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 250, f"the table declares {len(declared)} names, not 250"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
