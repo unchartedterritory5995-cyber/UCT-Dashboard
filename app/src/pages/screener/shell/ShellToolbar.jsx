@@ -157,9 +157,15 @@ function Seal({ snapshot, snapshotDate }) {
   )
 }
 
+// A saved column preset is active when the columns on screen are exactly its
+// list (order included — a preset owns its column ORDER, not just the set).
+const sameCols = (a, b) =>
+  Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i])
+
 export default function ShellToolbar({ meta, view, onView, visibleColumns, allColumns,
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
-  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null }) {
+  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null,
+  presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <div className={styles.toolbar}>
@@ -169,6 +175,26 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
             className={`${styles.viewTab} ${view === v.key ? styles.viewTabOn : ''}`}
             onClick={() => onView(v.key)}>{v.label}</button>
         ))}
+        {/* The member's own saved column views, after the firm's. Each carries a
+            gold dot + an inline delete; applying one sets the columns, so it is
+            active exactly when the columns on screen are its list. */}
+        {presets.map(p => {
+          const on = sameCols(visibleColumns, p.columns)
+          return (
+            <span key={p.id} className={`${styles.presetTab} ${on ? styles.presetTabOn : ''}`}>
+              <button type="button" role="tab" aria-selected={on} className={styles.presetTabBtn}
+                onClick={() => onApplyPreset?.(p)}>
+                <span className={styles.presetDot} aria-hidden="true" />{p.name}
+              </button>
+              {onDeletePreset && (
+                <button type="button" className={styles.presetDel} aria-label={`Delete view ${p.name}`}
+                  onClick={() => onDeletePreset(p.id)}>
+                  <UIcon name="x" size={9} />
+                </button>
+              )}
+            </span>
+          )
+        })}
       </div>
       <span className={styles.statusLine} aria-live="polite">
         {isLoading && !shown ? 'Scanning…' : `${(total ?? 0).toLocaleString()} matches`}
@@ -182,7 +208,8 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
           </button>
           <ColumnPicker open={pickerOpen} onClose={() => setPickerOpen(false)}
             allColumns={allColumns} visible={visibleColumns}
-            onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }} />
+            onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }}
+            onSavePreset={onSavePreset} />
         </span>
         <button type="button" className={styles.toolBtn}
           aria-label={`Density: ${density}`} aria-pressed={density === 'compact'}

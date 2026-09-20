@@ -21,8 +21,19 @@ const colWidth = key =>
   key === 'ticker' ? '128px'
   : key === 'company' ? 'minmax(150px, 1.4fr)'
   : ['sector', 'industry', 'theme', 'patterns'].includes(key) ? 'minmax(120px, 1fr)'
+  // The base-structure columns render a text TAG ("Pocket Pivot (Advancing)"),
+  // not a number — a NUM_W (92px) track clipped them. Give them a real text
+  // track so the structure name reads in full.
+  : ['base_render', 'base_matches', 'base_shape', 'base_shape_label'].includes(key) ? 'minmax(150px, 1.3fr)'
   : descFor(key) ? `${NUM_W + DESC_TRIGGER_W}px`
   : `${NUM_W}px`
+
+// RS/UCT (0–100 rankings) get a mini-bar whose fill colour steps with strength.
+const rsColor = n =>
+  n >= 90 ? 'var(--gain)'
+  : n >= 70 ? 'var(--ut-green, #2d8c4e)'
+  : n >= 50 ? 'var(--ut-gold, #dcbb5e)'
+  : 'var(--border-accent)'
 
 // `ref` exposes `scrollToIndex` off the `@tanstack/react-virtual` instance
 // this component already creates — the seam Phase 3's shared hub cursor binds
@@ -176,6 +187,39 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
                   }
                   const def = COLUMN_DEFS[c] || { fmt: v => v ?? '—' }
                   const val = cellValue(row, c)
+                  // ── Rich cell kinds (data-driven off columnDefs.cell) ──
+                  // columnDefs.js is a plain .js module (no JSX), so the tag/bar
+                  // MARKUP lives here while the DECISION to use it stays a data
+                  // field on the column. `fmt` is still the single source of the
+                  // displayed text (and what CSV export reads).
+                  if (def.cell === 'tag') {
+                    // The base-structure tag colours by the LEADING structure's
+                    // textbook bias (derived server-side; see query.py). data-bias
+                    // drives the colour in CSS and is the test seam. Other tag
+                    // columns carry no bias and stay neutral.
+                    const bias = c === 'base_render' ? row.base_bias : null
+                    return (
+                      <div role="cell" key={c} className={`${styles.cell} ${styles.tagCell}`}>
+                        {val ? <span className={styles.strutTag} data-bias={bias || undefined}>{def.fmt(val, row)}</span>
+                             : <span className={styles.cellDash}>—</span>}
+                      </div>
+                    )
+                  }
+                  if (def.cell === 'rs') {
+                    const n = typeof val === 'number' ? val : null
+                    return (
+                      <div role="cell" key={c} className={`${styles.cell} ${styles.numCell} ${styles.rsCell}`}>
+                        {n == null ? <span className={styles.cellDash}>—</span> : (
+                          <span className={styles.rsWrap}>
+                            <span className={styles.rsBar}>
+                              <i style={{ width: `${Math.max(0, Math.min(100, n))}%`, background: rsColor(n) }} />
+                            </span>
+                            <b className={styles.rsNum}>{def.fmt(val, row)}</b>
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }
                   const heat = def.heat ? def.heat(val) : ''
                   const cls = heat === 'g' ? styles.heatG : heat === 'g1' ? styles.heatG1
                     : heat === 'r' ? styles.heatR : ''

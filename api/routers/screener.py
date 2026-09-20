@@ -118,6 +118,11 @@ class ScanSpec(BaseModel):
     sort: dict | None = None
     view: str = "overview"
     columns: list[str] | None = None
+    # A ranked scan (weighted composite + optional top_n cap, e.g. UCT 50).
+    # query.py already parses/validates this via ranking.parse and bounds the
+    # page by top_n; it just never reached the query because the model dropped
+    # the field. None = a plain sorted list, exactly as before.
+    rank: dict | None = None
     page: int = 1
     page_size: int = 50
 

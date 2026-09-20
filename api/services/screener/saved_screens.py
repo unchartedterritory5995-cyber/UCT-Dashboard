@@ -253,6 +253,12 @@ def candle_starters():
 
 def starters():
     return candle_starters() + [
+        # UCT 50 — the top 50 names by our composite rating. A ranked scan
+        # (rank owns ordering; top_n caps the list), shown on the UCT-ratings
+        # columns. Updates automatically as ratings move — not a curated list.
+        {"id": "starter_uct_50", "name": "UCT 50",
+         "spec": {"filters": [], "view": "uct_ratings",
+                  "rank": {"criteria": [{"key": "uct_composite"}], "top_n": 50}}},
         {"id": "starter_leaders_pullback", "name": "Leaders pulling back to 20EMA",
          "spec": {"filters": [
              {"key": "rs_rank", "op": "gte", "min": 80},

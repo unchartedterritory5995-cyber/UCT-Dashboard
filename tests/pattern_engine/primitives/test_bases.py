@@ -275,3 +275,25 @@ def test_every_relation_declares_a_bias_the_order_understands():
         assert s.bias in bases._BIAS_ORDER, (
             "%s declares bias %r, which the render order does not rank"
             % (s.key, s.bias))
+
+
+def test_primary_bias_reads_the_leading_structure():
+    assert bases.primary_bias(",advancing-structure,") == "bullish"
+    assert bases.primary_bias(",declining-structure,") == "bearish"
+    assert bases.primary_bias(",contracting-range,") == "neutral"
+
+
+def test_primary_bias_follows_render_order_not_shape():
+    # A bullish relation on a declining shape: the RELATION leads the render
+    # head, so the tag's bias is the relation's — matching what base_render
+    # shows — never the shape's.
+    m = ",declining-structure,pocket-pivot,"
+    assert bases.primary_bias(m) == "bullish"
+    order = bases._render_order("declining-structure", ["pocket-pivot"])
+    assert bc.by_key(order[0]).bias == bases.primary_bias(m)
+
+
+def test_primary_bias_is_none_when_there_is_nothing_to_read():
+    assert bases.primary_bias(None) is None
+    assert bases.primary_bias("") is None
+    assert bases.primary_bias(",,") is None
