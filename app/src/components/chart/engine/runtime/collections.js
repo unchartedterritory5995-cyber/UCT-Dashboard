@@ -76,33 +76,64 @@ const filled = (n, value) => {
  */
 
 /** @type {Readonly<Record<string, ArrayFn>>} */
-export const ARRAY_FNS = Object.freeze({
+const ARRAY_NEW = {
   // ⭐ `array.new<T>(size?, initial?)` — the spelling both acceptance scripts
   // actually use. Zero arguments is by far the commonest and needs no default
   // at all, which is why the unmeasured bool/string default blocks nothing.
-  'array.new': {
-    // ⛔ THE KINDS ARE DECLARED EVEN THOUGH THE ARITY VARIES. An empty `args`
-    // left the VM asking for kind `undefined` and refusing a correct call —
-    // `argKind` has to have something to answer with for every position the
-    // arity allows.
-    args: ['number', 'any'], returns: 'array', generic: true, minArgs: 0, maxArgs: 2,
-    fn: (a, budget, typeArg) => {
-      if (a.length === 0) return []
-      const n = a[0]
-      if (!Number.isInteger(n) || n < 0) {
-        throw new CollectionError(`array.new: a size is a whole number of elements, got ${n}`)
-      }
-      budget.peak('ARRAY_ELEMENTS', n)
-      if (a.length === 2) return filled(n, a[1])
-      if (!Object.prototype.hasOwnProperty.call(DEFAULT_FOR, typeArg)) {
-        throw new CollectionError(
-          `array.new<${typeArg || '?'}>(${n}) with no initial value — what Pine fills a `
-          + `\`${typeArg || 'that'}\` array with has not been measured on a chart, and this `
-          + 'engine does not guess a value a member would read as data')
-      }
-      return filled(n, DEFAULT_FOR[typeArg])
-    },
+  // ⛔ THE KINDS ARE DECLARED EVEN THOUGH THE ARITY VARIES. An empty `args`
+  // left the VM asking for kind `undefined` and refusing a correct call —
+  // `argKind` has to have something to answer with for every position the
+  // arity allows.
+  args: ['number', 'any'], returns: 'array', generic: true, minArgs: 0, maxArgs: 2,
+  fn: (a, budget, typeArg) => {
+    if (a.length === 0) return []
+    const n = a[0]
+    if (!Number.isInteger(n) || n < 0) {
+      throw new CollectionError(`array.new: a size is a whole number of elements, got ${n}`)
+    }
+    budget.peak('ARRAY_ELEMENTS', n)
+    if (a.length === 2) return filled(n, a[1])
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_FOR, typeArg)) {
+      throw new CollectionError(
+        `array.new<${typeArg || '?'}>(${n}) with no initial value — what Pine fills a `
+        + `\`${typeArg || 'that'}\` array with has not been measured on a chart, and this `
+        + 'engine does not guess a value a member would read as data')
+    }
+    return filled(n, DEFAULT_FOR[typeArg])
   },
+}
+
+/** ⭐⭐ `array.new_float(…)` IS `array.new<float>(…)` WITH THE TYPE IN THE NAME.
+ *
+ *  Pine spells the same constructor two ways and real scripts overwhelmingly
+ *  choose the typed one: measured across the 266-script corpus, `array.new_float`
+ *  alone is the first blocker for **14** scripts, against 7 uses of the generic
+ *  spelling in the census that shaped this table.
+ *
+ *  ⛔⛔ THEY DELEGATE TO ONE IMPLEMENTATION AND DO NOT COPY IT. A second body
+ *  would drift from the generic one — and the half that drifted would be the
+ *  typed half, which is the half members actually write. The alias binds the
+ *  type and forwards; everything else (arity, budget, the unmeasured-default
+ *  refusal) is the SAME code, so a fix to either reaches both.
+ *
+ *  ⚠ `bool` AND `string` ARE LISTED HERE AND STILL REFUSE A MISSING INITIAL
+ *  VALUE, because `DEFAULT_FOR` does not carry them — what Pine fills those with
+ *  has not been measured on a chart. Listing them is not serving them: it moves
+ *  the refusal from *"this engine has no such function"* to the accurate
+ *  *"what Pine fills a bool array with has not been measured"*, which is a
+ *  different sentence and the true one.
+ */
+const TYPED_NEW = Object.freeze(['float', 'int', 'bool', 'string', 'color'])
+
+const typedNew = (typeArg) => ({
+  ...ARRAY_NEW,
+  generic: false,
+  fn: (a, budget) => ARRAY_NEW.fn(a, budget, typeArg),
+})
+
+export const ARRAY_FNS = Object.freeze({
+  'array.new': ARRAY_NEW,
+  ...Object.fromEntries(TYPED_NEW.map((ty) => [`array.new_${ty}`, typedNew(ty)])),
   'array.from': {
     args: ['any'], returns: 'array', variadic: true, minArgs: 0, maxArgs: Infinity,
     fn: (a, budget) => { budget.peak('ARRAY_ELEMENTS', a.length); return a.slice() },
