@@ -169,6 +169,17 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const overviewCols = (meta?.views || []).find(v => v.key === DEFAULT_VIEW)?.columns
+  // Close the column picker on a click outside its anchor (button + popover) —
+  // otherwise it stayed open until the Columns button was clicked a second time.
+  const pickerAnchorRef = useRef(null)
+  useEffect(() => {
+    if (!pickerOpen) return undefined
+    const onDoc = e => {
+      if (pickerAnchorRef.current && !pickerAnchorRef.current.contains(e.target)) setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [pickerOpen])
   return (
     <div className={styles.toolbar}>
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
@@ -212,7 +223,7 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
       </span>
       <Seal snapshot={snapshot} snapshotDate={snapshotDate} />
       <span className={styles.toolGroup}>
-        <span className={styles.pickerAnchor}>
+        <span className={styles.pickerAnchor} ref={pickerAnchorRef}>
           <button type="button" className={styles.toolBtn} aria-label="Choose columns"
             aria-expanded={pickerOpen} onClick={() => setPickerOpen(o => !o)}>
             <UIcon name="columns" size={13} /> Columns
@@ -224,9 +235,10 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
             layouts={meta?.views} onApplyLayout={cols => onColumns(cols)} />
         </span>
         <button type="button" className={styles.toolBtn}
-          aria-label={`Density: ${density}`} aria-pressed={density === 'compact'}
+          aria-label={`Row density: ${density}`} aria-pressed={density === 'compact'}
+          title={`Row density — ${density === 'compact' ? 'switch to comfortable' : 'switch to compact'}`}
           onClick={() => onDensity(density === 'compact' ? 'comfortable' : 'compact')}>
-          <UIcon name="rows" size={13} />
+          <UIcon name="rows" size={13} /> Density
         </button>
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}

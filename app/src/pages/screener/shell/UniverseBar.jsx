@@ -22,7 +22,7 @@ import styles from './ScannerShell.module.css'
 // A signed-out member, or one with no lists, has no `list` filter in meta at
 // all (the absence contract in filters.py::_my_lists_entry) — then only the
 // full UCT Universe shows, which is the honest state.
-export default function UniverseBar({ meta, activeList, onSetFilter }) {
+export default function UniverseBar({ meta, activeList, onSetFilter, total, isLoading, hasFilters }) {
   const listDef = (meta?.filters || []).find(f => f.key === 'list')
   // Drop the leading "Any" preset — that IS the full-universe case, which the
   // UCT Universe button owns.
@@ -126,8 +126,13 @@ export default function UniverseBar({ meta, activeList, onSetFilter }) {
       </div>
 
       <span className={styles.uBase}>
-        {isUniverse ? 'Full market' : single ? single.label : isCombo ? `${val.length} lists · any of` : ''}
-        <span className={styles.uBaseHint}> → add filters to build a scan</span>
+        {isUniverse ? 'Full market' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
+        {/* Live count of the current selection: with no filters this is the
+            pool's own size (names); once filters narrow it, it's the matches. */}
+        {total != null && !isLoading && (
+          <>{' · '}<b>{total.toLocaleString()}</b>{' '}{hasFilters ? 'matches' : (total === 1 ? 'name' : 'names')}</>
+        )}
+        {!hasFilters && <span className={styles.uBaseHint}> → add filters to build a scan</span>}
       </span>
     </div>
   )
