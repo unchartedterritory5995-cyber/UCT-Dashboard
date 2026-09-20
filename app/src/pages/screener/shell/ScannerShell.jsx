@@ -22,7 +22,7 @@ import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
-import ReviewChartsButton from '../../charts/review/ReviewChartsButton'
+import ScreenerReviewOverlay from './ScreenerReviewOverlay'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
@@ -122,6 +122,7 @@ export default function ScannerShell({ embedded = false }) {
   const [liveSortOn, setLiveSortOn] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [libOpen, setLibOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [exportState, setExportState] = useState({})
 
   // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
@@ -254,24 +255,17 @@ export default function ScannerShell({ embedded = false }) {
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
-          reviewBar={(
+          reviewBar={displayRows.length > 0 ? (
             /* ⛔ THE LOADED PAGE, NOT `total`. The toolbar can read "3,745
              * matches" while 100 rows have arrived; a review can only walk what
              * the member can see, so the button's own count is the honest number
-             * and it deliberately differs from the match count beside it. */
-            <ReviewChartsButton
-              symbols={displayRows.map(r => r.ticker)}
-              source="screener"
-              label="Screener"
-              /* ⛔ THE ORDERING IS NAMED, INCLUDING THE LIVE FLAG. A review taken
-               * under the live re-sort walked a different list from one taken
-               * under snapshot order, and the session records which — the same
-               * distinction the "snapshot order" chip makes on screen. */
-              sort={s.sort?.key
-                ? `${s.sort.key}:${s.sort.dir || 'desc'}${liveSortOn ? ':live' : ''}`
-                : null}
-            />
-          )}
+             * and it deliberately differs from the match count beside it.
+             * Opens the IN-SCREENER review overlay (below) — no navigation to
+             * /charts; the member flips through the charts here, keyboard-driven. */
+            <button type="button" className={styles.toolBtn} onClick={() => setReviewOpen(true)}>
+              <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
+            </button>
+          ) : null}
           /* ⛔ THE WRAPPER IS THE SEAM'S ANCHOR, and `display:contents` is load-bearing: the
              toolbar's `.toolGroup` is a flex row and `.saveMenuWrap` positions the popover
              against itself, so the wrapper must add a queryable node and NO box. */
@@ -377,6 +371,10 @@ export default function ScannerShell({ embedded = false }) {
             onClear={s.clearFilters} variant="sheet" />
         )}
       </FiltersSheet>
+      {/* In-screener chart review — walks displayRows' tickers (the order shown)
+          one chart at a time, keyboard-driven, without leaving the screener. */}
+      <ScreenerReviewOverlay symbols={displayRows.map(r => r.ticker)}
+        open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </div>
   )
 }
