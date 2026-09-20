@@ -46,6 +46,7 @@ says which name and why — it never guesses a meaning.
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
+| `lastbarindex` | the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar |
 | `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- never a guess |
 | `isconfirmed` | 1 on a bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- collapsing blank onto 1 would put a confident isconfirmed on a bar that may still be open |
 | `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This engine evaluates a static fetch, so ishistory is exactly isconfirmed -- a divergence from the vendor, recorded in `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` |
@@ -74,7 +75,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (71)
+## Functions (73)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -106,6 +107,7 @@ decide whether a formula can run at all.
 | `ema(source, period)` | a number | whatever `period` asks for | the `period`-bar exponential average of `source` |
 | `exp(source)` | a number | 0 bars | e raised to `source` |
 | `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
+| `floor(source)` | a number | 0 bars | `source` rounded down to a whole number |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
 | `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the highest `source` of the last `period` bars |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
@@ -129,6 +131,7 @@ decide whether a formula can run at all.
 | `na(source)` | true or false | 0 bars | `source` being unknown |
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
+| `percentileLinearInterpolation(source, period, percentage)` | a number | whatever `period` asks for | the `percentage`th percentile of `source` over the last `period` bars, linearly interpolated between the two nearest ranks |
 | `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
 | `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |

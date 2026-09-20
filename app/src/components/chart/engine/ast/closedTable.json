@@ -905,6 +905,21 @@
       "yields": "num",
       "sentence": "the signed volume of the last {0} bars, which is on-balance volume's change across that window"
     },
+    "percentileLinearInterpolation": {
+      "args": [
+        "series",
+        "int",
+        "int"
+      ],
+      "argRoles": [
+        "source",
+        "period",
+        "percentage"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the {2}th percentile of {0} over the last {1} bars, linearly interpolated between the two nearest ranks"
+    },
     "percentrank": {
       "args": [
         "series",

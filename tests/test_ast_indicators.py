@@ -392,7 +392,14 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
 #: ordering-ambiguity risk (the only other argument of the same kind is the
 #: `series` source, a different kind entirely), so widening this set does
 #: not weaken the guard this test exists to enforce.
-_INT_ROLES = frozenset({"anchor", "mult"})
+#: ``percentage`` (2026-09-20) is the THIRD widening, for the same structural
+#: reason: Pine's real ``ta.percentile_linear_interpolation(source, length,
+#: percentage)`` takes a 0-100 threshold as its third argument, not a window,
+#: and this table has no argument kind for a bounded constant either — ``int``
+#: is again the closest available slot. No ordering-ambiguity risk: this
+#: function's other ``int`` role is ``period`` (the window) and its only
+#: `series` role is `source`, both different roles entirely.
+_INT_ROLES = frozenset({"anchor", "mult", "percentage"})
 
 
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():

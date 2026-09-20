@@ -971,6 +971,36 @@ function windowMedian(series, lo, hi) {
   return (a + b) / 2
 }
 
+/** `ta.percentile_linear_interpolation(source, length, percentage)` — TradingView's
+ *  own page: "Calculates percentile using method of linear interpolation between
+ *  the two nearest ranks" and "na values in the source series are included in
+ *  calculations and will produce an na result" — PROPAGATE, not SKIP, unlike
+ *  `sma`/`stdev`/`median` beside it (`ta.correlation`'s own page states the
+ *  opposite convention for `sma`/`stdev`, so this is not a copy-paste default).
+ *
+ *  ⭐⭐ AT `percentage = 50` THIS IS `windowMedian`, BY CONSTRUCTION, NOT BY
+ *  COINCIDENCE. The standard rank position is `pos = (n-1) * percentage/100`;
+ *  at 50 with even `n`, `pos` lands exactly halfway between the two middle
+ *  ranks, so `sorted[lower] + frac*(sorted[upper]-sorted[lower])` is exactly
+ *  `(sorted[n/2-1] + sorted[n/2]) / 2` — `windowMedian`'s own even-length
+ *  answer, which that function's header cites a real vendor capture for. The
+ *  parity test below asserts this rather than assuming it. */
+function windowPercentileLinear(series, lo, hi, percentage) {
+  const vals = []
+  for (let i = lo; i <= hi; i++) {
+    const v = series[i]
+    if (Number.isNaN(v)) return NaN
+    vals.push(v)
+  }
+  vals.sort((a, b) => a - b)
+  const n = vals.length
+  const pos = ((n - 1) * percentage) / 100
+  const lower = Math.floor(pos)
+  const upper = Math.ceil(pos)
+  if (lower === upper) return vals[lower]
+  return vals[lower] + (pos - lower) * (vals[upper] - vals[lower])
+}
+
 /** `ta.percentrank(src, length)` — `100 * count(prior length bars <= current)
  *  / length`. NOT `sum`-expressible: `sum` evaluates each term at ITS OWN
  *  bar, and percentrank compares every prior term against the SAME current
@@ -1577,6 +1607,13 @@ export const FN = Object.freeze({
   rising: carriedFn('rising'),
   falling: carriedFn('falling'),
   median: windowFn('median'),
+  // ⭐ NOT a `windowFn('...')` entry — `FINITE_WINDOW`'s reducers all close over
+  // `(series, lo, hi)` alone, and this one needs `percentage` too, which is
+  // constant across the whole column, not itself a series. Same shape as
+  // `stoch`/`cci` a few lines below: a bespoke closure in this table rather
+  // than a `FINITE_WINDOW` entry that does not fit.
+  percentileLinearInterpolation: (series, n, percentage) =>
+    rolling(series, n, (s, lo, hi) => windowPercentileLinear(s, lo, hi, percentage), NA.PROPAGATE),
   percentrank: (series, n) => {
     const out = nan(series.length)
     for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n)

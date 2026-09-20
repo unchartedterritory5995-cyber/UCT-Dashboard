@@ -281,6 +281,19 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   unbounded builtin, and it stays refused — see `_functions_excluded.pvt`),
     //   so nothing can be mistranslated onto it.
     pvtN: 'no Pine name collides — ta.pvt is the unbounded one and stays refused',
+    // — OURS ALONE, same reasoning as `obvN`/`pvtN` above but for a different
+    //   cause: this manifest key is camelCase, and the REAL Pine name —
+    //   `ta.percentile_linear_interpolation` — is snake_case and reaches this
+    //   entry through `PINE_CALL_SHAPES` (identity build, three args straight
+    //   through, vetted against a real TradingView capture; see `pine.js`).
+    //   That routing is a DIFFERENT door from the one this rail tests: this
+    //   rail asks whether `ta.<bare-manifest-key>` resolves, and
+    //   `ta.percentileLinearInterpolation` (camelCase) is not a spelling Pine
+    //   has or that any real pasted script could contain — nothing can be
+    //   mistranslated onto it.
+    percentileLinearInterpolation: 'no Pine name collides — the real Pine spelling is'
+      + ' snake_case (ta.percentile_linear_interpolation) and reaches this entry'
+      + ' through PINE_CALL_SHAPES, a separate, vetted route',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {
