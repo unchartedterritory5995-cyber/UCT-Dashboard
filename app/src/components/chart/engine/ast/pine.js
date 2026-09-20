@@ -9143,6 +9143,27 @@ function tupleRefusalTail(call, names, env) {
   }
   const shown = String(call.name)
   const supplied = call.args || []
+  // ⭐⭐ TASK 3 — `ta.supertrend` NAMES ITS OWN REASON, NOT THE GENERIC LIST.
+  //
+  // `closedTable.json::series.supertrend`'s own top-level note already states
+  // this in full: Supertrend carries state that depends on its OWN PREVIOUS
+  // VALUE (the band ratchet + the direction flip), which this grammar — a
+  // pure expression tree over sealed primitives, no self-reference — cannot
+  // hold without a NEW SEALED RECURRENCE PRIMITIVE, the same class of work
+  // `ema`/`rma`/`atr`/`rsi`/`adx` already needed. That is materially larger
+  // than "the tuple mechanism does not know this name," and the generic "the
+  // ones it can take apart are bb/macd/kc/dmi" list invites exactly the
+  // wrong fix: silently adding `supertrend` to `PINE_TUPLE_BUILTINS` (a table
+  // of PURE, STATELESS expansions) would drop the ratchet and the flip and
+  // serve a different series under the Supertrend name.
+  const bareForSupertrend = normaliseName(shown.split('.').pop())
+  if (bareForSupertrend === 'supertrend') {
+    return '`' + shown + '`' + ' carries state that depends on its own previous '
+      + 'value — the band only tightens while the trend holds, and the direction '
+      + 'flips only when price crosses the band it produced last bar. This engine '
+      + 'has no self-reference in its expression grammar yet, so this is not a '
+      + 'missing tuple form, it is a missing primitive'
+  }
   const callee = env.get(call.name)
   if (callee && callee.kind === 'fn') {
     const v = callee.value
