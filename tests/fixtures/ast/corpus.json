@@ -4500,6 +4500,124 @@
       }
     },
     {
+      "id": "pine_timenow_is_today_year_month_dayofmonth",
+      "source": "year == lastbaryear && month == lastbarmonth && dayofmonth == lastbardayofmonth",
+      "why": "TradingView's own live-wall-clock \"is_today\" idiom, measured verbatim across four real corpus scripts (chart-champions-part-1-npoc-levels-vwaps, initial-balance-ib-and-previous-day-week-high-low-close, mtf-key-levels-support-and-resistance, swing-points-and-liquidity-by-leviathan): `year == year(timenow) and month == month(timenow) and dayofmonth == dayofmonth(timenow)`. This engine's answer for `timenow` -- a live wall clock a static translator over an already-fetched bar array has no instant for -- is `lastbartime` and its calendar fields: the newest fetched bar's own values, broadcast to every bar, exactly `lastbarindex`'s own ruling applied to a calendar instead of a bar position. The divergence from genuine wall-clock semantics is real (a stale fetch reads `true` for its newest bar where live `timenow` would read `false`) and is disclosed at the binding (`indicators.js::CLOCK_LASTBAR_TIME`), not here.",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "year"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbaryear"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "month"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbarmonth"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "==",
+            "args": [
+              {
+                "type": "series",
+                "name": "dayofmonth"
+              },
+              {
+                "type": "series",
+                "name": "lastbardayofmonth"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_timenow_hour_and_minute_too",
+      "source": "time == lastbartime && hour == lastbarhour && minute == lastbarminute",
+      "why": "The fuller form of the same idiom, measured in `swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine`, which extends the year/month/dayofmonth comparison (see `pine_timenow_is_today_year_month_dayofmonth`) down to the hour and minute -- and separately builds `timestamp(year(timenow), month(timenow), ...)` from the bare value, which is why `lastbartime` itself (not just its calendar fields) needs its own coverage.",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "time"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbartime"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "hour"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbarhour"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "==",
+            "args": [
+              {
+                "type": "series",
+                "name": "minute"
+              },
+              {
+                "type": "series",
+                "name": "lastbarminute"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "falling_close_3",
       "source": "falling(close, 3)",
       "why": "Vendor-Backed Unserved Builtins, Batch 1 -- covers falling, resolved by an INDEPENDENT real TradingView capture (not assumed by symmetry with rising) to strict monotone DECREASE over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions.falling_resolution).",

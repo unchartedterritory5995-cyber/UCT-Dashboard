@@ -1473,9 +1473,20 @@ CLOCK_EXTENT = ("islast", "isfirst", "lastbarindex")
 CLOCK_REALTIME = ("isrealtime", "isconfirmed", "ishistory",
                   "islastconfirmedhistory")
 
+#: The newest bar's own calendar, broadcast to every bar. Mirrors
+#: ``indicators.js::CLOCK_LASTBAR_TIME`` -- read that docstring for the full
+#: argument (why ``timenow`` binds here, the divergence from live wall-clock
+#: semantics on a stale fetch, and why ``dayofweek``/``second`` are
+#: deliberately absent). The five calendar fields are the newest bar's own
+#: ``year``/``month``/``dayofmonth``/``hour``/``minute`` values, READ BACK
+#: from the arrays this function already filled -- never recomputed, so this
+#: broadcast can never disagree with what those columns already say.
+CLOCK_LASTBAR_TIME = ("lastbartime", "lastbaryear", "lastbarmonth",
+                      "lastbardayofmonth", "lastbarhour", "lastbarminute")
+
 CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
                                       "isweekly", "ismonthly") \
-    + CLOCK_EXTENT + CLOCK_REALTIME
+    + CLOCK_EXTENT + CLOCK_REALTIME + CLOCK_LASTBAR_TIME
 
 #: Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
 #: code, for the reason ``CLOCK_INTRADAY_TFS`` states one screen up.
@@ -1949,6 +1960,15 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     cols["hour"] = hour
     cols["minute"] = minute
     cols["sessionfirst"] = first
+    # `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
+    # computed above -- read back, never recomputed, so this broadcast can
+    # never disagree with what `year`/`month`/… already say about that bar.
+    cols["lastbartime"] = [time_col[-1]] * n
+    cols["lastbaryear"] = [year[-1]] * n
+    cols["lastbarmonth"] = [month[-1]] * n
+    cols["lastbardayofmonth"] = [dom[-1]] * n
+    cols["lastbarhour"] = [hour[-1]] * n
+    cols["lastbarminute"] = [minute[-1]] * n
     return cols
 
 

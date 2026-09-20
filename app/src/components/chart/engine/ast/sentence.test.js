@@ -998,7 +998,16 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:ismonthly',
       'clock:isrealtime',
       'clock:isweekly',
+      // ⭐⭐ `lastbartime` + its five calendar fields (2026-09-20) —
+      // `lastbarindex`'s own ruling applied to a calendar, and this engine's
+      // answer for Pine's `timenow`. Six named entries, not a bumped count.
+      'clock:lastbardayofmonth',
+      'clock:lastbarhour',
       'clock:lastbarindex',
+      'clock:lastbarminute',
+      'clock:lastbarmonth',
+      'clock:lastbartime',
+      'clock:lastbaryear',
       'clock:minute',
       'clock:month',
       'clock:sessionfirst',
@@ -1129,7 +1138,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // it renders a sentence, round-trips, and is ASCII, the same as `islast`.
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
-    expect(entries.length).toBe(113)
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    expect(entries.length).toBe(119)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1141,7 +1151,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     const subjects = treesForTheWholeTable(TABLE)
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
-    expect(subjects.length).toBe(113)
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    expect(subjects.length).toBe(119)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2471,6 +2482,13 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // SKIP), and the percentage=50 identity with `median` is measured
       // separately in `pinePercentileLinearAccept.test.js`.
       'pine_percentile_linear_interpolation_between_two_ranks',
+      // ⭐⭐ `timenow` + its five calendar fields (2026-09-20) — the real
+      // "is_today" idiom measured across six corpus scripts, split into TWO
+      // cases (not one) because a single compound formula naming all six new
+      // clock fields plus their six originals measures 12 series references
+      // against `budget.test.js`'s cap of 8.
+      'pine_timenow_is_today_year_month_dayofmonth',
+      'pine_timenow_hour_and_minute_too',
       // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
       // discipline: one corpus case per function, each resolved by a real
       // TradingView capture (`tests/fixtures/vendor/observations/
@@ -2547,7 +2565,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // hide which one did.
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
-    expect(sentences.length).toBe(CORPUS.cases.length + 113)
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    expect(sentences.length).toBe(CORPUS.cases.length + 119)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
