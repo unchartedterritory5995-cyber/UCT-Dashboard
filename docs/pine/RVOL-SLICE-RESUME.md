@@ -1,7 +1,7 @@
 # Pine RVOL slice — RESUME HERE
 
 > **Branch `feat/pine-value-model`. Read this before touching the Pine engine.**
-> State at `8b0581541`, 2026-09-20. Base `b2b95c764`; 26 commits ahead of
+> State at `5bc01520b`, 2026-09-20. Base `b2b95c764`; 26 commits ahead of
 > master, 48 behind. Nothing here is merged and nothing reaches a member.
 >
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
@@ -49,14 +49,36 @@ lines after that early return.
 new guard `pine:objects-only`, `objects` now survives the refusal. `ok` stays
 FALSE — there genuinely is no column to screen on.
 
-⛔ **What remains for it to DRAW**, all in the member-pane path (production UI):
+✅ **IT DRAWS — measured end to end, no layer mocked** (`5bc01520b`). Owner
+decision 2026-09-20: admit an objects-only verdict to the pane, **dark behind
+`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`** (default OFF, `dark` in the ledger).
+Through the member's own route — `memberPaneDefinition` → `objectReaderFor` →
+`evaluateObjects` → `toRenderState` → `layoutTables` → `renderTables` — the
+dashboard puts **a real `<table>` in the DOM reading `RVOL 100%`**.
 
-1. `paneGate` refuses anything with `t.ok !== true` — it must admit an
-   objects-only verdict. **This is where ruling D2 lives; it is an owner call.**
-2. `memberPaneDefinition.buildDefinition` builds ROWS from outputs; an
-   objects-only script has none.
-3. The renderer half already exists — `binder.js` imports `evaluateObjects` and
-   `objectReaderFor` today.
+Three things stood in the way and only one was the ruling: `paneGate` refusing
+`ok !== true`; `buildDefinition` taking its primary from `rows[0]` (now a HIDDEN
+anchor — the `plot(0)` placeholder its peers write by hand); and
+`if (!visible.length)` saying *"declares nothing a chart can draw"*, which had
+become false. Plus a hole only this path reaches: the objects-only return
+dropped `mode`, so the verdict arrived as *"from the unknown lane"*.
+
+⛔⛔ **IT DRAWS; IT IS NOT YET IDENTICAL — ONE CELL OF MANY.** The engine names
+its own gap. Read `objectDiagnostics` off the definition:
+
+```
+loopBlocked: 15   loopBlockedCalls: [array.push, array.set, table.cell]
+unsupported: [table.clear]        unresolvedValues: 12
+droppedOps: 8     dropReasons: { guard:cell: 8 }
+droppedProps: 3   [table.position@122, cell.bgcolor@210, cell.text_size@210]
+```
+
+The script writes its per-symbol rows inside `for i = 0 to slots - 1` (line 77)
+and **the object pass does not carry loop bodies**. That is the whole difference
+between the header cell rendering and the watchlist rendering.
+
+⭐ So the next capability is **loops in the OBJECT PASS** — then `table.clear`,
+the 8 `guard:cell` drops, and the 3 dropped props.
 
 ⚠️ Its runtime-lane blocker is separate and unrelated:
 `calcDaily(simple int N) => ta.sma(volume[1], N)` has **never compiled in any
@@ -173,9 +195,9 @@ case. Compare failing test NAMES.
 
 ## NEXT, IN ORDER
 
-1. **Owner decision — does an objects-only script draw?** If yes, items 1–2 of
-   the dashboard list above. This touches `paneGate`, which is where ruling D2
-   lives.
+1. ✅ **DONE** — an objects-only script draws, dark behind a flag.
+   **NEXT: loops in the OBJECT PASS.** 15 blocked ops on the dashboard, and the
+   whole difference between one header cell and the watchlist table.
 2. **The gradient fill** — the last blocker on script 2. Front end is easy (four
    series + a descriptor); the renderer is the work.
 3. **Per-call-site specialisation** — the dashboard's runtime blocker. 4 of 266
