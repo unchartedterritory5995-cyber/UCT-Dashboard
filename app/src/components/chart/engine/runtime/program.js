@@ -65,6 +65,7 @@ export const OP = Object.freeze({
   SELECT: 33,        // ternary: (test, a, b)
   // ── output ──
   EMIT: 40,          // a: output index
+  EMIT_ITER: 42,     // a: iteration-buffer index; pops value then index
   HALT: 41,
   // ── state (2D) ──
   LOAD_LOCAL: 50,
@@ -188,7 +189,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
   OP.LOOP_TICK, OP.REQUEST, OP.COLOUR,
-  OP.EMIT, OP.HALT,
+  OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
 export const OP_NAME = Object.freeze(
@@ -214,6 +215,7 @@ export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
+  iterOutputs = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -276,6 +278,17 @@ export function makeProgram({
         throw new ProgramError(`objectTreeOutputs[${i}]: ${n} is outside ${(outputs || []).length} outputs`)
       }
       return n
+    })),
+    // ⭐⭐ PER-ITERATION BUFFERS. Each is `{kind}` — `num` or `text` — and the
+    // KIND is validated here rather than discovered on a bar, for the same
+    // reason a text op's name is: a buffer whose kind nothing declared would be
+    // allocated as the wrong container and silently coerce every value it held.
+    iterOutputs: Object.freeze((iterOutputs || []).map((o, i) => {
+      const kind = o && o.kind
+      if (kind !== 'num' && kind !== 'text') {
+        throw new ProgramError(`iterOutputs[${i}]: kind must be 'num' or 'text', got ${JSON.stringify(kind)}`)
+      }
+      return Object.freeze({ kind })
     })),
     colourOps: Object.freeze((colourOps || []).map((name, i) => {
       if (!Object.prototype.hasOwnProperty.call(COLOUR_FNS, name)) {

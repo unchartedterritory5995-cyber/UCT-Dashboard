@@ -27,6 +27,8 @@ export const STMT = Object.freeze({
   ASSIGN: 'assign',       // `x := e`
   IF: 'if',               // header + then[] + else[]
   EMIT: 'emit',           // `plot(e)` and friends — one named output
+  // ⭐⭐ ONE SLOT OF A PER-ITERATION BUFFER. See `iterOutputs` on the program.
+  EMIT_ITER: 'emitIter',  // { iter, index, value }
   EXPR: 'expr',           // an expression evaluated for effect
   // ── declared, not yet lowerable ──
   FOR: 'for',
@@ -101,7 +103,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
-  requests = [], objectTreeOutputs = [],
+  requests = [], objectTreeOutputs = [], iterOutputs = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -131,6 +133,9 @@ export function makeIrProgram({
     // ⭐ tree index → the OUTPUT carrying that object-program tree's value,
     // one per bar. Empty for every ordinary script; the lane seam reads it.
     objectTreeOutputs: objectTreeOutputs || [],
+    // ⭐ Per-ITERATION buffers — `[{ kind: 'num'|'text' }]`. Empty for every
+    // ordinary script; only an object drawing inside a loop declares one.
+    iterOutputs: iterOutputs || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -180,6 +185,7 @@ export function validateIr(p) {
   const nSlots = p.slots.length
   const nCols = p.columns.length
   const nOut = p.outputs.length
+  const nIter = (p.iterOutputs || []).length
 
   for (const s of p.slots) {
     if (!isObj(s) || typeof s.name !== 'string' || !Object.values(SLOT).includes(s.kind)) {
@@ -358,6 +364,13 @@ export function validateIr(p) {
           if (!Number.isInteger(s.output) || s.output < 0 || s.output >= nOut) {
             throw new IrError(`${at}: output ${s.output} outside ${nOut}`)
           }
+          walkExpr(s.value, `${at}.value`)
+          return
+        case STMT.EMIT_ITER:
+          if (!Number.isInteger(s.iter) || s.iter < 0 || s.iter >= nIter) {
+            throw new IrError(`${at}: iteration buffer ${s.iter} outside ${nIter}`)
+          }
+          walkExpr(s.index, `${at}.index`)
           walkExpr(s.value, `${at}.value`)
           return
         case STMT.EXPR:
@@ -574,6 +587,18 @@ export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })
 export const ifStmt = (test, then, els) => ({ kind: STMT.IF, test, then, else: els || [] })
 export const emit = (output, value) => ({ kind: STMT.EMIT, output, value })
+/** Write one slot of a per-iteration buffer.
+ *
+ *  ⭐⭐ AN ITERATION BUFFER IS NOT A SERIES, AND THE DIFFERENCE IS THE WHOLE
+ *  POINT. An output series is indexed BY BAR and a `Float64Array` by contract.
+ *  A drawing inside `for r = 0 to n` needs a value per ITERATION, which no
+ *  series can hold — and which the object program reads back by counter.
+ *
+ *  ⛔ IT IS OVERWRITTEN EVERY BAR, so only the bar that wrote it last can be
+ *  read. That is why the lane refuses a loop that is not last-bar-guarded
+ *  rather than handing back a stale buffer. */
+export const emitIter = (iter, index, value) => (
+  { kind: STMT.EMIT_ITER, iter, index, value })
 /** An expression evaluated for its EFFECT. Admitted only for a call that has
  *  one — see `lowerIr.js`'s STMT.EXPR arm. */
 export const exprStmt = (value) => ({ kind: STMT.EXPR, value })

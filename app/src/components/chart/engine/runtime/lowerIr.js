@@ -277,6 +277,14 @@ export function lowerIrProgram(ir) {
           expr(s.value)
           emit(OP.EMIT, s.output)
           break
+        // ⭐ INDEX THEN VALUE, so the VM pops value first — the same order
+        // every two-operand op here uses, so nothing has to remember a
+        // special case for this one.
+        case STMT.EMIT_ITER:
+          expr(s.index)
+          expr(s.value)
+          emit(OP.EMIT_ITER, s.iter)
+          break
         case STMT.FOR: {
           // ⭐⭐ PINE'S LOOP, LOWERED FAITHFULLY, AND EVERY LINE HERE IS A
           // SEMANTIC DECISION RATHER THAN A CODING ONE:
@@ -471,6 +479,7 @@ export function lowerIrProgram(ir) {
     colourOps,
     // ⭐ carried through so a caller can find which output holds which tree
     objectTreeOutputs: ir.objectTreeOutputs || [],
+    iterOutputs: ir.iterOutputs || [],
     arrayOps,
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),

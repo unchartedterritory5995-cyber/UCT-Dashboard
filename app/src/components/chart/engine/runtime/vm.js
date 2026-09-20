@@ -28,6 +28,11 @@ import { TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import { Budget } from './limits.js'
+// ⭐ THE ITERATION CEILING IS THE OBJECT PROGRAM'S OWN COLLECTION CAP, imported
+// rather than restated. A drawing cannot hold more objects than that, so a
+// buffer sized to anything else would be a second authority on how many rows a
+// table may have (`lesson_a_second_authority_over_one_value`).
+import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
 const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
@@ -138,6 +143,21 @@ export function execute(program, ctx, limits, opts) {
   const nOut = program.outputs.length
   const outputs = []
   for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  // ⭐⭐ PER-ITERATION BUFFERS — INDEXED BY LOOP COUNTER, NOT BY BAR.
+  //
+  // ⛔ SIZED INDEPENDENTLY OF `ctx.bars`, DELIBERATELY. The obvious thing is
+  // to reuse an output's `Float64Array`, and it is wrong in the direction that
+  // hurts: a four-bar unit test would give a forty-row table four slots and
+  // drop thirty-six rows, while passing every large-series test. The cap is the
+  // object program's own collection ceiling, which is TradingView's.
+  //
+  // ⛔ AND IT IS OVERWRITTEN EVERY BAR. Only the bar that wrote it last can be
+  // read back, which is why the lane refuses a drawing that is not last-bar
+  // guarded instead of handing back a stale buffer.
+  const iterSpecs = program.iterOutputs || []
+  const iters = iterSpecs.map((o) => (o.kind === 'text'
+    ? new Array(ITER_SLOTS).fill(undefined)
+    : new Float64Array(ITER_SLOTS).fill(NaN)))
 
   // ⛔ THE STACK IS ALLOCATED ONCE FOR THE WHOLE RUN, not per bar. A per-bar
   // allocation is what made Phase 1's "columnar" shape look 4x slower than it
@@ -706,6 +726,34 @@ export function execute(program, ctx, limits, opts) {
           outputs[a][bar] = Number.isFinite(v) ? v : NaN
           break
         }
+        case OP.EMIT_ITER: {
+          const v = stack[--sp]
+          const idx = stack[--sp]
+          // ⛔ AN OUT-OF-RANGE SLOT IS DROPPED, NEVER WRAPPED OR GROWN. A
+          // counter past the ceiling means the drawing asked for more rows
+          // than the object program may hold, and the envelope that already
+          // bounds objects is the one authority on that — silently growing
+          // here would route around it.
+          if (typeof idx !== 'number' || !Number.isInteger(idx)
+              || idx < 0 || idx >= ITER_SLOTS) break
+          const buf = iters[a]
+          // ⛔⛔ A TEXT BUFFER TAKES STRINGS AND A NUMERIC ONE TAKES NUMBERS.
+          // The kind was declared and validated at build; a value of the other
+          // kind arriving here is a translator defect, and it says so rather
+          // than coercing — `String(NaN)` in a dashboard cell reads as data.
+          if (Array.isArray(buf)) {
+            if (typeof v !== 'string') {
+              throw new VmError(`pc ${pc - 1}: iteration buffer ${a} is text and got ${typeof v}`)
+            }
+            buf[idx] = v
+          } else {
+            if (typeof v !== 'number') {
+              throw new VmError(`pc ${pc - 1}: iteration buffer ${a} is numeric and got ${typeof v}`)
+            }
+            buf[idx] = Number.isFinite(v) ? v : NaN
+          }
+          break
+        }
         case OP.LOOP_TICK:
           // ⛔ CHARGED PER ITERATION, ACROSS THE WHOLE RUN. A loop whose step
           // never reaches its bound — `by 0`, or a bound a body keeps moving —
@@ -814,5 +862,5 @@ export function execute(program, ctx, limits, opts) {
     }
   }
 
-  return { outputs, budget, requested: Array.from(requested).sort() }
+  return { outputs, iters, budget, requested: Array.from(requested).sort() }
 }
