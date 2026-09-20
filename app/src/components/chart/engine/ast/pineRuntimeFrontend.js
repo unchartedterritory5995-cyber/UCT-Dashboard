@@ -60,6 +60,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // wider than the capability: `x[1]` over a top-level mutable value now runs,
   // and the three shapes below are the parts that do not, each refused BY ITS OWN
   // NAME so the next dependency is a row rather than a rumour.
+  'runtime:plot-id': 'a plot id used as a number — `p = plot(…)` names a plot so that `fill()` can refer to it, and it is not a value the script can compute with',
   'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
   'runtime:history-expression':
     'history over an EXPRESSION containing a mutable value — `(a + b)[1]` needs its own '
@@ -446,6 +447,16 @@ export function buildRuntimeIr(source, opts = {}) {
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
   const env = new Map()
+  /** name → { call, index, at } for `p = plot(…)`.
+   *
+   *  ⛔⛔ ITS OWN MAP, NEVER `env`. `env` holds PURE EXPRESSION macros and the
+   *  COLUMNAR resolver reads it — dropping a plot id in there made that resolver
+   *  dereference `bound.node.type` on an entry that has no node, which surfaced
+   *  to the member as *"Cannot read properties of undefined"*: a TypeError
+   *  wearing a refusal's clothes, the exact shape this front end has paid for
+   *  before. A plot id is a different KIND of binding and gets a different map.
+   */
+  const plotRefs = new Map()
   /** Every `request.security` in this script: its timeframe and the VALUE
    *  expression, which the lowering turns into its own region of the code. */
   const requests = []
@@ -840,6 +851,19 @@ export function buildRuntimeIr(source, opts = {}) {
    *  eleven compiled statements, because a literal-only comparison folds there
    *  perfectly well. Only a dependence on an INPUT — the one thing that lane
    *  cannot see — justifies taking the subtree. */
+  /** Does this subtree READ a plot id? — the same shape as `dependsOnTextInput`,
+   *  and for the same reason: the columnar lane must not be handed a subtree it
+   *  cannot resolve, because its failure there is a crash rather than a refusal. */
+  const readsPlotRef = (node) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'name' && plotRefs.has(node.name)) return true
+    for (const v of Object.values(node)) {
+      if (Array.isArray(v)) { if (v.some((x) => readsPlotRef(x && x.value !== undefined ? x.value : x))) return true }
+      else if (v && typeof v === 'object' && readsPlotRef(v)) return true
+    }
+    return false
+  }
+
   const dependsOnTextInput = (node, scope, seen) => {
     if (!node || typeof node !== 'object') return false
     // ⛔ A REQUEST NEVER GOES TO THE COLUMNAR LANE EITHER, and for a stronger
@@ -1346,7 +1370,8 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
-    if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)) {
+    if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
+        && !readsPlotRef(node)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1413,8 +1438,24 @@ export function buildRuntimeIr(source, opts = {}) {
         // `avail` is derived from an ARRAY. `cap` then resolved to nothing and
         // the script was told it binds a name it binds one line above.
         {
+          // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
+          // binding it. Without this the read reached `runtime:unbound` —
+          // *"this Pine name was never given a value"* — about a name the script
+          // plainly gives a value to one line above, sending the reader hunting
+          // for a typo that is not there.
+          const pref = plotRefs.get(node.name)
+          if (pref) {
+            note('runtime:plot-id')
+            throw new RuntimeRefusal('runtime:plot-id',
+              `\`${node.name}\` is the id of ${pref.call}()`, locate(node.tok))
+          }
           const bound = env.get(node.name)
           if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
+          // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
+          // binding it. Falling through from here reached `runtime:unbound` —
+          // *"this Pine name was never given a value"* — about a name the script
+          // plainly gives a value to one line above, which sends the reader
+          // hunting for a typo that is not there.
         }
         if (guardOuter && guardOuter.lookup(node.name) !== null) {
           note('runtime:function-global-state')
@@ -1800,6 +1841,34 @@ export function buildRuntimeIr(source, opts = {}) {
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
 
+  /** Emit ONE output for an output call, and answer its index.
+   *
+   *  ⭐⭐ ONE EMITTER FOR BOTH SPELLINGS. `plot(close)` as a statement and
+   *  `p = plot(close)` as a binding are the same act, and they used to be two
+   *  code paths — only one of which emitted anything. Two paths for one meaning
+   *  is how the bound form came to compile and draw nothing; a single function
+   *  is what makes that divergence impossible rather than merely fixed.
+   */
+  const emitOutputCall = (callName, call, scope, out, at) => {
+    const args = call && call.args ? call.args : []
+    const arg0 = args.length ? (args[0].value !== undefined ? args[0].value : args[0]) : null
+    if (!arg0) throw new RuntimeRefusal('runtime:statement', `\`${callName}()\` with no value`, at)
+    // ⛔ A TEXT VALUE CANNOT BE PLOTTED, AND IT IS REFUSED HERE RATHER THAN
+    // LEFT TO THE VM. `EMIT`'s kind check would catch it, but a bar into the
+    // run and as a thrown `VmError` — a member would get an exception where
+    // every other unsupported construct gives them a named refusal with a
+    // line. Before text was lowerable at all this was the columnar lane's
+    // `pine:text-value`; making text lowerable must not lose the sentence.
+    if (holdsText(arg0, scope)) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${callName}()\` was handed text — a plot draws numbers`, at)
+    }
+    outputs.push(callName)
+    const index = outputs.length - 1
+    out.push(emit(index, lowerExpr(arg0, scope)))
+    return index
+  }
+
   // ⚰️ A REFUSAL WITH `line: null` IS NOT AN ACCEPTABLE FINAL STATE.
   // `buildRuntimeIr` on `uncharted-volume.pine` answered
   //     { guard: 'pine:text-value', line: null }
@@ -2093,22 +2162,41 @@ export function buildRuntimeIr(source, opts = {}) {
 
       // ── an output call ──
       if (word && OUTPUT_CALLS.has(word) && isPunct(toks[1], '(')) {
-        const call = parseWholeExpression(toks)
-        const arg0 = call.args && call.args.length ? (call.args[0].value !== undefined ? call.args[0].value : call.args[0]) : null
-        if (!arg0) throw new RuntimeRefusal('runtime:statement', `\`${word}()\` with no value`, locate(first))
-        // ⛔ A TEXT VALUE CANNOT BE PLOTTED, AND IT IS REFUSED HERE RATHER THAN
-        // LEFT TO THE VM. `EMIT`'s kind check would catch it, but a bar into the
-        // run and as a thrown `VmError` — a member would get an exception where
-        // every other unsupported construct gives them a named refusal with a
-        // line. Before text was lowerable at all this was the columnar lane's
-        // `pine:text-value`; making text lowerable must not lose the sentence.
-        if (holdsText(arg0, scope)) {
-          throw new RuntimeRefusal(
-            'runtime:statement',
-            `\`${word}()\` was handed text — a plot draws numbers`, locate(first))
-        }
-        outputs.push(word)
-        out.push(emit(outputs.length - 1, lowerExpr(arg0, scope)))
+        emitOutputCall(word, parseWholeExpression(toks), scope, out, locate(first))
+        continue
+      }
+
+      // ── an output call BOUND TO A NAME: `p = plot(close)` ──
+      //
+      // ⚰⚰ THIS SILENTLY LOST THE PLOT. `plot(close)` as a STATEMENT emitted an
+      // output; the same call on the right of a binding fell through to the
+      // ordinary-binding path, which lowered it as an expression and bound the
+      // name — so `p = plot(close)` compiled, reported `ok`, and drew NOTHING.
+      // Measured: `p = plot(close)` then `plot(open)` produced ONE output
+      // carrying `open`. The author's first line vanished with nothing red.
+      //
+      // ⛔⛔ AND IT IS THE STANDARD IDIOM WHEREVER `fill` IS USED — `fill` takes
+      // plot IDs, so every one of the 64 corpus scripts that fills a band binds
+      // its plots first. A refusal would have been far better than this: a
+      // member reads a chart with a line missing and no reason given.
+      if (word !== null && (() => {
+        const e = findTop(toks, (x) => isPunct(x, '='))
+        if (e <= 0) return false
+        const v = toks[e + 1]
+        return v && v.kind === 'ident' && OUTPUT_CALLS.has(v.value) && isPunct(toks[e + 2], '(')
+      })()) {
+        const e = findTop(toks, (x) => isPunct(x, '='))
+        const nameTok = boundName(toks, e)
+        if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a binding needs a name', locate(first))
+        const callName = toks[e + 1].value
+        const index = emitOutputCall(callName, parseWholeExpression(toks.slice(e + 1)),
+          scope, out, locate(first))
+        // ⭐ A PLOT ID IS A COMPILE-TIME HANDLE, NEVER A RUNTIME VALUE. Pine's
+        // plot ids cannot be computed, compared or stored — they exist so that
+        // `fill` can name two plots. Binding one in `env` (rather than a slot)
+        // is what lets `fill` resolve it without the VM carrying a value it
+        // could not do anything with.
+        plotRefs.set(nameTok.value, { call: callName, index, at: locate(nameTok) })
         continue
       }
 
