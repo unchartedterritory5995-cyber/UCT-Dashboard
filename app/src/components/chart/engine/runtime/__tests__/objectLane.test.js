@@ -142,6 +142,58 @@ describe('⭐⭐ a cell holds a number only the runtime lane can compute', () =>
   })
 })
 
+describe('⛔⛔ the clock tri-state reaches the lane', () => {
+  // A script mentioning `barstate.*` refuses at `runtime:realtime-untold` unless
+  // somebody says whether the newest bar has finished. The adapter must let a
+  // caller say so — and must not let a partial `opts` undo the answer.
+  // ⛔ THE `barstate` READ IS A PURE SUBTREE, DELIBERATELY. Routed through an
+  // array slot it would be lowered by the RUNTIME lane, which never consults
+  // `interpretOpts` — and the ordering case below would then be untestable while
+  // looking tested. Pure, it takes the COLUMNAR route, which is the lane whose
+  // four realtime columns go blank when the nested flag is lost.
+  const BARSTATE = 'var t = table.new(position.top_right, 1, 1)\n'
+    + 'table.cell(t, 0, 0, str.tostring(barstate.isconfirmed ? close : 0.0))\n'
+
+  it('⭐⭐ a caller that KNOWS the newest bar has settled is believed', () => {
+    // ⚰️ MEASURED: this refused for every caller, because the tri-state was read
+    // only from `opts.bars` — an ARRAY, which never carries the field. It was
+    // the largest single blocker in the corpus census (23 of 78 drawing
+    // scripts) and it was a property of the adapter, not of the corpus.
+    const lane = buildObjectLane(head + BARSTATE, {
+      bars: BARS, inputs: {}, newestBarIsForming: false,
+    })
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}: ${lane.refusal.message}`).toBe(true)
+  })
+
+  it('⛔ and NOBODY TELLING IT still refuses by name, rather than guessing', () => {
+    // `null` means "nobody told me" and must never collapse to `false`: a
+    // confident `isconfirmed = 1` on a bar that is still open is the one wrong
+    // answer those columns exist to prevent.
+    const lane = buildObjectLane(head + BARSTATE, { bars: BARS, inputs: {} })
+    expect(lane.ok).toBe(false)
+    expect(lane.refusal.guard).toBe('runtime:realtime-untold')
+  })
+
+  it('a caller-supplied `interpretOpts` still leaves the value right', () => {
+    // ⚠️ THIS CASE DOES NOT PROVE THE SPREAD ORDER, and says so rather than
+    // implying it. A mutation swapping the order stays GREEN here even with the
+    // rendered VALUE asserted: on this path `interpretOpts` reaches `interpret`
+    // only, and the realtime blanking that would expose a lost nested flag is in
+    // the columns layer, which an objects-only script never reaches. What the
+    // case DOES pin is that passing extra interpret options alongside the clock
+    // does not break the value — which is the thing a caller would get wrong.
+    const lane = buildObjectLane(head + BARSTATE, {
+      bars: BARS, inputs: {}, newestBarIsForming: false, interpretOpts: { basePeriod: 'D' },
+    })
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}: ${lane.refusal.message}`).toBe(true)
+    const r = runObjectLane(lane, { bars: N, series: SERIES })
+    expect(r.status).toBe('ok')
+    // `barstate.isconfirmed` is TRUE on every bar here, so the cell holds close,
+    // never the `0.0` the false arm would give — and never a blank.
+    expect(cells(r)).toEqual({ '0,0': '103' })
+  })
+})
+
 describe('⛔ what the seam refuses to invent', () => {
   it('an unknown tree index answers NaN, never 0', () => {
     // 0 is a coordinate, a row number AND a colour. NaN is the only value the

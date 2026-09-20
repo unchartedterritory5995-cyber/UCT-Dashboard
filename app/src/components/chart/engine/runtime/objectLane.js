@@ -46,7 +46,7 @@ import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 // no other test would go red. `runtimeClockOptsFrom` fills BOTH
 // `newestBarIsForming` and `interpretOpts.newestBarIsForming` — the pair the
 // gate and the columns read separately. See docs/pine/barstate.md.
-import { runtimeClockOptsFrom } from '../ast/pineRuntimeClock.js'
+import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
 import { bindObjectProgram } from '../ast/objectProgram.js'
 import { evaluateObjects } from '../objectRuntime.js'
 import { lowerIrProgram } from './lowerIr.js'
@@ -91,11 +91,34 @@ export function buildObjectLane(source, opts = {}) {
   }
 
   const trees = objects.trees || []
-  const built = buildRuntimeIr(source, {
-    ...runtimeClockOptsFrom(opts.bars || null),
-    ...opts,
-    objectTrees: trees,
-  })
+
+  // ⭐⭐ THE CLOCK TRI-STATE, ASKED OF THE CALLER FIRST AND THE BARS SECOND.
+  //
+  // ⚰️ THIS READ `opts.bars` ALONE AND NOTHING ELSE, and a bars ARRAY never
+  // carries the field — so `newestBarIsFormingFrom` answered `null` ("nobody
+  // told me") for every caller, and every script mentioning `barstate.*` refused
+  // at `runtime:realtime-untold`. Measured on the committed corpus: **23 of 78
+  // drawing scripts**, which made it the single largest blocker in a census —
+  // and it was a property of THIS FUNCTION, not of the corpus. That is exactly
+  // the contamination `docs/pine/RVOL-SLICE-RESUME.md` warns a census against,
+  // arriving through the adapter instead of the harness.
+  //
+  // ⚠️ THE SPREAD ORDER IS DEFENSIVE, NOT PROVED — SAID PLAINLY BECAUSE IT WAS
+  // CLAIMED AS PROVED FIRST. The fragment goes in AFTER `...opts` so a caller
+  // passing a partial `interpretOpts` cannot replace the one the producer just
+  // built; the fragment is derived FROM opts, so it can only ever add
+  // information. But a mutation swapping the order stayed GREEN against every
+  // case here, including one asserting the rendered VALUE: on THIS path
+  // `interpretOpts` reaches `interpret` only, and the realtime blanking that
+  // would expose a lost nested flag lives in the columns layer, which an
+  // objects-only script never reaches. So the ordering is kept because it is
+  // correct and free, and is NOT recorded as a guard.
+  const told = newestBarIsFormingFrom(opts)
+  const clock = runtimeClockOpts(
+    told !== null ? told : newestBarIsFormingFrom(opts.bars || null),
+    opts.interpretOpts || {},
+  )
+  const built = buildRuntimeIr(source, { ...opts, ...clock, objectTrees: trees })
   if (!built.ok) return refuse('runtime', built.refusal)
 
   const program = lowerIrProgram(built.ir)
