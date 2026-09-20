@@ -180,7 +180,7 @@ blocker class.
 | S7 `position-risk` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `scan-membership-change` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `regime-change` | ✅ | CP1–CP3 | all | dark read pending |
-| S7 `indicator-condition` | ✅ | CP1–CP3 | all | dark read pending — ⛔ and 30 of 31 predicates are NOT COMPARABLE by vocabulary (F-S7-IC-1), so the read will be about the ONE comparable pair |
+| S7 `indicator-condition` | ✅ | CP1–CP3 | all | dark read pending for the ONE comparable predicate; the other 30 are EXCLUDED (F-S7-IC-1, resolved 2026-09-20 — see §3) and will never become comparable via the dark read regardless of when it happens |
 | D3 | ✅ | CP1, CP2, CP3 | CP1, CP2, CP3 | ⚰️ was *"❌ unsigned"* — CP1/CP2/CP3 all signed and built (CP3 fingerprint `f028e4390`, 2026-09-19). CP4 (S7 price-level's first real consumer) not yet proposed |
 | D4 | ✅ | CP1, CP2, CP3, CP4′ | CP1, CP2, CP3, CP4′ | ⚰️ was *"❌ unsigned"* — CP1–CP3 signed+built under one fingerprint `40caca541`; CP4′ signed+built separately `23a8da7a9`. **CP5 (ticker_logos) has no approval line at all** — the one genuinely open, unscoped item |
 | S5 | ✅ | CP2, CP3, CP4 | CP2, CP3, CP4 | ⚰️ was *"❌ unsigned"* — CP2/CP3/CP4 signed and built (`9c7c634da`/`41ffcc91c`/`ea7178473`, see §1.1). CP1 (Notebook-pattern extraction) stays deferred per F-S5-1; CP5 (default-ON) needs a browser-certification pass first |
@@ -213,10 +213,10 @@ whose job is to be the count. **Do not re-type it: run the harvester.**
 | **F-S7-1 … F-S7-5** | S7 wave 1 | F-S7-5 **CLOSED** `5ff6fc04a`; others recorded | — |
 | **F-S7-CM-1** | catalyst-match | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `4fa45489f` |
 | **F-S7-EP-1** | event-proximity | OPEN | the dark read |
-| **F-S7-IC-1** | indicator-condition — the empty intersection | ⚰️ ~~OPEN, SPEC WRITTEN~~ → **OPEN, MEASURED AND RAILED.** Its stated closer (D2 §9.5 signature) HAPPENED — signed as GATE-D2 CP4 `3257cc319`, merged `404b808c5`. ⛔ But the FINDING is not closed by it: the 31×142 intersection is still EMPTY, and CP3 now reports it per predicate as NOT COMPARABLE. **What would close it is a book form for the thirty**, which nobody has authorized. | a declaration for the thirty indicator outputs, or an EXCLUDE ruling |
+| **F-S7-IC-1** | indicator-condition — the empty intersection | ⚰️ ~~OPEN, MEASURED AND RAILED~~ → **CLOSED 2026-09-20.** Its stated closer (D2 §9.5 signature) HAPPENED — signed as GATE-D2 CP4 `3257cc319`, merged `404b808c5`. The 31×142 intersection stays EMPTY by design: owner EXCLUDED the thirty non-comparable predicates permanently (OWNER_INPUTS.md D3) rather than authoring a book form for them — the legacy indicator lane keeps its own vocabulary. CP3 continues to report them NOT COMPARABLE, which is now the accepted, closed state, not a pending gap. | resolved: EXCLUDE |
 | **F-S7-PR-1** | position-risk | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `6a67a4b5d` |
-| **F-S7-RC-1** | the dedup key is written and never read | **CONFIRMED, OPEN** | a fix PR or an EXCLUDE ruling |
-| **F-S7-RC-3** | path B has no suppression | **CONFIRMED, OPEN** | same |
+| **F-S7-RC-1** | the dedup key is written and never read | ⚰️ was *"CONFIRMED, OPEN"* — **EXCLUDED 2026-09-20** per OWNER_INPUTS.md B5's own conditional (flip undated, RC-1 costs nothing today — path A's ledger already suppresses same-cycle floods) | resolved: EXCLUDE |
+| **F-S7-RC-3** | path B has no suppression | ⚰️ was *"CONFIRMED, OPEN"* — **FIXED 2026-09-20**, `feat/s7-price-level` `87b5735f4`: `_regime_shift_already_told()` reads the most recent `regime_shift` insight's own headline and suppresses a repeat for an unchanged summary; 42-test regime-change suite + 238 total across every `voice_proactive_service` caller, 0 failures | resolved: fix shipped |
 | **F-S7-RC-4** | the third emitter | **CLOSED — EXCLUDED PERMANENTLY** by owner ruling, GATE §10 | — |
 | **F-S7-SMC-1** | scan-membership-change | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `df937146c` |
 
@@ -472,8 +472,10 @@ copy** of the vocabulary, and first-match-in-tuple-order wins. Reproduced, not
 fixed, and railed against both source sites by AST in
 `api/services/alert_taxonomy/regime_change.py`.
 
-**Status:** OPEN. **What closes it:** the same ruling as F-S7-RC-1 and RC-3 —
-owner form item **B5**. All three die at the S7 flip if the flip happens.
+**Status:** OPEN — unaffected by F-S7-RC-3's fix below, which added a repeat-fire
+dedup on top of this exact substring-match mechanism without changing it.
+**What closes it:** owner form item **B5**'s same reasoning as F-S7-RC-1 (EXCLUDE,
+below) — it dies at the S7 flip if the flip happens, and the flip has no date.
 
 ### 3.5 The `.gitignore` force-add hazard
 

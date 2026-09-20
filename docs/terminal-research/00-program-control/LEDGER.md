@@ -4050,3 +4050,36 @@ records the declining so silence cannot later read as permission.
 Its first act is the eight environment checks, and a **memory gate checked before all of them**
 (>70% used → post and exit without building), because three sessions once OOM-swept this box and
 deleted a worktree.
+
+---
+
+## ✅ B5/D3 RESOLVED, F-S7-RC-3 FIXED — 2026-09-20
+
+Owner resolved two long-pending OWNER_INPUTS.md items (B5, D3), both previously left as
+provisional/recommended-but-unchosen:
+
+- **B5 (F-S7-RC-1, F-S7-RC-3): chose B**, applying the item's own stated fallback ("if the flip
+  is more than a month out, B") — the S7 regime-change flip is presently undated, blocked on a
+  production dark-comparison read nobody has run yet. **F-S7-RC-3 fixed**,
+  `feat/s7-price-level` `87b5735f4`: `voice_proactive_service._regime_shift_already_told()`
+  reads the most recent `regime_shift` insight's own headline (already keyed on `cur_regime` at
+  write time) and suppresses a repeat fire for an unchanged session summary — closing the gap
+  where path B re-queued the same insight every scan cycle until the shared 8/day cap absorbed
+  it, crowding out that member's `daily_focus`. **F-S7-RC-1 EXCLUDED** — its cost is genuinely
+  low today (path A's own ledger already suppresses same-cycle floods; only a fast A→B→A flap
+  across cycles is uncovered). F-S7-RC-2 and F-S7-RC-4 are unaffected by this fix and remain
+  open under the same B5 EXCLUDE-at-flip reasoning.
+- **D3 (F-S7-IC-1): chose B, EXCLUDE the thirty permanently.** The item's own prior
+  recommendation was "C, wait for the dark read" — struck on the reasoning that the dark read,
+  whenever it happens, can only ever speak to indicator-condition's ONE comparable predicate;
+  it produces no evidence either way about the other thirty, which are NOT COMPARABLE by
+  vocabulary, not by missing data. Waiting on it does not inform this decision. The legacy
+  indicator lane keeps its own vocabulary; no book form will be authored for the thirty.
+
+**Test verification for the RC-3 fix:** the regime-change comparison test's own regression case
+(`test_F_S7_RC_3_path_B_...`) was rewritten from proving the bug to proving the fix, including a
+flap-back control (bear→bull→bear must still fire on the genuine second shift) that caught a
+real tie-breaking bug in the first pass — `created_at` is SQLite `CURRENT_TIMESTAMP` at second
+granularity, so same-second inserts tied under `ORDER BY created_at DESC`; fixed to `ORDER BY id
+DESC`. Full regime-change suite (42 tests) plus every other test file touching
+`voice_proactive_service` (238 total) — 0 failures.

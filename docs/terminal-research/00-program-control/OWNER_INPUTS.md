@@ -170,7 +170,7 @@ CHOOSE: ____
 today it maps a name to a stored place and computes nothing. **Unblocks:** `indicator-condition`
 CP3, whose approval line is already signed and VOID until this merges.
 
-### B5 · F-S7-RC-1 and F-S7-RC-3 — two confirmed regime defects, unfixed
+### B5 · F-S7-RC-1 and F-S7-RC-3 — two confirmed regime defects — ✅ RESOLVED 2026-09-20
 
 RC-1: the `dedup_key` is built and never read. RC-3: path B has no ledger, so it re-queues the
 same unchanged flip until the shared 8/day cap, crowding out `daily_focus`.
@@ -180,11 +180,17 @@ same unchanged flip until the shared 8/day cap, crowding out `daily_focus`.
   B) Fix RC-3 only (the one that costs a member their daily_focus)
   C) Record as EXCLUDED — the whole path retires at the S7 flip anyway
 
-CHOOSE: ____
+CHOOSE: B
 ```
-**PROVISIONAL taken: C**, on the reasoning that both die at the flip — ⚠️ **but the flip has no
-date, and "it retires eventually" has kept two live defects alive before in this estate.** If the
-flip is more than a month out, B.
+⚰️ **PROVISIONAL taken (never resolved): C**, on the reasoning that both die at the flip — ⚠️
+*"but the flip has no date, and 'it retires eventually' has kept two live defects alive before
+in this estate. If the flip is more than a month out, B."* **CHOSEN 2026-09-20: B**, applying
+that stated fallback — the flip is presently blocked/undated (the production dark-comparison
+read for A9/A11/A13/event-proximity has no date), so the "if more than a month out" condition
+is satisfied. RC-3 fixed, `feat/s7-price-level` `87b5735f4`. RC-1 EXCLUDED (its cost is
+genuinely near-zero today — path A's own ledger already suppresses same-cycle floods; only a
+fast A→B→A flap across cycles is uncovered, and that is a nuisance-severity gap, not a
+member-harm one like RC-3's daily_focus crowd-out).
 
 ### B6 · The two S7 dark flags have no retirement date
 
@@ -278,7 +284,7 @@ CHOOSE: ____
 **Recommendation: B.** A is six signatures for a property `git show` already gives; C leaves one
 line pinning a state in which it did not exist. **Unblocks:** nothing — it closes F-GATE-1.
 
-### D3 · F-S7-IC-1 — thirty indicator outputs the book carries in no form
+### D3 · F-S7-IC-1 — thirty indicator outputs the book carries in no form — ✅ RESOLVED 2026-09-20
 
 CP3 now reports them **NOT COMPARABLE per predicate**, which is honest. Closing the finding needs a
 book form for the thirty — **thirty declarations plus a warmup contract**, and it is blocked on the
@@ -289,10 +295,16 @@ book form for the thirty — **thirty declarations plus a warmup contract**, and
   B) EXCLUDE the thirty permanently — the legacy indicator lane keeps its own vocabulary
   C) Leave OPEN, unscheduled
 
-CHOOSE: ____
+CHOOSE: B
 ```
-**Recommendation: C for now.** The dark read will show whether any member predicate is affected;
-deciding before that data is guessing. **Unblocks:** the indicator-condition FLIP, eventually.
+⚰️ **Recommendation on record was C** ("the dark read will show whether any member predicate is
+affected; deciding before that data is guessing") — but the dark read, whenever it happens, only
+ever speaks to the ONE comparable predicate; it can never produce evidence about the other thirty
+either way, since they are structurally NOT COMPARABLE by vocabulary, not by missing data. Waiting
+on it does not actually inform this decision. **CHOSEN 2026-09-20: B, EXCLUDE** — owner approved
+the agent's recommendation that a 30-indicator vocabulary-mapping exercise is real, separate work
+that nothing else in the programme is blocked on; the legacy indicator lane keeps its own
+vocabulary. **Unblocks:** the indicator-condition FLIP is no longer waiting on this finding.
 
 ---
 
