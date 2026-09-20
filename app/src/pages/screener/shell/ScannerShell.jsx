@@ -9,6 +9,7 @@ import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import useColumnPresets from '../hooks/useColumnPresets'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
 import ScreensManager from '../ScreensManager'
@@ -101,6 +102,7 @@ export default function ScannerShell({ embedded = false }) {
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
   const { result, isLoading, error } = useScreenerScan(scanSpec)
+  const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
 
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
@@ -247,6 +249,10 @@ export default function ScannerShell({ embedded = false }) {
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
+          presets={columnPresets}
+          onApplyPreset={p => s.setColumns(p.columns)}
+          onDeletePreset={removeColumnPreset}
+          onSavePreset={name => saveColumnPreset(name, visibleColumns)}
           density={density} onDensity={onDensity}
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}

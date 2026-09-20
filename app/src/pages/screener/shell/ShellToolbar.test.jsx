@@ -57,6 +57,20 @@ describe('ShellToolbar', () => {
     expect(base.onView).toHaveBeenCalledWith('momentum')
   })
 
+  it('user column presets render as tabs, apply, and delete', () => {
+    const onApplyPreset = vi.fn(); const onDeletePreset = vi.fn()
+    const presets = [{ id: 'p1', name: 'My momentum', columns: ['ticker', 'rs_rank'] }]
+    render(<ShellToolbar {...base} visibleColumns={['ticker', 'rs_rank']}
+      presets={presets} onApplyPreset={onApplyPreset} onDeletePreset={onDeletePreset} />)
+    const tab = screen.getByRole('tab', { name: /My momentum/ })
+    // active because visibleColumns exactly equals the preset's columns
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(tab)
+    expect(onApplyPreset).toHaveBeenCalledWith(presets[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Delete view My momentum' }))
+    expect(onDeletePreset).toHaveBeenCalledWith('p1')
+  })
+
   it('the seal opens the provenance popover and says when the snapshot is mixed', () => {
     render(<ShellToolbar {...base} />)
     fireEvent.click(screen.getByRole('button', { name: /snapshot 2026-08-21/i }))
