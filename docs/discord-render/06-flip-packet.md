@@ -54,6 +54,46 @@ is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
 **VERDICT: NOT MET — do not flip.** Of 11 rows: **5** MET · **2** NOT MEASURABLE · **4** NOT MET.
 
+⚰️ **SUPERSEDED — the table above is the 2026-09-14 reading, kept for history, not re-typed.**
+Per this section's own rule, do not trust either table: run the command. The state changed
+substantially since:
+
+### Reading as of 2026-09-20 12:31 UTC — pasted from a live run, not typed
+
+| Precondition | State | Evidence |
+|---|---|---|
+| zero xfails in the forensics suite | ✅ MET | 23 test(s), 0 xfail decorator(s) |
+| every forensics class closed with a commit | ✅ **MET** (was NOT MET, 11/14) | 14/14 closed |
+| the artifact cache is wired to the hot path | ✅ MET | bindings imports artifact_cache |
+| soak clean for >= 24 h | 🔴 NOT MET | 35 non-PASS tick(s) in the most recent 90 (562 ever recorded) — genuinely just elapsed time; root-caused and fixed 2026-09-19, waiting for the window to fill with clean ticks |
+| /chart is shadowed (structural) | ✅ MET | unchanged |
+| canary scope narrowed to the declared ids | ⚪ **NOT MEASURABLE** (was NOT MET — the empty-allowlist member-flip trap) | the 2026-09-19 read-back is now itself 32+ hours old and needs a fresh `railway ssh` in-process read before the flip, per §2.3 — **this session's own `railway ssh` calls were hard-blocked by Claude Code's auto-mode classifier tonight** (`[Production Deploy]`), so refreshing this is an owner/operator action, same as the S2 harness run was |
+| S2 measured in --real mode and within SLO | ✅ **MET** (was NOT MET, 9 breaches) | real run against the live canary channel, 274 jobs, p50=2.7ms/p95=8.3ms/p99=2319.3ms, 100% success — `evidence/step3/s2-real-v2-canary-2026-09-19.json` |
+| chaos passed in --real mode | ✅ MET | unchanged |
+| 3.5 real-Discord smoke | 🔴 NOT MET | 10/14 PASS; rows 2/3/5/7 still NOT RUN |
+| #render-alerts locked to admins | ✅ MET | unchanged |
+| mutation NOT-APPLIED = 0 | ✅ **MET** (was NOT MEASURABLE) | 316 anchor(s) across 16 harnesses, `anchor_check.check_tree()` — no harness invocation needed anymore |
+
+**VERDICT: NOT MET — do not flip.** Of 11 rows: **8** MET · **1** NOT MEASURABLE · **2** NOT MET.
+Two real gaps left (soak, smoke), one stale-evidence row that just needs a fresh read whenever
+someone is doing `railway` operations anyway.
+
+⛔⛔ **A GENUINE TENSION IN THIS PACKET'S OWN LOGIC, FOUND WHILE RE-READING IT CAREFULLY — NOT
+RESOLVED HERE, FLAGGED FOR THE OWNER.** §0's Authority table says the canary flip is
+"pre-authorised to the integrating session ... only when the command prints ALL MET." But the "3.5
+real-Discord smoke" row can *structurally never* print MET before the flip: rows 2/3/5/7 assert
+V2-specific behavior and are unreachable by construction while `DISCORD_RENDER_V2_ENABLED` is
+unset (`SMOKE-3.5.md`). So read literally, "flip only when ALL MET" and "the smoke row needs the
+flip to ever pass" contradict each other — this packet cannot be satisfied by its own letter.
+
+The most likely intended reading, consistent with §4's own staged canary design: **"ALL MET"
+means every row *other than the V2-gated smoke rows*, and closing rows 2/3/5/7 is done using
+Session 1 of §4.0's own canary table** (you, in the private admin channel, before moving to step
+2 or 3) — i.e. the smoke row's remaining four rows are closed *during* the first canary session,
+not as a precondition to starting it. That is a plausible reading, not a ruling — it is exactly
+the kind of ambiguity this session should surface rather than resolve unilaterally, so it is
+recorded here rather than acted on.
+
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
 ⚰️ ~~**S2 HAS NOT BEEN MEASURED.**~~ **It has, as of 2026-09-14 after the close.** This paragraph
