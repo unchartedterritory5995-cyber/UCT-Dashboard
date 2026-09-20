@@ -335,6 +335,13 @@ export const REFUSALS = Object.freeze({
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⭐ A DIFFERENT FACT FROM `pine:no-output`, and the difference is the whole
+  // point: this script DRAWS — a table, a label, a box — and simply offers no
+  // numeric column a screen could filter on. Collapsing the two told the author
+  // of a working dashboard that their script produced nothing.
+  'pine:objects-only':
+    'this script draws objects — a table, labels or boxes — and offers no plot or '
+    + 'alert condition, so there is nothing to filter a scan on',
   // ⭐⭐ THE OUTCOME OOS-2 HAD NO WAY TO SAY. Two published indicators were
   // ACCEPTED whose every offered column was the chart's own price bars:
   // `plotcandle(open, high, low, close, color = <the whole indicator>)` expands
@@ -11980,18 +11987,6 @@ export function translatePine(source, opts = {}) {
     ...(helperOnlyRefusal ? [helperOnlyRefusal] : []),
   ].sort(byPosition)
 
-  if (resolved.length === 0) {
-    const r = refusalValue('pine:no-output', REFUSALS['pine:no-output'], null)
-    return {
-      ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels },
-      notes: withExcerpts(notes, lines),
-      refusal: hardRefusals[0] || r,
-      refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
-      inputParams: [],
-    }
-  }
-
   // ⛔ A HARD REFUSAL REFUSES THE WHOLE SCRIPT EVEN WHEN A PLOT TRANSLATED.
   // A `strategy()` script's plot is real Pine and would translate fine — but the
   // artifact is a backtest, its meaning lives in orders this engine never runs,
@@ -12020,6 +12015,16 @@ export function translatePine(source, opts = {}) {
   // ⚠️ Wrapped, because a script that defeats the object reader must still get
   // its columns. A thrown object pass would otherwise cost a member the whole
   // translation for the sake of a drawing.
+  /** Build the graphical-object program.
+   *
+   *  ⭐⭐ EXTRACTED SO THE NO-OUTPUT PATH CAN RUN IT TOO, and for no other
+   *  reason — it is called from exactly two places and does the same work in
+   *  both. A second copy inside the early return would be a second authority on
+   *  what a script draws, which is the drift this file records more than any
+   *  other. It still runs AFTER the value walk at both sites, which is what its
+   *  own note below requires.
+   */
+  const runObjectPass = () => {
   let objectPass = { program: null, diagnostics: null }
   try {
     // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
@@ -12084,6 +12089,46 @@ export function translatePine(source, opts = {}) {
     // acted on — the exact shape this repo keeps rediscovering.
     objectPass = { program: null, diagnostics: { failed: true, error: String(err && err.message) } }
   }
+    return objectPass
+  }
+
+  const objectPass = runObjectPass()
+
+  // ⭐⭐ NO COLUMN TO SCREEN ON IS NOT THE SAME FACT AS NOTHING TO DRAW.
+  //
+  // ⚰⚰ THIS RETURNED BEFORE THE OBJECT PASS RAN, so a script that draws a
+  // TABLE and offers no plot was refused `pine:no-output` — *"offers no plot and
+  // no alert condition to filter on"*, which is TRUE — and its object program
+  // was built never, then discarded. Measured on a published multi-symbol
+  // dashboard: the object pass understands its table perfectly (a `create` of
+  // family `table` with resolved props), and nothing downstream ever saw it,
+  // because the function had already returned forty lines earlier.
+  //
+  // ⭐ THE COMMENT TWENTY LINES ABOVE ALREADY KNEW: it records that "the
+  // `plot(0)` placeholder that table-drawing scripts conventionally carry" is
+  // how one real indicator scraped past this. A script that declines to carry
+  // the placeholder is not a different KIND of script.
+  //
+  // ⛔ THE SCREENER CONTRACT IS UNCHANGED — `ok` stays FALSE. There genuinely
+  // is no column to filter on, and saying otherwise would offer a member a scan
+  // over nothing. What changes is that the DRAWING survives the refusal, and
+  // that the refusal says which of the two facts it means.
+  if (resolved.length === 0) {
+    const draws = !!(objectPass.program && (objectPass.program.ops || []).length)
+    const guard = draws ? 'pine:objects-only' : 'pine:no-output'
+    const r = refusalValue(guard, REFUSALS[guard], null)
+    return {
+      ok: false, version, declaration, title, outputs: [], selected: -1,
+      presentation: { overlay, levels },
+      notes: withExcerpts(notes, lines),
+      refusal: hardRefusals[0] || r,
+      refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
+      inputParams: [],
+      objects: objectPass.program,
+      objectDiagnostics: objectPass.diagnostics,
+    }
+  }
+
 
   let noContent = null
   if (!blocked && usable.length === 0 && refusals.length === 0) {

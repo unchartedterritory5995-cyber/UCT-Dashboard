@@ -149,6 +149,15 @@ const EXPECTED_UNEXERCISED = [
   'pine:live-bar-state',
   'pine:na',
   'pine:named-argument',
+  // ⭐⭐ ARRIVED 2026-09-20, NEWLY DECLARED rather than newly unreachable, and
+  // the distinction is the one this list exists to make. `pine:objects-only` is
+  // what a script that draws a TABLE and offers no plot now says instead of
+  // `pine:no-output` — two different facts that used to be one sentence. No
+  // script in THIS census's corpora is table-only, so nothing here reaches it;
+  // the published dashboard that motivated it lives in `corpus/committed` and is
+  // pinned by `objectsOnly.test.js`, which is where the sentence a member reads
+  // is actually checked.
+  'pine:objects-only',
   'pine:offset-literal',
   'pine:offset-negative',
   'pine:operator',
