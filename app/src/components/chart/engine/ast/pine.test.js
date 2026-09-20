@@ -584,11 +584,14 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // ⚰️ WAS `bar_index` UNTIL 2026-08-27, and the swap is the point. `bar_index`
     // maps onto the closed table's `barindex`, so it now refuses with a sentence
     // saying the engine HOLDS that column — the generic reason no longer applies
-    // to it. `timenow` is a built-in this engine genuinely does NOT hold, so the
-    // generic sentence keeps a case that exercises it.
+    // to it. ⚰️ THIS USED TO NAME `timenow` FOR THE IDENTICAL REASON, AND IT
+    // MOVED FOR THE IDENTICAL ONE (2026-09-20): `timenow` now maps onto
+    // `lastbartime`. `last_bar_time` is a built-in this engine genuinely does
+    // NOT hold — `last_bar_index` (its sibling) is held, `last_bar_time` is
+    // not — so the generic sentence keeps a case that exercises it.
     ['a built-in this engine genuinely does not hold',
-      '//@version=5\nindicator("t")\nplot(timenow)\n',
-      'pine:builtin', 3, 6, 'timenow'],
+      '//@version=5\nindicator("t")\nplot(last_bar_time)\n',
+      'pine:builtin', 3, 6, 'last_bar_time'],
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],

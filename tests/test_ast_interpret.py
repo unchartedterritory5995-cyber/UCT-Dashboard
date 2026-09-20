@@ -292,7 +292,14 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # capture. Three arguments (`series, int, int`), `lookback: "arg1"` -- an
     # already-declared lookback form -- no new node type, argument kind or
     # lookback form. The scalar half is untouched (see the sibling assertion).
-    assert len(ast_table.bar_names()) == 113, len(ast_table.bar_names())
+    # ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields
+    # (`lastbaryear`/`lastbarmonth`/`lastbardayofmonth`/`lastbarhour`/
+    # `lastbarminute`) -- `lastbarindex`'s own ruling applied to a calendar,
+    # and this engine's answer for Pine's `timenow` (a live wall clock a
+    # static translator has no instant for). All six ride the existing
+    # `series` node and add no argument `interpret` did not already have.
+    # The scalar half is untouched (see the sibling assertion).
+    assert len(ast_table.bar_names()) == 119, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -326,7 +333,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # scalar half is untouched at 137; this is their sum.
     # 249 -> 250 (2026-09-20): `percentileLinearInterpolation`. The bar half
     # moved 112 -> 113, the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 250, f"the table declares {len(declared)} names, not 250"
+    # 250 -> 256 (2026-09-20): `lastbartime` + its five calendar fields. The
+    # bar half moved 113 -> 119, the scalar half is untouched at 137; this is
+    # their sum.
+    assert len(declared) == 256, f"the table declares {len(declared)} names, not 256"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

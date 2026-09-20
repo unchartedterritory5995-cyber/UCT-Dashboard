@@ -1182,6 +1182,49 @@ export function timeframeFlags(tf) {
 const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
   'hour', 'minute', 'sessionfirst']
 
+/** ⭐⭐ THE NEWEST BAR'S OWN CALENDAR, BROADCAST TO EVERY BAR (2026-09-20) —
+ *  `lastbarindex`'s own ruling applied to a calendar instead of a bar
+ *  position. `timenow` is Pine's LIVE wall clock, which a static translator
+ *  over an already-fetched bar array has no instant for; `lastbartime` is
+ *  this engine's ANSWER, not a look-alike: the newest bar's own `t`, the same
+ *  value on every bar, exactly the "which real bar" invariance `lastbarindex`
+ *  already has (widen the fetch and the VALUE moves — a different bar is
+ *  newest — but a member reading `lastbartime` on a stable fetch reads a
+ *  stable answer, is_today comparisons included).
+ *
+ *  ⛔⛔ THE DIVERGENCE FROM VENDOR SEMANTICS IS REAL AND NAMED HERE RATHER
+ *  THAN LEFT IMPLICIT, because unlike `lastbarindex` (purely structural, no
+ *  vendor semantics to diverge from) this one substitutes for genuine
+ *  wall-clock time and a member could notice: on a STALE fetch (a Saturday
+ *  chart whose newest bar is Friday's close), Pine's real
+ *  `year==year(timenow) and month==month(timenow) and
+ *  dayofmonth==dayofmonth(timenow)` ("is_today") reads FALSE for every bar,
+ *  because real "now" is Saturday; this engine's answer reads TRUE for the
+ *  newest bar, because its `timenow` is anchored to the fetch, not the wall.
+ *  The tradeoff is deliberate: a static translator has no live instant to
+ *  read AT ALL, so "no answer" is the only alternative to "the newest fetched
+ *  bar's own calendar" — and the six real corpus scripts measured 2026-09-20
+ *  (`chart-champions-part-1-npoc-levels-vwaps`,
+ *  `initial-balance-ib-and-previous-day-week-high-low-close`,
+ *  `mtf-key-levels-support-and-resistance`,
+ *  `swing-points-and-liquidity-by-leviathan`, three more sharing the same
+ *  `year(timenow)`/`month(timenow)`/`dayofmonth(timenow)` "is_today" idiom)
+ *  all read it as "is this the newest bar in view", which the fetch-anchored
+ *  reading answers correctly.
+ *
+ *  ⭐ THE FIVE CALENDAR FIELDS ARE THE NEWEST BAR'S OWN `year`/`month`/
+ *  `dayofmonth`/`hour`/`minute` VALUES, READ BACK RATHER THAN RECOMPUTED —
+ *  `computeClock` already derives every bar's calendar in one pass, so the
+ *  newest bar's fields are `cols.year[length-1]` etc., not a second call to
+ *  `etClockParts`. One derivation, one place it could disagree with itself:
+ *  nowhere. `dayofweek(timenow)` and `second(timenow)` are DELIBERATELY not
+ *  declared: no measured corpus script calls the former, and `second` is not
+ *  a bare clock field this table declares AT ALL yet (a `timenow`-only
+ *  variant of a value nothing else can read would be a stranger gap than the
+ *  one it closes) — build bare `second` first if a future script needs it. */
+const CLOCK_LASTBAR_TIME = ['lastbartime', 'lastbaryear', 'lastbarmonth',
+  'lastbardayofmonth', 'lastbarhour', 'lastbarminute']
+
 /** Every column `computeClock` produces.
  *
  *  ⚠️ THE CLOSED TABLE IS THE AUTHORITY OVER WHICH OF THESE NAMES A FORMULA MAY
@@ -1230,7 +1273,7 @@ export const CLOCK_BARSTATE = Object.freeze([...CLOCK_EXTENT, ...CLOCK_REALTIME]
 
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
-  ...CLOCK_EXTENT, ...CLOCK_REALTIME,
+  ...CLOCK_EXTENT, ...CLOCK_REALTIME, ...CLOCK_LASTBAR_TIME,
 ])
 
 /**
@@ -1429,6 +1472,11 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   }
   if (!instants) {
     for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
+    // `lastbartime` and its calendar are read FROM `t`, exactly as the eight
+    // above are, so a fetch that fails their unit gate fails this one too —
+    // never a confident calendar broadcast from a series the gate has
+    // already condemned.
+    for (const name of CLOCK_LASTBAR_TIME) cols[name].fill(NA)
     return cols
   }
 
@@ -1477,6 +1525,16 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     cols.sessionfirst[i] = prevDay < 0 ? NA : (day === prevDay ? 0 : 1)
     prevDay = day
   }
+  // `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
+  // computed above — read back, never recomputed, so this broadcast can
+  // never disagree with what `year`/`month`/… already say about that bar.
+  const lastI = length - 1
+  cols.lastbartime.fill(cols.time[lastI])
+  cols.lastbaryear.fill(cols.year[lastI])
+  cols.lastbarmonth.fill(cols.month[lastI])
+  cols.lastbardayofmonth.fill(cols.dayofmonth[lastI])
+  cols.lastbarhour.fill(cols.hour[lastI])
+  cols.lastbarminute.fill(cols.minute[lastI])
   return cols
 }
 

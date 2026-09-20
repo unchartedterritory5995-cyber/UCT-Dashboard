@@ -47,6 +47,12 @@ says which name and why — it never guesses a meaning.
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
 | `lastbarindex` | the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar |
+| `lastbartime` | the newest bar's own timestamp in seconds, the same value on every bar -- this engine's answer for Pine's timenow, anchored to the fetch rather than to genuine live wall-clock time |
+| `lastbaryear` | the calendar year of the newest bar's own timestamp, in New York time, the same value on every bar |
+| `lastbarmonth` | the calendar month of the newest bar's own timestamp, 1 in January through 12 in December, in New York time, the same value on every bar |
+| `lastbardayofmonth` | the day of the month of the newest bar's own timestamp, 1 to 31, in New York time, the same value on every bar |
+| `lastbarhour` | the hour of the newest bar's own timestamp on a 24-hour clock, 0 to 23, in New York time, the same value on every bar |
+| `lastbarminute` | the minute of the newest bar's own timestamp, 0 to 59, in New York time, the same value on every bar |
 | `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- never a guess |
 | `isconfirmed` | 1 on a bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- collapsing blank onto 1 would put a confident isconfirmed on a bar that may still be open |
 | `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This engine evaluates a static fetch, so ishistory is exactly isconfirmed -- a divergence from the vendor, recorded in `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` |

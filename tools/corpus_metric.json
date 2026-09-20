@@ -1090,10 +1090,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function"
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:builtin"
       ]
     },
     {
