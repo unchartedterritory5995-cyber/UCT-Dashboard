@@ -1,0 +1,592 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+.............................FFFF...F.F...F.F........................... [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 30%]
+........................................................................ [ 35%]
+........................................................................ [ 40%]
+........................................................................ [ 45%]
+........................................................................ [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 60%]
+................s.....................s....F............................ [ 65%]
+..........................s............................................. [ 70%]
+......................................F................................. [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+...........................................................s............ [ 90%]
+........................................................F............... [ 95%]
+...................................................................      [100%]
+=================================== FAILURES ===================================
+_ TestCoverageInTheEnvelope.test_a_web_passage_page_carries_selected_passage_only _
+
+self = <tests.test_web_capture_coverage.TestCoverageInTheEnvelope object at 0x7f42a8ed5820>
+
+    def test_a_web_passage_page_carries_selected_passage_only(self):
+>       e = ev.from_document_page(page_row("web_passage"), snippet="margins normalize")
+
+tests/test_web_capture_coverage.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'web_passage', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_____ TestCoverageInTheEnvelope.test_a_web_reference_carries_metadata_only _____
+
+self = <tests.test_web_capture_coverage.TestCoverageInTheEnvelope object at 0x7f42a8ed5cd0>
+
+    def test_a_web_reference_carries_metadata_only(self):
+>       e = ev.from_document_page(page_row("web_reference"), snippet="")
+
+tests/test_web_capture_coverage.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'web_reference', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+__ TestCoverageInTheEnvelope.test_a_PDF_page_still_carries_document_complete ___
+
+self = <tests.test_web_capture_coverage.TestCoverageInTheEnvelope object at 0x7f42a8ed5610>
+
+    def test_a_PDF_page_still_carries_document_complete(self):
+        # Wave I/J semantics preserved: this is the control that proves the
+        # mapping is not returning one constant.
+>       e = ev.from_document_page(page_row("pdf_full_text"), snippet="x")
+
+tests/test_web_capture_coverage.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'pdf_full_text', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_ TestCoverageInTheEnvelope.test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf _
+
+self = <tests.test_web_capture_coverage.TestCoverageInTheEnvelope object at 0x7f42a8ed5460>
+
+    def test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf(self):
+        row = page_row("pdf_full_text"); row.pop("capture_type")
+>       assert ev.from_document_page(row, snippet="x")["coverage"] == ev.COVERAGE_COMPLETE
+
+tests/test_web_capture_coverage.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, 'user_id': 'u1'}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_ TestCoverageInTheEnvelope.test_selected_passage_only_can_NEVER_map_to_document_complete _
+
+self = <tests.test_web_capture_coverage.TestCoverageInTheEnvelope object at 0x7f42a8ed7f80>
+
+    def test_selected_passage_only_can_NEVER_map_to_document_complete(self):
+        # The single boundary this slice exists to defend.
+        assert ev.coverage_for("web_passage") != ev.COVERAGE_COMPLETE
+        assert ev.coverage_for("web_reference") != ev.COVERAGE_COMPLETE
+        for ctype in ("web_passage", "web_reference"):
+            for maker, kw in ((ev.from_document_page, {"snippet": "s"}),
+                              (ev.from_excerpt, {"anchor_ok": True})):
+                row = page_row(ctype) if maker is ev.from_document_page else excerpt_row(ctype)
+>               assert maker(row, **kw)["coverage"] != ev.COVERAGE_COMPLETE
+
+tests/test_web_capture_coverage.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'web_passage', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_ TestAdversarialCoverage.test_a_reference_only_capture_offers_NO_body_text_to_answer_from _
+
+self = <tests.test_web_capture_coverage.TestAdversarialCoverage object at 0x7f42a8ea0740>
+
+    def test_a_reference_only_capture_offers_NO_body_text_to_answer_from(self):
+        # "Summarize this article" with only a WEB_REFERENCE: the evidence
+        # carries no article text, so the honest outcome is a coverage-limited
+        # no-answer rather than model-general inference.
+>       e = ev.from_document_page(page_row("web_reference"), snippet="")
+
+tests/test_web_capture_coverage.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'web_reference', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 1, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_ TestCitationTruthfulness.test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page _
+
+self = <tests.test_web_capture_coverage.TestCitationTruthfulness object at 0x7f42a8e665a0>
+
+    def test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page(self):
+>       e = ev.from_document_page(page_row("web_passage", page_number=2), snippet="s")
+
+tests/test_web_capture_coverage.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'web_passage', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 2, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+___________ TestCitationTruthfulness.test_a_PDF_page_STILL_says_p_N ____________
+
+self = <tests.test_web_capture_coverage.TestCitationTruthfulness object at 0x7f42a8ea1fa0>
+
+    def test_a_PDF_page_STILL_says_p_N(self):
+        # Control: real pagination keeps its real label, so the assertions above
+        # are not passing because the label never says "p." at all.
+>       e = ev.from_document_page(page_row("pdf_full_text", page_number=4), snippet="s")
+
+tests/test_web_capture_coverage.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+row = {'capture_type': 'pdf_full_text', 'document_id': 'doc1', 'name': 'Reuters: NVDA Q3', 'page_number': 4, ...}
+
+    def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, Any]:
+        """Raw extracted text from one page of an attached document.
+    
+        Lineage is the PAGE, not this row -- an excerpt saved from the same page
+        must collide with it.
+    
+        ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+        separate retrieval queries build this evidence -- Notebook, Ask Document,
+        Current Note and Security Research -- each with its own SQL. A default here
+        would let any one of them silently forget to select the column and report
+        every scanned page as natively extracted, which is precisely the Wave N
+        defect: a correct branch that production SQL never fed. Missing the key
+        raises where a test can see it, rather than lying where a member can.
+        """
+        return make_evidence(
+>           text_origin=row["text_origin"],
+            source_type=DOCUMENT_PAGE,
+            source_id=f"{row['document_id']}#p{row['page_number']}",
+            user_id=row["user_id"],
+            label=passage_label(row, row["page_number"]),
+            text=snippet,
+            location={"document_id": row["document_id"], "page_number": row["page_number"]},
+            # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+            # lives inside a note, and Ask Notebook / Ask Security Research both
+            # span notes, so a citation that names only the document cannot be
+            # opened from them. `note_id` is optional rather than demanded: a host
+            # that already knows the note (the editor asking about ITS note) can
+            # supply it, and a missing one degrades to "open the note I am in"
+            # rather than to a confident jump into the wrong one.
+            navigation={"kind": "document", "document_id": row["document_id"],
+                        "page_number": row["page_number"],
+                        **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+            citation_validity=CITE_PAGE_ONLY,
+            lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+            coverage=coverage_for_row(row),
+            curation=0, score=score,
+        )
+E       KeyError: 'text_origin'
+
+api/services/journal_two/ask_evidence.py:308: KeyError
+_____________ test_tools_refuse_paths_inside_the_shared_data_root ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tools_refuse_paths_inside0')
+
+    def test_tools_refuse_paths_inside_the_shared_data_root(tmp_path):
+        common = _load("extract_common")
+>       assert common._inside_shared_root("C:\\data\\wisdom.db") and common._inside_shared_root("/data/x/y.db")
+E       AssertionError: assert (False)
+E        +  where False = <function _inside_shared_root at 0x7f42a417f2e0>('C:\\data\\wisdom.db')
+E        +    where <function _inside_shared_root at 0x7f42a417f2e0> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+
+tests/test_wisdom_extract_tools.py:125: AssertionError
+_____________________ test_admin_routes_answer_401_403_200 _____________________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_admin_routes_answer_401_40/wisdom.db')
+real_app = (<fastapi.applications.FastAPI object at 0x7f42aa192990>, True)
+client = <starlette.testclient.TestClient object at 0x7f4297fc7f20>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f4297fc7e90>
+
+    def test_admin_routes_answer_401_403_200(seeded, real_app, client, monkeypatch):
+        from tests.authclients import ADMIN, FREE_MEMBER, signed_in_as
+    
+        app, _ = real_app
+        monkeypatch.delenv("WISDOM_BADGES_ENABLED", raising=False)
+        for path in ADMIN_PATHS:
+            assert client.get(path).status_code == 401, path
+        with signed_in_as(FREE_MEMBER, app):
+            for path in ADMIN_PATHS:
+                assert client.get(path).status_code == 403, path
+        with signed_in_as(ADMIN, app):
+            for path in ADMIN_PATHS:
+                assert client.get(path).status_code == 200, path
+            assert client.get("/api/admin/wisdom/publish/adapters/badges?tickers=NVDA").json() == {}
+            preview = client.get("/api/admin/wisdom/publish/adapters/badges?tickers=NVDA,AMD&preview=true").json()
+>           assert set(preview) == {"NVDA"} and preview["NVDA"]["preview"] is True
+E           AssertionError: assert (set() == {'NVDA'}
+E             
+E             Extra items in the right set:
+E             'NVDA'
+E             
+E             Full diff:
+E             + set()
+E             - {
+E             -     'NVDA',
+E             - })
+
+tests/test_wisdom_publish_adapters_routes.py:94: AssertionError
+_______ test_every_yfinance_module_has_a_binding_proof_or_a_named_reason _______
+
+    def test_every_yfinance_module_has_a_binding_proof_or_a_named_reason():
+        """Read the module list off the AST rather than trusting the set above.
+    
+        A new module that imports yfinance lands in none of the three buckets and
+        is named here — so "someone adds a module and forgets the guard" becomes a
+        red test instead of a silent bypass discovered from a production log.
+        """
+        from tests.test_yf_guard_census import PRE_EXISTING_BINDING_PROOFS, QUARANTINE
+    
+        accounted = BOUND_HERE | set(PRE_EXISTING_BINDING_PROOFS) | set(QUARANTINE)
+        reaching = set(cen.importers(cen.repo_root()))
+    
+        unaccounted = sorted(reaching - accounted)
+>       assert not unaccounted, (
+            "these modules reach yfinance and have no binding proof:\n"
+            + "\n".join(f"    {m}" for m in unaccounted)
+            + "\n\nAdd a `test_<module>_reaches_yfinance_through_the_guard` here."
+        )
+E       AssertionError: these modules reach yfinance and have no binding proof:
+E             api/services/financial_statements.py
+E         
+E         Add a `test_<module>_reaches_yfinance_through_the_guard` here.
+E       assert not ['api/services/financial_statements.py']
+
+tests/test_yf_guard_binds.py:254: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_wisdom_bans.py:608
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:608: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+tests/test_weekly_flow.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/weekly_flow.py:480: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_wisdom_bans.py::test_the_rails_import_only_the_standard_library[tests/test_wisdom_bans.py]
+  <unknown>:608: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1742: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1745: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_wisdom_extract_prompt.py:129: golden labels are gitignored and not present here
+SKIPPED [1] tests/test_wisdom_extract_segmenter.py:288: golden set / samples are gitignored and not present on this checkout
+SKIPPED [1] tests/test_wisdom_golden_freeze.py:154: golden set not on this box (gitignored)
+SKIPPED [1] tests/test_wisdom_vocab_authority.py:202: set WISDOM_ENGINE_DB to uct_intelligence.db to re-measure (tools/wisdom/core_vocab_engine_check.py)
+FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_web_passage_page_carries_selected_passage_only - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_web_reference_carries_metadata_only - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_PDF_page_still_carries_document_complete - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_selected_passage_only_can_NEVER_map_to_document_complete - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestAdversarialCoverage::test_a_reference_only_capture_offers_NO_body_text_to_answer_from - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCitationTruthfulness::test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page - KeyError: 'text_origin'
+FAILED tests/test_web_capture_coverage.py::TestCitationTruthfulness::test_a_PDF_page_STILL_says_p_N - KeyError: 'text_origin'
+FAILED tests/test_wisdom_extract_tools.py::test_tools_refuse_paths_inside_the_shared_data_root - AssertionError: assert (False)
+ +  where False = <function _inside_shared_root at 0x7f42a417f2e0>('C:\\data\\wisdom.db')
+ +    where <function _inside_shared_root at 0x7f42a417f2e0> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+FAILED tests/test_wisdom_publish_adapters_routes.py::test_admin_routes_answer_401_403_200 - AssertionError: assert (set() == {'NVDA'}
+  
+  Extra items in the right set:
+  'NVDA'
+  
+  Full diff:
+  + set()
+  - {
+  -     'NVDA',
+  - })
+FAILED tests/test_yf_guard_binds.py::test_every_yfinance_module_has_a_binding_proof_or_a_named_reason - AssertionError: these modules reach yfinance and have no binding proof:
+      api/services/financial_statements.py
+  
+  Add a `test_<module>_reaches_yfinance_through_the_guard` here.
+assert not ['api/services/financial_statements.py']
+11 failed, 1420 passed, 4 skipped, 7 warnings in 123.45s (0:02:03)
