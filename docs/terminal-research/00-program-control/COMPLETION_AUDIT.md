@@ -38,29 +38,30 @@ and A13 still do, OWNER+DEPENDENCY) — counted once in the 32, once per tag in 
 | **DONE** | **22** | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, I1 |
 | **RULED-HOLD** | **1** | S7 — not in the original six buckets; a real decision was made (HOLD, DECISION_CARDS_2026-09-18.md CARD 6), distinct from still-awaiting-a-ruling |
 | **BLOCKED-DATA** | **1** | D2 (top-level CP3 dual-compute flip needs real member traffic — 0 rows as of 2026-09-19) |
-| **BLOCKED-OWNER** | **4** | A9, A11 (also DEPENDENCY), A13 (also DEPENDENCY), **A14** (moved from DEPENDENCY 2026-09-20 — see below) — A9/A11/A13 each need their type's dark-comparison read + CP4 + the flip; A14 needs G1 (OWNER_INPUTS.md, "who may see aggregate risk") |
-| **BLOCKED-SPEC-READ** | **1** | A12 — CP1 proposal drafted 2026-09-20, unsigned; moved here FROM BLOCKED-DEPENDENCY now that S5/S6 no longer block it |
+| **BLOCKED-OWNER** | **3** | A9, A11 (also DEPENDENCY), A13 (also DEPENDENCY) — each needs its type's dark-comparison read + CP4 + the flip |
+| **BLOCKED-SPEC-READ** | **2** | A12, **A14** (moved from BLOCKED-OWNER 2026-09-20 — see below) — both have a CP1 proposal drafted, unsigned |
 | **BLOCKED-DEPENDENCY** | **5** | S8 (D2), A1 (D2), A10 (D3 CP4 + D4 CP5, both proposed not signed), A11 (D2, also OWNER), A13 (D2+S5, also OWNER) |
 | **EXCLUDED** | **0 within the 32** | E1 is outside the named roster (see below); DEC-08 is tracked alongside the 32 but is a decision, not a system |
-| **⛔ NOT-YET-CLASSIFIED** | **0** | every one of the 32 lands in exactly one row above (plus a second tag for D2's — no, A11/A13's — dual rows) |
+| **⛔ NOT-YET-CLASSIFIED** | **0** | every one of the 32 lands in exactly one row above (plus a second tag for A11/A13's dual rows) |
 
-⚰️ **A14 moved BLOCKED-DEPENDENCY → BLOCKED-OWNER, 2026-09-20.** DEC-08 (the dependency) was
-answered directly by the owner today ("yes, we need [a corp-actions/portfolio-risk calendar]
-daily"), but that only unblocks the *deferral* — scoping A14's actual first checkpoint surfaced
-that DEC-08 was never its only blocker (`10-roadmap/2026-09-12-a-series-bucket-sort.md:357`: A14
-was "owner-bound twice over"). The second question — who may see the aggregate-risk numbers
-`portfolio_heat.py` already computes — was never separately answered (S9's OI-03/OI-12 settled
-vendor licensing, not member subscription-tier gating) and is now filed as **G1** in
-OWNER_INPUTS.md. See the A14 row below for the full record.
+⚰️ **A14's full path today, 2026-09-20, all in one live session:** BLOCKED-DEPENDENCY (on DEC-08)
+→ BLOCKED-OWNER (DEC-08 answered "yes, we need it daily," but scoping A14's actual checkpoint
+surfaced it was "owner-bound twice over" per `10-roadmap/2026-09-12-a-series-bucket-sort.md:357`
+— a second, never-asked question: who may see the aggregate-risk numbers `portfolio_heat.py`
+already computes, filed as **G1**) → **BLOCKED-SPEC-READ** (G1 answered: *"we no longer have a
+free and paid tier, only paid"*, verified against `freePages.js`; a scoped CP1 proposal — one
+route, one page, one nav entry, all reading `portfolio_heat.py`'s existing output — now exists at
+`gates/a14-portfolio-heat-cp1-scoped-proposal.md`, unsigned). Three real state changes in one
+session is not a discrepancy to reconcile; it is what "owner answers each real question as it
+surfaces" looks like when the same system happens to have two of them.
 
 **Unique-system arithmetic, so the 32 is checkable, not asserted:** 22 DONE + 1 RULED-HOLD (S7)
-+ 1 BLOCKED-DATA (D2) + 2 BLOCKED-OWNER-only (A9, A14) + 1 BLOCKED-SPEC-READ (A12) + 3 single-tag
-BLOCKED-DEPENDENCY (S8, A1, A10) + 2 dual-tagged OWNER+DEPENDENCY (A11, A13, each counted
-once here) = 22+1+1+2+1+3+2 = **32**. The breakdown table's BLOCKED-OWNER (4 = A9 + A14 + the 2
-dual-tagged) and BLOCKED-DEPENDENCY (5 = the 3 single-tag + the same 2 dual-tagged) rows therefore
-sum to 9 tag-occurrences across only 7 unique systems (A9, A14, S8, A1, A10 once each; A11 and A13
-twice each), which is why the table's own rows don't independently sum to 32 — expected, not an
-error.
++ 1 BLOCKED-DATA (D2) + 1 BLOCKED-OWNER-only (A9) + 2 BLOCKED-SPEC-READ (A12, A14) + 3 single-tag
+BLOCKED-DEPENDENCY (S8, A1, A10) + 2 dual-tagged OWNER+DEPENDENCY (A11, A13, each counted once
+here) = 22+1+1+1+2+3+2 = **32**. The breakdown table's BLOCKED-OWNER (3 = A9 + the 2 dual-tagged)
+and BLOCKED-DEPENDENCY (5 = the 3 single-tag + the same 2 dual-tagged) rows therefore sum to 8
+tag-occurrences across only 6 unique systems (A9, S8, A1, A10 once each; A11 and A13 twice each),
+which is why the table's own rows don't independently sum to 32 — expected, not an error.
 
 **What moved to produce this count** (superseding the itemized log below, which is kept as history):
 D2 lost its SPEC-READ tag today (§4-CP3 fixed, a false alarm); A12 moved DEPENDENCY→SPEC-READ (S5/S6
@@ -190,7 +191,7 @@ blocker class.
 | **A11** Breadth & Regime | live surface | ✅ `regime-change` CP3 merged `506eeee6d`, ARMED 2026-09-13 — but it compares **dark**. Still needs the one-regime ruling, D2 coverage, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip, the one-regime ruling — + **BLOCKED-DEPENDENCY** (D2) |
 | **A12** Watchlists | half-live | ⚰️ was *"S5 + S6"* as a dependency block — both are now DONE (§1.1: S5 CP2–CP4 signed+built; S6 CP2'/CP3/CP4 built, CP5 closed by ruling). A12 inherits no dependency block anymore; matching the A2/A14 correction style, what remains is that A12 **needs its own new checkpoint** proposed against the now-unblocked systems. ✅ **A scoped CP1 proposal now exists and is ready for the owner's signature**: `docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md` — a no-product-code consistency rail between `member_interest.py`'s watchlist/flagged buckets and `watchlist_service.py`'s own membership definition, plus pinning the two named gaps (column-preset persistence, no S5-shaped saved object yet). Approval block is UNFILLED; no A12 PRD/spec exists and this proposal does not substitute for one | **BLOCKED-SPEC-READ** — CP1 proposal awaiting owner signature (moved from BLOCKED-DEPENDENCY, §0) |
 | **A13** Journal | live (528 files) | ✅ `position-risk` CP3 merged `6a67a4b5d`, ARMED 2026-09-13 — but it compares **dark**. Still needs D2, S5, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip — + **BLOCKED-DEPENDENCY** (D2, S5) |
-| **A14** Portfolio & Risk | no member door; **but the computation is already shipped** — `api/services/portfolio_heat.py` (203 lines) computes risk-heat vs. the 10% aggregate cap, notional exposure vs. the regime ceiling, per-position at-risk, by-sector concentration, and broker-placeholder-stop detection, confirmed still true 2026-09-20. Reachable only via 4 assistant-tool call sites (`journal_two/coach_chat_tools.py`, `voice_tool_impls.py`, `ai_search_personal.py`, `grade_watchlist.py`) — 0 of 91 page routes match `portfolio\|risk\|heat` | DEC-08 (⚰️ was labeled "D8"; see DEC-08 row) + **G1, a NEW owner question (OWNER_INPUTS.md), not F-09** | ⚰️ **DEC-08 CONFIRMED NEEDED 2026-09-20** (owner, direct answer) — unblocks the *deferral*, not the whole system. ⚰️ was *"inherits F-09's real provider gap"* — **wrong pairing, corrected 2026-09-20**: F-09's class-G provider gap (no M&A/spinoff/rights/buyback/ticker-change data source) belongs to D5's corp-actions EVENT calendar, a separate system; `portfolio_heat.py`'s risk-heat computation needs no corporate-actions data at all and has no provider gap. The real remaining blocker, per the original 2026-09-12 bucket-sort research (`10-roadmap/2026-09-12-a-series-bucket-sort.md:357`, "owner-bound twice over"): **who may see aggregate risk** — never actually answered (S9's OI-03/OI-12 settled VENDOR licensing tiers, a different question from MEMBER subscription-tier gating). Filed as **G1** in OWNER_INPUTS.md 2026-09-20, unanswered. | **BLOCKED-OWNER** (G1) — moved from BLOCKED-DEPENDENCY; a real CP1 (a thin page on the already-computed numbers) is buildable the moment G1 is answered |
+| **A14** Portfolio & Risk | no member door; **but the computation is already shipped** — `api/services/portfolio_heat.py` (203 lines) computes risk-heat vs. the 10% aggregate cap, notional exposure vs. the regime ceiling, per-position at-risk, by-sector concentration, and broker-placeholder-stop detection, confirmed still true 2026-09-20. Reachable only via 4 assistant-tool call sites (`journal_two/coach_chat_tools.py`, `voice_tool_impls.py`, `ai_search_personal.py`, `grade_watchlist.py`) — 0 of 91 page routes match `portfolio\|risk\|heat` | DEC-08 (⚰️ was labeled "D8"; see DEC-08 row) + **G1, a NEW owner question (OWNER_INPUTS.md), not F-09** | ⚰️ **DEC-08 CONFIRMED NEEDED 2026-09-20** (owner, direct answer) — unblocks the *deferral*, not the whole system. ⚰️ was *"inherits F-09's real provider gap"* — **wrong pairing, corrected 2026-09-20**: F-09's class-G provider gap (no M&A/spinoff/rights/buyback/ticker-change data source) belongs to D5's corp-actions EVENT calendar, a separate system; `portfolio_heat.py`'s risk-heat computation needs no corporate-actions data at all and has no provider gap. The real remaining blocker, per the original 2026-09-12 bucket-sort research (`10-roadmap/2026-09-12-a-series-bucket-sort.md:357`, "owner-bound twice over"): **who may see aggregate risk** — never actually answered (S9's OI-03/OI-12 settled VENDOR licensing tiers, a different question from MEMBER subscription-tier gating). **G1 ANSWERED 2026-09-20**: *"we no longer have a free and paid tier, only paid"* (verified against `app/src/constants/freePages.js`, `FREE_PAGES = ['/morning-wire']`) — closes as: gate the new page as an ordinary paid-member feature, no elevated tier, not admin-only. **A scoped CP1 proposal now exists and is ready for the owner's signature**: `docs/terminal-research/12-decisions/gates/a14-portfolio-heat-cp1-scoped-proposal.md` — one read-only route + one page + one nav entry, all reading `portfolio_heat.py`'s existing output verbatim, gated with the same `require_paid` idiom other paid routes already use. Approval block UNFILLED. | **BLOCKED-SPEC-READ** — CP1 proposal awaiting owner signature (moved from BLOCKED-OWNER, §0) |
 | **E1** | outside the named roster | — | **EXCLUDED** |
 | **I1** Intelligence Layer | SHIPPED, 3 slices, `1c426c199` | ⚰️ was *"F-I1-2 parked by owner (browser checks)"* — **F-I1-2 shipped 2026-09-14** (`17d7e2ef5`, confirmed on `origin/master`: derived refusal reasons, 13 test cases in `tests/test_ticker_explain_refusal_names_the_gap.py`; the owner-facing before/after artifact is `verification/2026-09-14/F-I1-2-refusal-before-after.md`, substituting for a live browser session). ⚰️ was *"its own SLICE 3 approval block is separately flagged MALFORMED"* — corrected 2026-09-20 on the owner's explicit direction: `SCOPE APPROVED:` is now filled in, transcribed from commit `17d7e2ef5`'s own message (the commit the block's fingerprint pins), not invented (`intelligence-layer-pre-implementation-gate.md`) | **DONE** — code shipped, approval block corrected |
 

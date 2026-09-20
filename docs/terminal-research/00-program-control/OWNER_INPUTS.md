@@ -361,7 +361,7 @@ price-level dark read. **No action needed now** — recorded so it is not forgot
 
 ## PART G — NEW 2026-09-20, surfaced while scoping A14 off DEC-08's answer
 
-### G1 · A14 (Portfolio & Risk) — who may see aggregate risk?
+### G1 · A14 (Portfolio & Risk) — who may see aggregate risk? — ✅ ANSWERED 2026-09-20
 
 DEC-08 was answered directly this session ("does the desk need a corp-actions/portfolio-risk
 calendar daily?" → **"Yes, we need it daily."**), and I went to scope A14's first real checkpoint
@@ -391,14 +391,29 @@ it should not be smuggled in under an A14 CP1."* I'm asking rather than guessing
   C) Admin/staff only for now, as an internal tool, before any member-facing tier decision
   D) Something else: _______________________________________________
 
-CHOOSE: ____
+CHOOSE: D
 ```
 
-**No provisional taken — this one is genuinely yours**, same posture as B4 above. It changes who
-sees real, aggregate risk numbers about their own real positions; a wrong guess here is a paid-
-gating decision made by default, exactly the trap this programme's CARD 6 (S7 price-level) ruling
-was written to avoid repeating. **Unblocks:** A14's first real CP1 (a thin page wired to
-`portfolio_heat.py`, reusing the already-computed numbers — no new computation, no schema change).
+**Owner's answer, verbatim, live session 2026-09-20:** *"we no longer have a free and paid tier,
+only paid."* **Verified against the code the same session**, not taken on faith:
+`app/src/constants/freePages.js` — `export const FREE_PAGES = ['/morning-wire']`. Every other
+router/page comment citing this constant (`api/routers/{calendar,engine_data,modelbook,scans}.py`,
+`api/top_flow_router.py`) independently confirms the same list and dates the change to
+*"the 2026-07-19 owner decision."* Options A and B in this form both assumed a live free/paid
+split that does not exist — **there is nothing to gate against**, since the entire logged-in
+member base is already paid, one marketing page excepted. This CLOSES G1 as: **gate the new
+aggregate-risk page as an ordinary paid-member feature** — no special elevated tier, and not
+admin-only (C was not chosen). **Unblocks:** A14's first real CP1 (a thin page wired to
+`portfolio_heat.py`, reusing the already-computed numbers — no new computation, no schema change),
+gated the same way every other paid surface already is.
+
+⚠️ **Flagged, not fixed here — a broader finding, out of this item's scope:** the code worktree's
+own `CLAUDE.md` ("Auth & User System") still documents a **"Free tier: Dashboard, Breadth, Charts,
+Options Flow, Journal, Model Book accessible without payment"** — six pages, not the one
+(`/morning-wire`) `FREE_PAGES` actually names. That description predates the 2026-07-19 change and
+is stale by the same evidence that closes this item. Worth a correction pass in that file, but it
+is CODE-repo documentation, not this programme's own tracked doc — flagged for the owner to decide
+whether/when to fix it, not silently corrected here.
 
 ---
 
