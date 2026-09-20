@@ -65,12 +65,18 @@ plot(math.floor(close / 3))
     expect(t.refusal.message).toMatch(/syminfo\.mintick/)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.correlation) still refuses pine:function', () => {
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
+    // ⚰️ This used to name `heat-map-seasons__53acdf3223.pine` (`ta.correlation`)
+    // — the CORRECT control at the time, and no longer one: `ta.correlation`
+    // joined `BUILTIN_CALL_TREE` (2026-09-20, `pine.expansions.test.js`) as an
+    // exact covariance/stdev identity, and that script now fully translates
+    // (`ok: true`, 35/266 host — see corpusMetric). `ta.nvi` remains genuinely
+    // undeclared, so it is the control now.
     const src = fs.readFileSync(
-      path.join(CORPUS, 'heat-map-seasons__53acdf3223.pine'), 'utf8')
+      path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.correlation/)
+    expect(t.refusal.message).toMatch(/ta\.nvi/)
   })
 })
