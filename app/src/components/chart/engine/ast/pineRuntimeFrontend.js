@@ -30,7 +30,7 @@
 
 import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
-  findTop, isPunct, boundName, locate, PineRefusal,
+  findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
@@ -1637,16 +1637,24 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:function',
         'a definition this front end reads as `name(params) =>`', locate(toks[0]))
     }
-    const params = []
-    for (let i = 2; i < arrow - 1; i += 1) {
-      const t = toks[i]
-      if (isPunct(t, ',')) continue
-      if (t.kind !== 'ident') {
-        throw new RuntimeRefusal('runtime:function',
-          `a parameter this front end cannot read (\`${t.value}\`) — default values are not supported yet`,
-          locate(t))
-      }
-      params.push(t.value)
+    // ⭐⭐ ONE PARSER FOR THE HEADER. `functionParams` is the translator's own,
+    // exported rather than copied: it skips Pine's type words and qualifiers
+    // (`float a`, `simple int n`) and answers null for a header this grammar
+    // does not read. The copy that used to live here counted `float` as a
+    // parameter, which surfaced as a wrong ARITY — a refusal that named the call
+    // site and said nothing about the real cause.
+    const params = functionParams(toks, arrow)
+    if (params === null) {
+      // ⛔ THE REFUSAL STILL NAMES THE TOKEN. `null` means "not this shape", and
+      // the member needs to know which token stopped it; a default value is the
+      // case this corpus actually hits, so it keeps its own sentence.
+      const bad = toks.slice(2, arrow - 1).find(
+        (t) => !isPunct(t, ',') && t.kind !== 'ident')
+      throw new RuntimeRefusal('runtime:function',
+        bad && isPunct(bad, '=')
+          ? 'a parameter this front end cannot read (`=`) — default values are not supported yet'
+          : `a parameter this front end cannot read${bad ? ` (\`${bad.value}\`)` : ''}`,
+        locate(bad || toks[0]))
     }
 
     // ⭐ REGISTERED BEFORE ITS BODY IS COMPILED, so a self-call is caught as

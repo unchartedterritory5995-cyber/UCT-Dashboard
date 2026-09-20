@@ -1848,6 +1848,91 @@ const DIGIT = /[0-9]/
  * BRACKET DEPTH, and both are cleaner to read off a positioned token list than
  * off a stream with separators in it.
  */
+/** The only heads that may carry a type argument.
+ *
+ *  ⛔⛔ CLOSED ON PURPOSE, AND IT IS WHAT KEEPS COMPARISONS SAFE. `a < b > c` is
+ *  a legal chain and lexes exactly like a generic apart from its head token, so
+ *  "any ident followed by `<`" would rewrite arithmetic into a call — a
+ *  mistranslation that parses, lints, saves and scans. Only Pine's three
+ *  collection constructors and its three collection type names can be followed
+ *  by a type argument, so only those six are matched. */
+const GENERIC_CALL_HEADS = Object.freeze(new Set(['array.new', 'matrix.new', 'map.new']))
+const GENERIC_TYPE_HEADS = Object.freeze(new Set(['array', 'matrix', 'map']))
+
+/**
+ * Remove `<…>` type arguments, keeping the element type on the head token.
+ *
+ * ⚰️ WHAT IT COST TO LACK THIS: `array.new<string>()` and `array<string> x = …`
+ * came back as `pine:statement` — *"this Pine line is not a shape the translator
+ * reads"* — because `<` and `>` reach every consumer as comparisons and the
+ * statement never resolves. Both acceptance scripts of the RVOL slice build
+ * their watchlist that way, and the refusal named the LINE rather than the
+ * CAPABILITY, which is the difference between a dead end and a census row.
+ *
+ * ⭐ THE TYPE IS KEPT, NOT DISCARDED. `array<string>` and `array<float>` are
+ * different types and the typed-collection wave will need to know which, so the
+ * segment leaves the token stream (this grammar has no type arguments) and
+ * reappears as `head.typeArgs`. Dropping it outright would make that wave
+ * re-parse the source to recover something we already had in hand.
+ *
+ * ⭐ WHY THE LEXER. Both lanes call `lexPine`, so one normalisation here serves
+ * the translator and the runtime front end together; a fix inside either parser
+ * would leave the other unable to see the shape of the line.
+ *
+ * ⛔ AN UNTERMINATED `<` IS LEFT ALONE. A run with no matching `>` is not a type
+ * argument, and swallowing to end-of-input would turn a typo into a vanished
+ * line.
+ *
+ * @param {object[]} tokens the lexer's tokens
+ * @returns {object[]} a NEW array; the head token is copied before `typeArgs` is
+ *   attached, so nothing already holding a token sees it change.
+ */
+function stripTypeArguments(tokens) {
+  const out = []
+  for (let i = 0; i < tokens.length; i += 1) {
+    const head = tokens[i]
+    const next = tokens[i + 1]
+    const isCall = head.kind === 'ident' && GENERIC_CALL_HEADS.has(head.value)
+    const isDecl = head.kind === 'ident' && GENERIC_TYPE_HEADS.has(head.value)
+    if (!(isCall || isDecl) || !isPunct(next, '<')) { out.push(head); continue }
+
+    // The `>` that closes this `<`, counting nested pairs — `array<float>>` ends
+    // with two separate `>` tokens, which is why this counts rather than taking
+    // the first one it meets.
+    let depth = 0
+    let close = -1
+    const parts = []
+    let part = []
+    for (let j = i + 1; j < tokens.length; j += 1) {
+      const t = tokens[j]
+      if (isPunct(t, '<')) { depth += 1; if (depth > 1) part.push('<'); continue }
+      if (isPunct(t, '>')) {
+        depth -= 1
+        if (depth === 0) { close = j; break }
+        part.push('>')
+        continue
+      }
+      if (depth === 1 && isPunct(t, ',')) { parts.push(part.join('')); part = []; continue }
+      if (t.kind === 'ident' || t.kind === 'number') { part.push(String(t.value)); continue }
+      close = -2   // anything else means this was never a type argument
+      break
+    }
+    if (close < 0) { out.push(head); continue }
+    if (part.length) parts.push(part.join(''))
+
+    // ⛔ THE SHAPE AFTER THE `>` DECIDES IT. A constructor's type argument is
+    // followed by `(`; a declaration's is followed by the name being declared.
+    // Anything else is not a generic and is left exactly as it was.
+    const after = tokens[close + 1]
+    const good = isCall ? isPunct(after, '(') : !!(after && after.kind === 'ident')
+    if (!good) { out.push(head); continue }
+
+    out.push({ ...head, typeArgs: parts })
+    i = close
+  }
+  return out
+}
+
 export function lexPine(src) {
   const raw = String(src == null ? '' : src)
   // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
@@ -1977,7 +2062,10 @@ export function lexPine(src) {
     throw new PineRefusal('pine:character', REFUSALS['pine:character'], at(i, line, col, ch))
   }
 
-  return { tokens, indents, version, lines, rawOffsetMap }
+  // ⭐ ONE NORMALISATION, BEFORE ANY PARSER SEES THE TOKENS — see
+  // `stripTypeArguments` for why a type argument belongs to the lexer and not to
+  // either lane's parser.
+  return { tokens: stripTypeArguments(tokens), indents, version, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -8888,8 +8976,16 @@ function mutatorTargets(toks) {
  *  — a second hand-typed list is the drift this engine keeps paying for. */
 const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
 
-/** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
-function functionParams(toks, arrow) {
+/** The parameter names of `f(a, b) =>`, or null if the header is not that shape.
+ *
+ *  ⭐⭐ EXPORTED FOR THE RUNTIME FRONT END, which kept its own copy of this loop
+ *  until 2026-09-19. That copy pushed every `ident` token in the header, so
+ *  `f(float a)` was read as TWO parameters and the call was refused as an arity
+ *  error — in one lane, while the other accepted the same line. One grammar, one
+ *  parser; a second one is a second answer waiting to diverge, and this one
+ *  diverged on the normal v5/v6 spelling.
+ */
+export function functionParams(toks, arrow) {
   if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
   const close = toks.findIndex((t) => isPunct(t, ')'))
   if (close < 0 || close > arrow) return null
