@@ -41,6 +41,8 @@ const DAMPING = 0.86
 const MIN_R = 4
 const MAX_R = 16
 const HIT_SLOP = 8           // px of forgiveness around a node's own radius
+const RESIZE_EPSILON_PX = 8  // below this, a size change is not worth a re-layout
+const RESIZE_SETTLE_MS = 160 // one re-layout per resize gesture, not per tick
 
 /** "1 note", not "1 notes" — this reaches the legend AND the canvas aria-label,
  *  so a screen reader reads the count out loud. */
@@ -56,6 +58,7 @@ export default function NoteGraphView({ onOpenNote }) {
   })
   const canvasRef = useRef(null)
   const roRef = useRef(null)
+  const resizeTimerRef = useRef(null)
   const simRef = useRef({ nodes: [], edges: [] })
   const drawRef = useRef(null)
   const hoverRef = useRef(null)
@@ -86,17 +89,38 @@ export default function NoteGraphView({ onOpenNote }) {
   const attachCanvas = useCallback((node) => {
     canvasRef.current = node
     if (roRef.current) { roRef.current.disconnect(); roRef.current = null }
+    if (resizeTimerRef.current) { clearTimeout(resizeTimerRef.current); resizeTimerRef.current = null }
     if (!node || typeof ResizeObserver === 'undefined') return
     const el = node.parentElement
     if (!el) return
+    // ⛔⛔ ONE RE-LAYOUT PER RESIZE GESTURE, NOT ONE PER TICK. The layout effect
+    // depends on `size`, so every setSize re-runs the whole 220-tick O(n^2)
+    // simulation from the seed ring. While this observer was inert (the bug the
+    // previous commit fixed) that never showed; the moment it started firing,
+    // dragging a window edge would scatter and re-settle the graph dozens of
+    // times. Fixing the first defect is what made this one reachable.
+    //
+    // ⛔ THE THRESHOLD AND THE DEBOUNCE ARE NOT THE SAME GUARD. The threshold
+    // drops 1px jitter that should never cost anything at all; the debounce
+    // collapses a genuine drag into a single settle. Remove either and the
+    // other does not cover it.
+    const apply = (w, h) => {
+      setSize((prev) => (
+        Math.abs(prev.w - w) < RESIZE_EPSILON_PX && Math.abs(prev.h - h) < RESIZE_EPSILON_PX
+          ? prev            // identity preserved => the layout effect does not re-run
+          : { w, h }
+      ))
+    }
     const measure = () => {
       const r = el.getBoundingClientRect()
-      if (r.width > 0) {
-        setSize({ w: Math.floor(r.width), h: Math.max(360, Math.floor(r.height)) })
-      }
+      if (r.width <= 0) return
+      apply(Math.floor(r.width), Math.max(360, Math.floor(r.height)))
     }
-    measure()
-    const ro = new ResizeObserver(measure)
+    measure()                                  // first one is immediate, not debounced
+    const ro = new ResizeObserver(() => {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+      resizeTimerRef.current = setTimeout(measure, RESIZE_SETTLE_MS)
+    })
     ro.observe(el)
     roRef.current = ro
   }, [])

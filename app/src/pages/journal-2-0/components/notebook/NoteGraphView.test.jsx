@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 /**
  * ⛔ THE LOAD-BEARING TEST IN THIS FILE IS `hovering costs ONE repaint`.
@@ -279,6 +279,91 @@ describe('NoteGraphView', () => {
     } finally {
       HTMLElement.prototype.getBoundingClientRect = origProto
     }
+  })
+
+  describe('resizing does not thrash the simulation', () => {
+    // ⛔ WHY THIS EXISTS. Making the ResizeObserver actually fire (the previous
+    // fix) meant `size` finally changes -- and the layout effect depends on it,
+    // so every resize tick re-ran the whole 220-tick O(n^2) simulation from the
+    // seed ring. Dragging a window edge scattered and re-settled the graph
+    // dozens of times. Fixing the first defect is what made this one reachable.
+    let fireResize
+    let rect
+
+    const mountWithObserver = (w = 1000, h = 600) => {
+      rect = { width: w, height: h, left: 0, top: 0, right: w, bottom: h }
+      class FakeRO {
+        constructor(cb) { fireResize = cb }
+        observe() {}
+        disconnect() {}
+      }
+      vi.stubGlobal('ResizeObserver', FakeRO)
+      HTMLElement.prototype.getBoundingClientRect = function () { return rect }
+      swrResult = {
+        isLoading: false,
+        data: {
+          nodes: [
+            { id: 'a', title: 'A', degree: 1 },
+            { id: 'b', title: 'B', degree: 1 },
+          ],
+          edges: [{ source: 'a', target: 'b', weight: 1 }],
+          truncated: false,
+        },
+      }
+      return render(<NoteGraphView />)
+    }
+
+    let origRect
+    beforeEach(() => {
+      origRect = HTMLElement.prototype.getBoundingClientRect
+      // ⛔ FAKE ONLY setTimeout/clearTimeout. `vi.useFakeTimers()` also fakes
+      // requestAnimationFrame, which overrides the synchronous rAF stub the
+      // outer beforeEach installs -- so the simulation never ran and the test
+      // measured 3 frames instead of the full budget. The debounce is the only
+      // thing here that needs controllable time.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    })
+    afterEach(() => { HTMLElement.prototype.getBoundingClientRect = origRect; vi.useRealTimers() })
+
+    it('TEN resizes in one gesture cost ONE re-layout, not ten', () => {
+      mountWithObserver(1000, 600)
+      const settled = ctxLog.clears
+      expect(settled).toBeGreaterThan(50)   // the first layout really ran
+
+      // a drag: ten observer callbacks, each a genuinely different width
+      act(() => {
+        for (let i = 1; i <= 10; i += 1) {
+          rect = { ...rect, width: 1000 + i * 20 }
+          fireResize([{ target: document.body }])
+        }
+      })
+      // nothing yet -- the gesture has not settled
+      expect(ctxLog.clears - settled).toBe(0)
+
+      act(() => { vi.advanceTimersByTime(500) })
+      const afterOne = ctxLog.clears - settled
+      expect(afterOne).toBeGreaterThan(50)  // exactly one full layout happened
+
+      // and a second settle does not happen on its own
+      act(() => { vi.advanceTimersByTime(2000) })
+      expect(ctxLog.clears - settled).toBe(afterOne)
+    })
+
+    it('a 2px jitter costs NOTHING, even after the debounce elapses', () => {
+      mountWithObserver(1000, 600)
+      const settled = ctxLog.clears
+
+      act(() => {
+        rect = { ...rect, width: 1002 }       // below RESIZE_EPSILON_PX
+        fireResize([{ target: document.body }])
+        vi.advanceTimersByTime(500)
+      })
+
+      // ⛔ The threshold returns the SAME state object, so React does not
+      // re-run the layout effect at all. A debounce alone would still pay for
+      // this; that is why both guards exist.
+      expect(ctxLog.clears - settled).toBe(0)
+    })
   })
 
   it('lays the same notebook out the same way twice', () => {
