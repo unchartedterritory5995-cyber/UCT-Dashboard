@@ -109,7 +109,21 @@ PATTERNS = {
     # self-check caught it because it names ids it KNOWS exist.
     "F":   "F-[A-Z0-9]+(?:-[A-Z0-9]+)+" + _RXB,     # F-S7-3, F-D2-1, F-S7-RC-4
     "H":   "H" + _RXD + "+" + _RXB,                  # H4, H14, H15
-    "OI":  "OI-" + _RXD + "+[a-z()]*",               # OI-03, OI-06, OI-03(a)
+    # ⚰️ This was "OI-\d+[a-z()]*" — a character CLASS of a/z/(/) in any order
+    # and count, so trailing prose punctuation glued itself onto the id: "(see
+    # OI-06)" harvested as "OI-06)", "OI-03(a)." harvested as "OI-03(a))" from
+    # a NEXT sentence's own paren. Found 2026-09-20 when a fresh OI count came
+    # back 49 against the registry's stated 21 — not a namespace collision
+    # (F-*'s cause) but a plain regex bug producing corrupted near-duplicates.
+    # Fixed to match ONLY a real sub-reference shape: the bare id, or exactly
+    # one lowercase-letter parenthetical suffix.
+    # ⚰️ A trailing _RXB (word boundary) was tried here and REVERTED — `\b`
+    # right after a literal `)` requires the NEXT character to be a word
+    # character, which prose punctuation/whitespace never is, so it silently
+    # broke the parenthetical case: "OI-03(a)" matched only as "OI-03", the
+    # optional group backing off because \b failed right after the `)`.
+    # Measured before shipping (see self-check CONTROL 5).
+    "OI":  "OI-" + _RXD + "+(?:\\([a-z]\\))?",       # OI-03, OI-06, OI-03(a)
     "DEC": "DEC-" + _RXD + "+",                      # DEC-13, DEC-14
     "RG":  "RG-[A-Z0-9-]+" + _RXB,
     "TD":  "TD-" + _RXD + "+",                       # tech-debt-register rows
@@ -187,6 +201,12 @@ def main() -> int:
         if "F-CI-11" not in h_all.get("F", {}):
             print("  ⛔ CONTROL FAILED: F-CI-11 absent even under --scope all — "
                   "the exclusion test proves nothing"); ok = False
+        # CONTROL 5 — the OI pattern must not glue trailing prose punctuation
+        # onto an id (the "OI-06)" / "OI-03(a))" bug), and must still capture
+        # a real single-letter parenthetical sub-reference whole.
+        oi_test = re.findall(PATTERNS["OI"], "(see OI-06) and OI-03(a) closes it.")
+        if oi_test != ["OI-06", "OI-03(a)"]:
+            print(f"  ⛔ OI pattern regressed: got {oi_test}"); ok = False
         print("SELF-CHECK:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
 
