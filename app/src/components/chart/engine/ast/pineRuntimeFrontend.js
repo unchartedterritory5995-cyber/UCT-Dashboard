@@ -39,12 +39,17 @@ import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './inter
 import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
-  declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
+  declare, assign, ifStmt, emit, emitIter, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+
+/** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
+ *  a collection's element KIND to the value that reads it out. */
+const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
+  'array.first', 'array.last', 'array.remove'])
 import { COLOUR_FNS, producesColour, hexToPacked } from '../runtime/colours.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
@@ -735,11 +740,52 @@ export function buildRuntimeIr(source, opts = {}) {
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
     if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
+    // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
+    // — a watchlist row, the single commonest per-row value in the corpus — reads
+    // as numeric, and a buffer allocated to hold it throws on the first symbol.
+    // ⛔ The ARRAY's element kind is a property of the SLOT, recorded where the
+    // collection is declared; there is no other place that knows it.
+    if (node.type === 'call' && ARRAY_READS_ELEMENT.has(node.name)) {
+      const a0 = (node.args || [])[0]
+      const av = a0 && a0.value !== undefined ? a0.value : a0
+      if (av && av.type === 'name') {
+        const s0 = scope.lookup(av.name)
+        if (s0 !== null) return !!(slots[s0] && slots[s0].elemText)
+      }
+    }
     if (node.type === 'binary' && node.op === '+') {
       return holdsText(node.left, scope) || holdsText(node.right, scope)
     }
     if (node.type === 'ternary') {
       return holdsText(node.yes, scope) || holdsText(node.no, scope)
+    }
+    return false
+  }
+
+  /** Does this array-producing expression hold TEXT elements?
+   *
+   *  ⛔ NARROW AND MEASURED, not a type system. It answers for the three
+   *  spellings the corpus uses to make a string array and says nothing else —
+   *  an unknown shape answers `false`, which costs a refusal rather than a
+   *  wrong buffer. */
+  const arrayHoldsText = (node, scope, depth = 0) => {
+    if (!node || node.type !== 'call' || depth > 8) return false
+    const n = String(node.name || '')
+    if (n === 'array.new_string') return true
+    if (n.startsWith('array.new')) {
+      const ta = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
+      return ta === 'string'
+    }
+    const first = (node.args || [])[0]
+    const fv = first && first.value !== undefined ? first.value : first
+    if (n === 'array.from') return holdsText(fv, scope)
+    // `array.copy(a)` / `array.slice(a, …)` keep their source's element kind.
+    if (n === 'array.copy' || n === 'array.slice') {
+      if (fv && fv.type === 'name') {
+        const s0 = scope.lookup(fv.name)
+        if (s0 !== null) return !!(slots[s0] && slots[s0].elemText)
+      }
+      return arrayHoldsText(fv, scope, depth + 1)
     }
     return false
   }
@@ -2477,6 +2523,15 @@ export function buildRuntimeIr(source, opts = {}) {
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
         if (holdsColour(value, scope)) slots[slot].colour = true
+        // ⭐ THE `var` BRANCH MARKS THE ELEMENT KIND TOO. It marked text and
+        // colour and not this, so `var syms = array.from("AAPL", "MSFT")` — the
+        // way every watchlist in the corpus is declared — left the slot with no
+        // element kind, and a per-row buffer built from it was allocated numeric
+        // and threw on the first symbol.
+        if (holdsArray(value, scope)) {
+          slots[slot].collection = true
+          slots[slot].elemText = arrayHoldsText(value, scope)
+        }
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -2565,7 +2620,10 @@ export function buildRuntimeIr(source, opts = {}) {
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
         if (holdsColour(value, scope)) slots[slot].colour = true
-        if (isCollection) slots[slot].collection = true
+        if (isCollection) {
+          slots[slot].collection = true
+          slots[slot].elemText = arrayHoldsText(value, scope)
+        }
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -2758,6 +2816,11 @@ export function buildRuntimeIr(source, opts = {}) {
    *  live where arrays and loops live, which is here.
    */
   const objectTreeOutputs = []
+  /** Per-ITERATION buffers this program declares, and each one's kind.
+   *  ⭐ The KINDS are reported back because the caller cannot know them: only
+   *  this lane can say whether an expression yields text. */
+  const iterOutputs = []
+  const objectIterTreeKinds = []
   try {
     statements = lowerStmts(stmts, root)
     // ⛔ AFTER THE WALK, ON THE FINISHED SCOPE. An object coordinate is an
@@ -2769,6 +2832,41 @@ export function buildRuntimeIr(source, opts = {}) {
       const index = outputs.length - 1
       statements.push(emit(index, lowerExpr(tree, root)))
       objectTreeOutputs.push(index)
+    }
+    // ⭐⭐ AND THE PER-ITERATION ONES, EACH AS ITS OWN LOOP.
+    //
+    // A value the object program reads once per ROW cannot be an output — an
+    // output is one number per BAR. So each is lowered as a real loop over the
+    // same bounds the drawing uses, writing one slot of an iteration buffer:
+    //
+    //     for <counter> = <from> to <to>
+    //         buffer[<counter>] = <the value>
+    //
+    // ⛔ THE COUNTER IS A SLOT IN AN INNER SCOPE AND THE BOUNDS ARE LOWERED IN
+    // THE OUTER ONE — the same rule Pine's own `for` follows a few hundred lines
+    // above, for the same reason: `for i = i to 3` is not a program, and the
+    // counter must not outlive its loop.
+    //
+    // ⛔ THE BUFFER'S KIND IS DECIDED HERE, NOT BY THE CALLER. The object pass
+    // knows a cell wants text; only this lane knows whether the EXPRESSION
+    // produces one, and a buffer allocated as the wrong container coerces every
+    // value it holds — which is why the kinds are reported back.
+    for (const spec of (opts.objectIterTrees || [])) {
+      const inner = new Scope(root)
+      const slot = inner.declare(spec.counter, newSlot(spec.counter, false))
+      const kind = holdsText(spec.node, inner) ? 'text' : 'num'
+      const k = iterOutputs.length
+      iterOutputs.push({ kind })
+      objectIterTreeKinds.push(kind)
+      statements.push(forStmt({
+        slot,
+        toSlot: newSlot(`${spec.counter} to`, false),
+        stepSlot: newSlot(`${spec.counter} by`, false),
+        from: lowerExpr(spec.from, root),
+        to: lowerExpr(spec.to, root),
+        step: num(1),
+        body: [emitIter(k, read(slot), lowerExpr(spec.node, inner))],
+      }))
     }
   } catch (e) {
     // ⭐⭐ R2 STEP 5 — THE SKIPPED LIST IS ATTACHED ON THE FAILING PATH TOO.
@@ -2896,6 +2994,7 @@ export function buildRuntimeIr(source, opts = {}) {
     ir = makeIrProgram({
       version: version || null, statements, slots, columns, outputs,
       objectTreeOutputs,
+      iterOutputs,
       functions: functions.map((f) => ({
         name: f.name, params: f.params, frameSize: f.frameSize,
         persistCount: f.persistCount, body: f.body, result: f.result,
@@ -2912,7 +3011,10 @@ export function buildRuntimeIr(source, opts = {}) {
     })
   } catch (e) { return fail(e, diagnostics) }
 
-  return { ok: true, ir, diagnostics }
+  // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
+  // fact about what this lane DECIDED, which the object side needs in order to
+  // render a buffer's value, and which nothing downstream of the program reads.
+  return { ok: true, ir, diagnostics, objectIterTreeKinds }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.
