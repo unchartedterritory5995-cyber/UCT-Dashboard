@@ -55,4 +55,13 @@ describe('ColumnPicker', () => {
       visible={['ticker']} onChange={() => {}} onReset={() => {}} />)
     expect(screen.queryByLabelText('Preset name')).toBeNull()
   })
+
+  it('applies a firm layout from "Start from a layout"', () => {
+    const onApplyLayout = vi.fn()
+    render(<ColumnPicker open onClose={() => {}} allColumns={ALL} visible={['ticker']}
+      onChange={() => {}} onReset={() => {}} onApplyLayout={onApplyLayout}
+      layouts={[{ key: 'technical', label: 'Technical', columns: ['ticker', 'price'] }]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Technical' }))
+    expect(onApplyLayout).toHaveBeenCalledWith(['ticker', 'price'])
+  })
 })

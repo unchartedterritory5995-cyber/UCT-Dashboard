@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 
-export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset }) {
+export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset, layouts = [], onApplyLayout }) {
   const [q, setQ] = useState('')
   const [presetName, setPresetName] = useState('')
   const doSave = () => {
@@ -44,6 +44,17 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
           <UIcon name="x" size={12} />
         </button>
       </div>
+      {onApplyLayout && layouts.length > 0 && (
+        <div className={styles.pickerLayouts}>
+          <span className={styles.pickerLayoutsLabel}>Start from a layout</span>
+          <div className={styles.pickerLayoutsRow}>
+            {layouts.filter(l => Array.isArray(l.columns) && l.columns.length).map(l => (
+              <button type="button" key={l.key} className={styles.pickerLayoutChip}
+                onClick={() => onApplyLayout(l.columns)}>{l.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={styles.pickerList}>
         {shown.map(c => (
           <div key={c.key} className={styles.pickerRow}>

@@ -51,10 +51,24 @@ const base = {
 }
 
 describe('ShellToolbar', () => {
-  it('views come from meta and select through onView', () => {
+  it('shows ONLY the Overview tab — the other firm views are no longer tabs', () => {
     render(<ShellToolbar {...base} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Momentum' }))
-    expect(base.onView).toHaveBeenCalledWith('momentum')
+    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Momentum' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    expect(base.onView).toHaveBeenCalledWith('overview')
+  })
+
+  it('firm layouts moved into the column picker and apply columns on click', () => {
+    const meta = { views: [
+      { key: 'overview', label: 'Overview', columns: ['ticker', 'price'] },
+      { key: 'technical', label: 'Technical', columns: ['ticker', 'rsi14'] },
+    ] }
+    const onColumns = vi.fn()
+    render(<ShellToolbar {...base} meta={meta} onColumns={onColumns} />)
+    fireEvent.click(screen.getByRole('button', { name: /choose columns/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Technical' }))
+    expect(onColumns).toHaveBeenCalledWith(['ticker', 'rsi14'])
   })
 
   it('user column presets render as tabs, apply, and delete', () => {
