@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import { COLUMN_DEFS } from '../columnDefs'
 import ColumnPicker from './ColumnPicker'
+import { DEFAULT_VIEW } from './specUrl'
 import styles from './ScannerShell.module.css'
 
 // ── THE SEAL SAYS WHICH TIER YOU ARE LOOKING AT, ALWAYS ──────────────────────
@@ -167,14 +168,24 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null,
   presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const overviewCols = (meta?.views || []).find(v => v.key === DEFAULT_VIEW)?.columns
   return (
     <div className={styles.toolbar}>
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
-        {(meta?.views || []).map(v => (
-          <button key={v.key} type="button" role="tab" aria-selected={view === v.key}
-            className={`${styles.viewTab} ${view === v.key ? styles.viewTabOn : ''}`}
-            onClick={() => onView(v.key)}>{v.label}</button>
-        ))}
+        {/* Only the default Overview tab remains. The firm's other column
+            layouts (Technical, Valuation, …) moved into the Columns picker's
+            "Start from a layout" list — a tab only ever swapped columns, and
+            Columns + saved presets now own that (owner call, 2026-09-20).
+            Overview is "active" when the on-screen columns ARE the default set,
+            so applying a layout or preset correctly un-highlights it. */}
+        {(meta?.views || []).filter(v => v.key === DEFAULT_VIEW).map(v => {
+          const on = sameCols(visibleColumns, overviewCols)
+          return (
+            <button key={v.key} type="button" role="tab" aria-selected={on}
+              className={`${styles.viewTab} ${on ? styles.viewTabOn : ''}`}
+              onClick={() => onView(v.key)}>{v.label}</button>
+          )
+        })}
         {/* The member's own saved column views, after the firm's. Each carries a
             gold dot + an inline delete; applying one sets the columns, so it is
             active exactly when the columns on screen are its list. */}
@@ -209,7 +220,8 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
           <ColumnPicker open={pickerOpen} onClose={() => setPickerOpen(false)}
             allColumns={allColumns} visible={visibleColumns}
             onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }}
-            onSavePreset={onSavePreset} />
+            onSavePreset={onSavePreset}
+            layouts={meta?.views} onApplyLayout={cols => onColumns(cols)} />
         </span>
         <button type="button" className={styles.toolBtn}
           aria-label={`Density: ${density}`} aria-pressed={density === 'compact'}
