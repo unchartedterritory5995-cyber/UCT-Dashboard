@@ -2,7 +2,7 @@
 id: GATE-S4-CONTEXT-BUS
 title: S4 — Context Bus — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ CP1 APPROVED 2026-09-13 and BUILT. CP2 (S4-B ruled: `useAppFocus` promoted) SIGNED and BUILT 2026-09-19 (fingerprint `f6df6dca1`). CP3 (HubContext.symbol derives from useAppFocus) SIGNED by the owner directly 2026-09-19 (fingerprint `f4b06a886`) and BROWSER-VERIFIED per §7. CP4-CP7 unsigned.
+status: ✅ CP1 APPROVED 2026-09-13 and BUILT. CP2 (S4-B ruled: `useAppFocus` promoted) SIGNED and BUILT 2026-09-19 (fingerprint `f6df6dca1`). CP3 (HubContext.symbol derives from useAppFocus) SIGNED by the owner directly 2026-09-19 (fingerprint `f4b06a886`) and BROWSER-VERIFIED per §7. CP4-CP7 unsigned. ⛔ CP4's own §4 row was checked 2026-09-20 and found factually wrong on both halves (see the note after the §4 table) -- do not sign it as written; a real CP4 needs fresh scoping. CP5-CP7 not re-checked.
 date: 2026-09-12
 measured_against: origin/master @ ffa8102c7
 pairs_with: SPEC-S4-CONTEXT-BUS
@@ -246,6 +246,26 @@ Each is independently revertible. **The order is load-bearing: CP1 measures, CP2
 | **CP5** | `setVoicePageHint`'s sentence is produced from the promoted authority rather than composed at the call site (`TickerPopup.jsx:186`). | YES — one | one-file revert | S |
 | **CP6** | The per-consumer snapshot baseline Δ3 asked for — **24 files, not 84** (§6). Only meaningful as a guard immediately BEFORE a migration that changes rendering, i.e. never before CP3. | NO (it only adds tests) | by deletion | **M** |
 | **CP7** | Timeframe authority. ⛔ **A separate approval line.** Not sized here. | YES | — | not measured |
+
+⛔⛔ **CP4's row above is WRONG on its own premise — checked 2026-09-20, kept verbatim rather than
+edited, per this file's own convention of never silently rewriting a forecast.** `TickerHubContext`
+(`app/src/components/mobile/TickerHubContext.jsx`) is not a second derivation of the symbol-focus
+authority CP3 just fixed — direct read shows `sym` is the mobile ticker-preview-SHEET's own
+open/closed state (null when no sheet is open), opened by `TickerPopup.jsx:206`'s
+`if (isTouch) { openTicker(sym); return }` on ANY ticker tap anywhere in the app. A member can have
+the app's focus on AAPL while briefly previewing a different ticker's sheet; that is the feature,
+not a divergence bug. **Making it "derive from `useAppFocus`" per this row's own stated shape would
+be a real regression** — the sheet would stop showing whichever ticker was tapped and start showing
+whatever the app's global focus symbol happens to be. Separately, `charts_mobile_sym` (this row's
+other half) has exactly two write sites (`TickerHubSheet.jsx:80`, `AiSearchPage.jsx:323`) and
+**zero read sites anywhere in the repo** — `MobileWorkspace.jsx`, the file this programme's own
+CLAUDE.md says reads it on mount, does not exist under that name; `ChartsWorkspace.jsx` (the file
+that actually renders the phone view today) has no reference to this key at all. Likely dead code
+from an earlier mobile-workspace design, not a live second authority needing reconciliation.
+**Do not sign CP4 as written.** A real CP4 line, if one is wanted, needs to be scoped fresh against
+what `TickerHubContext` and `charts_mobile_sym` actually are today — not against this row's
+description. CP5/CP6/CP7 were NOT re-checked this pass; their own premises are unverified, not
+assumed sound by association.
 
 ⛔ **What no checkpoint here does:** create a store; touch `crosshairBus` or `aiSearchBus`; change
 `useChartsSym`'s resolution order; change the pane-focus UI; or go near the 184 prop/local-state
