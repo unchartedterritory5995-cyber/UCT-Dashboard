@@ -2,13 +2,15 @@
 id: GATE-S9
 title: Entitlements & Licensing Gate — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ✅ CP1 SIGNED AND BUILT 2026-09-19. OI-03(a)/(b) and OI-12 all ANSWERED BY THE OWNER
-  2026-09-19 — Massive CONFIRMED Business/Enterprise (already held; corrects a same-day earlier,
-  more tentative "Individual/beta" answer), FMP DDLA exists, paid-only model confirmed. CP2's
-  SHAPE has FLIPPED from the prior draft of this status line: with Business confirmed it is a
+status: ✅ CP1 SIGNED AND BUILT 2026-09-19. OI-03(a)/(b), OI-12 and OI-09 all ANSWERED BY THE
+  OWNER 2026-09-19 — Massive CONFIRMED Business/Enterprise (already held; corrects a same-day
+  earlier, more tentative "Individual/beta" answer), FMP DDLA exists, paid-only model confirmed,
+  and UCT CONFIRMED staying downstream (not a vendor of record with the SIPs/OPRA). CP2's SHAPE
+  has FLIPPED from the prior draft of this status line: with Business confirmed it is a
   CONSOLIDATION that permits Massive real-time data on member routes (30 of 38 gated rows go
   R→LA), not an enforcement boundary — but CP2 itself is still unwritten, and 8 of those 38 rows
-  stay gated on OI-09 (real-time/non-professional attestation) independently of the tier answer.
+  stay gated on two narrower, still-open contract-text facts the downstream policy answer does not
+  reach (ESC-05, the OPRA sub-agreement; ESC-14, alerting's display/non-display categorization).
   A scoped proposal naming exactly what a consolidation changes on which member-visible routes is
   the next step, not yet drafted.
 date: 2026-09-13
@@ -114,7 +116,7 @@ finding needed correcting and which didn't.
 
 ⚠️ `entitlements.py` ships exactly ONE toolkit (`"all"`) and the lookup is still real — returning the default unconditionally would be indistinguishable from a lookup that had been deleted. Any S9 checkpoint must preserve that distinction.
 
-⛔⛔ **AND THE LICENSING HALF WAS NOT GOING TO BE A REFACTOR IF OI-03(a) HAD COME BACK RESTRICTIVE.** ⚰️ Written when the answer was still open: *"If OI-03(a) comes back individual tier, member-facing display of that data is not permitted at all, and S9's job changes from 'consolidate the gates' to 'enforce a prohibition.'"* **OI-03(a) is answered, 2026-09-19: CONFIRMED Business/Enterprise, already held** (correcting a same-day earlier, more tentative "Individual/beta" statement). S9's job is the consolidation branch — but this paragraph is kept rather than deleted, because the same branching logic still applies in full to OI-09 (real-time/non-professional attestation), which independently gates 8 of the 38 Massive rows and remains open.
+⛔⛔ **AND THE LICENSING HALF WAS NOT GOING TO BE A REFACTOR IF OI-03(a) HAD COME BACK RESTRICTIVE.** ⚰️ Written when the answer was still open: *"If OI-03(a) comes back individual tier, member-facing display of that data is not permitted at all, and S9's job changes from 'consolidate the gates' to 'enforce a prohibition.'"* **OI-03(a) is answered, 2026-09-19: CONFIRMED Business/Enterprise, already held** (correcting a same-day earlier, more tentative "Individual/beta" statement). **OI-09/OI-E02-09 is also answered, same day: UCT stays downstream, not a vendor of record** — N-26's attestation/entitlement machinery will not be built. S9's job is the consolidation branch — but this paragraph is kept rather than deleted, because the same branching logic still applies, narrower now, to the two contract-text questions the downstream answer does not reach: ESC-05 (does Massive's own agreement actually name OPRA display and pay the $1,500/mo floor?) and ESC-14 (is a server-side alert display or non-display use?). Those two independently gate 8 of the 38 Massive rows and remain open — a written answer from Massive, not a further owner policy stance.
 
 ---
 
@@ -123,7 +125,7 @@ finding needed correcting and which didn't.
 | CP | scope | strands? | size |
 |---|---|---|---|
 | **CP1** | The entitlement axis as **INERT DATA** + a duplication rail: every site that answers 'may this member' enumerated from source, with `PAID_PLANS`' two copies named. **No gate changed.** | measure at build | **S/M** |
-| **CP2+** | ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch ("Massive tier confirmed Individual... CP2 is an enforcement boundary with member-visible consequences") off the owner's first, more tentative same-day answer. **CONFIRMED Business/Enterprise, already held** (a second, more authoritative check the same day) flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists) and OI-12 (paid-only, matching current code) are also answered and do not further change CP2's shape. **8 of the 38 rows stay gated on OI-09** (real-time/non-professional attestation) independently of the tier answer — CP2's scoped proposal must still carve those out as a narrower enforcement question even though the tier question resolved favourably. A checkpoint with real member-visible consequences needs its own scoped proposal (what exactly unlocks on which routes, which 8 rows still need OI-09, and a measurement of what members currently see that this would change) before an approval line can name it — that proposal is the next concrete step, not yet written. | write the proposal first | **L**, and it touches member-visible surfaces |
+| **CP2+** | ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch ("Massive tier confirmed Individual... CP2 is an enforcement boundary with member-visible consequences") off the owner's first, more tentative same-day answer. **CONFIRMED Business/Enterprise, already held** (a second, more authoritative check the same day) flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists), OI-12 (paid-only, matching current code) and **OI-09/OI-E02-09 (UCT stays downstream, confirmed same day — not a vendor of record, N-26's attestation machinery will not be built)** are also answered and do not further change CP2's shape. **8 of the 38 rows still stay U**, gated not on OI-09 itself (answered) but on two narrower contract-text facts the downstream policy answer does not reach: **ESC-05** — does Massive's own Third-Party Agreement actually name OPRA display and pay the $1,500/mo floor (T-23–T-27, T-29, N-07–N-09)? **ESC-14** — is a server-side alert display or non-display use under CTA/OPRA fee rules (N-19)? Both need one written answer from Massive, not a further owner decision. CP2's scoped proposal must still carve those 8 out as a narrower question even though the tier and downstream questions both resolved favourably. A checkpoint with real member-visible consequences needs its own scoped proposal (what exactly unlocks on which routes, which 8 rows still need ESC-05/ESC-14, and a measurement of what members currently see that this would change) before an approval line can name it — that proposal is the next concrete step, not yet written. | write the proposal first | **L**, and it touches member-visible surfaces |
 
 ---
 
