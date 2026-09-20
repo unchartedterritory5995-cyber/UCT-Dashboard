@@ -116,6 +116,24 @@ export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.lin
 
 export const OBJECT_OP_KINDS = Object.freeze([
   'create', 'update', 'delete', 'cell', 'setreg', 'push', 'collset', 'collclear', 'collremove',
+  // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
+  //
+  // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
+  // its reason is correct as far as it goes: *"RISK-043 stands, the loop is not
+  // executed, and drawing the first iteration would be a lie"*. That is true of
+  // a STATIC tree reader, which is what that pass is — it cannot unroll
+  // `for i = 0 to slots - 1` because `slots` is a runtime value.
+  //
+  // ⭐ BUT THE OBJECT RUNTIME ALREADY RUNS BAR BY BAR. So the loop does not need
+  // unrolling at read time; it needs to BE an operation the runtime executes.
+  // Measured on the acceptance dashboard: 15 ops blocked this way — `array.push`,
+  // `array.set` and `table.cell` — which is the whole difference between a
+  // header cell and a watchlist table.
+  //
+  // ⛔ ITS BODY IS BOUNDED BY THE SAME ENVELOPE AS EVERYTHING ELSE. Each
+  // iteration costs `opsPerBar`, so a runaway is stopped by the thing counting
+  // operations rather than by a second limit nobody could re-derive.
+  'loop',
 ])
 
 /**
@@ -279,6 +297,16 @@ function assertValueRef(v, where) {
     case 'bar':
     case 'time':
       return
+    // ⭐⭐ THE LOOP COUNTER, and it sits beside `bar` for a reason: both are
+    // values the RUNTIME supplies rather than the graph. A `for i = 0 to n` body
+    // reads `i` in a cell's row, in `array.get(names, i)`, in a colour test —
+    // and none of those can be a graph node, because `i` does not exist until
+    // the loop runs.
+    case 'loop':
+      if (typeof v.id !== 'string' || !ID_RE.test(v.id)) {
+        throw new Error(`${where}: a loop reference needs an id matching ${ID_RE}`)
+      }
+      return
     default:
       throw new Error(`${where}: unknown value reference kind ${JSON.stringify(v.v)}`)
   }
@@ -323,6 +351,25 @@ function assertRefExpr(v, where, regs, colls) {
  *
  * @returns {{sites: string[], regs: string[], colls: string[]}}
  */
+/** Every op, INCLUDING those nested inside a `loop` body, with a readable path.
+ *
+ *  ⛔⛔ THE VALIDATOR MUST DESCEND OR A LOOP BODY IS UNCHECKED. Both passes
+ *  below used `ops.entries()`, which sees a `loop` op and nothing inside it — so
+ *  every malformed op in a body would have reached the runtime unvalidated,
+ *  which is the one thing this function exists to prevent. The path is carried
+ *  rather than an index, so a failure names `objects.ops[2].body[0]` instead of
+ *  a number that does not say which level it counted.
+ */
+function* walkOps(ops, prefix = 'objects.ops') {
+  for (const [i, op] of (Array.isArray(ops) ? ops : []).entries()) {
+    const where = `${prefix}[${i}]`
+    yield [where, op]
+    if (isObj(op) && op.k === 'loop' && Array.isArray(op.body)) {
+      yield* walkOps(op.body, `${where}.body`)
+    }
+  }
+}
+
 export function assertObjectProgram(program) {
   if (!isObj(program)) {
     throw new Error(`objects: expected an object program, got ${program === null ? 'null' : typeof program}`)
@@ -355,78 +402,99 @@ export function assertObjectProgram(program) {
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
   const siteFamily = new Map()
-  for (const [i, op] of ops.entries()) {
-    if (!isObj(op)) throw new Error(`objects.ops[${i}]: expected an operation object`)
+  for (const [where, op] of walkOps(ops)) {
+    if (!isObj(op)) throw new Error(`${where}: expected an operation object`)
     if (!OBJECT_OP_KINDS.includes(op.k)) {
-      throw new Error(`objects.ops[${i}]: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
+      throw new Error(`${where}: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
     }
-    if (op.when !== null && op.when !== undefined) assertValueRef(op.when, `objects.ops[${i}].when`)
+    if (op.when !== null && op.when !== undefined) assertValueRef(op.when, `${where}.when`)
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
-      throw new Error(`objects.ops[${i}]: lastBarOnly is a flag — it is either absent or true`)
+      throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
     if (op.once !== undefined && op.once !== true) {
-      throw new Error(`objects.ops[${i}]: once is a flag — it is either absent or true`)
+      throw new Error(`${where}: once is a flag — it is either absent or true`)
     }
     for (const k of ['requiresLive', 'requiresEmpty']) {
       if (op[k] === undefined) continue
       if (!regs.has(op[k])) {
-        throw new Error(`objects.ops[${i}]: ${k} names undeclared register ${JSON.stringify(op[k])}`)
+        throw new Error(`${where}: ${k} names undeclared register ${JSON.stringify(op[k])}`)
       }
     }
-    if (op.k === 'create') {
-      if (!OBJECT_FAMILIES.includes(op.family)) {
-        throw new Error(`objects.ops[${i}]: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
+    // ⭐⭐ A LOOP DECLARES ITS COUNTER AND ITS BOUNDS, and both bounds are
+    // ordinary value references — so `for i = 0 to array.size(syms) - 1` is a
+    // graph node like any other and needs no new machinery to be read.
+    //
+    // ⛔ THE COUNTER'S ID IS VALIDATED HERE because the body reads it by name.
+    // A body referencing `{v:'loop', id:'j'}` inside a loop declaring `i` is a
+    // program that would evaluate to NaN on every bar and draw nothing, which
+    // reads exactly like an empty watchlist.
+    // ⛔⛔ `loop` IS A BRANCH OF THIS CHAIN, NOT A CHECK BESIDE IT. The chain
+    // ends in an `else` that assumes a COLLECTION op, so a kind validated
+    // separately still falls through to it — and a loop was reported as
+    // *"names undeclared collection undefined"*, a sentence about a feature it
+    // has nothing to do with.
+    if (op.k === 'loop') {
+      if (!ID_RE.test(String(op.id))) {
+        throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
-      if (!ID_RE.test(String(op.site))) throw new Error(`objects.ops[${i}]: create needs a site id matching ${ID_RE}`)
-      if (siteFamily.has(op.site)) throw new Error(`objects.ops[${i}]: site ${op.site} is created twice`)
+      assertValueRef(op.from, `${where}.from`)
+      assertValueRef(op.to, `${where}.to`)
+      if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
+      if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
+    } else if (op.k === 'create') {
+      if (!OBJECT_FAMILIES.includes(op.family)) {
+        throw new Error(`${where}: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
+      }
+      if (!ID_RE.test(String(op.site))) throw new Error(`${where}: create needs a site id matching ${ID_RE}`)
+      if (siteFamily.has(op.site)) throw new Error(`${where}: site ${op.site} is created twice`)
       siteFamily.set(op.site, op.family)
-      assertProps(op, i, op.family, regs, colls, siteFamily)
+      assertProps(op, where, op.family, regs, colls, siteFamily)
       if (op.into !== null && op.into !== undefined) {
         const reg = regs.get(op.into)
-        if (!reg) throw new Error(`objects.ops[${i}]: create stores into undeclared register ${JSON.stringify(op.into)}`)
+        if (!reg) throw new Error(`${where}: create stores into undeclared register ${JSON.stringify(op.into)}`)
         if (reg.family !== op.family) {
-          throw new Error(`objects.ops[${i}]: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
+          throw new Error(`${where}: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
     } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell') {
-      const fam = resolveTargetFamily(op, i, regs, colls, siteFamily)
+      const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
       if (op.k === 'cell') {
-        if (fam !== 'table') throw new Error(`objects.ops[${i}]: cell targets a ${fam}, but only a table has cells`)
-        assertValueRef(op.col, `objects.ops[${i}].col`)
-        assertValueRef(op.row, `objects.ops[${i}].row`)
-        assertCellProps(op, i)
+        if (fam !== 'table') throw new Error(`${where}: cell targets a ${fam}, but only a table has cells`)
+        assertValueRef(op.col, `${where}.col`)
+        assertValueRef(op.row, `${where}.row`)
+        assertCellProps(op, where)
       }
-      if (op.k === 'update') assertProps(op, i, fam, regs, colls, siteFamily)
+      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily)
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)
-      if (!reg) throw new Error(`objects.ops[${i}]: setreg names undeclared register ${JSON.stringify(op.reg)}`)
+      if (!reg) throw new Error(`${where}: setreg names undeclared register ${JSON.stringify(op.reg)}`)
       if (op.value !== null) {
-        const fam = assertRefExpr(op.value, `objects.ops[${i}].value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== reg.family) {
-          throw new Error(`objects.ops[${i}]: register ${op.reg} holds ${reg.family}, cannot be assigned a ${resolved}`)
+          throw new Error(`${where}: register ${op.reg} holds ${reg.family}, cannot be assigned a ${resolved}`)
         }
       }
     } else {
       const c = colls.get(op.coll)
-      if (!c) throw new Error(`objects.ops[${i}]: ${op.k} names undeclared collection ${JSON.stringify(op.coll)}`)
+      if (!c) throw new Error(`${where}: ${op.k} names undeclared collection ${JSON.stringify(op.coll)}`)
       if (op.k === 'push' || op.k === 'collset') {
-        const fam = assertRefExpr(op.value, `objects.ops[${i}].value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== c.family) {
-          throw new Error(`objects.ops[${i}]: collection ${op.coll} holds ${c.family}, cannot take a ${resolved}`)
+          throw new Error(`${where}: collection ${op.coll} holds ${c.family}, cannot take a ${resolved}`)
         }
-        if (op.k === 'collset') assertValueRef(op.index, `objects.ops[${i}].index`)
+        if (op.k === 'collset') assertValueRef(op.index, `${where}.index`)
       }
-      if (op.k === 'collremove') assertValueRef(op.index, `objects.ops[${i}].index`)
+      if (op.k === 'collremove') assertValueRef(op.index, `${where}.index`)
     }
   }
 
   // ⛔ a site reference that names no create is a null handle waiting to happen
-  for (const [i, op] of ops.entries()) {
+  for (const [where, op] of walkOps(ops)) {
     const t = op.target || (op.k === 'push' || op.k === 'collset' ? op.value : null)
     if (t && t.r === 'site' && !siteFamily.has(t.id)) {
-      throw new Error(`objects.ops[${i}]: site ${JSON.stringify(t.id)} is referenced but never created`)
+      throw new Error(`${where}: site ${JSON.stringify(t.id)} is referenced but never created`)
     }
   }
 
@@ -440,44 +508,44 @@ export function assertObjectProgram(program) {
   return { sites: [...siteFamily.keys()], regs: [...regs.keys()], colls: [...colls.keys()] }
 }
 
-function resolveTargetFamily(op, i, regs, colls, siteFamily) {
-  const fam = assertRefExpr(op.target, `objects.ops[${i}].target`, regs, colls)
+function resolveTargetFamily(op, where, regs, colls, siteFamily) {
+  const fam = assertRefExpr(op.target, `${where}.target`, regs, colls)
   if (fam !== null) return fam
   const f = siteFamily.get(op.target.id)
-  if (!f) throw new Error(`objects.ops[${i}]: site ${JSON.stringify(op.target.id)} is referenced but never created`)
+  if (!f) throw new Error(`${where}: site ${JSON.stringify(op.target.id)} is referenced but never created`)
   return f
 }
 
-function assertProps(op, i, family, regs, colls, siteFamily) {
+function assertProps(op, where, family, regs, colls, siteFamily) {
   const allowed = FAMILY_PROPS[family]
-  if (!allowed) throw new Error(`objects.ops[${i}]: no property vocabulary for family ${JSON.stringify(family)}`)
+  if (!allowed) throw new Error(`${where}: no property vocabulary for family ${JSON.stringify(family)}`)
   const props = op.props
-  if (!isObj(props)) throw new Error(`objects.ops[${i}]: props must be an object`)
+  if (!isObj(props)) throw new Error(`${where}: props must be an object`)
   for (const [k, v] of Object.entries(props)) {
     if (!allowed.includes(k)) {
-      throw new Error(`objects.ops[${i}]: ${family} has no property ${JSON.stringify(k)} — the vocabulary is [${allowed}]`)
+      throw new Error(`${where}: ${family} has no property ${JSON.stringify(k)} — the vocabulary is [${allowed}]`)
     }
     const refFam = REF_PROPS[`${family}.${k}`]
     if (refFam) {
-      const got = assertRefExpr(v, `objects.ops[${i}].props.${k}`, regs, colls)
+      const got = assertRefExpr(v, `${where}.props.${k}`, regs, colls)
       const resolved = got === null ? siteFamily.get(v.id) : got
       if (resolved && resolved !== refFam) {
-        throw new Error(`objects.ops[${i}]: ${family}.${k} must reference a ${refFam}, got a ${resolved}`)
+        throw new Error(`${where}: ${family}.${k} must reference a ${refFam}, got a ${resolved}`)
       }
       continue
     }
-    assertValueRef(v, `objects.ops[${i}].props.${k}`)
+    assertValueRef(v, `${where}.props.${k}`)
   }
 }
 
-function assertCellProps(op, i) {
+function assertCellProps(op, where) {
   const props = op.props
-  if (!isObj(props)) throw new Error(`objects.ops[${i}]: props must be an object`)
+  if (!isObj(props)) throw new Error(`${where}: props must be an object`)
   for (const [k, v] of Object.entries(props)) {
     if (!CELL_PROPS.includes(k)) {
-      throw new Error(`objects.ops[${i}]: a table cell has no property ${JSON.stringify(k)} — the vocabulary is [${CELL_PROPS}]`)
+      throw new Error(`${where}: a table cell has no property ${JSON.stringify(k)} — the vocabulary is [${CELL_PROPS}]`)
     }
-    assertValueRef(v, `objects.ops[${i}].props.${k}`)
+    assertValueRef(v, `${where}.props.${k}`)
   }
 }
 

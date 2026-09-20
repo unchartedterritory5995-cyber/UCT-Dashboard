@@ -96,6 +96,10 @@ export function evaluateObjects(program, ctx) {
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
     const siteNow = new Map()
+    /** counter id → its value for the iteration being executed RIGHT NOW.
+     *  ⛔ PER BAR, and cleared with the bar: a counter that outlived its loop
+     *  would let a later op read a stale index and write the wrong row. */
+    const loopVars = new Map()
     let opsThisBar = 0
 
     /**
@@ -190,6 +194,12 @@ export function evaluateObjects(program, ctx) {
         case 'graph': return readNode(ref.node, bar)
         case 'param': return readParam(ref.id)
         case 'bar': return bar
+        // ⭐ THE LOOP COUNTER, supplied by the RUNTIME exactly as `bar` is.
+        // ⛔ AN UNBOUND COUNTER IS `undefined`, NOT 0. A body op referencing a
+        // loop id nothing declares would otherwise silently read row zero and
+        // overwrite one cell N times — a table with one row where the author
+        // wrote forty, and nothing anywhere saying so.
+        case 'loop': return loopVars.has(ref.id) ? loopVars.get(ref.id) : undefined
         case 'time': return readTime(bar)
         // ⛔⛔ TEXT AND COLOUR ARE EVALUATED PER BAR LIKE EVERYTHING ELSE. A
         // dashboard whose cells were computed once and reused would show the
@@ -229,7 +239,13 @@ export function evaluateObjects(program, ctx) {
       return out
     }
 
-    for (const op of program.ops) {
+    /** Execute a list of ops in order. Answers FALSE when the bar's envelope is
+     *  spent, so a loop stops the whole bar rather than its own body only.
+     *
+     *  ⭐⭐ RE-ENTRANT BECAUSE A LOOP CONTAINS OPS. This was a flat `for` over
+     *  `program.ops`, which is why a loop could not be an operation at all. */
+    const runOps = (list) => {
+    for (const op of list) {
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
       // Pine's own idiom for a dashboard is "draw it once, on the newest bar",
       // and an object program is a picture of the chart as it stands — so this
@@ -252,10 +268,37 @@ export function evaluateObjects(program, ctx) {
       opsExecuted += 1
       if (opsThisBar > limits.opsPerBar) {
         fail(`more than ${limits.opsPerBar} object operations on bar ${bar}`)
-        break
+        return false
       }
 
       switch (op.k) {
+        // ⭐⭐ THE LOOP. Pine's `for i = from to to` is INCLUSIVE at both ends
+        // and counts DOWN when `to < from`, which is why the step is derived
+        // rather than assumed — `for i = n to 0` is a real and common idiom and
+        // an ascending-only reader draws nothing for it, silently.
+        case 'loop': {
+          const from = Number(value(op.from))
+          const to = Number(value(op.to))
+          // ⛔ A BOUND THAT IS NOT A NUMBER RUNS ZERO TIMES, NEVER "from 0".
+          // `array.size(syms) - 1` on a bar before the array is filled is `na`,
+          // and treating that as 0 would draw a row of blanks that looks like
+          // data. Drawing nothing is the honest answer for a list that is empty.
+          if (!Number.isFinite(from) || !Number.isFinite(to)) break
+          const step = to >= from ? 1 : -1
+          const had = loopVars.has(op.id)
+          const prev = loopVars.get(op.id)
+          let ok = true
+          for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
+            loopVars.set(op.id, n)
+            if (!runOps(op.body)) { ok = false; break }
+          }
+          // ⛔ RESTORED, NOT DELETED. Nested loops over the same id are
+          // pathological but legal, and clearing unconditionally would leave an
+          // outer counter unbound for the rest of its own body.
+          if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+          if (!ok) return false
+          break
+        }
         case 'create': {
           if (counts[op.family] >= limits[op.family]) {
             fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
@@ -357,6 +400,9 @@ export function evaluateObjects(program, ctx) {
           break
       }
     }
+    return true
+    }
+    runOps(program.ops)
     if (opsThisBar > maxOpsInABar) maxOpsInABar = opsThisBar
   }
 
