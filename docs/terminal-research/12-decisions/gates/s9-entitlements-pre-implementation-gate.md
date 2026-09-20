@@ -5,14 +5,16 @@ role: the packet an approval line must name a checkpoint in
 status: ✅ CP1 SIGNED AND BUILT 2026-09-19. OI-03(a)/(b), OI-12 and OI-09 all ANSWERED BY THE
   OWNER 2026-09-19 — Massive CONFIRMED Business/Enterprise (already held; corrects a same-day
   earlier, more tentative "Individual/beta" answer), FMP DDLA exists, paid-only model confirmed,
-  and UCT CONFIRMED staying downstream (not a vendor of record with the SIPs/OPRA). CP2's SHAPE
-  has FLIPPED from the prior draft of this status line: with Business confirmed it is a
-  CONSOLIDATION that permits Massive real-time data on member routes (30 of 38 gated rows go
-  R→LA), not an enforcement boundary — but CP2 itself is still unwritten, and 8 of those 38 rows
-  stay gated on two narrower, still-open contract-text facts the downstream policy answer does not
-  reach (ESC-05, the OPRA sub-agreement; ESC-14, alerting's display/non-display categorization).
-  A scoped proposal naming exactly what a consolidation changes on which member-visible routes is
-  the next step, not yet drafted.
+  and UCT CONFIRMED staying downstream (not a vendor of record with the SIPs/OPRA). CP2 is a
+  CONSOLIDATION (30 of 38 gated rows go R→LA), not an enforcement boundary — but reading those
+  30 rows individually (§8) found 19 are already LIVE (Business tier retroactively authorizes
+  what members already see, zero member-visible effect) and 11 are unbuilt TERMINAL-NEXT
+  candidates (also zero effect today; only unblocked for a future proposal). **§8 CP2 scoped
+  proposal DRAFTED 2026-09-19, sitting on a blank approval block, awaiting owner review — not yet
+  signed.** 8 of the 38 rows stay U on FOUR distinct facts (not two): ESC-05 (5 rows), a code
+  measurement never taken (T-31, 1 row, needs no owner/vendor input), ESC-14 (N-19, 1 row), and
+  ESC-21+OI-03(d) (T-20, 1 row) — six of those eight are LIVE TODAY with unresolved licensing
+  status, which §8.3 flags as separate, cheaper, and arguably more urgent than CP2 itself.
 date: 2026-09-13
 ---
 
@@ -125,7 +127,7 @@ finding needed correcting and which didn't.
 | CP | scope | strands? | size |
 |---|---|---|---|
 | **CP1** | The entitlement axis as **INERT DATA** + a duplication rail: every site that answers 'may this member' enumerated from source, with `PAID_PLANS`' two copies named. **No gate changed.** | measure at build | **S/M** |
-| **CP2+** | ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch ("Massive tier confirmed Individual... CP2 is an enforcement boundary with member-visible consequences") off the owner's first, more tentative same-day answer. **CONFIRMED Business/Enterprise, already held** (a second, more authoritative check the same day) flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists), OI-12 (paid-only, matching current code) and **OI-09/OI-E02-09 (UCT stays downstream, confirmed same day — not a vendor of record, N-26's attestation machinery will not be built)** are also answered and do not further change CP2's shape. **8 of the 38 rows still stay U**, gated not on OI-09 itself (answered) but on two narrower contract-text facts the downstream policy answer does not reach: **ESC-05** — does Massive's own Third-Party Agreement actually name OPRA display and pay the $1,500/mo floor (T-23–T-27, T-29, N-07–N-09)? **ESC-14** — is a server-side alert display or non-display use under CTA/OPRA fee rules (N-19)? Both need one written answer from Massive, not a further owner decision. CP2's scoped proposal must still carve those 8 out as a narrower question even though the tier and downstream questions both resolved favourably. A checkpoint with real member-visible consequences needs its own scoped proposal (what exactly unlocks on which routes, which 8 rows still need ESC-05/ESC-14, and a measurement of what members currently see that this would change) before an approval line can name it — that proposal is the next concrete step, not yet written. | write the proposal first | **L**, and it touches member-visible surfaces |
+| **CP2+** | ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch off the owner's first, more tentative same-day answer, then attributed all 8 surviving-U rows to just two ESC ids — both corrected below. **CONFIRMED Business/Enterprise, already held** flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists), OI-12 (paid-only) and **OI-09/OI-E02-09 (UCT stays downstream, confirmed same day)** are also answered and do not further change CP2's shape. **8 of the 38 rows still stay U, on FOUR distinct facts, not two** — read per-row, not by the two-ESC-id shorthand this row used to carry: **ESC-05** (does Massive's Third-Party Agreement name OPRA display + pay the $1,500/mo floor) gates T-23, T-24, T-25, N-07, N-08 (5 rows); **T-31** (the same-day dark-pool lane's ≥15-min lag) is gated by a **code measurement that has never been taken**, not a vendor question at all — "Measurable in code... not measured" per its own row, and the cheapest of the 8 to close; **ESC-14** (alert display vs. non-display use) gates N-19 alone; **ESC-21 + OI-03(d)** (is a paid-Substack audience an Edge User; any signed addenda) gates T-20 alone. See §8 for the full scoped proposal, drafted, sitting on a blank approval block. | write the proposal first | **L** on paper; **measured in §8 as zero member-visible change for 19 of the 30 unlocked rows** (already LIVE — Business tier retroactively authorizes what members already see) and **no-op for the other 11** (TERMINAL-NEXT candidates, not built) |
 
 ---
 
@@ -203,4 +205,131 @@ APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 
 APPROVED ON:      2026-09-19
 APPROVED AT SHA:  d4a4138a0
 SCOPE APPROVED:   Section 7 -- the two mechanical findings CP1 recorded, now closed. NOT S9 CP2 -- section 3 is unchanged, CP2+ (consolidating or enforcing entitlements) remains NOT PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered. This line authorizes exactly two narrow, independent bug fixes using data and logic that already exists: (1) Login.jsx's trial-routing gap -- fixed by reading data.paid_equiv (the backend's own already-computed answer, already present on every login response) instead of re-deriving the paid-plan literal without the trial clause AuthContext.jsx's canonical isPaid carries; a member on an active trial now correctly lands on /dashboard instead of /morning-wire right after signing in. (2) FREE_PAGES's triplication across AuthGuard.jsx/MoreSheet.jsx/NavBar.jsx retired onto one export, app/src/constants/freePages.js -- matching semantics per consumer left deliberately unchanged (prefix for AuthGuard.jsx's live-pathname check, exact for the other two's fixed nav-item check), since converging them would make one side wrong to fix the other; only the duplicated VALUE is closed. Flow-worker classification measured: none of the changed files are reachable from flow_worker_main.py's entry point, zero risk. Mutation-proved both fixes on both arms (Login.jsx: reverting to the old check reds the trial-member test specifically; FREE_PAGES: planting a local redeclaration reds the derivation --check). Full regression: 80 backend + 50 frontend tests green. Member-visible effect stated plainly: a bug fix for trial members' post-login routing, nothing else changes for anyone.
+```
+
+---
+
+## 8. CP2 — scoped proposal (drafted 2026-09-19, NOT YET APPROVED)
+
+⛔ **This section exists because §3's CP2+ row could not be signed as written — "consolidate 30
+rows" is a size, not a scope.** Reading each of the 30 R→LA rows individually (not as a count)
+changes what CP2 actually is. That reading is below, traceable row-by-row to
+`09-security-licensing-cost/licensing-register.md`.
+
+### 8.1 The 30 unlocked rows split into two populations that need two different things
+
+**19 rows are already LIVE in production today** (Part A / "today's uses" — every one has a
+measured `LIVE` status per F-03b/ORCH-RAILWAY-01, not a code default): T-01 (live quotes), T-03
+(developing intraday bar), T-04 (D/W/M history), T-05 (movers rails), T-06 (Massive news), T-07
+(reference data), T-08 (desk display), T-09 (`bars.db` storage), T-10 (caching), T-11 (intraday
+breadth analytics), T-14 (AI processing of Massive numbers), T-15 (AI chart-screenshot voice
+processing), T-21 (Discord `/chart` house images), T-22 (dark-pool record alerts), T-26 (SWEEP/BLOCK
+flow analytics), T-28 (options chain/Greeks/IV), T-29 (implied-capture storage), T-30 (dark-pool T+1
+flat files), T-32 (`darkpool.db` storage). **For every one of these, CP2's member-visible effect is
+ZERO.** Business/Enterprise tier retroactively authorizes what a member (or, for T-08/T-09/T-10/T-29/
+T-32, the desk/internal system) already sees today. Nothing is unlocked because nothing was locked —
+these features were built and shipped under the Individual-tier assumption; the licensing basis
+under them changes, the product does not.
+
+**11 rows are TERMINAL-NEXT candidates, not built** (Part B): N-01 (security-page real-time quote
+header), N-02 (delayed-price/live-volume variant), N-03 (chart history), N-04 (chart real-time
+developing bar), N-05 (watchlist quotes×N), N-09 (options flow historical-only), N-10 (options
+chain/Greeks/IV + GEX panel), N-16 (AI answers over numeric vendor data), N-21 (screener live-price
+columns), N-22 (breadth/RS/sector-flow panels), N-25 (retained derived history). **For these, CP2's
+effect is also zero today** — none is built, so nothing changes for a member now. What CP2 does is
+retire A1's blanket "no new member-facing raw vendor surface is added to the roadmap" default
+**for these 11 specifically** — they become buildable candidates for a future, SEPARATE product
+proposal. CP2 does not build any of them and does not authorize building any of them without that
+future proposal's own review.
+
+⭐ **This is why §3's "L, and it touches member-visible surfaces" sizing was wrong.** A checkpoint
+whose entire live-population effect is "record that a licence question closed favourably, change no
+code" is not the same size as one that flips a display behind a flag. Corrected above to **S** —
+smaller than CP1, not larger, because CP1 built new tooling (the manifest + its rail) and CP2 as
+scoped here builds none.
+
+### 8.2 The 8 rows CP2 explicitly does NOT touch — by their real gating fact, not a shorthand
+
+§3's CP2+ row previously said "8 R→U... ESC-05... ESC-14" as if two facts covered all eight. Reading
+each row's own "Owner fact that settles it" cell says otherwise — **four distinct facts, one of
+which is not a vendor question at all:**
+
+| Row(s) | What it is | Live today? | What actually gates it |
+|---|---|---|---|
+| T-23, T-24, N-07, N-08 | Real-time OPRA options tape + NBBO histogram/quotes (T-23/T-24 = the current `/live-massive` product, LIVE; N-07/N-08 = an unbuilt options-flow-panel candidate) | T-23/T-24 **LIVE**; N-07/N-08 not built | **ESC-05** — does Massive's own Third-Party Agreement (P3 §2.5, unpublished) actually name customer-facing OPRA display and pay the $1,500/mo redistribution floor? A written question to Massive, not an owner decision. |
+| T-25 | `flow.db` full-tape OPRA archive, unbounded retention (`FLOW_PRUNE_ENABLED` written but armed on no service) | **LIVE** | ESC-05, plus OI-03(d) (signed addenda on storage) |
+| T-31 | Same-day per-ticker `/v3/trades` dark-pool lane | **LIVE** | **Not a vendor question.** Its own row: *"Measurable in code — whether the lane runs inside or outside the 15-min interval... not measured."* This is an uninvestigated fact about `live_massive_router.py`'s own logic, resolvable by reading the code, no owner or vendor input required. |
+| N-19 | Server-side alerting (watchlist price alerts, awareness stop-watch — "exists today" per its own row) | **LIVE** (the feature; the row is filed under Part B by table convention only) | **ESC-14** — is a member-configured alert the member's display or the platform's non-display use (CTA/OPRA Category 1, $2,000/mo × 2 if ruled non-display)? A written vendor question. |
+| T-20 | Morning Wire → paid Substack (Massive+FMP+AV+Finviz sourced) | **LIVE** (`WIRE_ENABLED=1`) | **ESC-21 + OI-03(d)** — is a paid-Substack audience an "Edge User"? Any signed addenda? Distinct from OPRA and from alerting. |
+
+CP2 makes no claim, changes no code, and requests no answer on any of these 8. They stay exactly
+where the register already has them.
+
+### 8.3 The actual live exposure this reading surfaces — separate from CP2, arguably more urgent
+
+⛔⛔ **Six of the eight excluded rows are not future risk — they are running in production right
+now with an unresolved R/U licensing classification: T-20, T-23, T-24, T-25, T-31, and the alerting
+feature behind N-19.** CP2 does not close this, and closing CP2 should not read as closing it. The
+two unbuilt candidates (N-07, N-08) carry no present exposure since they don't exist yet.
+
+The four things that would close it, in ascending cost:
+1. **T-31 — a same-day code read, no owner or vendor input needed.** Check whether the same-day
+   `/v3/trades` dark-pool lane in `live_massive_router.py` enforces a ≥15-minute lag before serving
+   a print. If it does, T-31 moves to LA today. If it does not, the fix is adding the lag, not a
+   vendor conversation. This is the cheapest of the 8 to close and does not need to wait for
+   anything else.
+2. **One email to Massive, covering ESC-05 and N-19's alerting question (ESC-14) together** — the
+   register already calls the OPRA sub-agreement question "the highest value-per-email question in
+   the register" (E-02 GAPS); asking the alerting question in the same message costs nothing extra.
+   This resolves T-23, T-24, T-25, N-07, N-08 (ESC-05) and N-19 (ESC-14) — 6 of the 8 — in one
+   exchange.
+3. **T-20** — ESC-21 (paid-Substack Edge User) + OI-03(d) (signed addenda) is a narrower, separate
+   question already recorded in the register; can ride in the same email as a third item, or wait.
+
+None of these three actions is part of CP2's scope below — they are named here because reading the
+30 rows individually is what surfaced that they are live exposure, not roadmap planning, and
+burying that finding inside "CP2 unlocks 30 rows" would have been the same kind of hand-typed
+summary this programme keeps correcting.
+
+### 8.4 What CP2 itself builds
+
+Given §8.1's finding — zero code change for either population of the 30 rows — CP2 as scoped here
+is a **documentation checkpoint, matching CP1's own size class, not a feature checkpoint:**
+
+- Record, in the licensing register (`§1` scenario cells already read Business = LA; no further
+  edit needed there) and in a short addendum to `api/data/entitlements_manifest.json` or an
+  equivalent artifact, that the 19 LIVE rows in §8.1 are Business-tier-authorized as of
+  2026-09-19 — a compliance-status fact, not a feature flag.
+- Retire A1's blanket "no new member-facing raw vendor surface is added to the roadmap" default
+  **specifically for the 11 rows named in §8.1's second list** — they become eligible for a future
+  product proposal; nothing is scheduled or built by this action.
+- **No code change. No flag armed. No schema change. No member-visible effect** — the same three
+  guarantees §5 already makes for everything below CP1, extended to cover CP2 explicitly rather
+  than leaving it implied.
+
+### 8.5 What this proposal does NOT ask for
+
+- No answer on ESC-05, ESC-14, ESC-21, or OI-03(d) — those stay the owner's/Massive's, and are
+  listed in §8.3 as a separate, arguably higher-priority action, not folded into this approval.
+- No code or flag change for any of the 8 rows in §8.2.
+- No build authorization for any of the 11 TERMINAL-NEXT candidate rows in §8.1 — being made
+  eligible for a future proposal is not the same as that proposal existing.
+- No re-opening of OI-03(a), OI-03(b), OI-12, or OI-09 — all four are answered and this section
+  does not touch them again.
+
+### 8.6 Recommendation
+
+**Sign CP2 as scoped here if the row-by-row categorization in §8.1/§8.2 checks out** — it is a
+records-closure action with a stated zero member-visible effect, the same risk class as CP1.
+**Separately and not gated on signing CP2:** send the one Massive email in §8.3 covering ESC-05 +
+ESC-14 (and optionally T-20's ESC-21/OI-03(d) as a third item), and take the same-day code read on
+T-31 — both are cheaper than CP2 itself and close live exposure CP2 does not touch.
+
+```
+APPROVED BY:      [blank — pending owner review of §8]
+APPROVED ON:      [blank]
+APPROVED AT SHA:  [blank]
+SCOPE APPROVED:   [blank — to be filled by tools/sign_gate.py against Section 8's scope: the
+  documentation-only closure described in §8.4, explicitly excluding the 8 rows in §8.2 and the
+  11 unbuilt candidates' actual construction]
 ```
