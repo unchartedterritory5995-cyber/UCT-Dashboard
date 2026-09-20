@@ -24,18 +24,43 @@ three states is marked **`⛔ NOT-YET-CLASSIFIED`** with what it would take.
 
 ### Systems (32 named on the roster)
 
-| state | count | meaning |
-|---|---|---|
-| **DONE** | ⚰️ was **11** | shipped and nothing outstanding against its own PRD/spec definition |
-| **BLOCKED-DATA** | ⚰️ was **5** | waiting on a measurement; the command that produces it is named |
-| **BLOCKED-OWNER** | ⚰️ was **8** | waiting on a ruling; the OI id or the ruling is named |
-| **BLOCKED-SPEC-READ** | ⚰️ was **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
-| **BLOCKED-DEPENDENCY** | ⚰️ was **2** | waiting on another system, named |
-| **EXCLUDED** | **1** | E1, outside the named roster |
-| **⛔ NOT-YET-CLASSIFIED** | **0** | ⭐ **THE FOURTH STATE IS AT ZERO** |
+⚰️ **RECOMPUTED 2026-09-20 — the first real derivation, not a hand-guess.** Walked all 32 rows in
+§1 directly, one at a time, and tallied from THEIR OWN blocker column, exactly as the prior version
+of this section asked the next pass to do. Method, so it can be checked: DONE = the row's own
+blocker column names no outstanding block (a drafted-but-unsigned proposal for an ADDITIONAL,
+non-required checkpoint does not itself block the system — same precedent this file already
+applied to D5's CP2); every other bucket = the row's own blocker column, verbatim. A row can carry
+two tags (D2 no longer does, having lost its SPEC-READ half to §4-CP3's fix earlier this pass; A11
+and A13 still do, OWNER+DEPENDENCY) — counted once in the 32, once per tag in the breakdown below.
 
-⛔⛔ **THIS TALLY IS DELIBERATELY LEFT UN-RECOMPUTED, RATHER THAN HAND-GUESSED A SECOND TIME.**
-This is the exact defect class this programme's own tooling exists to prevent (`tools/harvest_followups.py`'s own comment: "DERIVED, never counted by hand") — and the table above was ALREADY wrong once from hand-editing without recomputing: it carried "8, ⚰️ 5 as of 2026-09-19" as an inline correction for months without anyone rewriting the bold number itself. Rather than repeat that by typing a new guess, here is every row confirmed to have moved since the table was last computed, with the date and evidence:
+| state | count | which |
+|---|---|---|
+| **DONE** | **22** | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, I1 |
+| **RULED-HOLD** | **1** | S7 — not in the original six buckets; a real decision was made (HOLD, DECISION_CARDS_2026-09-18.md CARD 6), distinct from still-awaiting-a-ruling |
+| **BLOCKED-DATA** | **1** | D2 (top-level CP3 dual-compute flip needs real member traffic — 0 rows as of 2026-09-19) |
+| **BLOCKED-OWNER** | **3** | A9, A11 (also DEPENDENCY), A13 (also DEPENDENCY) — each needs its type's dark-comparison read + CP4 + the flip |
+| **BLOCKED-SPEC-READ** | **1** | A12 — CP1 proposal drafted 2026-09-20, unsigned; moved here FROM BLOCKED-DEPENDENCY now that S5/S6 no longer block it |
+| **BLOCKED-DEPENDENCY** | **6** | S8 (D2), A1 (D2), A10 (D3 CP4 + D4 CP5, both proposed not signed), A11 (D2, also OWNER), A13 (D2+S5, also OWNER), A14 (DEC-08 only) |
+| **EXCLUDED** | **0 within the 32** | E1 is outside the named roster (see below); DEC-08 is tracked alongside the 32 but is a decision, not a system |
+| **⛔ NOT-YET-CLASSIFIED** | **0** | every one of the 32 lands in exactly one row above (plus a second tag for D2's — no, A11/A13's — dual rows) |
+
+**Unique-system arithmetic, so the 32 is checkable, not asserted:** 22 DONE + 1 RULED-HOLD (S7)
++ 1 BLOCKED-DATA (D2) + 1 BLOCKED-OWNER-only (A9) + 1 BLOCKED-SPEC-READ (A12) + 4 single-tag
+BLOCKED-DEPENDENCY (S8, A1, A10, A14) + 2 dual-tagged OWNER+DEPENDENCY (A11, A13, each counted
+once here) = 22+1+1+1+1+4+2 = **32**. The breakdown table's BLOCKED-OWNER (3 = A9 + the 2
+dual-tagged) and BLOCKED-DEPENDENCY (6 = the 4 single-tag + the same 2 dual-tagged) rows therefore
+sum to 9 tag-occurrences across only 7 unique systems (A9, S8, A1, A10, A14 once each; A11 and A13
+twice each), which is why the table's own rows don't independently sum to 32 — expected, not an
+error.
+
+**What moved to produce this count** (superseding the itemized log below, which is kept as history):
+D2 lost its SPEC-READ tag today (§4-CP3 fixed, a false alarm); A12 moved DEPENDENCY→SPEC-READ (S5/S6
+unblocked it, then a CP1 was actually drafted); S1/D3/D4 stayed DONE (their new CP3/CP4/CP5
+proposals are additional, non-blocking checkpoints, same shape as D5's CP2) rather than moving to
+SPEC-READ, on the precedent this file already set for D5.
+
+⚰️ **Superseded by the recomputation above; kept as the historical log of individual corrections
+that fed into it:**
 
 - **S1, S2** → DONE-with-an-open-CP, 2026-09-19 (OI-06 found already answered; §1.1)
 - **S6** → DONE, 2026-09-18 (CP1–CP4 shipped; DECISION_CARDS_2026-09-18.md)
@@ -43,9 +68,8 @@ This is the exact defect class this programme's own tooling exists to prevent (`
 - **S5** → DONE-with-an-open-CP, 2026-09-19 (CP2 `9c7c634da`, CP3 `41ffcc91c`, CP4 `ea7178473`)
 - **S9** → ✅ **CLOSED, 2026-09-20.** CP1 DONE 2026-09-19; **CP2 SIGNED 2026-09-20** (fingerprint `f808508f7`). OI-03(a)(b), OI-12 and OI-09 ANSWERED (Massive CONFIRMED Business/Enterprise, FMP DDLA confirmed, paid-only model confirmed, UCT confirmed staying downstream). **Every one of the 8 rows the Massive-tier answer left Unknown is now resolved**: ESC-05 (5 rows) and ESC-14 (N-19) ANSWERED 2026-09-19 from written Massive confirmation; T-31 MEASURED 2026-09-19, FIXED same day, DEPLOYED TO PRODUCTION 2026-09-20 (`408b9a33f` on master, Railway `web` SUCCESS); **T-20 (ESC-21 + OI-03(d)) ANSWERED 2026-09-20** — Massive and FMP responded in writing that a paid-Substack audience is an Edge User. **No owner fact remains outstanding anywhere in this system** — see the S9 row, §1.1
 - **A2** → DONE, 2026-09-19 (inherits S1/S2's unblock; OI-06 answered)
-- Some rows carry two blocker tags at once (D2: DATA + SPEC-READ; A11, A13: OWNER + DEPENDENCY) and S7 sits in a state this six-bucket schema never had a slot for (**RULED-HOLD** — a real decision was made, it just wasn't "build" or "block"). A correct recount has to resolve both of those before it means anything, which is why one is not published here as a guess.
-
-**The next fresh derivation should walk §1's own 32 rows and tally from THEIR blocker column, never restate the old bold numbers.**
+- **D2** → lost its SPEC-READ tag 2026-09-20 (§4-CP3 false alarm corrected — already shipped)
+- **A12** → BLOCKED-DEPENDENCY → BLOCKED-SPEC-READ, 2026-09-20 (S5/S6 unblocked it 2026-09-19; a CP1 proposal was drafted 2026-09-20)
 
 ⭐ **THE MOVEMENT ON 2026-09-13 IS FROM DEPENDENCY TO OWNER, AND IT IS REAL PROGRESS THAT LOOKS
 LIKE NONE.** A9, A11 and A13 each had a build dependency; each of those CP3s is now merged and
@@ -155,7 +179,7 @@ blocker class.
 | **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — it fires dark; ⚰️ was *"flag OFF"* — **armed 2026-09-13, in-process `1`** (§4 Flag Ledger). A9 needs the dark comparison read + CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — read the dark comparison, sign CP4 + FLIP |
 | **A10** Options & Flow | live, partner-owned | ⚰️ was *"D3 + D4 as systems"* — both systems are now DONE for every checkpoint anyone is waiting on (§1.2). The gap narrows to **D3's CP4** (S7's price-level consumer) **+ D4's CP5** (ticker_logos) — both now have scoped proposals awaiting the owner's signature (§1.2) | **BLOCKED-DEPENDENCY** — narrower than a whole-system wait |
 | **A11** Breadth & Regime | live surface | ✅ `regime-change` CP3 merged `506eeee6d`, ARMED 2026-09-13 — but it compares **dark**. Still needs the one-regime ruling, D2 coverage, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip, the one-regime ruling — + **BLOCKED-DEPENDENCY** (D2) |
-| **A12** Watchlists | half-live | ⚰️ was *"S5 + S6"* as a dependency block — both are now DONE (§1.1: S5 CP2–CP4 signed+built; S6 CP2'/CP3/CP4 built, CP5 closed by ruling). A12 inherits no dependency block anymore; matching the A2/A14 correction style, what remains is that A12 **needs its own new checkpoint** proposed against the now-unblocked systems. ✅ **A scoped CP1 proposal now exists and is ready for the owner's signature**: `docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md` — a no-product-code consistency rail between `member_interest.py`'s watchlist/flagged buckets and `watchlist_service.py`'s own membership definition, plus pinning the two named gaps (column-preset persistence, no S5-shaped saved object yet). Approval block is UNFILLED; no A12 PRD/spec exists and this proposal does not substitute for one | **CP1 proposal awaiting owner signature** — no longer BLOCKED-DEPENDENCY |
+| **A12** Watchlists | half-live | ⚰️ was *"S5 + S6"* as a dependency block — both are now DONE (§1.1: S5 CP2–CP4 signed+built; S6 CP2'/CP3/CP4 built, CP5 closed by ruling). A12 inherits no dependency block anymore; matching the A2/A14 correction style, what remains is that A12 **needs its own new checkpoint** proposed against the now-unblocked systems. ✅ **A scoped CP1 proposal now exists and is ready for the owner's signature**: `docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md` — a no-product-code consistency rail between `member_interest.py`'s watchlist/flagged buckets and `watchlist_service.py`'s own membership definition, plus pinning the two named gaps (column-preset persistence, no S5-shaped saved object yet). Approval block is UNFILLED; no A12 PRD/spec exists and this proposal does not substitute for one | **BLOCKED-SPEC-READ** — CP1 proposal awaiting owner signature (moved from BLOCKED-DEPENDENCY, §0) |
 | **A13** Journal | live (528 files) | ✅ `position-risk` CP3 merged `6a67a4b5d`, ARMED 2026-09-13 — but it compares **dark**. Still needs D2, S5, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip — + **BLOCKED-DEPENDENCY** (D2, S5) |
 | **A14** Portfolio & Risk | no member door | DEC-08 (⚰️ was labeled "D8" — renamed 2026-09-11, `2b1633c81`; see DEC-08 row) + S9 | ⚰️ **OI-03, OI-12 ANSWERED; S9 CP2 SIGNED 2026-09-20 (see S9 row).** **BLOCKED-DEPENDENCY on DEC-08 only** — S9 no longer blocks this at all |
 | **E1** | outside the named roster | — | **EXCLUDED** |
