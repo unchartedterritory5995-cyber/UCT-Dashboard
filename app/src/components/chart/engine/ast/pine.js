@@ -8349,7 +8349,10 @@ function positionaliseSecurityArgs(args) {
  *  table's clock leaf is W3b's, deliberately. What changes here is only WHICH
  *  SENTENCE a member reads, and whether it names what would unblock it.
  */
-const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
+const PINE_TO_CLOCK_SPELLING = Object.freeze({
+  bar_index: 'barindex',
+  last_bar_index: 'lastbarindex',
+})
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
  *

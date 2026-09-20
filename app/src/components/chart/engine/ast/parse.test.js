@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 19 clock, 15 operators, 71 functions and 137 scalars — 247 names, one grammar', () => {
+  it('declares 5 series, 20 clock, 15 operators, 71 functions and 137 scalars — 248 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -463,7 +463,12 @@ describe('the manifest', () => {
     // `NODE_TYPES` is again unmoved; what `interpret` gained is two more
     // arguments it did not have — the evaluating instant and the closure set —
     // both fail-closed exactly as `tf` is.
-    expect(Object.keys(TABLE.clock)).toHaveLength(19)
+    // ⭐ 19 -> 20 (2026-09-19): `lastbarindex`, the newest bar's own `barindex`
+    // broadcast to every bar -- `islast`'s ruling applied to a number rather
+    // than a flag. It rides the EXISTING `series` node and adds no argument
+    // `interpret` did not already have (it costs one more `computeClock`
+    // column, same seam as `barindex`), so `tableVersion` is unmoved at 2.
+    expect(Object.keys(TABLE.clock)).toHaveLength(20)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -625,9 +630,10 @@ describe('the manifest', () => {
     // _barstate` says why `barstate.*` is evaluated per bar on a pane and
     // still folded on a screen, and why the trading calendar stays in Python
     // rather than being restated in JS. Scalar half untouched at 137.
-    expect(bar.size).toBe(110)
+    // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19) -- see the clock-count note above.
+    expect(bar.size).toBe(111)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(247)
+    expect(declared.size).toBe(248)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

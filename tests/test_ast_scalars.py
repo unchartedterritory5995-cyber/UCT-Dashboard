@@ -766,7 +766,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # off the failure message: the message says only that a number moved, and
     # editing a count to match a number you did not explain is how a floor stops
     # being a claim about coverage.
-    assert len(parts["bar"]) == 110 and len(parts["scalar"]) == 137
+    # ⭐ 110 -> 111 (2026-09-19): `lastbarindex` -- the newest bar's own
+    # `barindex`, broadcast to every bar, `islast`'s ruling applied to a number
+    # instead of a flag (`closedTable.json`'s `lastbarindex` clock entry). A
+    # per-bar clock column, not a per-symbol one, so the scalar half is
+    # untouched at 137.
+    assert len(parts["bar"]) == 111 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
