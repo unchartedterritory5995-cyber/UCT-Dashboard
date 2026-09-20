@@ -1495,15 +1495,15 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
-    // ⛔⛔ AND NEITHER DOES A DRAWING-OBJECT CALL WHEN THE OBJECT PASS OWNS IT.
-    // `var t = table.new(…)` reads no slot, so the route decision sends it to
-    // the columnar lane — which refuses the whole `table.` namespace at
-    // `pine:drawing`, before the no-op fallback below is ever reached. The
-    // refusal is right for that lane and wrong for this script: the object
-    // program already holds the call. See `objectPassOwnsDrawing`.
+    // ⚰️ A FOURTH CLAUSE FOR DRAWING CALLS WAS TRIED HERE AND REMOVED, because a
+    // mutation proved it DEAD: `var t = table.new(…)` never reaches this route
+    // decision at all, since both declaration branches skip a handle binding
+    // before lowering its initialiser. It was written first, while that skip did
+    // not yet exist, and left behind it would have read as a live guard —
+    // `lesson_a_guard_repeated_is_a_guard_unproved`. The skip is the one guard;
+    // `holdsObjectCall` still exists and is still called, from there.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
-        && !readsPlotRef(node) && !holdsColour(node, scope)
-        && !(objectPassOwnsDrawing && holdsObjectCall(node))) {
+        && !readsPlotRef(node) && !holdsColour(node, scope)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -2420,11 +2420,24 @@ export function buildRuntimeIr(source, opts = {}) {
         if (!nameTok || nameTok.kind !== 'ident') {
           throw new RuntimeRefusal('runtime:statement', 'a reassignment target must be a name', locate(first))
         }
+        const value = parseWholeExpression(toks.slice(walrus + 1))
+        // ⭐⭐ `lb := label.new(…)` — THE THIRD BINDING PATH, AND THE ONE REAL
+        // PINE USES MOST. The corpus idiom for a drawing is `var label lb = na`
+        // followed by a reassignment, so the handle is declared empty and only
+        // ever filled here. ⛔ The other two spellings are skipped at their own
+        // declarations; this one arrives as an ASSIGNMENT and was refused at
+        // `runtime:object-op` — measured on the shape above, which is the most
+        // common way to draw anything in Pine.
+        //
+        // ⛔ SKIPPED BEFORE THE SLOT IS LOOKED UP, deliberately: this lane never
+        // declared a slot for the handle (its `var … = na` declaration is a
+        // handle binding too), so asking for one first would refuse at
+        // `runtime:unbound` and blame the wrong statement.
+        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.lookup(nameTok.value)
         if (slot === null) {
           throw new RuntimeRefusal('runtime:unbound', `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
         }
-        const value = parseWholeExpression(toks.slice(walrus + 1))
         out.push(assign(slot, lowerExpr(value, scope)))
         continue
       }
@@ -2534,12 +2547,13 @@ export function buildRuntimeIr(source, opts = {}) {
         // empty array at every mention — the push would land in one array and the
         // size be read from another, reporting 0 forever with nothing red. Pine's
         // arrays are references; a reference needs somewhere to live.
-        // ⭐ The same handle case as the `var` branch above, for `t =
-        // table.new(…)` written without `var`. Skipped for the same reason, and
-        // skipped HERE rather than allowed onto the `env` macro path: an `env`
-        // binding is SUBSTITUTED at each use, so a later read would re-expand
-        // the drawing call in a value position and die naming the wrong cause.
-        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
+        // ⚰️ A THIRD HANDLE SKIP WAS ADDED HERE AND REMOVED. `t = table.new(…)`
+        // without `var` is absorbed by the `env` macro path a few lines below —
+        // it reads no slot and is not mutated, so it is bound as an expression
+        // and never lowered — and a mutation could not tell the skip's presence
+        // from its absence. The proved copies are the `var` branch above and the
+        // `:=` branch; this one read as protection and was not
+        // (`lesson_a_guard_repeated_is_a_guard_unproved`).
         const isCollection = holdsArray(value, scope)
         if (!mutable && !isCollection && !readsSlot(value, scope)) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
@@ -2602,11 +2616,13 @@ export function buildRuntimeIr(source, opts = {}) {
       if (word && isPunct(toks[1], '.') && toks[2] && toks[2].kind === 'ident') {
         const name = `${word}.${toks[2].value}`
         const f = callFamily(name)
-        // ⭐ `table.cell(t, 0, 0, …)` as a bare statement. The object program
-        // carries this op and its own value references; stepping over it here is
-        // what lets the two lanes describe ONE script without either of them
-        // learning the other's job.
-        if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
+        // ⚰️ A DRAWING SKIP WAS ADDED HERE AND REMOVED — a mutation proved this
+        // branch never sees one. The lexer emits `table.cell` as a SINGLE ident
+        // token, so an object statement goes through the bare-word branch above,
+        // which is where the live skip is. This branch is for the shape where
+        // the pieces arrive separately, and the note at `isVoid` above says the
+        // same thing about `array.push`. Two copies of one guard cannot both be
+        // proved, and the unreachable one reads as protection.
         if (f) { note(f); throw new RuntimeRefusal(f, `\`${name}\``, locate(first)) }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${name}()\``, locate(first))

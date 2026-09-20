@@ -77,6 +77,43 @@ describe('⭐⭐ a cell holds a number only the runtime lane can compute', () =>
     expect(cells(r)).toEqual({ '0,0': '103', '0,1': '206' })
   })
 
+  it('⭐ the handle may be bound WITHOUT `var` — and then it IS one table per bar', () => {
+    // ⚰️ A MUTATION FOUND THIS GAP. Both declaration branches skip a drawing
+    // handle, and only the `var` one was exercised — so deleting the other left
+    // every assertion green while `t = table.new(…)` took the `env` macro path,
+    // where a later read re-expands the call in a value position and dies naming
+    // the wrong cause. The two branches are different code, one case each.
+    //
+    // ⭐ AND THE FOUR TABLES ARE CORRECT HERE, WHICH IS THE POINT. Without `var`
+    // the constructor runs every bar and Pine really does make a new table each
+    // time; the `var` case above asserts ONE precisely because `var` means once.
+    // Asserting "one table" for both would have demanded the engine contradict
+    // TradingView in order to look tidy.
+    const { run: r } = run(ARRAY_CELL.replace('var t = table.new', 't = table.new'))
+    expect(r.status).toBe('ok')
+    const tables = (r.live || []).filter((o) => o.family === 'table')
+    expect(tables.length).toBe(N)
+    // ⭐ Each bar's table carries THAT bar's numbers — the strongest per-bar
+    // statement in this file, because the four objects are independent.
+    expect(tables.map((t) => (t.cells || []).map((c) => (c.props || c).text).join('/')))
+      .toEqual(['100/200', '101/202', '102/204', '103/206'])
+  })
+
+  it('⭐⭐ the DOMINANT Pine drawing idiom — `var line l = na` then `l := line.new(…)`', () => {
+    // ⛔ THIS IS THE SHAPE MOST DRAWING SCRIPTS ACTUALLY USE, and it reaches a
+    // THIRD binding path: the handle is declared with `na` and only later
+    // REASSIGNED with `:=`, which makes it mutable and routes it past the `env`
+    // macro that quietly absorbs the other two spellings.
+    const { run: r } = run(
+      'var a = array.new<float>(1, 0.0)\n'
+      + 'array.set(a, 0, close)\n'
+      + 'var label lb = na\n'
+      + 'lb := label.new(bar_index, array.get(a, 0), str.tostring(array.get(a, 0)))\n')
+    expect(r.status).toBe('ok')
+    const labels = (r.live || []).filter((o) => o.family === 'label')
+    expect(labels.length, 'no label was drawn at all').toBeGreaterThan(0)
+  })
+
   it('⛔ CONTROL — the columnar lane REFUSES the same script', () => {
     // ⭐ THIS IS WHAT MAKES THE CASE ABOVE MEAN ANYTHING. If the host lane could
     // answer `array.get`, the adapter would be an elaborate way to get the same
