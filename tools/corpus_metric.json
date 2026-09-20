@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-09-15",
+  "measured_at": "2026-09-20",
   "scripts": 266,
-  "host_ok": 32,
+  "host_ok": 34,
   "screener_ok": 46,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -1442,11 +1442,9 @@
     },
     {
       "file": "makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:no-output"
       ]
@@ -2393,11 +2391,9 @@
     },
     {
       "file": "sonarlab-order-blocks__0df0d45ee6.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:no-output"
       ]
