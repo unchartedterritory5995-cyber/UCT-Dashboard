@@ -1,0 +1,74 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 4,
+    "unchanged": 162,
+    "missing": 0,
+    "baseline": 166,
+    "current": 162,
+    "current_ran": 50608,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 166 = unchanged 162 + fixed 4 + missing 0  |  current 162 = unchanged 162 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35536739127",
+  "current_run_id": "35541985859",
+  "baseline_sha": "54152932099b0a0a5e0d53abfbe9eb3c09725999",
+  "current_sha": "f243fe3f752b70f7179a83f04741ff0e315d97da",
+  "commit_range": "54152932099b0a0a5e0d53abfbe9eb3c09725999..f243fe3f752b70f7179a83f04741ff0e315d97da",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 541529320..f243fe3f7 touched tests/test_discord_close_note.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 541529320..f243fe3f7 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 541529320..f243fe3f7 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 541529320..f243fe3f7 touched src/pages/screener/ScreensManager.test.jsx or anything it imports"
+    }
+  }
+}
