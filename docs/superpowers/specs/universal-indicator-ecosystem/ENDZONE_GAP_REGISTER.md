@@ -841,8 +841,8 @@ zero interpretable. Any future pixel probe needs both.
 
 | id | lane | statement |
 |---|---|---|
-| **J5.1 (H7)** | VALUE / EXPRESSION GRAMMAR | **`%` (modulo) is not in the expression grammar.** Classified per the wave's instruction as a VALUE-LANE gap, **not an object-model gap**: an object coordinate using `%` fails for exactly the reason a plot using `%` fails. Deliberately not implemented during C3B-CLOSE. |
-| **J5.2 (H8)** | VALUE / BUILTINS | **`last_bar_index` has no column.** It is in `PINE_KNOWN_BUILTINS`, so the refusal is named rather than "undefined", but nothing resolves it — so any guard using it drops its op, fail-closed. This is the SOLE cause of the one divergence in the whole vendor comparison: TradingView draws three labels there and we draw none. |
+| **J5.1 (H7)** | VALUE / EXPRESSION GRAMMAR | ✅ **CLOSED (see K4 below, and re-confirmed 2026-09-19).** ~~`%` (modulo) is not in the expression grammar.~~ It is: `pine.modulo.test.js` is 10/10 green today. This row said "Deliberately not implemented" for months after K4 (same document, below) already recorded the fix — an internal inconsistency this table itself created by never being revisited once the later section landed. |
+| **J5.2 (H8)** | VALUE / BUILTINS | ✅ **CLOSED 2026-09-19.** ~~`last_bar_index` has no column.~~ It now resolves the same way `bar_index` does — through `engineClockKeyFor` → `TABLE.clock` → `computeClock`'s `CLOCK_EXTENT` family (`islast`/`isfirst`/`lastbarindex`), a dataset-wide constant broadcast to every bar. Re-confirmed against `vendorObjectParity.test.js`'s own "vendor draws three labels" case: `droppedOps` 1→0, all three labels now paint, matching the vendor exactly. This was the SOLE divergence J6 below names — it is now closed. |
 | **J5.3 (H9)** | DOCUMENT SHAPE | **A script that only draws does not translate.** No `plot()` ⇒ no output ⇒ nothing to register. The vendor's own object probe has no plot; the parity rail adds one and says so. An object-only indicator is an ordinary TradingView shape. |
 | **J5.4 (H10)** | OBJECT / DISCLOSURE | **A dropped op is silent to the member.** The ledger records every reason (`guard:create`, `cell:text`, `update:props`, `cell:address`, `delete:target`) and real parity-set scripts lose 8–42 ops each — but nothing surfaces those counts in the Builder. **A script can import, save, reopen and draw a table while quietly losing every line it asked for, and the product says nothing.** The information exists; the door does not. |
 
@@ -872,8 +872,10 @@ saved.
 
 ⭐ Our engine reproduces every one of those structural facts on the vendor's own
 script — the anchor's id, the table's id, the 20-bar span, the four box spans,
-the high/low sourcing rule, two lines alive, three colours. **The single
-divergence is J5.2, and it is in the value lane.**
+the high/low sourcing rule, two lines alive, three colours. ~~**The single
+divergence is J5.2, and it is in the value lane.**~~ ✅ **CLOSED 2026-09-19 —
+J5.2/H8 above.** `vendorObjectParity.test.js`'s own case now reads three
+labels painted, zero drops, matching the vendor with no remaining divergence.
 
 ### J7 — the ordering this changes
 
@@ -884,9 +886,28 @@ refusal upstream of every guard, one dropped `create:box`, and the loop boundary
 and the vendor comparison on a script the model handles perfectly diverged on
 exactly one missing VALUE-lane builtin.
 
+⚰️ **CORRECTED 2026-09-19 — general `pine:tuple` destructuring is DONE, and was
+already done before this correction was written.** `pine.tuples.test.js` (35/35
+green) covers a tuple-returning user function, `ta.dmi`, the closed
+`PINE_TUPLE_BUILTINS` table (`bb`/`macd`/`kc`), and tuple `request.security`.
+Empirically confirmed (not just read) that a working tuple binding reaches an
+object coordinate exactly as it reaches a plot value — a line's y-coordinate via
+`ta.bb`, a box's coordinates via a user-defined tuple function, both `ok: true`
+with a real create op. There is no separate, narrower "object-coordinate tuple"
+gap. The ONE parity-set script this register attributed to `pine:tuple`
+(`mid_engagement__05-supertrend-fibonacci-ote`) fails for an unrelated, much
+narrower reason: `ta.supertrend` specifically is not expressible in this grammar
+at all (it needs bar-to-bar recurrence state — the band ratchet + the direction
+flip — this engine has no self-reference for), not a missing tuple form. Its
+refusal wording was corrected 2026-09-19 to name that real reason instead of
+listing `bb`/`macd`/`kc`/`dmi` as "the ones it can take apart," which invited the
+wrong fix.
+
 **⭐ The next wave that moves the governing objective is a COMPATIBILITY wave —
-the expression and statement grammar (tuples, user functions, `%`,
-`last_bar_index`, the `pine:state` family) plus J5.4 — not another object wave.**
+the expression and statement grammar (~~tuples,~~ user functions, ~~`%`,~~
+~~`last_bar_index`,~~ the `pine:state` family, a `ta.supertrend`-class recurrence
+primitive) plus J5.4 — not another object wave.** Three of the five originally
+named items closed 2026-09-19 without needing a new wave.
 
 ---
 

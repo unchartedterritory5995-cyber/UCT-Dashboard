@@ -347,8 +347,8 @@ translator capability was added.
 
 | id | lane | statement |
 |---|---|---|
-| **H7** | **VALUE / EXPRESSION GRAMMAR** | **`%` (modulo) is not in the expression grammar.** Classified per the wave's instruction as a VALUE-LANE / EXPRESSION-GRAMMAR gap, **not an object-model gap** — an object whose coordinate uses `%` fails for the same reason a plot using `%` fails. Not implemented during C3B-CLOSE. |
-| **H8** | **VALUE / BUILTINS** | **`last_bar_index` has no column.** In `PINE_KNOWN_BUILTINS` (so the refusal is named, not "undefined"), but nothing resolves it, so any guard using it drops its op fail-closed. Surfaced by the vendor capture, where it is the sole cause of 3 vendor labels versus 0 of ours. |
+| **H7** | **VALUE / EXPRESSION GRAMMAR** | ✅ **CLOSED.** ~~`%` (modulo) is not in the expression grammar.~~ It is: `pine.modulo.test.js` is 10/10 green (already true when this correction was written 2026-09-19 — the fix predates this note and this register had simply not been revisited). |
+| **H8** | **VALUE / BUILTINS** | ✅ **CLOSED 2026-09-19.** ~~`last_bar_index` has no column.~~ It resolves through the same clock mechanism `bar_index` already used (`engineClockKeyFor` → `TABLE.clock` → `computeClock`'s `CLOCK_EXTENT`). Re-confirmed against this very document's own §3 vendor case: the three labels now paint, `droppedOps` 1→0. |
 | **H9** | **DOCUMENT SHAPE** | **A script that only draws does not translate.** No `plot()` ⇒ no output ⇒ nothing to register. Object-only indicators are an ordinary TradingView shape; this engine cannot hold one today. |
 | **H10** | **OBJECT** | **A dropped `create` in a guarded block is silent to the member.** The drop ledger records the reason (`guard:create`, `cell:text`, `update:props`, `cell:address`, `delete:target`) and the parity set shows real scripts losing 8–42 ops each, but nothing surfaces those counts in the Builder. The information exists; the door does not. |
 
@@ -438,10 +438,79 @@ three different ways:
 3. the vendor comparison on a script the model handles *perfectly* diverged on
    exactly one thing, and it was a missing VALUE-lane builtin.
 
+⚰️ **CORRECTED 2026-09-19 — point 2's `pine:tuple` clause is stale.** General
+tuple destructuring is DONE (`pine.tuples.test.js`, 35/35 green), including a
+tuple binding reaching an object coordinate exactly as it reaches a plot value
+(empirically confirmed, not just read — a line's y-coordinate via `ta.bb`, a
+box's coordinates via a user-defined tuple function, both real create ops).
+`mid_engagement__05-supertrend-fibonacci-ote`'s row above is not a tuple-lane
+gap at all: `ta.supertrend` specifically needs bar-to-bar recurrence state (the
+band ratchet + the direction flip) this grammar has no self-reference for —
+categorically the same class of gap as a missing primitive, not a missing
+tuple form. Its refusal wording was corrected the same day to say so.
+
 So the next wave that moves the governing objective is the one that widens the
-**expression and statement grammar** (tuples, user functions, `%`,
-`last_bar_index`, the `pine:state` family), plus **H10** — telling a member what
-their script lost. A second object wave would polish a lane that is already
-ahead of the one feeding it.
+**expression and statement grammar** (~~tuples,~~ user functions, ~~`%`,~~
+~~`last_bar_index`,~~ the `pine:state` family, a `ta.supertrend`-class recurrence
+primitive), plus **H10** — telling a member what their script lost. A second
+object wave would polish a lane that is already ahead of the one feeding it.
 
 **STOP. Do not begin the next wave.**
+
+---
+
+## 10. ADDENDUM (2026-09-19) — three of five compatibility items closed, and a parity-set membership correction
+
+**H7 and H8 closed** (§6 above, and independently in `ENDZONE_GAP_REGISTER.md`
+J5.1/J5.2). **General `pine:tuple` destructuring is done** (§9's correction
+above). `ta.supertrend`'s refusal now names its own reason. Commits:
+`pine.js`/`indicators.js`/`indicator_compute.py`/`closedTable.json` for H8,
+`pineObjects.js` for a related `loopBlocked` false-positive found while
+verifying item #1 in §5's table, `pine.js::tupleRefusalTail` for the
+`ta.supertrend` wording.
+
+⚠️ **`mid_engagement__01-zeiierman-trend-pressure` (row #7, §5) LEFT THE
+OFFICIAL PARITY SET on 2026-09-13, by owner ruling — six days before this
+addendum and independently of it.**
+`docs/superpowers/specs/universal-indicator-ecosystem/OOS_2_PARITY_SET.json`'s
+`_dropped_2026_09_13` entry: *"the script page's viewer renders a 5-line stub
+against its own claim of 353 lines, so there is nothing to walk... A parity set
+is a promise that every member can be re-measured; a member the vendor will not
+show can never keep it."* The set is **nine**, not ten, as of that ruling. The
+row's own dropped `create:box` finding was independently re-diagnosed
+2026-09-19 (a real, generic engine gap — an object-creating statement inside a
+called Pine user function does not bind the function's parameters to the call
+site's arguments — pinned with a script-independent minimal reproduction in
+`pineBoxCreateDrop.test.js`), which remains a valid finding regardless of this
+script's set membership; it should not be read as "the #7 parity-set blocker"
+going forward, since #7 no longer exists in the set this document's own §5
+table was measuring.
+
+⚠️ **`mid_engagement__05-supertrend-fibonacci-ote` (row #8) was re-frozen
+2026-09-13 after an author edit** — `pine_oos/MANIFEST.json`'s current
+`sha256_source` for this file differs from the one this document's §5
+measurement ran against (preserved there as
+`sha256_source_frozen_2026-09-07`). The `ta.supertrend` recurrence-primitive
+finding above does not depend on this script's exact bytes (it is a property
+of `ta.supertrend` as a Pine builtin, confirmed with a hand-written minimal
+case), so it is unaffected — but a future full re-run of §5's table against
+`tests/fixtures/oos2_parity` must use the CURRENT nine-member set and the
+CURRENT frozen bytes, not this document's own historical copies.
+
+**Not attempted in this addendum:** a fresh `tools/c0_visual_journey.py` run
+against a live sandboxed backend to re-measure §5's table pixel-for-pixel. This
+plan's own Task 5 scoped that as the closing step; it was deliberately not run
+here — launching a live backend and a Playwright session carries real,
+well-documented collision risk with the two other branches this plan's own
+research found mid-landing changes to these exact object-model files
+(`feat/pine-table-gaps`, `landing/pine-fixes-2026-09-19`), for a measurement
+this document's own Task 5 text already expects to show **no change** in the
+objects-painted column (RISK-043 and the `ta.supertrend` recurrence gap both
+correctly still stand). The verified value this addendum adds — three closed
+compatibility gaps, one corrected refusal message, one diagnosed engine gap,
+one loopBlocked false-positive fixed, one parity-set membership correction — was
+confirmed by direct `translatePine` execution and the existing wired test
+suites (JS: `pine.test.js`, `pine.tuples.test.js`, `pine.modulo.test.js`,
+`vendorObjectParity.test.js`, `clockParity.test.js`, and others; Python:
+`test_ast_clock_parity.py`, `test_indicator_compute.py`, `test_ast_interpret.py`,
+`test_ast_scalars.py`, `test_ast_conformance.py`), not by the visual-journey tool.

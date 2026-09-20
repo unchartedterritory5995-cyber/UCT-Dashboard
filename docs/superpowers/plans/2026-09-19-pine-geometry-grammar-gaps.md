@@ -10,6 +10,47 @@
 
 **Spec:** `docs/superpowers/specs/universal-indicator-ecosystem/C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md` — this plan argues from that document's §5 (the fixed 10-member parity set), §3 (the vendor capture's one divergence, H8), and §6 (the gap register). Read it before touching any task below; this plan does not repeat its evidence tables, only their conclusions — several of which this plan's own research corrects (see "Investigated and ruled out" before Task 1, Task 1's own "What this plan found" section, and the "Explicitly out of scope" list's H7/tuple corrections above).
 
+## ✅ EXECUTION STATUS (2026-09-19) — Tasks 1–4 done; Task 5 partially done
+
+All four numbered tasks below were implemented the same day this plan was
+written, each with its own commit on `feat/pine-geometry-grammar`: Task 1
+(`pineObjects.js`'s `emitCollection` reorder), Task 2 (the `last_bar_index`
+four-file fix this plan found already prototyped — formalized with tests and
+re-confirmed against `vendorObjectParity.test.js`'s own H8 case, which now
+reads three labels painted, zero drops), Task 3 (`ta.supertrend`'s refusal
+wording), Task 4 (the `create:box` drop diagnosed with a script-independent
+minimal reproduction, not fixed — see below). Task 5's gap-register close-out
+(step 5) was done in both `ENDZONE_GAP_REGISTER.md` and
+`C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`; its live-sandbox visual re-measurement
+(steps 1–4) was **not** run — see that document's own §10 addendum for why.
+
+⚠️ **CORRECTION TO TASK 4 AND THIS PLAN'S OWN FRAMING:**
+`mid_engagement__01-zeiierman-trend-pressure` — Task 4's named fixture — left
+the official parity set on **2026-09-13**, six days before this plan was
+written, by an owner ruling neither this plan's own research nor the
+concurrent coordinator's caught at the time:
+`OOS_2_PARITY_SET.json`'s `_dropped_2026_09_13` entry states the script's
+TradingView page renders a 5-line stub against its own claim of 353 lines —
+"a member the vendor will not show can never keep [a parity set's] promise."
+The set is **nine members, not ten**, as of that ruling. Task 4's diagnosis
+(a real, generic, script-independent engine gap: an object-creating statement
+inside a called Pine user function does not bind the function's parameters to
+the call site's arguments) remains valid and was pinned with a hand-written
+minimal reproduction independent of this specific script — but it should not
+be read as "parity-set member #7's blocker," since member #7 no longer exists
+in the set this plan's own spec document was measuring against. Also:
+`mid_engagement__05-supertrend-fibonacci-ote` (relevant to Task 3) was
+re-frozen on different bytes the same day, after an author edit —
+`pine_oos/MANIFEST.json` is the current authority on its hash, not this plan's
+own quoted one or `OOS_2_PARITY_SET.json`'s (both predate the 09-13 refreeze).
+Task 3's fix is unaffected (it targets the `ta.supertrend` callee name
+generically, not this script's specific bytes).
+
+Both `.pine` files this plan named as needing a re-fetch (Global Constraint 2)
+were already present locally, sha256-verified against this plan's own quoted
+hashes, in `tools/c0_parity_fixtures/` and `tools/c3a_parity_fixtures/` — no
+network fetch was needed for either.
+
 ## ⛔⛔ READ BEFORE TOUCHING ANY FILE
 
 ### A. Concurrent landing on these same files
