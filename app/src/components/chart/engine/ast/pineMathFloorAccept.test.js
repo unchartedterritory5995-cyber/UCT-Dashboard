@@ -33,27 +33,36 @@ plot(math.floor(close / 3))
     expect(t.refusal).toBe(null)
   })
 
-  // ⛔ NOT A FULL host-lane ACCEPT — recorded honestly rather than overclaimed.
+  // ⛔ NOT A FULL host-lane ACCEPT — recorded honestly rather than overclaimed,
+  // and the honest number moved TWICE as this script was chased.
   // `renko-candles-overlay` was refused `pine:function` (naming `math.floor`)
-  // BEFORE this fix; the walker stops at the first refusal, so nothing past
-  // line 51 (its first `math.floor` call) had ever been reached. Once
-  // `math.floor` stopped refusing, the walk continued and surfaced a SECOND,
-  // pre-existing, unrelated blocker: `pine:collection` at line 54
-  // (`array.get(rclose, 0)`), where the engine's static array-size inference
-  // reads `array.new_float(1, math.floor(open / boxs) * boxs)` as declaring
-  // ZERO slots rather than one. That is a real, separate finding for a future
-  // `pine:collection` iteration — not this one, and not silently folded into
-  // this fix's claim. This corpus script therefore does NOT move the real
-  // host_ok count today; what moved is that `math.floor` itself is no longer
-  // the reason ANY script would refuse.
-  it('the real corpus script no longer refuses on math.floor specifically (a different, pre-existing blocker now surfaces)', () => {
+  // before the math.floor fix; the walker stops at the first refusal, so
+  // nothing past line 51 (its first `math.floor` call) had ever been reached.
+  // Clearing `math.floor` surfaced `pine:collection` at line 54
+  // (`array.get(rclose, 0)`): `array.new_float(1, math.floor(open / boxs) *
+  // boxs)` is Pine's own two-argument array constructor (size, initial
+  // value), and the size-folder was handing the WHOLE token span — size,
+  // comma and initial value together — to a single-expression parser, which
+  // threw on the comma for every two-argument creation and folded to 0 slots
+  // regardless of the size argument. That is now fixed too (general, not
+  // renko-specific — see `arrayVectorReads.test.js`'s rail 5), and clearing
+  // IT surfaced a THIRD, separate, PERMANENT blocker: `pine:builtin` naming
+  // `syminfo.mintick` — the symbol's minimum price increment, which this
+  // engine architecturally does not hold for any symbol. That is not a bug to
+  // fix; it is the same class of deliberate gap as `time(<timeframe>)`'s
+  // refusal. This corpus script still does not move the real host_ok count —
+  // what moved, across both fixes, is that neither `math.floor` nor a
+  // two-argument array constructor is the reason ANY script would refuse.
+  it('the real corpus script no longer refuses on math.floor or the array constructor (a permanent, unrelated blocker now surfaces)', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'renko-candles-overlay__d76a18d49e.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).not.toBe('pine:function')
     expect(t.refusal.message).not.toMatch(/floor/)
-    expect(t.refusal.guard).toBe('pine:collection')
+    expect(t.refusal.guard).not.toBe('pine:collection')
+    expect(t.refusal.guard).toBe('pine:builtin')
+    expect(t.refusal.message).toMatch(/syminfo\.mintick/)
   })
 
   it('⛔ CONTROL — a genuinely unimplemented function (ta.correlation) still refuses pine:function', () => {
