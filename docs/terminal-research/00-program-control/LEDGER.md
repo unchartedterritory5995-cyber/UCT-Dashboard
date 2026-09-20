@@ -4083,3 +4083,24 @@ real tie-breaking bug in the first pass — `created_at` is SQLite `CURRENT_TIME
 granularity, so same-second inserts tied under `ORDER BY created_at DESC`; fixed to `ORDER BY id
 DESC`. Full regime-change suite (42 tests) plus every other test file touching
 `voice_proactive_service` (238 total) — 0 failures.
+
+---
+
+## ✅ DEPLOYED — S7 dark-comparison admin read, 2026-09-20
+
+`GET /api/admin/alert-taxonomy/dark-report/{alert_type}` and
+`GET /api/admin/alert-taxonomy/dark-report` are LIVE in production. Deployed via the
+standard cherry-pick path: `feat/s7-price-level` `8a946b699` -> `_merge-master` ->
+master `1b1903257`. `web` SUCCESS, fresh boot confirmed (`uptime_seconds: 44`), the
+new route confirmed mounted and correctly admin-gated (`401` unauthenticated, not
+`404`/`500`). Zero flow-worker watch-path overlap (`flow_worker_watch_coverage.py`
+OK) — no flow-worker redeploy triggered.
+
+**Member impact: none.** Admin-only (`require_admin`), read-only, no new tables, no
+new scheduler jobs, no new env vars, unreachable by any member session.
+
+**What this closes:** an admin logged into `uctintelligence.com` can now open either
+URL directly in their browser and see the real, live agreed/new_only/legacy_only/
+not_comparable counts for every S7 alert type's dark-comparison predicates — no SSH,
+no Python script, no `railway ssh` required. This is the durable answer to "how does
+anyone read this data" for all seven types, not just price-level.
