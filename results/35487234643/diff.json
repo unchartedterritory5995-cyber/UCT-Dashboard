@@ -1,0 +1,89 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 5,
+    "fixed": 1,
+    "unchanged": 159,
+    "missing": 0,
+    "baseline": 160,
+    "current": 164,
+    "current_ran": 50492,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 5
+  },
+  "arithmetic": "baseline 160 = unchanged 159 + fixed 1 + missing 0  |  current 164 = unchanged 159 + new 5 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35486866584",
+  "current_run_id": "35487234643",
+  "baseline_sha": "c4f45103b783ff5d0309c4b98036c468da568618",
+  "current_sha": "d9983b3d4b4b876e4cf7dc1a977067410ef78067",
+  "commit_range": "c4f45103b783ff5d0309c4b98036c468da568618..d9983b3d4b4b876e4cf7dc1a977067410ef78067",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_closed_table_citations|test_every_closed_table_citation_in_source_resolves_to_a_real_key",
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "vitest|src/components/chart/engine/ast/formulaDocs.test.js|the formula reference is derived, and it is current > \u2b50\u2b50 regenerating changes nothing \u2014 the page matches the manifest",
+    "vitest|src/components/chart/engine/ast/pine.tupleBuiltins.test.js|a tuple refusal says WHICH thing went wrong > \u2b50\u2b50 an unknown name lists what CAN be taken apart, derived"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_closed_table_citations|test_every_closed_table_citation_in_source_resolves_to_a_real_key": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched tests/test_closed_table_citations.py or anything it imports"
+    },
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched tests/test_gate_shards.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/formulaDocs.test.js|the formula reference is derived, and it is current > \u2b50\u2b50 regenerating changes nothing \u2014 the page matches the manifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched src/components/chart/engine/ast/formulaDocs.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/pine.tupleBuiltins.test.js|a tuple refusal says WHICH thing went wrong > \u2b50\u2b50 an unknown name lists what CAN be taken apart, derived": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched src/components/chart/engine/ast/pine.tupleBuiltins.test.js or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c4f45103b..d9983b3d4 touched tests/test_theme_index_watchlist.py or anything it imports"
+    }
+  }
+}
