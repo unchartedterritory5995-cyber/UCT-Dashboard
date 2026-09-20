@@ -643,7 +643,27 @@
    LAYOUT (padding, font-size, flex, overflow) deliberately does not
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
+  /* ⛔ BOTH AXES. `.toolBtn` had min-height ONLY, and most of these are
+     icon-or-glyph buttons, so the floor existed on the axis that was already
+     fine and not on the one that was short. Measured at a real 390px viewport
+     with the intro dismissed: B 26x44 · I 21x44 · H1 33x44 · H2 33x44 ·
+     quote 24x44 · code 35x44 · Insert image 32x44 · Attach 32x44. A 21px-wide
+     italic button is a miss on the axis a thumb travels along.
+
+     ⚰️ The fix was already KNOWN in this very block — `.chromeBtn` two rules
+     below has carried both axes since Wave B. It was applied to the class
+     someone was looking at and not to its neighbour, which is the same shape
+     as FolderSidebar's "already raised every other element" claim. */
   .toolBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  /* The two toolbar selects sat under the floor on BOTH tiers (Font family
+     150x27, Text size 58x27 at phone; 136x24 and 58x24 at tablet) and were
+     covered by no rule at all. Height only — their width is content-driven
+     and already past the floor. */
+  .fontSelect,
+  .fontSizeSelect {
     min-height: var(--tap-min, 44px);
   }
   /* Wave B: the new Favorites star reuses .chromeBtn (Share / Ask this
