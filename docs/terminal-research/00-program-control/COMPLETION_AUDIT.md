@@ -26,13 +26,26 @@ three states is marked **`⛔ NOT-YET-CLASSIFIED`** with what it would take.
 
 | state | count | meaning |
 |---|---|---|
-| **DONE** | **11** | shipped and nothing outstanding against its own PRD/spec definition |
-| **BLOCKED-DATA** | **5** | waiting on a measurement; the command that produces it is named |
-| **BLOCKED-OWNER** | **8**, ⚰️ **5 as of 2026-09-19** — S6 moved to DONE 2026-09-18 (§1.1, DECISION_CARDS_2026-09-18.md); S1 and S2 moved to DONE-with-an-open-CP 2026-09-19 once OI-06 was found already answered (2026-09-14) and their own gate packets' stale "waits on OI-06" language was corrected (§1.1) | waiting on a ruling; the OI id or the ruling is named |
-| **BLOCKED-SPEC-READ** | **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
-| **BLOCKED-DEPENDENCY** | **2** | waiting on another system, named |
+| **DONE** | ⚰️ was **11** | shipped and nothing outstanding against its own PRD/spec definition |
+| **BLOCKED-DATA** | ⚰️ was **5** | waiting on a measurement; the command that produces it is named |
+| **BLOCKED-OWNER** | ⚰️ was **8** | waiting on a ruling; the OI id or the ruling is named |
+| **BLOCKED-SPEC-READ** | ⚰️ was **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
+| **BLOCKED-DEPENDENCY** | ⚰️ was **2** | waiting on another system, named |
 | **EXCLUDED** | **1** | E1, outside the named roster |
 | **⛔ NOT-YET-CLASSIFIED** | **0** | ⭐ **THE FOURTH STATE IS AT ZERO** |
+
+⛔⛔ **THIS TALLY IS DELIBERATELY LEFT UN-RECOMPUTED, RATHER THAN HAND-GUESSED A SECOND TIME.**
+This is the exact defect class this programme's own tooling exists to prevent (`tools/harvest_followups.py`'s own comment: "DERIVED, never counted by hand") — and the table above was ALREADY wrong once from hand-editing without recomputing: it carried "8, ⚰️ 5 as of 2026-09-19" as an inline correction for months without anyone rewriting the bold number itself. Rather than repeat that by typing a new guess, here is every row confirmed to have moved since the table was last computed, with the date and evidence:
+
+- **S1, S2** → DONE-with-an-open-CP, 2026-09-19 (OI-06 found already answered; §1.1)
+- **S6** → DONE, 2026-09-18 (CP1–CP4 shipped; DECISION_CARDS_2026-09-18.md)
+- **S4** → DONE-with-an-open-CP, 2026-09-19 (CP2 fingerprint `f6df6dca1`, CP3 fingerprint `f4b06a886`, browser-verified)
+- **S5** → DONE-with-an-open-CP, 2026-09-19 (CP2 `9c7c634da`, CP3 `41ffcc91c`, CP4 `ea7178473`)
+- **S9** → CP1 DONE, 2026-09-19, but the system as a whole STAYS BLOCKED-OWNER — CP2+ needs OI-03(a)(b), OI-09 and OI-12 answered individually; a blanket "licensing is fine" statement does not resolve any of the four (see the S9 row, §1.1)
+- **A2** → DONE, 2026-09-19 (inherits S1/S2's unblock; OI-06 answered)
+- Some rows carry two blocker tags at once (D2: DATA + SPEC-READ; A11, A13: OWNER + DEPENDENCY) and S7 sits in a state this six-bucket schema never had a slot for (**RULED-HOLD** — a real decision was made, it just wasn't "build" or "block"). A correct recount has to resolve both of those before it means anything, which is why one is not published here as a guess.
+
+**The next fresh derivation should walk §1's own 32 rows and tally from THEIR blocker column, never restate the old bold numbers.**
 
 ⭐ **THE MOVEMENT ON 2026-09-13 IS FROM DEPENDENCY TO OWNER, AND IT IS REAL PROGRESS THAT LOOKS
 LIKE NONE.** A9, A11 and A13 each had a build dependency; each of those CP3s is now merged and
@@ -89,12 +102,12 @@ blocker class.
 | **S1** Terminal Shell | ✅ **CP1 BUILT AND MERGED** `b7e7541a0` (2026-09-14) | product-architecture §5-A.1 — a shell that hosts surface kinds from a manifest | ⚰️ was *"BLOCKED-OWNER — OI-06"*. OI-06 was answered 2026-09-14 (telemetry-derived-defaults.md); CP1 turned out not to need it. **CP2** (shell reads the manifest for one property) is the next open checkpoint, now unblocked. | **DONE** for CP1; CP2 buildable |
 | **S2** Command / Search | ✅ **CP1 + CP2 BUILT AND MERGED** `feb7ba1f8` / `095f27f97` | §5-A.2 — a keyboard registry with one binding table | ⚰️ was *"BLOCKED-OWNER — OI-06"*, same correction as S1. `chords.js` has exactly ONE real chord (`SHIFT_F`) — **CP3** (one more surface adopts) is the next open checkpoint, now unblocked. | **DONE** for CP1/CP2; CP3 buildable |
 | **S3** Entity Master | **SHIPPED** CP1–8 `ed6b1f041` | entity-master-spec §all | ⚠️ its gate packet is **UNSIGNED** despite the system being built — a bookkeeping gap, not a build gap | **DONE** (packet noted in §2) |
-| **S4** Context Bus | **CP1 MERGED** `76c62c494` | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP1 is the divergence DETECTOR only; the bus adoption itself is CP2+ | **BLOCKED-SPEC-READ** — CP2 line unsigned |
-| **S5** Persistence & User State | spec + gate written, **UNSIGNED** | persistence-user-state-spec — a typed store for list/preference documents | no CP1 authorized | **BLOCKED-SPEC-READ** |
+| **S4** Context Bus | ✅ **CP1–CP3 SIGNED AND BUILT** (`f6df6dca1` CP2, `f4b06a886` CP3) | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP3 (`HubContext.symbol` now derives from `useAppFocus`) was browser-verified per §7's own requirement — a real `MutationObserver` render-cost measurement across a full nav cycle, given the 2026-09-10 render-freeze precedent on this exact module. CP4 (TickerHubContext), CP5 (setVoicePageHint), CP6 (snapshot baseline), CP7 (timeframe authority) are each their own line. | **DONE** for CP1–CP3; CP4+ buildable |
+| **S5** Persistence & User State | ✅ **CP2–CP4 SIGNED AND BUILT** (`9c7c634da` CP2, `41ffcc91c` CP3, `ea7178473` CP4) | persistence-user-state-spec — a typed store for list/preference documents | CP1's Notebook-pattern extraction stays deferred (F-S5-1, its own named condition — a second adopter existing AND 30 days live, 2026-10-12). S5-C was ruled: Tracings moves off `user_preferences` to its own store rather than growing that endpoint's other 70 call sites a compare-and-set. CP3 built the backend (dedicated table, CAS), CP4 wired `useTracingsSync.js` to it, dark behind `TRACINGS_STORE_ENABLED=false`. CP5 (default-ON, member-visible) needs a browser-certification matrix at Wave Q1's own tier before its own line. | **DONE** for CP2–CP4; CP5 needs a browser-cert pass first |
 | **S6** Personalization | ✅ **CP2'/CP3/CP4 BUILT AND MERGED** 2026-09-18 (`47e2ad559`/`a35762d0d`/`359190d4d`) | personalization-spec | **RESOLVED, not blocked.** ⚰️ This said *"CP2–CP5 need four owner rulings the spec says it cannot make."* Cards 1/2 (SET-vs-WEIGHTED-SET, derive-vs-mirror) were DEFAULTABLE — the spec names its own default, applied without a fresh ruling (CP2'/CP3 built on it). Card 4 (paid-gating) was RULED PAID under explicit owner delegation 2026-09-18, matching the already-paid-gated sibling `/api/calendar/my-sets` (CP4 built on it). Card 3 (`personal_edge`) was RULED **NO** — interest and edge stay separate concepts (DECISION_CARDS_2026-09-18.md CARD 3) — CP5 (the only checkpoint that card would have unblocked) is therefore CLOSED with no code, not open. | **DONE** — CP1–CP4 shipped; CP5 closed by ruling, nothing left to build |
 | **S7** Alerts | **8 of 8 types registered**; **every CP3 merged and ARMED** as of 2026-09-13; dark-comparison READ completed 2026-09-18 (production-verified via `railway ssh` + independent yfinance cross-check) | alerts-monitoring-spec §5 — every type registered, comparable, and flipped | ⚰️ This said *"the dark READ, then the flip"* as if the flip followed automatically. The read is done and RULED: **HOLD**, under explicit owner delegation 2026-09-18 (DECISION_CARDS_2026-09-18.md CARD 6) — not because the new evaluator disagrees with legacy (it doesn't; the one apparent disagreement, RMIX, is the two rules' designed semantics working as specified), but because the persistence-semantics question (one-shot vs. re-fires) is genuinely unmade product scope, the n=10 sample is thin and partly synthetic, and there is zero trendline/anchor-rewrite coverage — real member-facing risk this delegation does not resolve unilaterally. | **RULED-HOLD** — a real decision, not a block; `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED` stays in dark-comparison mode |
 | **S8** Provenance & Freshness | SHIPPED | provenance-freshness-spec | full `<Cited>` still D2-gated | **BLOCKED-DEPENDENCY** — D2 |
-| **S9** Entitlements | not built, **NO GATE** | — | owner-bound | **BLOCKED-OWNER** — OI-03(a)(b), OI-12 |
+| **S9** Entitlements | ✅ **CP1 SIGNED AND BUILT** (2026-09-19) — the entitlement axis enumerated from source as inert data, plus two mechanical fixes (Login.jsx trial-routing bug, FREE_PAGES triplication) | — | CP2+ is genuinely NOT PROPOSABLE, and stays that way even after the owner stated "we have all licensing and approval for everything" (2026-09-19) — that blanket statement doesn't resolve OI-03(a) (which Massive tier), OI-03(b) (does a signed FMP Data Display Agreement exist), OI-09 (what does the Massive plan permit for real-time member display), or OI-12 (is the free/paid boundary changing): each selects between structurally DIFFERENT CP2 builds (e.g. OI-03(a) confirmed Business/Enterprise → CP2 consolidates an entitlement gate that PERMITS Massive real-time data on member routes; confirmed Individual → CP2 instead builds active PROHIBITION code stripping Massive fields from member-visible responses — opposite code, not a flag). Licensing register: 57 of 118 rows classified RESTRICTED under the 2026-09-14 conservative default; unchanged until each question is answered individually. | **BLOCKED-OWNER** — OI-03(a)(b), OI-09, OI-12, each separately |
 | **S10** Presentation Primitives | **SHIPPED** `3c539d011` · CP2 `6576f044e` | presentation spec | F-S10-1 residue (§3.1) | **DONE** with one open finding |
 | **S11** Session / Clock | SHIPPED | — | none | **DONE** |
 | **S12** Rollout | 1st `56df6803f` · 2nd `78ba40fe8` | rollout spec — role checks become cohort tags | cohort 6, projected 6 (union with admins) | **DONE** |
@@ -115,7 +128,7 @@ blocker class.
 | system | current | gap | blocker |
 |---|---|---|---|
 | **A1** Markets | live surface | no quote field is addressable | **BLOCKED-DEPENDENCY** — D2 |
-| **A2** Charts & Analytics | live surface | S1 + S2 both gated on OI-06 | **BLOCKED-OWNER** — OI-06 |
+| **A2** Charts & Analytics | live surface | ⚰️ was *"S1 + S2 both gated on OI-06"* — OI-06 was answered by the owner directly 2026-09-19 (`DECISION_CARDS_2026-09-18.md` §7d), and S1/S2 themselves are DONE-with-an-open-CP (their remaining CPs are code-buildable, not owner-blocked). A2 inherits no independent blocker of its own beyond that. | **DONE** — unblocked with S1/S2; no open ruling of its own |
 | **A3/A4** · **A5** · **A6/A7** · **A8** | SHIPPED | none | **DONE** (4 rows) |
 | **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — but it fires **dark, flag OFF**. A9 needs CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — arm the dark flag, read it, sign CP4 + FLIP |
 | **A10** Options & Flow | live, partner-owned | D3 + D4 as systems | **BLOCKED-DEPENDENCY** |
