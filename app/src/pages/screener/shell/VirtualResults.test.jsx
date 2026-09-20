@@ -38,6 +38,18 @@ describe('VirtualResults', () => {
     expect(screen.getByRole('table')).toHaveAttribute('aria-rowcount', '500')
   })
 
+  it('colours the base-structure tag by the server-derived bias', () => {
+    render(<VirtualResults {...base} columns={['ticker', 'base_render']}
+      rows={[{ ticker: 'AAA', base_render: 'Pocket Pivot (Advancing)', base_bias: 'bullish' }]} />)
+    expect(screen.getByText('Pocket Pivot (Advancing)')).toHaveAttribute('data-bias', 'bullish')
+  })
+
+  it('leaves the base-structure tag uncoloured when no bias is present', () => {
+    render(<VirtualResults {...base} columns={['ticker', 'base_render']}
+      rows={[{ ticker: 'BBB', base_render: 'Three Weeks Tight' }]} />)
+    expect(screen.getByText('Three Weeks Tight')).not.toHaveAttribute('data-bias')
+  })
+
   it('headers carry aria-sort and toggle through onSort', () => {
     render(<VirtualResults {...base} />)
     const hdr = screen.getAllByRole('columnheader').find(h => h.textContent.includes('Price'))

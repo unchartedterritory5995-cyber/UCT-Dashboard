@@ -155,6 +155,11 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cellDash { color: var(--text-muted); opacity: .55; }
+/* Base-structure tag coloured by the leading structure's textbook bias
+   (data-bias set in VirtualResults from the server-derived base_bias). */
+.strutTag[data-bias="bullish"] { color: var(--gain); background: var(--gain-bg); border-color: var(--gain-border); }
+.strutTag[data-bias="bearish"] { color: var(--loss); background: var(--loss-bg); border-color: var(--loss-border); }
+.strutTag[data-bias="neutral"] { color: var(--ut-gold); background: var(--warn-bg); border-color: var(--warn-border); }
 .rsWrap { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .rsBar { width: 34px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; flex: 0 0 auto; }
 .rsBar i { display: block; height: 100%; border-radius: 3px; }

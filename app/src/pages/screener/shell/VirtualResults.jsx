@@ -193,9 +193,14 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
                   // field on the column. `fmt` is still the single source of the
                   // displayed text (and what CSV export reads).
                   if (def.cell === 'tag') {
+                    // The base-structure tag colours by the LEADING structure's
+                    // textbook bias (derived server-side; see query.py). data-bias
+                    // drives the colour in CSS and is the test seam. Other tag
+                    // columns carry no bias and stay neutral.
+                    const bias = c === 'base_render' ? row.base_bias : null
                     return (
                       <div role="cell" key={c} className={`${styles.cell} ${styles.tagCell}`}>
-                        {val ? <span className={styles.strutTag}>{def.fmt(val, row)}</span>
+                        {val ? <span className={styles.strutTag} data-bias={bias || undefined}>{def.fmt(val, row)}</span>
                              : <span className={styles.cellDash}>—</span>}
                       </div>
                     )

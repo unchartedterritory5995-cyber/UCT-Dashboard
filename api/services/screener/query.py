@@ -1301,6 +1301,15 @@ def run_scan(spec, user_id=None, user=None):
     # PILOT_ENABLED=1 AND the caller is an admin -- see pattern_join.py's
     # own docstring on this function for the full fail-safe/scope contract.
     out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
+    # base_bias — the textbook bias of the LEADING base structure, DERIVED from
+    # the already-selected `base_matches` (no stored column, no reindex; lights
+    # up for every existing row on the next request). `bases.primary_bias`
+    # reuses the render ordering, so the colour can never disagree with the name
+    # `base_render` shows. Skipped cleanly when `base_matches` is absent.
+    from api.services.screener import bases as _bases
+    for _r in out_rows:
+        if "base_matches" in _r:
+            _r["base_bias"] = _bases.primary_bias(_r.get("base_matches"))
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
     # `snapshot` is already this response's provenance object and is already

@@ -205,6 +205,32 @@ def _render(labels: List[str]) -> Optional[str]:
     return f"{out} +{extra}" if extra > 0 else out
 
 
+def primary_bias(base_matches: Optional[str]) -> Optional[str]:
+    """The textbook bias ("bullish" | "bearish" | "neutral") of the LEADING
+    structure — the head `base_render` shows — recovered from the stored
+    `base_matches`, or None when there is nothing to read.
+
+    ⭐ It reuses `_render_order` + `base_catalog.by_key`, the SAME two the render
+    head is built from (see `classify`), so a colour derived from this can never
+    disagree with the name `base_render` displays. `base_matches` is
+    `,shape,rel,rel,` — shape first, relations in CATALOG order, NOT render
+    order — so `parts[1]` is not reliably the primary; the render ordering has
+    to be re-applied. This is a read-only derivation over an already-stored
+    column: no snapshot rebuild, and `classify`'s emitted column set is
+    untouched.
+    """
+    if not base_matches or not isinstance(base_matches, str):
+        return None
+    parts = [p for p in base_matches.strip(",").split(",") if p]
+    if not parts:
+        return None
+    order = _render_order(parts[0], parts[1:])
+    if not order:
+        return None
+    st = base_catalog.by_key(order[0])
+    return st.bias if st else None
+
+
 def classify(bars, bars_full=None) -> dict:
     """Name this symbol's multi-week structure.
 
