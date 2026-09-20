@@ -3,7 +3,9 @@
 // ─── ⭐⭐ ITEM 8: WHAT THE 2026-09-11 CAPTURE BOUGHT, AND WHAT IT DID NOT ────
 //
 // `math.pi`, `math.ceil`, `math.floor` and `year` were four of item 8's nine
-// names. The capture answered all four; two are pinned here.
+// names. The capture answered all four; as of 2026-09-20 all four are
+// pinned (`year` needed no engine work at all — see its own describe block
+// below; `ceil` was the last of the three to pay for a table entry).
 //
 //     TradingView, AMEX:SPY 1D, 400 bars, 2026-09-11:
 //       math.pi          3.141592653589793  on every bar
@@ -31,9 +33,13 @@
 // `Math.floor`/`math.isfinite` reading this file's capture already banked —
 // no hand-written correction, exactly as predicted below.
 //
-// ⛔⛔ `ceil` IS STILL NOT IN THE TABLE. Nothing in the committed corpus has
-// asked for it yet, so its measurement stays banked and its pin stays routed
-// until a real script does.
+// ⭐⭐ `ceil` PAID THE SAME PRICE THE SAME DAY (2026-09-20), once a real
+// corpus script asked for it: `chart-champions-part-1-npoc-levels-vwaps__
+// wdeUFJ4ZD2.pine`'s sole `math.ceil` blocker. Same shape as `floor` in
+// every respect — a corpus case (`pine_ceil_rounds_toward_positive_infinity`),
+// both bar-ceil counts bumped by name, and `_guarded_ceil` mirroring the SAME
+// native `Math.ceil`/`math.isfinite` reading this file's capture already
+// banked, exactly as `floor`'s own no-hand-written-correction pass was.
 //
 // Capture: `tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json`.
 
@@ -95,18 +101,23 @@ describe('⭐ `math.pi` is PINNED, and it is a constant rather than a function',
   })
 })
 
-describe('⛔ `ceil` is MEASURED and NOT PINNED — the price is still unpaid', () => {
-  it('it still refuses, and the refusal is the honest one', () => {
+describe('⭐ `math.ceil` PAID THE PRICE (2026-09-20) — it is declared and pinned', () => {
+  it('it no longer refuses', () => {
     const r = tr('plot(math.ceil(close))', { strict: true }).refusals || []
-    expect(r.length).toBe(1)
-    expect(r[0].guard).toBe('pine:function')
+    expect(r).toEqual([])
   })
 
-  it('and the table does NOT declare it', () => {
-    // ⛔ If this ever flips, a corpus case and a re-frozen digest must have
-    // landed WITH it — that is what the two red gates were asking for, and
-    // `floor` below is the record of paying exactly that price.
-    expect(TABLE.functions.ceil).toBeUndefined()
+  it('and the table declares it, lookback 0, one series argument', () => {
+    expect(TABLE.functions.ceil).toBeDefined()
+    expect(TABLE.functions.ceil.lookback).toBe(0)
+    expect(TABLE.functions.ceil.args).toEqual(['series'])
+  })
+
+  it('⭐ the reading is banked, and it matches native toward-+∞ exactly', () => {
+    expect(cap.readings['math.ceil'].at_negative_2p5).toBe(-2)
+    expect(cap.readings['math.ceil'].at_positive_2p5).toBe(3)
+    expect(cap.readings['math.ceil'].at_negative_2p5).toBe(Math.ceil(-2.5))
+    expect(cap.readings['math.ceil'].at_positive_2p5).toBe(Math.ceil(2.5))
   })
 })
 

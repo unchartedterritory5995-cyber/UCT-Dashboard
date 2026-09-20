@@ -3033,7 +3033,19 @@ export const TS_CALL_SHAPES = Object.freeze({
  *  RateOfChange). So a study is mappable only where its own DESCRIPTION states
  *  the missing defaults in prose, which is true of `ATR` and of none of these. */
 export const TS_UNCITED = Object.freeze({
-  Floor: 'closedTable declares no `floor` and no `ceil`; `round` is round-to-whole, which is '
+  // ⚰️ THIS USED TO SAY "closedTable declares no `floor` and no `ceil`" —
+  // FALSE since 2026-09-20, when both joined `closedTable.functions` for
+  // Pine's `math.floor`/`math.ceil`. The reason `Floor(...)` still refuses
+  // here is unchanged and was never that the underlying primitive was
+  // missing: this ThinkScript FRONTEND has no `TS_CALL_SHAPES.floor` (or
+  // `.ceil`) row routing thinkorswim's own call onto it, because nobody has
+  // fetched thinkorswim's Floor/Ceiling page to confirm its signature and
+  // cite it the way the rows above do. `round` is round-to-whole (half away
+  // from zero), which is a DIFFERENT function on every value whose fraction
+  // is at least one half, so it is not a stand-in either.
+  Floor: 'closedTable declares `floor` and `ceil` for Pine, but this ThinkScript '
+    + 'frontend has no cited route to either — nobody has fetched thinkorswim\'s '
+    + 'Floor/Ceiling page to confirm its signature. `round` is round-to-whole, which is '
     + 'a different function on every value whose fraction is at least one half.',
 })
 

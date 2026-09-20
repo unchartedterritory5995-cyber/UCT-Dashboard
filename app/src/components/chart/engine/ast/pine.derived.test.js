@@ -214,6 +214,7 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   instead, off these reasons, so it cannot drift from the list it counts.
     abs: 'math.abs', sqrt: 'math.sqrt', ln: 'math.log', log10: 'math.log10',
     exp: 'math.exp', sign: 'math.sign', round: 'math.round', floor: 'math.floor',
+    ceil: 'math.ceil',
     min: 'math.min', max: 'math.max',
     sin: 'math.sin', cos: 'math.cos', tan: 'math.tan', atan: 'math.atan',
     sinh: 'math.sinh',

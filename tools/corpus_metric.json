@@ -522,12 +522,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function",
-        "pine:builtin"
+        "pine:builtin",
+        "pine:function"
       ],
       "screenerGuards": [
-        "pine:function",
-        "pine:builtin"
+        "pine:builtin",
+        "pine:function"
       ]
     },
     {

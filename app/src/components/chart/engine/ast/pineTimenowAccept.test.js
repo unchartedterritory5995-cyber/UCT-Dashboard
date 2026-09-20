@@ -29,9 +29,14 @@
 // motivated this — recorded honestly rather than overclaimed, per this file's
 // header, mirroring `pineMathFloorAccept.test.js`/
 // `pinePercentileLinearAccept.test.js`'s own discipline:
-//   - `chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine` refuses on
-//     `math.ceil` (undeclared — a sibling of `math.floor`), a wholly separate
-//     gap this file does not touch.
+//   - `chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine` refused on
+//     `math.ceil` at the time this was written; `math.ceil` joined the table
+//     the same day (see `pineMathCeilAccept.test.js`), and clearing it
+//     surfaced a SEPARATE, PERMANENT blocker: `pine:builtin` naming
+//     `syminfo.mintick`, an architectural gap this engine holds no value for,
+//     for any symbol — the same class `math.floor`'s own renko script
+//     converged on. Wholly unrelated to `timenow`, and this file does not
+//     touch it.
 //   - `initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine`
 //     writes `year(timenow) == year(time)` — ONE line naming BOTH the now-
 //     working argument (`timenow`) and the permanently-blocked one (bare
@@ -157,7 +162,7 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
 
   it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker (measured, not overclaimed)', () => {
     const cases = [
-      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /math\.ceil/],
+      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:builtin', /syminfo\.mintick/],
       ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:builtin', /MILLISECONDS/],
       ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function-def', /f_round_up_to_tick/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
