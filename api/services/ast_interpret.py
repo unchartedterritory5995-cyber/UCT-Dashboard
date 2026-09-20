@@ -1285,6 +1285,45 @@ def _fn_valuewhen(cond: Sequence[float], src: Sequence[float], n: int) -> List[f
     return out
 
 
+def _fn_valuewhen_occurrence(
+    cond: Sequence[float], src: Sequence[float], occurrence: int
+) -> List[float]:
+    """Pine's ``ta.valuewhen(cond, src, occurrence)`` -- ``src`` as it stood on
+    the bar where ``cond`` was true for the ``occurrence``-from-the-end time,
+    counting backward and unbounded: occurrence 0 is the most recent true bar
+    (ever, in whatever was fetched), 1 is the second-most-recent, and so on.
+    NOT the same function as ``_fn_valuewhen`` above, which takes a BAR WINDOW
+    rather than an occurrence count -- see
+    ``closedTable.json::_functions_valuewhen_occurrence`` for the full vendor
+    citation and why ``pine.js`` routes only the NAMESPACED ``ta.valuewhen(...)``
+    here, never a bare ``valuewhen(...)`` call.
+
+    ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+    bounded ``_fn_valuewhen`` above and for the same reason: a not-computable
+    condition bar MIGHT have been true, so counting occurrences from before it
+    would report a distance to the wrong bar. The growing occurrence list is
+    therefore cleared rather than merely paused.
+
+    🔴 THE NaN PREFIX MEETS X23 THE SAME WAY ``_fn_valuewhen``'S DOES -- a
+    comparison over it reads as a confident FALSE and its negation as a
+    confident TRUE. Not this entry's to fix; declared at
+    ``closedTable.json::_functions_valuewhen_occurrence``.
+    """
+    out = _nan_col(len(cond))
+    true_idx: List[int] = []
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            true_idx = []
+            continue
+        if c != 0.0:
+            true_idx.append(i)
+        pos = len(true_idx) - 1 - occurrence
+        if pos >= 0:
+            out[i] = src[true_idx[pos]]
+    return out
+
+
 def _guarded_abs(x: float) -> float:
     return abs(x)
 
@@ -1751,6 +1790,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
+    "valuewhenOccurrence": _fn_valuewhen_occurrence,
     # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
     # STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
     # both bars of a tie. See `closedTable.json::_functions_pivots`.
@@ -2544,14 +2584,34 @@ def _window_literal(node: dict, index: int) -> int:
     """
     args = node["args"]
     arg = args[index] if index < len(args) else None
+    # ⭐⭐ THE FLOOR IS 1 FOR A *PERIOD*, AND 0 FOR AN *OCCURRENCE* (2026-09-20)
+    # -- mirrors ``interpret.js::windowLiteral``'s own fix, see its comment for
+    # the full reasoning. Every ``int`` this table declared before
+    # ``valuewhenOccurrence`` was a bar-count window, where a period of 0 bars
+    # searches nothing, so ``< 1`` was never a real restriction beyond
+    # ``period``-shaped arguments. ``valuewhenOccurrence``'s third argument is
+    # an INDEX into the occurrences found so far ("0 = the most recent"), and 0
+    # is TradingView's own documented default. Gated on the ROLE NAME, never
+    # the function, so this can only ever widen the domain for a role that
+    # says so by name. ⚰️ THIS WAS THE ACTUAL BUG BEHIND
+    # ``test_ast_lookback_agreement.py``'s cross-lane disagreement on
+    # ``support-and-resistance__1505.pine`` — measured directly, not the
+    # ``is_boolean_tree``/role-KIND mismatch it was first mistaken for; that
+    # check (and its ``lint.js``/``ast_lint.py`` mirrors) was already correct,
+    # and THIS floor, alone, is what refused ``valuewhenOccurrence(cond, src,
+    # 0)`` here while the JS lane already accepted it.
+    spec = _fn_spec(node.get("name"))
+    roles = spec.get("argRoles") if isinstance(spec.get("argRoles"), (list, tuple)) else None
+    role = roles[index] if roles and index < len(roles) else None
+    min_value = 0 if role == "occurrence" else 1
     ok = (isinstance(arg, dict) and arg.get("type") == "num"
           and _is_number(arg.get("value"))
-          and float(arg["value"]).is_integer() and arg["value"] >= 1)
+          and float(arg["value"]).is_integer() and arg["value"] >= min_value)
     if not ok:
         shown = arg.get("value") if isinstance(arg, dict) and arg.get("type") == "num" else arg
         _refuse("resolve:window",
                 f"— {node.get('name')} argument {index} must be a whole number of "
-                f"at least 1, got {shown!r}")
+                f"at least {min_value}, got {shown!r}")
     return int(arg["value"])
 
 

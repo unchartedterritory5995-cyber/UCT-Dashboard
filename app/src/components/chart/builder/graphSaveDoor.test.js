@@ -102,12 +102,28 @@ function productDocument(name) {
   })
 }
 
-const BLOCKED = [
-  'mid_engagement__22-rsi-levels-regime-map',
-]
+const BLOCKED = []
 
 /** ⚰ The other DOCUMENT_SIZE_BLOCKED script, which R-F made too small to block. */
 const NO_LONGER_OVERSIZED = 'high_engagement__03-supertrend-kivancozbilgic'
+
+/** ⚰️⚰️ THE LAST SURVIVING `BLOCKED` EXAMPLE, RETIRED THE OPPOSITE DIRECTION
+ *  (2026-09-20). `ta.valuewhen` joining the engine grammar (six real calls in
+ *  this script, all `occurrence: 1`) did not shrink this script the way R-F
+ *  shrank `…03-supertrend` above — it GREW it: the newly-unlocked calls feed
+ *  twelve output trees, and one of them (`out10`) now expands to 13,009 nodes
+ *  fully inlined, over `graph.js`'s `MAX_EXPANDED_NODES` (2048) per-plot
+ *  ceiling — a real, deliberate, pre-existing architectural limit this script
+ *  did not reach before and now legitimately does. `reduceIfOversized` cannot
+ *  even ATTEMPT its compression measurement, because building the graph it
+ *  would compress is the step that throws.
+ *  ⛔ THIS FILE'S OWN DEMONSTRATION IS NOW EVIDENCE-FREE: both scripts that
+ *  once proved "graph-native compression saves real space on a real
+ *  document" are gone, one shrunk below the cap and one grown past a HARDER
+ *  cap. Finding a new large-but-compressible example is a real follow-up,
+ *  deliberately NOT this PR's to do — recorded here rather than silently
+ *  losing the fact that `BLOCKED` is empty. */
+const NOW_EXCEEDS_EXPANSION_CEILING = 'mid_engagement__22-rsi-levels-regime-map'
 
 describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save door', () => {
   for (const name of BLOCKED) {
@@ -167,6 +183,29 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
     expect([...new Set((t.outputs || []).filter((o) => o.refusal).map((o) => o.refusal.guard))])
       .toEqual(['pine:state'])
     expect(t.selected).toBe(-1)
+  })
+
+  it(`⚰️⚰️ ${NOW_EXCEEDS_EXPANSION_CEILING} REDUCES but no longer READS BACK`, () => {
+    const doc = productDocument(NOW_EXCEEDS_EXPANSION_CEILING)
+    // ⭐ THE V1 DOCUMENT STILL BUILDS AND IS STILL OVER THE BYTE BUDGET, AND
+    // `reduceIfOversized` STILL SUCCEEDS — building the graph representation
+    // (storing shared nodes once) does not itself need to fully EXPAND them
+    // back out, so this half is unchanged.
+    expect(doc.compute.paramManifest).toBeTruthy()
+    expect(documentBytes(doc)).toBeGreaterThan(DOCUMENT_BYTE_BUDGET)
+    const sent = reduceIfOversized(doc)
+    expect(sent, 'the save door must have reduced it').not.toBe(doc)
+    expect(sent.compute.treesHash).toBe(doc.compute.treesHash)
+    // ⛔⛔ BUT READING IT BACK NEEDS THE FULL EXPANSION `graphSize.measure`'s
+    // C2C.10 case throws on (`out10` past the 2048-node per-plot ceiling —
+    // see that file), and `hydrateGraphDocument` swallows that ceiling error
+    // rather than propagating it, leaving `compute.trees` missing instead of
+    // reconstructed. A document this large can be STORED (the graph is only
+    // ~14KB) but not SHOWN BACK to the member who saved it — a real, narrower
+    // capability than "the two BLOCKED scripts, through the real save door"
+    // claimed before `ta.valuewhen` made this script's content this big.
+    const back = hydrateGraphDocument(JSON.parse(JSON.stringify(sent)))
+    expect(back.compute.trees, 'rehydration cannot expand past the per-plot ceiling').toBeFalsy()
   })
 
   it('⛔ THE CONTROL: a document that fits is not reduced at all', () => {

@@ -185,10 +185,32 @@ describe('the fail-closed default', () => {
     // ⭐ DERIVED FROM THE MANIFEST, so a function added tomorrow is covered.
     const measured = new Set(Object.values(PINE_CALL_SHAPES)
       .map((s) => s.table.toLowerCase().replace(/_/g, '')))
+    // ⚰️⚰️ `valuewhen` WAS THE CASE THAT FORCED THE DISTINCTION THIS TEST USED
+    // TO DRAW, AND IT NO LONGER BELONGS IN THIS SWEEP AT ALL (2026-09-20). It
+    // has two `series` slots and no `PINE_CALL_SHAPES` entry, so it used to
+    // land here and report a FALSE sentence ("this table states what kind
+    // each argument is and never what role it plays") even though the
+    // manifest declares `argRoles: [condition, source, period]` — worse, it
+    // sent a reader to supply a role order that would have built cleanly and
+    // answered a DIFFERENT number, since Pine's third argument counts
+    // OCCURRENCES and this table's counted BARS. That mismatch is why
+    // `ta.valuewhen` is EXCLUDED here rather than swept: it now has its own
+    // real, working, namespace-aware route onto `valuewhenOccurrence` — a
+    // genuinely different manifest entry with the true occurrence semantics
+    // — so `ta.valuewhen(...)` correctly TRANSLATES and would fail this
+    // sweep's "must refuse" assumption for the right reason. See
+    // `pineValuewhenOccurrenceAccept.test.js` for its own dedicated coverage,
+    // and `resolveTableCall`'s own comment (search `valuewhenOccurrence` in
+    // `pine.js`) for why this could not be expressed as an ordinary
+    // `PINE_CALL_SHAPES` entry. `valuewhenOccurrence` ITSELF has no shape of
+    // its own either, and correctly refuses `pine:role-order` under its own
+    // literal spelling (`ta.valuewhenOccurrence(...)`, which no real Pine
+    // script can ever write) — it is swept normally, below.
     const multi = Object.entries(TABLE.functions)
       .filter(([, spec]) => (spec.args || []).filter((a) => a === 'series').length > 1)
       .map(([key]) => key)
       .filter((key) => !measured.has(key.toLowerCase().replace(/_/g, '')))
+      .filter((key) => key !== 'valuewhen')
 
     expect(multi.length).toBeGreaterThan(0)
     for (const key of multi) {
@@ -199,27 +221,25 @@ describe('the fail-closed default', () => {
       expect(out.ok, `ta.${key} translated without a measured argument order`).toBe(false)
       // ⭐ THE INVARIANT IS FAIL-CLOSED, NOT ONE GUARD NAME. A function this door
       // refuses for a MORE SPECIFIC published reason still satisfies it — and a
-      // more specific reason is strictly better for the member.
-      //
-      // ⚰️ `valuewhen` IS THE CASE THAT FORCED THE DISTINCTION. It has two `series`
-      // slots and no measured order, so it landed here and reported "this table
-      // states what kind each argument is and never what role it plays" — a
-      // sentence that is FALSE of it, since the manifest declares
-      // `argRoles: [condition, source, period]`. Worse, it sent a reader to supply
-      // a role order, and the positions line up perfectly: Pine's third argument
-      // counts OCCURRENCES and this table's counts BARS, so the "fix" would have
-      // built cleanly and answered a different number. It is in
-      // `PINE_INEXPRESSIBLE` now and refuses by naming that difference.
+      // more specific reason is strictly better for the member. `PINE_INEXPRESSIBLE`
+      // carries no multi-series member today (`valuewhen` was its only one, and
+      // it left the dict along with this sweep), so every remaining name takes
+      // the generic `pine:role-order` path — the assertion below stays a
+      // conditional read off the manifest rather than a hardcoded guard, so a
+      // future multi-series `PINE_INEXPRESSIBLE` entry is still covered the day
+      // it lands.
       const inexpressible = Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, key)
       expect(out.refusal.guard, `ta.${key}`)
         .toBe(inexpressible ? 'pine:function' : 'pine:role-order')
     }
-    // ⛔ AND THE SPLIT IS NOT VACUOUS IN EITHER DIRECTION — a roster that swallowed
-    // every multi-series name would make the fail-closed default untestable.
-    expect(multi.some((k) => Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
-      'no multi-series name is on the inexpressible roster — this branch is dead').toBe(true)
-    expect(multi.some((k) => !Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
-      'EVERY multi-series name is inexpressible — the role-order default is dead').toBe(true)
+    // ⛔ NON-VACUITY, THE HALF THAT STILL HAS A LIVE WITNESS — a roster that
+    // swallowed every multi-series name would make the fail-closed default
+    // untestable. The OTHER half (a multi-series name earning the MORE
+    // SPECIFIC `PINE_INEXPRESSIBLE` reason) has no current witness now that
+    // `valuewhen` moved on; the branch that reads it above is still real code,
+    // covered the day a future entry needs it, not dead code kept for show.
+    expect(multi.every((k) => !Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
+      'a multi-series name unexpectedly carries a PINE_INEXPRESSIBLE reason -- update this comment').toBe(true)
   })
 
   it('a shape that no longer fits the manifest refuses instead of filling what it can', () => {

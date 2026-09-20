@@ -399,7 +399,15 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
 #: is again the closest available slot. No ordering-ambiguity risk: this
 #: function's other ``int`` role is ``period`` (the window) and its only
 #: `series` role is `source`, both different roles entirely.
-_INT_ROLES = frozenset({"anchor", "mult", "percentage"})
+#: ``occurrence`` (2026-09-20) is the FOURTH widening, and it is not a bounded
+#: constant either — it is an INDEX into however many times a condition has
+#: been true so far. ``valuewhenOccurrence``'s (Pine's ``ta.valuewhen``) third
+#: argument counts occurrences backward from the most recent (0 = the most
+#: recent), never a bar window, so ``int`` is again the closest available
+#: slot rather than a claim that it is one. No ordering-ambiguity risk: this
+#: function's other ``series`` roles are ``condition``/``source``, and it has
+#: no ``period`` role at all to confuse this one with.
+_INT_ROLES = frozenset({"anchor", "mult", "percentage", "occurrence"})
 
 
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():

@@ -387,14 +387,6 @@
   "mid_engagement__22-rsi-levels-regime-map.pine": {
     "outputs": 28,
     "refusals": [
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
       "pine:collection",
       "pine:collection"
     ],

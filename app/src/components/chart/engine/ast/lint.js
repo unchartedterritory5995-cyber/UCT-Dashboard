@@ -173,6 +173,79 @@ const ARG_REF = LOOKBACK_RE
 const own = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k)
 const sortedKeys = (o) => Object.keys(o || {}).sort()
 
+/** ⭐⭐ THE SECOND PLACE `_functions_arg_role_kinds` IS ENFORCED (2026-09-20).
+ *
+ *  `closedTable.json::_functions_arg_role_kinds` names the check ONCE and
+ *  points at the two walkers that asked it first — `interpret.js::assertArgRoles`
+ *  (via `sentence.js::yieldsOf`) and `ast_interpret._assert_arg_roles` (via
+ *  `scan_definition.is_boolean_tree`) — "each asking its OWN lane's single
+ *  resolver, rather than growing a third copy of the rule." This is that
+ *  resolver's THIRD copy, and it exists because `assertArgRoles` is not only a
+ *  type check: on `interpret.js::maxLookback`'s own path it is also the thing
+ *  that makes a badly-typed `condition` argument REFUSE rather than answer a
+ *  number — and `lint.js::astReach` had no such refusal, so `interpret` and
+ *  `lint` disagreed on trees `lookbackAgreement.test.js` is built to compare.
+ *
+ *  ⛔ NOT AN IMPORT OF `sentence.js::yieldsOf` — this file's own header rail
+ *  asserts its import graph is exactly `['./parse.js']`, so a fourth `import`
+ *  would be the fix undoing the invariant it is supposed to respect. This is a
+ *  narrower, LOCAL read of the same manifest data `yieldsOf` reads, restricted
+ *  to the four node shapes an argument tree can actually be handed here
+ *  (`num`, `series`, `op`, `call`) plus the three that pass a kind through
+ *  unchanged (`sym`, `tf`, `tf_live`) — never a general type system, because
+ *  the only question this file ever needs answered is "does this tree settle
+ *  to `bool`, or not". Mirrors `sentence.js::yieldsOf`'s cases exactly; a
+ *  divergence between the two would be the second-authority-over-one-value
+ *  defect this rule exists to avoid, which is why both are read off the SAME
+ *  manifest sections (`table.clock`, `table.scalars`, `table.operators`,
+ *  `table.functions`) rather than a copy of any of them. */
+function argYieldsBool(node, table) {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return false
+  switch (node.type) {
+    case 'num':
+      return node.value === 0 || node.value === 1
+    case 'series': {
+      const clock = (table && table.clock) || {}
+      if (own(clock, node.name)) return clock[node.name].yields === 'bool'
+      const scalars = (table && table.scalars) || {}
+      return own(scalars, node.name) ? scalars[node.name].yields === 'bool' : false
+    }
+    case 'op': {
+      const operators = (table && table.operators) || {}
+      const declared = own(operators, node.name) ? operators[node.name].yields : 'num'
+      if (declared !== 'passthrough') return declared === 'bool'
+      const arms = Array.isArray(node.args) ? node.args.slice(1) : []
+      return arms.length > 0 && arms.every((a) => argYieldsBool(a, table))
+    }
+    case 'call': {
+      const functions = (table && table.functions) || {}
+      return own(functions, node.name) ? functions[node.name].yields === 'bool' : false
+    }
+    case 'sym':
+    case 'tf_live':
+    case 'tf': {
+      const args = Array.isArray(node.args) ? node.args : []
+      return args.length === 1 ? argYieldsBool(args[0], table) : false
+    }
+    default:
+      return false
+  }
+}
+
+/** The roles `_functions_arg_role_kinds` declares as requirements, keyed by
+ *  role name to the `yields` kind that role's argument tree must settle to —
+ *  read fresh per call so a caller's `opts.table` (a test's own grammar) is
+ *  never checked against the shipped manifest's roster. */
+function argRoleKinds(table) {
+  const raw = (table && table._functions_arg_role_kinds) || {}
+  const out = {}
+  for (const role of Object.keys(raw)) {
+    if (role.startsWith('_')) continue
+    if (typeof raw[role] === 'string') out[role] = raw[role]
+  }
+  return out
+}
+
 // --------------------------------------------------------------------------- //
 // the definition's own inputs — a DECLARED SCALAR, never an undeclared series
 // --------------------------------------------------------------------------- //
@@ -661,6 +734,32 @@ export function astReach(ast, opts = {}) {
         if (isUnknown(own.forward)) {
           reachOf.set(node, noteUnknown(`\`${node.name}\` declares a window this linter cannot bound`))
           break
+        }
+        // ⭐⭐ R-G, 2026-09-20 — SEE `argYieldsBool`'S OWN COMMENT.
+        // `interpret.js::maxLookback` refuses a call whose `condition`-role
+        // argument does not settle to `bool` (`assertArgRoles`); this walk did
+        // not, so a tree like `ta.valuewhen(swing_h, high[len], 0)` — a REAL
+        // idiom in `liquidity-pools__fa7b28e733.pine`, passing a value-or-`na`
+        // series as an implicit condition — answered a real number here while
+        // `interpret` refused, which is exactly the shape this rail exists to
+        // catch. Checked BEFORE the args are summed, matching `interpret`'s own
+        // ordering (role validity decided before the window is trusted).
+        const roleKinds = argRoleKinds(table)
+        const roles = Array.isArray(spec.argRoles) ? spec.argRoles : null
+        if (roles) {
+          let badRole = null
+          for (let i = 0; i < roles.length; i++) {
+            const want = roleKinds[roles[i]]
+            if (!want) continue
+            const got = want === 'bool' ? argYieldsBool(args[i], table) : true
+            if (!got) { badRole = i; break }
+          }
+          if (badRole !== null) {
+            reachOf.set(node, noteUnknown(
+              `\`${node.name}\` argument ${badRole} is its ${roles[badRole]}: compare it to `
+              + 'something, or use a name this table declares as yielding 0/1'))
+            break
+          }
         }
         let argBack = 0
         let argForward = 0

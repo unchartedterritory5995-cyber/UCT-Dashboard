@@ -793,7 +793,15 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # ⭐ 119 -> 120 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
     # sibling. New bar-corpus case: `pine_ceil_rounds_toward_positive_infinity`.
     # The scalar half is untouched at 137 -- `ceil` names no per-symbol column.
-    assert len(parts["bar"]) == 120 and len(parts["scalar"]) == 137
+    # ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence`, Pine's
+    # `ta.valuewhen(condition, source, occurrence)` -- occurrence-indexed,
+    # unbounded backward search, a DIFFERENT function from this table's own
+    # bare `valuewhen(condition, source, period)` bar-window search despite
+    # sharing a spelling; `pine.js::resolveTableCall` reaches this entry only
+    # through the NAMESPACED `ta.valuewhen(...)`, never a bare call. New
+    # bar-corpus case: `valuewhenOccurrence_the_second_most_recent_up_bar`.
+    # The scalar half is untouched at 137 -- it names no per-symbol column.
+    assert len(parts["bar"]) == 121 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

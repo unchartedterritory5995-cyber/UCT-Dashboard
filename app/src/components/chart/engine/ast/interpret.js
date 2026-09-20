@@ -885,6 +885,38 @@ function valueWhen(cond, src, n) {
   return out
 }
 
+/** Pine's `ta.valuewhen(cond, src, occurrence)` — `src` as it stood on the
+ *  bar where `cond` was true for the `occurrence`-from-the-end time, counting
+ *  backward and unbounded: occurrence 0 is the most recent true bar (ever, in
+ *  whatever was fetched), 1 is the second-most-recent, and so on. NOT the
+ *  same function as `valuewhen` above, which takes a BAR WINDOW rather than an
+ *  occurrence count — see `closedTable.json::_functions_valuewhen_occurrence`
+ *  for the full vendor citation and why `pine.js` routes only the NAMESPACED
+ *  `ta.valuewhen(...)` here, never a bare `valuewhen(...)` call.
+ *
+ *  ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+ *  bounded `valueWhen` above and for the same reason: a not-computable
+ *  condition bar MIGHT have been true, so counting occurrences from before it
+ *  would report a distance to the wrong bar. The growing occurrence list is
+ *  therefore cleared rather than merely paused.
+ *
+ *  🔴 THE NaN PREFIX MEETS X23 THE SAME WAY `valuewhen`'S DOES — a comparison
+ *  over it reads as a confident FALSE and its negation as a confident TRUE.
+ *  Not this entry's to fix; declared at
+ *  `closedTable.json::_functions_valuewhen_occurrence`. */
+function valueWhenOccurrence(cond, src, occurrence) {
+  const out = nan(cond.length)
+  let trueIdx = []
+  for (let i = 0; i < cond.length; i++) {
+    const c = cond[i]
+    if (Number.isNaN(c)) { trueIdx = []; continue }
+    if (c !== 0) trueIdx.push(i)
+    const pos = trueIdx.length - 1 - occurrence
+    if (pos >= 0) out[i] = src[trueIdx[pos]]
+  }
+  return out
+}
+
 /** Pine's `ta.dev`: the MEAN ABSOLUTE deviation about the window's simple average.
  *
  *  ⛔ NOT `windowStdev`, WHICH IS THE ROOT-MEAN-SQUARE ONE. They differ on every
@@ -1593,6 +1625,7 @@ export const FN = Object.freeze({
   lowestbars: windowFn('lowestbars'),
   barssince: (cond, n) => barsSince(cond, n),
   valuewhen: (cond, src, n) => valueWhen(cond, src, n),
+  valuewhenOccurrence: (cond, src, occurrence) => valueWhenOccurrence(cond, src, occurrence),
   // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
   // STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
   // both bars of a tie. See `closedTable.json::_functions_pivots`.
@@ -2412,13 +2445,29 @@ function assertArgRoles(node, spec) {
  *  ⏳ HANDED FORWARD: this makes `sma(close, period)` — a window from a declared
  *  INPUT — unexpressible in v1. If Task 8 wants it, it re-opens the decidability
  *  question and belongs with the repaint-claim owner and the manifest owner
- *  together, exactly like `_no_offset_reopened_by` says. */
+ *  together, exactly like `_no_offset_reopened_by` says.
+ *
+ *  ⭐⭐ THE FLOOR IS 1 FOR A *PERIOD*, AND 0 FOR AN *OCCURRENCE* (2026-09-20).
+ *  Every `int` this table declared before `valuewhenOccurrence` was a bar-count
+ *  window — a period of 0 bars searches nothing, so `< 1` was never a real
+ *  restriction, only ever a description of "period" arguments specifically.
+ *  `valuewhenOccurrence`'s third argument is an INDEX into the occurrences
+ *  found so far ("0 = the most recent"), and 0 is not merely legal for it, it
+ *  is TradingView's own documented default — `R-G` (`lookbackAgreement.test.js`)
+ *  caught `ta.valuewhen(swing_h, high[len_l], 0)` (`liquidity-pools`) refusing
+ *  here while `lint.js` answered a number, because this floor did not know the
+ *  difference. Gated on the ROLE NAME, not the function: `argRoles: 'occurrence'`
+ *  exists nowhere else in the manifest today, so this can only ever widen the
+ *  domain for a role that says so by name — never for a period. */
 function windowLiteral(node, index) {
   const arg = node.args[index]
+  const spec = TABLE.functions[node.name]
+  const role = spec && Array.isArray(spec.argRoles) ? spec.argRoles[index] : null
+  const min = role === 'occurrence' ? 0 : 1
   if (!arg || arg.type !== 'num' || typeof arg.value !== 'number'
-      || !Number.isInteger(arg.value) || arg.value < 1) {
+      || !Number.isInteger(arg.value) || arg.value < min) {
     refuse('resolve:window',
-      `— ${node.name} argument ${index} must be a whole number of at least 1, got `
+      `— ${node.name} argument ${index} must be a whole number of at least ${min}, got `
       + `${JSON.stringify(arg && arg.type === 'num' ? arg.value : arg)}`)
   }
   return arg.value

@@ -1701,38 +1701,22 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'bars. This engine screens daily bars, where there is no inside to be in. '
     + 'TO UNBLOCK: intraday bars in the scan lane, which `scan_evaluator` refuses '
     + 'by name and for reasons of its own — not a table entry here',
-  // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
-  // positions line up perfectly, which is what makes it dangerous. Pine's
-  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
-  // most recent time the condition was true, `2` is three occurrences ago, and it
-  // looks back as far as it needs to. This table's `valuewhen(condition, source,
-  // period)` takes a BAR WINDOW: the most recent bar within the last `period`
-  // bars where the condition held. A positional map builds cleanly and answers a
-  // different number on most bars — `ta.valuewhen(c, src, 2)` would become "within
-  // the last 2 bars" — which is the silent mistranslation this door exists
-  // against, and exactly the trade `barssince` below is refused for.
-  //
-  // ⚰️ IT REFUSED ALREADY, BUT FOR THE WRONG REASON. `valuewhen` declares two
-  // `series` slots and no measured Pine order, so it fell into the generic
-  // `pine:role-order` arm: *"this table states what kind each argument is and
-  // never what role it plays"*. That sentence is FALSE of this entry — the
-  // manifest declares `argRoles: [condition, source, period]` — and it sends a
-  // reader to declare a role order, which would produce exactly the wrong number.
-  // The refusal was right and its reason was not.
-  valuewhen: 'the value of a source when a condition was last true. This table declares '
-    + '`valuewhen(condition, source, period)` and it is NOT the same function: the '
-    + 'Pine call counts OCCURRENCES back, while `period` here is a BAR WINDOW. '
-    + 'The two line up positionally and answer different numbers, so mapping them would '
-    + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
-    + 'with the number of BARS you want searched — and note that an occurrence older '
-    + 'than the most recent one has no spelling here at all. '
-    + '⭐ THE VENDOR SAYS IT IN ITS OWN WORDS, which turns this ruling from ours '
-    + "into the field's: TradingView documents the third argument as the "
-    + 'occurrence of the condition — 0 is the most recent occurrence, 1 is the '
-    + 'second most recent and so forth. Its own example plots '
-    + '`ta.valuewhen(ta.cross(slow, fast), close, 1)` under a comment reading '
-    + '"value of close on the SECOND most recent cross". Ours would read that 1 '
-    + 'as a one-bar window.',
+  // ⚰️⚰️ `valuewhen` LEFT THIS DICT 2026-09-20 — NOT AN OVERSIGHT, A PAID
+  // PRICE. `ta.valuewhen(condition, source, occurrence)` used to refuse here
+  // PERMANENTLY because its third argument means a different thing than this
+  // table's own bare `valuewhen(condition, source, period)` (occurrences
+  // counted backward, unbounded, vs. a bounded bar window — a positional map
+  // would have answered a different number on most bars, exactly the silent
+  // mistranslation this dict exists to prevent; TradingView's own docs were
+  // quoted here as the source of the ruling). The closed-table dependency
+  // this refusal's own text once named — "the honest first dependency is the
+  // CLOSED TABLE declaring Pine's actual signatures", `interpret.js`'s
+  // `CARRIED`-family doc comment — is now paid: `valuewhenOccurrence` is a
+  // real, separate manifest entry with the true occurrence semantics, and
+  // `resolveTableCall`'s own comment (search `valuewhenOccurrence` in this
+  // file) explains the namespace-aware redirect that lets `ta.valuewhen`
+  // reach it while a member's bare `valuewhen(...)` keeps meaning the
+  // original bar-window function, untouched.
   // ⚰️⚰️ THIS SAID "this engine's ONLY accumulator re-seeds a fixed number of
   // bars back" AND THAT STOPPED BEING TRUE. `cumFrom(source, anchor, window)` is
   // declared in the manifest, implemented in BOTH lanes, carries eight
@@ -7526,10 +7510,39 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
-    const shape = PINE_CALL_SHAPES[normaliseName(base)] || null
+    const bare = normaliseName(base)
+    // ⛔⛔ `ta.valuewhen`'S NAMESPACED SPELLING MEANS A DIFFERENT FUNCTION THAN
+    // THIS TABLE'S OWN BARE `valuewhen`, AND THE REDIRECT BELOW MUST FIRE ONLY
+    // WHEN A NAMESPACE WAS ACTUALLY WRITTEN (2026-09-20). Pine's
+    // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES
+    // backward, unbounded — occurrence 0 is the most recent bar (ever) where
+    // `condition` held, 1 is the second-most-recent, and so on. This table's
+    // OWN `valuewhen(condition, source, period)` — reachable BARE, unchanged,
+    // for a member who wants a bounded bar-window search — takes a BAR
+    // WINDOW: the most recent bar within the last `period` bars where the
+    // condition held. Same spelling, same arity, two functions.
+    // ⛔ `PINE_CALL_SHAPES` CANNOT CARRY THIS RENAME. Every one of its members
+    // redirects a Pine name onto whatever its OWN bare spelling already
+    // resolves to (`crossover`→`crossOver`, `percentile_linear_interpolation`
+    // →`percentileLinearInterpolation`, …), so applying a shape to a bare call
+    // is a no-op there — the shape and the ordinary resolution land on the
+    // identical table key either way. Routing `valuewhen` through that same
+    // mechanism would instead HIJACK a member's own bare `valuewhen(...)`
+    // call onto the occurrence-indexed function, silently changing what their
+    // script means — exactly the class of mistranslation this table's own
+    // refusals exist to prevent.
+    // ⭐ `pineName !== base` IS TRUE PRECISELY WHEN A NAMESPACE WAS WRITTEN
+    // (`pineName` is the spelling the member actually wrote; `base` is ALWAYS
+    // namespace-stripped — see this method's own doc comment above), so the
+    // special case below fires only for `ta.valuewhen(...)`, never for a
+    // bare `valuewhen(...)` call, which keeps meaning this table's own
+    // bar-window entry untouched.
+    const valuewhenOccurrence = bare === 'valuewhen' && pineName !== base
+    const shape = valuewhenOccurrence
+      ? { table: 'valuewhenOccurrence', pineArity: 3, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }] }
+      : PINE_CALL_SHAPES[normaliseName(base)] || null
     const candidate = shape ? shape.table : base
     const key = this.index.get(normaliseName(candidate))
-    const bare = normaliseName(base)
     // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
     // table itself has no such name — so a future `roc` in `closedTable` wins.
     if (!key && own(BUILTIN_CALL_TREE, bare)) {
