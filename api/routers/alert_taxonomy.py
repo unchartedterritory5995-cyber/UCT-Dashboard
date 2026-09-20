@@ -74,3 +74,35 @@ def run_sweep_now(_admin: dict = Depends(require_admin)):
     20-minute scheduler job; this exists so a dry-run/live-validation pass
     does not have to wait for it."""
     return _doc_arrival.run_document_arrival_sweep()
+
+
+@router.get("/api/admin/alert-taxonomy/dark-report/{alert_type}")
+def alert_taxonomy_dark_report_one(alert_type: str, _admin: dict = Depends(require_admin)):
+    """The real agreed/new_only/legacy_only/not_comparable counts for every
+    predicate of ONE S7 alert type -- price-level, event-proximity,
+    position-risk, scan-membership-change, catalyst-match, regime-change, or
+    indicator-condition.
+
+    ADMIN, not no-auth: `predicate_id` values can carry member-configured
+    specifics (a ticker, a level), so this is not the pure-counter shape the
+    codebase's genuinely-no-auth admin routes (`bars-stream-status`,
+    `reconciliation-status`) hold themselves to (see `disk_status`'s own
+    docstring on that exact line).
+
+    This is the first HTTP-reachable way to read this data at all -- previously
+    the only path was a hand-written SQL query over `railway ssh`, one type
+    (price-level) at a time, via `tools/s7_price_level_report.py`.
+    """
+    from api.services.alert_taxonomy import dark_report as _dark_report
+    try:
+        return _dark_report.dark_report(alert_type)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/api/admin/alert-taxonomy/dark-report")
+def alert_taxonomy_dark_report_all(_admin: dict = Depends(require_admin)):
+    """Every S7 alert type's dark-comparison report in one call. See
+    `alert_taxonomy_dark_report_one` for what each type's payload holds."""
+    from api.services.alert_taxonomy import dark_report as _dark_report
+    return _dark_report.dark_report_all()
