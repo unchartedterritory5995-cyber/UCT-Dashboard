@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 2247,
+  "passed": 2200,
+  "failed": 23,
+  "errored": 0,
+  "skipped": 24,
+  "wall_s": 219.78,
+  "failed_files": [
+    "tests/test_entitlements_manifest.py",
+    "tests/test_feature_flag_ledger.py",
+    "tests/test_flow_aggregate.py",
+    "tests/test_flow_classification.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_flow_worker_watch_coverage.py",
+    "tests/test_fundamentals_snapshot_store.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gitattributes_eol.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "23 failed, 2200 passed, 24 skipped, 15031 warnings in 219.78s (0:03:39)",
+  "ok": true
+}
