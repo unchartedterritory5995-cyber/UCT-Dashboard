@@ -1582,6 +1582,51 @@
       }
     },
     {
+      "id": "pine_floor_rounds_toward_negative_infinity",
+      "source": "floor((close - open) * 100 / 3)",
+      "why": "⛔ FLOOR IS NOT ROUND AND NOT TRUNCATION. `floor(-2.33)` is -3 -- it rounds toward NEGATIVE INFINITY for every input, unlike `round`'s away-from-zero convention beside it in this corpus and unlike a truncating idiv toward zero. Scaling a price difference the same way `pine_round_a_half_away_from_zero` does puts real negative fractional values in the input on down bars, and Python's `math.floor` raises on NaN/an infinite input where JS's `Math.floor` would not -- see `_guarded_floor`.",
+      "ast": {
+        "type": "call",
+        "name": "floor",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "series",
+                        "name": "open"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_sign_of_a_change",
       "source": "sign(change(close))",
       "why": "-1, 0 or 1, and the zero is the point: `Math.sign(-0)` is -0 in JS and `copysign(1, -0.0)` is -1.0 in Python, so both lanes write the three answers out. Composed over `change` so the first bar is a genuine hole rather than a fabricated zero",

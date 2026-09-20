@@ -2087,10 +2087,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:collection"
       ]
     },
     {

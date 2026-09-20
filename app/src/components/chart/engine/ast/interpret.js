@@ -1305,6 +1305,11 @@ const POINTWISE = Object.freeze({
   // ROUNDS IT TO EVEN. Pine rounds a half AWAY FROM ZERO and so does this, in
   // both lanes, spelled the same way. See `_functions_rounding`.
   round: (x) => (Number.isNaN(x) ? NaN : POINTWISE.sign(x) * Math.floor(Math.abs(x) + 0.5)),
+  // ⛔ `Math.floor` on an infinite input answers the infinity UNCHANGED; Python's
+  // `math.floor` RAISES `OverflowError` there (and `ValueError` on NaN), because
+  // both must become an `int`. `Number.isFinite` catches both NaN and ±Infinity
+  // in one check, so both lanes say NaN for either.
+  floor: (x) => (Number.isFinite(x) ? Math.floor(x) : NaN),
   // ⭐⭐ THE TWO THAT DO NOT PROPAGATE, AND THEY ARE THE ONLY TWO. `na` INSPECTS
   // not-computable and `nz` REPLACES it — see `_functions_na` for why a table
   // built entirely around NaN meaning "we do not know" declares them anyway.
@@ -1647,6 +1652,11 @@ export const FN = Object.freeze({
   round: (series) => {
     const out = nan(series.length)
     for (let i = 0; i < series.length; i++) out[i] = POINTWISE.round(series[i])
+    return out
+  },
+  floor: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.floor(series[i])
     return out
   },
   na: (series) => {

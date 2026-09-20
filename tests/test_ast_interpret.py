@@ -277,7 +277,16 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # broadcast to every bar -- `islast`'s ruling applied to a number instead
     # of a flag. See closedTable.json's `lastbarindex` clock entry and
     # `indicator_compute.py::CLOCK_EXTENT`.
-    assert len(ast_table.bar_names()) == 111, len(ast_table.bar_names())
+    # ⭐ 111 -> 112 (2026-09-20): `floor`, Pine's `math.floor` -- the SAME shape
+    # as `round`'s own bump into this half: a new pointwise scalar function
+    # name (`lookback: 0`, one `series` argument), no new node type, argument
+    # kind or lookback form. `math.floor` has no algebraic domain restriction
+    # (it is defined for every real input); the only cross-lane hazard is that
+    # Python's `math.floor` must return an `int` and so RAISES on NaN and on an
+    # infinite input, where JS's `Math.floor` does not -- `_guarded_floor`
+    # (`api/services/ast_interpret.py`) closes that the same way `_guarded_round`
+    # already does. The scalar half is untouched (see the sibling assertion).
+    assert len(ast_table.bar_names()) == 112, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -307,7 +316,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # and the scalar half did not, which is what the two assertions above are for.
     # 247 -> 248 (2026-09-19): `lastbarindex`. Same shape again -- the bar half
     # moved, the scalar half is untouched at 137.
-    assert len(declared) == 248, f"the table declares {len(declared)} names, not 248"
+    # 248 -> 249 (2026-09-20): `floor`. The bar half moved 111 -> 112, the
+    # scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 249, f"the table declares {len(declared)} names, not 249"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

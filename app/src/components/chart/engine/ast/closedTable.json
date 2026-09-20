@@ -551,6 +551,17 @@
       "yields": "bool",
       "sentence": "{0} falling for {1} bars"
     },
+    "floor": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "{0} rounded down to a whole number"
+    },
     "highest": {
       "args": [
         "series",
