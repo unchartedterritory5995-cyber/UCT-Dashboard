@@ -57,4 +57,18 @@ describe('UniverseBar', () => {
       op: 'in', value: ['flagged', 'wl:7'], label: 'Combo · 2 lists',
     })
   })
+
+  it('shows the live count as "names" when unfiltered', () => {
+    render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}}
+      total={3745} isLoading={false} hasFilters={false} />)
+    expect(screen.getByText('3,745')).toBeInTheDocument()
+    expect(screen.getByText(/names/)).toBeInTheDocument()
+  })
+
+  it('labels the count "matches" once filters are applied', () => {
+    render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}}
+      total={120} isLoading={false} hasFilters />)
+    expect(screen.getByText('120')).toBeInTheDocument()
+    expect(screen.getByText(/matches/)).toBeInTheDocument()
+  })
 })

@@ -241,7 +241,8 @@ export default function ScannerShell({ embedded = false }) {
         {/* Universe = the base pool the scan runs against (UCT Universe / a
             watchlist / a union combo). Emits the existing `list` filter, so it
             needs no new endpoint; a signed-out member sees only UCT Universe. */}
-        <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter} />
+        <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter}
+          total={total} isLoading={isLoading} hasFilters={Object.keys(s.filters).length > 0} />
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
