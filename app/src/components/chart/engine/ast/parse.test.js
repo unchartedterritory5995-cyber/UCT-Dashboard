@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 20 clock, 15 operators, 73 functions and 137 scalars — 250 names, one grammar', () => {
+  it('declares 5 series, 26 clock, 15 operators, 73 functions and 137 scalars — 256 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -468,7 +468,14 @@ describe('the manifest', () => {
     // than a flag. It rides the EXISTING `series` node and adds no argument
     // `interpret` did not already have (it costs one more `computeClock`
     // column, same seam as `barindex`), so `tableVersion` is unmoved at 2.
-    expect(Object.keys(TABLE.clock)).toHaveLength(20)
+    // ⭐⭐ 20 -> 26 (2026-09-20): `lastbartime` + its five calendar fields
+    // (`lastbaryear`/`lastbarmonth`/`lastbardayofmonth`/`lastbarhour`/
+    // `lastbarminute`) -- `lastbarindex`'s own ruling applied to a calendar
+    // instead of a bar position, and this engine's answer for Pine's
+    // `timenow` (a live wall clock a static translator has no instant for).
+    // All six ride the EXISTING `series` node and add no argument `interpret`
+    // did not already have, so `tableVersion` is unmoved at 2.
+    expect(Object.keys(TABLE.clock)).toHaveLength(26)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -644,11 +651,13 @@ describe('the manifest', () => {
     // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19) -- see the clock-count note above.
     // ⭐ 111 -> 112 IS `floor` (2026-09-20) -- see the functions-count note above.
     // ⭐ 112 -> 113 IS `percentileLinearInterpolation` (2026-09-20) -- see the
-    // functions-count note above. Scalar half untouched at 137, which is what
-    // makes the total 250, not 251.
-    expect(bar.size).toBe(113)
+    // functions-count note above.
+    // ⭐⭐ 113 -> 119 IS `lastbartime` + its five calendar fields (2026-09-20)
+    // -- see the clock-count note above. Scalar half untouched at 137, which
+    // is what makes the total 256, not 257.
+    expect(bar.size).toBe(119)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(250)
+    expect(declared.size).toBe(256)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

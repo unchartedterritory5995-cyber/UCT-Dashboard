@@ -135,6 +135,36 @@
       "yields": "num",
       "sentence": "the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar"
     },
+    "lastbartime": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the newest bar's own timestamp in seconds, the same value on every bar -- this engine's answer for Pine's timenow, anchored to the fetch rather than to genuine live wall-clock time"
+    },
+    "lastbaryear": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the calendar year of the newest bar's own timestamp, in New York time, the same value on every bar"
+    },
+    "lastbarmonth": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the calendar month of the newest bar's own timestamp, 1 in January through 12 in December, in New York time, the same value on every bar"
+    },
+    "lastbardayofmonth": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the day of the month of the newest bar's own timestamp, 1 to 31, in New York time, the same value on every bar"
+    },
+    "lastbarhour": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the hour of the newest bar's own timestamp on a 24-hour clock, 0 to 23, in New York time, the same value on every bar"
+    },
+    "lastbarminute": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the minute of the newest bar's own timestamp, 0 to 59, in New York time, the same value on every bar"
+    },
     "isrealtime": {
       "lookback": 0,
       "yields": "bool",

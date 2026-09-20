@@ -1396,6 +1396,27 @@ function pivotAtConfirmation(name, args) {
     : { type: 'offset', value: Number(right.value), args: [call] }
 }
 
+/** The sole argument of `year(timenow)` and its four siblings, resolved to an
+ *  AST node: `true` only when it is the bare identifier `timenow` — which
+ *  `PINE_TO_CLOCK_SPELLING` has already rewritten to `{type:'series',
+ *  name:'lastbartime'}` by the time this door sees it, since argument
+ *  resolution runs before `BUILTIN_CALL_TREE` dispatch. ⛔ NOT `time`: bare
+ *  `time` is permanently refused by `PINE_CLOCK_MISMATCH` (Pine's is
+ *  milliseconds, ours is seconds) before this door is ever reached, so
+ *  `year(time)` can never arrive here at all — checking for it would be
+ *  dead code, not a second identity. */
+const isLastBarTime = (node) => !!node && node.type === 'series' && node.name === 'lastbartime'
+
+/** The five clock fields Pine spells both as a bare global and as a
+ *  one-argument function of a timestamp, for the ONE timestamp this door
+ *  resolves — `timenow` — see `isLastBarTime` and the `BUILTIN_CALL_TREE`
+ *  entries below. Consulted a second time in `resolveTableCall` to name the
+ *  declined argument shapes specifically (`time[1]`, `time`, a computed
+ *  timestamp), rather than falling through to the generic "maps to nothing"
+ *  refusal. `dayofweek` is deliberately absent: measured against the real
+ *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`. */
+const CLOCK_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'hour', 'minute'])
+
 const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
@@ -1596,6 +1617,25 @@ const BUILTIN_CALL_TREE = Object.freeze({
     cCall('crossOver', [a[0], a[1]]),
     cCall('crossUnder', [a[0], a[1]]),
   ]),
+  // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
+  // five calendar values two ways: a bare global (`year`) reads THIS bar's
+  // own value, and a one-argument function form (`year(timestamp)`) reads
+  // the value AT a named instant. When that instant is `timenow` — already
+  // rewritten to `lastbartime` by the time this door sees it — the call is
+  // an IDENTITY onto the `lastbarYYY` clock field this table already
+  // declares (`indicators.js::CLOCK_LASTBAR_TIME`), exactly as `tr(false)`
+  // above is an identity onto `BUILTIN_SERIES_TREE.tr()`.
+  // ⛔ ANY OTHER ARGUMENT DECLINES TO `null` RATHER THAN BEING GUESSED AT —
+  // `resolveTableCall`'s own `CLOCK_IDENTITY_FIELDS` block names the
+  // declined shapes specifically, so this door never has to invent an
+  // answer for one. Measured against the real committed corpus, 2026-09-20:
+  // six scripts call one of these five as a function, and `timenow` is the
+  // argument in all six.
+  year: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbaryear') : null),
+  month: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarmonth') : null),
+  dayofmonth: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbardayofmonth') : null),
+  hour: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarhour') : null),
+  minute: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarminute') : null),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -7586,6 +7626,27 @@ export class Resolver {
             + 'read, so it must be a plain number too', locate(tok))
         }
       }
+      // ⛔ THE FIVE `timenow` CLOCK-FIELD IDENTITY FORMS, NAMED RATHER THAN
+      // LEFT TO THE GENERIC REFUSAL. That generic message lists
+      // `TABLE.functions` and `year` is not in it — it is a `clock` entry —
+      // so a member calling `year(time)` or `year(time[1])` would read "this
+      // table declares abs, accum, adx, …" and never learn that `timenow`
+      // now does, or that bare `time` is refused for an unrelated, permanent
+      // reason. Named here instead, matching `tr`'s own bespoke message for
+      // the identical reason: the shape is understood and declined, not
+      // merely unrecognised.
+      if (CLOCK_IDENTITY_FIELDS.has(bare) && !(built.length === 1 && isLastBarTime(built[0]))) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
+          + `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
+          + `clock, the newest fetched bar's own value -- translates. `
+          + `The bare \`${bare}\` (this bar's own value), a different bar `
+          + `(\`${bare}(time[1])\`), and a computed timestamp are all real `
+          + 'Pine and all currently refused as a function argument. '
+          + `TO UNBLOCK: read the bare \`${bare}\` for this bar's own value, `
+          + `or \`${bare}(timenow)\` for the newest fetched bar's.`,
+          locate(tok))
+      }
       return BUILTIN_CALL_TREE[bare](built)
     }
     // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
@@ -8412,6 +8473,21 @@ function positionaliseSecurityArgs(args) {
 const PINE_TO_CLOCK_SPELLING = Object.freeze({
   bar_index: 'barindex',
   last_bar_index: 'lastbarindex',
+  // ⭐⭐ `timenow` (2026-09-20) IS A DIFFERENT KIND OF ENTRY FROM THE TWO ABOVE,
+  // AND IT IS WORTH SAYING SO. `bar_index`/`last_bar_index` are pure SPELLING:
+  // the Pine name and ours mean the identical thing under two conventions.
+  // `timenow` is Pine's LIVE wall clock, which a static translator over an
+  // already-fetched bar array has no instant for — so `lastbartime` is not a
+  // renamed IDENTITY, it is this engine's CHOSEN SUBSTITUTE: the newest
+  // fetched bar's own timestamp, exactly the `lastbarindex` precedent
+  // (`indicators.js::CLOCK_LASTBAR_TIME`) applied to a calendar instead of a
+  // bar position. The divergence from genuine "now" is real and disclosed
+  // there, not silently absorbed here — this map only decides WHICH column a
+  // member's `timenow` reaches, not whether reaching it is exact.
+  // ⚰️ `PINE_CLOCK_MISMATCH`'s own comment used to list `timenow` among the
+  // names "our clock does not declare... so this map could never be
+  // consulted" for it. It can be now.
+  timenow: 'lastbartime',
 })
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
@@ -8435,13 +8511,21 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
  *  (`lesson_rail_the_sentence_not_just_the_guard`).
  *
  *  ⚠️ ONE ENTRY, AND THAT IS THE WHOLE LIST ON PURPOSE. The first draft also
- *  carried `timenow`, `time_close`, `time_tradingday` and `last_bar_time` — none
- *  of which our clock declares, so `engineClockKeyFor` returns null for them and
- *  this map could never be consulted. Four sentences that read as protection and
- *  could not fire. They already get the correct generic refusal ("names something
- *  the engine grammar does not hold"), which is true: we do not hold them at all.
- *  `time` is the only Pine clock name we hold under the same spelling and a
- *  different meaning, so it is the only one that needs saying. */
+ *  carried `timenow`, `time_close`, `time_tradingday` and `last_bar_time` — at
+ *  the time none of which our clock declared, so `engineClockKeyFor` returned
+ *  null for them and this map could never be consulted. Three of the four
+ *  still get the correct generic refusal ("names something the engine grammar
+ *  does not hold"), which is still true of them: we do not hold `time_close`,
+ *  `time_tradingday` or `last_bar_time` at all.
+ *  ⚰️ `timenow` IS NO LONGER ONE OF THE THREE (2026-09-20) — it now BINDS,
+ *  via `PINE_TO_CLOCK_SPELLING.timenow`, to `lastbartime`. That is not a
+ *  reason to list it here: this map is for a name we hold under the SAME
+ *  spelling with a DIFFERENT meaning, and `timenow` is neither — it reaches
+ *  our clock under a DIFFERENT spelling, with its meaning-difference
+ *  disclosed at the binding (`indicators.js::CLOCK_LASTBAR_TIME`), not at a
+ *  refusal.
+ *  `time` remains the only Pine clock name we hold under the same spelling
+ *  and a different meaning, so it is the only one that needs saying here. */
 const PINE_CLOCK_MISMATCH = Object.freeze({
   // ⚰️ I APPENDED A "TO UNBLOCK: divide the millisecond literal by 1000" HERE AND
   // TOOK IT BACK OUT. `pine.test.js` asserts this message does NOT say TO UNBLOCK

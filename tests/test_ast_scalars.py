@@ -782,7 +782,15 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # arguments (`series, int, int`), `lookback: "arg1"`. New bar-corpus case:
     # `pine_percentile_linear_interpolation_between_two_ranks`. The scalar half
     # is untouched at 137 -- it names no per-symbol column.
-    assert len(parts["bar"]) == 113 and len(parts["scalar"]) == 137
+    # ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields --
+    # `lastbarindex`'s own ruling applied to a calendar, and this engine's
+    # answer for Pine's `timenow`. New bar-corpus cases, split in two because
+    # one compound formula naming all twelve series (six new, six original)
+    # exceeds `budget.test.js`'s 8-reference cap:
+    # `pine_timenow_is_today_year_month_dayofmonth` (year/month/dayofmonth)
+    # and `pine_timenow_hour_and_minute_too` (time/hour/minute). The scalar
+    # half is untouched at 137 -- none of the six names a per-symbol column.
+    assert len(parts["bar"]) == 119 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
