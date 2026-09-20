@@ -45,3 +45,43 @@ def test_no_columns_keeps_full_rows_and_view_columns(monkeypatch, tmp_path):
     out = query.run_scan({"view": "overview"})
     assert "rsi14" in out["rows"][0]          # SELECT * unchanged
     assert out["view_columns"]                 # view echo unchanged
+
+
+def test_base_render_scan_attaches_base_bias_without_leaking_base_matches(monkeypatch, tmp_path):
+    # Regression: the structure tag's colour needs base_bias, derived from
+    # base_matches — but the client's explicit `columns` omits base_matches, so
+    # the SELECT must fetch it for the derivation and then NOT leak it into the
+    # returned rows (the requested-columns projection stays exact).
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, query
+    snapshot_db.init_db()
+    snapshot_db.upsert_rows([
+        {"ticker": "AAA", "price": 10.0, "uct_composite": 90,
+         "base_render": "Advancing Structure", "base_shape": "advancing-structure",
+         "base_matches": ",advancing-structure,", "snapshot_date": "2026-08-21"},
+    ])
+    out = query.run_scan({"columns": ["base_render"],
+                          "sort": {"key": "uct_composite", "dir": "desc"}})
+    row = out["rows"][0]
+    assert row["base_bias"] == "bullish"           # derived, colours the tag
+    assert "base_matches" not in row               # internal column not leaked
+    assert "base_matches" not in out["view_columns"]
+    assert row["base_render"] == "Advancing Structure"
+
+
+def test_display_companion_is_fetched_but_not_a_duplicate_column(monkeypatch, tmp_path):
+    # candle_type's formatter renders its rich label from row.candle_label. The
+    # view lists candle_type WITHOUT candle_label, so the query must FETCH the
+    # companion (kept in the row for the frontend) while NOT adding it as a
+    # displayed column — that is what removes the duplicate "Candle"/"Candle
+    # Label" columns.
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, query
+    snapshot_db.init_db()
+    snapshot_db.upsert_rows([
+        {"ticker": "AAA", "candle_type": "tweezer-top",
+         "candle_label": "Tweezer Top (Hanging Man)", "snapshot_date": "2026-08-21"},
+    ])
+    out = query.run_scan({"columns": ["candle_type"]})
+    assert "candle_label" not in out["view_columns"]          # not shown twice
+    assert out["rows"][0]["candle_label"] == "Tweezer Top (Hanging Man)"  # fetched
