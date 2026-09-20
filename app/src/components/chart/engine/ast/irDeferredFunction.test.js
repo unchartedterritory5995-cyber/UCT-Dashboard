@@ -27,26 +27,48 @@ const V2 = fs.readFileSync(
 const HEAD = '//@version=6\nindicator("t", overlay=true)\n'
 
 describe('⭐⭐ a definition this lane cannot compile defers to its call site', () => {
-  it('⭐ an UNCALLED text helper no longer refuses the program', () => {
-    const src = `${HEAD}f_pos(_p) =>
-    _p == 'Top Left' ? 1 : 2
+  it('⭐ an UNCALLABLE helper no longer refuses the program', () => {
+    // ⚰️ THIS CASE USED TO USE A TEXT HELPER — `f_pos(_p) => _p == 'Top Left' ?
+    // 1 : 2` — and the text value model (2026-09-19) made that helper COMPILE,
+    // so it stopped being an example of "a definition this lane cannot
+    // compile". The MECHANISM under test is deferral, not text: a definition
+    // that cannot compile is skipped, NAMED with its line and guard, and
+    // re-raised at the first call site. A tuple return is a construct this lane
+    // still cannot compile, so it carries the case now.
+    const src = `${HEAD}f_pair(_x) =>
+    [_x, _x * 2]
 plot(ta.sma(close, 14))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
     expect(r.ok, `refused: ${JSON.stringify(r.refusal)}`).toBe(true)
     // ⛔ AND IT IS NAMED. A helper the lane skipped is in the diagnostics with
     // its line and the guard its definition hit — never simply absent.
-    expect(r.diagnostics.skippedFunctions).toEqual(['f_pos@3 pine:text-value'])
+    expect(r.diagnostics.skippedFunctions).toEqual(['f_pair@3 pine:collection'])
   })
 
   it('⛔ …and CALLING it still refuses — at the CALL, not the definition', () => {
+    const src = `${HEAD}f_pair(_x) =>
+    [_x, _x * 2]
+plot(f_pair(close))
+`
+    const r = buildRuntimeIr(src, runtimeClockOpts(false))
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('pine:collection')
+    // ⛔ AT THE CALL. The definition is on line 3; the refusal names line 5.
+    expect(r.refusal.line).toBe(5)
+  })
+
+  it('⭐⭐ a TEXT helper now COMPILES — the case above no longer covers text', () => {
+    // ⭐ Kept as the record of what changed, so the edit above is not read as a
+    // rail being weakened to fit. This is the exact script the two cases above
+    // used to use, and the lane now runs it.
     const src = `${HEAD}f_pos(_p) =>
     _p == 'Top Left' ? 1 : 2
 plot(f_pos('Top Left'))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('pine:text-value')
+    expect(r.ok, `refused: ${JSON.stringify(r.refusal)}`).toBe(true)
+    expect(r.diagnostics.skippedFunctions || []).toEqual([])
   })
 
   it('⛔⛔ A DEFINITION THAT DIES ON ITS PARAMETERS STILL REFUSES BY ITS OWN NAME', () => {

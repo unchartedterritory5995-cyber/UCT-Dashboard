@@ -40,6 +40,14 @@ export const STMT = Object.freeze({
 /** Expression kinds. */
 export const EXPR = Object.freeze({
   NUM: 'num',
+  // ⭐⭐ A STRING IS ITS OWN KIND, NOT A `NUM` WITH A DIFFERENT PAYLOAD. Both
+  // lower to `CONST` over the same pool, so the distinction buys nothing in the
+  // BACK end — it is the FRONT end that needs it: the route decision asks "can
+  // the columnar lane hold this?", and the columnar lane refuses text at
+  // `pine:text-value`. A string that arrived wearing `NUM` would be routed into
+  // that lane and refused, which is the wall this kind exists to walk around.
+  STR: 'str',
+  CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
   SERIES: 'series',       // a price series, by name
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
@@ -176,6 +184,20 @@ export function validateIr(p) {
         if (typeof e.value !== 'number' || !Number.isFinite(e.value)) {
           throw new IrError(`${where}: a num carries a finite number, got ${JSON.stringify(e.value)}`)
         }
+        return
+      case EXPR.STR:
+        // ⛔ CHECKED HERE FOR THE SAME REASON `num` IS. A non-string wearing
+        // this kind would reach the const pool, pass `program.js`'s number-or-
+        // string check as whatever it is, and only be noticed as a wrong value
+        // on some bar — which is the silent-coercion class the value model was
+        // changed to end.
+        if (typeof e.value !== 'string') {
+          throw new IrError(`${where}: a str carries a string, got ${JSON.stringify(e.value)}`)
+        }
+        return
+      case EXPR.CONCAT:
+        walkExpr(e.left, `${where}.left`)
+        walkExpr(e.right, `${where}.right`)
         return
       case EXPR.SERIES:
         if (typeof e.name !== 'string') throw new IrError(`${where}: a series carries a name`)
@@ -447,6 +469,13 @@ export function validateIr(p) {
 
 // ── small constructors, so a front end never hand-writes a literal ───────────
 export const num = (value) => ({ kind: EXPR.NUM, value })
+export const str = (value) => ({ kind: EXPR.STR, value })
+/** ⛔ CONCATENATION IS NOT `binary('+')`, and the difference is a correctness
+ *  one rather than a tidiness one. `BINARY['+']` is `(a, b) => a + b`, which on
+ *  a string and a number silently produces a string — Pine calls that a TYPE
+ *  ERROR. Routing text through its own node lets the VM refuse a mixed pair by
+ *  name instead of inventing an answer TradingView would never give. */
+export const concat = (left, right) => ({ kind: EXPR.CONCAT, left, right })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })

@@ -305,6 +305,23 @@ export function execute(program, ctx, limits) {
         case OP.MUL: { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
         case OP.DIV: { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
         case OP.NEG: stack[sp - 1] = NEG(stack[sp - 1]); break
+        case OP.CONCAT: {
+          const y = stack[--sp]
+          const x = stack[sp - 1]
+          // ⛔ BOTH SIDES MUST ALREADY BE STRINGS. Pine's `+` across a string
+          // and a number is a TYPE ERROR, not an implicit conversion, so
+          // coercing here would accept a script TradingView rejects and then
+          // disagree with it about the result. The front end routes a text `+`
+          // here on a STATIC read of the operands; this is what catches the case
+          // where that read was wrong.
+          if (typeof x !== 'string' || typeof y !== 'string') {
+            throw new VmError(
+              `pc ${pc - 1}: concat needs two strings, got ${typeof x} and ${typeof y} — `
+              + "Pine's `+` across a string and a number is a type error, not a conversion")
+          }
+          stack[sp - 1] = x + y
+          break
+        }
         case OP.LT: { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
         case OP.GT: { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
         case OP.LE: { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }

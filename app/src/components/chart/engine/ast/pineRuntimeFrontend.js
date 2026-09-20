@@ -38,7 +38,7 @@ import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import { bindConstsFor, foldBound } from './bind.js'
 import {
-  makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
+  makeIrProgram, SLOT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall,
 } from '../runtime/ir.js'
@@ -589,6 +589,86 @@ export function buildRuntimeIr(source, opts = {}) {
   }
   const readsSlot = needsRuntime
 
+  /** Does this subtree carry TEXT?
+   *
+   *  ⭐⭐ THE SECOND HALF OF THE ROUTE DECISION, AND IT EXISTS BECAUSE PURITY IS
+   *  NOT THE ONLY THING THAT DECIDES A LANE. `readsSlot` asks *"must the runtime
+   *  evaluate this?"*; a pure subtree goes to the columnar lane, which is right
+   *  for every number and wrong for every string — that lane refuses text at
+   *  `pine:text-value`, so a bare `"ab"` was routed straight into a refusal.
+   *  Measured 2026-09-19: `string s = "ab"` with `s` assigned under an `if`
+   *  refused with the text sentence, and `s` never reached a slot at all.
+   *
+   *  ⛔ IT IS A STATIC READ OF THE SHAPE, NOT A TYPE SYSTEM. It knows a literal,
+   *  a slot the declaration marked text, a `+` with a text side, a ternary with
+   *  a text arm, and an immutable binding whose bound expression is text. A
+   *  shape it cannot read answers `false` and keeps today's behaviour, so this
+   *  can only ever move text OUT of the columnar lane — never a number into it.
+   *  Where the read is wrong, `OP.CONCAT`'s own kind check refuses by name
+   *  rather than inventing an answer. */
+  const holdsText = (node, scope) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'string') return true
+    if (node.type === 'name') {
+      const slot = scope.lookup(node.name)
+      if (slot !== null) return !!(slots[slot] && slots[slot].text)
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && holdsText(bound.node, scope))
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      return holdsText(node.left, scope) || holdsText(node.right, scope)
+    }
+    if (node.type === 'ternary') {
+      return holdsText(node.yes, scope) || holdsText(node.no, scope)
+    }
+    return false
+  }
+
+  /** A comparison whose OPERANDS are text.
+   *
+   *  ⛔ SEPARATE FROM `holdsText` BECAUSE THE VALUE IS A BOOLEAN, NOT TEXT.
+   *  Folding this into `holdsText` would be the shorter edit and would then mark
+   *  `bool b = (s == "a")`'s slot as text, which is a lie the `+` router would
+   *  later act on. What this decides is only the LANE: `"a" == "b"` reads no
+   *  slot, so purity alone sends it to the columnar resolver, which refuses text
+   *  — measured on `(close > open ? "a" : "b") == "a"`, an ordinary dashboard
+   *  shape that refused while the same comparison against a mutable variable ran.
+   *
+   *  ⚠️ ONLY `==` AND `!=`. Pine has no ordering over strings, and `"a" > "b"`
+   *  must keep refusing rather than acquire a JS answer nobody asked for. */
+  const textComparison = (node, scope) => (
+    !!node && node.type === 'binary' && (node.op === '==' || node.op === '!=')
+    && (holdsText(node.left, scope) || holdsText(node.right, scope)))
+
+  /** Does this subtree contain text ANYWHERE the columnar lane would choke on?
+   *
+   *  ⭐⭐ THE ROUTE DECISION IS MADE AT THE TOP OF A SUBTREE, so asking only
+   *  about the top node is not enough: `plot((close > open ? "up" : "dn") ==
+   *  "up" ? 1 : 0)` is a ternary whose arms are 1 and 0, and the text is two
+   *  levels down. Measured — it refused at `pine:text-value` while the same
+   *  comparison against a mutable variable ran.
+   *
+   *  ⛔⛔ IT DOES NOT DESCEND INTO A CALL, AND THAT LIMIT IS LOAD-BEARING —
+   *  measured, after a first comment here named the wrong reason. It is NOT
+   *  about `str.length("ab")`: that resolves in the columnar lane without
+   *  raising, so this predicate is never consulted for it. The case that needs
+   *  the limit is `ta.sma("ab", 5)`, where the columnar lane DOES raise
+   *  `pine:text-value` — and if this answered true, the subtree would fall
+   *  through to a runtime that has no better answer for it and would report a
+   *  worse-named refusal. Text inside a call is the columnar lane's business
+   *  until the plan that gives this lane `str.*` says otherwise. */
+  const touchesText = (node, scope) => {
+    if (!node || typeof node !== 'object') return false
+    if (holdsText(node, scope)) return true
+    if (node.type === 'binary') return touchesText(node.left, scope) || touchesText(node.right, scope)
+    if (node.type === 'unary') return touchesText(node.arg, scope)
+    if (node.type === 'ternary') {
+      return touchesText(node.test, scope)
+        || touchesText(node.yes, scope) || touchesText(node.no, scope)
+    }
+    return false
+  }
+
   /** ⭐⭐ THE THREE TIERS OF PINE HISTORY OFFSET, MEASURED RATHER THAN ASSUMED.
    *
    *  The 2F-2 census read every `mutable[…]` site in all five corpora and the
@@ -848,13 +928,50 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⭐ THE ROUTE DECISION, ASKED ONCE PER SUBTREE. A pure subtree becomes one
     // column no matter how large it is, which is what keeps a stateful program
     // paying runtime cost only for the parts that are actually stateful.
-    if (!readsSlot(node, scope)) return column(columnOf(node, locate(node.tok)))
+    // ⛔ TEXT IS EXCLUDED FROM THE COLUMN ROUTE. The columnar lane cannot hold a
+    // string — it refuses one at `pine:text-value` — so a pure text subtree is
+    // lowered here as a runtime const instead. See `holdsText`.
+    if (!readsSlot(node, scope)) {
+      // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
+      // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
+      // the obvious routing rule and is wrong in the expensive direction:
+      // measured on the member fixture, `rangeType == 'ATR'` — an input string
+      // against a literal — is FOLDED to a constant by that lane and never
+      // reaches a series, so a predicate that steals every text subtree took
+      // eleven statements of `f_getDailyData` AWAY from a script that compiled
+      // them. Asking the lane, and taking over only where it says `text`, can
+      // by construction never remove a script that works today.
+      //
+      // ⛔ `columnOf` pushes its column as its LAST act, so a throw leaves no
+      // half-registered column behind and this catch cannot corrupt the pool.
+      try {
+        return column(columnOf(node, locate(node.tok)))
+      } catch (e) {
+        // ⛔ ONLY a text refusal over a subtree that really does carry text
+        // falls through. Every other refusal is that lane's verdict and keeps
+        // its own name — re-dressing a `pine:builtin` as a runtime gap would
+        // send the next engineer to the wrong subsystem.
+        if (!(e && e.guard === 'pine:text-value' && touchesText(node, scope))) throw e
+      }
+    }
 
     switch (node.type) {
       case 'number': return num(node.value)
+      case 'string': return str(node.value)
       case 'name': {
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
+        // ⭐ AN IMMUTABLE TEXT BINDING IS EXPANDED INLINE. A non-mutated name
+        // binds in `env` as an expression for the COLUMNAR resolver, which is
+        // right for a number and impossible for a string — so a text one is
+        // substituted here, exactly as the columnar lane would have substituted
+        // it, and lowered into the runtime instead.
+        {
+          const bound = env.get(node.name)
+          if (bound && bound.kind === 'expr' && holdsText(bound.node, scope)) {
+            return lowerExpr(bound.node, scope)
+          }
+        }
         if (guardOuter && guardOuter.lookup(node.name) !== null) {
           note('runtime:function-global-state')
           throw new RuntimeRefusal('runtime:function-global-state', `\`${node.name}\``, locate(node.tok))
@@ -865,6 +982,29 @@ export function buildRuntimeIr(source, opts = {}) {
         const op = BIN[node.op]
         if (!op) {
           throw new RuntimeRefusal('runtime:operator', `\`${node.op}\` beside a mutable value`, locate(node.tok))
+        }
+        // ⛔ A TEXT `+` IS A DIFFERENT INSTRUCTION, not the numeric one with
+        // different operands. `BINARY['+']` is `(a, b) => a + b` and would
+        // happily turn a string and a number into a string, which Pine calls a
+        // type error. `==` and `!=` need no such split: `cmp` compares with
+        // `===` and `Number.isNaN` of a string is false, so they already answer
+        // correctly for both kinds.
+        if (holdsText(node.left, scope) || holdsText(node.right, scope)) {
+          if (node.op === '+') {
+            return concat(lowerExpr(node.left, scope), lowerExpr(node.right, scope))
+          }
+          // ⛔⛔ EVERY OTHER OPERATOR OVER TEXT IS REFUSED BY NAME, and this is
+          // the half that makes the widened route safe. Once a text subtree
+          // reaches the runtime switch, `"a" > "b"` would be lowered to `GT` and
+          // answered by JavaScript's lexicographic comparison — an answer Pine
+          // never gives, arrived at silently. Pine compares strings with `==`
+          // and `!=` and nothing else.
+          if (node.op !== '==' && node.op !== '!=') {
+            throw new RuntimeRefusal(
+              'runtime:operator',
+              `\`${node.op}\` over text — Pine compares strings with \`==\` and \`!=\` only`,
+              locate(node.tok))
+          }
         }
         return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
       }
@@ -877,6 +1017,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // ⚠️ BOTH ARMS EVALUATE, which is Pine's `?:` over values. A branch that
         // MUTATES is an `if` STATEMENT and is lowered by `lowerStmts`, never here
         // — routing one through this arm would run both mutations every bar.
+        //
+        // ⛔⛔ A TEXT TEST IS REFUSED, AND THIS WAS FOUND BY PROBING RATHER THAN
+        // BY REVIEW. `interpret`'s TERNARY is `isNan(t) ? NaN : (t !== 0 ? a :
+        // b)`; `Number.isNaN('a')` is false and `'a' !== 0` is true, so once
+        // text could reach the runtime `plot("a" ? 1 : 2)` compiled and plotted
+        // 1 — a silent wrong answer to a script Pine does not accept at all.
+        if (holdsText(node.test, scope)) {
+          throw new RuntimeRefusal(
+            'runtime:operator',
+            'text used as a condition — a `?:` test is a boolean', locate(node.tok))
+        }
         return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
         // ⭐⭐⭐ 2F-2 — HISTORY OVER A VALUE THE RUNTIME PRODUCED.
@@ -1343,6 +1494,10 @@ export function buildRuntimeIr(source, opts = {}) {
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a `var` declaration needs a name and an initialiser', locate(first))
         const value = parseWholeExpression(toks.slice(eq + 1))
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
+        // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
+        // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
+        // which is what makes `s := "cd"` route out of the columnar lane too.
+        if (holdsText(value, scope)) slots[slot].text = true
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -1352,6 +1507,17 @@ export function buildRuntimeIr(source, opts = {}) {
         const call = parseWholeExpression(toks)
         const arg0 = call.args && call.args.length ? (call.args[0].value !== undefined ? call.args[0].value : call.args[0]) : null
         if (!arg0) throw new RuntimeRefusal('runtime:statement', `\`${word}()\` with no value`, locate(first))
+        // ⛔ A TEXT VALUE CANNOT BE PLOTTED, AND IT IS REFUSED HERE RATHER THAN
+        // LEFT TO THE VM. `EMIT`'s kind check would catch it, but a bar into the
+        // run and as a thrown `VmError` — a member would get an exception where
+        // every other unsupported construct gives them a named refusal with a
+        // line. Before text was lowerable at all this was the columnar lane's
+        // `pine:text-value`; making text lowerable must not lose the sentence.
+        if (holdsText(arg0, scope)) {
+          throw new RuntimeRefusal(
+            'runtime:statement',
+            `\`${word}()\` was handed text — a plot draws numbers`, locate(first))
+        }
         outputs.push(word)
         out.push(emit(outputs.length - 1, lowerExpr(arg0, scope)))
         continue
@@ -1374,6 +1540,7 @@ export function buildRuntimeIr(source, opts = {}) {
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
+        if (holdsText(value, scope)) slots[slot].text = true
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }

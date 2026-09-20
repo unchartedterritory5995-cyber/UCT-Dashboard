@@ -47,8 +47,13 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     expect(b.diagnostics.statements).toBe(76)
     // ⛔ NOTHING WAS SWALLOWED. Every skipped definition is named with its line
     // and the guard it hit — four on each script, the same four.
+    // ⭐⭐ `f_getTablePos` NO LONGER STOPS ON TEXT. The value model (2026-09-19)
+    // made a string literal, `+` between strings and `==`/`!=` lowerable, so
+    // this helper gets past its text and stops on the next thing: a built-in
+    // the engine grammar does not hold. The list is still four, still named,
+    // and the guard that changed is the measurement.
     expect(a.diagnostics.skippedFunctions).toEqual([
-      'f_getTablePos@153 pine:text-value',
+      'f_getTablePos@153 pine:builtin',
       'f_getVolumeUnit@161 runtime:tuple',
       'f_formatVolume@174 runtime:call-text-state',
       'f_getDailyData@190 pine:collection',
@@ -73,11 +78,14 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // ⛔ The wording ruling (D2 option B) is about which sentence each lane uses,
     // and it still holds — it just needs a script whose text refusal actually
     // fires here now: one that CALLS the helper rather than merely defining it.
+    // ⚰️ THE SCRIPT HERE CHANGED, THE RULING DID NOT. It used to be
+    // `f_pos(_p) => _p == 'Top Left' ? 1 : 2` called with a literal — which the
+    // text value model (2026-09-19) now COMPILES, so it stopped tripping the
+    // guard whose sentence this case exists to pin. Text handed to a builtin is
+    // still the columnar lane's to resolve, and still refuses there.
     const r = told(`//@version=6
 indicator("t", overlay=true)
-f_pos(_p) =>
-    _p == 'Top Left' ? 1 : 2
-plot(f_pos('Top Left'))
+plot(ta.sma("ab", 5))
 `)
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('pine:text-value')

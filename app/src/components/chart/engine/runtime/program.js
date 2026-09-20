@@ -128,6 +128,12 @@ export const OP = Object.freeze({
   // index DIFFERENTLY: history is chart-bar indexed and HOLDS, recurrence is
   // invocation-indexed and does not advance.
   CARRIED: 74,
+  // ⛔ NOT `ADD`, DELIBERATELY. `BINARY['+']` is `(a, b) => a + b`, which on a
+  // string and a number produces a string without a word — and Pine calls that
+  // combination a TYPE ERROR rather than a conversion. A separate opcode is
+  // what lets the VM refuse a mixed pair by name instead of accepting a script
+  // TradingView rejects and then disagreeing with it about the answer.
+  CONCAT: 75,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -143,7 +149,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT,
   OP.EMIT, OP.HALT,
 ]))
 

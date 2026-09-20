@@ -57,6 +57,11 @@ export function lowerIrProgram(ir) {
   const expr = (e) => {
     switch (e.kind) {
       case EXPR.NUM: emit(OP.CONST, constIndex(e.value)); return
+      // ⭐ THE SAME OPCODE AND THE SAME POOL. `constIndex` interns with
+      // `indexOf`, i.e. strict equality, so the number `5` and the string `"5"`
+      // are two entries and cannot be confused for one another.
+      case EXPR.STR: emit(OP.CONST, constIndex(e.value)); return
+      case EXPR.CONCAT: expr(e.left); expr(e.right); emit(OP.CONCAT); return
       case EXPR.SERIES: {
         const i = SERIES_NAMES.indexOf(e.name)
         if (i < 0) throw new LoweringGap('series', `\`${e.name}\` is not one of ${SERIES_NAMES.join(', ')}`)
