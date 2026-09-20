@@ -63,15 +63,34 @@ below):
 
 | script | live result | relevant to this plan? |
 |---|---|---|
-| `high_engagement__10-rsi-divergence-faytterro` (Task 1's fixture) | `SAVED_NOT_RENDERED` — the value-plot legend chip never rendered after reload | Orthogonal finding (a value-plot chip issue, not an object-lane one) — but Task 1's own claim ("objects painted: no change, stays 0") is already proven more precisely by `pineLoopBlockedCollections.test.js`'s direct assertion (`droppedOps:6`, `opsLen:0` — RISK-043 still correctly blocks every real create, so there is nothing for the object layer to paint regardless of this script's plot-chip outcome) |
+| `high_engagement__10-rsi-divergence-faytterro` (Task 1's fixture) | **`FULL_JOURNEY_PASS`** — see the fix below | Task 1's claim confirmed live: `object_layers:0, object_layers_painted:0, object_pixels:0` (unchanged, matching RISK-043's still-correct block) *and* the value plot itself now confirmed rendering |
 | `high_engagement__16-klinger-volume-oscillator-everget` | `IMPORT_BLOCKED` — Apply never enabled | **Matches this plan's own prediction** (explicitly listed as out of scope — the `pine:state` family blocks this script entirely) |
 | `long_tail__05-master-line-plus` | `IMPORT_BLOCKED` — Apply never enabled | Not a script this plan makes any claim about |
 | `mid_engagement__22-rsi-levels-regime-map` | **`FULL_JOURNEY_PASS`** — 12 real chips drawn, all `drewNothing:false` | Not this plan's target script, but positive live evidence the import → apply → save → reload → render pipeline works end to end in the browser for a real, complex, 12-plot member of the current parity set |
 
-The `SAVED_NOT_RENDERED` finding on rsi-divergence-faytterro is new and real,
-but it is a value-plot rendering question, not an object-lane one — pursuing
-it is out of this plan's scope (which is the geometry/object family) and is
-recorded here rather than silently dropped.
+**The first run of this measurement reported `SAVED_NOT_RENDERED` on row #1 —
+a real finding, and it has since been fixed, not just parked.** The value
+plot genuinely rendered (a real `_paneLegend_`/`LegendRow` element existed,
+correctly named, with a live computed value) — the harness simply couldn't
+see it, because pane-placed indicators (RSI, and anything else rendered in
+its own sub-pane rather than overlaid on price) render their readout through
+`LegendRow`, which never carried the `data-instance-id`/`data-plot-key`/
+`data-computed` triple `IndicatorChip` (the overlay path) already exposes for
+exactly this kind of automated check. **Fixed at the product source**, not by
+teaching the harness a new heuristic: `LegendRow` now accepts and forwards
+that same triple (`app/src/components/chart/legend/LegendRow.jsx`), and
+`StockChart.jsx`'s pane-readout call site passes the identical chip object
+`IndicatorChip` would have received (`app/src/components/StockChart.jsx`,
+~line 18471). Zero behavior change for the other 8+ `<LegendRow>` call sites
+that don't pass these props — verified against the full legend/chip/pane test
+surface (9 files, 419/419 passing) and, since two files were touched, against
+a wider chart-directory run whose 20 pre-existing failures were confirmed
+byte-identical with and without this change (5 plausibly-related files
+re-run against a clean HEAD via a temporary `git stash`, same 5 failed/1
+passed both times — the other 14 are Pine-language census/measure tests with
+no relation to legend rendering). This also closes a systematic blind spot
+for every OTHER pane-placed indicator this harness will ever test, not just
+this one fixture.
 
 ⚠️ **CORRECTION TO TASK 4 AND THIS PLAN'S OWN FRAMING:**
 `mid_engagement__01-zeiierman-trend-pressure` — Task 4's named fixture — left
@@ -966,7 +985,7 @@ none of these four fixtures needed that path to answer this plan's own claims
 
 | # | script | live result (2026-09-19, post-fix) | note |
 |---|---|---|---|
-| 1 | `high_engagement__10-rsi-divergence-faytterro` | `SAVED_NOT_RENDERED` (value-plot legend chip, unrelated axis) | Task 1's target. **objects painted: unchanged at 0, proven by construction** — `pineLoopBlockedCollections.test.js` already asserts `droppedOps:6, opsLen:0` directly from `translatePine()`: RISK-043 correctly blocks all 6 real creates, so there is nothing for the object layer to paint regardless of this script's plot-chip outcome. That outcome is a real, new, orthogonal finding (value-lane, not object-lane) and is out of this plan's scope to chase |
+| 1 | `high_engagement__10-rsi-divergence-faytterro` | **`FULL_JOURNEY_PASS`** (after the `LegendRow` fix — see the note above the table at the top of this plan) | Task 1's target. **objects painted: unchanged at 0** (`object_layers:0, object_layers_painted:0, object_pixels:0`), matching RISK-043's still-correct block — and, separately, the value plot itself is now confirmed rendering live, closing the harness blind spot that first reported this row as `SAVED_NOT_RENDERED` |
 | 2–6, 9–10 | not targeted by this plan; 5 of these 8 not re-fetched (see Step 1) | — | record for completeness only, when re-fetched |
 | 3 | `high_engagement__16-klinger-volume-oscillator-everget` | `IMPORT_BLOCKED` — Apply never enabled | **Matches this plan's own prediction exactly** — the `pine:state` family blocks this script entirely, named out of scope above |
 | 5 (formerly 7) | `mid_engagement__01-zeiierman-trend-pressure` | not measured — left the official parity set 2026-09-13 (see the correction at the top of this plan); Task 4's finding stands independent of this script's membership |
@@ -1026,6 +1045,18 @@ expected would not move.
 EOF
 )"
 ```
+
+⚠️ **The commit message above is verbatim history — commit `4e7ef8cb2`** — kept
+unedited because it is a quote, not a live claim. Its `SAVED_NOT_RENDERED`
+paragraph describes that commit's own findings accurately at the time. **A
+follow-up commit fixed the root cause the same day**: `LegendRow.jsx` /
+`StockChart.jsx` now expose the same `data-instance-id`/`data-plot-key`/
+`data-computed` triple for pane-placed indicators that `IndicatorChip`
+already exposes for overlay-placed ones, and rsi-divergence-faytterro now
+reaches `FULL_JOURNEY_PASS` — see the note above the results table near the
+top of this plan for the full account, including the regression check (a
+temporary `git stash` proved the 5 plausibly-related pre-existing test
+failures in a wider run are byte-identical with and without this change).
 
 ---
 

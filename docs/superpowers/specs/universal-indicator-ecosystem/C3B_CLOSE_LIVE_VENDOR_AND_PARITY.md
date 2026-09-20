@@ -523,11 +523,24 @@ produced `IMPORT_BLOCKED`, matching this document's own prediction exactly
 (the `pine:state` family, named out of scope); `rsi-levels-regime-map`
 reached `FULL_JOURNEY_PASS` with 12/12 real chips drawn, live evidence the
 full pipeline works end to end for a complex current member; row #1
-(`rsi-divergence-faytterro`, Task 1's fixture) hit `SAVED_NOT_RENDERED` on an
-unrelated value-plot axis, which does not affect Task 1's own claim —
-objects-painted stays at 0, already proven more precisely by
-`pineLoopBlockedCollections.test.js`'s direct `droppedOps:6`/`opsLen:0`
-assertion than any pixel count could. Full table:
+(`rsi-divergence-faytterro`, Task 1's fixture) first reported
+`SAVED_NOT_RENDERED` on an unrelated value-plot axis — objects-painted stayed
+at 0 regardless, already proven more precisely by
+`pineLoopBlockedCollections.test.js`'s direct `droppedOps:6`/`opsLen:0` assertion
+than any pixel count could — but the finding itself was real, and was chased
+down and fixed the same day rather than left as a parked orthogonal note:
+pane-placed indicators (RSI, anything rendered in its own sub-pane) render
+their readout via `LegendRow`, which never exposed the
+`data-instance-id`/`data-plot-key`/`data-computed` triple `IndicatorChip`
+(the overlay path) already exposes for exactly this class of check. Fixed at
+the source (`LegendRow.jsx` forwards the same triple its pane caller in
+`StockChart.jsx` already has, mirroring `IndicatorChip` verbatim), not with a
+harness-side heuristic — row #1 now reaches `FULL_JOURNEY_PASS` too, and every
+other pane-placed indicator this harness will ever measure gains the same
+visibility. Verified against the full legend/chip/pane test surface
+(419/419) and, since product files were touched, against a wider run whose
+pre-existing failures were confirmed byte-identical with and without the
+change via a temporary `git stash` A/B. Full table:
 `docs/superpowers/plans/2026-09-19-pine-geometry-grammar-gaps.md`, Task 5
 Step 4.
 
