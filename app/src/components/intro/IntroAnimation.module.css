@@ -38,6 +38,21 @@
   cursor: pointer;
   transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
+/* ⛔ THE INTRO PLAYS ON EVERY PAGE LOAD, so Skip is plausibly the most-tapped
+   control in the whole app — and this module had no touch tier at all. Measured
+   at real 390px and 820px viewports: 67x28, against a 44px floor.
+
+   Height only: the button is already 67px wide, so a min-width would be inert,
+   and an inert declaration reads as protection that isn't there.
+
+   Verified before/after on one loaded page at both widths: 67x28 -> 67x44 with
+   `top` and the right edge unchanged and zero page overflow — it is absolutely
+   positioned in the overlay's corner, so growing it displaces nothing. */
+@media (max-width: 1024px) {
+  .skipBtn {
+    min-height: var(--tap-min, 44px);
+  }
+}
 .skipBtn:hover {
   background: rgba(201,168,76,0.1);
   border-color: rgba(201,168,76,0.7);
