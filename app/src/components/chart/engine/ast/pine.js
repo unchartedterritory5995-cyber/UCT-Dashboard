@@ -700,6 +700,17 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // name, so it resolves by the ordinary path and adding a shape would be a
   // second statement of the same fact.
   log: { table: 'ln', pineArity: 1, build: [{ pine: 0 }] },
+  // ⭐ `ta.percentile_linear_interpolation(source, length, percentage)` ONTO
+  // `percentileLinearInterpolation` — only the spelling differs. This table
+  // spells every entry camelCase (there is no underscored name in
+  // closedTable.json), and TradingView's own argument order — source, length,
+  // percentage — already matches the manifest's `argRoles` exactly, so the
+  // build is a pure identity, the same shape `log` above is.
+  percentile_linear_interpolation: {
+    table: 'percentileLinearInterpolation',
+    pineArity: 3,
+    build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }],
+  },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
   stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },

@@ -106,6 +106,12 @@ const WINDOW_COMPOSITE = {
   bbw: 'sma + stdev',
   hma: 'wma of (2*wma(n/2) - wma(n))',
   percentrank: 'a rank within the window',
+  // ⭐ SAME REASON AS `percentrank` ABOVE — a single window, but its reducer
+  // closes over a THIRD constant (`percentage`) that `FINITE_WINDOW`'s bare
+  // `(s, lo, hi)` shape cannot carry, so it is a bespoke closure in `FN`
+  // rather than a `windowFn('...')` entry. See `interpret.js`'s comment right
+  // above the `percentileLinearInterpolation` entry in `FN`.
+  percentileLinearInterpolation: 'windowPercentileLinear — a window, plus percentage',
   donchianUpper: 'computeDonchian — highest/lowest',
   donchianMiddle: 'computeDonchian — highest/lowest',
   donchianLower: 'computeDonchian — highest/lowest',
