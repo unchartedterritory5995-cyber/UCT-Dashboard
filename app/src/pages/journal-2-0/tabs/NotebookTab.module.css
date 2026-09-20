@@ -310,6 +310,39 @@
   margin-bottom: 14px;
 }
 
+/* ⛔⛔ THE TOUCH TIER IS <=1024, NOT <=640. This module had NO touch-tier
+ * block at all: every control in the notebook toolbar is sized by padding
+ * (7px 14px on ~14px text, so ~30px tall) and the view toggles declare a flat
+ * 32px. On a tablet that is a row of 30-32px finger targets on the notebook's
+ * primary surface — the exact shape this repo swept app-wide once already,
+ * where 28 routes measured 360 sub-44px targets at 820px against 15 at 390px.
+ *
+ * ⚠️ `tapFloor.test.js` PASSES ON THIS FILE AND ALWAYS DID. Its rule is a
+ * RELATIONSHIP — whatever a file declares at 390px it must also declare at
+ * 820px — and this file declared a floor at NEITHER width, so there was no
+ * relationship to violate. Its own header says it: necessary, not sufficient.
+ * A file that never declares a finger target is invisible to it.
+ *
+ * ⛔ min-height ONLY, never a fixed height: `.toolbar` is `flex-wrap: wrap`,
+ * so taller controls re-flow rather than overflow, and a control whose content
+ * needs more room still gets it.
+ */
+@media (max-width: 1024px) {
+  .search,
+  .sortSelect,
+  .newBtn,
+  .templatesBtn,
+  .importBtn,
+  .exportBtn,
+  .viewModeBtn,
+  .saveViewBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  /* Icon-only toggles need the WIDTH too — a 44px-tall, 32px-wide target is
+     still a miss on the axis the finger is moving along. */
+  .viewModeBtn { min-width: var(--tap-min, 44px); }
+}
+
 @media (max-width: 640px) {
   /* Phones keep normal page scroll — no viewport-locked panels. */
   .wrap { flex-direction: column; height: auto !important; overflow: visible; }
