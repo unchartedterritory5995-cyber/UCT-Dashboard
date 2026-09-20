@@ -23,48 +23,95 @@
       "slug": "request_merge",
       "question": "What value lands on the last bar for request.security(sym, \"D\", close) on an intraday chart and request.security(sym, \"30\", close) on a daily chart, historical versus realtime; what the default lookahead and gaps arguments do; and what comes back before the requested series has its first bar.",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m1--request-merge",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "intraday_chart_tf": { "type": "string", "value": null },
-        "intraday_req_D_last_bar": { "type": "string", "value": null },
+        "intraday_chart_tf": {
+          "type": "string",
+          "value": null
+        },
+        "intraday_req_D_last_bar": {
+          "type": "string",
+          "value": null
+        },
         "intraday_req_D_matches_on_last_bar": {
           "type": "enum",
-          "allowed": ["chart close (today, still forming)", "previous day's daily close", "neither"],
+          "allowed": [
+            "chart close (today, still forming)",
+            "previous day's daily close",
+            "neither"
+          ],
           "value": null
         },
         "intraday_req_D_on_a_closed_historical_bar": {
           "type": "enum",
-          "allowed": ["that day's own daily close", "the previous day's daily close", "neither"],
+          "allowed": [
+            "that day's own daily close",
+            "the previous day's daily close",
+            "neither"
+          ],
           "value": null
         },
         "default_lookahead_matches": {
           "type": "enum",
-          "allowed": ["lookahead_off", "lookahead_on", "neither"],
+          "allowed": [
+            "lookahead_off",
+            "lookahead_on",
+            "neither"
+          ],
           "value": null
         },
         "default_gaps_matches": {
           "type": "enum",
-          "allowed": ["gaps_off", "gaps_on", "neither"],
+          "allowed": [
+            "gaps_off",
+            "gaps_on",
+            "neither"
+          ],
           "value": null
         },
-        "daily_chart_tf": { "type": "string", "value": null },
-        "daily_req_30_last_bar": { "type": "string", "value": null },
+        "daily_chart_tf": {
+          "type": "string",
+          "value": null
+        },
+        "daily_req_30_last_bar": {
+          "type": "string",
+          "value": null
+        },
         "daily_req_30_which_30m_bar": {
           "type": "enum",
-          "allowed": ["the LAST 30-minute bar of that day", "the FIRST 30-minute bar of that day", "neither / something else"],
+          "allowed": [
+            "the LAST 30-minute bar of that day",
+            "the FIRST 30-minute bar of that day",
+            "neither / something else"
+          ],
           "value": null
         },
-        "daily_req_30_oldest_bar_with_a_value": { "type": "string", "value": null },
-        "value_before_requested_series_first_bar": { "type": "string", "value": null },
-        "na_bars_before_late_symbol_first_bar": { "type": "number", "value": null },
-        "late_symbol_used": { "type": "string", "value": null },
-        "late_symbol_first_value_date": { "type": "string", "value": null }
+        "daily_req_30_oldest_bar_with_a_value": {
+          "type": "string",
+          "value": null
+        },
+        "value_before_requested_series_first_bar": {
+          "type": "string",
+          "value": null
+        },
+        "na_bars_before_late_symbol_first_bar": {
+          "type": "number",
+          "value": null
+        },
+        "late_symbol_used": {
+          "type": "string",
+          "value": null
+        },
+        "late_symbol_first_value_date": {
+          "type": "string",
+          "value": null
+        }
       },
-      "notes": null
+      "notes": "PARTIAL — the HISTORICAL half is measured, the realtime half is not (market closed, 2026-09-19 evening). Measured on a 5m NASDAQ:NVDA chart, last bar 09-18 15:55 ET. LAST BAR: a \"D\" request returns the SAME day's daily bar (time 09-18 09:30 ET) with close 222.27, and lookahead_on and gaps_on give the same value there. MID-SESSION (bar 09-18 12:35 ET, 40 bars back): the default returns the PREVIOUS day's daily bar (09-17 09:30 ET, close 219.34) while lookahead_on returns TODAY's (222.27). So on a historical intraday bar the default hands you the previous COMPLETED daily bar; only the live bar sees the forming one. ALSO: the last 5m bar's close (222.08) is NOT the daily close (222.27) — the daily carries the 16:00 print, so daily values must come from the daily series, never from the last intraday bar. STILL OWED: the realtime last-bar behaviour during an open session, the \"30\"-from-daily direction, and the value before a requested series' first bar. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M2",
@@ -77,22 +124,56 @@
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "syminfo_session_with_chart_eth_on": { "type": "string", "value": null },
-        "syminfo_session_with_chart_eth_off": { "type": "string", "value": null },
-        "premarket_bar_chart_close": { "type": "string", "value": null },
-        "premarket_bar_plain_string_req": { "type": "string", "value": null },
-        "premarket_bar_session_regular_req": { "type": "string", "value": null },
-        "premarket_bar_session_extended_req": { "type": "string", "value": null },
-        "premarket_bar_tickerid_req": { "type": "string", "value": null },
-        "na_counts_plain_regular_extended": { "type": "string", "value": null },
+        "syminfo_session_with_chart_eth_on": {
+          "type": "string",
+          "value": null
+        },
+        "syminfo_session_with_chart_eth_off": {
+          "type": "string",
+          "value": null
+        },
+        "premarket_bar_chart_close": {
+          "type": "string",
+          "value": null
+        },
+        "premarket_bar_plain_string_req": {
+          "type": "string",
+          "value": null
+        },
+        "premarket_bar_session_regular_req": {
+          "type": "string",
+          "value": null
+        },
+        "premarket_bar_session_extended_req": {
+          "type": "string",
+          "value": null
+        },
+        "premarket_bar_tickerid_req": {
+          "type": "string",
+          "value": null
+        },
+        "na_counts_plain_regular_extended": {
+          "type": "string",
+          "value": null
+        },
         "plain_string_session": {
           "type": "enum",
-          "allowed": ["regular only", "extended too", "follows the chart's own session setting", "inconclusive"],
+          "allowed": [
+            "regular only",
+            "extended too",
+            "follows the chart's own session setting",
+            "inconclusive"
+          ],
           "value": null
         },
         "tickerid_session": {
           "type": "enum",
-          "allowed": ["regular only", "extended too", "follows the chart's own session setting", "inconclusive"],
+          "allowed": [
+            "regular only",
+            "extended too",
+            "follows the chart's own session setting",
+            "inconclusive"
+          ],
           "value": null
         }
       },
@@ -103,58 +184,116 @@
       "slug": "daily_bar_time",
       "question": "For a US equity on a daily chart, what instant does Pine's `time` name, and in which timezone?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m3--the-time-of-a-daily-bar-for-a-us-equity",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "syminfo_timezone": { "type": "string", "value": null },
-        "time_ms_raw": { "type": "string", "value": null },
-        "time_utc": { "type": "string", "value": null },
-        "time_america_new_york": { "type": "string", "value": null },
-        "time_exchange_tz": { "type": "string", "value": null },
-        "time_close_ms_raw": { "type": "string", "value": null },
-        "time_close_america_new_york": { "type": "string", "value": null },
-        "prev_bar_time_america_new_york": { "type": "string", "value": null },
-        "prev_bar_time_utc": { "type": "string", "value": null },
+        "syminfo_timezone": {
+          "type": "string",
+          "value": null
+        },
+        "time_ms_raw": {
+          "type": "string",
+          "value": null
+        },
+        "time_utc": {
+          "type": "string",
+          "value": null
+        },
+        "time_america_new_york": {
+          "type": "string",
+          "value": null
+        },
+        "time_exchange_tz": {
+          "type": "string",
+          "value": null
+        },
+        "time_close_ms_raw": {
+          "type": "string",
+          "value": null
+        },
+        "time_close_america_new_york": {
+          "type": "string",
+          "value": null
+        },
+        "prev_bar_time_america_new_york": {
+          "type": "string",
+          "value": null
+        },
+        "prev_bar_time_utc": {
+          "type": "string",
+          "value": null
+        },
         "instant_the_time_field_names": {
           "type": "enum",
-          "allowed": ["the session OPEN of that day", "midnight exchange time", "midnight UTC", "something else"],
+          "allowed": [
+            "the session OPEN of that day",
+            "midnight exchange time",
+            "midnight UTC",
+            "something else"
+          ],
           "value": null
         }
       },
-      "notes": null
+      "notes": "PARTIAL — measured on a 1D NASDAQ:NVDA chart: time_ms_raw 1789738200000, time in America/New_York 2026-09-18 09:30, time in UTC 2026-09-18 13:30, and syminfo.timezone America/New_York. So a DAILY bar's `time` is the SESSION OPEN (09:30 ET), not midnight — confirmed independently on a 5m chart where a \"D\" request returned a bar stamped 09:30. STILL OWED: time_close, the prior bar's stamps, and the exchange-tz rendering as separate fields. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M4",
       "slug": "wrong_exchange_spelling",
       "question": "Is a wrong-exchange spelling invalid -- NASDAQ:JPM, where JPM is NYSE-listed -- and what does ignore_invalid_symbol = true then yield?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m4--a-wrong-exchange-spelling",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "part_a_compiles": { "type": "boolean", "value": null },
-        "part_a_error_text": { "type": "string", "value": null },
-        "part_a_value": { "type": "string", "value": null },
-        "wrong_exchange_is_invalid": {
-          "type": "enum",
-          "allowed": ["yes - it errors", "no - TradingView resolves it anyway", "inconclusive"],
+        "part_a_compiles": {
+          "type": "boolean",
           "value": null
         },
-        "part_b_wrong_with_ignore": { "type": "string", "value": null },
-        "part_b_right_with_ignore": { "type": "string", "value": null },
-        "part_b_bogus_control_with_ignore": { "type": "string", "value": null },
+        "part_a_error_text": {
+          "type": "string",
+          "value": null
+        },
+        "part_a_value": {
+          "type": "string",
+          "value": null
+        },
+        "wrong_exchange_is_invalid": {
+          "type": "enum",
+          "allowed": [
+            "yes - it errors",
+            "no - TradingView resolves it anyway",
+            "inconclusive"
+          ],
+          "value": null
+        },
+        "part_b_wrong_with_ignore": {
+          "type": "string",
+          "value": null
+        },
+        "part_b_right_with_ignore": {
+          "type": "string",
+          "value": null
+        },
+        "part_b_bogus_control_with_ignore": {
+          "type": "string",
+          "value": null
+        },
         "ignore_invalid_symbol_yields": {
           "type": "enum",
-          "allowed": ["na for every bar", "the correct exchange's series", "something else"],
+          "allowed": [
+            "na for every bar",
+            "the correct exchange's series",
+            "something else"
+          ],
           "value": null
         }
       },
-      "notes": null
+      "notes": "PARTIAL - the ignore_invalid_symbol half is measured, part A is not. On a 5m NVDA chart: request.security(\"NASDAQ:JPM\", \"D\", close, ignore_invalid_symbol = true) returned na, while the control request.security(\"NYSE:JPM\", ...) returned 349.67 on the same bar, and a deliberately impossible NASDAQ:ZZZZZZ also returned na. So a wrong-exchange spelling IS an invalid symbol, and with ignore_invalid_symbol it yields na rather than erroring. The control is what makes this an EXCHANGE fact rather than a broken request. Consequence: the RVOL dashboard prefixes bare tickers with NASDAQ:, so every NYSE-listed name in a pasted watchlist yields na and is dropped by the script own na filter. STILL OWED: part A — the same request WITHOUT ignore_invalid_symbol, and its verbatim error text. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M5",
@@ -167,11 +306,26 @@
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "plan_name": { "type": "string", "value": null },
-        "control_calls_made_at_n_10": { "type": "number", "value": null },
-        "largest_n_that_ran": { "type": "number", "value": null },
-        "smallest_n_that_failed": { "type": "number", "value": null },
-        "error_text": { "type": "string", "value": null }
+        "plan_name": {
+          "type": "string",
+          "value": null
+        },
+        "control_calls_made_at_n_10": {
+          "type": "number",
+          "value": null
+        },
+        "largest_n_that_ran": {
+          "type": "number",
+          "value": null
+        },
+        "smallest_n_that_failed": {
+          "type": "number",
+          "value": null
+        },
+        "error_text": {
+          "type": "string",
+          "value": null
+        }
       },
       "notes": null
     },
@@ -180,151 +334,309 @@
       "slug": "rounding_at_half",
       "question": "How do str.tostring(x, \"#\") and math.round(x) round at exactly .5, for 0.5, 1.5, 2.5, -0.5 (and -1.5, -2.5), and do the two agree?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m6--strtostringx--and-mathroundx-at-5",
-      "status": "unmeasured",
-      "measured_at": null,
-      "symbol": null,
-      "timeframe": null,
+      "status": "measured",
+      "measured_at": "2026-09-19T20:30:00-04:00",
+      "symbol": "NASDAQ:NVDA",
+      "timeframe": "1D",
       "pine_version": "v6",
       "answers": {
-        "tostring_hash_0_5": { "type": "string", "value": null },
-        "tostring_hash_1_5": { "type": "string", "value": null },
-        "tostring_hash_2_5": { "type": "string", "value": null },
-        "tostring_hash_neg_0_5": { "type": "string", "value": null },
-        "tostring_hash_neg_1_5": { "type": "string", "value": null },
-        "tostring_hash_neg_2_5": { "type": "string", "value": null },
-        "math_round_0_5": { "type": "string", "value": null },
-        "math_round_1_5": { "type": "string", "value": null },
-        "math_round_2_5": { "type": "string", "value": null },
-        "math_round_neg_0_5": { "type": "string", "value": null },
-        "math_round_neg_1_5": { "type": "string", "value": null },
-        "math_round_neg_2_5": { "type": "string", "value": null },
+        "tostring_hash_0_5": {
+          "type": "string",
+          "value": "1"
+        },
+        "tostring_hash_1_5": {
+          "type": "string",
+          "value": "2"
+        },
+        "tostring_hash_2_5": {
+          "type": "string",
+          "value": "3"
+        },
+        "tostring_hash_neg_0_5": {
+          "type": "string",
+          "value": "-1"
+        },
+        "tostring_hash_neg_1_5": {
+          "type": "string",
+          "value": "-2"
+        },
+        "tostring_hash_neg_2_5": {
+          "type": "string",
+          "value": "-3"
+        },
+        "math_round_0_5": {
+          "type": "string",
+          "value": "1"
+        },
+        "math_round_1_5": {
+          "type": "string",
+          "value": "2"
+        },
+        "math_round_2_5": {
+          "type": "string",
+          "value": "3"
+        },
+        "math_round_neg_0_5": {
+          "type": "string",
+          "value": "-1"
+        },
+        "math_round_neg_1_5": {
+          "type": "string",
+          "value": "-2"
+        },
+        "math_round_neg_2_5": {
+          "type": "string",
+          "value": "-3"
+        },
         "tostring_rule": {
           "type": "enum",
-          "allowed": ["half up (away from zero)", "half even (banker's)", "half toward +infinity", "something else"],
-          "value": null
+          "allowed": [
+            "half up (away from zero)",
+            "half even (banker's)",
+            "half toward +infinity",
+            "something else"
+          ],
+          "value": "half up (away from zero)"
         },
         "math_round_rule": {
           "type": "enum",
-          "allowed": ["half up (away from zero)", "half even (banker's)", "half toward +infinity", "something else"],
-          "value": null
+          "allowed": [
+            "half up (away from zero)",
+            "half even (banker's)",
+            "half toward +infinity",
+            "something else"
+          ],
+          "value": "half up (away from zero)"
         }
       },
-      "notes": null
+      "notes": "Read off one table: 0.5->1, 1.5->2, 2.5->3 and the negatives mirror. If this were half-to-even, 0.5 would be 0 and 2.5 would be 2; it is not. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M7",
       "slug": "sort_indices_tie_order",
       "question": "When array.sort_indices meets equal keys, in what order do their original indices come out?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m7--arraysort_indices-tie-order",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "input_array_a": { "type": "string", "value": null },
-        "asc_indices_a": { "type": "string", "value": null },
-        "desc_indices_a": { "type": "string", "value": null },
-        "all_equal_indices_asc": { "type": "string", "value": null },
-        "all_equal_indices_desc": { "type": "string", "value": null },
-        "control_descending_input_asc": { "type": "string", "value": null },
+        "input_array_a": {
+          "type": "string",
+          "value": null
+        },
+        "asc_indices_a": {
+          "type": "string",
+          "value": null
+        },
+        "desc_indices_a": {
+          "type": "string",
+          "value": null
+        },
+        "all_equal_indices_asc": {
+          "type": "string",
+          "value": null
+        },
+        "all_equal_indices_desc": {
+          "type": "string",
+          "value": null
+        },
+        "control_descending_input_asc": {
+          "type": "string",
+          "value": null
+        },
         "tie_order_ascending": {
           "type": "enum",
-          "allowed": ["stable - original index order", "reverse original index order", "neither / not stable"],
+          "allowed": [
+            "stable - original index order",
+            "reverse original index order",
+            "neither / not stable"
+          ],
           "value": null
         },
         "tie_order_descending": {
           "type": "enum",
-          "allowed": ["stable - original index order", "reverse original index order", "neither / not stable"],
+          "allowed": [
+            "stable - original index order",
+            "reverse original index order",
+            "neither / not stable"
+          ],
           "value": null
         }
       },
-      "notes": null
+      "notes": "PARTIAL — measured with array.from(3.0, 1.0, 1.0, 2.0), ties planted at indices 1 and 2: ascending returned 1,2,3,0 and descending returned 0,3,2,1. So ties keep their ORIGINAL order when ascending and appear REVERSED when descending — descending behaves as the reverse of the ascending order, not as a stable sort. STILL OWED: the all-equal array case and the already-descending control. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M8",
       "slug": "timeframe_period_in_request",
       "question": "Inside a requested context, does timeframe.period report the requested timeframe or the chart's?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m8--timeframeperiod-inside-a-requested-context",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "v6",
       "answers": {
-        "chart_timeframe_period": { "type": "string", "value": null },
-        "requested_timeframe_multiplier": { "type": "string", "value": null },
-        "requested_timeframe_isdaily": { "type": "string", "value": null },
-        "requested_timeframe_isintraday": { "type": "string", "value": null },
-        "part_b_compiles": { "type": "boolean", "value": null },
-        "requested_timeframe_period": { "type": "string", "value": null },
-        "part_b_error_text": { "type": "string", "value": null },
+        "chart_timeframe_period": {
+          "type": "string",
+          "value": null
+        },
+        "requested_timeframe_multiplier": {
+          "type": "string",
+          "value": null
+        },
+        "requested_timeframe_isdaily": {
+          "type": "string",
+          "value": null
+        },
+        "requested_timeframe_isintraday": {
+          "type": "string",
+          "value": null
+        },
+        "part_b_compiles": {
+          "type": "boolean",
+          "value": null
+        },
+        "requested_timeframe_period": {
+          "type": "string",
+          "value": null
+        },
+        "part_b_error_text": {
+          "type": "string",
+          "value": null
+        },
         "timeframe_period_inside_request_reports": {
           "type": "enum",
-          "allowed": ["the REQUESTED timeframe", "the CHART's timeframe", "inconclusive"],
+          "allowed": [
+            "the REQUESTED timeframe",
+            "the CHART's timeframe",
+            "inconclusive"
+          ],
           "value": null
         }
       },
-      "notes": null
+      "notes": "PART A MEASURED, part B not. On a 5-MINUTE chart (chart timeframe.period = 5), inside a request.security(syminfo.tickerid, \"D\", ...): timeframe.multiplier = 1, timeframe.isdaily = 1, timeframe.isintraday = 0. So timeframe.* reflects the REQUESTED context, not the chart's. The 5m chart is what makes this distinguishable — on a daily chart both readings agree and the test proves nothing. STILL OWED: part B, whether a string-returning request of timeframe.period compiles. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M9",
       "slug": "hour_across_dst",
       "question": "What does hour(time, \"America/New_York\") do across a US daylight-saving boundary, including the repeated autumn hour?",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m9--hourtime-americanew_york-across-a-dst-boundary",
-      "status": "unmeasured",
-      "measured_at": null,
-      "symbol": null,
-      "timeframe": null,
+      "status": "measured",
+      "measured_at": "2026-09-19T20:30:00-04:00",
+      "symbol": "NASDAQ:NVDA",
+      "timeframe": "5",
       "pine_version": "v6",
       "answers": {
-        "hour_2026_03_08_0600Z_ny": { "type": "string", "value": null },
-        "hour_2026_03_08_0700Z_ny": { "type": "string", "value": null },
-        "hour_2026_11_01_0500Z_ny": { "type": "string", "value": null },
-        "hour_2026_11_01_0600Z_ny": { "type": "string", "value": null },
-        "hour_2026_11_01_0700Z_ny": { "type": "string", "value": null },
-        "hour_2026_07_01_1430Z_ny": { "type": "string", "value": null },
-        "hour_2026_01_05_1430Z_ny": { "type": "string", "value": null },
-        "live_bar_hour_ny": { "type": "string", "value": null },
-        "live_bar_hour_utc": { "type": "string", "value": null },
-        "live_bar_hour_default_tz": { "type": "string", "value": null },
+        "hour_2026_03_08_0600Z_ny": {
+          "type": "string",
+          "value": "1:0"
+        },
+        "hour_2026_03_08_0700Z_ny": {
+          "type": "string",
+          "value": "3:0"
+        },
+        "hour_2026_11_01_0500Z_ny": {
+          "type": "string",
+          "value": "1:0"
+        },
+        "hour_2026_11_01_0600Z_ny": {
+          "type": "string",
+          "value": "1:0"
+        },
+        "hour_2026_11_01_0700Z_ny": {
+          "type": "string",
+          "value": "2:0"
+        },
+        "hour_2026_07_01_1430Z_ny": {
+          "type": "string",
+          "value": "10:30"
+        },
+        "hour_2026_01_05_1430Z_ny": {
+          "type": "string",
+          "value": "9:30"
+        },
+        "live_bar_hour_ny": {
+          "type": "string",
+          "value": "15:55"
+        },
+        "live_bar_hour_utc": {
+          "type": "string",
+          "value": "19:55"
+        },
+        "live_bar_hour_default_tz": {
+          "type": "string",
+          "value": "15:55 — identical to NY, so the default timezone is the exchange timezone"
+        },
         "dst_is_respected": {
           "type": "enum",
-          "allowed": ["yes - the same UTC instant maps to a different NY hour across the boundary", "no - a fixed offset", "inconclusive"],
-          "value": null
+          "allowed": [
+            "yes - the same UTC instant maps to a different NY hour across the boundary",
+            "no - a fixed offset",
+            "inconclusive"
+          ],
+          "value": "yes - the same UTC instant maps to a different NY hour across the boundary"
         },
-        "repeated_hour_behaviour": { "type": "string", "value": null }
+        "repeated_hour_behaviour": {
+          "type": "string",
+          "value": "the 02:00 hour does not exist in spring (06:00Z->1:00, 07:00Z->3:00) and 1:00 occurs twice in autumn (both 05:00Z and 06:00Z report 1:0); hour() reports local wall-clock time and does not disambiguate the repeat"
+        }
       },
-      "notes": null
+      "notes": "Built on timestamp() with fixed UTC instants, so the answer does not depend on loaded history. syminfo.timezone read as America/New_York on the same table. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     },
     {
       "id": "M10",
       "slug": "chart_data_feed",
       "question": "For a US stock on the owner's account, what does the chart legend say the data feed is -- a real-time exchange feed, Cboe BZX, or delayed? It decides whether TradingView's own in-session volume is comparable to ours.",
       "how": "docs/pine/rvol-slice-vendor-packet.md#m10--what-the-chart-legend-says-the-data-feed-is",
-      "status": "unmeasured",
-      "measured_at": null,
+      "status": "blocked",
+      "measured_at": "2026-09-19T20:30:00-04:00",
       "symbol": null,
       "timeframe": null,
       "pine_version": "n/a -- no Pine needed",
       "answers": {
-        "legend_feed_label": { "type": "string", "value": null },
-        "symbol_info_feed_label": { "type": "string", "value": null },
-        "delayed_badge_present": { "type": "boolean", "value": null },
-        "delay_minutes": { "type": "number", "value": null },
-        "plan_name": { "type": "string", "value": null },
+        "legend_feed_label": {
+          "type": "string",
+          "value": null
+        },
+        "symbol_info_feed_label": {
+          "type": "string",
+          "value": null
+        },
+        "delayed_badge_present": {
+          "type": "boolean",
+          "value": null
+        },
+        "delay_minutes": {
+          "type": "number",
+          "value": null
+        },
+        "plan_name": {
+          "type": "string",
+          "value": null
+        },
         "feed_kind": {
           "type": "enum",
-          "allowed": ["real-time exchange feed", "Cboe BZX", "delayed", "inconclusive"],
+          "allowed": [
+            "real-time exchange feed",
+            "Cboe BZX",
+            "delayed",
+            "inconclusive"
+          ],
           "value": null
         },
         "in_session_volume_comparable": {
           "type": "enum",
-          "allowed": ["yes", "no", "inconclusive"],
+          "allowed": [
+            "yes",
+            "no",
+            "inconclusive"
+          ],
           "value": null
         }
       },
-      "notes": null
+      "notes": "PARTIAL — the account is TV Premium, signed in as TSDR_TRADING. The per-symbol data feed label was not read from the status line, so whether US equity volume is a real-time exchange feed or Cboe BZX is STILL OWED. It decides whether TradingView's own in-session volume is comparable to ours. Rig: NASDAQ:NVDA on the UCT CAPTURE RIG layout (01f1AcIj), TV Premium, user TSDR_TRADING"
     }
   ]
 }
