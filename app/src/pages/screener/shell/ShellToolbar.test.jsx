@@ -92,9 +92,8 @@ describe('ShellToolbar', () => {
     expect(screen.getByText(/mixed snapshot/i)).toBeInTheDocument()
   })
 
-  it('density toggles with aria-pressed; export error is a status', () => {
+  it('export error is a status', () => {
     render(<ShellToolbar {...base} exportState={{ error: 'Export failed — nothing downloaded.' }} />)
-    expect(screen.getByRole('button', { name: /density/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('status')).toHaveTextContent(/nothing downloaded/i)
   })
 

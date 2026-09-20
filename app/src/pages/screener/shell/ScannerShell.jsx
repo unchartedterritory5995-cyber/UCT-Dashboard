@@ -242,8 +242,25 @@ export default function ScannerShell({ embedded = false }) {
         {/* Universe = the base pool the scan runs against (UCT Universe / a
             watchlist / a union combo). Emits the existing `list` filter, so it
             needs no new endpoint; a signed-out member sees only UCT Universe. */}
-        <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter}
-          total={total} isLoading={isLoading} hasFilters={Object.keys(s.filters).length > 0} />
+        <div className={styles.universeRow}>
+          <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter}
+            total={total} isLoading={isLoading} hasFilters={Object.keys(s.filters).length > 0} />
+          {/* Screener dropdown (preset scans + saved screens/scans) — moved next
+              to the Universe controls so building a scan reads left→right. The
+              wrapper is the joystick hub's scans-door seam (scansDoorRef +
+              data-hub-scans-door); here it adds a real box, not display:contents. */}
+          <span ref={scansDoorRef} data-hub-scans-door="" className={styles.screenerDoor}>
+            <ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
+              onUseScan={(hash, name) => {
+                // useScreenSpec exposes `filters` as the raw map keyed by filter
+                // key — no hook change needed for this escape hatch.
+                const cur = s.filters?.scan
+                const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
+                const value = have.includes(hash) ? have : [...have, hash]
+                s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value, label: name })
+              }} />
+          </span>
+        </div>
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
@@ -265,23 +282,7 @@ export default function ScannerShell({ embedded = false }) {
             <button type="button" className={styles.toolBtn} onClick={() => setReviewOpen(true)}>
               <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
             </button>
-          ) : null}
-          /* ⛔ THE WRAPPER IS THE SEAM'S ANCHOR, and `display:contents` is load-bearing: the
-             toolbar's `.toolGroup` is a flex row and `.saveMenuWrap` positions the popover
-             against itself, so the wrapper must add a queryable node and NO box. */
-          saveBar={<span ref={scansDoorRef} data-hub-scans-door="" style={{ display: 'contents' }}>
-            <ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
-            onUseScan={(hash, name) => {
-              // useScreenSpec already exposes `filters` as the raw map keyed
-              // by filter key (see shell/useScreenSpec.js's return object) —
-              // no hook change was needed for this escape hatch.
-              const cur = s.filters?.scan
-              const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
-              const value = have.includes(hash) ? have : [...have, hash]
-              s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value,
-                                    label: name })
-            }} />
-          </span>} />
+          ) : null} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}

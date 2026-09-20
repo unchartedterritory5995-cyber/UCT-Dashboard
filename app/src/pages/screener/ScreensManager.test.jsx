@@ -86,7 +86,7 @@ beforeEach(() => {
   userDefinitionsState.error = null
 })
 
-const open = () => fireEvent.click(screen.getByText('Screens ▾'))
+const open = () => fireEvent.click(screen.getByText('Screener ▾'))
 
 test('applies a starter spec on click', () => {
   const onApply = vi.fn()

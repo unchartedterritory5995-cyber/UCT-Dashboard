@@ -81,7 +81,7 @@ const mount = () => render(
     <ScreensManager currentSpec={{}} onApply={vi.fn()} onUseScan={vi.fn()} />
   </SWRConfig>,
 )
-const openMenu = () => fireEvent.click(screen.getByText('Screens ▾'))
+const openMenu = () => fireEvent.click(screen.getByText('Screener ▾'))
 const bell = () => screen.getByTestId('screen-alert-u_breakout')
 const of = (method) => H.calls.filter((c) => c.method === method
   && c.url.startsWith('/api/screener/alerts'))

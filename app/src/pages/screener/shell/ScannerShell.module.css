@@ -187,8 +187,11 @@
 .rsBar i { display: block; height: 100%; border-radius: 3px; }
 .rsNum { font-weight: 600; }
 
+/* ── Universe row: the pool selector + the Screener dropdown, together ── */
+.universeRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.screenerDoor { flex: 0 0 auto; }
 /* ── Universe bar (base-pool selector) ── */
-.universeBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.universeBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .uEyebrow {
   font-size: 9.5px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
   color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border);
