@@ -1,0 +1,1750 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.......................................................................F [  3%]
+F....................................................................... [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+...................................FFFFFF...FFFFF....FFFF............... [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+..................F....................
+BEFORE   200 users x  50 tickers ( 2567 distinct) cap=1000   steady-state upstream fetches=6922    tier1 hits=0     per-ticker miss=13836/16860 (82.1%)
+.
+BEFORE   250 users x  50 tickers ( 3000 distinct) cap=1000   steady-state upstream fetches=9124    tier1 hits=0     per-ticker miss=18158/21509 (84.4%)
+.
+BEFORE   200 users x 250 tickers ( 4000 distinct) cap=1000   steady-state upstream fetches=37272   tier1 hits=0     per-ticker miss=74548/85891 (86.8%)
+.AFTER    200 users x  50 tickers ( 2567 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/9892 (0.0%)
+.AFTER    250 users x  50 tickers ( 3000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=250   per-ticker miss=0/12430 (0.0%)
+.AFTER    200 users x 250 tickers ( 4000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/48372 (0.0%)
+........
+MEMORY  live-prices cache at full saturation (9000 entries): 21.0 MB
+.................... [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 99%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+__________ test_earnings_table_stale_serves_old_and_schedules_refresh __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec05b9be60>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_earnings_table_stale_serv0')
+
+    def test_earnings_table_stale_serves_old_and_schedules_refresh(monkeypatch, tmp_path):
+        et = _et(monkeypatch, tmp_path)
+        calls = []
+        _stub_build(monkeypatch, et, calls)
+        now = 1_760_000_000.0
+        first = et.get_earnings_table("ZZSTALE", now=now)
+        assert calls == ["ZZSTALE"]
+        et.cache.invalidate("earnings_table::ZZSTALE")
+        scheduled = []
+        monkeypatch.setattr(et, "_schedule_refresh", lambda t: scheduled.append(t))
+        # Past the 6h slow TTL but under the 3-day stale ceiling → instant stale serve.
+        out = et.get_earnings_table("ZZSTALE", now=now + et._SLOW_TTL + 60)
+        assert out == first                                       # served instantly, old payload
+>       assert scheduled == ["ZZSTALE"]                           # background rebuild queued
+E       AssertionError: assert [] == ['ZZSTALE']
+E         
+E         Right contains one more item: 'ZZSTALE'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'ZZSTALE',
+E         - ]
+
+tests/test_fundamentals_snapshot_store.py:94: AssertionError
+______________ test_earnings_table_too_old_rebuilds_synchronously ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec02f5c800>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_earnings_table_too_old_re0')
+
+    def test_earnings_table_too_old_rebuilds_synchronously(monkeypatch, tmp_path):
+        et = _et(monkeypatch, tmp_path)
+        calls = []
+        _stub_build(monkeypatch, et, calls)
+        now = 1_760_000_000.0
+        et.get_earnings_table("ZZOLD", now=now)
+        et.cache.invalidate("earnings_table::ZZOLD")
+        out = et.get_earnings_table("ZZOLD", now=now + et._STALE_SERVE_MAX + et._SLOW_TTL + 60)
+>       assert calls == ["ZZOLD", "ZZOLD"]                        # rebuilt on the request path
+E       AssertionError: assert ['ZZOLD'] == ['ZZOLD', 'ZZOLD']
+E         
+E         Right contains one more item: 'ZZOLD'
+E         
+E         Full diff:
+E           [
+E               'ZZOLD',
+E         -     'ZZOLD',
+E           ]
+
+tests/test_fundamentals_snapshot_store.py:106: AssertionError
+________ TestFiscalJoin.test_off_calendar_filer_gets_the_right_quarter _________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec040777a0>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_off_calendar_filer_gets_the_right_quarter(self, providers):
+        """NVDA is the case a 'most recent period before the announcement'
+        rule mislabels — every quarter, by exactly one, silently."""
+        got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
+>              for r in ib.past_reports("NVDA", 4)}
+
+tests/test_implied_backfill.py:326: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+__________ TestFiscalJoin.test_september_filer_gets_the_right_quarter __________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec040dd0d0>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_september_filer_gets_the_right_quarter(self, providers):
+        """AAPL is the mirror case, which an 'on or after' rule mislabels."""
+        got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
+>              for r in ib.past_reports("AAPL", 4)}
+
+tests/test_implied_backfill.py:334: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'AAPL', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+____________ TestFiscalJoin.test_future_announcements_are_excluded _____________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec040dc200>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_future_announcements_are_excluded(self, providers):
+        """NVDA's 2026-08-26 row has not reported — there is no implied move
+        to reconstruct and no realized move to pair it against."""
+>       dates = [r["report_date"] for r in ib.past_reports("NVDA", 8)]
+
+tests/test_implied_backfill.py:342: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+____________ TestFiscalJoin.test_one_quarter_is_never_claimed_twice ____________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec04010c20>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01b59970>
+
+    def test_one_quarter_is_never_claimed_twice(self, monkeypatch):
+        """Two announcements can land in one fiscal bucket — a restatement, a
+        duplicated provider row, or a preliminary followed by a final. Only
+        one may be kept: the store is keyed on (sym, report_date), so a second
+        row would quietly add a SECOND implied move for one quarter and skew
+        whatever the verdict averages.
+    
+        The fixture must actually collide; an earlier version of this test
+        asserted uniqueness over data that was already unique and passed
+        vacuously (a mutation removing the dedupe survived it).
+        """
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        # Both announcements sit inside the same quarter bucket.
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [
+            {"date": "2025-11-19"}, {"date": "2025-11-25"},
+        ])
+        monkeypatch.setattr(ee_mod, "_fh_get", lambda p, q: [
+            {"period": "2025-12-31", "year": 2026, "quarter": 3},
+        ])
+>       rows = ib.past_reports("NVDA", 8)
+
+tests/test_implied_backfill.py:365: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.test_one_quarter_is_never_claimed_twice.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+______________ TestFiscalJoin.test_distinct_quarters_all_survive _______________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec040dde50>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_distinct_quarters_all_survive(self, providers):
+>       rows = ib.past_reports("NVDA", 8)
+
+tests/test_implied_backfill.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_______ TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong _______
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7fec040de330>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01b23c20>
+
+    def test_a_far_away_period_is_refused_not_least_wrong(self, monkeypatch):
+        """With no plausible bucket, "nearest" degenerates into "least far
+        wrong" — which is the silent mispairing this whole rule exists to
+        prevent. Refuse instead."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fh_get",
+                            lambda p, q: [{"period": "2023-03-31", "year": 2023, "quarter": 1}])
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7fec040df980>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01ce8b60>
+fmp_result = None, why = 'a shrug — the provider never answered'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7fec040dfb00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01ceaa50>
+fmp_result = [], why = 'answered, but with no history'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7fec040dfbf0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01b20da0>
+fmp_result = [{'quarter': None, 'report_date': '2026-08-03', 'year': None}]
+why = 'answered, but the income statement carried no fiscal identity'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7fec040a8890>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01b5a180>
+
+    def test_an_exception_from_fmp_falls_back_instead_of_escaping(self, monkeypatch):
+        """`past_reports` runs inside the sweep's per-symbol try, but raising
+        here would still cost the symbol its Finnhub fallback."""
+        from api.services import earnings_estimates as ee_mod
+    
+        def boom(sym, limit=8):
+            raise RuntimeError("provider exploded")
+    
+        monkeypatch.setattr(ib, "fmp_beat_history", boom)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       assert ib.past_reports("NVDA", 4)[0]["fiscal_quarter"] == 3
+
+tests/test_implied_backfill.py:479: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+----------------------------- Captured stderr call -----------------------------
+2026-09-20 14:52:48,990 WARNING api.services.implied_backfill: implied_backfill: FMP history failed for NVDA: provider exploded
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.implied_backfill:implied_backfill.py:322 implied_backfill: FMP history failed for NVDA: provider exploded
+_ TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7fec040aaea0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01b85190>
+fh_spy = {'n': 0}
+
+    def test_the_real_fmp_leg_is_wired_up_end_to_end(self, monkeypatch, fh_spy):
+        """The tests above stub `fmp_beat_history`. This one drives the actual
+        function through faked HTTP so a broken import or a renamed key can't
+        pass silently."""
+        from api.services import earnings_estimates as ee_mod
+    
+        def fake_fmp(path, params):
+            if "income-statement" in path:
+                return [{"date": "2026-06-30", "period": "Q2",
+                         "fiscalYear": "2026", "acceptedDate": "2026-08-03 16:05:00"}]
+            return [{"date": "2026-08-03", "epsActual": 5.71, "epsEstimated": 6.18}]
+    
+        # Patching the OWNING module is the whole point: `earnings_history_fmp`
+        # resolves `_fmp_get` through `earnings_estimates` at call time rather
+        # than binding its own copy, so it cannot escape the guards (or the
+        # stubs) that every other caller goes through.
+        monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
+>       got = ib.past_reports("JAZZ", 4)
+
+tests/test_implied_backfill.py:498: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'JAZZ', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+----------------------------- Captured stderr call -----------------------------
+2026-09-20 14:52:49,008 WARNING api.services.implied_backfill: implied_backfill: FMP history failed for JAZZ: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.implied_backfill:implied_backfill.py:322 implied_backfill: FMP history failed for JAZZ: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+___ TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted ___
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7fec040a95b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01ceab40>
+
+    def test_an_empty_finnhub_response_is_retried_not_accepted(self, monkeypatch):
+        """The bug: a cooldown-induced empty read was indistinguishable from
+        'this company has no earnings history', so the symbol was dropped."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+    
+        def flaky(path, params):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return []                     # the 429 cooldown window
+            return [{"period": "2025-12-31", "year": 2026, "quarter": 3}]
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", flaky)
+>       rows = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:583: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+___________ TestFinnhubPacing.test_gives_up_after_the_attempt_budget ___________
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7fec040a9160>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01ce05c0>
+
+    def test_gives_up_after_the_attempt_budget(self, monkeypatch):
+        """A ticker Finnhub genuinely does not cover must not retry forever."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+    
+        def always_empty(path, params):
+            calls["n"] += 1
+            return []
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", always_empty)
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:601: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_gives_up_after_the_attempt_budget.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+______ TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing ______
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7fec040a9850>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec01ce1e20>
+
+    def test_no_finnhub_call_at_all_when_fmp_has_nothing(self, monkeypatch):
+        """Don't spend the shared budget on a symbol we already know we cannot
+        place — FMP supplies the announcement dates the labels attach to."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [])
+        called = {"n": 0}
+    
+        def spy(path, params):
+            called["n"] += 1
+            return []
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", spy)
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:618: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_________ TestFinnhubPacing.test_every_finnhub_call_is_actually_paced __________
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7fec040a9e20>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec02fdaea0>
+
+    def test_every_finnhub_call_is_actually_paced(self, monkeypatch):
+        """Pacing is the whole reason this job stops starving live traffic, so
+        assert the sleep really happens at the configured interval rather than
+        trusting that the line is present. (Other tests set the pace to 0, so a
+        mutation deleting the sleep is invisible to them.)"""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 2.5)
+        slept = []
+        monkeypatch.setattr(ib.time, "sleep", lambda s: slept.append(s))
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fh_get",
+                            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_every_finnhub_call_is_actually_paced.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+___________________ test_theme_warm_is_throttled_and_capped ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fec209283e0>
+
+    def test_theme_warm_is_throttled_and_capped(monkeypatch):
+        import importlib
+        import api.routers.theme_performance as tp
+        importlib.reload(tp)
+    
+        warm_calls = []
+        monkeypatch.setattr("api.routers.bars.warm_bars_async",
+                            lambda tickers, tf="D", bars=8000: warm_calls.append(list(tickers)))
+        big = [{"ticker": "XLK", "holdings": [{"sym": f"T{i}"} for i in range(200)]}]
+        monkeypatch.setattr(tp.svc, "get_theme_performance", lambda: big)
+        monkeypatch.setattr(tp.svc, "looks_like_ticker", lambda s: True)
+        monkeypatch.setattr(tp, "_COLD_TAIL_CAP", 30, raising=False)
+        tp._last_theme_warm = 0.0  # force first call to warm
+    
+        tp.get_theme_performance()
+        tp.get_theme_performance()  # immediate second poll must NOT re-warm
+    
+>       assert len(warm_calls) == 1, "second immediate poll should be throttled"
+E       AssertionError: second immediate poll should be throttled
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_launch_hardening.py:145: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_gate_trigger3.py::test_a_stuck_queue_turns_the_whole_verdict
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_gate_trigger3.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc = _resume(tmp_path / "r.md", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), 4)
+
+tests/test_implied_move.py::test_compute_expected_move_maps_class_share_symbol_end_to_end
+tests/test_implied_move_bounds.py::test_production_outlier_pepg_refuses_as_implausible_move_not_as_no_atm_strike
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_budget_denied_mid_fanout_gets_short_ttl
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_no_denial_gets_the_full_1h_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_dual_provider_failure_mid_fanout_gets_short_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_no_failure_gets_full_ttl
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+  <unknown>:1311: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+  <unknown>:608: SyntaxWarning: invalid escape sequence '\w'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_mobile_audit_route_validity.py:34: mobile_audit import failed: No module named 'playwright'
+FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_stale_serves_old_and_schedules_refresh - AssertionError: assert [] == ['ZZSTALE']
+  
+  Right contains one more item: 'ZZSTALE'
+  
+  Full diff:
+  + []
+  - [
+  -     'ZZSTALE',
+  - ]
+FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_too_old_rebuilds_synchronously - AssertionError: assert ['ZZOLD'] == ['ZZOLD', 'ZZOLD']
+  
+  Right contains one more item: 'ZZOLD'
+  
+  Full diff:
+    [
+        'ZZOLD',
+  -     'ZZOLD',
+    ]
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_off_calendar_filer_gets_the_right_quarter - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_september_filer_gets_the_right_quarter - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_future_announcements_are_excluded - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_one_quarter_is_never_claimed_twice - TypeError: TestFiscalJoin.test_one_quarter_is_never_claimed_twice.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_distinct_quarters_all_survive - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_a_far_away_period_is_refused_not_least_wrong - TypeError: TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_an_exception_from_fmp_falls_back_instead_of_escaping - TypeError: TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_the_real_fmp_leg_is_wired_up_end_to_end - TypeError: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_an_empty_finnhub_response_is_retried_not_accepted - TypeError: TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_gives_up_after_the_attempt_budget - TypeError: TestFinnhubPacing.test_gives_up_after_the_attempt_budget.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_no_finnhub_call_at_all_when_fmp_has_nothing - TypeError: TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_every_finnhub_call_is_actually_paced - TypeError: TestFinnhubPacing.test_every_finnhub_call_is_actually_paced.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_launch_hardening.py::test_theme_warm_is_throttled_and_capped - AssertionError: second immediate poll should be throttled
+assert 0 == 1
+ +  where 0 = len([])
+18 failed, 1935 passed, 1 skipped, 14 warnings in 471.27s (0:07:51)
