@@ -27,7 +27,7 @@
  */
 import { describe, it as vitestIt, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import { forwardRef, useEffect } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
@@ -49,7 +49,23 @@ const { hoisted } = vi.hoisted(() => ({
 }))
 
 vi.mock('../hooks/usePreferences', () => ({
-  default: () => ({ prefs: hoisted.prefs, setPrefMerged: vi.fn(), loading: false }),
+  // S4 CP3: HubContext now calls useAppFocus(), which needs a working
+  // `setPref` too. The force-render ticker mirrors the real hook's
+  // SWR-subscription re-render on an optimistic `mutate(fn, false)`
+  // (usePreferences.js:107) -- `hoisted.prefs` itself stays the one value.
+  default: () => {
+    const [, forceRender] = useState(0)
+    return {
+      prefs: hoisted.prefs,
+      setPref: (key, value) => {
+        hoisted.prefs = { ...hoisted.prefs, [key]: value }
+        forceRender((n) => n + 1)
+        return true
+      },
+      setPrefMerged: vi.fn(),
+      loading: false,
+    }
+  },
   // ⚠️ A mocked module namespace is a Proxy that THROWS on any export the mock omits, and
   // useHubSettings.js imports `parsePref` directly.
   parsePref: (raw) => {

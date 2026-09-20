@@ -1,23 +1,23 @@
 // app/src/components/chart/useTracingsSync.js — cross-device sync for Tracings.
 //
 // Mount ONCE on the charts surface. Bridges the (synchronous, localStorage-backed)
-// drawingsStore tracings layer to the server via the existing preferences store, so
-// a user's sheets follow them across devices. Newer-wins at the whole-document
-// level (a highwatermark of the last server updatedAt this browser has seen):
+// drawingsStore tracings layer to the server, so a user's sheets follow them
+// across devices.
 //
-//  • Hydrate: on first load, if the server copy is newer than our highwatermark we
-//    ADOPT it (importTracings); otherwise our local copy is source of truth and we
-//    push it up.
-//  • Push: any store change schedules a debounced push of the full export blob,
-//    stamped with a monotonic updatedAt; a pending push is FLUSHED on unmount so a
-//    drawing made right before navigating away is never dropped.
-//
-// LWW caveat (documented, Phase-3 to refine): a device with unsynced local drawings
-// adopts the cloud copy on its first sync, and two devices editing at once keep the
-// later writer's whole document. This is add/replace-consistent, not a field-merge.
+// S5 CP4 (GATE-S5-PERSISTENCE-USER-STATE) added a SECOND implementation behind
+// `TRACINGS_STORE_ENABLED` (./tracingsStoreFlag.js, a compiled constant,
+// defaulting OFF — CP5 is the certification gate that would flip it). While
+// OFF, `useTracingsSync` is `useTracingsSyncViaPreferences`, UNCHANGED byte
+// for byte from before CP4. The two implementations are kept side by side
+// rather than threading a runtime branch through one function, because the
+// pre-existing implementation's own hard-won invariants (MOB-09's
+// only-advance-on-confirmed-write, the ordering guard against two in-flight
+// pushes confirming out of turn) are exactly the kind of thing a shared
+// conditional silently erodes over time.
 import { useEffect, useRef, useCallback } from 'react'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import * as drawingsStore from './drawingsStore'
+import { TRACINGS_STORE_ENABLED } from './tracingsStoreFlag'
 
 const PREF_KEY = 'tracings_doc'
 const HW_KEY = 'uct-tracings-sync-hw'        // localStorage: last server updatedAt this browser has seen
@@ -47,7 +47,7 @@ export function hasTracingContent(doc) {
   return false
 }
 
-export default function useTracingsSync() {
+function useTracingsSyncViaPreferences() {
   const { prefs, setPref, loading } = usePreferences()
   const hydratedRef = useRef(false)
   const pushTimerRef = useRef(null)
@@ -159,4 +159,150 @@ export default function useTracingsSync() {
   }, [schedulePush, flushPush])
 
   return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S5 CP4 — the dedicated-store implementation. DARK while
+// TRACINGS_STORE_ENABLED is false; nothing below this line ever runs in that
+// state (the top-level useTracingsSync() branches before calling it).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REV_KEY = 'uct-tracings-sync-rev'   // localStorage: last server revision this browser has confirmed
+
+function readRev() {
+  try { return Number(localStorage.getItem(REV_KEY)) || 0 } catch { return 0 }
+}
+function writeRev(rev) {
+  try { localStorage.setItem(REV_KEY, String(rev)) } catch { /* quota — sync still works in-session */ }
+}
+
+async function fetchTracings() {
+  const res = await fetch('/api/tracings', { credentials: 'include' })
+  if (!res.ok) return null
+  return res.json()   // { doc: <JSON text> | null, revision: int | null, updatedAt }
+}
+
+/**
+ * A-1/A-2: the CAS baseline is the server's own REVISION COUNTER, not a
+ * client timestamp. This is a strictly safer property than the preferences
+ * path's monotonic-stamp scheme: two pushes in this browser are never
+ * in flight at once (one debounce timer, awaited to completion before the
+ * next can fire), so there is no out-of-order-confirmation case to guard —
+ * a 409 unambiguously means another writer landed since OUR last confirmed
+ * revision, full stop.
+ *
+ * A-5: Tracings has no server-side appender (nothing but this hook ever
+ * writes the document), so there is no benign server-side change a 409
+ * could represent — fork-on-every-409 is therefore honest, not a
+ * simplification: ADOPT the server's copy as the new baseline rather than
+ * attempt to reconcile, exactly mirroring the preferences path's own
+ * adopt-the-cloud-copy behavior on a fresher server document.
+ *
+ * A-9: the member-facing vocabulary for a queued/blocked write
+ * (`unsyncedCopy.js`) is reserved for CP5, when this path first becomes
+ * visible to a member — CP4 has no UI of its own to attach it to.
+ */
+function useTracingsSyncViaStore() {
+  const hydratedRef = useRef(false)
+  const pushTimerRef = useRef(null)
+  const lastPushedRevRef = useRef(0)
+  const dirtyRef = useRef(false)
+
+  const flushPush = useCallback(async () => {
+    if (pushTimerRef.current) { clearTimeout(pushTimerRef.current); pushTimerRef.current = null }
+    const doc = JSON.stringify(drawingsStore.exportTracings())
+    const expectedRevision = lastPushedRevRef.current || null
+    let res
+    try {
+      res = await fetch('/api/tracings', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doc, expectedRevision }),
+      })
+    } catch {
+      dirtyRef.current = true
+      return
+    }
+    if (res.status === 409) {
+      // A-5 fork: adopt the server's copy as our new baseline.
+      const server = await fetchTracings()
+      if (server && server.revision) {
+        try { drawingsStore.importTracings(JSON.parse(server.doc)) } catch { /* malformed remote doc — leave local as-is */ }
+        lastPushedRevRef.current = server.revision
+        writeRev(server.revision)
+      }
+      dirtyRef.current = false
+      return
+    }
+    if (!res.ok) {
+      dirtyRef.current = true
+      return
+    }
+    const result = await res.json()
+    if (result.revision > lastPushedRevRef.current) {
+      lastPushedRevRef.current = result.revision
+      writeRev(result.revision)
+    }
+    dirtyRef.current = false
+  }, [])
+
+  const schedulePush = useCallback(() => {
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current)
+    pushTimerRef.current = setTimeout(flushPush, PUSH_DEBOUNCE_MS)
+  }, [flushPush])
+
+  // Hydrate from the server exactly once, newer-wins by revision.
+  useEffect(() => {
+    if (hydratedRef.current) return
+    hydratedRef.current = true
+    let cancelled = false
+    ;(async () => {
+      const server = await fetchTracings()
+      if (cancelled) return
+      const rev = readRev()
+      let parsedDoc = null
+      if (server && server.doc) {
+        try { parsedDoc = JSON.parse(server.doc) } catch { parsedDoc = null }
+      }
+      const serverUsable = !!(server && parsedDoc && typeof server.revision === 'number')
+      const serverHasContentWeLack =
+        serverUsable && !drawingsStore.hasLocalTracingContent() && hasTracingContent(parsedDoc)
+      if (serverUsable && (server.revision > rev || serverHasContentWeLack)) {
+        drawingsStore.importTracings(parsedDoc)
+        writeRev(Math.max(server.revision, rev))
+        lastPushedRevRef.current = Math.max(server.revision, rev)
+        return
+      }
+      if (serverUsable) lastPushedRevRef.current = Math.max(server.revision, rev)
+      if (drawingsStore.hasLocalTracingContent()) schedulePush()
+    })()
+    return () => { cancelled = true }
+  }, [schedulePush])
+
+  // Push on any local change (debounced), and flush a pending push on unmount.
+  useEffect(() => {
+    const unsub = drawingsStore.subscribeAnyChange(() => {
+      if (hydratedRef.current) schedulePush()
+    })
+    return () => {
+      unsub()
+      if (pushTimerRef.current || dirtyRef.current) flushPush()
+    }
+  }, [schedulePush, flushPush])
+
+  return null
+}
+
+export default function useTracingsSync() {
+  // ⛔ TRACINGS_STORE_ENABLED IS A COMPILED CONSTANT, NEVER RUNTIME STATE —
+  // this branch is identical on every render of a given build, so it does not
+  // violate the rules of hooks (the hook CALL SEQUENCE for any one mounted
+  // instance never changes). See tracingsStoreFlag.js.
+  if (TRACINGS_STORE_ENABLED) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useTracingsSyncViaStore()
+  }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useTracingsSyncViaPreferences()
 }
