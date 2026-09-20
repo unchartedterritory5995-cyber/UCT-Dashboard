@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 26 clock, 15 operators, 73 functions and 137 scalars — 256 names, one grammar', () => {
+  it('declares 5 series, 26 clock, 15 operators, 74 functions and 137 scalars — 257 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -553,7 +553,13 @@ describe('the manifest', () => {
     // arguments (`series, int, int`), `lookback: "arg1"` -- the same
     // already-used lookback form every `arg1` window declares -- no new node
     // type, argument kind or lookback form. `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(73)
+    // ⭐ 73 -> 74 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    // sibling (same shape, same guard, zero `pine.js`-specific code), and the
+    // sole blocker on a real corpus script
+    // (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`). Ordinary
+    // pointwise entry, `lookback: 0`, one `series` argument -- no new node
+    // type, argument kind or lookback form. `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(74)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -655,9 +661,12 @@ describe('the manifest', () => {
     // ⭐⭐ 113 -> 119 IS `lastbartime` + its five calendar fields (2026-09-20)
     // -- see the clock-count note above. Scalar half untouched at 137, which
     // is what makes the total 256, not 257.
-    expect(bar.size).toBe(119)
+    // ⭐ 119 -> 120 IS `ceil` (2026-09-20) -- see the functions-count note
+    // above. Scalar half untouched at 137, which is what makes the total
+    // 257, not 258.
+    expect(bar.size).toBe(120)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(256)
+    expect(declared.size).toBe(257)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

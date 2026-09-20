@@ -790,7 +790,10 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # `pine_timenow_is_today_year_month_dayofmonth` (year/month/dayofmonth)
     # and `pine_timenow_hour_and_minute_too` (time/hour/minute). The scalar
     # half is untouched at 137 -- none of the six names a per-symbol column.
-    assert len(parts["bar"]) == 119 and len(parts["scalar"]) == 137
+    # ⭐ 119 -> 120 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    # sibling. New bar-corpus case: `pine_ceil_rounds_toward_positive_infinity`.
+    # The scalar half is untouched at 137 -- `ceil` names no per-symbol column.
+    assert len(parts["bar"]) == 120 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

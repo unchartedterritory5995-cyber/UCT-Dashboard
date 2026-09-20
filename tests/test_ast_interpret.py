@@ -299,7 +299,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # static translator has no instant for). All six ride the existing
     # `series` node and add no argument `interpret` did not already have.
     # The scalar half is untouched (see the sibling assertion).
-    assert len(ast_table.bar_names()) == 119, len(ast_table.bar_names())
+    # ⭐ 119 -> 120 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    # sibling, and the sole blocker on a real corpus script
+    # (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`). Ordinary
+    # pointwise entry, `lookback: 0`, one `series` argument -- no new node
+    # type, argument kind or lookback form. The scalar half is untouched.
+    assert len(ast_table.bar_names()) == 120, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -336,7 +341,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 250 -> 256 (2026-09-20): `lastbartime` + its five calendar fields. The
     # bar half moved 113 -> 119, the scalar half is untouched at 137; this is
     # their sum.
-    assert len(declared) == 256, f"the table declares {len(declared)} names, not 256"
+    # 256 -> 257 (2026-09-20): `ceil`. The bar half moved 119 -> 120, the
+    # scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 257, f"the table declares {len(declared)} names, not 257"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

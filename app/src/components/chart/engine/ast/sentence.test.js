@@ -363,6 +363,13 @@ const FORMS = [
   // number' does not occur inside ' rounded to a whole number' (nor the other
   // way -- 'down' is the discriminator either grammar has to consume).
   { kind: 'call', name: 'floor', parts: [0, ' rounded down to a whole number'] },
+  // ⭐ `ceil` (2026-09-20) -- `floor`'s exact sibling, hand-typed from the
+  // manifest's own sentence. ⚠️ NOT ambiguous with `round`'s or `floor`'s
+  // rows: `matchForm` anchors on the literal FOLLOWING the leaf, and
+  // ' rounded up to a whole number' contains neither ' rounded to a whole
+  // number' nor ' rounded down to a whole number' as a substring (the
+  // inserted word breaks the run each time).
+  { kind: 'call', name: 'ceil', parts: [0, ' rounded up to a whole number'] },
   // ⭐ `percentileLinearInterpolation` (2026-09-20) -- hand-typed from the
   // manifest's own sentence, like every row above. ⚠️ NOT ambiguous with
   // `percentrank`'s row: `matchForm` anchors on the literal FOLLOWING each
@@ -1045,6 +1052,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:bbw',
       'function:bop',
       'function:cci',
+      'function:ceil',
       'function:change',
       'function:cos',
       'function:crossOver',
@@ -1139,7 +1147,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
-    expect(entries.length).toBe(119)
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    expect(entries.length).toBe(120)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1152,7 +1161,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
-    expect(subjects.length).toBe(119)
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    expect(subjects.length).toBe(120)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2337,7 +2347,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
       'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition', 'offset_two_bars_apart', 'accum_bounded_counter',
       'accum_running_max_is_highest', 'accum_sticky_flag_ternary', 'accum_over_a_windowed_column', 'accum_offset_of_a_running_value', 'pine_rma_is_wilders_average',
-      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_floor_rounds_toward_negative_infinity', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
+      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_ceil_rounds_toward_positive_infinity', 'pine_floor_rounds_toward_negative_infinity', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
       'sqrt_of_close', 'sqrt_of_a_negative', 'ln_of_close', 'ln_of_zero', 'log10_of_close',
       'exp_of_a_small_number', 'exp_overflow', 'pow_square', 'pow_fractional_of_negative', 'mod_truncated',
       'mod_by_zero', 'idiv_truncated', 'sin_of_close', 'cos_of_close', 'tan_of_close',
@@ -2566,7 +2576,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
-    expect(sentences.length).toBe(CORPUS.cases.length + 119)
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    expect(sentences.length).toBe(CORPUS.cases.length + 120)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
