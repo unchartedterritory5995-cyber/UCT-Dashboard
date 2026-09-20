@@ -17,6 +17,10 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   const [sort, setSortState] = useState(fromUrl?.sort ?? { ...DEFAULT_SORT })
   const [view, setViewState] = useState(fromUrl?.view ?? DEFAULT_VIEW)
   const [columns, setColumnsState] = useState(fromUrl?.columns ?? null)
+  // A ranked scan (weighted composite + optional top_n cap, e.g. UCT 50). Owns
+  // ordering when present — query.py ranks by it and top_n bounds the list — so
+  // an explicit column-header sort clears it (see setSort).
+  const [rank, setRankState] = useState(fromUrl?.rank ?? null)
   const [page, setPage] = useState(1)
 
   // ── shared-screen arrival: only when no working spec is in the URL ───────
@@ -41,14 +45,14 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     clearTimeout(writeTimer.current)
     writeTimer.current = setTimeout(() => {
       const url = new URL(window.location.href)
-      const enc = encodeSpec({ filters, sort, view, columns })
+      const enc = encodeSpec({ filters, sort, view, columns, rank })
       if (enc) url.searchParams.set(SPEC_PARAM, enc)
       else url.searchParams.delete(SPEC_PARAM)
       url.searchParams.delete(SHARED_SCREEN_PARAM)
       window.history.replaceState(null, '', url)
     }, 400)
     return () => clearTimeout(writeTimer.current)
-  }, [filters, sort, view, columns])
+  }, [filters, sort, view, columns, rank])
 
   // ── back/forward restores the encoded screen ─────────────────────────────
   useEffect(() => {
@@ -59,6 +63,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       setSortState(dec?.sort ?? { ...DEFAULT_SORT })
       setViewState(dec?.view ?? DEFAULT_VIEW)
       setColumnsState(dec?.columns ?? null)
+      setRankState(dec?.rank ?? null)
       setPage(1)
     }
     window.addEventListener('popstate', onPop)
@@ -75,8 +80,12 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     })
     setPage(1)
   }, [])
-  const clearFilters = useCallback(() => { setFilters({}); setPage(1) }, [])
-  const setSort = useCallback(v => { setSortState(v); setPage(1) }, [])
+  const clearFilters = useCallback(() => { setFilters({}); setRankState(null); setPage(1) }, [])
+  // An explicit column-header sort takes over ordering, so it drops any active
+  // rank (e.g. leaving the UCT-50 cap) — otherwise the click would appear to do
+  // nothing because the rank still owns the order server-side.
+  const setSort = useCallback(v => { setSortState(v); setRankState(null); setPage(1) }, [])
+  const setRank = useCallback(r => { setRankState(r || null); setPage(1) }, [])
   const setView = useCallback(k => { setViewState(k); setColumnsState(null); setPage(1) }, [])
   const setColumns = useCallback(c => { setColumnsState(c?.length ? c : null); setPage(1) }, [])
   const applySpec = useCallback(s => {
@@ -87,6 +96,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     // would let a later in-place edit reach back into the cached spec.
     if (s?.sort) setSortState({ ...s.sort })
     setColumnsState(Array.isArray(s?.columns) && s.columns.length ? [...s.columns] : null)
+    setRankState(s?.rank ? { ...s.rank } : null)
     setPage(1)
   }, [])
   const loadMore = useCallback(() => setPage(p => p + 1), [])
@@ -100,8 +110,8 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
 
   const baseSpec = useMemo(() => ({
     filters: Object.entries(filters).filter(([, v]) => v).map(([key, v]) => ({ key, ...v })),
-    sort, view, ...(columns?.length ? { columns } : {}),
-  }), [filters, sort, view, columns])
+    sort, view, ...(columns?.length ? { columns } : {}), ...(rank ? { rank } : {}),
+  }), [filters, sort, view, columns, rank])
 
   const scanSpec = useMemo(() => ({
     ...baseSpec,
@@ -109,7 +119,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     page, page_size: PAGE_SIZE,
   }), [baseSpec, requestColumns, page])
 
-  return { filters, sort, view, columns, visibleColumns, page,
-    setFilter, clearFilters, setSort, setView, setColumns, applySpec,
+  return { filters, sort, view, columns, rank, visibleColumns, page,
+    setFilter, clearFilters, setSort, setRank, setView, setColumns, applySpec,
     loadMore, resetPage, baseSpec, scanSpec }
 }

@@ -24,6 +24,11 @@ const specKey = spec => JSON.stringify({
   f: (spec?.filters || []).map(filtKey).sort(),
   v: spec?.view ?? null,
   s: spec?.sort ? `${spec.sort.key}:${spec.sort.dir || 'desc'}` : null,
+  // A ranked scan (e.g. UCT 50) is identified by its criteria + cap, not a sort.
+  r: spec?.rank ? JSON.stringify({
+    c: (spec.rank.criteria || []).map(x => `${x.key}:${x.ascending ? 'a' : 'd'}:${x.weight ?? 1}`).sort(),
+    n: spec.rank.top_n ?? null,
+  }) : null,
 })
 
 export default function QuickScreens({ baseSpec, onApply }) {

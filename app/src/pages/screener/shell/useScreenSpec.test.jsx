@@ -65,4 +65,17 @@ describe('useScreenSpec', () => {
     rerender()
     expect(result.current.scanSpec).toBe(before)
   })
+
+  it('applySpec carries a rank into baseSpec/scanSpec; an explicit sort clears it', () => {
+    const rank = { criteria: [{ key: 'uct_composite' }], top_n: 50 }
+    const { result } = renderHook(() => useScreenSpec())
+    act(() => result.current.applySpec({ filters: [], view: 'uct_ratings', rank }))
+    expect(result.current.rank).toEqual(rank)
+    expect(result.current.baseSpec.rank).toEqual(rank)
+    expect(result.current.scanSpec.rank).toEqual(rank)
+    // A column-header sort takes over ordering, so the rank (UCT-50 cap) drops.
+    act(() => result.current.setSort({ key: 'price', dir: 'desc' }))
+    expect(result.current.rank).toBeNull()
+    expect(result.current.baseSpec.rank).toBeUndefined()
+  })
 })

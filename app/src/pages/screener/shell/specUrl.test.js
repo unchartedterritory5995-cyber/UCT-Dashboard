@@ -31,5 +31,13 @@ describe('specUrl codec', () => {
     expect(only.sort).toEqual(DEFAULT_SORT)
     expect(only.view).toBe('overview')
     expect(only.columns).toBeNull()
+    expect(only.rank).toBeNull()
+  })
+
+  it('round-trips a ranked scan (e.g. UCT 50) and its top_n cap', () => {
+    const rank = { criteria: [{ key: 'uct_composite' }], top_n: 50 }
+    const out = decodeSpec(encodeSpec({ filters: {}, view: 'uct_ratings', rank }))
+    expect(out.rank).toEqual(rank)
+    expect(out.view).toBe('uct_ratings')
   })
 })
