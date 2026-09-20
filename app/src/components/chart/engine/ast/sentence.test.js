@@ -357,6 +357,12 @@ const FORMS = [
   { kind: 'call', name: 'wma', parts: ['the ', 1, '-bar weighted average of ', 0] },
   { kind: 'call', name: 'sign', parts: ['the sign of ', 0] },
   { kind: 'call', name: 'round', parts: [0, ' rounded to a whole number'] },
+  // ⭐ `floor` (2026-09-20) -- hand-typed from the manifest's own sentence,
+  // like every row above. ⚠️ NOT ambiguous with `round`'s row: `matchForm`
+  // anchors on the literal FOLLOWING the leaf, and ' rounded down to a whole
+  // number' does not occur inside ' rounded to a whole number' (nor the other
+  // way -- 'down' is the discriminator either grammar has to consume).
+  { kind: 'call', name: 'floor', parts: [0, ' rounded down to a whole number'] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
@@ -1050,6 +1056,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `ta.pvt`'s windowed-delta bounded form, mirroring `obvN`). Two named
       // entries, not a bumped count.
       'function:falling',
+      // `floor` (2026-09-20): Pine's `math.floor`, the sole blocker on a real
+      // corpus script. One named entry, not a bumped count.
+      'function:floor',
       'function:highest',
       'function:highestbars',
       'function:hma',
@@ -1105,7 +1114,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // rail actually asserts.
     // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19), an ordinary clock entry:
     // it renders a sentence, round-trips, and is ASCII, the same as `islast`.
-    expect(entries.length).toBe(111)
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    expect(entries.length).toBe(112)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1115,7 +1125,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(111)
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    expect(subjects.length).toBe(112)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2300,7 +2311,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
       'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition', 'offset_two_bars_apart', 'accum_bounded_counter',
       'accum_running_max_is_highest', 'accum_sticky_flag_ternary', 'accum_over_a_windowed_column', 'accum_offset_of_a_running_value', 'pine_rma_is_wilders_average',
-      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
+      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_floor_rounds_toward_negative_infinity', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
       'sqrt_of_close', 'sqrt_of_a_negative', 'ln_of_close', 'ln_of_zero', 'log10_of_close',
       'exp_of_a_small_number', 'exp_overflow', 'pow_square', 'pow_fractional_of_negative', 'mod_truncated',
       'mod_by_zero', 'idiv_truncated', 'sin_of_close', 'cos_of_close', 'tan_of_close',
@@ -2514,7 +2525,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // rather than one number for exactly this reason: the corpus half moves on
     // its own and the table half moves on its own, and a single literal would
     // hide which one did.
-    expect(sentences.length).toBe(CORPUS.cases.length + 111)
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    expect(sentences.length).toBe(CORPUS.cases.length + 112)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

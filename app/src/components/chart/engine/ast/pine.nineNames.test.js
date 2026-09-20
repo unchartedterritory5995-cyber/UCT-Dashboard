@@ -3,8 +3,7 @@
 // ─── ⭐⭐ ITEM 8: WHAT THE 2026-09-11 CAPTURE BOUGHT, AND WHAT IT DID NOT ────
 //
 // `math.pi`, `math.ceil`, `math.floor` and `year` were four of item 8's nine
-// names. The capture answered all four; only ONE of them is pinned here, and the
-// gap is deliberate and priced.
+// names. The capture answered all four; two are pinned here.
 //
 //     TradingView, AMEX:SPY 1D, 400 bars, 2026-09-11:
 //       math.pi          3.141592653589793  on every bar
@@ -18,14 +17,23 @@
 // rather than from two agreeing ones — and this file asserts that asymmetry
 // rather than treating the two as symmetric evidence.
 //
-// ⛔⛔ AND `ceil`/`floor` ARE NOT IN THE TABLE, ON PURPOSE. Declaring them as bar
-// functions was built and BACKED OUT the same hour: `test_ast_scalars.py::
+// ⭐ `floor` PAID THE PRICE THIS COMMENT ONCE ROUTED AROUND (2026-09-20).
+// Declaring `ceil`/`floor` as bar functions was built and BACKED OUT the same
+// hour the capture landed: `test_ast_scalars.py::
 // test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder` and
 // `test_ast_interpret.py::test_ast_table_SPELLS_NO_TABLE_NAME…` went red BY NAME,
 // which is those gates working — a new BAR name owes a corpus case, and adding
-// one moves every frozen per-ast digest and re-freezes a cross-lane oracle. That
-// is a priced, focused pass, not a side effect of a capture. The MEASUREMENT is
-// banked; the pin is routed.
+// one moves every frozen per-ast digest and re-freezes a cross-lane oracle.
+// `math.floor` was the sole blocker on a real corpus script
+// (`renko-candles-overlay__d76a18d49e.pine`), so the pass was paid: a corpus
+// case (`pine_floor_rounds_toward_negative_infinity`), both bar-floor counts
+// bumped by name, and `_guarded_floor` mirroring the SAME native
+// `Math.floor`/`math.isfinite` reading this file's capture already banked —
+// no hand-written correction, exactly as predicted below.
+//
+// ⛔⛔ `ceil` IS STILL NOT IN THE TABLE. Nothing in the committed corpus has
+// asked for it yet, so its measurement stays banked and its pin stays routed
+// until a real script does.
 //
 // Capture: `tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json`.
 
@@ -87,20 +95,31 @@ describe('⭐ `math.pi` is PINNED, and it is a constant rather than a function',
   })
 })
 
-describe('⛔⛔ `ceil` / `floor` are MEASURED and NOT PINNED — the price is the reason', () => {
-  it('they still refuse, and the refusal is the honest one', () => {
-    for (const src of ['plot(math.ceil(close))', 'plot(math.floor(close))']) {
-      const r = tr(src, { strict: true }).refusals || []
-      expect(r.length, src).toBe(1)
-      expect(r[0].guard, src).toBe('pine:function')
-    }
+describe('⛔ `ceil` is MEASURED and NOT PINNED — the price is still unpaid', () => {
+  it('it still refuses, and the refusal is the honest one', () => {
+    const r = tr('plot(math.ceil(close))', { strict: true }).refusals || []
+    expect(r.length).toBe(1)
+    expect(r[0].guard).toBe('pine:function')
   })
 
-  it('and the table does NOT declare them', () => {
-    // ⛔ If this ever flips, the corpus cases and the re-frozen digests must have
-    // landed WITH it — that is what the two red gates were asking for.
+  it('and the table does NOT declare it', () => {
+    // ⛔ If this ever flips, a corpus case and a re-frozen digest must have
+    // landed WITH it — that is what the two red gates were asking for, and
+    // `floor` below is the record of paying exactly that price.
     expect(TABLE.functions.ceil).toBeUndefined()
-    expect(TABLE.functions.floor).toBeUndefined()
+  })
+})
+
+describe('⭐ `math.floor` PAID THE PRICE (2026-09-20) — it is declared and pinned', () => {
+  it('it no longer refuses', () => {
+    const r = tr('plot(math.floor(close))', { strict: true }).refusals || []
+    expect(r).toEqual([])
+  })
+
+  it('and the table declares it, lookback 0, one series argument', () => {
+    expect(TABLE.functions.floor).toBeDefined()
+    expect(TABLE.functions.floor.lookback).toBe(0)
+    expect(TABLE.functions.floor.args).toEqual(['series'])
   })
 
   it('⭐ but the reading is banked, and it is the discriminating one', () => {

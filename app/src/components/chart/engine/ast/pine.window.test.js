@@ -292,13 +292,23 @@ describe('the fold computes what the ENGINE computes, derived', () => {
       ['len = input(20)\nplot(sma(close, 0 - len))', 'pine:window', '0', 4, 17],
       ['plot(sma(close, close > open ? 10 : 20))', 'pine:window', 'close', 3, 17],
       ['plot(sma(close, highest(close, 5)))', 'pine:window', 'highest', 3, 17],
-      ['len = input(20)\nplot(sma(close, floor(len / 2)))', 'pine:function', 'floor', 4, 17],
     ]
     const got = PINNED.map(([body]) => {
       const r = refusal(body)
       return [body, r.guard, r.token, r.line, r.column]
     })
     expect(got).toEqual(PINNED)
+  })
+
+  // ⭐ `floor(len / 2)` with `len = input(20)` USED TO SIT IN `PINNED` ABOVE,
+  // refusing `pine:function` on `floor` because the name did not exist —
+  // matching this file's own prediction at R2 ("the day the manifest declares
+  // `floor`, this folds it with no edit here"). `floor` joined the manifest
+  // 2026-09-20; this is the row moving out of the refusal snapshot and into a
+  // positive case, not a fixture edited to keep a red rail quiet.
+  it('⭐ R2 CONFIRMED — `floor(len / 2)` now folds to a window length with no edit here', () => {
+    const o = formula('len = input(20)\nplot(sma(close, floor(len / 2)))')
+    expect(o).toBe('sma(close, 10)')
   })
 })
 
