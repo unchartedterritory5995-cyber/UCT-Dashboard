@@ -49,6 +49,7 @@ export const EXPR = Object.freeze({
   STR: 'str',
   CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
   TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
+  ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
   SERIES: 'series',       // a price series, by name
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
@@ -199,6 +200,11 @@ export function validateIr(p) {
       case EXPR.CONCAT:
         walkExpr(e.left, `${where}.left`)
         walkExpr(e.right, `${where}.right`)
+        return
+      case EXPR.ARRAY:
+        if (typeof e.fn !== 'string') throw new IrError(`${where}: an array call carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: an array call carries an args array`)
+        e.args.forEach((x, i) => walkExpr(x, `${where}.${e.fn}[${i}]`))
         return
       case EXPR.TEXT:
         if (typeof e.fn !== 'string') throw new IrError(`${where}: a text call carries a name`)
@@ -485,6 +491,10 @@ export const concat = (left, right) => ({ kind: EXPR.CONCAT, left, right })
 /** A `str.*` call. `fn` is the NAME; `runtime/text.js` owns the implementation
  *  and `program.js` validates the name when the program is built. */
 export const textCall = (fn, args) => ({ kind: EXPR.TEXT, fn, args })
+/** An `array.*` call. `typeArg` is the `<T>` the member wrote, which only
+ *  `array.new` reads — it decides the per-element default for a sized array. */
+export const arrayCall = (fn, args, typeArg = null) => (
+  { kind: EXPR.ARRAY, fn, args, typeArg })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
@@ -515,3 +525,6 @@ export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })
 export const ifStmt = (test, then, els) => ({ kind: STMT.IF, test, then, else: els || [] })
 export const emit = (output, value) => ({ kind: STMT.EMIT, output, value })
+/** An expression evaluated for its EFFECT. Admitted only for a call that has
+ *  one — see `lowerIr.js`'s STMT.EXPR arm. */
+export const exprStmt = (value) => ({ kind: STMT.EXPR, value })

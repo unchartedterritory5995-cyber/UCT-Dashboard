@@ -14,6 +14,7 @@
 
 import { OP, SERIES_NAMES, makeProgram } from './program.js'
 import { STMT, EXPR, SLOT } from './ir.js'
+import { isVoid } from './collections.js'
 
 export class LoweringGap extends Error {
   constructor(kind, detail) {
@@ -35,6 +36,7 @@ export function lowerIrProgram(ir) {
   const consts = []
   const pointwise = []
   const textOps = []
+  const arrayOps = []
 
   const constIndex = (v) => {
     const i = consts.indexOf(v)
@@ -50,6 +52,17 @@ export function lowerIrProgram(ir) {
     if (i >= 0) return i
     textOps.push(name)
     return textOps.length - 1
+  }
+  // ⛔ KEYED BY NAME **AND** TYPE ARGUMENT. `array.new<float>(3)` and
+  // `array.new<int>(3)` are the same NAME and different programs, so interning
+  // on the name alone would give the second one the first one's element type.
+  const arrayIndex = (fn, typeArg) => {
+    const key = `${fn}<${typeArg || ''}>`
+    for (let i = 0; i < arrayOps.length; i += 1) {
+      if (`${arrayOps[i].fn}<${arrayOps[i].typeArg || ''}>` === key) return i
+    }
+    arrayOps.push({ fn, typeArg: typeArg || null })
+    return arrayOps.length - 1
   }
   const emit = (op, a = 0, b = 0) => { code.push(op, a, b) }
   const here = () => code.length / 3
@@ -77,6 +90,11 @@ export function lowerIrProgram(ir) {
       case EXPR.TEXT: {
         for (const a of e.args) expr(a)
         emit(OP.TEXT, textIndex(e.fn), e.args.length)
+        return
+      }
+      case EXPR.ARRAY: {
+        for (const a of e.args) expr(a)
+        emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
         return
       }
       case EXPR.SERIES: {
@@ -220,10 +238,20 @@ export function lowerIrProgram(ir) {
           emit(OP.EMIT, s.output)
           break
         case STMT.EXPR:
-          // ⛔ NOT LOWERED AS A DISCARDED PUSH. An expression evaluated for
-          // effect is meaningful only once a call can HAVE an effect; emitting it
-          // now would push a value nothing pops and grow the stack every bar.
-          throw new LoweringGap('an expression statement', 'no call in this runtime has an effect yet')
+          // ⭐⭐ A CALL CAN NOW HAVE AN EFFECT — `array.push(a, x)` mutates the
+          // collection and returns NOTHING. A void call leaves nothing on the
+          // stack, so it needs no pop, which is why this needs no new opcode.
+          //
+          // ⛔ AND ONLY A VOID CALL IS ADMITTED. Any other expression WOULD push
+          // a value nothing pops, growing the stack every bar until the run dies
+          // far from the line that caused it — so the original refusal stands for
+          // everything else, with its reason narrowed rather than deleted.
+          if (s.value && s.value.kind === EXPR.ARRAY && isVoid(s.value.fn)) {
+            expr(s.value)
+            break
+          }
+          throw new LoweringGap('an expression statement',
+            'only a collection operation has an effect in this runtime')
         default:
           throw new LoweringGap(s.kind)
       }
@@ -274,6 +302,7 @@ export function lowerIrProgram(ir) {
     functions,
     pointwise,
     textOps,
+    arrayOps,
     windows: (ir.windows || []).map((w) => ({ ...w })),
     carried: (ir.carried || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({

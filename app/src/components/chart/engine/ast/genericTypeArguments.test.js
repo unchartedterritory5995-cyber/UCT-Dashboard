@@ -55,7 +55,7 @@ describe('generic collection type arguments', () => {
     expect(shape('x = array.size(a) < 3 ? 1 : 0')).toMatch(/punct:</)
   })
 
-  it('the generic LINE is understood; the script is refused by its collection', () => {
+  it('the generic LINE is understood; the HOST lane is still refused by its collection', () => {
     // ⛔ THE ASSERTION IS PER LINE, AND DELIBERATELY SO. Line 3 is the generic
     // declaration this file is about; line 4 is `array.push(a, close)`, a
     // mutator call in STATEMENT position, which is a different gap in a
@@ -75,9 +75,15 @@ describe('generic collection type arguments', () => {
     const sentences = all.map((r) => r.message).join(' | ')
     expect(sentences).toMatch(/array|matrix|map|collection/i)
 
+    // ⭐⭐ AND THE RUNTIME LANE NOW RUNS IT. This asserted `rt.ok === false`
+    // with a collection sentence, which was true when the generic syntax landed
+    // and the collections wave had not. It has: `array.new<float>()`, the
+    // statement-position `array.push`, and `array.get` all execute in that lane
+    // now (`runtime/__tests__/arrays.test.js`). The HOST-lane half above is
+    // unchanged and still refuses — the two lanes genuinely differ here, which
+    // is the fact worth keeping.
     const rt = buildRuntimeIr(src)
-    expect(rt.ok).toBe(false)
-    expect(rt.refusal.message).toMatch(/array|collection/i)
+    expect(rt.ok, rt.refusal && rt.refusal.message).toBe(true)
   })
 
   it('records what is still unread on a collection line: a mutator in statement position', () => {

@@ -32,6 +32,7 @@
 // program's text ops against it at build time, and a second copy of the name
 // list here is exactly the drift the header warns about one paragraph up.
 import { TEXT_FNS } from './text.js'
+import { ARRAY_FNS } from './collections.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -143,6 +144,13 @@ export const OP = Object.freeze({
   // `b` is the argument count. The names live in the artifact rather than in
   // the opcode so adding a `str.*` costs no opcode and no VM branch.
   TEXT: 76,
+  // ⭐ SAME SHAPE AS `TEXT`, and deliberately ONE opcode rather than the five
+  // reserved below. Pine's `array.` namespace has ~30 members; a table of
+  // NAMES costs one opcode for all of them, and the reserved `ARR_*` block
+  // would have cost five for the six this wave needs and another for every
+  // one after. The reserved ids stay declared so nothing renumbers, and this
+  // comment is the record that they were superseded rather than forgotten.
+  ARRAY: 77,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -158,7 +166,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -184,7 +192,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
-  textOps = [],
+  textOps = [], arrayOps = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -220,6 +228,17 @@ export function makeProgram({
         throw new ProgramError(`textOp ${i}: no implementation for \`${name}\``)
       }
       return name
+    })),
+    // ⛔ Each entry is `{fn, typeArg}` — the NAME and the `<T>` the member
+    // wrote, validated here for the same reason a text op is: a name with no
+    // implementation must be a compiler error at build, not a runtime one on
+    // some bar.
+    arrayOps: Object.freeze((arrayOps || []).map((op, i) => {
+      const name = op && op.fn
+      if (!Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) {
+        throw new ProgramError(`arrayOp ${i}: no implementation for \`${name}\``)
+      }
+      return Object.freeze({ fn: name, typeArg: op.typeArg || null })
     })),
     // ⭐ THE HISTORY PLAN IS PART OF THE ARTIFACT, not something the VM discovers.
     // Each entry is `{name, kind, depth, owner}` — how deep this slot's ring must
@@ -308,6 +327,11 @@ export function validateProgram(p) {
       if (got !== want) {
         throw new ProgramError(
           `pc ${pc}: \`${p.textOps[a]}\` takes ${want} argument(s), the call passes ${got}`)
+      }
+    }
+    if (op === OP.ARRAY) {
+      if (a < 0 || a >= p.arrayOps.length) {
+        throw new ProgramError(`pc ${pc}: ARRAY ${a} outside ${p.arrayOps.length} array ops`)
       }
     }
     if (op === OP.POINTWISE) {

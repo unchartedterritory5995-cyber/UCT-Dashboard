@@ -40,9 +40,10 @@ import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall, carriedCall, textCall,
+  windowCall, carriedCall, textCall, arrayCall, exprStmt,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
+import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -630,6 +631,71 @@ export function buildRuntimeIr(source, opts = {}) {
     return false
   }
 
+  /** Does this subtree evaluate to a COLLECTION?
+   *
+   *  ⛔ SEPARATE FROM `holdsText` because the two route for the same REASON
+   *  (the columnar lane can hold neither) but mean different things to every
+   *  consumer: a text slot changes what `+` lowers to, an array slot must never
+   *  be handed to arithmetic at all. */
+  const holdsArray = (node, scope) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'call') {
+      if (producesArray(node.name)) return true
+      // ⭐ AN UNSERVED COLLECTION CALL COUNTS AS ONE TOO, so the binding gets
+      // a slot, the initialiser is LOWERED, and the refusal names the call the
+      // member wrote. Left as an `env` macro it is never lowered at all, and
+      // the member is told about whichever LATER call happened to read it —
+      // measured: `m = matrix.new<float>(2, 2, 0.0)` was reported as
+      // `matrix.rows`, one line below the call they would need to remove.
+      return ARRAY_NS.test(String(node.name || ''))
+        && !Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)
+    }
+    if (node.type === 'name') {
+      const slot = scope.lookup(node.name)
+      if (slot !== null) return !!(slots[slot] && slots[slot].collection)
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
+    }
+    return false
+  }
+
+  /** Lower an `array.*` call.
+   *
+   *  ⭐⭐ ONE ADMISSION, TWO CALLERS, AND THAT IS THE POINT. A collection call
+   *  reaches this front end two ways — as a VALUE (`array.size(a)` inside an
+   *  expression) and as a STATEMENT (`array.push(a, x)` on a line of its own) —
+   *  and the only difference between them is whether a VOID result is allowed.
+   *  Two copies of the arity and named-argument checks would drift, and the one
+   *  that drifted would be the statement path, which is the one a member's
+   *  watchlist parser is made of. */
+  const admitArrayCall = (node, scope, asStatement) => {
+    const spec = ARRAY_FNS[node.name]
+    for (const arg of node.args) {
+      if (arg && arg.name) {
+        throw new RuntimeRefusal('runtime:statement',
+          `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+      }
+    }
+    const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+    const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
+    const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
+    if (given.length < lo || given.length > hi) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` takes ${lo === hi ? lo : `${lo} to ${hi}`} argument`
+        + `${hi === 1 ? '' : 's'}, given ${given.length}`, locate(node.tok))
+    }
+    // ⛔ A VOID CALL IS A STATEMENT AND NOTHING ELSE. Used as a value it would
+    // push nothing and leave the stack one short — refused here by name rather
+    // than discovered later as an underflow far from the line that caused it.
+    if (!asStatement && isVoid(node.name)) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` returns nothing, so it cannot be used as a value`,
+        locate(node.tok))
+    }
+    const typeArg = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
+    return arrayCall(node.name, given.map((x) => lowerExpr(x, scope)), typeArg)
+  }
+
   /** A comparison whose OPERANDS are text.
    *
    *  ⛔ SEPARATE FROM `holdsText` BECAUSE THE VALUE IS A BOOLEAN, NOT TEXT.
@@ -666,6 +732,16 @@ export function buildRuntimeIr(source, opts = {}) {
   const touchesText = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (holdsText(node, scope)) return true
+    // ⭐ A COLLECTION ROUTES FOR THE SAME REASON TEXT DOES — the columnar lane
+    // holds neither, and refuses one at `pine:collection`.
+    if (holdsArray(node, scope)) return true
+    // ⛔ ANY COLLECTION CALL, SERVED OR NOT. A served one must reach this
+    // lane to run; an UNSERVED one must reach it to be refused BY NAME.
+    // Left to the columnar lane, `matrix.new<float>(2, 2, 0.0)` came back as
+    // the generic "an array, a matrix or a map is outside the expression
+    // grammar … `this name` is read as an array here" — true, and useless to
+    // a member trying to find which call to remove. `callFamily` names it.
+    if (node.type === 'call' && ARRAY_NS.test(String(node.name || ''))) return true
     // ⚰️ A SERVED-CALL CLAUSE STOOD HERE AND WAS REDUNDANT — deleting it left
     // every test green, which a mutation proof caught. `holdsText`, which this
     // function's first line already asks, answers true for a call that PRODUCES
@@ -980,7 +1056,8 @@ export function buildRuntimeIr(source, opts = {}) {
         // subsystem. And a `pine:builtin` about some unrelated unknown name
         // still refuses here, by that name, because the runtime does not hold it
         // either.
-        const laneHasNoText = e && (e.guard === 'pine:text-value' || e.guard === 'pine:builtin')
+        const laneHasNoText = e && (e.guard === 'pine:text-value'
+          || e.guard === 'pine:collection' || e.guard === 'pine:builtin')
         if (!(laneHasNoText && touchesText(node, scope))) throw e
       }
     }
@@ -1164,6 +1241,9 @@ export function buildRuntimeIr(source, opts = {}) {
               locate(node.tok))
           }
           return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
+        }
+        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
+          return admitArrayCall(node, scope, false)
         }
         const fam = callFamily(node.name)
         if (fam) { note(fam); throw new RuntimeRefusal(fam, `\`${node.name}\``, locate(node.tok)) }
@@ -1588,12 +1668,20 @@ export function buildRuntimeIr(source, opts = {}) {
         // columnar speed. A name that IS mutated, or one whose initialiser reads
         // a slot, becomes a runtime slot.
         const mutable = mut.mutated.has(nameTok.value)
-        if (!mutable && !readsSlot(value, scope)) {
+        // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
+        // name bound in `env` is SUBSTITUTED at each use, so `a = array.new<string>()`
+        // followed by `array.push(a, x)` and `array.size(a)` would build a FRESH
+        // empty array at every mention — the push would land in one array and the
+        // size be read from another, reporting 0 forever with nothing red. Pine's
+        // arrays are references; a reference needs somewhere to live.
+        const isCollection = holdsArray(value, scope)
+        if (!mutable && !isCollection && !readsSlot(value, scope)) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
         if (holdsText(value, scope)) slots[slot].text = true
+        if (isCollection) slots[slot].collection = true
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -1607,6 +1695,26 @@ export function buildRuntimeIr(source, opts = {}) {
         if (DIRECTIVE_CALLS.has(word)) {
           note('runtime:directive')
           throw new RuntimeRefusal('runtime:directive', `\`${word}()\``, locate(first))
+        }
+        // ⭐⭐ THE FIRST STATEMENT IN THIS RUNTIME THAT EXISTS FOR ITS EFFECT.
+        // `array.push(a, x)` returns nothing and changes the collection, so it is
+        // lowered as an expression statement — which `lowerIr` admits for a VOID
+        // collection call and still refuses for everything else.
+        //
+        // ⚠️ IT BELONGS HERE, NOT IN THE DOTTED BRANCH BELOW. A namespaced
+        // BUILTIN name arrives as ONE ident token, so `array.push(...)` matches
+        // `word && isPunct(toks[1], '(')` with `word` already equal to
+        // "array.push"; the dotted branch is for a different shape and never
+        // sees it. Established from the refusal's own stack after two rounds of
+        // reasoning about the wrong branch.
+        if (isVoid(word)) {
+          const callNode = parseWholeExpression(toks)
+          if (!callNode || callNode.type !== 'call') {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${word}()\` is not a shape this front end reads`, locate(first))
+          }
+          out.push(exprStmt(admitArrayCall(callNode, scope, true)))
+          continue
         }
         const f = callFamily(word)
         if (f) { note(f); throw new RuntimeRefusal(f, `\`${word}\``, locate(first)) }

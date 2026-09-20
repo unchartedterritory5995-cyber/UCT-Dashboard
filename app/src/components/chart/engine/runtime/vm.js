@@ -25,6 +25,7 @@
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
 import { TEXT_FNS } from './text.js'
+import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import { Budget } from './limits.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
@@ -454,6 +455,29 @@ export function execute(program, ctx, limits) {
           stack[sp++] = v
           break
         }
+        case OP.ARRAY: {
+          const op = program.arrayOps[a]
+          const spec = ARRAY_FNS[op.fn]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const want = argKind(spec, i)
+            // ⭐ 'any' IS A REAL KIND HERE, not a missing check: `array.push`
+            // takes whatever the array holds, and a typed array's element type
+            // is the FRONT END's to police, not the VM's.
+            if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
+              throw new VmError(
+                `pc ${pc - 1}: \`${op.fn}\` argument ${i + 1} takes ${want === 'array' ? 'an' : 'a'} `
+                + `${want}, got ${kindOf(stack[sp + i])}`)
+            }
+          }
+          const args = Array.prototype.slice.call(stack, sp, sp + b)
+          const out = spec.fn(args, budget, op.typeArg)
+          // ⛔ A VOID CALL PUSHES NOTHING. `array.push` is a statement in Pine;
+          // pushing an `undefined` for it would put a value on the stack that
+          // nothing pops and that no kind check would recognise later.
+          if (spec.returns !== 'void') stack[sp++] = out
+          break
+        }
         case OP.WINDOW: {
           // ⭐⭐ FRAME-RELATIVE, like every other per-site store. `windowBase` is
           // what keeps two call sites of one function from sharing an
@@ -594,6 +618,22 @@ export function execute(program, ctx, limits) {
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
+
+    // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE
+    // for the whole run, so a value pushed and never popped is not a leak that
+    // clears next bar — it accumulates, and the run dies of a full stack
+    // thousands of bars from the instruction that caused it.
+    //
+    // ⚰️ THIS EXISTS BECAUSE A MUTATION PROOF FOUND NOTHING WATCHING. Making a
+    // VOID collection call push its `undefined` anyway left EVERY test green:
+    // four-bar fixtures simply do not run long enough to notice, and the defect
+    // would have surfaced as an unexplained stack overflow on a member's real
+    // chart. It is an invariant, so it is asserted rather than tested around.
+    if (sp !== 0) {
+      throw new VmError(
+        `bar ${bar}: the program left ${sp} value(s) on the stack — every value a `
+        + 'bar pushes must be consumed by the end of it')
+    }
 
     // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────
     //
