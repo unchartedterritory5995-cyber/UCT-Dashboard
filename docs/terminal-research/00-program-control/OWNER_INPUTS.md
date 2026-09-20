@@ -359,6 +359,49 @@ price-level dark read. **No action needed now** — recorded so it is not forgot
 
 ---
 
+## PART G — NEW 2026-09-20, surfaced while scoping A14 off DEC-08's answer
+
+### G1 · A14 (Portfolio & Risk) — who may see aggregate risk?
+
+DEC-08 was answered directly this session ("does the desk need a corp-actions/portfolio-risk
+calendar daily?" → **"Yes, we need it daily."**), and I went to scope A14's first real checkpoint
+off that answer. It turns out DEC-08 was never A14's only blocker — the original research
+(`10-roadmap/2026-09-12-a-series-bucket-sort.md:357`) named it **owner-bound twice over**: DEC-08
+itself, and separately, *"S9 (who may see aggregate risk)"*. S9 is now fully done (both CP1 and
+CP2 signed), but checked what it actually answered: OI-03(a)(b)/OI-12 are about which **vendor**
+licensing tier we hold (Massive Business/Enterprise, FMP DDLA) — a completely different question
+from which **member subscription tier** gets to see a new aggregate-risk feature. Nothing S9 built
+answers this second question, and it was never separately asked.
+
+This matters because the answer is not free to skip: `api/services/portfolio_heat.py` (203 lines)
+already computes the real numbers — risk-heat against the 10% aggregate cap, notional exposure
+against the regime ceiling, per-position at-risk, by-sector concentration, broker-placeholder-stop
+detection — confirmed still true this pass. It has **zero** page routes (0 of 91 match
+`portfolio|risk|heat`) and is reachable only through four assistant-tool call sites
+(`journal_two/coach_chat_tools.py`, `voice_tool_impls.py`, `ai_search_personal.py`,
+`grade_watchlist.py` — the last of these reuses portfolio_heat's own internal helpers for a
+different purpose, not a duplicate reader of the same fact, so no A12-style consistency rail
+applies here). Giving it a real page is a small build — the hard part was always this ruling, not
+the code — and the prior research said so explicitly: *"that is a door problem, not a system, and
+it should not be smuggled in under an A14 CP1."* I'm asking rather than guessing, on purpose.
+
+```
+  A) Paid tier only (e.g. the same tier that gates other advanced surfaces)
+  B) All logged-in members, free tier included
+  C) Admin/staff only for now, as an internal tool, before any member-facing tier decision
+  D) Something else: _______________________________________________
+
+CHOOSE: ____
+```
+
+**No provisional taken — this one is genuinely yours**, same posture as B4 above. It changes who
+sees real, aggregate risk numbers about their own real positions; a wrong guess here is a paid-
+gating decision made by default, exactly the trap this programme's CARD 6 (S7 price-level) ruling
+was written to avoid repeating. **Unblocks:** A14's first real CP1 (a thin page wired to
+`portfolio_heat.py`, reusing the already-computed numbers — no new computation, no schema change).
+
+---
+
 ## What this form unblocks, in order of leverage
 
 | answer | unblocks |
@@ -366,4 +409,5 @@ price-level dark read. **No action needed now** — recorded so it is not forgot
 | **A3 (OI-06)** | **S1, S2, A2** — three systems, one answer |
 | **A1 + A2 (OI-03)** | **S9, A14** |
 | **B4 (D2 §9.5)** | `indicator-condition` CP3 |
+| **G1 (who sees A14)** | **A14** — its first real CP1 |
 | B1, B2, B3, B5, B6 | bookkeeping and two live defects; no system |
