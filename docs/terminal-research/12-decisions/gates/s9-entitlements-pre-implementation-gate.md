@@ -333,10 +333,8 @@ remaining action, still not gated on CP2's sign-off:** a written question to Mas
 T-20's ESC-21 (paid-Substack Edge User) and OI-03(d) (signed addenda).
 
 ```
-APPROVED BY:      [blank — pending owner review of §8]
-APPROVED ON:      [blank]
-APPROVED AT SHA:  [blank]
-SCOPE APPROVED:   [blank — to be filled by tools/sign_gate.py against Section 8's scope: the
-  documentation-only closure described in §8.4, explicitly excluding the 8 rows in §8.2 and the
-  11 unbuilt candidates' actual construction]
+APPROVED BY:      
+APPROVED ON:      
+APPROVED AT SHA:  
+SCOPE APPROVED:   
 ```
