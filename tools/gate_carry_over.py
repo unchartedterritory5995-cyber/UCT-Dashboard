@@ -12,13 +12,33 @@ evening, the second superseded before it had even finished.
 set would have been a guess about which paths matter, re-made by hand every time the tree
 moved — the second-authority defect this repo keeps paying for. Interaction is derivable.
 
-⛔⛔ THIS IS A DEFERRAL, NOT A SKIP, AND THE DISTINCTION IS THE WHOLE SAFETY ARGUMENT.
-C5 — the `master deploy gate` workflow — runs the FULL gate against the ACTUAL LANDED
-TREE before `production` moves, and Railway deploys from `production`. So: the local gate
-proves the branch, C1-C4 prove the incoming commits cannot interact with it, and the
-master gate re-verifies the merged reality before a single member sees it. Remove C5 and
-this becomes a skip; keep it and the local gate is simply not re-run for commits that
-provably cannot touch the branch.
+⛔⛔ THIS IS A DEFERRAL, NOT A SKIP — BUT C5 IS NARROWER THAN THIS USED TO CLAIM.
+C5 — the `master deploy gate` workflow — DECIDES WHETHER `production` IS PROMOTED, and
+`web` deploys from `production`, so a red gate does stop the member-facing deploy.
+
+⚰️ ⛔ IT DOES **NOT** RUN THE FULL SUITE, AND THIS DOCSTRING SAID IT DID. Measured
+2026-09-20 by reading `.github/workflows/master-deploy-gate.yml`: the workflow runs five
+FAST checks — a secret scan, `test_no_shadowed_definitions.py`, the VITE build-arg and
+flag-ledger tests, `test_visibility_flag_ledger.py`, and `tools/check_repo_hygiene.py`.
+No vitest, no frontend build, no six-shard gate. Its own header says so in as many words:
+"Nothing here installs node, builds the frontend, or runs a suite that takes minutes."
+The claim that it "re-verifies the merged reality" was false, and it was the REASSURING
+half of a contradiction — the workflow and this tool disagreed for weeks, and a reader
+following the safety argument lands here, not there.
+
+⭐ SO THE LOCAL SIX-SHARD GATE IS THE ONLY FULL-SUITE VERIFICATION A LANDING EVER GETS.
+That does not make carry-over unsound — C1-C3 still establish that the incoming commits
+cannot interact with the branch, which is the actual argument — but it removes the net
+that was believed to be underneath it. When in doubt, RE-GATE locally; nothing downstream
+will catch what you skip.
+
+⚠️ AND THE WORKFLOW'S OWN HEADER IS STALE IN THE OTHER DIRECTION. It says "Until the
+watched branch is repointed at `production`, a RED gate still deploys", measured
+2026-09-14. That is no longer true of `web`: measured 2026-09-20 from
+`railway status --json`, `web` deploys from **`production`** while the other five services
+(`worker`, `bars-api`, `chart-renderer`, `flow-worker`, `terminal-next-monitor`) still
+deploy from **`master`**. So a red gate blocks the member-facing deploy and does NOT block
+the five back-end services.
 
 THE CHECKS (all must pass; C0 short-circuits):
   C0 IDENTICAL over GATE_READ_PATHS            -> CARRIES immediately, no further check
@@ -401,8 +421,12 @@ def main(argv=None) -> int:
         print("     speak for a landing that carries Python. Branch Python files:")
         for f in r.get("c4_python_paths") or []:
             print(f"       {f}")
-    print("  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. Production does")
-    print("     not move without it; a red workflow means no deploy and an immediate report.")
+    print("  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. It gates the")
+    print("     PROMOTION of `production`, which is what `web` deploys from -- so a red")
+    print("     workflow means no member-facing deploy and an immediate report.")
+    print("     ⚠️ It runs FIVE FAST CHECKS, not the full suite (measured 2026-09-20), and")
+    print("     the five non-web services deploy from master regardless. The local gate is")
+    print("     the only full-suite verification a landing gets -- when in doubt, re-gate.")
     return 0 if r["verdict"] == VERDICT_CARRIES else 1
 
 

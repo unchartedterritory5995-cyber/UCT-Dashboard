@@ -2834,11 +2834,25 @@ authoritative is the PROXY failure**, in the tool built to prevent it.
 - ⛔ **Nothing owed is a fact — say it.** The tool used to print "C4 is still owed" above an
   empty list on a C0 hit, which reads as *owed, contents unknown*: the worst of both.
 
-⛔⛔ **C5 IS THE WHOLE SAFETY ARGUMENT — THIS IS A DEFERRAL, NOT A SKIP.** The master gate
-runs the full suite against the **actual landed tree** before `production` advances, and
-Railway deploys from `production`. The local gate proves the branch; C1–C4 prove the
-incoming commits cannot interact with it; the master gate re-verifies merged reality.
-**Delete C5 and this becomes a skip.** A red workflow = no deploy and an immediate report.
+⛔⛔ **C5 GATES THE DEPLOY BUT DOES NOT RE-VERIFY THE SUITE — AND THIS PARAGRAPH CLAIMED
+OTHERWISE.** ⚰️ It read *"the master gate runs the full suite against the actual landed
+tree"*. Measured 2026-09-20 from `.github/workflows/master-deploy-gate.yml`: it runs
+**five fast checks** — secret scan, `test_no_shadowed_definitions.py`, VITE build-arg +
+flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py`. **No
+vitest, no frontend build.** The workflow's own header says exactly that, so two files in
+this repo contradicted each other and the reassuring one was the one people read.
+
+⭐ **The local six-shard gate is therefore the ONLY full-suite verification a landing
+gets.** C1–C3 still carry the real argument (the incoming commits cannot interact with the
+branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
+
+⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
+promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
+deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
+`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
+2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
+*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
+`web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.

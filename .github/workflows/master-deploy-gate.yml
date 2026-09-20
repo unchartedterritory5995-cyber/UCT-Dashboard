@@ -26,10 +26,20 @@
 # contradicted each other for weeks and the wrong one was the reassuring one.
 #
 # ⛔ WHAT THIS GATE ACTUALLY DOES TODAY: it serialises master pushes, and its verdict
-# decides whether `production` is PROMOTED. It does not decide whether Railway builds.
-# Until the watched branch is repointed at `production`, a RED gate still deploys —
-# measured: `beace00e0` failed this gate on 2026-09-14T19:00:49Z and Railway created a
-# `web` deployment for it in the SAME SECOND.
+# decides whether `production` is PROMOTED.
+#
+# ✅ THE CUTOVER HAS HAPPENED, AND THIS PARAGRAPH USED TO SAY IT HAD NOT. Measured
+# 2026-09-20 from `railway status --json`: **`web` deploys from `production`**, so a RED
+# gate now DOES stop the member-facing deploy. ⚰️ The struck text read "Until the watched
+# branch is repointed at `production`, a RED gate still deploys", with the `beace00e0`
+# measurement from 2026-09-14T19:00:49Z behind it. That measurement was correct on the day
+# and describes a world that no longer exists — kind 3b, a true record the world moved
+# under.
+#
+# ⚠️ IT REMAINS TRUE OF THE OTHER FIVE. `worker`, `bars-api`, `chart-renderer`,
+# `flow-worker` and `terminal-next-monitor` deploy from **`master`**, so they build on the
+# push regardless of this gate's verdict. A red gate protects members; it does not protect
+# the back end.
 #
 # ⛔ `cancel-in-progress: false` IS THE WHOLE MECHANISM. The default (`true`) cancels
 # the older run when a newer one arrives, which is exactly backwards here: it would
