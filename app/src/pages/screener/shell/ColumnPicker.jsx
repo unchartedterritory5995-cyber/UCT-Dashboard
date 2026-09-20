@@ -2,8 +2,15 @@ import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 
-export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset }) {
+export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset }) {
   const [q, setQ] = useState('')
+  const [presetName, setPresetName] = useState('')
+  const doSave = () => {
+    const n = presetName.trim()
+    if (!n || !onSavePreset) return
+    onSavePreset(n)
+    setPresetName('')
+  }
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return needle
@@ -59,6 +66,17 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
           </div>
         ))}
       </div>
+      {onSavePreset && (
+        <div className={styles.pickerSave}>
+          <input className={styles.railSearch} placeholder="Save these columns as a view…"
+            aria-label="Preset name" value={presetName}
+            onChange={e => setPresetName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') doSave() }} />
+          <button type="button" className={styles.pickerSaveBtn} disabled={!presetName.trim()} onClick={doSave}>
+            Save view
+          </button>
+        </div>
+      )}
     </div>
   )
 }

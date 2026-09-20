@@ -14,13 +14,17 @@ const unb64url = s => decodeURIComponent(escape(
 const isDefaultSort = sort =>
   !sort || (sort.key === DEFAULT_SORT.key && sort.dir === DEFAULT_SORT.dir)
 
-export function encodeSpec({ filters = {}, sort, view, columns } = {}) {
+export function encodeSpec({ filters = {}, sort, view, columns, rank } = {}) {
   const f = Object.entries(filters).filter(([, v]) => v)
   const payload = {}
   if (f.length) payload.f = Object.fromEntries(f)
   if (!isDefaultSort(sort)) payload.sort = sort
   if (view && view !== DEFAULT_VIEW) payload.view = view
   if (columns?.length) payload.cols = columns
+  // A ranked scan (weighted composite + optional top_n cap, e.g. UCT 50). Carried
+  // whole so a refresh/back/forward or a saved screen keeps the cap; absent = a
+  // plain sorted list.
+  if (rank && typeof rank === 'object') payload.rank = rank
   if (!Object.keys(payload).length) return null
   return b64url(JSON.stringify(payload))
 }
@@ -35,6 +39,7 @@ export function decodeSpec(str) {
       sort: p.sort?.key ? { key: String(p.sort.key), dir: p.sort.dir === 'asc' ? 'asc' : 'desc' } : { ...DEFAULT_SORT },
       view: typeof p.view === 'string' && p.view ? p.view : DEFAULT_VIEW,
       columns: Array.isArray(p.cols) && p.cols.every(c => typeof c === 'string') && p.cols.length ? p.cols : null,
+      rank: p.rank && typeof p.rank === 'object' && !Array.isArray(p.rank) ? p.rank : null,
     }
   } catch {
     return null
