@@ -48,11 +48,27 @@ describe('RVOL slice parse evidence (F2)', () => {
     // refuses earlier than its own function definitions in both builds, so the
     // assertion is green on the broken one too
     // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
-    // What this script CAN say is where the runtime wall now stands: the text
-    // value model, which is the next wave's first task.
+    // What this script CAN say is WHERE THE RUNTIME WALL NOW STANDS, and that
+    // is this rail's whole job — it is a measurement that moves as capabilities
+    // land, not a fixed expectation.
+    //
+    // ⭐ THE LEDGER OF WHERE IT HAS STOOD, newest last:
+    //   · the text value model (2026-09-19, when this rail was written)
+    //   · `input.text_area` — the paste box itself — once text, arrays, split
+    //     and the loop had landed
+    //   · L79 `runtime:tuple` (2026-09-20), after the text-input door opened.
+    //     50 of the script's statements now compile.
+    //
+    // ⛔ THE ASSERTION NAMES THE CAPABILITY, NOT THE LINE. A line number would
+    // move on any edit to the script and would have to be re-pinned for reasons
+    // that say nothing about the engine.
     const rt = buildRuntimeIr(src)
     expect(rt.ok).toBe(false)
-    expect(rt.refusal.message).toMatch(/text|value-model|collection|loop|request|drawing/i)
+    expect(rt.refusal.message).toMatch(/tuple|text|value-model|collection|loop|request|drawing/i)
+    // ⭐ AND IT GETS FURTHER THAN THE HEADER: a floor, so a regression that put
+    // the wall back at the first input block fails here rather than passing on
+    // a vaguer sentence.
+    expect(rt.diagnostics.statements).toBeGreaterThan(40)
   })
 
   it('reads its generic declaration lines', () => {

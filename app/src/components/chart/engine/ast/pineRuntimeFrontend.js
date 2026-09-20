@@ -38,7 +38,7 @@ import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import { bindConstsFor, foldBound } from './bind.js'
 import {
-  makeIrProgram, SLOT, num, str, concat, series, column, read, hist, binary, unary, ternary,
+  makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt,
@@ -157,6 +157,14 @@ const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
 const BLOCK_WORDS = new Set(['for', 'while'])
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
+/** The input kinds whose VALUE IS TEXT.
+ *
+ *  ⛔⛔ `pine.js` REFUSES THESE AND IS RIGHT TO. That lane's value model is
+ *  numbers, and it states at length that a string has no carrier in its
+ *  grammar. This lane has one, so it takes them here — the same shape as
+ *  every other text capability in this wave, and the columnar rule is left
+ *  exactly where it is rather than widened. */
+const TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
 /** Pine's three numeric casts, as a REPORTING label only.
  *
  *  ⭐ THEY ARE `pine.js`'s, not this file's invention: its resolver handles
@@ -438,7 +446,38 @@ export function buildRuntimeIr(source, opts = {}) {
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
   const env = new Map()
-  const makeResolver = () => new Resolver(env, TABLE, new Map(), {})
+  // ⛔⛔ THE MEMBER'S OWN SETTINGS REACH THE FOLD, and until 2026-09-20 they did
+  // NOT: this lane built its resolver with no `inputValues`, so every
+  // `input.int`/`input.float` folded to the AUTHOR'S DEFAULT and a member who
+  // changed a length in the settings got the script's original number with
+  // nothing on screen to say so. Measured — `input.int(5)` with `{len: 7}`
+  // plotted 5 — and it is the quiet kind of wrong this engine exists to refuse.
+  //
+  // ⭐ Setting it also restores the AUTHOR'S BOUNDS, which live on the same
+  // path: an out-of-range member value is refused by name rather than used.
+  const makeResolver = () => {
+    const r = new Resolver(env, TABLE, new Map(), {})
+    if (inputs && typeof inputs === 'object') r.inputValues = inputs
+    return r
+  }
+
+  /** A resolver that does NOT see the member's values.
+   *
+   *  ⛔⛔ FOR THE FROZEN-DEFAULT FOLDS ONLY — a history OFFSET and a window
+   *  LENGTH. Owner decision, 2026-08-11, recorded verbatim in `pine.js`'s
+   *  `parseOffsetIndex`: folding an input there "freezes its default into the
+   *  saved definition — and that is ALREADY true of every length, so folding
+   *  the offset makes the two agree rather than introducing a new surprise."
+   *
+   *  ⚰️ WIRING THE MEMBER'S VALUES INTO THE ONE RESOLVER BROKE THIS, and
+   *  `history.test.js` caught it: `x[n]` with `n = input.int(3)` and the
+   *  member on 5 sized the ring at 5. That is the divergence the frozen rule
+   *  exists to prevent — a knob meaning one thing in a column and another in
+   *  the runtime — and the ring is allocated before bar 0, so a member's
+   *  value cannot reach it without changing what a SAVED definition means.
+   *  The two folds are genuinely different questions and now have two
+   *  resolvers, rather than one that is wrong for one of them. */
+  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), {})
 
   // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
   //
@@ -623,6 +662,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // a slot as text — `int n = str.length(s)` is an int, and calling it text
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
+    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
     if (node.type === 'binary' && node.op === '+') {
       return holdsText(node.left, scope) || holdsText(node.right, scope)
     }
@@ -695,6 +735,110 @@ export function buildRuntimeIr(source, opts = {}) {
     }
     const typeArg = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
     return arrayCall(node.name, given.map((x) => lowerExpr(x, scope)), typeArg)
+  }
+
+  /** Resolve a TEXT input to the string the script will actually see.
+   *
+   *  ⭐ THE MEMBER'S VALUE WINS OVER THE AUTHOR'S DEFAULT — the same precedence
+   *  `pine.js` applies to numeric inputs, keyed the same way (the name the
+   *  input is BOUND to), so a member's saved settings mean the same thing in
+   *  both lanes.
+   *
+   *  ⛔⛔ AND ONLY A VALUE THE AUTHOR'S OWN `options` ADMIT. An out-of-list value
+   *  is refused BY NAME, never quietly replaced by the default: replacing it
+   *  would compute a different indicator under the member's own setting, with
+   *  nothing on screen to say so. This is the string twin of the numeric
+   *  minval/maxval refusal that lane already makes, and it is refused for the
+   *  same stated reason.
+   */
+  const admitTextInput = (node, scope) => {
+    const at = locate(node.tok)
+    const positional = node.args.filter((x) => !x || !x.name)
+    const first = positional.length ? (positional[0].value !== undefined ? positional[0].value : positional[0]) : null
+    if (!first) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` states no default`, at)
+    }
+    // ⛔⛔ THE DEFAULT IS AN EXPRESSION, NOT NECESSARILY A LITERAL. The
+    // committed acceptance script writes `input.text_area(DEF, …)` with
+    // `string DEF = \"\"` one line above — and a version of this that demanded a
+    // literal refused that script on line 22 while claiming the front end
+    // could not read its default. Lowering the expression and REQUIRING the
+    // result to be a compile-time string keeps the honest half of that check
+    // (an input default that is only known while the bar runs is not a
+    // default) without failing the ordinary case.
+    const loweredDefault = lowerExpr(first, scope)
+    if (!loweredDefault || loweredDefault.kind !== EXPR.STR) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` needs a text default that is fixed when the script is `
+        + 'written, and this one is not', at)
+    }
+    const fallback = loweredDefault.value
+
+    // `options = [...]` — the author's own list, read as written.
+    let options = null
+    const optArg = node.args.find((x) => x && x.name === 'options')
+    if (optArg) {
+      // ⛔ THE SHAPE IS THE PARSER'S, READ RATHER THAN GUESSED. A bracket
+      // literal is `{ type: 'collection', elements }` (`pine.js`), and a
+      // `collection` with NO `elements` is one the parser skipped over — an
+      // author list this front end cannot read is left as "no options" rather
+      // than silently treated as an empty one, which would refuse every value.
+      const v = optArg.value
+      if (v && v.type === 'collection' && Array.isArray(v.elements)) {
+        const strs = v.elements.filter((x) => x && x.type === 'string').map((x) => x.value)
+        if (strs.length === v.elements.length && strs.length) options = strs
+      }
+    }
+
+    const boundName = typeof node.boundName === 'string' ? node.boundName : null
+    let value = fallback
+    if (boundName && inputs && Object.prototype.hasOwnProperty.call(inputs, boundName)) {
+      const given = inputs[boundName]
+      if (typeof given !== 'string') {
+        throw new RuntimeRefusal('runtime:statement',
+          `\`${boundName}\` was given a value that is not text`, at)
+      }
+      if (options && !options.includes(given)) {
+        throw new RuntimeRefusal('runtime:statement',
+          `\`${boundName}\` was given "${given}", and the script's own author `
+          + `offers ${options.map((o) => `"${o}"`).join(', ')}`, at)
+      }
+      value = given
+    }
+    return str(value)
+  }
+
+  /** Does this subtree's value depend on a TEXT input?
+   *
+   *  ⛔⛔ IT HAS TO BYPASS THE COLUMNAR LANE OUTRIGHT, NOT WAIT FOR IT TO
+   *  REFUSE. That lane FOLDS a text comparison at bind time — `mode == "SMA"`
+   *  becomes 1 or 0 — and it folds it from the AUTHOR'S DEFAULT, because a
+   *  string is not a value it can carry and a member's choice never reaches it.
+   *  So it does not throw, the usual try/catch fallback never runs, and the
+   *  member's setting is silently ignored. Measured: `input.string("EMA", …)`
+   *  with the member on "SMA" still answered as "EMA".
+   *
+   *  ⚠️ NARROWER THAN "CONTAINS TEXT", DELIBERATELY. An earlier attempt routed
+   *  every text subtree away from that lane and cost a real member script
+   *  eleven compiled statements, because a literal-only comparison folds there
+   *  perfectly well. Only a dependence on an INPUT — the one thing that lane
+   *  cannot see — justifies taking the subtree. */
+  const dependsOnTextInput = (node, scope, seen) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'call') return TEXT_INPUTS.has(node.name)
+    if (node.type === 'name') {
+      if (scope.lookup(node.name) !== null) return false
+      const guard = seen || new Set()
+      if (guard.has(node.name)) return false
+      guard.add(node.name)
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && dependsOnTextInput(bound.node, scope, guard))
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'of']) {
+      if (dependsOnTextInput(node[k], scope, seen)) return true
+    }
+    return false
   }
 
   /** A comparison whose OPERANDS are text.
@@ -819,7 +963,11 @@ export function buildRuntimeIr(source, opts = {}) {
     // `num` node is a compile-time constant BY CONSTRUCTION; no data can fake it.
     let canonical
     try {
-      canonical = makeResolver().resolve(e)
+      // ⛔ THE FROZEN RESOLVER — see `makeFrozenResolver`. An offset and a
+      // length are sized before bar 0 and are baked into a saved definition,
+      // so they fold the AUTHOR'S default even though every ordinary value
+      // follows the member's setting.
+      canonical = makeFrozenResolver().resolve(e)
     } catch (err) {
       // ⛔ A REFUSAL FROM THE VALUE LANE KEEPS ITS OWN NAME — `columnOf`'s rule,
       // and for the same reason: re-dressing a `pine:undefined` as a dynamic
@@ -1022,7 +1170,10 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ TEXT IS EXCLUDED FROM THE COLUMN ROUTE. The columnar lane cannot hold a
     // string — it refuses one at `pine:text-value` — so a pure text subtree is
     // lowered here as a runtime const instead. See `holdsText`.
-    if (!readsSlot(node, scope)) {
+    // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
+    // `dependsOnTextInput`. That lane would fold it from the author's
+    // default and never raise, so waiting for a refusal would wait forever.
+    if (!readsSlot(node, scope) && !dependsOnTextInput(node, scope)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1058,7 +1209,8 @@ export function buildRuntimeIr(source, opts = {}) {
         // still refuses here, by that name, because the runtime does not hold it
         // either.
         const laneHasNoText = e && (e.guard === 'pine:text-value'
-          || e.guard === 'pine:collection' || e.guard === 'pine:builtin')
+          || e.guard === 'pine:collection' || e.guard === 'pine:builtin'
+          || e.guard === 'pine:input-kind')
         if (!(laneHasNoText && touchesText(node, scope))) throw e
       }
     }
@@ -1074,11 +1226,21 @@ export function buildRuntimeIr(source, opts = {}) {
         // right for a number and impossible for a string — so a text one is
         // substituted here, exactly as the columnar lane would have substituted
         // it, and lowered into the runtime instead.
+        // ⭐⭐ AN IMMUTABLE BINDING IS EXPANDED INLINE, WHATEVER ITS KIND. A name
+        // the script never assigns binds in `env` as an expression for the
+        // COLUMNAR resolver, which substitutes it at each use. Once a subtree
+        // has been routed to THIS lane — because it touches text, a collection
+        // or a text input — every name inside it has to resolve HERE too, and
+        // that lane is no longer the one doing the substitution.
+        //
+        // ⚰️ THIS WAS LIMITED TO TEXT BINDINGS and the acceptance script showed
+        // why that was wrong: `int cap = showTable ? … : 0` is an ordinary
+        // numeric macro, and `math.min(avail, cap)` reaches this lane because
+        // `avail` is derived from an ARRAY. `cap` then resolved to nothing and
+        // the script was told it binds a name it binds one line above.
         {
           const bound = env.get(node.name)
-          if (bound && bound.kind === 'expr' && holdsText(bound.node, scope)) {
-            return lowerExpr(bound.node, scope)
-          }
+          if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
         }
         if (guardOuter && guardOuter.lookup(node.name) !== null) {
           note('runtime:function-global-state')
@@ -1243,6 +1405,7 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
+        if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
@@ -1670,6 +1833,14 @@ export function buildRuntimeIr(source, opts = {}) {
         const nameTok = eq > 0 ? boundName(toks, eq) : null
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a `var` declaration needs a name and an initialiser', locate(first))
         const value = parseWholeExpression(toks.slice(eq + 1))
+        // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
+        // does, because it is the KEY a member's saved value is stored under.
+        // Without it a text input can only ever serve the author's default, and
+        // the member's paste would be silently ignored.
+        if (value && value.type === 'call' && typeof value.name === 'string'
+            && (value.name === 'input' || value.name.startsWith('input.'))) {
+          value.boundName = nameTok.value
+        }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
         // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
@@ -1711,6 +1882,14 @@ export function buildRuntimeIr(source, opts = {}) {
         // resolver's environment — so `ta.sma(close, len)` is still one column at
         // columnar speed. A name that IS mutated, or one whose initialiser reads
         // a slot, becomes a runtime slot.
+        // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
+        // does, because it is the KEY a member's saved value is stored under.
+        // Without it a text input can only ever serve the author's default, and
+        // the member's paste would be silently ignored.
+        if (value && value.type === 'call' && typeof value.name === 'string'
+            && (value.name === 'input' || value.name.startsWith('input.'))) {
+          value.boundName = nameTok.value
+        }
         const mutable = mut.mutated.has(nameTok.value)
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
         // name bound in `env` is SUBSTITUTED at each use, so `a = array.new<string>()`
