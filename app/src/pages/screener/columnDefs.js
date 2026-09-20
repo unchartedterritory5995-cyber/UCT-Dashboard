@@ -81,8 +81,8 @@ export const COLUMN_DEFS = {
   chg_pct_1d: { label: 'Chg%', fmt: pct, heat: heatPos },
   vol_ratio: { label: 'Vol×', fmt: v => v == null ? '—' : `${v.toFixed(1)}×`,
     desc: 'The newest session\'s volume against the average of the 30 sessions BEFORE it — today is deliberately excluded from its own baseline, or a big day would drag the average toward itself and hide the spike. ⚠️ On the current session the numerator is the volume we hold SO FAR, which for a name still trading is short of the official consolidated figure: measured against an independent source, the newest session runs a median 10% light. A ratio near 1.0 late in the day is the one to distrust. A genuine 0.00× means the stock did not trade.' },
-  rs_rank: { label: 'RS', fmt: num(0), heat: heatRs },
-  uct_composite: { label: 'UCT', fmt: num(0), heat: heatRs },
+  rs_rank: { label: 'RS', fmt: num(0), heat: heatRs, cell: 'rs' },
+  uct_composite: { label: 'UCT', fmt: num(0), heat: heatRs, cell: 'rs' },
   rs_return: { label: 'RS Ret', fmt: num(2) },
   accdis: { label: 'A/D', fmt: v => v ?? '—' },
   pe_ttm: { label: 'P/E', fmt: num(1),
@@ -356,7 +356,7 @@ export const COLUMN_DEFS = {
   downgrades_30d: { label: 'Dngr 30d', fmt: num(0) },
   eps_next_y_growth: { label: 'EPS Next Y', fmt: pctPlain(0) },
   blended_growth: { label: 'Blend Gr', fmt: pctPlain(0) },
-  sector_rs_pct: { label: 'Sect RS', fmt: num(0), heat: heatRs },
+  sector_rs_pct: { label: 'Sect RS', fmt: num(0), heat: heatRs, cell: 'rs' },
   rating_eps: { label: 'EPS Rt', fmt: num(0), heat: heatRs },
   rating_growth: { label: 'Gr Rt', fmt: num(0), heat: heatRs },
   rating_value: { label: 'Val Rt', fmt: num(0), heat: heatRs },
@@ -433,7 +433,7 @@ export const COLUMN_DEFS = {
   // 🔴 THE `_label` COMPANIONS MUST BE SELECTED OR THE RICH LABEL NEVER
   // RENDERS — the key column's formatter reads `row.<col>_label`, exactly as
   // the candle columns do.
-  base_render: { label: 'Structure', fmt: v => v || '—',
+  base_render: { label: 'Structure', fmt: v => v || '—', cell: 'tag',
     desc: 'The multi-week structure this symbol is in, rendered as primary (secondary) +N — "Darvas Box (Declining Structure)". Named structures lead because they are more specific than a trend reading; the trend reading is still carried in Shape. DESCRIPTIVE ONLY: it names what the chart is doing and forecasts nothing. Every threshold behind it is either quoted from a published source or explicitly marked as ours — see api/services/screener/base_catalog.py.' },
   base_shape: { label: 'Shape', fmt: (v, row) => row?.base_shape_label || (v || '—'),
     desc: 'The trend structure read off the confirmed swing sequence — advancing, declining, contracting, expanding, or undefined when there are too few swings to say. A TOTAL partition: every symbol with enough history gets exactly one, so a blank means we refused for want of bars, never that the answer was nothing.' },

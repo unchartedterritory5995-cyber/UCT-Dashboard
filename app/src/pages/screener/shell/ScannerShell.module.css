@@ -125,6 +125,21 @@
 .heatG { background: var(--gain-bg); color: var(--gain); }
 .heatG1 { background: var(--gain-bg); }
 .heatR { background: var(--loss-bg); color: var(--loss); }
+
+/* ── Rich result cells (base-structure tag, RS/UCT mini-bar) ── */
+.tagCell { justify-content: flex-start; }
+.strutTag {
+  display: inline-block; max-width: 100%;
+  padding: 2px 9px; border-radius: 100px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 11px; line-height: 1.55;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cellDash { color: var(--text-muted); opacity: .55; }
+.rsWrap { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.rsBar { width: 34px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; flex: 0 0 auto; }
+.rsBar i { display: block; height: 100%; border-radius: 3px; }
+.rsNum { font-weight: 600; }
 .loadMoreRow { display: flex; justify-content: center; padding: 12px; }
 .loadMoreBtn { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--radius-sm, 6px); color: var(--ut-gold); padding: 8px 18px; font-size: 12.5px; cursor: pointer; min-height: 36px; }
 .loadMoreBtn:disabled { opacity: .5; cursor: default; }
