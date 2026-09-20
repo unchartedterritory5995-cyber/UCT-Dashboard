@@ -88,7 +88,15 @@ export function execute(program, ctx, limits) {
   // is — allocation dominates dispatch at this granularity, and measuring the
   // allocator instead of the architecture is exactly the error that probe's
   // reused-buffer control exists to prevent.
-  const stack = new Float64Array(256)
+  //
+  // ⭐⭐ AND IT HOLDS VALUES, NOT DOUBLES. A member's own values include
+  // strings, so the stack, the bar frame and the persistent slots are plain
+  // arrays. ⛔ `series`, `columns`, the history ring, the window buffers and the
+  // carried-state store below stay `Float64Array`: they serve numeric builtins
+  // and are numeric BY CONSTRUCTION, so boxing them would cost the numeric path
+  // and buy nothing. The decision, and what it measured, is in
+  // `VALUE_MODEL_DECISION.md`.
+  const stack = new Array(256).fill(NaN)
   const series = ctx.series
   const columns = ctx.columns
   const n = program.instructions
@@ -106,8 +114,11 @@ export function execute(program, ctx, limits) {
   const maxFrame = program.functions.length
     ? Math.max(...program.functions.map((f) => f.frameSize)) : 0
   const depthLimit = Math.max(1, budget.limits.CALL_DEPTH)
-  const locals = new Float64Array(program.locals + depthLimit * maxFrame).fill(NaN)
-  const persist = new Float64Array(Math.max(program.persists, 1)).fill(NaN)
+  // ⭐ VALUES, for the reason given at the stack above. `NaN` is still how a
+  // number spells `na`, so every existing numeric op is unaffected by the
+  // change of container.
+  const locals = new Array(program.locals + depthLimit * maxFrame).fill(NaN)
+  const persist = new Array(Math.max(program.persists, 1)).fill(NaN)
   // ⛔ INITIALISATION IS TRACKED SEPARATELY FROM VALUE. `na` is a legitimate
   // value for an initialised slot (`var float x = na` is real Pine), so "is it
   // still NaN" cannot answer "has it been initialised" — that conflation would
@@ -513,6 +524,18 @@ export function execute(program, ctx, limits) {
           // An Infinity that reached a screener comparison would win every `<`
           // test in the universe while meaning "we could not compute this".
           const v = stack[--sp]
+          // ⛔⛔ AND SINCE A SLOT CAN NOW HOLD A STRING, THE KIND IS CHECKED
+          // BEFORE THE FINITENESS IS. `Number.isFinite('abc')` is false, so the
+          // laundering line below would have turned a string into `na` — the
+          // exact silent coercion boxing the slots was meant to end, reappearing
+          // one line later. An output series is a `Float64Array` and that is a
+          // contract the chart and the columnar lane both read; a value that
+          // cannot live in one is a translator defect, and it says so.
+          if (typeof v !== 'number') {
+            throw new VmError(
+              `pc ${pc - 1}: output ${a} must carry a number, got ${typeof v} — `
+              + 'a non-numeric value reached a plot')
+          }
           outputs[a][bar] = Number.isFinite(v) ? v : NaN
           break
         }

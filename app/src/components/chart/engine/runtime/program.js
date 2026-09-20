@@ -175,9 +175,19 @@ export function makeProgram({
   }
   const p = Object.freeze({
     code: Int32Array.from(code),
-    // ⚠️ consts are Float64 and NOT frozen into an Int32Array — a const is a
-    // VALUE, and the first thing an integer array would do is truncate 0.1.
-    consts: Float64Array.from(consts || []),
+    // ⚠️ consts are NOT frozen into an Int32Array — a const is a VALUE, and the
+    // first thing an integer array would do is truncate 0.1.
+    //
+    // ⭐⭐ AND IT IS A PLAIN ARRAY, NOT A Float64Array, BECAUSE A VALUE IS NOT
+    // ALWAYS A NUMBER. `Float64Array.from(['abc'])` is `[NaN]`: a string const
+    // used to arrive as `na` with nothing raised anywhere on the way, which is
+    // the silent-coercion class this engine keeps paying for. The members are
+    // checked HERE so a bad one is named at build time rather than read as a
+    // missing number on bar 0. See `VALUE_MODEL_DECISION.md`.
+    consts: Object.freeze((consts || []).map((c, i) => {
+      if (typeof c === 'number' || typeof c === 'string') return c
+      throw new ProgramError(`const ${i}: a const is a number or a string, got ${typeof c}`)
+    })),
     columns: Object.freeze((columns || []).slice()),
     outputs: Object.freeze((outputs || []).slice()),
     locals, persists, version,
