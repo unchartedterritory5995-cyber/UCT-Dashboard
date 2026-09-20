@@ -8,6 +8,7 @@ import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
 import NoteGraphView from '../components/notebook/NoteGraphView'
+import NoteBoardView from '../components/notebook/NoteBoardView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -713,6 +714,15 @@ export default function NotebookTab() {
               </button>
               <button
                 type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'board' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('board')}
+                disabled={Boolean(activeView)}
+                title="Board view"
+              >
+                <UIcon name="board" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
                 className={`${styles.viewModeBtn} ${viewMode === 'graph' ? styles.viewModeActive : ''}`}
                 onClick={() => setViewMode('graph')}
                 disabled={Boolean(activeView)}
@@ -729,7 +739,7 @@ export default function NotebookTab() {
                 offer it rather than to widen the server's enum for a spec the
                 graph would never read back.
               */}
-              {!activeView && viewMode !== 'graph' && (
+              {!activeView && viewMode !== 'graph' && viewMode !== 'board' && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -866,7 +876,26 @@ export default function NotebookTab() {
               folder/tag/property-filtered slice would draw edges to notes that
               are not on screen and silently drop the rest.
             */}
-            {viewMode === 'graph' && !isTrashView ? (
+            {/*
+              ⛔ BOARD IS EXCLUDED FROM TRASH for the same reason graph is, plus
+              a sharper one: every card carries a control that WRITES a property
+              to the note. Offering that on a deleted note would edit something
+              the member has already thrown away.
+              ⛔ And unlike the graph, the board IS handed `notes` — this page's
+              filtered slice. That is the opposite call, deliberately: a board is
+              a view OF THE CURRENT SELECTION (the folder/tag/property filter the
+              member already chose), whereas a graph is only honest when it draws
+              the whole notebook.
+            */}
+            {viewMode === 'board' && !isTrashView ? (
+              <NoteBoardView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
+                onChanged={refresh}
+              />
+            ) : viewMode === 'graph' && !isTrashView ? (
               /*
                 ⛔ THE GRAPH EMITS AN ID; `openNote` READS `.id` OFF A NOTE
                 OBJECT. Passing `openNote` straight through type-checks fine,

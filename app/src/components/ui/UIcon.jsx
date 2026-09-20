@@ -522,6 +522,21 @@ const ICONS = {
     </>
   ),
 
+  // A kanban board: three columns holding cards of differing height, which is
+  // what makes it read as a BOARD rather than as `columns` (three equal bars,
+  // already spoken for by the table view). The uneven fill is the whole tell at
+  // 14px -- equal blocks in equal columns is a table every time.
+  board: (
+    <>
+      <rect x="3" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="9.5" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="16" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="4.2" y="5.6" width="2.6" height="4" rx="0.7" fill="currentColor" stroke="none" />
+      <rect x="10.7" y="5.6" width="2.6" height="6.5" rx="0.7" fill="currentColor" stroke="none" />
+      <rect x="17.2" y="5.6" width="2.6" height="2.6" rx="0.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+
   // A linked graph: a hub with three satellites. Edges are drawn FIRST so the
   // node circles paint over their ends -- at 14px a line meeting a circle's
   // edge reads as a whisker if it is drawn on top.
