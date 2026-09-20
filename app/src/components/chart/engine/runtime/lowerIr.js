@@ -95,6 +95,14 @@ export function lowerIrProgram(ir) {
         emit(OP.TEXT, textIndex(e.fn), e.args.length)
         return
       }
+      case EXPR.REQUEST:
+        // ⭐ THE SYMBOL IS PUSHED, THEN ONE INSTRUCTION. Everything else the
+        // request needs — which timeframe, where its expression lives, how
+        // many values it yields — is in the artifact, because none of it can
+        // change while the bar runs. The symbol can, and does.
+        expr(e.symbol)
+        emit(OP.REQUEST, e.site, e.results)
+        return
       case EXPR.TUPLE:
         // ⛔ NO OPCODE. A tuple IS its elements on the stack, in written
         // order; only `RET` and a destructuring know how many to expect, and
@@ -133,6 +141,13 @@ export function lowerIrProgram(ir) {
         // point in the program — and routing it through the ring would answer
         // with the PREVIOUS bar, one bar wrong in the one case a reader would
         // never think to check.
+        if (e.of.kind === EXPR.SERIES) {
+          const si = SERIES_NAMES.indexOf(e.of.name)
+          if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
+          if (e.back === 0) { emit(OP.READ_SERIES, si); return }
+          emit(OP.READ_SERIES_HIST, si, e.back)
+          return
+        }
         if (e.of.kind === EXPR.COLUMN) { emit(OP.READ_HIST, e.of.index, e.back); return }
         if (e.of.kind === EXPR.READ) {
           if (e.back === 0) { expr(e.of); return }
@@ -394,17 +409,50 @@ export function lowerIrProgram(ir) {
     }
   })
 
+  // ── then every REQUEST's expression, as its own region of the same code ──
+  //
+  // ⭐⭐ A REGION, NOT A SECOND PROGRAM. The expression can call the same user
+  // functions and read the same consts, and the only thing that differs when
+  // it runs is which SERIES it reads — so it is executed by the same VM from a
+  // different entry point, over the requested symbol's bars. A separate
+  // program would have needed its own copy of every function this expression
+  // calls, which is the second-authority defect in compiled form.
+  const requests = (ir.requests || []).map((r) => {
+    const entry = here()
+    const value = r.value
+    const results = value && value.kind === EXPR.TUPLE ? value.elements.length : 1
+    if (results === 1) { expr(value); emit(OP.EMIT, 0) } else {
+      // ⛔ EMITTED IN REVERSE, because the tuple pushed its elements left to
+      // right and EMIT pops. Output k holds the kth written value.
+      expr(value)
+      for (let k = results - 1; k >= 0; k -= 1) emit(OP.EMIT, k)
+    }
+    emit(OP.HALT)
+    return { timeframe: r.timeframe, entry, results }
+  })
+
   return makeProgram({
     code,
     consts,
     columns: ir.columns,
-    outputs: ir.outputs,
+    // ⛔ THE OUTPUT TABLE MUST COVER A REQUEST'S RESULTS TOO. A request stub
+    // EMITs into its OWN run's outputs, and `validateProgram` checks every
+    // EMIT index against this list — so a two-value request inside a script
+    // with one plot needs room for two.
+    outputs: (() => {
+      const widest = (ir.requests || []).reduce((m, r) => Math.max(
+        m, r.value && r.value.kind === EXPR.TUPLE ? r.value.elements.length : 1), 0)
+      const outs = (ir.outputs || []).slice()
+      while (outs.length < widest) outs.push(`request result ${outs.length}`)
+      return outs
+    })(),
     locals: ir.slots.filter((s) => s.owner === null && s.kind === SLOT.LOCAL).length,
     persists: persistTotal(ir),
     functions,
     pointwise,
     textOps,
     arrayOps,
+    requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),
     carried: (ir.carried || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({

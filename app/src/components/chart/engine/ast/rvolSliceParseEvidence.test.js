@@ -58,17 +58,33 @@ describe('RVOL slice parse evidence (F2)', () => {
     //     and the loop had landed
     //   · L79 `runtime:tuple` (2026-09-20), after the text-input door opened.
     //     50 of the script's statements now compile.
+    //   · L79 `runtime:request-with-state`, once tuples landed — the request
+    //     whose value is `calcDaily(lookback)`.
+    //   · L57 `runtime:history-expression` (2026-09-20), once `request.security`
+    //     landed and the state check narrowed to `readsOuterSlot`: a user
+    //     function inside a request is the documented shape, so the lane walked
+    //     through L79 and into `calcDaily`'s own body.
+    //
+    // ⭐⭐ AND THE NEW WALL IS THE HONEST ONE, which is worth saying because it
+    // reads like a step BACKWARDS — the line number fell from 79 to 57. It did
+    // not: 57 is `ta.sma(volume[1], N)` inside `calcDaily`, which has never
+    // compiled in ANY context. Its definition was skipped and the refusal
+    // deferred to the call site; L79 was simply refusing first. A window whose
+    // LENGTH is a `simple int` parameter cannot fold before bar 0, so the ring
+    // cannot be sized — which needs the body lowered per CALL SITE, not once.
+    // That is the next capability, and it is named rather than approximated.
     //
     // ⛔ THE ASSERTION NAMES THE CAPABILITY, NOT THE LINE. A line number would
     // move on any edit to the script and would have to be re-pinned for reasons
     // that say nothing about the engine.
     const rt = buildRuntimeIr(src)
     expect(rt.ok).toBe(false)
-    expect(rt.refusal.message).toMatch(/tuple|text|value-model|collection|loop|request|drawing/i)
+    expect(rt.refusal.message).toMatch(
+      /tuple|text|value-model|collection|loop|request|drawing|history|committed series/i)
     // ⭐ AND IT GETS FURTHER THAN THE HEADER: a floor, so a regression that put
     // the wall back at the first input block fails here rather than passing on
     // a vaguer sentence.
-    expect(rt.diagnostics.statements).toBeGreaterThan(40)
+    expect(rt.diagnostics.statements).toBeGreaterThanOrEqual(50)
   })
 
   it('reads its generic declaration lines', () => {

@@ -41,7 +41,7 @@ import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
-  forStmt, breakStmt, continueStmt, tuple, destructure,
+  forStmt, breakStmt, continueStmt, tuple, destructure, requestCall,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
@@ -446,6 +446,22 @@ export function buildRuntimeIr(source, opts = {}) {
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
   const env = new Map()
+  /** Every `request.security` in this script: its timeframe and the VALUE
+   *  expression, which the lowering turns into its own region of the code. */
+  const requests = []
+  /** ⛔⛔ INSIDE A REQUEST'S VALUE, NOTHING GOES TO THE COLUMNAR LANE.
+   *
+   *  A column is computed ONCE, before the run, from THIS chart's bars — so a
+   *  column inside a request would silently be the wrong symbol's numbers.
+   *  Price names become SERIES reads instead, which the sub-run binds to the
+   *  requested symbol's arrays; that is the whole trick, and it means the
+   *  expression itself is never rewritten.
+   *
+   *  ⚠️ A FLAG RATHER THAN A PARAMETER, deliberately: it has to reach EVERY
+   *  nested `lowerExpr`, and threading an argument through twenty recursive
+   *  call sites is exactly where one would be forgotten. It is saved and
+   *  restored around the one place that sets it. */
+  let inRequestValue = false
   // ⛔⛔ THE MEMBER'S OWN SETTINGS REACH THE FOLD, and until 2026-09-20 they did
   // NOT: this lane built its resolver with no `inputValues`, so every
   // `input.int`/`input.float` folded to the AUTHOR'S DEFAULT and a member who
@@ -826,7 +842,11 @@ export function buildRuntimeIr(source, opts = {}) {
    *  cannot see — justifies taking the subtree. */
   const dependsOnTextInput = (node, scope, seen) => {
     if (!node || typeof node !== 'object') return false
-    if (node.type === 'call') return TEXT_INPUTS.has(node.name)
+    // ⛔ A REQUEST NEVER GOES TO THE COLUMNAR LANE EITHER, and for a stronger
+    // reason than text: that lane refuses `request.security` outright — it
+    // evaluates ONE symbol on ONE timeframe, which is exactly what a request
+    // is not. There is nothing there for it to fall back to.
+    if (node.type === 'call') return TEXT_INPUTS.has(node.name) || node.name === 'request.security'
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
       const guard = seen || new Set()
@@ -852,6 +872,142 @@ export function buildRuntimeIr(source, opts = {}) {
       return tuple(node.elements.map((x) => lowerExpr(x, fnScope)))
     }
     return lowerExpr(node, fnScope)
+  }
+
+  /** Does this subtree read a MUTABLE VARIABLE of the enclosing script?
+   *
+   *  ⛔⛔ NARROWER THAN `readsSlot`, AND THE DIFFERENCE IS A CAPABILITY. That
+   *  one also answers true for any call to a USER FUNCTION, which is right for
+   *  the route decision and wrong here: a user function inside a request is the
+   *  documented shape — the acceptance script's whole per-symbol read is
+   *  `request.security(sym, "1D", calcDaily(lookback))`, and the spec calls for
+   *  it to carry its own `var` state per call site per symbol. Using `readsSlot`
+   *  refused exactly that, on the one line this capability exists for.
+   */
+  const readsOuterSlot = (node, scope) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'name' && scope.lookup(node.name) !== null) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of']) {
+      if (readsOuterSlot(node[k], scope)) return true
+    }
+    for (const k of ['args', 'elements']) {
+      if (Array.isArray(node[k])) {
+        for (const a of node[k]) {
+          if (readsOuterSlot(a && a.value !== undefined ? a.value : a, scope)) return true
+        }
+      }
+    }
+    return false
+  }
+
+  /** Lower a `request.security(symbol, timeframe, value, …)`.
+   *
+   *  ⭐⭐ THE VALUE IS LOWERED HERE BUT EXECUTED ELSEWHERE — over the requested
+   *  symbol's bars, from its own entry point in the same code array. That is
+   *  what makes `close` inside it mean the REQUESTED symbol's close, with no
+   *  rewriting of the expression at all: only the series it reads are swapped.
+   *
+   *  ⛔ THE SYMBOL IS AN ORDINARY EXPRESSION and usually only known while the
+   *  bar runs — the acceptance script reads its symbols out of a pasted
+   *  watchlist. The TIMEFRAME is not: it selects which bars must be fetched
+   *  before the run, so it has to be fixed when the script is written.
+   */
+  const admitRequest = (node, scope, callerOpts) => {
+    const at = locate(node.tok)
+    const positional = node.args.filter((x) => !x || !x.name)
+    if (positional.length < 3) {
+      throw new RuntimeRefusal('runtime:statement',
+        '`request.security` takes a symbol, a timeframe and a value', at)
+    }
+    const argOf = (x) => (x && x.value !== undefined ? x.value : x)
+
+    // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The
+    // symbol argument has its own seam (a symbol-settled value refuses when the
+    // binding did not supply one), and lowering it first buried this more
+    // fundamental problem under that one: a member whose request reads their
+    // own `var` was told about symbol plumbing instead.
+    //
+    // A request's expression runs in ANOTHER symbol's context, where a `var`
+    // belonging to this chart's run has no meaning — carrying its value across
+    // would answer with one symbol's state under another symbol's heading.
+    if (readsOuterSlot(argOf(positional[2]), scope)) {
+      note('runtime:request-with-state')
+      throw new RuntimeRefusal('runtime:request-with-state', '`request.security`', at)
+    }
+
+    // ⛔⛔ `lookahead` IS REFUSED BY NAME, AND NOT BECAUSE IT IS HARD. Vendor
+    // packet M1 measured the HISTORICAL half of this alignment on a real chart;
+    // the realtime half needs an open market and is still owed. Serving
+    // lookahead on a guess would put a number on screen that nobody could have
+    // traded on — the most valuable-LOOKING wrong answer available.
+    for (const a2 of node.args) {
+      if (a2 && a2.name === 'lookahead') {
+        throw new RuntimeRefusal('runtime:request',
+          '`lookahead` — the realtime half of this alignment is not measured yet, '
+          + 'and a guess here reads as a number that could have been traded on', at)
+      }
+    }
+
+    const tfNode = argOf(positional[1])
+    const tfIr = lowerExpr(tfNode, scope)
+    if (!tfIr || tfIr.kind !== EXPR.STR) {
+      throw new RuntimeRefusal('runtime:request',
+        'the timeframe of a request has to be fixed when the script is written — '
+        + 'it decides which bars must be fetched before the run', at)
+    }
+
+    const symbolIr = lowerExpr(argOf(positional[0]), scope)
+
+    // ⛔ THE VALUE IS LOWERED IN A SCOPE OF ITS OWN. It runs in another symbol's
+    // context, so a mutable value from THIS script has no meaning inside it.
+    const valueNode = argOf(positional[2])
+    const inner = new Scope(null)
+    const wasInRequest = inRequestValue
+    inRequestValue = true
+    let valueIr
+    try {
+      valueIr = valueNode && valueNode.type === 'collection'
+        && Array.isArray(valueNode.elements) && valueNode.elements.length >= 2
+        ? tuple(valueNode.elements.map((x) => lowerExpr(x, inner)))
+        : lowerExpr(valueNode, inner)
+    } finally { inRequestValue = wasInRequest }
+
+    // ⛔ A COLUMN INSIDE A REQUEST IS REFUSED BY NAME. A column is computed once,
+    // from THIS chart's bars, before the run starts — inside a request it would
+    // silently be the wrong symbol's numbers. Serving it needs the columnar lane
+    // run per requested symbol, which is a capability rather than a patch.
+    const carriesColumn = (e, seen) => {
+      if (!e || typeof e !== 'object') return false
+      // ⛔ A GENERIC WALK, NOT A LIST OF FIELDS. A hand-listed set of child keys
+      // fails OPEN on the shape nobody remembered — and failing open here means
+      // serving one symbol's numbers under another symbol's heading, which is
+      // the exact defect this guard exists to make impossible.
+      const guard = seen || new Set()
+      if (guard.has(e)) return false
+      guard.add(e)
+      if (e.kind === EXPR.COLUMN) return true
+      // ⛔⛔ THROUGH A USER FUNCTION TOO. A UDF's body was lowered against THIS
+      // chart's bars, so its columns hold this symbol's numbers. Called inside a
+      // request it would compute the wrong symbol's values and label them with
+      // the right symbol's name. Serving it needs the columnar lane run per
+      // requested symbol; until then it refuses, by name.
+      if (e.kind === EXPR.CALL && functions[e.fn] && carriesColumn(functions[e.fn], guard)) return true
+      for (const v of Object.values(e)) {
+        if (v && typeof v === 'object' && carriesColumn(v, guard)) return true
+      }
+      return false
+    }
+    if (carriesColumn(valueIr)) {
+      throw new RuntimeRefusal('runtime:request',
+        'this request computes a value that needs the columnar lane, and that lane '
+        + 'runs once over the bars of THIS chart — serving it per requested symbol '
+        + 'is the next step, not something to approximate', at)
+    }
+
+    const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
+    const site = requests.length
+    requests.push({ timeframe: tfIr.value, value: valueIr, results })
+    return requestCall(site, symbolIr, results)
   }
 
   /** A comparison whose OPERANDS are text.
@@ -1190,7 +1346,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
-    if (!readsSlot(node, scope) && !dependsOnTextInput(node, scope)) {
+    if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1236,6 +1392,7 @@ export function buildRuntimeIr(source, opts = {}) {
       case 'number': return num(node.value)
       case 'string': return str(node.value)
       case 'name': {
+        if (inRequestValue && PRICE.has(node.name)) return series(node.name)
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
         // ⭐ AN IMMUTABLE TEXT BINDING IS EXPANDED INLINE. A non-mutated name
@@ -1317,6 +1474,19 @@ export function buildRuntimeIr(source, opts = {}) {
         }
         return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
+        // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS
+        // BAR. The columnar lane owns price history everywhere else, but it
+        // has no column of another symbol's bars — and building one would be
+        // computing the wrong series and calling it the right one.
+        if (inRequestValue && node.arg && node.arg.type === 'name'
+            && PRICE.has(node.arg.name)) {
+          // ⛔ THE OFFSET IS READ WITH THE FILE'S OWN HELPER, `foldOffset(node.n)`.
+          // A first version guessed at `node.index`/`node.back` — fields the
+          // parser does not have — and the refusal that came back was a
+          // TypeError wearing a refusal's clothes.
+          const backAt = locate(node.tok)
+          return hist(series(node.arg.name), foldOffset(node.n, backAt))
+        }
         // ⭐⭐⭐ 2F-2 — HISTORY OVER A VALUE THE RUNTIME PRODUCED.
         //
         // ⛔ IT IS STILL NEVER APPROXIMATED. Reading the slot's CURRENT value is
@@ -1431,6 +1601,7 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
+        if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
@@ -1786,7 +1957,16 @@ export function buildRuntimeIr(source, opts = {}) {
         // rather than padded with `na` — a padded name is a table column full
         // of blanks with no reason given.
         const lowered = lowerExpr(rhs, scope, { multi: true })
-        if (lowered && lowered.kind === EXPR.CALL) {
+        if (lowered && lowered.kind === EXPR.REQUEST) {
+          // ⭐ A REQUEST KNOWS ITS OWN RESULT COUNT, recorded when its value
+          // expression was lowered, so the same by-name mismatch refusal
+          // applies to `[a, b] = request.security(…, [x, y])`.
+          if (lowered.results !== nameToks.length) {
+            throw new RuntimeRefusal('runtime:statement',
+              `this line unpacks ${nameToks.length} names from a request that `
+              + `returns ${lowered.results}`, locate(first))
+          }
+        } else if (lowered && lowered.kind === EXPR.CALL) {
           const fnRec = functions[lowered.fn]
           const gives = fnRec && fnRec.returns ? fnRec.returns : 1
           if (gives !== nameToks.length) {
@@ -2266,6 +2446,7 @@ export function buildRuntimeIr(source, opts = {}) {
       history,
       windows,
       carried,
+      requests,
     })
   } catch (e) { return fail(e, diagnostics) }
 

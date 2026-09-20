@@ -52,6 +52,7 @@ export const EXPR = Object.freeze({
   TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
   ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
   TUPLE: 'tuple',         // several values at once — only a function RESULT
+  REQUEST: 'request',     // `request.security` — another symbol's series
   SERIES: 'series',       // a price series, by name
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
@@ -99,6 +100,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
+  requests = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -124,6 +126,7 @@ export function makeIrProgram({
     version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
     windows: windows || [],
     carried: carried || [],
+    requests: requests || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -201,6 +204,12 @@ export function validateIr(p) {
       case EXPR.CONCAT:
         walkExpr(e.left, `${where}.left`)
         walkExpr(e.right, `${where}.right`)
+        return
+      case EXPR.REQUEST:
+        if (!Number.isInteger(e.site) || e.site < 0) {
+          throw new IrError(`${where}: a request carries a site index`)
+        }
+        walkExpr(e.symbol, `${where}.symbol`)
         return
       case EXPR.TUPLE:
         if (!Array.isArray(e.elements) || e.elements.length < 2) {
@@ -575,5 +584,10 @@ export const tuple = (elements) => ({ kind: EXPR.TUPLE, elements })
 /** `[a, b] = expr` — the slots are filled LEFT TO RIGHT from a value that
  *  left `slots.length` results on the stack. */
 export const destructure = (slots, value) => ({ kind: STMT.DESTRUCTURE, slots, value })
+/** `request.security(symbol, tf, value)`. `site` indexes the IR's `requests`
+ *  table, which holds the timeframe and the VALUE expression; `symbol` is an
+ *  ordinary expression because it is usually only known while the bar runs. */
+export const requestCall = (site, symbol, results) => (
+  { kind: EXPR.REQUEST, site, symbol, results })
 export const breakStmt = () => ({ kind: STMT.BREAK })
 export const continueStmt = () => ({ kind: STMT.CONTINUE })

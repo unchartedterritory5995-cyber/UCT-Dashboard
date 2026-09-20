@@ -40,6 +40,10 @@ export const OP = Object.freeze({
   READ_SERIES: 1,    // a: series index (open high low close volume)
   READ_COLUMN: 2,    // a: precomputed column index — THE HYBRID SEAM
   READ_HIST: 3,      // a: column index, b: offset in bars (na when unavailable)
+  // ⭐ `close[1]` OVER A PRICE SERIES DIRECTLY. The columnar lane normally
+  // owns price history, but a REQUEST runs over another symbol's series and
+  // has no column of them — a: series index, b: bars back.
+  READ_SERIES_HIST: 4,
   // ── arithmetic (NaN-propagating) ──
   ADD: 10,
   SUB: 11,
@@ -157,6 +161,11 @@ export const OP = Object.freeze({
   // from outside it — a runaway is stopped by the thing counting the passes,
   // not by a guess about how many there will be.
   LOOP_TICK: 78,
+  // ⭐⭐ ANOTHER SYMBOL. `a` indexes `program.requests`; `b` is how many
+  // values the request yields (1, or N for a tuple). The SYMBOL is on the
+  // stack — it is usually only known while the bar runs, because a member's
+  // watchlist is read out of a pasted string.
+  REQUEST: 79,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -165,7 +174,7 @@ export const OP = Object.freeze({
 /** The opcodes this foundation actually executes. ⛔ DERIVED, so a reserved
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
-  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST,
+  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
   OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE,
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
@@ -173,7 +182,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
-  OP.LOOP_TICK,
+  OP.LOOP_TICK, OP.REQUEST,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -199,7 +208,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
-  textOps = [], arrayOps = [],
+  textOps = [], arrayOps = [], requests = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -262,6 +271,12 @@ export function makeProgram({
     // they are read from the table, so the artifact cannot disagree with the
     // semantics about how much state a member needs.
     carried: Object.freeze((carried || []).map((c) => Object.freeze({ ...c }))),
+    // ⭐ Each entry is `{timeframe, entry, results}` — WHICH timeframe, WHERE
+    // in this same code array the request's expression begins, and how many
+    // values it leaves. The expression is a REGION of this program rather
+    // than a program of its own, so it can call the same functions and read
+    // the same consts; only the SERIES it runs against differ.
+    requests: Object.freeze((requests || []).map((r) => Object.freeze({ ...r }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -284,6 +299,9 @@ export function validateProgram(p) {
     }
     if (op === OP.CONST && (a < 0 || a >= p.consts.length)) {
       throw new ProgramError(`pc ${pc}: CONST ${a} outside ${p.consts.length} consts`)
+    }
+    if (op === OP.READ_SERIES_HIST && (a < 0 || a >= SERIES_NAMES.length)) {
+      throw new ProgramError(`pc ${pc}: READ_SERIES_HIST ${a} outside ${SERIES_NAMES.length} series`)
     }
     if (op === OP.READ_SERIES && (a < 0 || a >= SERIES_NAMES.length)) {
       throw new ProgramError(`pc ${pc}: READ_SERIES ${a} outside ${SERIES_NAMES.length} series`)
@@ -323,6 +341,11 @@ export function validateProgram(p) {
       const w = p.windows[a]
       if (!Number.isInteger(w.span) || w.span < 1) {
         throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
+      }
+    }
+    if (op === OP.REQUEST) {
+      if (a < 0 || a >= p.requests.length) {
+        throw new ProgramError(`pc ${pc}: REQUEST ${a} outside ${p.requests.length} requests`)
       }
     }
     if (op === OP.TEXT) {

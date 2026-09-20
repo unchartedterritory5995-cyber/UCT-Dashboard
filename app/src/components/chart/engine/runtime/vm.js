@@ -74,8 +74,61 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  * Execute `program` over `ctx`, one bar at a time.
  * @returns {{outputs: Float64Array[], budget: Budget}}
  */
-export function execute(program, ctx, limits) {
-  const budget = new Budget(limits)
+/** Run one request's expression over ANOTHER symbol's bars, then line the result
+ *  up with the chart's.
+ *
+ *  ⛔⛔ THE ALIGNMENT IS A MEASURED VENDOR FACT. Taken on a real TradingView
+ *  chart, 2026-09-19 (vendor packet M1): on a HISTORICAL bar a `"D"` request
+ *  returns the PREVIOUS COMPLETED daily bar — a 5-minute bar at 09-18 12:35 ET
+ *  saw 09-17's close, not the forming day's. So a chart bar sees the last
+ *  requested bar that had already CLOSED when it opened, and a requested bar
+ *  stamped at or after the chart bar's time is still forming.
+ *
+ *  ⭐ STRICTLY BEFORE, which is what makes this free of lookahead: no chart bar
+ *  can ever read a value that did not exist while it was open. A `<=` here would
+ *  hand a backtest a number nobody could have traded on — the most
+ *  valuable-looking wrong answer this engine could produce.
+ */
+function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results) {
+  const n = otherBars.length
+  const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
+  const sub = execute(program, {
+    bars: n,
+    series: [pick('o'), pick('h'), pick('l'), pick('c'), pick('v')],
+    columns: ctx.columns,
+    confirmed: true,
+    barTimes: otherBars.map((b) => b.t),
+    requestBars: ctx.requestBars,
+  }, undefined, {
+    entry: site.entry, budget, requested, requestCache,
+  })
+
+  const chartTimes = ctx.barTimes || []
+  const otherTimes = otherBars.map((b) => b.t)
+  const aligned = []
+  for (let k = 0; k < results; k += 1) aligned.push(new Float64Array(ctx.bars).fill(NaN))
+  let j = -1
+  for (let i = 0; i < ctx.bars; i += 1) {
+    const tNow = chartTimes[i]
+    // ⭐ ONE FORWARD WALK, not a search per bar: both series are in time order,
+    // so the pointer only ever moves forward across the whole alignment.
+    while (j + 1 < n && otherTimes[j + 1] < tNow) j += 1
+    if (j >= 0) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
+  }
+  return aligned
+}
+
+export function execute(program, ctx, limits, opts) {
+  const budget = (opts && opts.budget) || new Budget(limits)
+  // ⭐ A REQUEST RUNS THE SAME PROGRAM FROM A DIFFERENT ENTRY, over another
+  // symbol's series. Sharing the BUDGET is deliberate: a script that requests
+  // forty symbols has done forty symbols' worth of work, and a per-run budget
+  // would let it do that forty times over inside one bar's allowance.
+  const entryPc = (opts && Number.isInteger(opts.entry)) ? opts.entry : 0
+  // ⛔ WHAT THE RUN ASKED FOR AND COULD NOT GET. Shared with nested runs, so a
+  // request made inside a request is reported to the same caller.
+  const requested = (opts && opts.requested) || new Set()
+  const requestCache = (opts && opts.requestCache) || new Map()
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
 
@@ -269,7 +322,7 @@ export function execute(program, ctx, limits) {
     // call from seeing the previous bar's leftovers.
     locals.fill(NaN, 0, program.locals)
     let sp = 0
-    let pc = 0
+    let pc = entryPc
     let perBar = 0
     let depth = 0
     let localsBase = 0
@@ -292,6 +345,12 @@ export function execute(program, ctx, limits) {
       switch (op) {
         case OP.CONST: stack[sp++] = consts[a]; break
         case OP.READ_SERIES: stack[sp++] = series[a][bar]; break
+        case OP.READ_SERIES_HIST:
+          // ⛔ BEFORE THE FIRST BAR IS `na`, never a wrapped index. Reading
+          // `series[bar - b]` with a negative index would answer `undefined`
+          // and poison every later comparison silently.
+          stack[sp++] = bar - b >= 0 ? series[a][bar - b] : NaN
+          break
         case OP.READ_COLUMN: stack[sp++] = columns[a][bar]; break
         case OP.READ_HIST: {
           // ⛔ `bar - b`, AND OUT OF RANGE IS `na` — NEVER a clamp to bar 0.
@@ -634,6 +693,38 @@ export function execute(program, ctx, limits) {
           budget.charge('LOOP_ITERATIONS', 1)
           budget.peak('LOOP_NESTING', a)
           break
+        case OP.REQUEST: {
+          const site = program.requests[a]
+          const symbol = stack[--sp]
+          if (typeof symbol !== 'string') {
+            throw new VmError(
+              `pc ${pc - 1}: request.security takes a symbol as text, got ${kindOf(symbol)}`)
+          }
+          const key = `${symbol}|${site.timeframe}`
+          let series2 = requestCache.get(`${a}::${key}`)
+          if (series2 === undefined) {
+            const other = ctx.requestBars && ctx.requestBars[key]
+            if (!other || !other.length) {
+              // ⛔ NOT AN ERROR AND NOT A GUESS — a symbol this run has no bars
+              // for is RECORDED and answers `na`. The script's symbols come out
+              // of a pasted watchlist, so the only way to know what to fetch is
+              // to run it and read back what it asked for.
+              budget.peak('REQUEST_COUNT', requested.size + 1)
+              requested.add(key)
+              series2 = null
+            } else {
+              budget.peak('REQUEST_COUNT', requestCache.size + 1)
+              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b)
+            }
+            requestCache.set(`${a}::${key}`, series2)
+          }
+          if (series2 === null) {
+            for (let k = 0; k < b; k += 1) stack[sp++] = NaN
+          } else {
+            for (let k = 0; k < b; k += 1) stack[sp++] = series2[k][bar]
+          }
+          break
+        }
         case OP.HALT: break
         default:
           throw new VmError(
@@ -702,5 +793,5 @@ export function execute(program, ctx, limits) {
     }
   }
 
-  return { outputs, budget }
+  return { outputs, budget, requested: Array.from(requested).sort() }
 }

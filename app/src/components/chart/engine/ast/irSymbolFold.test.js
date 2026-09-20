@@ -69,28 +69,35 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     expect(withSym.diagnostics.statements).toBeGreaterThanOrEqual(79)
   })
 
-  it('⛔⛔ THE NEXT BLOCKER IS NAMED TO ITS LINE — v2:251, and it is STRUCTURAL', () => {
-    // ⭐ `[a, b, c, d, e, f, g, h] = f_getDailyData()` — an eight-value destructure
-    // from a user function. `runtime:tuple` is *"a tuple — the runtime has no
-    // multiple-value form yet"*, which is a CAPABILITY this lane does not have,
-    // not a wire somebody forgot: the IR has no way to carry more than one value
-    // out of a call.
+  it('⛔⛔ THE NEXT BLOCKER IS NAMED TO ITS LINE — v2:261, and it is a VENDOR FACT', () => {
+    // ⚠ THIS CASE'S SUBJECT KEEPS MOVING, AND THAT IS THE MEASUREMENT.
+    // It pinned `runtime:tuple` at 251; tuples landed, so it became the REQUEST
+    // the destructure reads from (`runtime:request-with-state`); the state check
+    // then narrowed from `readsSlot` to `readsOuterSlot` — a user function inside
+    // a request is the documented shape, not this script's state — and the lane
+    // walked past that too.
     //
-    // ⛔ AND IT IS OFF THE CRITERION (owner, 2026-09-13; ruling D2). The pane is
+    // ⭐⭐ WHERE IT STOPS NOW IS NOT A MISSING CAPABILITY. v2:261 passes
+    // `lookahead = barmerge.lookahead_on`, and vendor packet M1 measured only the
+    // HISTORICAL half of that alignment — the realtime half needs an open market
+    // and is still owed. Serving it on a guess would put a number on screen that
+    // nobody could have traded on, which is the most valuable-LOOKING wrong
+    // answer this engine could give. So this blocker clears with a MEASUREMENT,
+    // not with code, and it is the one shape that should never be 'fixed' by
+    // making the lane go further.
+    //
+    // ⛔ STILL OFF THE CRITERION (owner, 2026-09-13; ruling D2). The pane is
     // driven by the DEFINITION lane, which renders this script's four plots and
     // both tables today. Naming it here is what stops it being rediscovered as a
     // mystery; chasing it is not this wave's work.
-    // ⚰️ THIS PINNED `runtime:tuple` AT 251, and the tuple capability landed
-    // (runtime/__tests__/tuples.test.js): an eight-value destructure from a
-    // user function now lowers. The blocker behind it is the REQUEST the
-    // destructure reads from, which is the next capability and is still off
-    // the criterion for the same ruling-D2 reason recorded above.
-    expect(withSym.refusal.guard).toBe('runtime:request-with-state')
-    // ⭐ AND THE FUNCTION BEHIND IT WAS ALREADY REPORTED, so the two facts agree:
-    // the definition was skipped at 190 and its CALL is what the lane now reaches.
+    expect(withSym.refusal.guard).toBe('runtime:request')
+    expect(withSym.refusal.line).toBe(261)
+    expect(withSym.refusal.message).toMatch(/lookahead/)
+    // ⭐ AND THE FUNCTIONS BEHIND IT WERE ALREADY REPORTED, so the two facts
+    // agree: nothing was swallowed on the way to the blocker.
     // ⭐ The skip list moves with the capabilities too, so this asserts the
-    // PROPERTY the case is about — the function behind the blocker was named,
-    // with its line — rather than a frozen string.
+    // PROPERTY the case is about — every skipped definition named, with its line
+    // and its guard — rather than a frozen string.
     expect(withSym.diagnostics.skippedFunctions.length).toBeGreaterThan(0)
     for (const entry of withSym.diagnostics.skippedFunctions) {
       expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
