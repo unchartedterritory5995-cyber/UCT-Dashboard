@@ -24,6 +24,7 @@
 
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
+import { TEXT_FNS } from './text.js'
 import { Budget } from './limits.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
@@ -424,6 +425,32 @@ export function execute(program, ctx, limits) {
           if (b === 1) v = fn(stack[sp])
           else if (b === 2) v = fn(stack[sp], stack[sp + 1])
           else v = fn(...Array.prototype.slice.call(stack, sp, sp + b))
+          stack[sp++] = v
+          break
+        }
+        case OP.TEXT: {
+          // ⭐⭐ THE KINDS ARE CHECKED FROM THE ENTRY'S OWN DECLARATION, not by
+          // each function. Seven hand-written checks drift; one check site
+          // cannot, and the one that would have drifted is the one nobody reads
+          // again. `text.js` declares `args` per builtin and this reads it.
+          const name = program.textOps[a]
+          const spec = TEXT_FNS[name]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const kind = spec.args[i]
+            const v = stack[sp + i]
+            if (typeof v !== kind) {
+              // ⛔ NAMED TO THE BUILTIN AND THE POSITION. "a string was expected"
+              // sends a member hunting through a whole watchlist parser; naming
+              // `str.replace_all` argument 2 points at the line.
+              throw new VmError(
+                `pc ${pc - 1}: \`${name}\` argument ${i + 1} takes a ${kind}, got ${typeof v}`)
+            }
+          }
+          let v
+          if (b === 1) v = spec.fn(stack[sp])
+          else if (b === 2) v = spec.fn(stack[sp], stack[sp + 1])
+          else v = spec.fn(...Array.prototype.slice.call(stack, sp, sp + b))
           stack[sp++] = v
           break
         }

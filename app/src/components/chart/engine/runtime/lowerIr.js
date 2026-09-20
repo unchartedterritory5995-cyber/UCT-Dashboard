@@ -34,12 +34,22 @@ export function lowerIrProgram(ir) {
   const code = []
   const consts = []
   const pointwise = []
+  const textOps = []
 
   const constIndex = (v) => {
     const i = consts.indexOf(v)
     if (i >= 0) return i
     consts.push(v)
     return consts.length - 1
+  }
+  // ⭐ Interned the same way `pointwise` is: the NAME lands in the artifact
+  // once and the instruction carries an index, so two calls to the same
+  // builtin cost one table entry.
+  const textIndex = (name) => {
+    const i = textOps.indexOf(name)
+    if (i >= 0) return i
+    textOps.push(name)
+    return textOps.length - 1
   }
   const emit = (op, a = 0, b = 0) => { code.push(op, a, b) }
   const here = () => code.length / 3
@@ -62,6 +72,13 @@ export function lowerIrProgram(ir) {
       // are two entries and cannot be confused for one another.
       case EXPR.STR: emit(OP.CONST, constIndex(e.value)); return
       case EXPR.CONCAT: expr(e.left); expr(e.right); emit(OP.CONCAT); return
+      // ⭐ EXACTLY THE `POINTWISE` SHAPE: arguments are pushed left to right,
+      // then one instruction naming the function and how many it takes.
+      case EXPR.TEXT: {
+        for (const a of e.args) expr(a)
+        emit(OP.TEXT, textIndex(e.fn), e.args.length)
+        return
+      }
       case EXPR.SERIES: {
         const i = SERIES_NAMES.indexOf(e.name)
         if (i < 0) throw new LoweringGap('series', `\`${e.name}\` is not one of ${SERIES_NAMES.join(', ')}`)
@@ -256,6 +273,7 @@ export function lowerIrProgram(ir) {
     persists: persistTotal(ir),
     functions,
     pointwise,
+    textOps,
     windows: (ir.windows || []).map((w) => ({ ...w })),
     carried: (ir.carried || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({

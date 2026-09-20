@@ -40,8 +40,9 @@ import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall, carriedCall,
+  windowCall, carriedCall, textCall,
 } from '../runtime/ir.js'
+import { TEXT_FNS, producesText } from '../runtime/text.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -615,6 +616,11 @@ export function buildRuntimeIr(source, opts = {}) {
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsText(bound.node, scope))
     }
+    // ⛔ A `str.*` THAT RETURNS A STRING IS TEXT; one that returns a NUMBER is
+    // not. `str.length(s)` composes with ordinary arithmetic and must not mark
+    // a slot as text — `int n = str.length(s)` is an int, and calling it text
+    // would route `n + 1` to `CONCAT` and refuse a correct script.
+    if (node.type === 'call' && producesText(node.name)) return true
     if (node.type === 'binary' && node.op === '+') {
       return holdsText(node.left, scope) || holdsText(node.right, scope)
     }
@@ -660,6 +666,14 @@ export function buildRuntimeIr(source, opts = {}) {
   const touchesText = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (holdsText(node, scope)) return true
+    // ⚰️ A SERVED-CALL CLAUSE STOOD HERE AND WAS REDUNDANT — deleting it left
+    // every test green, which a mutation proof caught. `holdsText`, which this
+    // function's first line already asks, answers true for a call that PRODUCES
+    // text; and every CONSUMER (`length`, `contains`, `startswith`, `endswith`)
+    // is in `pine.js::PINE_TEXT_PREDICATE`, so the columnar lane resolves those
+    // itself and never reaches this fallback at all. Two guards over one value
+    // is the shape this repo records as "a guard repeated is a guard unproved":
+    // neither could be shown to matter while the other stood.
     if (node.type === 'binary') return touchesText(node.left, scope) || touchesText(node.right, scope)
     if (node.type === 'unary') return touchesText(node.arg, scope)
     if (node.type === 'ternary') {
@@ -947,11 +961,27 @@ export function buildRuntimeIr(source, opts = {}) {
       try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
-        // ⛔ ONLY a text refusal over a subtree that really does carry text
-        // falls through. Every other refusal is that lane's verdict and keeps
-        // its own name — re-dressing a `pine:builtin` as a runtime gap would
-        // send the next engineer to the wrong subsystem.
-        if (!(e && e.guard === 'pine:text-value' && touchesText(node, scope))) throw e
+        // ⛔ ONLY over a subtree that really does carry text, and only for the
+        // two verdicts that mean "this lane has no text for you":
+        //
+        //   `pine:text-value` — it met a string and refuses strings outright.
+        //   `pine:builtin`    — it does not hold this NAME. For a `str.*` this
+        //                       lane now implements, that is a statement about
+        //                       the columnar table, not about the script.
+        //
+        // ⚰️ The second was missing and produced an arbitrary split: measured,
+        // `str.upper(s)` over a mutable `s` ran while the PURE `str.upper("aapl")`
+        // — identical semantics, no slot — was refused *"the engine grammar does
+        // not hold `str.upper`"*, one line after this lane had just implemented
+        // it. That is precisely the refusal-false-about-its-neighbour defect.
+        //
+        // ⛔ Every OTHER refusal is that lane's verdict and keeps its own name —
+        // re-dressing one as a runtime gap sends the next engineer to the wrong
+        // subsystem. And a `pine:builtin` about some unrelated unknown name
+        // still refuses here, by that name, because the runtime does not hold it
+        // either.
+        const laneHasNoText = e && (e.guard === 'pine:text-value' || e.guard === 'pine:builtin')
+        if (!(laneHasNoText && touchesText(node, scope))) throw e
       }
     }
 
@@ -1111,6 +1141,29 @@ export function buildRuntimeIr(source, opts = {}) {
           // argument (`f(acc)`) is an ordinary runtime expression rather than a
           // special case — §30.
           return irCall(fnIndex, site, args.map((a) => lowerExpr(a, scope)))
+        }
+        // ⭐⭐ A SERVED `str.*` IS ADMITTED BEFORE `callFamily` SEES IT. That
+        // classifier refuses the WHOLE `str.` namespace by design — it is the
+        // diagnostic that says "text is a value-model change" — so anything
+        // this lane now serves has to be taken out of its path rather than
+        // carved out of its rule. Every unserved `str.*` keeps that refusal,
+        // which is what the CONTROLs in `strBuiltins.test.js` pin.
+        if (Object.prototype.hasOwnProperty.call(TEXT_FNS, node.name)) {
+          const spec = TEXT_FNS[node.name]
+          for (const arg of node.args) {
+            if (arg && arg.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          if (given.length !== spec.args.length) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes ${spec.args.length} argument`
+              + `${spec.args.length === 1 ? '' : 's'}, given ${given.length}`,
+              locate(node.tok))
+          }
+          return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         const fam = callFamily(node.name)
         if (fam) { note(fam); throw new RuntimeRefusal(fam, `\`${node.name}\``, locate(node.tok)) }

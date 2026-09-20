@@ -227,9 +227,16 @@ describe('⛔ what 2F-1 does NOT do — the split stays honest', () => {
   })
 
   it('⛔ a non-value namespace is NOT stripped into a table collision', () => {
-    // `str.upper` must not resolve to some table entry called `upper`; text is a
-    // value-model change and is deferred by name (§22).
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.upper("ab")) + x)\n`)
+    // A `str.*` must never resolve to a same-named entry in the POINTWISE table
+    // — `str.max` is not `math.max` (§22).
+    //
+    // ⚰️ THIS USED `str.upper`, WHICH THE RUNTIME NOW IMPLEMENTS, so the script
+    // compiled and `refusalOf` failed. The question is unchanged and is if
+    // anything sharper with a name that still refuses: the danger was never
+    // that `upper` was unserved, it was that the `str.` prefix might be stripped
+    // and the bare name looked up. `str.max` collides with a real table entry,
+    // which `str.upper` never did.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.max("ab", "cd") + x)\n`)
     expect(r.guard).not.toBe('runtime:call-pointwise-state')
   })
 

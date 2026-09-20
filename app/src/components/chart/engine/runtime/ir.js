@@ -48,6 +48,7 @@ export const EXPR = Object.freeze({
   // that lane and refused, which is the wall this kind exists to walk around.
   STR: 'str',
   CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
+  TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
   SERIES: 'series',       // a price series, by name
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
@@ -198,6 +199,11 @@ export function validateIr(p) {
       case EXPR.CONCAT:
         walkExpr(e.left, `${where}.left`)
         walkExpr(e.right, `${where}.right`)
+        return
+      case EXPR.TEXT:
+        if (typeof e.fn !== 'string') throw new IrError(`${where}: a text call carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a text call carries an args array`)
+        e.args.forEach((a, i) => walkExpr(a, `${where}.${e.fn}[${i}]`))
         return
       case EXPR.SERIES:
         if (typeof e.name !== 'string') throw new IrError(`${where}: a series carries a name`)
@@ -476,6 +482,9 @@ export const str = (value) => ({ kind: EXPR.STR, value })
  *  ERROR. Routing text through its own node lets the VM refuse a mixed pair by
  *  name instead of inventing an answer TradingView would never give. */
 export const concat = (left, right) => ({ kind: EXPR.CONCAT, left, right })
+/** A `str.*` call. `fn` is the NAME; `runtime/text.js` owns the implementation
+ *  and `program.js` validates the name when the program is built. */
+export const textCall = (fn, args) => ({ kind: EXPR.TEXT, fn, args })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })

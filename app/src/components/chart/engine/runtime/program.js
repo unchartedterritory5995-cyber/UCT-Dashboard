@@ -28,6 +28,11 @@
 /** ⭐ ONE TABLE, AND EVERY CONSUMER DERIVES FROM IT. `vm.js` switches on these,
  *  `lower.js` emits them, and `program.test.js` asserts the two agree — a hand-
  *  kept opcode list in a second file is the drift this repo pays for most. */
+// ⭐ The `str.*` table is imported rather than restated: this file VALIDATES a
+// program's text ops against it at build time, and a second copy of the name
+// list here is exactly the drift the header warns about one paragraph up.
+import { TEXT_FNS } from './text.js'
+
 export const OP = Object.freeze({
   // ── operands ──
   CONST: 0,          // a: const index
@@ -134,6 +139,10 @@ export const OP = Object.freeze({
   // what lets the VM refuse a mixed pair by name instead of accepting a script
   // TradingView rejects and then disagreeing with it about the answer.
   CONCAT: 75,
+  // ⭐ MIRRORS `POINTWISE`: `a` indexes `program.textOps` (a list of NAMES),
+  // `b` is the argument count. The names live in the artifact rather than in
+  // the opcode so adding a `str.*` costs no opcode and no VM branch.
+  TEXT: 76,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -149,7 +158,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -175,6 +184,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
+  textOps = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -202,6 +212,15 @@ export function makeProgram({
     functions: Object.freeze((functions || []).map((f) => Object.freeze({ ...f }))),
     callSites: Object.freeze((callSites || []).map((c) => Object.freeze({ ...c }))),
     pointwise: Object.freeze((pointwise || []).slice()),
+    // ⛔ NAMES, VALIDATED AGAINST THE TABLE AT BUILD TIME. A name the VM has
+    // no implementation for would otherwise surface on some bar as a runtime
+    // error, which reads as a data problem rather than a compiler one.
+    textOps: Object.freeze((textOps || []).map((name, i) => {
+      if (!Object.prototype.hasOwnProperty.call(TEXT_FNS, name)) {
+        throw new ProgramError(`textOp ${i}: no implementation for \`${name}\``)
+      }
+      return name
+    })),
     // ⭐ THE HISTORY PLAN IS PART OF THE ARTIFACT, not something the VM discovers.
     // Each entry is `{name, kind, depth, owner}` — how deep this slot's ring must
     // be, decided ONCE by the front end's static demand analysis. The runtime
@@ -278,6 +297,17 @@ export function validateProgram(p) {
       const w = p.windows[a]
       if (!Number.isInteger(w.span) || w.span < 1) {
         throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
+      }
+    }
+    if (op === OP.TEXT) {
+      if (a < 0 || a >= p.textOps.length) {
+        throw new ProgramError(`pc ${pc}: TEXT ${a} outside ${p.textOps.length} text ops`)
+      }
+      const want = TEXT_FNS[p.textOps[a]].args.length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.textOps[a]}\` takes ${want} argument(s), the call passes ${got}`)
       }
     }
     if (op === OP.POINTWISE) {

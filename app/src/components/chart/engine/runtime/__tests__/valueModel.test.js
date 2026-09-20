@@ -61,6 +61,25 @@ describe('the value model', () => {
       .toThrow(/const 0/)
   })
 
+  it('refuses a text op the VM has no implementation for, by name, at BUILD', () => {
+    // ⛔ A name with no implementation would otherwise surface on some bar as a
+    // runtime error — which reads to a member as a data problem rather than the
+    // compiler bug it is. Found unproven by a mutation run: nothing else in the
+    // suite builds a program with a bogus text op.
+    expect(() => makeProgram({
+      code: [OP.HALT, 0, 0], consts: [], outputs: [], textOps: ['str.nosuchthing'],
+    })).toThrow(/no implementation for `str\.nosuchthing`/)
+  })
+
+  it('CONTROL: a real text op name is accepted', () => {
+    // Without this, "it throws" above is equally satisfied by a check that
+    // rejects every name.
+    const p = makeProgram({
+      code: [OP.HALT, 0, 0], consts: [], outputs: [], textOps: ['str.upper'],
+    })
+    expect(Array.from(p.textOps)).toEqual(['str.upper'])
+  })
+
   it('round-trips a string through a local slot', () => {
     // If the slot coerced, EMIT would receive NaN — a number — and emit `na`
     // silently. The throw IS the evidence the string survived.

@@ -133,13 +133,18 @@ describe('a string reaches a runtime slot', () => {
   })
 
   it('CONTROL: an unsupported text builtin over a mutated value still refuses BY NAME', () => {
+    // ⚰️ THIS CONTROL USED `str.replace_all`, WHICH IS NOW IMPLEMENTED — see
+    // `strBuiltins.test.js`. The control's question is unchanged (does an
+    // unserved text builtin still refuse, by its own name, rather than being
+    // swallowed?); only its example had to move on, to one this lane genuinely
+    // does not serve.
     const r = refusalOf(
       'string s = "a,b"\n'
       + 'if close > open\n'
       + '    s := "c,d"\n'
-      + 'string t = str.replace_all(s, ",", ";")\n'
-      + 'plot(t == "a;b" ? 1 : 0)\n')
-    expect(r.message).toMatch(/str\.replace_all/)
+      + 'string t = str.substring(s, 0, 1)\n'
+      + 'plot(t == "a" ? 1 : 0)\n')
+    expect(r.message).toMatch(/str\.substring/)
   })
 
   it('a text comparison with NO mutable side still runs', () => {
