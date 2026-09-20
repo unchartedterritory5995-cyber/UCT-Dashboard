@@ -304,7 +304,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`). Ordinary
     # pointwise entry, `lookback: 0`, one `series` argument -- no new node
     # type, argument kind or lookback form. The scalar half is untouched.
-    assert len(ast_table.bar_names()) == 120, len(ast_table.bar_names())
+    # ⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence`, the occurrence-indexed
+    # backward search behind `ta.valuewhen`'s namespace-aware redirect. Bound
+    # via the existing `int`-kind mechanism -- no new node type, argument kind
+    # or lookback form (`lookback: "series"` already exists for `cum`). The
+    # scalar half is untouched at 137.
+    assert len(ast_table.bar_names()) == 121, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -343,7 +348,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # their sum.
     # 256 -> 257 (2026-09-20): `ceil`. The bar half moved 119 -> 120, the
     # scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 257, f"the table declares {len(declared)} names, not 257"
+    # 257 -> 258 (2026-09-20): `valuewhenOccurrence`. The bar half moved
+    # 120 -> 121, the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 258, f"the table declares {len(declared)} names, not 258"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

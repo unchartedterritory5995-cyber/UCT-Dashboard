@@ -2489,6 +2489,39 @@
       }
     },
     {
+      "id": "valuewhenOccurrence_the_second_most_recent_up_bar",
+      "source": "valuewhenOccurrence(close > open, high, 1)",
+      "why": "⭐⭐ `floor`'s SIBLING, `valuewhen`'s FALSE FRIEND. This entry answers Pine's `ta.valuewhen(condition, source, occurrence)` -- unbounded, occurrence-indexed backward search -- which shares a spelling and an arity with the case right above it (a BOUNDED bar window) and answers a different number on most bars for exactly that reason; `pine.js::resolveTableCall` reaches this entry only through the NAMESPACED `ta.valuewhen(...)`, never a bare `valuewhen(...)` call. Occurrence 1 (the SECOND most recent up-bar, 0-indexed) rather than 0 so this case is not degenerate with a plain 'most recent true bar' read. NaN before the second occurrence exists is the honest answer, the same X23 laundering risk `valuewhen` above already carries -- declared at `closedTable.json::_functions_valuewhen_occurrence`.",
+      "ast": {
+        "type": "call",
+        "name": "valuewhenOccurrence",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "num",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
       "id": "highestbars_the_offset_back_to_the_high",
       "source": "highestbars(high, 5)",
       "why": "⛔⛔ THE ROW THAT SPENDS THE CORPUS'S TIES. Measured on these very bars: 56 of the 5-bar `high` windows hold their maximum TWICE, and on every one of them 'the most recent bar wins' and 'the oldest bar wins' name a DIFFERENT bar -- so this digest moves if the tie-break declared in `closedTable.json::_functions_arg_extreme` is flipped in either lane. ⭐ THAT IS WHY THE WINDOW IS 5 AND NOT 20: the ruling is only pinned here for the window this case uses, and a smaller one spends more of the series' ties per bar. The CONSTRUCTED tie in `tests/test_ast_bounded_state.py` covers what a real series cannot -- a TOTAL tie, and the declared number asserted per lane rather than the two lanes agreeing with each other.",

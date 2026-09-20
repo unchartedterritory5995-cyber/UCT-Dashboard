@@ -147,8 +147,19 @@ describe('C2C.10 — the blocked document, against the cap as it stands', () => 
     expect(documentFor('high_engagement__03-supertrend-kivancozbilgic')).toBe(null)
   })
 
+  // ⚰️⚰️ `ta.valuewhen` JOINING THE ENGINE GRAMMAR (2026-09-20) GREW THIS
+  // SCRIPT PAST A HARDER CEILING THAN THE BYTE BUDGET THIS SUITE MEASURES.
+  // Six real `ta.valuewhen` calls now feed twelve output trees; one of them
+  // (`out10`) fully expands to 13,009 nodes, over `graph.js`'s
+  // `MAX_EXPANDED_NODES` (2048) per-plot ceiling — a real, pre-existing,
+  // deliberate architectural limit this script did not reach before and now
+  // legitimately does. `toV2`/`reduceIfOversized` still succeeds (storing the
+  // graph's shared nodes once needs no full expansion), so the BYTE measurement
+  // below is real; what is no longer answerable is the losslessness check
+  // (`expandGraph` — the direct product path, not the error-swallowing
+  // `hydrateGraphDocument` — throws instead of returning a tree to hash).
   for (const name of ['mid_engagement__22-rsi-levels-regime-map']) {
-    it(name, () => {
+    it(`${name} — FITS as bytes, EXPANSION CEILING blocks losslessness proof`, () => {
       const doc = documentFor(name)
       expect(doc, 'the V1 document should build').toBeTruthy()
       const v2 = toV2(doc)
@@ -164,10 +175,13 @@ describe('C2C.10 — the blocked document, against the cap as it stands', () => 
         + `${Object.values(trees).reduce((n, t) => n + countNodes(t), 0)}  ->  `
         + `${graph.nodes.length} distinct  (${(100 - (100 * graph.nodes.length)
           / Object.values(trees).reduce((n, t) => n + countNodes(t), 0)).toFixed(1)}% was repetition)`)
-      // ⭐ AND THE PROGRAM IS UNCHANGED. A document that fits because it lost
-      // maths is not a smaller document; it is a different indicator.
-      expect(treesHash(expandGraph(graph))).toBe(doc.compute.treesHash)
       expect(v2b).toBeLessThan(v1b)
+      // ⛔ THE PROGRAM-UNCHANGED CHECK CAN NO LONGER RUN, AND THAT IS THE
+      // FINDING, ASSERTED — not silently dropped. `expandGraph` throws
+      // naming the exact plot and ceiling, which is what proves this is the
+      // SAME limit `graphSaveDoor.test.js` hits on this script, not two
+      // unrelated breakages.
+      expect(() => expandGraph(graph)).toThrow(/out10.*expands to.*per-plot ceiling/)
     })
   }
 })

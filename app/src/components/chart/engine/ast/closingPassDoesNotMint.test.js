@@ -70,16 +70,30 @@ function doorFacts() {
 }
 
 describe('R13 — the closing pass resolves without minting', () => {
-  it('⭐⭐ THE SPECIMEN MINTS 5 TRACK F PARAMETERS, NOT 24', () => {
+  it('⭐⭐ THE SPECIMEN MINTS 8 TRACK F PARAMETERS, NOT 24', () => {
     // ⛔ THE ANSWER, NOT THE ABSENCE. The number is pinned, and it is pinned to
-    // the measured pre-`bdc1050ad` value rather than to "fewer than 24" — a
-    // bound would stay green at 23, which is the same defect one input smaller.
+    // the measured value rather than to "fewer than 24" — a bound would stay
+    // green at 23, which is the same defect one input smaller.
+    //
+    // ⭐⭐ 5 -> 8 ON 2026-09-20: `ta.valuewhen` joined the manifest as a real
+    // occurrence-indexed primitive. This specimen calls it six times, at
+    // `occurrence=1` -- TradingView's own documented "second most recent"
+    // example, verbatim (`rLo1 = ta.valuewhen(pvLc, rsi[revPiv], 1)` and five
+    // siblings) -- feeding a reversal-detection idiom (`posRev`/`negRev`) that
+    // was previously unreachable. Clearing it lets the output loop walk
+    // THREE MORE previously-unreached, legitimate `input.*` bindings:
+    // `revLook` (the max-bars-between-pivots window the reversal compares
+    // `curX - xLo1`/`curX - xHi1` against) and `stopA`/`tgtR` (the ATR-stop
+    // and R-multiple target the reversal's own trade logic sizes from). All
+    // three are real member-facing inputs this script already declared; they
+    // were simply behind a wall this fix removed. See
+    // `pineValuewhenOccurrenceAccept.test.js` for the dedicated coverage.
     const { params } = doorFacts()
     expect(params.length,
       `the closing pass is minting for unread bindings: ${JSON.stringify(params)}`)
-      .toBe(5)
+      .toBe(8)
     expect([...params].sort())
-      .toEqual(['regLook', 'revPiv', 'rsiLen', 'showSetup', 'useRev'])
+      .toEqual(['regLook', 'revLook', 'revPiv', 'rsiLen', 'showSetup', 'stopA', 'tgtR', 'useRev'])
   })
 
   it('⭐⭐ AND NO DECLARED MEMBER INPUT IS ALSO A TRACK F PARAMETER', () => {

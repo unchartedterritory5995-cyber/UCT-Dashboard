@@ -31,8 +31,8 @@
       "name": "mid_engagement__22-rsi-levels-regime-map",
       "id": "u_c2d900000004",
       "band": "rsi-levels",
-      "v1Bytes": 240206,
-      "sentBytes": 10844,
+      "v1Bytes": 2466431,
+      "sentBytes": 15365,
       "isGraph": true,
       "plots": 12
     },
