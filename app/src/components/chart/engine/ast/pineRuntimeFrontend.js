@@ -438,6 +438,28 @@ export function buildRuntimeIr(source, opts = {}) {
   const inputs = opts.inputs || {}
   const diagnostics = { statements: 0, columns: 0, slots: 0, families: {} }
 
+  // ⭐⭐ THE OBJECT PASS OWNS THE DRAWING when the caller supplies its trees.
+  //
+  // ⛔ WITHOUT THIS FLAG THE SEAM CANNOT EXIST, and the reason is worth stating
+  // because the refusal it relaxes is CORRECT. `runtime:object-op` says a
+  // graphical-object call "belongs to the object program, not the value
+  // runtime", which is true — this lane draws nothing and must never learn to.
+  // But a script that draws is a script that CONTAINS those calls, so refusing
+  // on sight also refuses to compute the numbers the drawing needs, and the two
+  // lanes could never meet.
+  //
+  // ⭐ Supplying `objectTrees` is the caller SAYING it has already run the
+  // object pass and taken responsibility for every `line|label|box|table|
+  // linefill` call in the source. On that promise those calls become no-ops
+  // here: skipped as statements, `na` as expressions. Nothing is drawn, nothing
+  // is silently dropped — the object program holds them.
+  //
+  // ⛔ AN EMPTY ARRAY STILL MEANS OWNERSHIP. A drawing whose coordinates are all
+  // literals references no trees at all, and it needs its calls skipped exactly
+  // as much as one that references forty. `Array.isArray([])` is the test, never
+  // `.length`.
+  const objectPassOwnsDrawing = Array.isArray(opts.objectTrees)
+
   const note = (family) => {
     diagnostics.families[family] = (diagnostics.families[family] || 0) + 1
   }
@@ -748,6 +770,33 @@ export function buildRuntimeIr(source, opts = {}) {
     // would send a price into a colour slot with no complaint.
     if (node.type === 'ternary') {
       return holdsColour(node.yes, scope) && holdsColour(node.no, scope)
+    }
+    return false
+  }
+
+  /** Is a drawing-object constructor or method anywhere in this subtree?
+   *
+   *  ⭐ ONLY CONSULTED UNDER `objectPassOwnsDrawing`, and it exists for exactly
+   *  one shape: `var t = table.new(…)`. The right-hand side reads no slot, so
+   *  the route decision would hand it to the columnar lane, which refuses the
+   *  whole namespace at `pine:drawing` — a refusal that is correct for that lane
+   *  and irrelevant here, because the object program already holds the call.
+   *
+   *  ⛔ IT ASKS THE WHOLE SUBTREE, NOT THE HEAD. A drawing call can sit nested
+   *  under arithmetic or a ternary, and a head-only test would route the
+   *  enclosing expression to the lane that cannot read it while reporting
+   *  nothing — the column would simply refuse and the script would die naming
+   *  the wrong cause. */
+  const holdsObjectCall = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (node.type === 'call' && OBJECT_NS.test(String(node.name || ''))) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
+      if (holdsObjectCall(node[k], depth + 1)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (holdsObjectCall(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+      }
     }
     return false
   }
@@ -1446,8 +1495,15 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
+    // ⛔⛔ AND NEITHER DOES A DRAWING-OBJECT CALL WHEN THE OBJECT PASS OWNS IT.
+    // `var t = table.new(…)` reads no slot, so the route decision sends it to
+    // the columnar lane — which refuses the whole `table.` namespace at
+    // `pine:drawing`, before the no-op fallback below is ever reached. The
+    // refusal is right for that lane and wrong for this script: the object
+    // program already holds the call. See `objectPassOwnsDrawing`.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
-        && !readsPlotRef(node) && !holdsColour(node, scope)) {
+        && !readsPlotRef(node) && !holdsColour(node, scope)
+        && !(objectPassOwnsDrawing && holdsObjectCall(node))) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1769,6 +1825,14 @@ export function buildRuntimeIr(source, opts = {}) {
           return admitArrayCall(node, scope, false)
         }
         const fam = callFamily(node.name)
+        // ⛔⛔ NO `objectPassOwnsDrawing` ESCAPE HATCH IN THE EXPRESSION
+        // POSITION, DELIBERATELY. The two shapes that legitimately mention a
+        // drawing call — the handle binding and the bare drawing statement —
+        // are both skipped before lowering ever reaches here, so anything that
+        // arrives is a drawing used AS A VALUE. There is no honest number to
+        // return for it: `num(NaN)` was tried and `ir.js` rightly refuses a
+        // non-finite const, and `0` is a coordinate. Refusing by name is the
+        // answer, and it keeps the message pointing at the real shape.
         if (fam) { note(fam); throw new RuntimeRefusal(fam, `\`${node.name}\``, locate(node.tok)) }
         // ⭐⭐ A POINTWISE BUILTIN OVER RUNTIME STATE — 2F-1's whole capability.
         // Its arguments are lowered in the caller's scope, so a state-derived
@@ -2379,6 +2443,18 @@ export function buildRuntimeIr(source, opts = {}) {
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
         }
+        // ⭐⭐ `var t = table.new(…)` BINDS A HANDLE, AND A HANDLE IS NOT A
+        // NUMBER. The object program owns that table; this lane has no
+        // representation for one and nothing here will ever read it.
+        //
+        // ⛔ SO THE DECLARATION IS SKIPPED ENTIRELY, rather than declared with a
+        // placeholder value. `num(NaN)` was tried and `ir.js` REFUSED IT — "a
+        // num carries a finite number" — and that guard is right: a NaN const
+        // reaching the pool is how a drawing coordinate silently becomes
+        // nothing. ⭐ Skipping also gives the better failure: a name this lane
+        // never declared refuses LOUDLY at `pine:undefined` if anything outside
+        // a drawing call reads it, instead of quietly yielding `na`.
+        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
         // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
@@ -2458,6 +2534,12 @@ export function buildRuntimeIr(source, opts = {}) {
         // empty array at every mention — the push would land in one array and the
         // size be read from another, reporting 0 forever with nothing red. Pine's
         // arrays are references; a reference needs somewhere to live.
+        // ⭐ The same handle case as the `var` branch above, for `t =
+        // table.new(…)` written without `var`. Skipped for the same reason, and
+        // skipped HERE rather than allowed onto the `env` macro path: an `env`
+        // binding is SUBSTITUTED at each use, so a later read would re-expand
+        // the drawing call in a value position and die naming the wrong cause.
+        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const isCollection = holdsArray(value, scope)
         if (!mutable && !isCollection && !readsSlot(value, scope)) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
@@ -2511,6 +2593,7 @@ export function buildRuntimeIr(source, opts = {}) {
           continue
         }
         const f = callFamily(word)
+        if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
         if (f) { note(f); throw new RuntimeRefusal(f, `\`${word}\``, locate(first)) }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
@@ -2519,6 +2602,11 @@ export function buildRuntimeIr(source, opts = {}) {
       if (word && isPunct(toks[1], '.') && toks[2] && toks[2].kind === 'ident') {
         const name = `${word}.${toks[2].value}`
         const f = callFamily(name)
+        // ⭐ `table.cell(t, 0, 0, …)` as a bare statement. The object program
+        // carries this op and its own value references; stepping over it here is
+        // what lets the two lanes describe ONE script without either of them
+        // learning the other's job.
+        if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
         if (f) { note(f); throw new RuntimeRefusal(f, `\`${name}\``, locate(first)) }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${name}()\``, locate(first))
@@ -2637,8 +2725,35 @@ export function buildRuntimeIr(source, opts = {}) {
   }
 
   let statements
+  /** tree index → the OUTPUT index carrying its value, one per bar.
+   *
+   *  ⭐⭐ THE LANE SEAM, AND IT NEEDED NO NEW MACHINERY. An object program's
+   *  value references are `{v:'tree', i}` and `bindObjectProgram(program, nodeOf)`
+   *  is the ONE conversion that resolves them — it does not care whether `nodeOf`
+   *  answers with a V2 graph node or with something else entirely. So a table
+   *  driven by THIS lane is a `nodeOf` that answers with an output index, and a
+   *  `readNode` that reads that output.
+   *
+   *  ⛔ WHY THIS LANE AT ALL, when the host lane already draws tables: the
+   *  acceptance dashboard's cells come from `array<string>`/`array<float>` built
+   *  in a loop and SORTED with a bubble sort. An object collection holds only
+   *  OBJECTS (`line|label|box|table|linefill`) and the V2 graph is pure — "what
+   *  is the number on this bar" — which a sort is not. Those arrays can only
+   *  live where arrays and loops live, which is here.
+   */
+  const objectTreeOutputs = []
   try {
     statements = lowerStmts(stmts, root)
+    // ⛔ AFTER THE WALK, ON THE FINISHED SCOPE. An object coordinate is an
+    // ordinary expression over the script's own bindings, so it must resolve
+    // through exactly the bindings a plot would see — the same rule the object
+    // pass states for the columnar lane, for the same reason.
+    for (const tree of (opts.objectTrees || [])) {
+      outputs.push({ call: 'objtree', role: `tree ${objectTreeOutputs.length}` })
+      const index = outputs.length - 1
+      statements.push(emit(index, lowerExpr(tree, root)))
+      objectTreeOutputs.push(index)
+    }
   } catch (e) {
     // ⭐⭐ R2 STEP 5 — THE SKIPPED LIST IS ATTACHED ON THE FAILING PATH TOO.
     // ⚰️ It was set after the walk's early returns, so a program that refused
@@ -2764,6 +2879,7 @@ export function buildRuntimeIr(source, opts = {}) {
   try {
     ir = makeIrProgram({
       version: version || null, statements, slots, columns, outputs,
+      objectTreeOutputs,
       functions: functions.map((f) => ({
         name: f.name, params: f.params, frameSize: f.frameSize,
         persistCount: f.persistCount, body: f.body, result: f.result,

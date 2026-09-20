@@ -9873,7 +9873,37 @@ function objectEnumValue(name) {
   return undefined
 }
 
-function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement) {
+function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement,
+  objectOpts = {}) {
+  // ⭐⭐ RAW-TREE MODE — the trees are for the RUNTIME LANE, not the V2 graph.
+  //
+  // ⛔ WHY A MODE AND NOT A FALLBACK. `canonicalOf` resolves a value through the
+  // COLUMNAR model, whose whole premise is "what is the number on this bar".
+  // `array.get(a, 0)` has no answer in that model — not because the resolver is
+  // incomplete, but because the value depends on imperative state the graph is
+  // built to exclude. So the resolver correctly says no, `valueRef` answers
+  // null, and the cell is DROPPED with `cell:text` (measured: 8 such drops on
+  // the acceptance dashboard, 2 on a six-line reproduction).
+  //
+  // ⭐ The runtime lane CAN answer it, and it reads the same parser's nodes —
+  // `pineRuntimeFrontend` imports `lexPine`/`blockStatements`/
+  // `parseWholeExpression` from this very file. So in this mode a tree is the
+  // RAW parse node, handed on untouched for that lane to lower.
+  //
+  // ⛔ EVERY TREE, NOT JUST THE ONES THAT FAILED. A mixed array would need each
+  // consumer to ask which shape it was holding, and the one thing this seam has
+  // going for it is that `readNode` is a single callback. Uniform or nothing.
+  //
+  // ⛔ THE GETTER REFUSAL SURVIVES THE MODE. `line.get_x1(l)` reads back object
+  // state, and the runtime lane has no object state either — it is refused by
+  // name here for the same reason the graph refuses it, not as a graph quirk.
+  //
+  // ⚠️ KNOWN AND NOT HIDDEN: skipping resolution also skips the block-local
+  // INLINING that R2 added, so a tree naming something declared inside an `if`
+  // arm reaches the runtime lane as a free name and refuses there with
+  // `pine:undefined`. That is a loud refusal, which is the right direction — a
+  // silently wrong number is the one outcome this seam must not produce.
+  const rawTrees = objectOpts.rawTrees === true
   const collected = collectObjectOps(stmts,
     { isPunct, findTop, parseArguments, Cursor, boundName })
   const diagnostics = {
@@ -9939,6 +9969,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
+    // ⭐⭐ See `rawTrees` at the top of this function. The node goes on untouched.
+    if (rawTrees) return node || null
     try {
       // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
       // `inline` is `{bound, args, callerEnv}`, set only while walking a user
@@ -9977,11 +10009,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  LIST short, which is what the document actually carries. */
   const internTree = (ast) => {
     if (!ast) return null
-    const f = printFormula(ast)
-    if (byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
+    // ⛔ `printFormula` RENDERS A CANONICAL TREE, and in raw-tree mode it is
+    // handed a PARSE node instead — a shape it was never written for. A throw
+    // here would lose the whole cell to an optimisation, so an unprintable node
+    // simply does not participate in deduping. ⭐ Canonical mode is untouched:
+    // when the formula prints, the map behaves exactly as it always has.
+    let f = null
+    try { f = printFormula(ast) } catch { f = null }
+    if (f !== null && byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
     const i = trees.length
     trees.push(ast)
-    byFormula.set(f, i)
+    if (f !== null) byFormula.set(f, i)
     return { v: 'tree', tree: i }
   }
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
@@ -12037,6 +12075,8 @@ export function translatePine(source, opts = {}) {
         + '. This is a translator defect, not a limit on the script: report it with the file.',
         null)
     }
+    // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
+    // and by nothing else. Unset, this pass behaves byte-identically to before.
     objectPass = buildObjectProgram(stmts, source, env, (scope) => {
       // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
       //
@@ -12082,7 +12122,7 @@ export function translatePine(source, opts = {}) {
         r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
       }
       return r
-    }, bindingByStatement)
+    }, bindingByStatement, { rawTrees: opts.objectRawTrees === true })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be

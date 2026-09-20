@@ -101,7 +101,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
-  requests = [],
+  requests = [], objectTreeOutputs = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -128,6 +128,9 @@ export function makeIrProgram({
     windows: windows || [],
     carried: carried || [],
     requests: requests || [],
+    // ⭐ tree index → the OUTPUT carrying that object-program tree's value,
+    // one per bar. Empty for every ordinary script; the lane seam reads it.
+    objectTreeOutputs: objectTreeOutputs || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s

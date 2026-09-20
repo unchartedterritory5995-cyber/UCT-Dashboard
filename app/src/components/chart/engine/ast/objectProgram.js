@@ -674,8 +674,19 @@ export function bindObjectProgram(program, nodeOf) {
   }
   const bindRef = (r) => (isObj(r) && r.r === 'coll' ? { ...r, index: bindValue(r.index) } : r)
 
-  const ops = (program.ops || []).map((op) => {
+  const bindOps = (list) => (list || []).map((op) => {
     const out = { ...op }
+    // ⛔⛔ A LOOP'S BODY IS BOUND TOO. This mapped `program.ops` flatly, so an
+    // op inside a loop kept its UNBOUND `{v:'tree'}` refs — and a stored
+    // document must never contain the unbound form, because `trees` there would
+    // be copied ASTs and undo the C2C compaction. The runtime would also read
+    // `v: 'tree'` as an unknown kind and answer `undefined` for every cell in
+    // the loop, which draws an empty table rather than failing.
+    if (op.k === 'loop' && Array.isArray(op.body)) {
+      out.from = bindValue(op.from)
+      out.to = bindValue(op.to)
+      out.body = bindOps(op.body)
+    }
     if (op.when != null) out.when = bindValue(op.when)
     if (op.target) out.target = bindRef(op.target)
     if (op.value && op.value.r) out.value = bindRef(op.value)
@@ -688,6 +699,7 @@ export function bindObjectProgram(program, nodeOf) {
     }
     return out
   })
+  const ops = bindOps(program.ops)
   const { trees, ...rest } = program
   return { ...rest, ops }
 }

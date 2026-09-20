@@ -469,6 +469,8 @@ export function lowerIrProgram(ir) {
     pointwise,
     textOps,
     colourOps,
+    // ⭐ carried through so a caller can find which output holds which tree
+    objectTreeOutputs: ir.objectTreeOutputs || [],
     arrayOps,
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),

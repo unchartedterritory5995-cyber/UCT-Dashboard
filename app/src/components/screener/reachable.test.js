@@ -312,6 +312,28 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/ast/pineRuntimeFrontend.js':
     'PINE RUNTIME (C4 Phase 2) — the version-aware front end that decides which '
     + 'lane a script takes. Same mount, same expiry.',
+  // ── THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20) ───────────────────────
+  //
+  // ⛔ SAME MOUNT, SAME EXPIRY as the block above, and recorded for the same
+  // reason: each is imported by `pineRuntimeFrontend.js` and by nothing a member
+  // can navigate to, so the rail is RIGHT that no route reaches them. They are
+  // listed individually rather than waved through by directory, because a
+  // directory rule would silently adopt whatever lands there next.
+  'app/src/components/chart/engine/runtime/collections.js':
+    'PINE RUNTIME — typed arrays (`array.new<T>`, get/set/push). Same mount, '
+    + 'same expiry.',
+  'app/src/components/chart/engine/runtime/colours.js':
+    'PINE RUNTIME — the colour channel (`color.new`/`color.rgb` to a packed '
+    + '0xTTBBGGRR int). Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/text.js':
+    'PINE RUNTIME — the text channel (`str.tostring` and friends). Same mount, '
+    + 'same expiry.',
+  'app/src/components/chart/engine/runtime/objectLane.js':
+    'PINE RUNTIME — the LANE SEAM: runs the runtime lane and feeds its outputs '
+    + 'to an object program, so a table cell can hold a value only that lane can '
+    + 'compute (arrays, loops, sorts). Deliberately unmounted: ruling D2 keeps '
+    + 'the member pane on the HOST lane\'s saved definition, and wiring this to a '
+    + 'member is a separate, flagged decision. Same mount, same expiry.',
   'app/src/components/chart/engine/ast/oosHarness.js':
     'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
     + 'corpus against both lanes and is invoked by tooling and tests only. It '

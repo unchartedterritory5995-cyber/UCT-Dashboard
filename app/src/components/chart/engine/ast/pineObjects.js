@@ -113,8 +113,8 @@ export function collectObjectOps(stmts, h) {
     const dot = word.indexOf('.')
     return dot > 0 ? word.slice(0, dot) : null
   }
-  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
-
+  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+
   /** Every name a block REASSIGNS with `:=`, at any depth inside it.
    *
    *  ⛔ `:=` ONLY. A plain `=` inside the block declares a name local to THAT
@@ -227,6 +227,38 @@ export function collectObjectOps(stmts, h) {
             emitFromRhs(rhs, name, guards, inLoop, st, localScope, true)
           }
           continue
+        }
+        // ⭐⭐ THE UNTYPED FORM — `var t = table.new(…)`, NO TYPE ANNOTATION.
+        //
+        // ⚰️ The branch above requires `var <family> <name> =`, so it reads
+        // `var table t = …` and MISSES `var t = …`. The type annotation is
+        // OPTIONAL in Pine 5 and 6, and the untyped spelling is the one most
+        // authors write. Falling through sent it to the plain-assignment branch
+        // below, which does not pass `once` — so the declaration that means
+        // "make this table exactly once" created a NEW table on EVERY BAR.
+        //
+        // ⛔ AND IT FAILS THE WAY THE TYPED BUG FAILED, which is why the note
+        // above is worth re-reading: 300 bars is 300 tables, the object envelope
+        // is spent, and the indicator refuses — or, under a smaller bar count,
+        // it simply draws the FIRST bar's numbers and looks entirely plausible
+        // (measured: 4 bars, 4 live tables, the reader picked up bar 0).
+        //
+        // ⭐ THE FAMILY COMES FROM THE RIGHT-HAND SIDE, which is the only place
+        // it is stated in this spelling. `eq === 2` is what distinguishes the
+        // two forms: `var t =` puts `=` at index 2, `var table t =` at index 3,
+        // so `var float x = 1.0` cannot reach here.
+        const untypedEq = h.findTop(t, (x) => h.isPunct(x, '='))
+        if (untypedEq === 2 && t[1] && t[1].kind === 'ident') {
+          const rhs = t.slice(untypedEq + 1)
+          if (rhs.length && rhs[0].kind === 'ident') {
+            const ns = nsOf(rhs[0].value)
+            if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(rhs[0].value) === 'new') {
+              const nm = t[1].value
+              if (!decls.has(nm)) decls.set(nm, { family: ns, kind: 'var' })
+              emitFromRhs(rhs, nm, guards, inLoop, st, localScope, true)
+              continue
+            }
+          }
         }
         if (fam && OUT_OF_SCOPE_NAMESPACES.includes(fam)) diagnostics.outOfScope.push(fam)
       }

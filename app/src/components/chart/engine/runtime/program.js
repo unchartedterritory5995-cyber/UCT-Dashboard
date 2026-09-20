@@ -213,7 +213,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
-  textOps = [], arrayOps = [], requests = [], colourOps = [],
+  textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -268,6 +268,15 @@ export function makeProgram({
     // wrote, validated here for the same reason a text op is: a name with no
     // implementation must be a compiler error at build, not a runtime one on
     // some bar.
+    // ⭐ tree index → output index, for a caller driving an object program
+    // from this lane. Validated as in-range: an index past the output table
+    // would read `undefined` for every cell and draw an empty table.
+    objectTreeOutputs: Object.freeze((objectTreeOutputs || []).map((n, i) => {
+      if (!Number.isInteger(n) || n < 0 || n >= (outputs || []).length) {
+        throw new ProgramError(`objectTreeOutputs[${i}]: ${n} is outside ${(outputs || []).length} outputs`)
+      }
+      return n
+    })),
     colourOps: Object.freeze((colourOps || []).map((name, i) => {
       if (!Object.prototype.hasOwnProperty.call(COLOUR_FNS, name)) {
         throw new ProgramError(`colourOp ${i}: no implementation for \`${name}\``)
