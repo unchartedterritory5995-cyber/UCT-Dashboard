@@ -158,6 +158,11 @@ export const DEFAULT_OBJECT_LIMITS = Object.freeze({
  *  general arbitrary Pine heap", and an unbounded object array is one. */
 export const MAX_COLLECTION_CAP = 500
 
+/** The operators a value reference may carry. ⛔ DELIBERATELY TINY — see the
+ *  `case 'op'` note in `assertValueRef`. These exist to offset a table address
+ *  from a loop counter (`r + 1`), not to compute anything. */
+export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
+
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -291,6 +296,30 @@ function assertValueRef(v, where) {
         throw new Error(`${where}: a tree reference needs a non-negative integer index, got ${JSON.stringify(v.tree)}`)
       }
       return
+    // ⭐⭐ ARITHMETIC OVER VALUE REFERENCES — added for the LOOP COUNTER, and
+    // narrow on purpose.
+    //
+    // ⛔ WITHOUT IT A COUNTED LOOP CANNOT ADDRESS A TABLE. The corpus idiom is
+    // `table.cell(t, 0, r + 1, …)` — a header row at 0 and the data starting at
+    // 1 — and `r + 1` is not a tree (a tree is a per-BAR value and this depends
+    // on the ITERATION) and not a const. Measured on the acceptance dashboard:
+    // every one of its four data cells is addressed that way.
+    //
+    // ⛔ IT IS NOT A GENERAL EXPRESSION LANGUAGE AND MUST NOT BECOME ONE. The
+    // V2 graph is where arithmetic over SERIES belongs; this exists only so an
+    // ADDRESS can be offset from a counter. Anything richer than the operators
+    // below belongs in a tree, evaluated by whichever lane owns the values.
+    case 'op': {
+      if (!OBJECT_VALUE_OPS.includes(v.op)) {
+        throw new Error(`${where}: unknown value operator ${JSON.stringify(v.op)} `
+          + `— this grammar offsets an address, it is not an expression language`)
+      }
+      if (!Array.isArray(v.args) || v.args.length < 1 || v.args.length > 2) {
+        throw new Error(`${where}: a value operator takes one or two arguments`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`))
+      return
+    }
     case 'param':
       if (typeof v.id !== 'string' || !v.id) throw new Error(`${where}: a param reference needs an id`)
       return
@@ -569,10 +598,11 @@ export function graphNodesReferenced(program) {
     if (v.v === 'graph') seen.add(v.node)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
-  for (const op of program.ops || []) {
-    walkValue(op.when)
+  for (const [, op] of walkOps(program.ops || [])) {
+    walkValue(op.when); walkValue(op.from); walkValue(op.to)
     walkRef(op.target); walkRef(op.value)
     walkValue(op.col); walkValue(op.row); walkValue(op.index)
     for (const v of Object.values(op.props || {})) {
@@ -603,10 +633,12 @@ export function treeRefsReferenced(program) {
     if (v.v === 'tree') seen.add(v.tree)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
-  for (const op of program.ops || []) {
-    walkValue(op.when); walkRef(op.target); walkRef(op.value)
+  for (const [, op] of walkOps(program.ops || [])) {
+    walkValue(op.when); walkValue(op.from); walkValue(op.to)
+    walkRef(op.target); walkRef(op.value)
     walkValue(op.col); walkValue(op.row); walkValue(op.index)
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)
@@ -620,9 +652,14 @@ export function treeRefsReferenced(program) {
  *  can move a line's coordinate without the document being rewritten. */
 export function paramsReferenced(program) {
   const seen = new Set()
-  const walkValue = (v) => { if (isObj(v) && v.v === 'param') seen.add(v.id) }
-  for (const op of program.ops || []) {
-    walkValue(op.when); walkValue(op.col); walkValue(op.row); walkValue(op.index)
+  const walkValue = (v) => {
+    if (!isObj(v)) return
+    if (v.v === 'param') seen.add(v.id)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
+  }
+  for (const [, op] of walkOps(program.ops || [])) {
+    walkValue(op.when); walkValue(op.from); walkValue(op.to)
+    walkValue(op.col); walkValue(op.row); walkValue(op.index)
     if (isObj(op.target) && op.target.r === 'coll') walkValue(op.target.index)
     for (const v of Object.values(op.props || {})) if (isObj(v) && v.v) walkValue(v)
   }
@@ -670,6 +707,12 @@ export function bindObjectProgram(program, nodeOf) {
     if (v.v === 'tree') return { v: 'graph', node: nodeOf(v.tree) }
     if (v.v === 'text') return { v: 'text', node: bindText(v.node) }
     if (v.v === 'color') return { v: 'color', node: bindColor(v.node) }
+    // ⛔ AN OPERATOR'S ARGUMENTS ARE VALUE REFERENCES AND MUST BE BOUND TOO.
+    // `r + 1` carries a const, but `startAt + r` carries a TREE, and leaving it
+    // unbound would store the forbidden `{v:'tree'}` form in a document and make
+    // the runtime answer `undefined` for the address — placing every cell of a
+    // loop at the same spot rather than failing.
+    if (v.v === 'op') return { ...v, args: (v.args || []).map(bindValue) }
     return v
   }
   const bindRef = (r) => (isObj(r) && r.r === 'coll' ? { ...r, index: bindValue(r.index) } : r)

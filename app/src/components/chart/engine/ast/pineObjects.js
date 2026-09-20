@@ -105,9 +105,16 @@ const COLLECTION_CALLS = Object.freeze(new Set(['push', 'set', 'remove', 'clear'
  */
 export function collectObjectOps(stmts, h) {
   const decls = new Map() // pine name → { family, kind: 'var'|'local'|'coll' }
-  const ops = []
+  // ⭐ `let`, not `const`: a loop body is collected into its OWN sink and then
+  // nested under a `loop` op. See the `for` branch in `walk`.
+  let ops = []
   const diagnostics = { loopBlocked: [], getters: [], unsupported: [], outOfScope: [] }
   let siteSeq = 0
+  /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
+   *  every op emitted inside one, because the VALUE resolver lives in `pine.js`
+   *  and has no other way to know that `r` is an iteration rather than a name it
+   *  cannot find. */
+  const loopIds = []
 
   const nsOf = (word) => {
     const dot = word.indexOf('.')
@@ -205,7 +212,51 @@ export function collectObjectOps(stmts, h) {
         continue
       }
       if (word === 'for' || word === 'while') {
-        walk(st.sub || [], guards, true, localScope)
+        // ⭐⭐ A COUNTED `for` BECOMES A `loop` OP; EVERYTHING ELSE STILL REFUSES.
+        //
+        // ⚰️ THE OLD REASON WAS RIGHT ABOUT THE WRONG THING. "RISK-043 stands,
+        // the loop is not executed, and drawing the first iteration would be a
+        // lie" is true of a STATIC reader — this pass cannot unroll
+        // `for i = 0 to slots - 1`, because `slots` is a runtime value. But the
+        // object RUNTIME executes bar by bar and now carries a `loop` op, so the
+        // loop never needed unrolling: it needed to survive the read.
+        //
+        // ⛔ `while` STILL REFUSES, and that is not laziness. A `loop` op is a
+        // COUNTED range (`from`, `to`); a `while` runs on a condition the object
+        // runtime cannot re-evaluate without becoming an interpreter, and
+        // guessing a bound would draw a table with the wrong number of rows.
+        // Same for `for … by <step>`: the op has no step, so pretending 1 would
+        // draw every row of a loop the author wrote to skip.
+        const head = word === 'for' ? parseForHead(t) : null
+        if (!head) {
+          walk(st.sub || [], guards, true, localScope)
+          continue
+        }
+        const outer = ops
+        const body = []
+        ops = body
+        loopIds.push(head.id)
+        walk(st.sub || [], guards, inLoop, localScope)
+        loopIds.pop()
+        ops = outer
+        // ⛔ A LOOP THAT COLLECTED NOTHING IS NOT EMITTED. `assertObjectProgram`
+        // refuses an empty body ("a loop with an empty body draws nothing"), and
+        // it is right to — but the honest answer here is that this loop drew
+        // nothing THIS READER COULD CARRY, which the per-op diagnostics already
+        // say. Emitting an empty one would turn that into a build error.
+        if (!body.length) continue
+        ops.push({
+          k: 'loop',
+          id: head.id,
+          from: head.from,
+          to: head.to,
+          body,
+          guards,
+          locals: localScope,
+          loopIds: [...loopIds],
+          at: t[0],
+          line: st.header[0].line,
+        })
         continue
       }
 
@@ -371,6 +422,42 @@ export function collectObjectOps(stmts, h) {
     }
   }
 
+  /**
+   * `for <id> = <from> to <to>` — the ONE loop shape this reader carries.
+   *
+   * ⛔ `eq === 2` IS THE SHAPE TEST, and it is what keeps `for [i, v] in arr`
+   * (Pine 5's for-in, whose second token is `[`) and any annotated spelling out.
+   * A head this does not recognise returns null and the caller refuses the loop
+   * exactly as it always did — a new shape is never guessed at.
+   *
+   * ⛔ `by` IS REFUSED BY RETURNING NULL. The runtime's loop op steps by one
+   * toward its bound; carrying a `by` head without a step would draw every row
+   * of a loop the author wrote to skip, which is a wrong table rather than a
+   * missing one.
+   *
+   * ⚠️ THE `by` AND `while` GUARDS ARE NOT INDEPENDENTLY PROVABLE, and that is
+   * recorded rather than implied. A mutation deleting either stays GREEN,
+   * because this parser already refuses both for a second reason: `while i < 3`
+   * has no top-level `=` at index 2, and `0 to 10 by 2` fails to parse as a
+   * bound expression. They are kept because they state the INTENT — a parser
+   * that grew more lenient would otherwise start stepping a `by` loop by one,
+   * silently — and NOT counted as guards this file can demonstrate.
+   */
+  const parseForHead = (t) => {
+    if (!t[1] || t[1].kind !== 'ident') return null
+    const eq = h.findTop(t, (x) => h.isPunct(x, '='))
+    if (eq !== 2) return null
+    const toIdx = h.findTop(t, (x) => x.kind === 'ident' && x.value === 'to')
+    if (toIdx <= eq) return null
+    if (h.findTop(t, (x) => x.kind === 'ident' && x.value === 'by') > toIdx) return null
+    try {
+      const from = h.parseWholeExpression(t.slice(eq + 1, toIdx))
+      const to = h.parseWholeExpression(t.slice(toIdx + 1))
+      if (!from || !to) return null
+      return { id: t[1].value, from: { value: from }, to: { value: to } }
+    } catch { return null }
+  }
+
   const argsOf = (toks) => {
     const open = toks.findIndex((x) => h.isPunct(x, '('))
     if (open < 0) return null
@@ -383,6 +470,12 @@ export function collectObjectOps(stmts, h) {
     if (!rhs.length || rhs[0].kind !== 'ident') return
     const ns = nsOf(rhs[0].value)
     if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(rhs[0].value) !== 'new') return
+    // ⛔ STILL REFUSED FOR A LOOP THIS READER COULD NOT PARSE. `inLoop` is
+    // now true ONLY for a `while`, a `for … by`, or a head of a shape the
+    // parser does not know — a counted `for` clears it and nests instead.
+    // ⚰️ Deleting these outright (first cut of the loop reader) made a `while`
+    // body emit its ops as if they ran ONCE, which is precisely the lie the
+    // original refusal existed to prevent.
     if (inLoop) { diagnostics.loopBlocked.push(`${ns}.new`); return }
     const args = argsOf(rhs)
     if (!args) { diagnostics.unsupported.push(`${ns}.new`); return }
@@ -395,6 +488,7 @@ export function collectObjectOps(stmts, h) {
       once,
       guards,
       locals: scope,
+      loopIds: [...loopIds],
       args,
       at: rhs[0],
       line: st.header[0].line,
@@ -408,13 +502,13 @@ export function collectObjectOps(stmts, h) {
     const target = args[0]
     const rest = args.slice(1)
     if (method === 'delete') {
-      ops.push({ k: 'delete', family: ns, target, guards, locals: scope, at: toks[0], line: st.header[0].line })
+      ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line })
       return
     }
     if (ns === 'table' && method === 'cell') {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
-        guards, locals: scope, at: toks[0], line: st.header[0].line,
+        guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
       })
       return
     }
@@ -422,7 +516,7 @@ export function collectObjectOps(stmts, h) {
     if (!props) { diagnostics.unsupported.push(`${ns}.${method}`); return }
     ops.push({
       k: 'update', family: ns, target, props, args: rest,
-      guards, locals: scope, at: toks[0], line: st.header[0].line,
+      guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
     })
   }
 
@@ -435,7 +529,7 @@ export function collectObjectOps(stmts, h) {
     if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
     ops.push({
       k: `coll_${method}`, coll: collName, args: args.slice(1),
-      guards, locals: scope, at: toks[0], line: st.header[0].line,
+      guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
     })
   }
 

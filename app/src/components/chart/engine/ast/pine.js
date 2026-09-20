@@ -109,7 +109,7 @@ import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObje
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -9905,7 +9905,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // silently wrong number is the one outcome this seam must not produce.
   const rawTrees = objectOpts.rawTrees === true
   const collected = collectObjectOps(stmts,
-    { isPunct, findTop, parseArguments, Cursor, boundName })
+    { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression })
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
     loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
@@ -9913,6 +9913,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     unsupported: [...new Set(collected.diagnostics.unsupported)].sort(),
     outOfScope: [...new Set(collected.diagnostics.outOfScope)].sort(),
     unresolvedValues: 0,
+    loopValuesUnresolved: 0,
     droppedOps: 0,
     // ⛔ A COUNT WITHOUT A REASON IS NOT A DIAGNOSTIC. "16 ops dropped" cannot
     // tell an engineer whether the guard, the handle or the content was the
@@ -9930,6 +9931,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   /** ⭐ THE SCOPE IN FORCE FOR THE OP BEING BUILT. Set per op from its own
    *  block-local bindings; `env` when there are none. */
   let scopeEnv = env
+  /** Loop counters in scope for the op being converted. ⭐ Set per op from
+   *  the reader's own stamp; empty outside every loop. */
+  let loopIds = []
   const GETTER_RE = /^(line|label|box|table|linefill)\.get_[a-z_0-9]+$/
   /** Is an object GETTER anywhere in this parse subtree?
    *
@@ -10277,8 +10281,99 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     try { return textNodeOf(node, scope) } finally { enumLeaves = false }
   }
 
+  /**
+   * Does this subtree depend on a counter of a loop that is currently open —
+   * DIRECTLY, or through any block-local name it reads?
+   *
+   * ⛔⛔ THE NAME-FOLLOWING HALF IS THE WHOLE POINT, AND LEAVING IT OUT SHIPPED
+   * A WRONG TABLE. The corpus idiom binds the counter away immediately:
+   *
+   *     for r = 0 to cnt - 1
+   *         i  = array.get(idx, r)      ← `i` depends on `r`
+   *         nm = array.get(names, i)    ← and `nm` depends on `i`
+   *         table.cell(t, 0, r + 1, nm)
+   *
+   * `nm` is a NAME. A check that looked only at the immediate AST answered "no
+   * counter here", sent it down the tree path, and produced a per-BAR value for
+   * a per-ROW cell — measured on the acceptance dashboard: four cells per row,
+   * every one of them a tree, which renders FORTY IDENTICAL ROWS and reads as
+   * data. ⭐ Following the binding turns that into an honest refusal.
+   *
+   * ⚠️ `seen` is a cycle guard, not an optimisation: Pine lets a name be
+   * rebound in terms of itself and the walk would not otherwise terminate.
+   */
+  const mentionsLoop = (node, depth = 0, seen = new Set()) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (node.type === 'name') {
+      if (loopIds.includes(node.name)) return true
+      if (!seen.has(node.name)) {
+        seen.add(node.name)
+        const opened = openName(node, scopeEnv, 0)
+        if (opened && mentionsLoop(opened.node, depth + 1, seen)) return true
+      }
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
+      if (mentionsLoop(node[k], depth + 1, seen)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (mentionsLoop(a && a.value !== undefined ? a.value : a, depth + 1, seen)) return true
+      }
+    }
+    return false
+  }
+
+  /** A counter-dependent expression → a value reference, or null if this grammar
+   *  cannot say it.
+   *
+   *  ⭐ THE ONLY SHAPES IT CARRIES ARE THE COUNTER ITSELF AND SMALL ARITHMETIC
+   *  AROUND IT — `r`, `r + 1`, `2 * r`. That is what a table ADDRESS needs, and
+   *  it is measured: every data cell of the acceptance dashboard is addressed
+   *  `(const, r + 1)`.
+   *
+   *  ⛔ IT RETURNS NULL RATHER THAN A TREE FOR ANYTHING ELSE, and the difference
+   *  matters more than it looks. A tree is a value PER BAR; a counter is a value
+   *  PER ITERATION. Handing `array.get(rvs, i)` to the tree path would produce a
+   *  reference the runtime resolves once per bar and reuses for every row —
+   *  forty rows of the same number, which reads as data. Refusing it drops the
+   *  cell, which the diagnostics then count and name. */
+  const loopArgRef = (node) => {
+    if (!node) return null
+    if (node.type === 'name' && loopIds.includes(node.name)) return { v: 'loop', id: node.name }
+    // ⚰️ A `number` FAST PATH WAS WRITTEN HERE AND REMOVED. It returned
+    // `{v:'const'}` for the `1` in `r + 1` so the literal would not cost a graph
+    // node — and a mutation deleting it stayed GREEN, because the ordinary
+    // `valueRef` below already answers a literal exactly that way. Two answers
+    // to one question, one of them unprovable
+    // (`lesson_a_second_authority_over_one_value`).
+    // ⛔ A subtree with no counter in it is an ordinary value and takes the
+    // ordinary path — this also terminates the mutual recursion with `valueRef`.
+    if (!mentionsLoop(node)) return valueRef(node)
+    // ⛔ THE RAW PARSE SHAPE IS `{type:'binary', op, left, right}`, NOT the
+    // canonical `{type:'op', name, args}` the resolver emits. Written against
+    // the canonical shape first, this matched nothing and every counter
+    // arithmetic refused — with `loopValuesUnresolved` counting it, which is how
+    // it was found rather than by reading.
+    if (node.type === 'binary' && OBJECT_VALUE_OPS.includes(node.op)) {
+      const a = loopArgRef(node.left)
+      const b = loopArgRef(node.right)
+      return (a && b) ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    return null
+  }
+
   const valueRef = (node, slot) => {
     if (!node) return null
+    // ⭐⭐ ASKED BEFORE THE TEXT AND COLOUR SLOTS, DELIBERATELY. A cell whose
+    // TEXT depends on the counter (`str.tostring(array.get(rvs, i))`) cannot be
+    // served by a tree either, and letting it reach `textNodeOf` would build one
+    // — a per-bar value silently reused for every row. Refusing here drops the
+    // cell honestly, and `cell:text` already counts that.
+    if (loopIds.length && mentionsLoop(node)) {
+      const r = loopArgRef(node)
+      if (!r) diagnostics.loopValuesUnresolved += 1
+      return r
+    }
     if (slot && TEXT_SLOTS.has(slot)) {
       const t = textNodeOf(node, scopeEnv)
       return t ? { v: 'text', node: t } : null
@@ -10566,18 +10661,46 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return scoped
   }
 
-  const ops = []
+  let ops = []
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
   // Clearing them first, every bar, is exactly what Pine does.
   for (const id of locals) ops.push({ k: 'setreg', reg: id, value: null, when: null })
 
-  for (const op of collected.ops) {
+  /** ⭐ A FUNCTION so a LOOP BODY converts into its own sink and nests,
+   *  rather than being flattened into the program beside its parent. */
+  const convertList = (list) => {
+  for (const op of list) {
     scopeEnv = scopeFor(op.locals)
+    loopIds = op.loopIds || []
     const g = guardOf(op.guards)
     if (g === undefined) { dropped(`guard:${op.k}`); continue }
     const when = g.when
     const lastBarOnly = g.extra
+    // ⭐⭐ A COUNTED LOOP. Its BOUNDS are resolved in the OUTER scope (the
+    // reader stamps this op with the counters open around it, not its own), and
+    // its BODY converts into a sink of its own so the ops nest.
+    if (op.k === 'loop') {
+      const from = valueRef(op.from && op.from.value)
+      const to = valueRef(op.to && op.to.value)
+      // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
+      // n` with an unreadable `n` would otherwise run zero times or forever,
+      // and both draw a table nobody wrote.
+      if (!from || !to) { dropped('loop:bounds'); continue }
+      const outer = ops
+      const body = []
+      ops = body
+      convertList(op.body || [])
+      ops = outer
+      scopeEnv = scopeFor(op.locals)
+      loopIds = op.loopIds || []
+      // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
+      // empty body draws nothing"), so a loop whose every op was dropped is
+      // dropped too — named, not silently emitted as a build error.
+      if (!body.length) { dropped('loop:empty'); continue }
+      ops.push({ k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly })
+      continue
+    }
     if (op.k === 'create') {
       const order = CREATE_POSITIONAL[op.family] || []
       const raw = namedOrPositional(op.args, order)
@@ -10684,6 +10807,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
     }
   }
+  }
+  convertList(collected.ops)
 
   // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
   // envelope is read rather than invented — and clamped to ours, because a
@@ -10699,17 +10824,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // register that can never hold anything — shape without meaning.
   const usedRegs = new Set()
   const usedColls = new Set()
-  for (const o of ops) {
-    if (o.into) usedRegs.add(o.into)
-    if (o.reg) usedRegs.add(o.reg)
-    if (o.coll) usedColls.add(o.coll)
-    for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
-      if (r && r.r === 'reg') usedRegs.add(r.id)
-      if (r && r.r === 'coll') usedColls.add(r.id)
+  // ⛔⛔ IT DESCENDS INTO LOOP BODIES, and this is the THIRD flat `ops` scan that
+  // had to learn to. A `create` inside a loop stores into a register exactly as
+  // one outside it does, and a scan that could not see it pruned the register as
+  // unused — after which `assertObjectProgram` refused the whole program with
+  // "create stores into undeclared register". ⭐ The validator was right and the
+  // pruner was wrong, which is the good direction for that pair to disagree in.
+  const scanUse = (list) => {
+    for (const o of list || []) {
+      if (o.into) usedRegs.add(o.into)
+      if (o.reg) usedRegs.add(o.reg)
+      if (o.coll) usedColls.add(o.coll)
+      for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
+        if (r && r.r === 'reg') usedRegs.add(r.id)
+        if (r && r.r === 'coll') usedColls.add(r.id)
+      }
+      if (o.k === 'loop') scanUse(o.body)
     }
   }
+  scanUse(ops)
   const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
-  if (!keptOps.some((o) => o.k === 'create')) return { program: null, diagnostics }
+  // ⛔⛔ THE SEARCH DESCENDS INTO LOOP BODIES. `some()` over the top level was
+  // right while every op was top-level, and became wrong the day a `create`
+  // could sit inside a `loop` — a script whose ONLY constructor is in a loop
+  // (`for i = 0 to 3 \n lb := label.new(…)`) then answered "this program creates
+  // nothing" and threw the whole drawing away. Measured: every loop case in
+  // `objectLoopReader.test.js` produced `ops: []` until this descended.
+  const createsSomewhere = (list) => (list || []).some((o) => (
+    o.k === 'create' || (o.k === 'loop' && createsSomewhere(o.body))))
+  if (!createsSomewhere(keptOps)) return { program: null, diagnostics }
 
   return {
     program: {

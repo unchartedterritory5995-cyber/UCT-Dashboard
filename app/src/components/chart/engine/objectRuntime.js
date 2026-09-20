@@ -200,6 +200,26 @@ export function evaluateObjects(program, ctx) {
         // overwrite one cell N times — a table with one row where the author
         // wrote forty, and nothing anywhere saying so.
         case 'loop': return loopVars.has(ref.id) ? loopVars.get(ref.id) : undefined
+        // ⭐⭐ ARITHMETIC OVER ADDRESSES — `table.cell(t, 0, r + 1, …)`, the
+        // corpus idiom for a header row at 0 and data from 1.
+        //
+        // ⛔ A NON-NUMERIC OPERAND ANSWERS `undefined`, NEVER A COERCION.
+        // JavaScript would happily give `undefined + 1 === NaN` and `"2" * 3
+        // === 6`; both put a cell somewhere plausible and wrong. An address
+        // this grammar cannot compute is an address it declines to guess, and
+        // the op that reads it is skipped by the same finiteness checks that
+        // already guard a coordinate.
+        case 'op': {
+          const a = value(ref.args[0])
+          if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
+          if (ref.args.length === 1) return ref.op === '-' ? -a : a
+          const b = value(ref.args[1])
+          if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
+          if (ref.op === '+') return a + b
+          if (ref.op === '-') return a - b
+          if (ref.op === '*') return a * b
+          return undefined
+        }
         case 'time': return readTime(bar)
         // ⛔⛔ TEXT AND COLOUR ARE EVALUATED PER BAR LIKE EVERYTHING ELSE. A
         // dashboard whose cells were computed once and reused would show the
