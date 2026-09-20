@@ -243,8 +243,9 @@ export default function ScannerShell({ embedded = false }) {
             watchlist / a union combo). Emits the existing `list` filter, so it
             needs no new endpoint; a signed-out member sees only UCT Universe. */}
         <div className={styles.universeRow}>
-          <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter}
-            total={total} isLoading={isLoading} hasFilters={Object.keys(s.filters).length > 0} />
+          <UniverseBar meta={meta} activeList={s.filters?.list} activeUniverse={s.filters?.universe}
+            onSetFilter={s.setFilter} total={total} isLoading={isLoading}
+            hasFilters={Object.keys(s.filters).some(k => k !== 'universe' && k !== 'list')} />
           {/* Screener dropdown (preset scans + saved screens/scans) — moved next
               to the Universe controls so building a scan reads left→right. The
               wrapper is the joystick hub's scans-door seam (scansDoorRef +

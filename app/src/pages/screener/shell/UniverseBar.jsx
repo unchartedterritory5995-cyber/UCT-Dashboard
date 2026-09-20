@@ -22,10 +22,10 @@ import styles from './ScannerShell.module.css'
 // A signed-out member, or one with no lists, has no `list` filter in meta at
 // all (the absence contract in filters.py::_my_lists_entry) — then only the
 // full UCT Universe shows, which is the honest state.
-export default function UniverseBar({ meta, activeList, onSetFilter, total, isLoading, hasFilters }) {
+export default function UniverseBar({ meta, activeList, activeUniverse, onSetFilter, total, isLoading, hasFilters }) {
   const listDef = (meta?.filters || []).find(f => f.key === 'list')
-  // Drop the leading "Any" preset — that IS the full-universe case, which the
-  // UCT Universe button owns.
+  // Drop the leading "Any" preset — that IS the full-market case, which the
+  // All Market button owns.
   const options = (listDef?.presets || []).filter(p => p && p.value != null)
 
   const [open, setOpen] = useState(null) // null | 'wl' | 'combo'
@@ -38,14 +38,23 @@ export default function UniverseBar({ meta, activeList, onSetFilter, total, isLo
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
-  // Current selection → which segment reads as active + its label.
+  // Current selection → which segment reads as active + its label. Exactly one
+  // base is active: a watchlist/combo (`list`), the curated UCT universe
+  // (`universe: uct`), or All Market (neither). A list selection wins the label.
   const val = activeList?.value
   const isCombo = Array.isArray(val)
   const single = !isCombo && val != null ? options.find(o => o.value === val) : null
-  const isUniverse = val == null
+  const isUCT = !activeList && activeUniverse?.value === 'uct'
+  const isAllMarket = !activeList && !isUCT
 
-  const pickUniverse = () => { onSetFilter('list', null); setOpen(null) }
+  // Selecting any base clears the others so they stay mutually exclusive.
+  const pickAllMarket = () => { onSetFilter('universe', null); onSetFilter('list', null); setOpen(null) }
+  const pickUCT = () => {
+    onSetFilter('universe', { op: 'eq', value: 'uct', label: 'UCT Universe' })
+    onSetFilter('list', null); setOpen(null)
+  }
   const pickList = o => {
+    onSetFilter('universe', null)
     onSetFilter('list', { op: 'in', value: o.value, label: labelName(o.label) })
     setOpen(null)
   }
@@ -56,6 +65,7 @@ export default function UniverseBar({ meta, activeList, onSetFilter, total, isLo
   const toggleCombo = v =>
     setComboSel(sel => (sel.includes(v) ? sel.filter(x => x !== v) : [...sel, v]))
   const applyCombo = () => {
+    onSetFilter('universe', null)
     if (!comboSel.length) { onSetFilter('list', null) }
     else if (comboSel.length === 1) {
       const o = options.find(x => x.value === comboSel[0])
@@ -72,7 +82,11 @@ export default function UniverseBar({ meta, activeList, onSetFilter, total, isLo
     <div className={styles.universeBar} ref={rootRef}>
       <span className={styles.uEyebrow} title="The pool your filters run against. Pick before you filter.">Universe</span>
       <div className={styles.uSeg}>
-        <button type="button" className={styles.uBtn} aria-pressed={isUniverse} onClick={pickUniverse}>
+        <button type="button" className={styles.uBtn} aria-pressed={isAllMarket} onClick={pickAllMarket}>
+          All Market
+        </button>
+        <button type="button" className={styles.uBtn} aria-pressed={isUCT} onClick={pickUCT}
+          title="Curated, tradeable subset — price ≥ $5 and 30-day $-volume ≥ $20M">
           UCT Universe
         </button>
 
@@ -126,7 +140,7 @@ export default function UniverseBar({ meta, activeList, onSetFilter, total, isLo
       </div>
 
       <span className={styles.uBase}>
-        {isUniverse ? 'Full market' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
+        {isAllMarket ? 'All Market' : isUCT ? 'UCT Universe' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
         {/* Live count of the current selection: with no filters this is the
             pool's own size (names); once filters narrow it, it's the matches. */}
         {total != null && !isLoading && (
