@@ -105,7 +105,9 @@ import { memberNumber } from './memberValue.js'
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
 // without Pine (the Builder-future-proofing rule this wave was given).
-import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObjects.js'
+import {
+  collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
+} from './pineObjects.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
@@ -9743,6 +9745,46 @@ const OBJECT_ENUM_VALUES = Object.freeze({
   'position.bottom_right': 'bottom_right',
 })
 
+/**
+ * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
+ *
+ * Everything in `OBJECT_ENUM_VALUES` above is a `const string`: one name, one
+ * value, and the last one written wins. `text.format_*` is not. This repo's own
+ * vendor extraction says so in one line — `docs/pine/pine-v6-constants.md:187`:
+ *
+ *   > `text.align_*` / `text.wrap_*` are `const string`, but `text.format_*` is
+ *   > `const text_format` … Only `text_format` supports `+` arithmetic
+ *   > (`text.format_bold + text.format_italic`).
+ *
+ * ⛔ SO THE COMBINING OPERATOR IS `+`, NOT A BITWISE `|`. Pine v6 has no
+ * bitwise operators at all, so a reader written for `|` would have matched
+ * nothing any script can legally write — a capability that is green in a unit
+ * test and unreachable from the language, which is a shape this repo has paid
+ * for before.
+ *
+ * ⭐ AND THE FAMILY IS CLOSED AT THREE. `pine-v6-constants.md:105` enumerates
+ * `text.format_none`, `text.format_bold`, `text.format_italic` and nothing else,
+ * so an unknown `text.format_*` is a refusal rather than a value to pass along.
+ */
+const TEXT_FORMAT_FLAGS = Object.freeze({
+  'text.format_none': null,
+  'text.format_bold': 'bold',
+  'text.format_italic': 'italic',
+})
+
+/** ⭐ THE CANONICAL SPELLING IS SORTED, so `bold + italic` and `italic + bold`
+ *  are the same value and hash the same. `'none'` is written out rather than
+ *  left as `''` — a cell that explicitly asks for no formatting and a cell that
+ *  never mentioned formatting are the same PICTURE but not the same STATEMENT,
+ *  and the diagnostics have to be able to tell them apart. */
+const TEXT_FORMAT_ORDER = Object.freeze(['bold', 'italic'])
+
+export function canonicalTextFormat(flags) {
+  const set = new Set(flags)
+  const out = TEXT_FORMAT_ORDER.filter((f) => set.has(f))
+  return out.length ? out.join('_') : 'none'
+}
+
 /** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
  *  decides what a style draws; this door only has to carry what was written. */
 const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
@@ -10102,6 +10144,48 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const TEXT_SLOTS = new Set(['text', 'tooltip'])
   const isColourSlot = (k) => k === 'bgcolor' || k.includes('color')
 
+  /**
+   * ⭐⭐ A `text_format` EXPRESSION — CONSTANT-ONLY, AND THAT IS THE RULING.
+   *
+   * Returns the flags a `text_formatting` argument names, or `null` when this
+   * door cannot say — `null` is what turns into a NAMED `dropProp`, never a
+   * quiet absence.
+   *
+   * ⛔ IT DOES NOT ACCEPT A TERNARY, ON PURPOSE. `text`, `bgcolor` and the enum
+   * slots each carry their own per-bar conditional vocabulary (`{t:'if'}`,
+   * `{c:'if'}`), and adding a third would mean a fourth thing `evaluateObjects`
+   * has to evaluate on every bar of every table. Nothing in the measured corpus
+   * computes a format: all eight `text_formatting` sites in `corpus/committed`
+   * are a bare `text.format_bold` on a header row. So a computed one refuses and
+   * SAYS SO, which is the honest version of "not yet" — the cell itself still
+   * draws, because formatting is styling and the number is the content.
+   *
+   * ⭐ `openName` IS IN THE WALK because a script may alias the constant
+   * (`fmtHdr = text.format_bold`) and an alias is not a computation.
+   */
+  const textFormatFlags = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      if (Object.hasOwn(TEXT_FORMAT_FLAGS, node.name)) {
+        const f = TEXT_FORMAT_FLAGS[node.name]
+        return f === null ? [] : [f]
+      }
+      const opened = openName(node, scope, depth)
+      return opened ? textFormatFlags(opened.node, opened.env, depth + 1) : null
+    }
+    // ⭐ `+` IS PINE'S OWN COMBINATOR HERE (see `TEXT_FORMAT_FLAGS`). Both sides
+    // must be readable: half a combination is a different format from the one
+    // the author wrote, and drawing it would be worse than refusing it.
+    if (node.type === 'binary' && node.op === '+') {
+      const a = textFormatFlags(node.left, scope, depth + 1)
+      if (!a) return null
+      const b = textFormatFlags(node.right, scope, depth + 1)
+      if (!b) return null
+      return [...a, ...b]
+    }
+    return null
+  }
+
   /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
    *  enum a reachable script COMPUTES rather than types — measured on the 27:
    *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
@@ -10130,6 +10214,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (slot && isColourSlot(slot)) {
       const c = colorNodeOf(node, scopeEnv)
       return c ? { v: 'color', node: c } : null
+    }
+    // ⛔ `text_formatting` IS INTERCEPTED BEFORE THE GENERIC PATH, and it has to
+    // be. Falling through, `text.format_bold` is an unknown NAME with no enum
+    // entry, so the last line of this function would hand it to `resolveTree`
+    // and it would become a numeric graph node — a bold flag modelled as a
+    // series, evaluated per bar, and painted as nothing.
+    if (slot === 'text_formatting') {
+      const flags = textFormatFlags(node, scopeEnv)
+      return flags ? { v: 'const', value: canonicalTextFormat(flags) } : null
     }
     // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
     // plain `position.top_right`, so nothing that resolved before changes shape;
@@ -10181,6 +10274,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedPropNames = diagnostics.droppedPropNames || []
     if (!diagnostics.droppedPropNames.includes(entry)) {
       diagnostics.droppedPropNames.push(entry)
+    }
+  }
+
+  /**
+   * ⛔⛔ A PROPERTY OUTSIDE THE VOCABULARY — NAMED, NOT `continue`d.
+   *
+   * ⚰️ THIS IS WHAT HID GAP 1 FOR A WHOLE WAVE. Both prop loops below used to
+   * open with a bare `if (!ALLOWED.includes(k)) continue`, and a bare `continue`
+   * is the most complete silence a program can produce: no count, no name, no
+   * line, nothing to grep, nothing in `objectDiagnostics` for a member's support
+   * ticket to be answered from. `text_formatting` was dropped there on every
+   * single one of `strong-start-rvol-dashboard.pine`'s six header cells, and the
+   * only symptom anywhere was that the member's header row looked like a data
+   * row.
+   *
+   * ⭐ IT IS A DIFFERENT SENTENCE FROM `dropProp`, so it gets a different
+   * bucket. `dropProp` means "Pine has this property, we have it, and this
+   * particular VALUE was unreadable" — usually fixable by folding harder.
+   * `unsupportedProp` means "this door does not implement the property at all",
+   * which is a roadmap item, not a resolver bug. Merging them would make the
+   * droppedProps counter unable to answer either question.
+   */
+  const unsupportedProp = (family, k, node) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.unsupportedProps = diagnostics.unsupportedProps || []
+    if (!diagnostics.unsupportedProps.includes(entry)) {
+      diagnostics.unsupportedProps.push(entry)
     }
   }
 
@@ -10429,7 +10550,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       let bad = false
       const required = REQUIRED[op.family] || new Set()
       for (const [k, node] of Object.entries(raw)) {
-        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) continue
+        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) {
+          unsupportedProp(op.family, k, node)
+          continue
+        }
         if (op.family === 'linefill' && (k === 'line1' || k === 'line2')) {
           const r = targetRef({ value: node })
           if (!r) { bad = true; break }
@@ -10486,7 +10610,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const props = {}
       let badCell = false
       for (const [k, node] of Object.entries(raw)) {
-        if (!OBJECT_CELL_PROPS.includes(k)) continue
+        if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const v = valueRef(node, k)
         if (!v) {
           // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
@@ -10501,6 +10625,45 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       if (badCell) { dropped('cell:text'); continue }
       ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k === 'cellpatch') {
+      const target = targetRef(op.target)
+      const col = op.col ? valueRef(op.col.value) : null
+      const row = op.row ? valueRef(op.row.value) : null
+      if (!target) { dropped('cellpatch:target'); continue }
+      if (!col || !row) { dropped('cellpatch:address'); continue }
+      const node = op.args[0] && op.args[0].value
+      const v = node ? valueRef(node, op.prop) : null
+      // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
+      // with an unreadable colour still draws, because the rest of that call is
+      // the cell's content; a `cell_set_bgcolor` whose colour cannot be read has
+      // NOTHING left to do, and emitting it with empty props would be an
+      // operation that runs every bar and means nothing. It is named twice on
+      // purpose — by property and line, so an engineer can find the expression,
+      // and by drop reason, so the op count still adds up.
+      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
+    } else if (op.k === 'clear') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('clear:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const col = raw.start_column ? valueRef(raw.start_column) : null
+      const row = raw.start_row ? valueRef(raw.start_row) : null
+      // ⛔ THE START IS NOT OPTIONAL AND A MISSING ONE IS NOT A ZERO. Defaulting
+      // an unreadable start to (0,0) would clear from the top-left corner of a
+      // dashboard the author never asked to touch — wiping real numbers is a
+      // strictly worse outcome than leaving stale ones, so this refuses.
+      if (!col || !row) { dropped('clear:range'); continue }
+      // ⭐⭐ PINE'S OWN DEFAULT, APPLIED ONCE, HERE. The reference
+      // (`pine-presentation-spec.md:1689`) says `end_column`/`end_row` default
+      // to "the argument used for `start_column`" / `start_row`, so
+      // `table.clear(t, 2, 3)` clears exactly cell (2,3). Re-using the SAME
+      // value reference rather than re-reading the node means a computed start
+      // is evaluated once and the rectangle cannot degenerate into two
+      // different answers for the same expression.
+      const col2 = raw.end_column ? valueRef(raw.end_column) : col
+      const row2 = raw.end_row ? valueRef(raw.end_row) : row
+      if (!col2 || !row2) { dropped('clear:range'); continue }
+      ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }
@@ -10568,7 +10731,72 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 }
 
+/**
+ * ⭐⭐ THE LANE SELECTOR, AND THE ONLY ONE. `opts.strict === true` is the single
+ * thing that chooses between this door's two contracts — not `opts.mode` (which
+ * does not exist, see `translatePine` below) and not `opts.host` (which belongs
+ * to `chooseOutput` and decides whether an alertcondition may be the first
+ * offer). Both readers — the contract the translation runs under, and the label
+ * it is stamped with — ask THIS function, so the two can never disagree.
+ */
+function isHostLane(opts) {
+  return !!opts && opts.strict === true
+}
+
+/**
+ * A member's Pine, translated — and STAMPED WITH THE LANE IT CAME FROM.
+ *
+ * ⭐⭐ THE LANE IS DERIVED ONCE, HERE, AND IT REACHES EVERY RETURN PATH.
+ * `paneGate` reads `t.mode` FIRST and refuses anything that is not `'host'`
+ * with "this verdict came from the <mode|unknown> lane" — the right rule,
+ * checked before every other one. So a result that forgets its lane is refused
+ * with a sentence about lanes whatever is actually wrong with the script.
+ *
+ * ⚰️ MEASURED 2026-09-19: only the NORMAL return carried `mode`. Every early
+ * return did not — the empty source, a lexer refusal, a statement-grouping
+ * refusal, and `pine:no-output`, which is what ANY table-only dashboard hits. A
+ * member who pasted a perfectly good script that simply draws no line was told
+ * "this verdict came from the unknown lane, which answers a different
+ * question", a sentence about our internals naming nothing they could act on,
+ * instead of "the pasted script offers no plot and no alert condition to filter
+ * on" — which this door had already computed and was carrying in `refusal`.
+ *
+ * ⛔ AND IT IS A WRAPPER, NOT A `mode` ADDED TO EACH EARLY RETURN. There are
+ * five of those today and the next one will be written by somebody who has not
+ * read this comment; a ternary copied into each is five authorities over one
+ * value, and the failure is SILENT — the result still looks like a translation
+ * result, and the only symptom is a refusal sentence about the wrong subject.
+ * Wrapping is the one shape in which a new early return cannot forget.
+ *
+ * ⚰️⚰️ AND `mode` IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.**
+ * The string does not appear in this function's option handling at all, so
+ * `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
+ * LENIENT lane — and so does `{ mode: 'screener' }`.
+ *
+ * ⛔ That is not hypothetical: a session took every "both lanes agree" reading
+ * for item (a) by calling those two spellings, got perfect agreement because
+ * both calls were the same lane, and reported it as cross-lane evidence. The
+ * whole round was void. **An instrument that cannot distinguish its two inputs
+ * agrees with itself**, and this field is the thing that makes the mistake look
+ * reasonable: a reader sees `mode: 'host'` come OUT of a result and passes it
+ * back IN. The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the
+ * false call verbatim rather than describing it, so the next reader who writes
+ * it again meets the test instead of the bug.
+ */
 export function translatePine(source, opts = {}) {
+  const t = translatePineResult(source, opts)
+  if (!t || typeof t !== 'object') return t
+  // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
+  // literal that nothing else holds, so there is nothing to protect from
+  // mutation — while a copy would re-key a result the callers pass around by
+  // identity, for one field.
+  t.mode = isHostLane(opts) ? 'host' : 'screener'
+  return t
+}
+
+/** The translation itself. ⛔ Call `translatePine`, never this: a result that
+ *  leaves here has no `mode`, and `paneGate` reads `mode` before anything else. */
+function translatePineResult(source, opts = {}) {
   const table = opts.table || TABLE
   const blank = {
     ok: false, version: null, declaration: null, title: null,
@@ -12013,40 +12241,24 @@ export function translatePine(source, opts = {}) {
   // constant column is this engine's judgement about SCREENING, not about
   // drawing. The strict test is therefore "did anything fail to translate",
   // which is exactly `refusals.length === 0`, not "is everything usable".
-  // ⭐⭐ THIS LINE IS THE LANE. `opts.strict === true` is the ONLY thing that
-  // chooses between the two contracts — not `opts.mode` (which does not exist),
-  // and not `opts.host` (which belongs to `chooseOutput` and decides whether an
-  // alertcondition may be the first offer). See the `mode:` field below for the
-  // round of evidence that was voided by getting this wrong.
-  const strict = opts.strict === true
+  // ⭐⭐ THIS IS THE LANE, and it is READ rather than restated: `isHostLane` is
+  // the same predicate the exported `translatePine` stamps `mode` from, so the
+  // contract a translation ran under and the label it carries cannot drift
+  // apart. See that function for the round of evidence that was voided by
+  // getting this wrong.
+  const strict = isHostLane(opts)
   const lenientOk = usable.length > 0 && !blocked
   const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
   const ok = strict ? strictOk : lenientOk
 
   return {
     ok,
-    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
-    // saved definition, a log, a test fixture) must not be ambiguous about which
-    // question it answered.
-    //
-    // ⚰️⚰️ AND IT IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.** The
-    // string does not appear in this function's option handling at all, so
-    // `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
-    // LENIENT lane — and so does `{ mode: 'screener' }`.
-    //
-    // ⛔ That is not hypothetical: a session took every "both lanes agree"
-    // reading for item (a) by calling those two spellings, got perfect agreement
-    // because both calls were the same lane, and reported it as cross-lane
-    // evidence. The whole round was void. **An instrument that cannot
-    // distinguish its two inputs agrees with itself**, and this field is the
-    // thing that makes the mistake look reasonable: a reader sees `mode: 'host'`
-    // come OUT of a result and passes it back IN.
-    //
-    // ⭐ THE LANE SELECTOR IS `opts.strict === true`, read once, ~10 lines above.
-    // The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the false
-    // call verbatim rather than describing it, so the next reader who writes it
-    // again meets the test instead of the bug.
-    mode: strict ? 'host' : 'screener',
+    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT — but the field is NOT set
+    // here. `mode` is stamped by the exported `translatePine`, on this return
+    // and on every early one alike, because this was the only path that set it
+    // and every other path reached `paneGate` as "the unknown lane". Read that
+    // function for the whole story, including why `mode` is an output and never
+    // an input.
     version,
     declaration,
     title,

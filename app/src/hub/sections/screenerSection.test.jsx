@@ -26,6 +26,35 @@
 import { describe, it as vitestIt, expect, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { useState } from 'react'
+
+// S4 CP3: the REAL HubProvider is mounted here, which now calls useAppFocus()
+// (and so usePreferences()) to derive hub.symbol -- previously HubContext held
+// its own useState and never touched preferences at all. The force-render
+// ticker mirrors the real hook's SWR-subscription re-render on an optimistic
+// `mutate(fn, false)` write (usePreferences.js:107): `hubPrefs` stays the one
+// value, read fresh every render.
+const { hubPrefsBox } = vi.hoisted(() => ({ hubPrefsBox: { current: {} } }))
+vi.mock('../../hooks/usePreferences', () => ({
+  default: () => {
+    const [, forceRender] = useState(0)
+    return {
+      prefs: hubPrefsBox.current,
+      setPref: (key, value) => {
+        hubPrefsBox.current = { ...hubPrefsBox.current, [key]: value }
+        forceRender((n) => n + 1)
+        return true
+      },
+      setPrefMerged: vi.fn(),
+      loading: false,
+    }
+  },
+  parsePref: (raw) => {
+    if (raw == null) return undefined
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return undefined }
+  },
+}))
 
 // ⛔ RAIL (house convention — mirrors breadthSection.test.jsx / useJoystick.test.js): `vitest -t`
 // is a REGEX, and a filter matching nothing exits 0 and reads as a PASS. These counters catch a
@@ -227,6 +256,7 @@ beforeEach(() => {
   resetCursors()
   registered = null
   hubSymbol = null
+  hubPrefsBox.current = {}
   scrollToIndexSpy.mockClear()
   alertSpy.mockClear()
   try { localStorage.clear() } catch { /* jsdom always has it */ }
