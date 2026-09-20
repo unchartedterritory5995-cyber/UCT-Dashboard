@@ -6,8 +6,14 @@ status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). ✅ CP2 APPROVED 20
   — see line 2). Top-level CP3 (dual-compute flip) mechanism built (`0b8cf4c41`), STILL NEEDS A NEW
   APPROVAL LINE — blocked on real member traffic (0 rows collected as of 2026-09-19). §4-CP4
   (indicator axis, PRD §9.5) SIGNED AND MERGED (`404b808c5`, fingerprint `3257cc319`). §4-CP3
-  (retire the timeframe-map duplicates) SIGNED 2026-09-19, fingerprint `8c5f83ca0` — code not yet
-  committed/merged as of this doc edit.
+  (retire the timeframe-map duplicates) SIGNED 2026-09-19, fingerprint `8c5f83ca0` — ⚰️ was
+  *"code not yet committed/merged"*, a FALSE ALARM: it was already merged to `origin/master`
+  as `bcde1f9e8` (authored `90de82119`, 2026-09-19 09:23) by the time this line was last
+  edited. Root cause: the check was run from this docs-only worktree, which never tracks
+  `api/**`/`app/**` at all and will always report "not merged" for any code commit regardless
+  of true production state — the same structural false alarm found and named elsewhere this
+  programme (S2/S7-price-level, event-proximity CP3). Corrected 2026-09-20, verified directly
+  via `git log origin/master -- app/src/components/chart/engine/ast/timeframeLabels.json`.
 date: 2026-09-12
 measured_against: origin/master @ ee9c96fa1
 pairs_with: PRD-D2-CANONICAL-DATA-MODEL · SPEC-D2-CANONICAL-DATA-MODEL
