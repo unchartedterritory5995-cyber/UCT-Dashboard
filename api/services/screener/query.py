@@ -1133,6 +1133,14 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
                 seen.add(c)
                 select_cols.append(c)
         out_columns = select_cols
+        # base_bias (attached in run_scan, colours the structure tag) is derived
+        # from base_matches, which the client's explicit `columns` omits. When
+        # the tag is shown (base_render requested), FETCH base_matches for that
+        # derivation WITHOUT adding it to out_columns — run_scan drops it from
+        # the returned rows, so the requested-columns projection is unchanged.
+        # (`select_cols` becomes a new list here; out_columns keeps the old one.)
+        if "base_render" in seen and "base_matches" not in seen:
+            select_cols = [*select_cols, "base_matches"]
     elif overlay.on:
         # ⚠️ `SELECT *` CANNOT SURVIVE THE JOIN. With a second table in the FROM
         # it returns BOTH tables' columns, and `sqlite3.Row` keeps only the last
@@ -1302,14 +1310,20 @@ def run_scan(spec, user_id=None, user=None):
     # own docstring on this function for the full fail-safe/scope contract.
     out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
     # base_bias — the textbook bias of the LEADING base structure, DERIVED from
-    # the already-selected `base_matches` (no stored column, no reindex; lights
-    # up for every existing row on the next request). `bases.primary_bias`
-    # reuses the render ordering, so the colour can never disagree with the name
-    # `base_render` shows. Skipped cleanly when `base_matches` is absent.
+    # `base_matches` (no stored column, no reindex; lights up for every existing
+    # row on the next request). `bases.primary_bias` reuses the render ordering,
+    # so the colour can never disagree with the name `base_render` shows.
+    # `base_matches` is fetched for this even when the client did not request it
+    # (see the SELECT above), so it is DROPPED from the row unless it is a
+    # displayed column — the requested-columns projection stays exact.
     from api.services.screener import bases as _bases
+    _view_cols = plan.get("view_columns") or []
+    _keep_matches = "base_matches" in _view_cols
     for _r in out_rows:
         if "base_matches" in _r:
             _r["base_bias"] = _bases.primary_bias(_r.get("base_matches"))
+            if not _keep_matches:
+                _r.pop("base_matches", None)
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
     # `snapshot` is already this response's provenance object and is already
