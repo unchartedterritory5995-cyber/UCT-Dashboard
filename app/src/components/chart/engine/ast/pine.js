@@ -5524,7 +5524,17 @@ export class Resolver {
         + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
         vec.at)
     }
-    vec.slots = new Array(n).fill(null)
+    // ⭐⭐ AN EXPLICIT INITIAL VALUE PRE-FILLS EVERY SLOT, NOT JUST THE SIZE.
+    // A slot holds a BINDING (`vec.slots[k]`'s own contract, read back via
+    // `resolveBinding` at F2's `get`/`first`/`last` sites), so the fill is the
+    // SAME `exprBinding(node, env, at)` shape `array.set`/an unrolled
+    // `array.push` already use — never a pre-resolved value, so the initial
+    // expression resolves lazily against `vec.env`, exactly like any other
+    // slot write. `null` (unwritten -> na) is unchanged when there is no
+    // second argument, which is Pine's own default.
+    vec.slots = vec.initNode
+      ? new Array(n).fill(null).map(() => exprBinding(vec.initNode, vec.env, vec.at))
+      : new Array(n).fill(null)
     vec.sizeFolded = true
     return n
   }
@@ -9438,11 +9448,35 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
   }
   if (!rhs[argStart] || !isPunct(rhs[argStart], '(')) return null
   const inner = rhs.slice(argStart + 1, rhs.length - 1)
+  // ⛔⛔ `array.new_<type>(size, initial_value)` IS PINE'S OWN TWO-ARGUMENT
+  // FORM, AND THE COMMA IS TOP-LEVEL. `inner` used to be handed to
+  // `parseWholeExpression` WHOLE — size, comma and initial-value together —
+  // which is not a single expression at all, so a comma anywhere in here threw
+  // and `sizeNode` came back null for EVERY two-argument creation, folding to
+  // 0 slots regardless of what the size argument actually said. Measured:
+  // `array.new_float(3, 5.0)` refused `pine:collection` naming "0 slots" —
+  // the same shape `renko-candles-overlay__d76a18d49e.pine` hit on
+  // `array.new_float(1, math.floor(open / boxs) * boxs)`, and unrelated to
+  // `math.floor` itself (a bare literal second argument reproduces it).
+  // `splitTopLevel` is the same depth-respecting splitter the rest of this
+  // file already uses for multi-argument calls (`positionaliseSecurityArgs`,
+  // the destructuring-tuple parser) — never a bare `.split(',')`, which would
+  // cut inside `math.floor(open / boxs)`'s own parens.
+  const parts = inner.length ? splitTopLevel(inner, ',') : []
   let sizeNode = null
   // ⭐ THE SIZE IS STORED UNRESOLVED. Folding it here would be a second
   // constant-folder over the same tokens; the Resolver already has the one this
   // engine uses, and it runs with the whole environment in hand.
-  try { sizeNode = inner.length ? parseWholeExpression(inner) : null } catch { sizeNode = null }
+  try { sizeNode = parts[0] && parts[0].length ? parseWholeExpression(parts[0]) : null } catch { sizeNode = null }
+  let initNode = null
+  // ⭐⭐ THE INITIAL-VALUE ARGUMENT. Pine's own default is `na`, which already
+  // matches this engine's "an unwritten slot reads na" convention (F2) — so a
+  // ONE-argument creation needed no change. An EXPLICIT initial value must
+  // pre-fill every slot, or `array.get` on an index nothing has `array.set`
+  // would answer na instead of the value Pine actually holds there — a
+  // plausible wrong answer, not a refusal, which is the one shape this table
+  // exists to prevent. Stored unresolved for the same reason `sizeNode` is.
+  try { initNode = parts[1] && parts[1].length ? parseWholeExpression(parts[1]) : null } catch { initNode = null }
   const at = locate(nameTok)
   // ⛔⛔ F2 — THE CREATION IS RECORDED, WHATEVER HAPPENS NEXT. Before this, a
   // `var x = array.new<float>(21)` produced NOTHING: not a refusal, not a note,
@@ -9466,6 +9500,7 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
       env: new Map(env),
     }),
     sizeNode,
+    initNode,
     member,
     arrayName: nameTok.value,
   }

@@ -90,6 +90,65 @@ describe('rail 4 — a size this lane cannot settle refuses, pointing at item (c
   })
 })
 
+describe('rail 5 — a two-argument creation\'s initial value pre-fills every slot (2026-09-20)', () => {
+  // ⛔⛔ `array.new_<type>(size, initial_value)` IS PINE'S OWN TWO-ARGUMENT
+  // FORM. Before this rail, `inner` (the whole token span between the call's
+  // parens) was handed to `parseWholeExpression` WHOLE — size, comma and
+  // initial-value together, which is not one expression, so it threw and
+  // `sizeNode` came back null for EVERY two-argument creation. That folded to
+  // 0 slots regardless of what the size argument said, so `array.get`/
+  // `array.size` refused `pine:collection` naming "0 slots" for a construct
+  // this engine otherwise fully supports. Measured on a real corpus script,
+  // `renko-candles-overlay__d76a18d49e.pine`:
+  // `array.new_float(1, math.floor(open / boxs) * boxs)`.
+  it('⭐⭐ MEASURED: the size argument folds correctly even with a second argument present', () => {
+    const t = run('a = array.new_float(3, 5.0)\nplot(array.size(a))\n')
+    expect(guards(t)).not.toContain('pine:collection')
+    expect(JSON.stringify(t.outputs)).toMatch(/"value":3/)
+  })
+
+  it('⭐⭐ the initial value itself is readable, not just the size', () => {
+    const t = run('a = array.new_float(3, 5.0)\nplot(array.get(a, 0))\n')
+    expect(guards(t)).not.toContain('pine:collection')
+    expect(JSON.stringify(t.outputs)).toMatch(/"value":5/)
+  })
+
+  it('⭐ EVERY slot carries the initial value, not just the one at index 0', () => {
+    const t = run('a = array.new_float(3, 5.0)\nplot(array.get(a, 2))\n')
+    expect(guards(t)).not.toContain('pine:collection')
+    expect(JSON.stringify(t.outputs)).toMatch(/"value":5/)
+  })
+
+  // ⚠️ A STANDALONE `array.set(a, i, v)` OUTSIDE ANY LOOP IS A SEPARATE, PRE-
+  // EXISTING GAP, NOT THIS RAIL'S TO FIX. `vec.pending` is populated only by
+  // `pendingUnrollFrom` for an unrolled `for` loop's body (pine.js:11182-11193)
+  // — a bare top-level `array.set` call is not a loop and attaches no pending
+  // write, so the read afterward silently answers the CREATION-TIME value
+  // (na for one argument, the initial value for two) rather than the value
+  // just set. Measured on the pre-existing one-argument path too, so this
+  // fix does not introduce it: `array.new_float(3)` then a standalone
+  // `array.set(a, 1, 9.0)` then `array.get(a, 1)` already read back na before
+  // this rail existed. Recorded for a future item, not papered over here.
+
+  it('⛔⛔ CONTROL — the ONE-argument form is unaffected: an unwritten slot is still `na`', () => {
+    // Without this, rail 5 could have been "satisfied" by making every array
+    // default to a non-na fill, which would be Pine-wrong for the one-argument
+    // form (na is the correct, documented default there).
+    const t = run('a = array.new_float(2)\nplot(array.get(a, 0))\n')
+    expect(guards(t)).not.toContain('pine:collection')
+    expect(t.outputs[0].formula).toBe('0 / 0')
+  })
+
+  it('⛔⛔ CONTROL — the size REFUSAL for a series-dependent size is unchanged by the split', () => {
+    // Rail 4's own case, replayed with an initial value present, so the
+    // top-level comma-split cannot be mistaken for a fix that only works when
+    // there is exactly one argument.
+    const t = run('a = array.new_float(int(close), 5.0)\nplot(array.get(a, 0))\n')
+    expect(guards(t)).toContain('pine:collection')
+    expect(msg(t)).toMatch(/depends on a series/)
+  })
+})
+
 describe('the folds themselves', () => {
   it('⭐ `array.size` folds to the bound, so a member can read it as a number', () => {
     const t = run('a = array.new_float(5)\nplot(array.size(a))\n')
