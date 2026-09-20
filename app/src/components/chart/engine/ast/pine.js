@@ -12097,18 +12097,20 @@ function translatePineResult(source, opts = {}) {
     ...(helperOnlyRefusal ? [helperOnlyRefusal] : []),
   ].sort(byPosition)
 
-  if (resolved.length === 0) {
-    const r = refusalValue('pine:no-output', REFUSALS['pine:no-output'], null)
-    return {
-      ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels },
-      notes: withExcerpts(notes, lines),
-      refusal: hardRefusals[0] || r,
-      refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
-      inputParams: [],
-    }
-  }
-
+  // ⭐⭐ AN OBJECT-ONLY SCRIPT IS NOT DECIDED HERE ANY MORE (owner-authorised,
+  // 2026-09-20). `resolved.length === 0` used to refuse `pine:no-output`
+  // immediately, before the object pass below ever ran — so a script that
+  // draws ONLY boxes/lines/labels/tables (no `plot()`, no `alertcondition()`)
+  // could never reach the object lane at all, regardless of what it would
+  // have drawn. Measured against the real 266-script committed corpus:
+  // 48 scripts hit `pine:no-output` as their ONLY blocker, and of those, 2
+  // have a real, ZERO-DROP object program waiting behind this exact gate.
+  // The verdict for this case is now decided below, once the object pass has
+  // actually run, by `objectOnlyCleanWin` — this block only used to fire when
+  // there was NOTHING ELSE that could possibly survive, and a hard refusal
+  // still short-circuits everything the same way it always did (`blocked`,
+  // computed next, is independent of `resolved.length`).
+  //
   // ⛔ A HARD REFUSAL REFUSES THE WHOLE SCRIPT EVEN WHEN A PLOT TRANSLATED.
   // A `strategy()` script's plot is real Pine and would translate fine — but the
   // artifact is a backtest, its meaning lives in orders this engine never runs,
@@ -12202,8 +12204,31 @@ function translatePineResult(source, opts = {}) {
     objectPass = { program: null, diagnostics: { failed: true, error: String(err && err.message) } }
   }
 
+  // ⭐⭐ THE OBJECT LANE, ALONE, AS A HOST-LANE VERDICT (owner-authorised,
+  // 2026-09-20). `resolved.length === 0` means the value lane offered
+  // NOTHING — no plot, no alertcondition — so a member's box/line/label/table
+  // drawing is otherwise unreachable no matter how well it translated.
+  //
+  // ⛔⛔ NO PARTIAL CREDIT — the exact bar `strictOk` already holds the value
+  // lane to below (`refusals.length === 0`, not "something survived"). A
+  // script whose object program dropped even one attempted op is not a clean
+  // win; it stays refused, same as it always has, with the same sentence.
+  // Measured against the real corpus: of the 48 scripts `pine:no-output`
+  // alone blocks, 2 clear this bar and 17 have real output but ALSO drops —
+  // those 17 are correctly refused by this same rule, not silently accepted.
+  //
+  // ⛔ SCREENER IS UNCHANGED AND MUST STAY SO. An object-only script has zero
+  // numeric/boolean columns — there is nothing to screen on regardless of how
+  // clean its drawing is — so this is read only where `isHostLane(opts)` is
+  // true, never folded into `usable`/`lenientOk`, which govern the screener
+  // lane and answer a different question entirely.
+  const objectOnlyCleanWin = resolved.length === 0
+    && !!(objectPass.program && Array.isArray(objectPass.program.ops) && objectPass.program.ops.length > 0)
+    && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+
   let noContent = null
-  if (!blocked && usable.length === 0 && refusals.length === 0) {
+  if (!blocked && usable.length === 0 && refusals.length === 0
+      && !(isHostLane(opts) && objectOnlyCleanWin)) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
     // Ordered most-specific first: a passthrough says the meaning was in
     // presentation, a constant says the column cannot move, and only an
@@ -12248,7 +12273,11 @@ function translatePineResult(source, opts = {}) {
   // getting this wrong.
   const strict = isHostLane(opts)
   const lenientOk = usable.length > 0 && !blocked
-  const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
+  // ⭐⭐ THE OBJECT-ONLY CLEAN WIN JOINS THE SAME STRICT GATE, not a separate
+  // one — `objectOnlyCleanWin` already IS "every attempted object op
+  // survived", the object lane's own version of `refusals.length === 0`.
+  const strictOk = (resolved.length > 0 && refusals.length === 0 && !blocked)
+    || (objectOnlyCleanWin && !blocked)
   const ok = strict ? strictOk : lenientOk
 
   return {

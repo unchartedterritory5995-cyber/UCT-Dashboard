@@ -21,13 +21,24 @@ import {
 } from './memberPaneDefinition'
 
 const REPO = path.resolve(process.cwd(), '..')
-/** A table-only dashboard: it translates, and it offers nothing to draw. */
+/** A script with no plot, no alertcondition, and no drawing call of any kind
+ *  — nothing for `pine.js`'s value lane OR object lane to offer.
+ *  ⚰️ THIS USED TO BE A TABLE-ONLY DASHBOARD (`table.new` + `table.cell`
+ *  under `barstate.islast`) — exactly the shape `pineObjectOnlyHostAccept.
+ *  test.js` now accepts at the `translatePine` level (2026-09-20: a clean,
+ *  zero-drop object program is no longer `pine:no-output` there). That table
+ *  now reaches THIS door as `t.ok:true` with a real object program and zero
+ *  visible value-lane rows, which `memberPaneDefinition.js:141`'s own,
+ *  separate, pre-existing check correctly still declines ("this script
+ *  declares nothing a chart can draw" — a pane is specifically the
+ *  value-lane series surface, and that requirement is unrelated to and
+ *  unchanged by the object-lane fix). This test is about a DIFFERENT bug —
+ *  the lane-naming one, see below — so the fixture is swapped for one with
+ *  no object-lane output either, to keep exercising exactly that. */
 const NO_PLOT_SCRIPT = [
   '//@version=6',
   'indicator("t", overlay = true)',
-  'var table t = table.new(position.top_right, 2, 2)',
-  'if barstate.islast',
-  '    table.cell(t, 0, 0, "x")',
+  'x = close + 1',
   ''].join('\n')
 const V2 = fs.readFileSync(
   path.join(REPO, 'tests/fixtures/member/uncharted-volume-v2.pine'), 'utf8')
