@@ -78,7 +78,7 @@ const mount = () => render(
     <ScreensManager currentSpec={{}} onApply={vi.fn()} onUseScan={vi.fn()} />
   </SWRConfig>,
 )
-const openMenu = () => fireEvent.click(screen.getByText('Screens ▾'))
+const openMenu = () => fireEvent.click(screen.getByText('Screener ▾'))
 /** The props of the LAST render of the mocked sheet. */
 const sheetProps = () => SheetSpy.mock.calls.at(-1)[0]
 

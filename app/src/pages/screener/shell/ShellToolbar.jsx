@@ -234,12 +234,6 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
             onSavePreset={onSavePreset}
             layouts={meta?.views} onApplyLayout={cols => onColumns(cols)} />
         </span>
-        <button type="button" className={styles.toolBtn}
-          aria-label={`Row density: ${density}`} aria-pressed={density === 'compact'}
-          title={`Row density — ${density === 'compact' ? 'switch to comfortable' : 'switch to compact'}`}
-          onClick={() => onDensity(density === 'compact' ? 'comfortable' : 'compact')}>
-          <UIcon name="rows" size={13} /> Density
-        </button>
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}
         </button>

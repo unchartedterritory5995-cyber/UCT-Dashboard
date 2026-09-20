@@ -9,7 +9,7 @@
  *
  * Only the picker's DATA is stubbed — the three SWR-backed hooks behind it answer empty, through
  * one `swr` mock — because what is on the menu is not what this file measures. Its chrome (the
- * "Screens ▾" trigger, the popover, the section headers) is rendered by the real file.
+ * "Screener ▾" trigger, the popover, the section headers) is rendered by the real file.
  *
  * ⛔ AND THE ACTION IS DRIVEN THROUGH THE REAL REGISTRATION. The config comes off `HubProvider`'s
  * `activeModeConfig`, so the fan under test is the one `HubRoot` would dispatch — not one this
@@ -141,7 +141,7 @@ function openScreener() {
 /** The picker's own popover, as the DOM has it. `role="menu"` is `ScreensManager`'s word. */
 const menu = () => document.querySelector('[role="menu"]')
 /** The trigger a MEMBER taps. Found the way a member finds it — by its accessible name. */
-const memberTrigger = () => screen.getByRole('button', { name: /screens/i })
+const memberTrigger = () => screen.getByRole('button', { name: /screener/i })
 
 const realVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport')
 const realMatchMedia = window.matchMedia

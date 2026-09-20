@@ -123,7 +123,7 @@ function renderScreenerPage() {
  *  reading them, and a rail keyed on a private attribute stays green through a
  *  control that renders invisible. */
 async function openTheSharePanel(user) {
-  await user.click(await screen.findByRole('button', { name: 'Screens ▾' }))
+  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
   await user.click(await screen.findByRole('button', { name: `Share ${SCREEN_NAME}` }))
 }
 
@@ -213,7 +213,7 @@ describe('⛔ nothing publishes itself', () => {
     // that keeps it that way.
     const user = userEvent.setup()
     renderScreenerPage()
-    await user.click(await screen.findByRole('button', { name: 'Screens ▾' }))
+    await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
     await user.type(await screen.findByPlaceholderText('Name this screen…'), 'Breakouts')
     await user.click(await screen.findByRole('button', { name: 'Save current' }))
 
