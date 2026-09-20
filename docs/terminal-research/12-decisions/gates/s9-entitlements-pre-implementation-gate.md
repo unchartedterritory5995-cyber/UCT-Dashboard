@@ -9,9 +9,10 @@ status: ✅ CP1 SIGNED AND BUILT 2026-09-19. OI-03(a)/(b), OI-12 and OI-09 all A
   CONSOLIDATION (30 of 38 gated rows go R→LA), not an enforcement boundary — but reading those
   30 rows individually (§8) found 19 are already LIVE (Business tier retroactively authorizes
   what members already see, zero member-visible effect) and 11 are unbuilt TERMINAL-NEXT
-  candidates (also zero effect today; only unblocked for a future proposal). **§8 CP2 scoped
-  proposal DRAFTED 2026-09-19, sitting on a blank approval block (`.scopes/s9-cp2-scoped-
-  proposal.scope.txt` prepared), awaiting owner review — not yet signed.**
+  candidates (also zero effect today; only unblocked for a future proposal). **✅ §8 CP2 SIGNED
+  2026-09-19 (fingerprint `f808508f7`)** — a documentation-only checkpoint: the 19 LIVE rows are
+  recorded as Business-tier-authorized, and A1's default is retired for the 11 unbuilt candidates.
+  No code, no flag, no schema change; nothing built.
   ⚰️ **7 of the original 8 U rows are now RESOLVED — this line previously said 8 stayed U on four
   facts; three of those four facts are answered.** ESC-05 (T-23, T-24, T-25, N-07, N-08 — 5 rows)
   and ESC-14 (N-19 — 1 row) were ANSWERED BY THE OWNER 2026-09-19 from written Massive
@@ -38,7 +39,7 @@ COMPLETION_AUDIT §0 separates the two for exactly this reason.
 ⛔ **ZERO CODE WAS WRITTEN FOR THIS PACKET.** Nothing below is built, started, or partially
 started.
 
-## ✅ APPROVAL — CP1 SIGNED 2026-09-19. CP2+ remains unauthorized, unchanged.
+## ✅ APPROVAL — CP1 SIGNED 2026-09-19. ⚰️ ~~CP2+ remains unauthorized, unchanged~~ — CP2 SIGNED separately, §8 (fingerprint `f808508f7`), true when this heading was written and stale since.
 
 **Scope, verified against source before this line was written (2026-09-19):** enumerate every
 "may this member see this" site as inert data, correct GATE-S9 §2's own stale finding, and add a
@@ -132,7 +133,7 @@ finding needed correcting and which didn't.
 | CP | scope | strands? | size |
 |---|---|---|---|
 | **CP1** | The entitlement axis as **INERT DATA** + a duplication rail: every site that answers 'may this member' enumerated from source, with `PAID_PLANS`' two copies named. **No gate changed.** | measure at build | **S/M** |
-| **CP2** | ⚰️ Was "CP2+" in this cell — `tools/sign_gate.py`'s checkpoint-declaration regex can't parse a trailing `+` inside `**...**`, so a scope naming "CP2" was refused as "no checkpoint this packet declares" until this cell read plainly. The "CP2+" shorthand used elsewhere in this packet's prose is unaffected. ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch off the owner's first, more tentative same-day answer, then attributed all 8 surviving-U rows to just two ESC ids. **CONFIRMED Business/Enterprise, already held** flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists), OI-12 (paid-only) and **OI-09/OI-E02-09 (UCT stays downstream, confirmed same day)** are also answered and do not further change CP2's shape. ⚰️ **Of the 8 rows that stayed U, 7 are now resolved:** **ESC-05** (Massive's Third-Party Agreement names OPRA display + pays the $1,500/mo floor — ANSWERED 2026-09-19, written confirmation) closes T-23, T-24, T-25, N-07, N-08 (5 rows); **ESC-14** (alert display vs. non-display use — ANSWERED, same confirmation) closes N-19; **T-31** (the same-day dark-pool lane's ≥15-min lag) was measured 2026-09-19, found not enforced, fixed the same day, and **DEPLOYED TO PRODUCTION 2026-09-20** (`408b9a33f`, Railway `web` SUCCESS). **Only T-20 remains U** — ESC-21 + OI-03(d) (is a paid-Substack audience an Edge User; any signed addenda), not addressed by any answer so far. See §8 for the full scoped proposal, drafted, sitting on a blank approval block. | write the proposal first | **L** on paper; **measured in §8 as zero member-visible change for 19 of the 30 unlocked rows** (already LIVE — Business tier retroactively authorizes what members already see) and **no-op for the other 11** (TERMINAL-NEXT candidates, not built) |
+| **CP2** | ⚰️ Was "CP2+" in this cell — `tools/sign_gate.py`'s checkpoint-declaration regex can't parse a trailing `+` inside `**...**`, so a scope naming "CP2" was refused as "no checkpoint this packet declares" until this cell read plainly. The "CP2+" shorthand used elsewhere in this packet's prose is unaffected. ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** ⚰️ This row first read the RESTRICTIVE branch off the owner's first, more tentative same-day answer, then attributed all 8 surviving-U rows to just two ESC ids. **CONFIRMED Business/Enterprise, already held** flips the shape: **CP2 is a CONSOLIDATION that PERMITS Massive real-time data on member routes** — 30 of the 38 gated rows go R→LA. OI-03(b) (FMP DDLA exists), OI-12 (paid-only) and **OI-09/OI-E02-09 (UCT stays downstream, confirmed same day)** are also answered and do not further change CP2's shape. ⚰️ **Of the 8 rows that stayed U, 7 are now resolved:** **ESC-05** (Massive's Third-Party Agreement names OPRA display + pays the $1,500/mo floor — ANSWERED 2026-09-19, written confirmation) closes T-23, T-24, T-25, N-07, N-08 (5 rows); **ESC-14** (alert display vs. non-display use — ANSWERED, same confirmation) closes N-19; **T-31** (the same-day dark-pool lane's ≥15-min lag) was measured 2026-09-19, found not enforced, fixed the same day, and **DEPLOYED TO PRODUCTION 2026-09-20** (`408b9a33f`, Railway `web` SUCCESS). **Only T-20 remains U** — ESC-21 + OI-03(d) (is a paid-Substack audience an Edge User; any signed addenda), not addressed by any answer so far. **✅ See §8 — SIGNED 2026-09-19, fingerprint `f808508f7`.** | signed, §8 | **L** on paper; **measured in §8 as zero member-visible change for 19 of the 30 unlocked rows** (already LIVE — Business tier retroactively authorizes what members already see) and **no-op for the other 11** (TERMINAL-NEXT candidates, not built) |
 
 ---
 
@@ -162,8 +163,7 @@ pre-declared BEHAVIOUR-CHANGING **because the measurement had already been taken
 
 ## 7. ✅ APPROVAL — the two mechanical findings CP1 recorded, now closed
 
-⛔⛔ **NOT "S9 CP2." §3 is unchanged: CP2+ (consolidating or enforcing entitlements) remains NOT
-PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered.** This line authorizes exactly two narrow,
+⛔⛔ **NOT "S9 CP2."** ⚰️ Was "§3 is unchanged: CP2+ ... remains NOT PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered" — true when this line was written; **CP2 has since been proposed (§8) and SIGNED separately** (fingerprint `f808508f7`). This line authorizes exactly two narrow,
 independent bug fixes CP1's own enumeration surfaced — using data and logic that ALREADY EXISTS,
 building no new entitlement architecture, and deciding nothing about the blocked question.
 
@@ -214,7 +214,7 @@ SCOPE APPROVED:   Section 7 -- the two mechanical findings CP1 recorded, now clo
 
 ---
 
-## 8. CP2 — scoped proposal (drafted 2026-09-19, NOT YET APPROVED)
+## 8. ✅ CP2 — SIGNED 2026-09-19 (fingerprint `f808508f7`)
 
 ⛔ **This section exists because §3's CP2+ row could not be signed as written — "consolidate 30
 rows" is a size, not a scope.** Reading each of the 30 R→LA rows individually (not as a count)
@@ -333,8 +333,8 @@ remaining action, still not gated on CP2's sign-off:** a written question to Mas
 T-20's ESC-21 (paid-Substack Edge User) and OI-03(d) (signed addenda).
 
 ```
-APPROVED BY:      
-APPROVED ON:      
-APPROVED AT SHA:  
-SCOPE APPROVED:   
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  f808508f7
+SCOPE APPROVED:   Section 8 -- the CP2 scoped proposal, drafted 2026-09-19. This line authorizes CP2 as a documentation-only checkpoint: recording, in the licensing register and an addendum to the entitlements manifest (or equivalent artifact), that the 19 already-LIVE rows named in section 8.1 (T-01, T-03-T-11, T-14, T-15, T-21, T-22, T-26, T-28-T-30, T-32) are Business-tier-authorized as of 2026-09-19, and retiring assumption A1's blanket "no new member-facing raw vendor surface is added to the roadmap" default specifically for the 11 unbuilt TERMINAL-NEXT candidate rows named in section 8.1's second list (N-01-N-05, N-09, N-10, N-16, N-21, N-22, N-25), making them eligible for a future, separate product proposal. No code change. No flag armed. No schema change. No member-visible effect for any member today -- every one of the 19 LIVE rows is already running exactly as it runs today; every one of the 11 candidate rows remains unbuilt. This line does NOT authorize building any of the 11 candidates, does NOT change or resolve any of the 8 rows named in section 8.2 (T-20, T-23, T-24, T-25, T-31, N-07, N-08, N-19), and does NOT re-open OI-03(a), OI-03(b), OI-12, or OI-09, all of which are answered and unchanged by this line.
 ```
