@@ -49,6 +49,7 @@ export const EXPR = Object.freeze({
   // that lane and refused, which is the wall this kind exists to walk around.
   STR: 'str',
   CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
+  COLOUR: 'colour',   // a `color.*` producer — a packed 0xTTBBGGRR integer
   TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
   ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
   TUPLE: 'tuple',         // several values at once — only a function RESULT
@@ -222,6 +223,7 @@ export function validateIr(p) {
         if (!Array.isArray(e.args)) throw new IrError(`${where}: an array call carries an args array`)
         e.args.forEach((x, i) => walkExpr(x, `${where}.${e.fn}[${i}]`))
         return
+      case EXPR.COLOUR:
       case EXPR.TEXT:
         if (typeof e.fn !== 'string') throw new IrError(`${where}: a text call carries a name`)
         if (!Array.isArray(e.args)) throw new IrError(`${where}: a text call carries an args array`)
@@ -532,6 +534,9 @@ export const concat = (left, right) => ({ kind: EXPR.CONCAT, left, right })
 /** A `str.*` call. `fn` is the NAME; `runtime/text.js` owns the implementation
  *  and `program.js` validates the name when the program is built. */
 export const textCall = (fn, args) => ({ kind: EXPR.TEXT, fn, args })
+/** ⭐ A colour producer. Same shape as `textCall`: the NAME lives in the
+ *  artifact, so adding a `color.*` costs no opcode and no VM branch. */
+export const colourCall = (fn, args) => ({ kind: EXPR.COLOUR, fn, args })
 /** An `array.*` call. `typeArg` is the `<T>` the member wrote, which only
  *  `array.new` reads — it decides the per-element default for a sized array. */
 export const arrayCall = (fn, args, typeArg = null) => (

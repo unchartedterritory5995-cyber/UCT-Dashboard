@@ -25,6 +25,7 @@
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
 import { TEXT_FNS } from './text.js'
+import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import { Budget } from './limits.js'
 
@@ -486,6 +487,26 @@ export function execute(program, ctx, limits, opts) {
           else if (b === 2) v = fn(stack[sp], stack[sp + 1])
           else v = fn(...Array.prototype.slice.call(stack, sp, sp + b))
           stack[sp++] = v
+          break
+        }
+        case OP.COLOUR: {
+          // ⭐ ONE CHECK SITE, FROM THE ENTRY'S OWN DECLARATION — the rule
+          // `OP.TEXT` states below. A colour is a packed integer at run time, so
+          // every operand here is a `number` as far as this VM is concerned;
+          // whether it is a COLOUR is the front end's question.
+          const cname = program.colourOps[a]
+          const cspec = COLOUR_FNS[cname]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const want = colourArgKind(cspec, i)
+            const v = stack[sp + i]
+            if (kindOf(v) !== want) {
+              throw new VmError(
+                `pc ${pc - 1}: \`${cname}\` argument ${i + 1} takes a ${want}, got ${kindOf(v)}`)
+            }
+          }
+          stack[sp] = cspec.fn(Array.prototype.slice.call(stack, sp, sp + b))
+          sp += 1
           break
         }
         case OP.TEXT: {

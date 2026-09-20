@@ -36,6 +36,7 @@ export function lowerIrProgram(ir) {
   const consts = []
   const pointwise = []
   const textOps = []
+  const colourOps = []
   const arrayOps = []
 
   const constIndex = (v) => {
@@ -47,6 +48,15 @@ export function lowerIrProgram(ir) {
   // ⭐ Interned the same way `pointwise` is: the NAME lands in the artifact
   // once and the instruction carries an index, so two calls to the same
   // builtin cost one table entry.
+  /** ⭐ INTERNED BY NAME, exactly as a text op is — two `color.new` call
+   *  sites share one table entry, because the entry is an implementation
+   *  reference and carries no per-site state. */
+  const colourIndex = (name) => {
+    const i = colourOps.indexOf(name)
+    if (i >= 0) return i
+    colourOps.push(name)
+    return colourOps.length - 1
+  }
   const textIndex = (name) => {
     const i = textOps.indexOf(name)
     if (i >= 0) return i
@@ -93,6 +103,11 @@ export function lowerIrProgram(ir) {
       case EXPR.TEXT: {
         for (const a of e.args) expr(a)
         emit(OP.TEXT, textIndex(e.fn), e.args.length)
+        return
+      }
+      case EXPR.COLOUR: {
+        for (const a of e.args) expr(a)
+        emit(OP.COLOUR, colourIndex(e.fn), e.args.length)
         return
       }
       case EXPR.REQUEST:
@@ -451,6 +466,7 @@ export function lowerIrProgram(ir) {
     functions,
     pointwise,
     textOps,
+    colourOps,
     arrayOps,
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),

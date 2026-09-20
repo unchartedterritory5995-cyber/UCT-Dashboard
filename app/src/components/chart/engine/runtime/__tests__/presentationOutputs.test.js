@@ -80,19 +80,27 @@ describe('hline carries its level', () => {
   })
 })
 
-describe('⛔ the colour-bearing calls stay refused, by name', () => {
-  it.each(['fill(a, b, color.red)', 'bgcolor(color.red)', 'barcolor(color.red)'])(
-    '%s', (call) => {
-      const r = refusalOf(`${call}\nplot(close)`)
-      expect(r.guard).toBe('runtime:presentation')
-    })
+describe('⛔ `fill` stays refused, and for a DIFFERENT reason now', () => {
+  // ⭐⭐ THIS CASE PREDICTED ITS OWN FAILURE AND THE PREDICTION CAME TRUE ONE
+  // INCREMENT LATER. It used to refuse `bgcolor` and `barcolor` alongside
+  // `fill`, and said in as many words: *"if a colour ever becomes plottable,
+  // this goes red and somebody revisits the family deliberately."* The colour
+  // channel landed, all three went red together, and this is that revisit.
+  //
+  // ⭐ A rail that names the condition under which it should fail is worth more
+  // than one that merely passes — it turned a surprise into a checklist item.
+  it('fill(a, b, color.red)', () => {
+    const r = refusalOf('fill(a, b, color.red)\nplot(close)')
+    expect(r.guard).toBe('runtime:presentation')
+  })
 
-  it('⛔ and the reason is REAL — a colour is not a value in this lane', () => {
-    // Without this the refusals above read as "not done yet" when the actual
-    // blocker is a value model. If a colour ever becomes plottable, this goes
-    // red and somebody revisits the family deliberately.
-    const r = refusalOf('plot(color.red)')
-    expect(r.guard).toBe('pine:colour-value')
+  it('⛔ and the reason is now PLOT REFERENCES, not colours', () => {
+    // `fill` names two PLOTS, so it needs the output list to carry WHICH two,
+    // and that list holds bare call names today. A colour is no longer the
+    // blocker — the case below is what says so.
+    const painted = buildRuntimeIr(`${head}bgcolor(color.red)\nplot(close)`,
+      { bars: BARS, inputs: {} })
+    expect(painted.ok).toBe(true)
   })
 })
 
@@ -107,10 +115,12 @@ describe('⛔⛔ the two lanes agree about what an output IS', () => {
   })
 
   it('⭐ where this lane is WIDER, the difference is named', () => {
-    // `hline` is an output here and not there, deliberately: the host lane
-    // offers outputs to a SCREENER, and a fixed level screens nothing. This
-    // lane computes bar values, and the level is one.
+    // All three are outputs here and not there, for one reason: the host lane
+    // offers outputs to a SCREENER. A fixed level screens nothing, and you
+    // cannot screen on a colour at all — which is exactly why that lane refuses
+    // one by name. This lane computes bar values for DRAWING, where a level and
+    // a colour are both values.
     const extra = [...RUNTIME_OUTPUT_CALLS].filter((c) => !(c in HOST_OUTPUT_CALLS))
-    expect(extra).toEqual(['hline'])
+    expect(extra).toEqual(['hline', 'bgcolor', 'barcolor'])
   })
 })

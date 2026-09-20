@@ -12460,6 +12460,21 @@ const PINE_PLOT_STYLES = Object.freeze({
 // called `green` must not silently become a colour. The bound-name check is the
 // caller's (`staticColourOf` is handed a node the env has already been asked
 // about); here the question is only whether the SPELLING names a Pine colour.
+/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through THIS table.
+ *
+ *  These eighteen hex values are vendor-pinned — six of the seven a real
+ *  TradingView observation reaches matched, and `color.red` was corrected from
+ *  the down-candle red to the vendor's `#FF5252` when that observation was
+ *  taken. A second copy in the runtime lane would be a second chance to carry
+ *  the wrong red, and nothing would catch it: every rail that touched a colour
+ *  would assert OUR constant.
+ *
+ *  ⚠️ Answers `null` for a name that is not a Pine colour, so the caller can
+ *  tell "not a colour" from "a colour I cannot read". */
+export const colourHexByName = (name) => (
+  Object.hasOwn(PINE_COLOURS, name) ? PINE_COLOURS[name]
+    : (Object.hasOwn(PINE_COLOURS_BARE, name) ? PINE_COLOURS_BARE[name] : null))
+
 const isColourName = (v) => !!v && v.type === 'name'
   && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
 const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)

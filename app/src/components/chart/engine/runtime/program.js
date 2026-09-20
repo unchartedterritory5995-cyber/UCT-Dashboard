@@ -33,6 +33,7 @@
 // list here is exactly the drift the header warns about one paragraph up.
 import { TEXT_FNS } from './text.js'
 import { ARRAY_FNS } from './collections.js'
+import { COLOUR_FNS } from './colours.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -166,6 +167,10 @@ export const OP = Object.freeze({
   // stack — it is usually only known while the bar runs, because a member's
   // watchlist is read out of a pasted string.
   REQUEST: 79,
+  // ⭐ SAME SHAPE AS `TEXT` AGAIN: `a` indexes `program.colourOps`, `b` is
+  // the argument count. A colour is a packed integer, so it needs no new
+  // carrier on the stack — only a name table and a kind.
+  COLOUR: 85,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -182,7 +187,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
-  OP.LOOP_TICK, OP.REQUEST,
+  OP.LOOP_TICK, OP.REQUEST, OP.COLOUR,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -208,7 +213,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
-  textOps = [], arrayOps = [], requests = [],
+  textOps = [], arrayOps = [], requests = [], colourOps = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -249,6 +254,12 @@ export function makeProgram({
     // wrote, validated here for the same reason a text op is: a name with no
     // implementation must be a compiler error at build, not a runtime one on
     // some bar.
+    colourOps: Object.freeze((colourOps || []).map((name, i) => {
+      if (!Object.prototype.hasOwnProperty.call(COLOUR_FNS, name)) {
+        throw new ProgramError(`colourOp ${i}: no implementation for \`${name}\``)
+      }
+      return name
+    })),
     arrayOps: Object.freeze((arrayOps || []).map((op, i) => {
       const name = op && op.fn
       if (!Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) {
@@ -346,6 +357,24 @@ export function validateProgram(p) {
     if (op === OP.REQUEST) {
       if (a < 0 || a >= p.requests.length) {
         throw new ProgramError(`pc ${pc}: REQUEST ${a} outside ${p.requests.length} requests`)
+      }
+    }
+    if (op === OP.COLOUR) {
+      if (a < 0 || a >= p.colourOps.length) {
+        throw new ProgramError(`pc ${pc}: COLOUR ${a} outside ${p.colourOps.length} colour ops`)
+      }
+      // ⛔ THE ARITY IS CHECKED AT BUILD, exactly as a text op's is. `color.rgb`
+      // takes three or four, so the bound is a RANGE rather than a single
+      // number — and a call outside it must be a compiler error here, not a
+      // wrong colour on some bar.
+      const spec = COLOUR_FNS[p.colourOps[a]]
+      const got = p.code[pc * 3 + 2]
+      const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
+      const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
+      if (got < lo || got > hi) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.colourOps[a]}\` takes ${lo === hi ? lo : `${lo} to ${hi}`} `
+          + `argument(s), the call passes ${got}`)
       }
     }
     if (op === OP.TEXT) {

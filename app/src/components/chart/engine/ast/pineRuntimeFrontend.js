@@ -31,7 +31,7 @@
 import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
-  VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE,
+  VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -41,10 +41,11 @@ import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
-  forStmt, breakStmt, continueStmt, tuple, destructure, requestCall,
+  forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+import { COLOUR_FNS, producesColour, hexToPacked } from '../runtime/colours.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -60,6 +61,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // wider than the capability: `x[1]` over a top-level mutable value now runs,
   // and the three shapes below are the parts that do not, each refused BY ITS OWN
   // NAME so the next dependency is a row rather than a rumour.
+  'runtime:colour': 'a colour was expected here — a colour is a packed integer in this lane, and a price packed into a colour slot would draw a plausible shade computed from the wrong thing',
   'runtime:plot-id': 'a plot id used as a number — `p = plot(…)` names a plot so that `fill()` can refer to it, and it is not a value the script can compute with',
   'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
   'runtime:history-expression':
@@ -163,7 +165,17 @@ const BLOCK_WORDS = new Set(['for', 'while'])
  *  is. Where this set is WIDER the difference is deliberate and named there. */
 export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
   'plot', 'plotshape', 'plotchar', 'plotarrow', 'alertcondition', 'hline',
+  'bgcolor', 'barcolor',
 ]))
+
+/** The output calls whose emitted series is a COLOUR rather than a price.
+ *
+ *  ⭐ A SUBSET, NOT A SEPARATE FAMILY. `bgcolor` and `barcolor` emit one value
+ *  per bar exactly as `plot` does; the only difference is what the number MEANS,
+ *  and that difference has to be declared somewhere or the emitter cannot refuse
+ *  `plot(color.red)` and `bgcolor(close)` — which are the same mistake pointing
+ *  in opposite directions. */
+export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
@@ -704,6 +716,36 @@ export function buildRuntimeIr(source, opts = {}) {
     }
     if (node.type === 'ternary') {
       return holdsText(node.yes, scope) || holdsText(node.no, scope)
+    }
+    return false
+  }
+
+  /** Does this subtree evaluate to a COLOUR?
+   *
+   *  ⭐ A COLOUR IS A NUMBER AT RUN TIME — a packed `0xTTBBGGRR` integer — so
+   *  nothing downstream could tell one from a price without this. The kind is
+   *  the whole of the type system for colours, which is why `plot(color.red)`
+   *  can still be refused while `bgcolor(color.red)` runs.
+   *
+   *  ⛔ A SLOT IS MARKED AT ITS BINDING, exactly as a text slot is, so
+   *  `c = close > open ? color.green : color.red` followed by `bgcolor(c)`
+   *  answers correctly one statement later.
+   */
+  const holdsColour = (node, scope) => {
+    if (!node || typeof node !== 'object') return false
+    if (node.type === 'name') {
+      if (colourHexByName(node.name) !== null) return true
+      const slot = scope.lookup(node.name)
+      if (slot !== null) return !!(slots[slot] && slots[slot].colour)
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
+    }
+    if (node.type === 'call' && producesColour(node.name)) return true
+    // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
+    // and a number on the other, which Pine rejects — answering "colour" for it
+    // would send a price into a colour slot with no complaint.
+    if (node.type === 'ternary') {
+      return holdsColour(node.yes, scope) && holdsColour(node.no, scope)
     }
     return false
   }
@@ -1380,7 +1422,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
-        && !readsPlotRef(node)) {
+        && !readsPlotRef(node) && !holdsColour(node, scope)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1446,6 +1488,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // numeric macro, and `math.min(avail, cap)` reaches this lane because
         // `avail` is derived from an ARRAY. `cap` then resolved to nothing and
         // the script was told it binds a name it binds one line above.
+        {
+          // ⭐⭐ A COLOUR NAME IS A CONSTANT, resolved through `pine.js`'s own
+          // vendor-pinned table. `color.red` is `#FF5252` because a real
+          // TradingView observation said so — a second table here would be a
+          // second chance to carry the wrong red, and every rail that touched a
+          // colour would assert OUR constant and agree with it.
+          const hex = colourHexByName(node.name)
+          if (hex !== null && scope.lookup(node.name) === null && !env.has(node.name)) {
+            return num(hexToPacked(hex, 0))
+          }
+        }
         {
           // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
           // binding it. Without this the read reached `runtime:unbound` —
@@ -1650,6 +1703,40 @@ export function buildRuntimeIr(source, opts = {}) {
               locate(node.tok))
           }
           return textCall(node.name, given.map((x) => lowerExpr(x, scope)))
+        }
+        // ⭐⭐ A SERVED `color.*` IS ADMITTED HERE, for the same reason a served
+        // `str.*` is: `callFamily` refuses the whole `color.` namespace as
+        // `pine:colour-value`, which is the COLUMNAR lane's correct rule — you
+        // cannot screen on a colour. This lane draws rather than screens, so the
+        // two producers it serves are taken out of that path rather than the
+        // rule being carved up. Every unserved `color.*`, `color.from_gradient`
+        // above all, keeps the refusal.
+        if (Object.prototype.hasOwnProperty.call(COLOUR_FNS, node.name)) {
+          const spec = COLOUR_FNS[node.name]
+          for (const arg of node.args) {
+            if (arg && arg.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
+          const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
+          if (given.length < lo || given.length > hi) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes ${lo === hi ? lo : `${lo} to ${hi}`} argument`
+              + `${hi === 1 ? '' : 's'}, given ${given.length}`, locate(node.tok))
+          }
+          // ⛔ THE FIRST ARGUMENT OF `color.new` IS A COLOUR, AND IT IS CHECKED
+          // HERE. The VM sees a packed integer and cannot tell one from a price,
+          // so `color.new(close, 50)` would otherwise pack a PRICE into a colour
+          // and draw it — a plausible shade computed from the wrong thing.
+          if (node.name === 'color.new' && !holdsColour(given[0], scope)) {
+            note('runtime:colour')
+            throw new RuntimeRefusal('runtime:colour',
+              '`color.new` takes a colour to recolour, and this is not one', locate(node.tok))
+          }
+          return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
@@ -1865,8 +1952,9 @@ export function buildRuntimeIr(source, opts = {}) {
   // value this lane can hold — `pine:colour-value` refuses one by name. Serving
   // them needs a colour channel, which is a capability, not a table entry.
   const OUTPUT_CALLS = RUNTIME_OUTPUT_CALLS
+  const COLOUR_OUTPUTS = RUNTIME_COLOUR_OUTPUTS
   const PRESENTATION_CALLS = new Set([
-    'fill', 'bgcolor', 'barcolor', 'plotcandle', 'plotbar', 'alert',
+    'fill', 'plotcandle', 'plotbar', 'alert',
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
 
@@ -1891,6 +1979,36 @@ export function buildRuntimeIr(source, opts = {}) {
     if (holdsText(arg0, scope)) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${callName}()\` was handed text — a plot draws numbers`, at)
+    }
+    // ⛔⛔ EVERY OUTPUT CALL DECLARES WHICH KIND IT TAKES, and both directions
+    // are refused. A colour is a packed integer, so without this `plot(color.red)`
+    // would compile and draw the line at y = 5,394,687 — a number a member would
+    // read as data. And `bgcolor(close)` would paint the background whatever
+    // colour a PRICE happens to pack to, which is a plausible shade computed
+    // from the wrong thing.
+    const isColour = holdsColour(arg0, scope)
+    if (COLOUR_OUTPUTS.has(callName) && !isColour) {
+      // ⛔⛔ AN UNSERVED `color.*` IS A DIFFERENT FACT FROM "NOT A COLOUR", and
+      // telling a member the wrong one sends them to rewrite a line that is
+      // correct. `color.from_gradient(…)` IS a colour — 21 corpus scripts use
+      // it — this engine simply does not compute it yet. Saying "this is not a
+      // colour" about it would be false, and false in the direction that wastes
+      // the reader's time.
+      const unserved = arg0 && arg0.type === 'call' && typeof arg0.name === 'string'
+        && arg0.name.startsWith('color.')
+      if (unserved) {
+        note('runtime:colour')
+        throw new RuntimeRefusal('runtime:colour',
+          `\`${arg0.name}\` is a colour this engine does not compute yet`, at)
+      }
+      note('runtime:colour')
+      throw new RuntimeRefusal('runtime:colour',
+        `\`${callName}()\` paints with a colour, and this is not one`, at)
+    }
+    if (!COLOUR_OUTPUTS.has(callName) && isColour) {
+      note('runtime:colour')
+      throw new RuntimeRefusal('runtime:colour',
+        `\`${callName}()\` draws numbers, and a colour is not one`, at)
     }
     outputs.push(callName)
     const index = outputs.length - 1
@@ -2185,6 +2303,10 @@ export function buildRuntimeIr(source, opts = {}) {
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
         // which is what makes `s := "cd"` route out of the columnar lane too.
         if (holdsText(value, scope)) slots[slot].text = true
+        // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
+        // slot answers `holdsColour` false one statement later, and
+        // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
+        if (holdsColour(value, scope)) slots[slot].colour = true
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -2262,6 +2384,10 @@ export function buildRuntimeIr(source, opts = {}) {
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
         if (holdsText(value, scope)) slots[slot].text = true
+        // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
+        // slot answers `holdsColour` false one statement later, and
+        // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
+        if (holdsColour(value, scope)) slots[slot].colour = true
         if (isCollection) slots[slot].collection = true
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
