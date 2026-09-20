@@ -42,6 +42,10 @@ const MIN_R = 4
 const MAX_R = 16
 const HIT_SLOP = 8           // px of forgiveness around a node's own radius
 
+/** "1 note", not "1 notes" — this reaches the legend AND the canvas aria-label,
+ *  so a screen reader reads the count out loud. */
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+
 /** Radius from degree — sqrt so a hub with 40 links is not 10x a node with 4. */
 const radiusFor = (degree) => Math.min(MAX_R, MIN_R + Math.sqrt(degree || 0) * 2.4)
 
@@ -51,6 +55,7 @@ export default function NoteGraphView({ onOpenNote }) {
     dedupingInterval: 30000,
   })
   const canvasRef = useRef(null)
+  const roRef = useRef(null)
   const simRef = useRef({ nodes: [], edges: [] })
   const drawRef = useRef(null)
   const hoverRef = useRef(null)
@@ -65,9 +70,25 @@ export default function NoteGraphView({ onOpenNote }) {
   }), [data])
 
   // ── size to the container, and re-measure on resize ───────────────────────
-  useEffect(() => {
-    const el = canvasRef.current?.parentElement
-    if (!el || typeof ResizeObserver === 'undefined') return undefined
+  //
+  // ⛔⛔ A CALLBACK REF, NOT AN EFFECT WITH [] DEPS. Measured on production:
+  // container 1501px, canvas stuck at the 820px default -- 681px of unused
+  // width. An effect with `[]` runs once on mount, and on THAT render
+  // `isLoading` is true so the component returns an early <div>: there is no
+  // canvas, the ref is null, the effect bails, and the observer is never
+  // attached. When the data lands and the canvas finally mounts, nothing
+  // re-runs it.
+  //
+  // ⛔ NO TEST COULD HAVE CAUGHT IT. jsdom has no ResizeObserver and the code
+  // guards on exactly that, so every test skipped this path -- which is why it
+  // took a browser. A callback ref fires whenever the node attaches or
+  // detaches, however many times, with no dependency array to get wrong.
+  const attachCanvas = useCallback((node) => {
+    canvasRef.current = node
+    if (roRef.current) { roRef.current.disconnect(); roRef.current = null }
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const el = node.parentElement
+    if (!el) return
     const measure = () => {
       const r = el.getBoundingClientRect()
       if (r.width > 0) {
@@ -77,7 +98,7 @@ export default function NoteGraphView({ onOpenNote }) {
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
-    return () => ro.disconnect()
+    roRef.current = ro
   }, [])
 
   // ── lay out, draw, stop ───────────────────────────────────────────────────
@@ -268,8 +289,8 @@ export default function NoteGraphView({ onOpenNote }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.legend}>
-        <span><b>{graph.nodes.length}</b> notes</span>
-        <span><b>{graph.edges.length}</b> links</span>
+        <span><b>{graph.nodes.length}</b> {graph.nodes.length === 1 ? 'note' : 'notes'}</span>
+        <span><b>{graph.edges.length}</b> {graph.edges.length === 1 ? 'link' : 'links'}</span>
         <span className={styles.orphan}><b>{orphans}</b> unlinked</span>
         {graph.truncated ? (
           <span className={styles.truncated}>
@@ -279,10 +300,10 @@ export default function NoteGraphView({ onOpenNote }) {
       </div>
       <div className={styles.canvasWrap}>
         <canvas
-          ref={canvasRef}
+          ref={attachCanvas}
           className={styles.canvas}
           style={{ width: size.w, height: size.h }}
-          aria-label={`Note graph: ${graph.nodes.length} notes, ${graph.edges.length} links`}
+          aria-label={`Note graph: ${plural(graph.nodes.length, 'note')}, ${plural(graph.edges.length, 'link')}`}
           onMouseMove={(ev) => { const n = pick(ev); setHover(n ? n.id : null) }}
           onMouseLeave={() => setHover(null)}
           onClick={(ev) => { const n = pick(ev); if (n && onOpenNote) onOpenNote(n.id) }}

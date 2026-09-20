@@ -103,8 +103,11 @@ describe('NoteGraphView', () => {
     const { container } = render(<NoteGraphView />)
     const legend = container.querySelector('[class*="legend"]')
     expect(legend.textContent).toMatch(/4\s*notes/)
-    expect(legend.textContent).toMatch(/1\s*links/)
     expect(legend.textContent).toMatch(/2\s*unlinked/)
+    // ⛔ ONE LINK IS "1 link". This asserted /1\s*links/ and so pinned the bug:
+    // production read "1 notes, 0 links", in the legend AND in the canvas
+    // aria-label, which a screen reader says out loud.
+    expect(legend.textContent).toMatch(/1\s*link(?!s)/)
   })
 
   it('DRAWS unlinked notes -- it never filters the graph down to linked ones', () => {
@@ -125,6 +128,23 @@ describe('NoteGraphView', () => {
     // would draw two.
     expect(drawnNodes(3)).toHaveLength(3)
     expect(ctxLog.arcs.length % 3).toBe(0)
+  })
+
+  it('counts read as English at ONE and at zero', () => {
+    swrResult = {
+      isLoading: false,
+      data: {
+        nodes: [{ id: 'a', title: 'A', degree: 0 }],
+        edges: [],
+        truncated: false,
+      },
+    }
+    const { container } = render(<NoteGraphView />)
+    const legend = container.querySelector('[class*="legend"]').textContent
+    expect(legend).toMatch(/1\s*note(?!s)/)   // not "1 notes"
+    expect(legend).toMatch(/0\s*links/)       // zero IS plural
+    expect(container.querySelector('canvas').getAttribute('aria-label'))
+      .toBe('Note graph: 1 note, 0 links')
   })
 
   it('says so out loud when the graph is truncated', () => {
@@ -221,6 +241,44 @@ describe('NoteGraphView', () => {
     const [only] = drawnNodes(1)
     fireEvent.click(canvas, { clientX: only.x + 200, clientY: only.y + 150 })
     expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('SIZES THE CANVAS TO ITS CONTAINER once the canvas actually mounts', () => {
+    // ⛔⛔ THE DEFECT THIS EXISTS FOR, FOUND ONLY IN A BROWSER. Measured on
+    // production: container 1501px, canvas stuck at its 820px default -- 681px
+    // of unused width. The sizing ran in an effect with `[]` deps, so it fired
+    // once on mount; on that render `isLoading` is true and the component
+    // returns an early <div>, so there was no canvas to observe and nothing
+    // ever re-ran it.
+    //
+    // ⛔ AND NO TEST COULD SEE IT, because jsdom has no ResizeObserver and the
+    // component guards on exactly that. So this test SUPPLIES one -- which is
+    // the only way the path is reachable here at all.
+    const observed = []
+    class FakeRO {
+      constructor(cb) { this.cb = cb }
+      observe(el) { observed.push(el); this.cb([{ target: el }]) }
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeRO)
+    // A container wider than the 820x560 default, the way a real page is.
+    const rect = { width: 1501, height: 562, left: 0, top: 0, right: 1501, bottom: 562 }
+    const origProto = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function () { return rect }
+
+    swrResult = {
+      isLoading: false,
+      data: { nodes: [{ id: 'a', title: 'A', degree: 0 }], edges: [], truncated: false },
+    }
+    try {
+      const { container } = render(<NoteGraphView />)
+      const canvas = container.querySelector('canvas')
+      expect(observed.length, 'the container was never observed').toBeGreaterThan(0)
+      expect(canvas.style.width).toBe('1501px')
+      expect(canvas.style.width).not.toBe('820px')
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = origProto
+    }
   })
 
   it('lays the same notebook out the same way twice', () => {
