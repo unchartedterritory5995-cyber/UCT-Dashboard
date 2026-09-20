@@ -63,9 +63,9 @@ came from written confirmation from Massive, not a general recollection:**
   non-display use — no CTA/OPRA Category 1 fee ($2,000/mo ×2) applies. **N-19 (1 row) moves U→LA.**
 
 **All five facts are now favourable, closing 6 of the 8 rows that stayed U after the Massive/FMP
-answers alone.** Two of the original 8 remain open: **T-31** (the same-day dark-pool lane) was
-measured the same day and found NOT compliant — a code fix is written and pushed but not yet
-merged or deployed, so it stays U in production terms until that ships; **T-20** (the paid
+answers alone.** ⚰️ **T-31 (the same-day dark-pool lane) is now CLOSED — measured 2026-09-19,
+fixed same day, DEPLOYED TO PRODUCTION 2026-09-20** (`408b9a33f` on master, Railway `web` SUCCESS,
+`/api/health` uptime reset confirmed). One of the original 8 remains open: **T-20** (the paid
 Substack) depends on ESC-21 (is a paid-Substack audience an Edge User?) and OI-03(d) (signed
 addenda), neither of which this round of answers specifically addressed — flagged, not assumed.
 
@@ -76,11 +76,12 @@ rows out of **R** (not just U→LA): Finnhub's T-51–T-56 and N-06 (7 rows), Al
 (2 rows; T-59 stays R pending the separate FRED flow-down). **R now stands at 18**, not 27 — see
 §1C's corrected tally and its corrected 18-row survivor list. Of those 18, engineering alone
 (auth, delay, deletion-sync, a display fix, a retirement) still closes several with no further
-vendor conversation needed. **Still genuinely open behind the surviving 18:** T-31 (measured,
-fixed, not yet deployed), T-20 (ESC-21 + OI-03(d)), T-59 and the FRED rows (the structural
-per-series check ESC-15 names, not a vendor-approval question), T-79 (a separate public-exposure
-gate, T-18), Reddit's rows (confirmed in principle but not yet applied to the row text pending the
-agreement document), and yfinance (flagged as inconsistent with the claim — see A9).
+vendor conversation needed. ⚰️ T-31 was on this list — **closed 2026-09-20, deployed to
+production** (see its own row). **Still genuinely open behind the surviving 18:** T-20 (ESC-21 +
+OI-03(d)), T-59 and the FRED rows (the structural per-series check ESC-15 names, not a
+vendor-approval question), T-79 (a separate public-exposure gate, T-18), Reddit's rows (confirmed
+in principle but not yet applied to the row text pending the agreement document), and yfinance
+(flagged as inconsistent with the claim — see A9).
 
 ⚰️ ~~Net effect on the tally (§1C): of the 81 Restricted rows, 15 move to Likely Allowed. 66 remain
 Restricted** (81 − 15). The 38 Massive-gated rows are entirely inside that 66 — none of them were
@@ -149,7 +150,7 @@ One row per (use, provider, data class, audience). **Part A** is today's uses (E
 | T-28 | Member display — options chain + Greeks + IV (`polygon_options.py`, `/v3/snapshot/options/*`) → implied / expected move (calendar enrichment, research) | Massive · chain | member; calendar; wire → Substack | LIVE (`IMPLIED_STORE_ENABLED=1`) | **R** | P1 §1/§5(c); Bus LA. An implied move in dollars is a single-security price derivation — fee liable under UTP §1 and Cboe §15 (E-04 §4 #2) | OI-03(a) | Ind **R** · Bus **LA** | Show it as % of price in multi-symbol context; keep in-app | Possibly (single-security) |
 | T-29 | Storage — implied-capture history (`implied_snapshots`, nightly pre-report) | Massive chains + the FMP/Finnhub reporter list | internal | LIVE | **R** | As T-09; FMP §6.3 attaches to the reporter join (T-42) | OI-03(a) / (b) | Ind **R** · Bus **LA** | License retention explicitly | No |
 | T-30 | Member display — dark-pool prints, T+1 SIP flat files (`us_stocks_sip/trades_v1`, ≥ $4 M notional) | Massive S3 flat files · SIP trades | member (proxy-vouched) | LIVE (`DARKPOOL_FLATFILE_ENABLED=1`) | **R** | Historical/EOD is the cheapest class in every plan; OPRA's historical exemption is the analogue (E-03 §4.2 row 10) | OI-03(a) · the flat-file product licence | Ind **R** · Bus **LA** | Keep T+1 | No |
-| T-31 | Member display — same-day per-ticker `/v3/trades` dark-pool lane | Massive REST · trades | member | LIVE (production) | **R** | Inside the 15-min delay interval the prints are Information; past it, Delayed Information (E-03 §4.2 row 10a) | ⚰️ Was "Measurable in code... not measured." **MEASURED 2026-09-19: NOT enforced** — `darkpool_intraday_ingest.py` polled every 3 min with no age filter, serving same-day prints in near-real-time via `GET /api/darkpool/today`. **FIXED same day**: `darkpool_aggregator.aggregate()` now excludes any `darkpool_today` row younger than a hardcoded 15-minute floor (fail-closed on an unparseable timestamp too); 4 new tests, mutation-proved. Commit `2c6f4cd7e` on `feat/s7-price-level`, pushed — **NOT YET merged to master, NOT YET on production.** Until that merge+deploy, the LIVE system still serves the unresolved (real-time) behavior this row describes | Ind **R** · Bus **LA once the fix is live in production** (code-complete, not yet deployed) | Merge `feat/s7-price-level` and deploy | Possibly |
+| T-31 | Member display — same-day per-ticker `/v3/trades` dark-pool lane | Massive REST · trades | member | LIVE (production, fixed) | **LA** | Inside the 15-min delay interval the prints are Information; past it, Delayed Information (E-03 §4.2 row 10a) | ⚰️ Was "Measurable in code... not measured," then "MEASURED: NOT enforced, fixed, not yet deployed." **DEPLOYED 2026-09-20**: cherry-picked to master as `408b9a33f` (from `feat/s7-price-level`'s `2c6f4cd7e`), Railway `web` deploy SUCCESS, `/api/health` uptime reset to 26s confirming a fresh boot, `GET /api/darkpool/today` smoke-checked 401 (auth-gated, not crashing) post-deploy. The ≥15-min lag is now enforced in production, not just in code | LA | None — closed | Possibly |
 | T-32 | Storage — `darkpool.db` (~120 trading days) + `darkpool_records`, never pruned by design | Massive SIP trades | internal | LIVE | **R** | As T-09; the records table is the accretive asset (E-02 §4, citing D-13 §7) | OI-03(a) | Ind **R** · Bus **LA** | License retention; keep | No |
 
 #### FMP — Financial Modeling Prep
@@ -331,9 +332,9 @@ it is corrected again:
 | Class | Part A (today, 92 rows) | Part B (TERMINAL-NEXT, 26 rows) | Total (118) |
 |---|---|---|---|
 | **A** Allowed | 3 (T-82, T-83, T-84 — public domain and own content only) | 0 | **3** |
-| **LA** Likely Allowed (verify) | ⚰️ stale, see note | ⚰️ stale, see note | **74** (was 59; +4 Finviz (T-47–T-50, U→LA) +2 Schwab (T-77, T-78, U→LA) +7 Finnhub (T-51–T-56, N-06, R→LA) +2 AlphaVantage (T-57, T-58, R→LA) = +15. The pre-existing one-row arithmetic discrepancy from the Massive-Business correction is carried forward unresolved, not re-litigated here) |
+| **LA** Likely Allowed (verify) | ⚰️ stale, see note | ⚰️ stale, see note | **75** (was 59; +4 Finviz (T-47–T-50, U→LA) +2 Schwab (T-77, T-78, U→LA) +7 Finnhub (T-51–T-56, N-06, R→LA) +2 AlphaVantage (T-57, T-58, R→LA) +1 T-31 (fixed AND deployed 2026-09-20, U→LA) = +16. The pre-existing one-row arithmetic discrepancy from the Massive-Business correction is carried forward unresolved, not re-litigated here) |
 | **R** Restricted (pending contract) | ⚰️ stale, see note | ⚰️ stale, see note | **18** (was 27; −9 as Finnhub's 7 rows and AlphaVantage's 2 rows leave R for LA — the first reduction in R itself since the Massive/FMP answers. This register's own named list of survivors is now: T-02, T-12, T-16–T-19, T-22, T-27, T-59, T-62–T-64, T-68, T-79, T-81, N-18, N-20, N-23 — counts to exactly 18) |
-| **U** Unknown | 16 (T-25 counted R; T-31 counted R) | 2 (N-17, N-24) | **14** (was 20; −4 Finviz −2 Schwab. T-31 and T-20 remain U from the original Massive-Business 8; T-59 and the FRED rows remain U pending the structural per-series check; the 4 permanently-U FMP rows remain U) |
+| **U** Unknown | 16 (T-25 counted R; T-31 counted R — ⚰️ T-31 since moved, see its own row) | 2 (N-17, N-24) | **13** (was 20; −4 Finviz −2 Schwab −1 T-31 (deployed 2026-09-20). T-20 remains U from the original Massive-Business 8; T-59 and the FRED rows remain U pending the structural per-series check; the 4 permanently-U FMP rows remain U) |
 | **X** Unsuitable | 8 (T-67, T-69, T-71–T-76) | 0 | **8** |
 | — (machinery) | 0 | 1 (N-26) | **1** |
 
@@ -404,7 +405,7 @@ open is a read, a counsel note, an owner decision, or a later research pass — 
 lacks a row above**; if a future edit adds a U cell without an ESC id, that is the defect this
 section exists to catch.
 
-**Measurements that are not escalations** — facts a read-only observation settles, listed so nobody buys a contract to learn them: (m1) whether Massive-sourced prices arrive real-time or 15-min delayed — one timestamped `/api/live-prices` sample during RTH against the wall clock (E-03 GAPS; F-03b §7.2), moves the exchange-fee side of T-01/T-03/T-05/N-01; (m2) whether `/api/bars/*`, `/api/stream/*` and `/api/breadth-monitor/live` answer unauthenticated — three GETs (E-03 GAPS "per-route auth not exhaustively swept"); (m3) ⚰️ ~~whether the same-day dark-pool `/v3/trades` lane runs inside or outside the 15-minute interval~~ — **MEASURED AND FIXED 2026-09-19 (T-31): it did not; a code fix now enforces the floor, pushed to `feat/s7-price-level` (`2c6f4cd7e`), NOT yet merged to master or deployed** — this is the one item on this list that turned out not to be a passive read-only observation, since the answer was unfavorable and needed a code change, not just a note; (m4) which FRED catalog series carry a copyright tier (ESC-15); (m5) store sizes and row counts on the volume (owner-present only); (m6) `bars.db` retention — a scheduler-side sweep outside the inspected files cannot be excluded (E-04 GAPS #6). The rest were not run by this program (production and the volume are contract-forbidden).
+**Measurements that are not escalations** — facts a read-only observation settles, listed so nobody buys a contract to learn them: (m1) whether Massive-sourced prices arrive real-time or 15-min delayed — one timestamped `/api/live-prices` sample during RTH against the wall clock (E-03 GAPS; F-03b §7.2), moves the exchange-fee side of T-01/T-03/T-05/N-01; (m2) whether `/api/bars/*`, `/api/stream/*` and `/api/breadth-monitor/live` answer unauthenticated — three GETs (E-03 GAPS "per-route auth not exhaustively swept"); (m3) ⚰️ ~~whether the same-day dark-pool `/v3/trades` lane runs inside or outside the 15-minute interval~~ — **MEASURED, FIXED, AND DEPLOYED (T-31): it did not; a code fix now enforces the floor in production** (`2c6f4cd7e` on `feat/s7-price-level`, cherry-picked to master as `408b9a33f` 2026-09-20, Railway `web` SUCCESS, `/api/health` uptime reset confirmed) — this is the one item on this list that turned out not to be a passive read-only observation, since the answer was unfavorable and needed a code change, not just a note; (m4) which FRED catalog series carry a copyright tier (ESC-15); (m5) store sizes and row counts on the volume (owner-present only); (m6) `bars.db` retention — a scheduler-side sweep outside the inspected files cannot be excluded (E-04 GAPS #6). The rest were not run by this program (production and the volume are contract-forbidden).
 
 ---
 
