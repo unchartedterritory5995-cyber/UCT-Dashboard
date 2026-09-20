@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 
+const settleSpy = vi.fn()
+vi.mock('../../lib/offline/settleNoteWrite', () => ({
+  settleNoteWrite: (...a) => settleSpy(...a),
+}))
+
 import NoteCalendarView, { noteDateKey, datedDefs } from './NoteCalendarView'
 
 /**
@@ -20,7 +25,13 @@ const n = (id, title, date, prop = REVIEW.id) => ({
   id, title, propertiesJson: date === null ? {} : { [prop]: date },
 })
 
+let onChanged
 beforeEach(() => {
+  settleSpy.mockReset().mockResolvedValue('2026-09-20T00:00:00Z')
+  onChanged = vi.fn()
+  global.fetch = vi.fn(() => Promise.resolve({
+    ok: true, json: () => Promise.resolve({ note: { id: 'a' } }),
+  }))
   vi.useFakeTimers()
   // Mid-month so prev/next never cross a year boundary by accident.
   vi.setSystemTime(new Date('2026-09-15T17:00:00Z'))
@@ -32,8 +43,15 @@ const renderCal = (props = {}) => render(
     notes={[]}
     propertyDefs={[REVIEW]}
     onOpenNote={vi.fn()}
+    blockedNoteIds={new Set()}
+    onChanged={onChanged}
     {...props}
   />,
+)
+
+const dropOn = (cellLabel, noteId) => fireEvent.drop(
+  screen.getByRole('gridcell', { name: cellLabel }),
+  { dataTransfer: { getData: () => noteId } },
 )
 
 describe('date parsing', () => {
@@ -153,6 +171,80 @@ describe('NoteCalendarView', () => {
     expect(within(screen.getByRole('gridcell', { name: '2026-09-10' })).getByText('Both')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'p:due' } })
     expect(within(screen.getByRole('gridcell', { name: '2026-09-20' })).getByText('Both')).toBeInTheDocument()
+  })
+
+  // ── rescheduling: a WRITE door, so the fork guard is the first question ──
+
+  it('dragging a note to another day RECORDS its revision', async () => {
+    // ⛔ Same rule as the board: a PUT that advances updatedAt and tells the
+    // durable layer nothing makes the drain fork the note.
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    dropOn('2026-09-17', 'a')
+    await vi.waitFor(() => expect(settleSpy).toHaveBeenCalledTimes(1))
+    expect(settleSpy.mock.calls[0][0]).toBe('a')
+  })
+
+  it('dragging sends the NEW DAY, merged, for the grouping property', async () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    dropOn('2026-09-17', 'a')
+    await vi.waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    const [url, opts] = global.fetch.mock.calls[0]
+    expect(url).toBe('/api/j2/notes/a')
+    expect(opts.method).toBe('PUT')
+    expect(JSON.parse(opts.body)).toEqual({
+      properties: { 'builtin:review_date': '2026-09-17' },
+    })
+  })
+
+  it('the note appears on the new day immediately', async () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    dropOn('2026-09-17', 'a')
+    await vi.waitFor(() => {
+      expect(within(screen.getByRole('gridcell', { name: '2026-09-17' }))
+        .getByText('NVDA review')).toBeInTheDocument()
+    })
+    expect(within(screen.getByRole('gridcell', { name: '2026-09-10' }))
+      .queryByText('NVDA review')).toBeNull()
+  })
+
+  it('dropping on Unscheduled CLEARS the date (null, not a string)', async () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    fireEvent.drop(screen.getByRole('region', { name: 'Unscheduled' }),
+      { dataTransfer: { getData: () => 'a' } })
+    await vi.waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)
+      .properties['builtin:review_date']).toBeNull()
+  })
+
+  it('dropping a note on the day it already has writes nothing', async () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    dropOn('2026-09-10', 'a')
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(settleSpy).not.toHaveBeenCalled()
+  })
+
+  it('refuses to move a note whose words have not reached the server', async () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')], blockedNoteIds: new Set(['a']) })
+    dropOn('2026-09-17', 'a')
+    await vi.waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+    expect(screen.getByRole('status').textContent).toMatch(/not reached the server/i)
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('a blocked note is not draggable', () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')], blockedNoteIds: new Set(['a']) })
+    expect(screen.getByText('NVDA review').closest('button'))
+      .toHaveAttribute('draggable', 'false')
+  })
+
+  it('a failed drag puts the note back on its original day', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }))
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    dropOn('2026-09-17', 'a')
+    await vi.waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+    expect(within(screen.getByRole('gridcell', { name: '2026-09-10' }))
+      .getByText('NVDA review')).toBeInTheDocument()
+    expect(settleSpy).not.toHaveBeenCalled()
   })
 
   it('says what to do when the notebook has no date property', () => {

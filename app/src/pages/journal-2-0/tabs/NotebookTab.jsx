@@ -898,16 +898,19 @@ export default function NotebookTab() {
               the whole notebook.
             */}
             {/*
-              ⛔ Calendar is READ-ONLY, so unlike the board it could in principle
-              render over Trash — it is still excluded, because a month of
-              deleted notes under a Trash header is a view nobody asked for and
-              the four view modes should mean the same thing everywhere.
+              ⛔ Calendar WRITES now (drag a note to another day), so it is
+              excluded from Trash for the same reason the board is: its chips
+              carry a control that edits a note the member has thrown away.
+              ⚰️ This comment used to justify the exclusion by saying the
+              calendar was read-only. It was, for one commit.
             */}
             {viewMode === 'calendar' && !isTrashView ? (
               <NoteCalendarView
                 notes={notes}
                 propertyDefs={propertyDefs}
                 onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
+                onChanged={refresh}
               />
             ) : viewMode === 'board' && !isTrashView ? (
               <NoteBoardView

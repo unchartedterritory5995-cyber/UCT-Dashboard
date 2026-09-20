@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
-import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
 import styles from './NoteBoardView.module.css'
 
 /**
  * Board view — the notes of the current selection, grouped into columns by one
  * `select` property, with a drag (or a tap) to move a note between them.
  *
- * ⛔⛔ EVERY MOVE IS A NOTE WRITE, SO EVERY MOVE MUST RECORD ITS REVISION.
- * `settleNoteWrite` is not optional politeness here. A `PUT /notes/{id}` that
- * advances `updatedAt` and tells the durable layer nothing makes guard 2's
- * `serverCopyIsOurs` answer "not ours" about this browser's own write, and the
- * drain FORKS the note. That is measured, it was live in production, and five
- * of six doors had the bug (see settleNoteWrite's own header). A board drag is
- * door number seven.
+ * ⛔⛔ EVERY MOVE IS A NOTE WRITE, AND THE WRITE RULES LIVE IN ONE PLACE.
+ * `lib/useOptimisticNoteProperty.js` owns the fork-safety (`settleNoteWrite`),
+ * the merge-not-replace body, the blocked-note refusal and the
+ * override-expiry. The calendar performs the same write, and two copies of a
+ * fork guard is a guard neither copy can be mutation-proved in — killing one
+ * leaves the other green. Do not re-implement any of it here.
  *
  * ⛔ ONLY A `select` PROPERTY CAN GROUP A BOARD. `multi_select` would place one
  * note in several columns at once and leave a drop ambiguous — which of the
@@ -94,108 +93,35 @@ export default function NoteBoardView({
     return used || defs[0]
   }, [defs, groupById, notes])
 
-  /**
-   * Optimistic overrides: noteId -> { value, at }, where `at` is the note's
-   * `updatedAt` AT THE MOMENT OF THE MOVE.
-   *
-   * ⛔⛔ AN OVERRIDE MUST EXPIRE, AND THE TRIGGER IS "THE SERVER SPOKE", NOT
-   * "THE SERVER AGREED". This started as a bare `noteId -> value` map that
-   * nothing ever cleared, under a comment claiming the parent's re-fetch
-   * cleared it — a mechanism nobody had wired. The board then held its own
-   * value for the life of the mount, so changing that property in the EDITOR
-   * and coming back showed the stale one: a second authority over a value the
-   * server owns.
-   *
-   * ⭐ Keying on `updatedAt` is what makes it correct in BOTH directions. Once
-   * the note's revision advances the override is dropped unconditionally —
-   * whether the new value is the one we sent (our save landed) or a different
-   * one (somebody edited it elsewhere). Dropping only on agreement would keep
-   * the stale value in exactly the case that matters.
-   */
-  const [moved, setMoved] = useState({})
-  const [busy, setBusy] = useState({})
-  const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(null)
-
   const blocked = blockedNoteIds || new Set()
 
-  const columns = useMemo(() => (def ? columnsFor(def) : []), [def])
+  // ⛔ One shared implementation — see the header.
+  const { setProperty, overrideFor, isBusy, error } = useOptimisticNoteProperty({
+    notes, blockedNoteIds, onChanged,
+  })
 
-  // Retire every override whose note has since moved on. Runs on the notes
-  // the parent handed us, so it fires exactly when new server truth arrives.
-  useEffect(() => {
-    setMoved((m) => {
-      const ids = Object.keys(m)
-      if (!ids.length) return m
-      const next = {}
-      let dropped = false
-      for (const id of ids) {
-        const note = (notes || []).find((n) => n.id === id)
-        if (note && note.updatedAt !== m[id].at) { dropped = true; continue }
-        next[id] = m[id]
-      }
-      return dropped ? next : m
-    })
-  }, [notes])
+  const columns = useMemo(() => (def ? columnsFor(def) : []), [def])
 
   const byColumn = useMemo(() => {
     if (!def) return {}
     const out = {}
     for (const c of columns) out[c.id] = []
     for (const n of notes || []) {
-      const override = moved[n.id]
-      const col = override ? override.value : columnIdFor(n, def)
+      const ov = overrideFor(n.id)
+      const col = ov !== undefined ? ov : columnIdFor(n, def)
       ;(out[col] || out[NO_VALUE]).push(n)
     }
     return out
-  }, [notes, columns, def, moved])
+  }, [notes, columns, def, overrideFor])
 
-  const move = useCallback(async (note, toColumnId) => {
+  const move = useCallback((note, toColumnId) => {
     if (!def || !note) return
-    const from = columnIdFor(note, def)
-    if (from === toColumnId) return
-    if (blocked.has?.(note.id)) {
-      // ⛔ Not a silent refusal. A note whose words have not reached the server
-      // is exactly the note a member must not be told they have filed.
-      setError(BLOCKED_TITLE)
-      return
-    }
-    setError('')
-    setMoved((m) => ({ ...m, [note.id]: { value: toColumnId, at: note.updatedAt } }))
-    setBusy((b) => ({ ...b, [note.id]: true }))
-    try {
-      const value = toColumnId === NO_VALUE ? null : toColumnId
-      const res = await fetch(`/api/j2/notes/${note.id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        // MERGE, not replace — `properties` is merged server-side, so moving a
-        // card can never clobber a property this board never displayed.
-        body: JSON.stringify({ properties: { [def.id]: value } }),
-      })
-      if (!res.ok) throw new Error(`save failed (${res.status})`)
-      // ⛔⛔ THE LINE THAT STOPS A FORK. Never delete it; never move the fetch
-      // above it into a helper that forgets it.
-      await settleNoteWrite(note.id, res)
-      if (onChanged) onChanged()
-    } catch (e) {
-      // ⛔ Roll back to where it CAME FROM, never to un-set. A failed move that
-      // silently lands a card in "No value" is a property the member never
-      // cleared.
-      setMoved((m) => {
-        const next = { ...m }
-        delete next[note.id]
-        return next
-      })
-      setError('That did not save. The card has been put back.')
-    } finally {
-      setBusy((b) => {
-        const next = { ...b }
-        delete next[note.id]
-        return next
-      })
-    }
-  }, [def, blocked, onChanged])
+    if (columnIdFor(note, def) === toColumnId) return
+    // ⛔ The un-set column clears the property, so it sends null rather than
+    // the sentinel string the UI uses to name that column.
+    setProperty(note, def.id, toColumnId === NO_VALUE ? null : toColumnId)
+  }, [def, setProperty])
 
   if (!defs.length) {
     return (
@@ -215,7 +141,7 @@ export default function NoteBoardView({
           id="board-group-by"
           className={styles.groupSelect}
           value={def?.id || ''}
-          onChange={(e) => { setGroupById(e.target.value); setMoved({}) }}
+          onChange={(e) => setGroupById(e.target.value)}
         >
           {defs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
@@ -252,7 +178,7 @@ export default function NoteBoardView({
                   return (
                     <article
                       key={n.id}
-                      className={`${styles.card} ${busy[n.id] ? styles.cardBusy : ''}`}
+                      className={`${styles.card} ${isBusy(n.id) ? styles.cardBusy : ''}`}
                       draggable={!isBlocked}
                       onDragStart={(e) => { e.dataTransfer.setData('text/plain', n.id) }}
                     >
@@ -273,8 +199,8 @@ export default function NoteBoardView({
                           <span className={styles.srOnly}>{`Move ${n.title || 'Untitled'} to`}</span>
                           <select
                             className={styles.move}
-                            value={moved[n.id] ? moved[n.id].value : columnIdFor(n, def)}
-                            disabled={Boolean(busy[n.id])}
+                            value={overrideFor(n.id) !== undefined ? overrideFor(n.id) : columnIdFor(n, def)}
+                            disabled={isBusy(n.id)}
                             onChange={(e) => move(n, e.target.value)}
                           >
                             {columns.map((c) => (

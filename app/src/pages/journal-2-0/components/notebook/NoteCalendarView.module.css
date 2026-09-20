@@ -192,3 +192,24 @@
   .dowRow, .week { min-width: 520px; }
   .cell, .padCell { min-height: 68px; }
 }
+
+/* A day being hovered with a note in the air. Same gold as the board's column,
+   because it means the same thing. */
+.cellOver {
+  background: rgba(201, 168, 76, 0.10);
+  box-shadow: inset 0 0 0 1px var(--ut-gold, #c9a84c);
+}
+
+.chipBusy { opacity: 0.55; }
+
+.error {
+  font-size: 11px;
+  color: var(--loss-border, #f87171);
+}
+
+.emptyUnsched {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim, #7c848f);
+}

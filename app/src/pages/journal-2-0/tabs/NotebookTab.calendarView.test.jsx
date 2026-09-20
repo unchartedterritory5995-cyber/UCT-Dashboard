@@ -14,7 +14,7 @@ import { MemoryRouter } from 'react-router-dom'
  * independently. What each file uniquely pins:
  *   graph    — must NOT receive `notes` (it reads the whole notebook)
  *   board    — MUST receive `notes`, plus `onChanged` (it writes)
- *   calendar — MUST receive `notes`, and must NOT receive the write props
+ *   calendar — MUST receive `notes` AND the write props (it reschedules)
  */
 
 const mockRefresh = vi.fn()
@@ -107,15 +107,20 @@ describe('NotebookTab — calendar view wiring', () => {
     expect(screen.queryByTestId('note-card')).toBeNull()
   })
 
-  it('is handed the current slice and its property defs, and NO write props', () => {
+  it('is handed the current slice, its property defs, AND the write props', () => {
     renderTab()
     fireEvent.click(calBtn())
     expect(calProps.notes.map((n) => n.id)).toEqual(['n1', 'n2'])
     expect(calProps.propertyDefs).toBeDefined()
-    // ⛔ Read-only in v1. Handing it onChanged/blockedNoteIds would advertise a
-    // write path that does not exist and has no settleNoteWrite behind it.
-    expect(calProps.onChanged).toBeUndefined()
-    expect(calProps.blockedNoteIds).toBeUndefined()
+    // ⚰️ This test asserted the OPPOSITE for one commit, when the calendar was
+    // read-only: `onChanged`/`blockedNoteIds` had to be ABSENT so the view could
+    // not advertise a write path with no settleNoteWrite behind it. Dragging a
+    // note to another day is that write path now, it goes through
+    // useOptimisticNoteProperty, and the props are required -- without
+    // `blockedNoteIds` the view cannot refuse a note whose words have not
+    // reached the server, and without `onChanged` the list never re-fetches.
+    expect(typeof calProps.onChanged).toBe('function')
+    expect(calProps.blockedNoteIds).toBeDefined()
   })
 
   it('clicking a day chip opens that note', () => {

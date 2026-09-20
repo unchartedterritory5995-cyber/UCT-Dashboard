@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { buildMonthGrid, monthLabel, dowLabels, todayET, monthOffset } from '../../lib/calendar'
+import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
+import { BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
 import styles from './NoteCalendarView.module.css'
 
 /**
@@ -28,11 +30,19 @@ import styles from './NoteCalendarView.module.css'
  * "No value" column and the graph's unlinked nodes: a note with no review date
  * is exactly what a member opens this view to notice.
  *
- * ⚠️ READ-ONLY BY DESIGN IN v1, and that is a scope decision rather than an
- * oversight. Drag-to-reschedule would be a seventh write door and would need
- * the same `settleNoteWrite` treatment the board carries; shipping half of
- * that is how a note gets forked. The follow-up is named in the board's
- * header, which already documents the safe pattern.
+ * ⛔⛔ RESCHEDULING GOES THROUGH `useOptimisticNoteProperty`, THE SAME ONE
+ * WORD THE BOARD USES. It owns the fork-safety (`settleNoteWrite`), the
+ * merge-not-replace body, the blocked-note refusal and the override expiry.
+ * ⚰️ This view shipped read-only for exactly one reason — a second copy of
+ * that write path is a fork guard that can be mutation-proved in neither copy.
+ * The hook was extracted first; only then did dragging arrive.
+ *
+ * ⛔ DRAG IS AN ENHANCEMENT, NOT THE ONLY PATH, AND THE KEYBOARD PATH IS REAL.
+ * HTML5 drag never fires on touch, so on a phone (and for anyone using a
+ * keyboard) the way to move a note is to click its chip, which opens the note
+ * where the date property is editable in the properties section. That is an
+ * equivalent path, which is what WCAG 2.1.1 actually asks for — not a second
+ * date picker bolted onto every one of 35 day cells.
  */
 
 /** A leading YYYY-MM-DD, or null. Deliberately strict — see the header. */
@@ -56,8 +66,14 @@ export function datedDefs(propertyDefs) {
   return (propertyDefs || []).filter((d) => d.type === 'date')
 }
 
-export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
+export default function NoteCalendarView({
+  notes, propertyDefs, onOpenNote, blockedNoteIds, onChanged,
+}) {
   const defs = useMemo(() => datedDefs(propertyDefs), [propertyDefs])
+  const [dragOver, setDragOver] = useState(null)
+  const { setProperty, overrideFor, isBusy, error } = useOptimisticNoteProperty({
+    notes, blockedNoteIds, onChanged,
+  })
 
   const [pickedId, setPickedId] = useState(null)
   const def = useMemo(() => {
@@ -78,12 +94,14 @@ export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
     const map = {}
     const none = []
     for (const n of notes || []) {
-      const key = noteDateKey(n, def)
+      const ov = overrideFor(n.id)
+      // An override of null means "just unscheduled"; a string is the new day.
+      const key = ov !== undefined ? ov : noteDateKey(n, def)
       if (!key) { none.push(n); continue }
       ;(map[key] = map[key] || []).push(n)
     }
     return { byDate: map, unscheduled: none }
-  }, [notes, def])
+  }, [notes, def, overrideFor])
 
   const weeks = useMemo(
     () => buildMonthGrid(cursor.year, cursor.month),
@@ -110,6 +128,34 @@ export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
   }
 
   const go = (delta) => setCursor((c) => monthOffset(c.year, c.month, delta))
+  const blocked = blockedNoteIds || new Set()
+
+  const drop = (ev, dateOrNull) => {
+    ev.preventDefault()
+    setDragOver(null)
+    const id = ev.dataTransfer.getData('text/plain')
+    const note = (notes || []).find((n) => n.id === id)
+    if (!note || !def) return
+    if (noteDateKey(note, def) === dateOrNull) return
+    setProperty(note, def.id, dateOrNull)
+  }
+
+  const chip = (n, extraClass = '') => {
+    const isBlocked = blocked.has?.(n.id)
+    return (
+      <button
+        key={n.id}
+        type="button"
+        draggable={!isBlocked}
+        onDragStart={(ev) => ev.dataTransfer.setData('text/plain', n.id)}
+        className={`${styles.chip} ${extraClass} ${isBusy(n.id) ? styles.chipBusy : ''}`}
+        title={isBlocked ? BLOCKED_TITLE : (n.title || 'Untitled')}
+        onClick={() => onOpenNote && onOpenNote(n)}
+      >
+        {n.title || 'Untitled'}
+      </button>
+    )
+  }
 
   return (
     <div className={styles.wrap}>
@@ -139,6 +185,7 @@ export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
         >
           {defs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
+        {error ? <span className={styles.error} role="status">{error}</span> : null}
         {elsewhere > 0 ? (
           <span className={styles.elsewhere}>
             {elsewhere} more in other months
@@ -163,20 +210,13 @@ export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
                   key={cell.date}
                   role="gridcell"
                   aria-label={cell.date}
-                  className={`${styles.cell} ${isToday ? styles.cellToday : ''}`}
+                  className={`${styles.cell} ${isToday ? styles.cellToday : ''} ${dragOver === cell.date ? styles.cellOver : ''}`}
+                  onDragOver={(ev) => { ev.preventDefault(); setDragOver(cell.date) }}
+                  onDragLeave={() => setDragOver((d) => (d === cell.date ? null : d))}
+                  onDrop={(ev) => drop(ev, cell.date)}
                 >
                   <span className={styles.dayNum}>{cell.day}</span>
-                  {dayNotes.map((n) => (
-                    <button
-                      key={n.id}
-                      type="button"
-                      className={styles.chip}
-                      title={n.title || 'Untitled'}
-                      onClick={() => onOpenNote && onOpenNote(n)}
-                    >
-                      {n.title || 'Untitled'}
-                    </button>
-                  ))}
+                  {dayNotes.map((n) => chip(n))}
                 </div>
               )
             })}
@@ -184,25 +224,30 @@ export default function NoteCalendarView({ notes, propertyDefs, onOpenNote }) {
         ))}
       </div>
 
-      {unscheduled.length ? (
-        <section className={styles.unscheduled} aria-label="Unscheduled">
+      {/*
+        ⛔ ALWAYS RENDERED, NOT ONLY WHEN IT HAS CONTENT. It is the drop target
+        that CLEARS a date, so gating it on `unscheduled.length` means the only
+        way to unschedule a note is to already have an unscheduled note — the
+        control disappears exactly when you first need it. Same ruling as the
+        board's "No value" column, which is also always present. Caught by the
+        test for that drop, not by looking at the screen.
+      */}
+      <section
+          className={`${styles.unscheduled} ${dragOver === '__unsched__' ? styles.cellOver : ''}`}
+          aria-label="Unscheduled"
+          onDragOver={(ev) => { ev.preventDefault(); setDragOver('__unsched__') }}
+          onDragLeave={() => setDragOver((d) => (d === '__unsched__' ? null : d))}
+          onDrop={(ev) => drop(ev, null)}
+        >
           <h4 className={styles.unschedHead}>
             Unscheduled <span className={styles.count}>{unscheduled.length}</span>
           </h4>
           <div className={styles.unschedList}>
-            {unscheduled.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={styles.chip}
-                onClick={() => onOpenNote && onOpenNote(n)}
-              >
-                {n.title || 'Untitled'}
-              </button>
-            ))}
+            {unscheduled.length
+              ? unscheduled.map((n) => chip(n))
+              : <p className={styles.emptyUnsched}>Drag a note here to clear its date</p>}
           </div>
         </section>
-      ) : null}
     </div>
   )
 }
