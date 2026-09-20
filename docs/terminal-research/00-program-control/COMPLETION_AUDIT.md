@@ -58,7 +58,7 @@ definition of complete" asks a row to say.
 
 | family | distinct ids | source of truth |
 |---|---|---|
-| **F-*** (findings) | **31** | harvested from the doc tree by `tools/harvest_followups.py` — ⭐ DERIVED, never counted by hand. +7 on 2026-09-13: F-AUDIT-2, F-S5-1, F-CAT-1, F-D2-2, F-S2-1, and two S7 ids the harvester reached once their packets were written |
+| **F-*** (findings) | ⚰️ was **31** | ⚰️ **THIS DISAGREED WITH §3.1'S OWN HEADING (34) IN THE SAME DOCUMENT.** §3.1 is the section whose job is to BE this count (*"Do not re-type it: run the harvester"*) — its 34, harvested 2026-09-13, is the one that should have been mirrored here; this row went stale on its own instead. ⛔ **Re-running `tools/harvest_followups.py` today (2026-09-20) returns 128 distinct `F-*` ids, not 34 or 31** — but that jump is NOT this roster growing; it is a **newly-found namespace collision, the same shape as the H/G-prefix ambiguity below**: the tool sweeps the WHOLE doc tree, and a second, unrelated remediation programme (`packet-a`…`packet-v` gates + their `E CP*`/`K CP*`/`T CP*`/`T2 CP*` build records under `12-decisions/gates/`) now also uses `F-<TAG>-<N>` ids (e.g. `F-CI-2` through `F-CI-46`) that have nothing to do with the 32-system TERMINAL-NEXT roster this file tracks. Those records postdate 2026-09-13 (`SESSION_REPORT_2026-09-15_*`), which is why the 2026-09-13 harvest still read 34. **Flagged, not resolved**: the harvester has no scope flag to separate the two programmes' F-* registers, so a genuine re-derivation of "how many F-* findings belong to THIS roster" needs either a scoping fix to the tool or a manual per-id classification — a real follow-up item, not a number this pass should guess. |
 | **OI-*** (owner inputs) | **21** | `OWNER_INPUTS_REQUESTED.md`, OI-01…OI-21 |
 | **DEC-*** (decisions) | **16** | two registers: DEC-01…DEC-09 (readiness), DEC-10…DEC-15 (architectural) |
 | **H\*** (rules) | **6 rules** + 25 hypotheses | ⚠️ **TWO DIFFERENT REGISTERS SHARE THE PREFIX** — see §3.4 |
@@ -71,13 +71,31 @@ BOOKKEEPING**, found by this audit: `H14` is a hazard RULE (a live-hazard is a h
 capability-ledger gap. Any instruction naming "H1" or "G5" is ambiguous until the register is
 named. **Recorded as a follow-up in §3.4; not silently disambiguated here.**
 
-### Gate packets — 18 on disk
+### Gate packets — 21 in the roster, re-verified 2026-09-20 against each packet's own status line
+
+⚰️ **This sub-table said "17 of 21 SIGNED / 3 UNSIGNED (entity-master, S1, S9) / 1 NO PACKET
+(S6)."** Read fresh against every packet's own frontmatter status line (not this table's prior
+claim about it): **every one of the 21 roster packets has at least its CP1 signed** — including
+S1 (CP1 `0a267d174`, now also CP2 `e86c92b6f`), S9 (CP1 signed+built 2026-09-19, CP2 `f808508f7`),
+and S6 (CP1 `b3073c67c` — this table said S6 had "NO PACKET AT ALL"; it has one, on disk, signed).
+"UNSIGNED" and "NO PACKET" both drop to **zero** within the 21.
 
 | | count | which |
 |---|---|---|
-| **SIGNED** | **17** of 21 | D2, D5, H14, I1, S10, S12, S4, all seven S7 types, **+ D3, D4, S5 signed 2026-09-12** |
-| **UNSIGNED** | **3** | entity-master (S3, already BUILT) + **S1, S9**. ✅ **S2 CP1 signed 2026-09-13** (`7ae6d9ca2`); its CP2+ stay OI-06-blocked |
-| **NO PACKET AT ALL** | **1** | **S6** only — S1/S2/S9 packets written 2026-09-13, EMPTY approval blocks, each naming the owner input it waits on |
+| **SIGNED (≥CP1)** | **21 of 21** | D2, D3, D4, D5, H14, I1, S1, S2, S4, S5, S6, S9, S10, S12, all seven S7 types |
+| **UNSIGNED** | **0** | — |
+| **NO PACKET AT ALL** | **0** | — |
+
+⚠️ **"Signed" here means at least CP1 is authorized — it does NOT mean every checkpoint in a
+packet is signed or built.** D4/D5's CP1-only fingerprints, S2/S6's multi-CP packets, and every
+S7 type's still-open CP4+flip are the further, per-checkpoint detail — see §1.1/§1.2/§2, not this
+table.
+
+⚠️ **entity-master (S3) is deliberately NOT one of the 21** — it is the separate bookkeeping
+anomaly already named below (§0's own note, lines just after this table): S3 shipped CP1–8
+**without a signed packet at all** (`entity-master-pre-implementation-gate.md` status: *"final —
+presented to owner, awaiting explicit approval"*, verified 2026-09-20, still true). It is tracked
+here for visibility, not counted in the 21/21.
 
 ⭐ **UPDATED AFTER THE PRE-SIGNED BATCH (`f3235f4f7`).** D3/D4/S5 CP1 and five S7 CP3 lines were
 signed on the owner's instruction. ⛔ **THAT MOVES THEM OUT OF BLOCKED-SPEC-READ AND INTO A STATE
@@ -99,8 +117,8 @@ blocker class.
 
 | system | current | DONE means (cited) | gap | blocker |
 |---|---|---|---|---|
-| **S1** Terminal Shell | ✅ **CP1 BUILT AND MERGED** `b7e7541a0` (2026-09-14) | product-architecture §5-A.1 — a shell that hosts surface kinds from a manifest | ⚰️ was *"BLOCKED-OWNER — OI-06"*. OI-06 was answered 2026-09-14 (telemetry-derived-defaults.md); CP1 turned out not to need it. **CP2** (shell reads the manifest for one property) is the next open checkpoint, now unblocked. | **DONE** for CP1; CP2 buildable |
-| **S2** Command / Search | ✅ **CP1 + CP2 BUILT AND MERGED** `feb7ba1f8` / `095f27f97` | §5-A.2 — a keyboard registry with one binding table | ⚰️ was *"BLOCKED-OWNER — OI-06"*, same correction as S1. `chords.js` has exactly ONE real chord (`SHIFT_F`) — **CP3** (one more surface adopts) is the next open checkpoint, now unblocked. | **DONE** for CP1/CP2; CP3 buildable |
+| **S1** Terminal Shell | ✅ **CP1 BUILT AND MERGED** `b7e7541a0` (2026-09-14); ⚰️ was *"CP2 buildable"* — **CP2 SIGNED (owner, 2026-09-19, `e86c92b6f`) AND MERGED to master** (`8baca199b`, confirmed an ancestor of `origin/master`; `app/src/surfaces/pageTitle.js` + `usePageTitle()` in `Layout.jsx`) | product-architecture §5-A.1 — a shell that hosts surface kinds from a manifest | ⚰️ was *"BLOCKED-OWNER — OI-06"*. OI-06 was answered 2026-09-14 (telemetry-derived-defaults.md); CP1 turned out not to need it, CP2 did and is now built. **CP3+** ("surface kinds become real") was gated on OI-06 answered + the A2 registry decision (gate packet §3) — OI-06 is answered and A2 is now DONE too (line 131), so CP3 may already be proposable; not yet checked in detail or proposed. | **DONE** for CP1 and CP2; CP3 worth checking next, not yet proposed |
+| **S2** Command / Search | ✅ **CP1-CP6 ALL SIGNED, BUILT, AND MERGED** — CP1 `feb7ba1f8` / CP2 `095f27f97` / CP3 `ad0abe637` / CP4 `f8175989d` / CP5 `66ee4e6b4` / CP6 `1e765b577`, confirmed live on `origin/master` (`ChartPane.jsx`/`Watchlists.jsx` import `chordById`/`matchesChord` from `chords.js`) | §5-A.2 — a keyboard registry with one binding table, now closing all 5 original Shift+F surfaces | ⚰️ was *"BLOCKED-OWNER — OI-06"*, same correction as S1. ⚰️ was *"`chords.js` has exactly ONE real chord (`SHIFT_F`) — CP3 (one more surface adopts) is the next open checkpoint"* — CP3-CP6 are now all signed and merged, closing every original surface. Separately, **F-S2-1** (the Ctrl/Cmd+Shift+F collision found while building CP1, §3.4f below) is fully closed: signed `72cda4cda`, fix merged+deployed `0fb91d427`. | **DONE** — CP1-CP6 all signed/built/merged; F-S2-1 closed |
 | **S3** Entity Master | **SHIPPED** CP1–8 `ed6b1f041` | entity-master-spec §all | ⚠️ its gate packet is **UNSIGNED** despite the system being built — a bookkeeping gap, not a build gap | **DONE** (packet noted in §2) |
 | **S4** Context Bus | ✅ **CP1–CP3 SIGNED AND BUILT** (`f6df6dca1` CP2, `f4b06a886` CP3) | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP3 (`HubContext.symbol` now derives from `useAppFocus`) was browser-verified per §7's own requirement — a real `MutationObserver` render-cost measurement across a full nav cycle, given the 2026-09-10 render-freeze precedent on this exact module. CP4 (TickerHubContext), CP5 (setVoicePageHint), CP6 (snapshot baseline), CP7 (timeframe authority) are each their own line. | **DONE** for CP1–CP3; CP4+ buildable |
 | **S5** Persistence & User State | ✅ **CP2–CP4 SIGNED AND BUILT** (`9c7c634da` CP2, `41ffcc91c` CP3, `ea7178473` CP4) | persistence-user-state-spec — a typed store for list/preference documents | CP1's Notebook-pattern extraction stays deferred (F-S5-1, its own named condition — a second adopter existing AND 30 days live, 2026-10-12). S5-C was ruled: Tracings moves off `user_preferences` to its own store rather than growing that endpoint's other 70 call sites a compare-and-set. CP3 built the backend (dedicated table, CAS), CP4 wired `useTracingsSync.js` to it, dark behind `TRACINGS_STORE_ENABLED=false`. CP5 (default-ON, member-visible) needs a browser-certification matrix at Wave Q1's own tier before its own line. | **DONE** for CP2–CP4; CP5 needs a browser-cert pass first |
@@ -108,20 +126,20 @@ blocker class.
 | **S7** Alerts | **8 of 8 types registered**; **every CP3 merged and ARMED** as of 2026-09-13; dark-comparison READ completed 2026-09-18 (production-verified via `railway ssh` + independent yfinance cross-check) | alerts-monitoring-spec §5 — every type registered, comparable, and flipped | ⚰️ This said *"the dark READ, then the flip"* as if the flip followed automatically. The read is done and RULED: **HOLD**, under explicit owner delegation 2026-09-18 (DECISION_CARDS_2026-09-18.md CARD 6) — not because the new evaluator disagrees with legacy (it doesn't; the one apparent disagreement, RMIX, is the two rules' designed semantics working as specified), but because the persistence-semantics question (one-shot vs. re-fires) is genuinely unmade product scope, the n=10 sample is thin and partly synthetic, and there is zero trendline/anchor-rewrite coverage — real member-facing risk this delegation does not resolve unilaterally. | **RULED-HOLD** — a real decision, not a block; `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED` stays in dark-comparison mode |
 | **S8** Provenance & Freshness | SHIPPED | provenance-freshness-spec | full `<Cited>` still D2-gated | **BLOCKED-DEPENDENCY** — D2 |
 | **S9** Entitlements | ✅ **CP1 SIGNED AND BUILT** (2026-09-19) — the entitlement axis enumerated from source as inert data, plus two mechanical fixes (Login.jsx trial-routing bug, FREE_PAGES triplication) | — | ⚰️⚰️ **OI-03(a)/(b), OI-12 and OI-09 all ANSWERED BY THE OWNER 2026-09-19** (not the blanket "we have all licensing and approval" statement itself, which was asked back precisely and answered per-question). **(a) Massive tier: CONFIRMED Business/Enterprise, already held** — this corrects, same day, an earlier and more tentative owner statement ("beta phase, commercial upgrade planned but not yet in place"); a direct check afterward found Business was already in force. **(b)** FMP DDLA confirmed to exist (15 of 19 FMP-gated licensing-register rows move R→LA). **(c) paid-only model** confirmed matching current code exactly. **OI-09/OI-E02-09: UCT CONFIRMED staying downstream** — not a vendor of record; N-26's attestation machinery is deliberately not built. **✅ CP2 SIGNED 2026-09-20** (fingerprint `f808508f7`, gate packet §8): reading the 30 unlocked rows individually rather than as a count found 19 already LIVE (zero member-visible effect — Business tier retroactively authorizes what members already see) and 11 unbuilt TERMINAL-NEXT candidates (also zero effect today; only unblocked for a future, separate proposal) — CP2 is a documentation-only checkpoint, no code/flag/schema change. ⚰️ **Every one of the 8 rows that stayed U on four distinct facts is now RESOLVED**: **ESC-05** (T-23, T-24, T-25, N-07, N-08 — does Massive's own agreement name OPRA display and pay the $1,500/mo floor) — ANSWERED 2026-09-19, written Massive confirmation, favourably. **ESC-14** (N-19 — alert display vs. non-display use) — ANSWERED, same confirmation, favourably. **T-31** (the same-day dark-pool lane's ≥15-min lag) — MEASURED 2026-09-19 (not enforced), FIXED same day, **DEPLOYED TO PRODUCTION 2026-09-20** (`408b9a33f` on master, Railway `web` SUCCESS, `/api/health` uptime reset confirmed). **T-20** (ESC-21 + OI-03(d) — paid-Substack Edge User + signed addenda) — **ANSWERED 2026-09-20**, Massive and FMP in writing. | ✅ **DONE** — CP1 and CP2 both signed, every owner fact in this system answered |
-| **S10** Presentation Primitives | **SHIPPED** `3c539d011` · CP2 `6576f044e` | presentation spec | F-S10-1 residue (§3.1) | **DONE** with one open finding |
+| **S10** Presentation Primitives | **SHIPPED** `3c539d011` · CP2 `6576f044e` | presentation spec | ⚰️ was *"F-S10-1 residue (§3.1)"* — **residue confirmed absent, 2026-09-20** (§3.1: exactly 2 `formatPrice` sites, both forwarding to `presentationPrimitives.js`) | **DONE** — no open finding |
 | **S11** Session / Clock | SHIPPED | — | none | **DONE** |
-| **S12** Rollout | 1st `56df6803f` · 2nd `78ba40fe8` | rollout spec — role checks become cohort tags | cohort 6, projected 6 (union with admins) | **DONE** |
+| **S12** Rollout | 1st `56df6803f` · 2nd `78ba40fe8` | rollout spec — role checks become cohort tags | ⚰️ was *"cohort 6, projected 6"* — in-pod verified per `2026-09-13-roster-after-two-build-days.md`: cohort 6, **projected 12**, unchanged | **DONE** |
 
 ### 1.2 Data platform (D-series)
 
 | system | current | DONE means (cited) | gap | blocker |
 |---|---|---|---|---|
 | **D1** Provider Abstraction | SHIPPED, census GREEN | provider-abstraction-spec | G5 quarantine entry cleared | **DONE** |
-| **D2** Canonical Data Model | CP1 `b9783d509` · CP2 `ffa8102c7` · CP3 store `0b8cf4c41`+`40bf07c99` | canonical-data-model-spec §§1–6 | **CP3 gate needs Monday's samples**; §9.5 indicator axis unsigned | **BLOCKED-DATA** + **BLOCKED-SPEC-READ** |
+| **D2** Canonical Data Model | CP1 `b9783d509` · CP2 `ffa8102c7` (narrowed) · top-level CP3 (dual-compute flip) mechanism built `0b8cf4c41`+`40bf07c99`, still needs its own approval line · **§4-CP4 (indicator axis, PRD §9.5) SIGNED AND MERGED** `404b808c5` / fingerprint `3257cc319` · §4-CP3 (retire timeframe-map duplicates) SIGNED, fingerprint `8c5f83ca0`, code not yet merged | canonical-data-model-spec §§1–6 | ⚰️ was *"CP3 gate needs Monday's samples; §9.5 indicator axis unsigned"* — §9.5 is signed and merged (see current column); the gate packet's own wording was never "Monday's samples" to begin with. The one genuinely open item is the **top-level CP3 dual-compute flip**, which needs real member traffic (0 rows collected as of 2026-09-19), plus §4-CP3's signed-but-unmerged code. | **BLOCKED-DATA** (top-level CP3 needs traffic) + one signed-not-yet-built checkpoint (§4-CP3) |
 | **D3** Realtime Streaming | ✅ **CP1/CP2/CP3 BUILT AND MERGED** `302f99e8e`/`af9fe21a6`/`21405e045` | realtime-streaming-spec | ⚰️ was *"UNSIGNED, no CP1 authorized"* — CP1 was owner-signed 2026-09-12. CP4 (the first real consumer, S7's price-level sweep) is the next open checkpoint and is a real architectural bet (§4 marks it the first non-inert one) — not proposed this session. | **DONE** for CP1–CP3; CP4 needs its own owner read |
-| **D4** Caching & Serving | spec + gate written, **UNSIGNED** | caching-and-serving-spec | no CP1 authorized | **BLOCKED-SPEC-READ** |
+| **D4** Caching & Serving | ✅ **CP1-CP3 SIGNED AND BUILT** `40caca541` (`f2a2a68a6`/`388cad07c`/`dc5752b16`) · **CP4′ SIGNED AND BUILT** `23a8da7a9` (`3c070bee7`, confirmed on `origin/master`) | caching-and-serving-spec | ⚰️ was *"spec + gate written, UNSIGNED"* — CP1–CP3 were signed and built 2026-09-12/13 (this doc's own §2 build log already had this), and CP4′ (the corrected earnings_table cache-key assertion from F-D4-1) was signed 2026-09-18 and built the same window. **The one real remaining item: CP5 (`ticker_logos.py`'s resolution-decision cache) has no approval line at all** — it is unscoped, not merely unsigned-with-a-line-written. | **DONE** for CP1–CP4′; CP5 is the one genuinely open, unscoped proposal |
 | **D5** Reference & Corp-Actions | **CP1, CP3, CP4, CP5, CP6, CP7 MERGED** — `9458ea641`/`3bf13974a`/`da2930cec`/`c7ac0b7bc`/`76fb85247`/`e38d47b55` | reference-corp-actions-spec | ⚰️ was *"CP2–CP7 unsigned."* CP3–CP5 and CP7 shipped 2026-09-18 (the adjustment-basis endpoint, member-visible). CP6 (renamed-only) shipped the same day on a re-investigation that found a real, previously-missed vendor source (`/vX/reference/tickers/{ticker}/events`) for confirmed ticker changes — verified live against production; still no vendor source exists for merger/relation_added, so that half of CP6 stays unbuilt by design. **CP2 (the inert `corp_actions.db` ledger, spec §4.1) remains unsigned/unbuilt** — its own §4 row already classifies it as read by nothing, so nothing else in D5 is waiting on it. | **DONE** for every checkpoint anyone is waiting on; CP2 is the one genuinely open proposal, un-authorized, not blocking |
-| **D8** Portfolio/risk deferral | deferred in its own block | — | owner-bound | **EXCLUDED-by-deferral** → counted under BLOCKED-OWNER |
+| **DEC-08** Portfolio/risk deferral | ⚰️ was labeled "D8" — renamed to **DEC-08** 2026-09-11 (`2b1633c81`) per the standing rule that a bare `Dn` means the SYSTEM and a decision is always `DEC-nn`; this table never picked up the rename. Deferred in its own block, still gated on OI-06. Checked: OI-06's actual 2026-09-19 answer is about desk-tool benchmarks (thinkorswim/TradingView/Finviz/Unusual Whales), not whether the desk needs a corp-actions/portfolio-risk calendar daily — it does **not** trigger DEC-08's unblock condition. | — | owner-bound | **EXCLUDED-by-deferral** → counted under BLOCKED-OWNER |
 
 ### 1.3 Application (A-series) + intelligence
 
@@ -130,14 +148,14 @@ blocker class.
 | **A1** Markets | live surface | no quote field is addressable | **BLOCKED-DEPENDENCY** — D2 |
 | **A2** Charts & Analytics | live surface | ⚰️ was *"S1 + S2 both gated on OI-06"* — OI-06 was answered by the owner directly 2026-09-19 (`DECISION_CARDS_2026-09-18.md` §7d), and S1/S2 themselves are DONE-with-an-open-CP (their remaining CPs are code-buildable, not owner-blocked). A2 inherits no independent blocker of its own beyond that. | **DONE** — unblocked with S1/S2; no open ruling of its own |
 | **A3/A4** · **A5** · **A6/A7** · **A8** | SHIPPED | none | **DONE** (4 rows) |
-| **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — but it fires **dark, flag OFF**. A9 needs CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — arm the dark flag, read it, sign CP4 + FLIP |
-| **A10** Options & Flow | live, partner-owned | D3 + D4 as systems | **BLOCKED-DEPENDENCY** |
+| **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — it fires dark; ⚰️ was *"flag OFF"* — **armed 2026-09-13, in-process `1`** (§4 Flag Ledger). A9 needs the dark comparison read + CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — read the dark comparison, sign CP4 + FLIP |
+| **A10** Options & Flow | live, partner-owned | ⚰️ was *"D3 + D4 as systems"* — both systems are now DONE for every checkpoint anyone is waiting on (§1.2). The gap narrows to **D3's CP4** (S7's price-level consumer, unproposed) **+ D4's CP5** (ticker_logos, unscoped) | **BLOCKED-DEPENDENCY** — narrower than a whole-system wait |
 | **A11** Breadth & Regime | live surface | ✅ `regime-change` CP3 merged `506eeee6d`, ARMED 2026-09-13 — but it compares **dark**. Still needs the one-regime ruling, D2 coverage, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip, the one-regime ruling — + **BLOCKED-DEPENDENCY** (D2) |
-| **A12** Watchlists | half-live | S5 + S6 | **BLOCKED-DEPENDENCY** |
+| **A12** Watchlists | half-live | ⚰️ was *"S5 + S6"* as a dependency block — both are now DONE (§1.1: S5 CP2–CP4 signed+built; S6 CP2'/CP3/CP4 built, CP5 closed by ruling). A12 inherits no dependency block anymore; matching the A2/A14 correction style, what remains is that A12 **needs its own new checkpoint** proposed against the now-unblocked systems — not yet done | **needs its own new checkpoint** — no longer BLOCKED-DEPENDENCY |
 | **A13** Journal | live (528 files) | ✅ `position-risk` CP3 merged `6a67a4b5d`, ARMED 2026-09-13 — but it compares **dark**. Still needs D2, S5, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip — + **BLOCKED-DEPENDENCY** (D2, S5) |
-| **A14** Portfolio & Risk | no member door | D8 + S9 | ⚰️ **OI-03, OI-12 ANSWERED; S9 CP2 SIGNED 2026-09-20 (see S9 row).** **BLOCKED-DEPENDENCY on D8 only** — S9 no longer blocks this at all |
+| **A14** Portfolio & Risk | no member door | DEC-08 (⚰️ was labeled "D8" — renamed 2026-09-11, `2b1633c81`; see DEC-08 row) + S9 | ⚰️ **OI-03, OI-12 ANSWERED; S9 CP2 SIGNED 2026-09-20 (see S9 row).** **BLOCKED-DEPENDENCY on DEC-08 only** — S9 no longer blocks this at all |
 | **E1** | outside the named roster | — | **EXCLUDED** |
-| **I1** Intelligence Layer | SHIPPED, 3 slices, `1c426c199` | F-I1-2 parked by owner | **DONE** with one parked finding |
+| **I1** Intelligence Layer | SHIPPED, 3 slices, `1c426c199` | ⚰️ was *"F-I1-2 parked by owner (browser checks)"* — **F-I1-2 shipped 2026-09-14** (`17d7e2ef5`, confirmed on `origin/master`: derived refusal reasons, 13 test cases in `tests/test_ticker_explain_refusal_names_the_gap.py`; the owner-facing before/after artifact is `verification/2026-09-14/F-I1-2-refusal-before-after.md`, substituting for a live browser session). ⚠️ Its own SLICE 3 approval block is separately flagged **MALFORMED** (BY/ON/AT-SHA filled, SCOPE APPROVED left blank — `intelligence-layer-pre-implementation-gate.md`, flagged 2026-09-19, deliberately not guessed at) — code shipped, but the bookkeeping gap is real and still open | **DONE** — code shipped; one malformed-approval bookkeeping gap open |
 
 ---
 
@@ -146,10 +164,10 @@ blocker class.
 | packet | signed | checkpoints AUTHORIZED | BUILT | gap |
 |---|---|---|---|---|
 | D2 | ✅ | CP1, CP2 (NARROWED) | CP1, CP2, **CP3 store built ahead of its line** | ⚠️ CP3 has no approval line; the store is log-only and fires nothing |
-| D5 | ✅ | CP1 | CP1 | CP2–CP7 unsigned |
+| D5 | ✅ | CP1, CP3, CP4, CP5, CP6 (renamed-only half), CP7 | CP1, CP3, CP4, CP5, CP6 (renamed-only half), CP7 | ⚰️ was *"CP2–CP7 unsigned"* — CP3/4/5/7 shipped 2026-09-18, CP6 shipped the same day (renamed-only; no vendor source exists for merger/relation_added, so that half stays unbuilt by design). **CP2 (the inert `corp_actions.db` ledger) is the one genuinely open, unauthorized checkpoint** — read by nothing, so nothing else in D5 is waiting on it |
 | H14 | ✅ | the whole scope | all, + AMD fixture | none |
 | I1 | ✅ | 3 slices | 3 | none |
-| S10 | ✅ | CP1, CP2 | both | F-S10-1 residue |
+| S10 | ✅ | CP1, CP2 | both | ⚰️ was *"F-S10-1 residue"* — confirmed absent 2026-09-20, see §3.1 |
 | S12 | ✅ | migration 1, 2 | both | none |
 | S4 | ✅ | CP1 | CP1 | CP2 unsigned |
 | S7 `price-level` | ✅ | CP1–CP3, CP3b | all | dark read pending |
@@ -159,9 +177,9 @@ blocker class.
 | S7 `scan-membership-change` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `regime-change` | ✅ | CP1–CP3 | all | dark read pending |
 | S7 `indicator-condition` | ✅ | CP1–CP3 | all | dark read pending — ⛔ and 30 of 31 predicates are NOT COMPARABLE by vocabulary (F-S7-IC-1), so the read will be about the ONE comparable pair |
-| D3 | ❌ | — | — | unsigned |
-| D4 | ❌ | — | — | unsigned |
-| S5 | ❌ | — | — | unsigned |
+| D3 | ✅ | CP1, CP2, CP3 | CP1, CP2, CP3 | ⚰️ was *"❌ unsigned"* — CP1/CP2/CP3 all signed and built (CP3 fingerprint `f028e4390`, 2026-09-19). CP4 (S7 price-level's first real consumer) not yet proposed |
+| D4 | ✅ | CP1, CP2, CP3, CP4′ | CP1, CP2, CP3, CP4′ | ⚰️ was *"❌ unsigned"* — CP1–CP3 signed+built under one fingerprint `40caca541`; CP4′ signed+built separately `23a8da7a9`. **CP5 (ticker_logos) has no approval line at all** — the one genuinely open, unscoped item |
+| S5 | ✅ | CP2, CP3, CP4 | CP2, CP3, CP4 | ⚰️ was *"❌ unsigned"* — CP2/CP3/CP4 signed and built (`9c7c634da`/`41ffcc91c`/`ea7178473`, see §1.1). CP1 (Notebook-pattern extraction) stays deferred per F-S5-1; CP5 (default-ON) needs a browser-certification pass first |
 | entity-master (S3) | ❌ | — | S3 is BUILT | ⚠️ **built without a signed packet** — recorded, not re-litigated |
 
 ⛔ **TWO BOOKKEEPING ANOMALIES THIS AUDIT FOUND, NEITHER OF THEM A BUILD PROBLEM:** S3 shipped
@@ -183,10 +201,10 @@ whose job is to be the count. **Do not re-type it: run the harvester.**
 | id | origin | status | what closes it |
 |---|---|---|---|
 | **F-D2-1** | D2 CP2 — fundamentals has no declaration to ratify | **OPEN** | write the fundamentals declaration if it is writable; else EXCLUDE with the reason |
-| **F-D2-2** | D2 CP1 | OPEN | — needs re-read |
+| **F-D2-2** | D2 CP1 | ⚰️ was OPEN — needs re-read | **CLOSED** — PRD-D2 §9.5 is signed and merged, as **GATE-D2 CP4** (fingerprint `3257cc319`, built `404b808c5`) rather than the "§9.5 CP1" name the blocking line used; `s7-indicator-condition-pre-implementation-gate.md` §~19 already resolves the naming mismatch and confirms it is the same artifact |
 | **F-D2-3** | D2 CP1 | OPEN | — needs re-read |
-| **F-I1-1 … F-I1-6** | I1 slices | I1-2 **PARKED by owner** (browser checks); 1,3,4,5,6 recorded | F-I1-2: owner's browser run |
-| **F-S10-1** | a price has two right renderings | **CLOSED** by S10 CP2 `6576f044e` — ⚠️ residue to confirm | confirm no third rendering site remains |
+| **F-I1-1 … F-I1-6** | I1 slices | ⚰️ was *"I1-2 PARKED by owner (browser checks)"* — **F-I1-2 shipped `17d7e2ef5`, 2026-09-14** (confirmed on `origin/master`); 1,3,4,5,6 recorded | F-I1-2: the SLICE 3 approval block backing it is MALFORMED (blank scope text, flagged 2026-09-19) — a bookkeeping gap, not a build gap |
+| **F-S10-1** | a price has two right renderings | **CLOSED** by S10 CP2 `6576f044e` — **residue confirmed absent**, 2026-09-20 | `git grep -n "formatPrice" origin/master -- app/src` shows exactly **2** `formatPrice` function DEFINITIONS — `components/chart/drawingLabels.js:75` and `components/provenance/presentationFormat.js:88` — and both are one-line forwards (`return formatPriceTick(...)` / `return formatPriceDisclosure(...)`) to `lib/presentation/presentationPrimitives.js`'s canonical implementations. Every other grep hit is either a call site importing one of the two forwards, or a test (`priceIsTwoPrimitives.test.js` etc.) proving byte-identity with the pre-S10 bodies. No third, independent rendering site exists. |
 | **F-S10-2** | `<Cited>` ET label | **CLOSED** `e909279e1` | — |
 | **F-S7-1 … F-S7-5** | S7 wave 1 | F-S7-5 **CLOSED** `5ff6fc04a`; others recorded | — |
 | **F-S7-CM-1** | catalyst-match | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `4fa45489f` |
@@ -279,10 +297,19 @@ scope describing work its packet's §4 does not contain — remain exactly the t
 **Each of the six is closed by NUMBERING the packet, not by re-signing it**, and all six describe
 work that is already delivered, so none of them blocks the queue.
 
-### ⛔ 3.4f F-S2-1 (new, 2026-09-13) — Ctrl/Cmd+Shift+F FLAGS A TICKER ON THREE SURFACES
+### ✅ 3.4f F-S2-1 (new, 2026-09-13) — Ctrl/Cmd+Shift+F FLAGS A TICKER ON THREE SURFACES — CLOSED
+
+⚰️ **This section's heading was ⛔ (open) with a "what closes it" ask below.** F-S2-1 is
+**CLOSED**: signed (fingerprint `72cda4cda`, its own gate packet
+`s2-accelerator-chord-pre-implementation-gate.md`) and the guard-change fix is merged and
+deployed (`0fb91d427`, confirmed an ancestor of `origin/master` via `git merge-base
+--is-ancestor`). The three loose surfaces (`TickerPopup.jsx`, `ThemeTrackerPage.jsx`,
+`Watchlists.jsx`) now carry the tightened `!repeat && !ctrl && !alt && !meta` guard shape from
+`ChartPane.jsx`, and `LOOSE_MODIFIER_BASELINE` in `chordCollision.test.js` is empty. The
+narrative below is kept as the historical record of what was found and why CP1 didn't fix it.
 
 > **Found by building S2 CP1's collision rail. The 2026-08-28 fixture is not history — it is still
-> shipped, in its MODIFIER form.**
+> shipped, in its MODIFIER form.** *(as of the original 2026-09-13 finding — now fixed, see above)*
 
 Five surfaces claim `Shift+F` (flag the ticker) and they do not agree on which modifiers they
 answer, measured on `feb7ba1f8`:
@@ -310,7 +337,13 @@ leave the list deliberately rather than letting the record outlive the defect.
 closes. ⚠️ It is a behaviour change a member can feel (a chord that used to flag stops flagging), so
 it wants a line of its own rather than riding along.
 
-### ⛔⛔ 3.4e F-D2-2 (new, 2026-09-13) — §6 ASSERTED A SIGNATURE THAT DOES NOT EXIST
+### ✅ 3.4e F-D2-2 (new, 2026-09-13) — §6 ASSERTED A SIGNATURE THAT DOES NOT EXIST — CLOSED
+
+⚰️ **CLOSED.** The §9.5 addendum this section says is missing a signature is now signed and
+merged — as **GATE-D2 CP4** (fingerprint `3257cc319`, built `404b808c5`), the §4-naming rule's
+renumbering of what this section calls "§9.5 CP1." `indicator-condition`'s own gate packet
+resolves the naming mismatch explicitly and both CP3 (indicator-condition, built `d31b78b75`) and
+D2 CP4 are live. The narrative below is kept as the historical record of what was found.
 
 > **§6 row 9 read *"⚠️ SIGNED by the owner 2026-09-13"* for D2 §9.5 CP1. No artifact supports it,
 > and the build stopped rather than proceeding on the claim.**
@@ -350,10 +383,20 @@ build-queue item.
 ⚠️ Until 1 and 3, `indicator-condition` CP3 would ship *"a projection over predicates that all
 refuse — not a smaller CP3, a CP3 with nothing in it"* (PRD §9.5, verbatim).
 
-### ⛔⛔ 3.4d F-CAT-1 (new, 2026-09-13) — THE CATALYST ENGINE IS BILLING AND WRITING NOTHING
+### ✅ 3.4d F-CAT-1 (new, 2026-09-13) — THE CATALYST ENGINE IS BILLING AND WRITING NOTHING — FIXED
 
-> **Found while dry-running catalyst-match CP3. It is NOT this programme's to fix, and it is
-> reported rather than left to be rediscovered.**
+⚰️ **FIXED.** ⚰️ This said *"It is NOT this programme's to fix"* — the owner ruled otherwise the
+same day (*"production outage takes priority over the queue... fixed because it's live"*,
+`LEDGER.md`'s cross-program section) and it WAS fixed, on this programme's branch: merged
+**`f49da5ed6`** to `origin/master` 2026-09-13 (confirmed a direct ancestor). Root cause:
+`engine.py` had eight consecutive unguarded enrichment calls between the billed LLM call and the
+first `store.upsert_catalyst()`, so one exception skipped persistence entirely while still
+billing. `catalyst_runs` is now a durable run receipt so a recurrence would not take four days to
+find again. **Separately, F-CAT-2** (hunter calls billing on a near-empty/hallucinated prompt) is
+also **CLOSED**, fixed 2026-09-18 (`7899ae8d5`, confirmed merged to `origin/master`). The narrative
+below is kept as the historical record of what was found.
+
+> **Found while dry-running catalyst-match CP3.**
 
 Measured in the pod, read-only, `/data/catalysts.db`:
 
@@ -379,9 +422,7 @@ set; with no rows there is **nothing to compare**, and the sweep will record `di
 ⛔ **That must never be read as agreement** — it is the absence of an input, which is exactly the
 `UNREADABLE is not zero` distinction this programme keeps paying for.
 
-**What closes it:** somebody who owns the catalyst engine reads the 09-08 → 09-09 boundary. **Not
-touched here** — a fix outside a signed scope is how scopes stop meaning anything, and this is a
-different subsystem from Terminal-Next.
+**What closed it:** ⚰️ was *"somebody who owns the catalyst engine reads the 09-08 → 09-09 boundary. Not touched here..."* — the owner ruled it should be touched here (production outage priority), and it was: `f49da5ed6`, merged 2026-09-13, see the section heading above.
 
 ### 3.4c F-AUDIT-2 (new) — the derived §4 audit was retired under the two-correction rule
 
@@ -475,9 +516,10 @@ state and says nothing about whether they should still be on.
 
 `RESUME.md` states A9's condition precisely: *"CP1–CP2 fires nothing; **A9 needs fires**."* CP3
 now merged (`df937146c`), and what it delivers is a **dark projection**: `alert_fires` + receipts
-written for a comparison, behind `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED`, which reads
-**`None` in the running process** (verified in-pod), for the `rollout:s7-dark` cohort only, with
-no delivery import anywhere in the three modules.
+written for a comparison, behind `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED`. ⚰️ This said the
+flag *"reads `None` in the running process"* — it is **armed** (§4 Flag Ledger above: "armed
+2026-09-13, in-process `1`"), for the `rollout:s7-dark` cohort only, with no delivery import
+anywhere in the three modules.
 
 ⭐ **So the fires exist and no member can receive one.** A9's capability — a member being told a
 name entered or left their screen — is delivered by **CP4 plus the FLIP**, each of which needs its
@@ -488,9 +530,9 @@ application" was measuring the wrong boundary.
 answer: there is nothing to cite. Writing one now would design against a flip decision the owner
 has not made.
 
-**What closes A9, exactly:** the owner arms `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1`, reads
+**What closes A9, exactly:** ⚰️ was *"the owner arms `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1`, reads the dark comparison..."* — the flag is already armed. The owner (or a delegated session) reads
 the dark comparison, then signs `scan-membership-change` **CP4** and the **FLIP** line. A9's packet
-follows the flip, not the other way round.
+follows the flip, not the other way round. **This is the real remaining work — not yet done.**
 
 ⚠️ **The same correction applies to A11 and A13 below** — `regime-change` CP3 and `position-risk`
 CP3 move each of them from a build dependency to the same owner-bound flip, and neither is an

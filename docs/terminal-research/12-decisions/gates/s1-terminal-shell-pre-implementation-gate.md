@@ -2,10 +2,15 @@
 id: GATE-S1
 title: Terminal Shell — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ✅ CP1 BUILT AND MERGED (`b7e7541a0`, 2026-09-14). CP2 is unblocked — OI-06 was
-  answered 2026-09-14 (verification/2026-09-14/OI-06-telemetry-derived-defaults.md) —
-  and is the next signable checkpoint. Corrected 2026-09-19; this line previously said
-  "UNSIGNED... EMPTY", which was already false the day it was written.
+status: ✅ CP1 BUILT AND MERGED (`b7e7541a0`, 2026-09-14). ✅ CP2 SIGNED (fingerprint
+  `e86c92b6f`, 2026-09-19, owner delegation) AND BUILT/MERGED (`8baca199b`, confirmed
+  an ancestor of `origin/master`; `app/src/surfaces/pageTitle.js` + `usePageTitle()`
+  in `Layout.jsx`). ⚰️ This said *"CP2 is unblocked... the next signable checkpoint"*
+  — it is signed and built now, not merely unblocked. CP3+ ("surface kinds become
+  real") is the next open item; OI-06 is answered and A2 is DONE too, so it may
+  already be proposable — not yet checked in detail. Corrected 2026-09-19/20; this
+  line previously said "UNSIGNED... EMPTY", which was already false the day it was
+  written.
 date: 2026-09-13
 ---
 

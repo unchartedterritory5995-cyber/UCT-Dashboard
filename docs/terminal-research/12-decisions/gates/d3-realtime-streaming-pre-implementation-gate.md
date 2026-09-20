@@ -3,16 +3,21 @@ id: GATE-D3-REALTIME-STREAMING
 title: D3 — Realtime Streaming — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
 status: ✅ CP1 APPROVED AND MERGED (`302f99e8e`, 2026-09-13) · CP2 also built and merged
-  (`d3-cp2-build-record.md`, fingerprint `f7e851d58`) · CP3 is the next open checkpoint
-  (see spec §G3 — a read-only bars-lane staleness indicator). Corrected 2026-09-19; this
-  line previously said "NOT APPROVED... empty", which was already false the day after
-  it was written.
+  (`d3-cp2-build-record.md`, fingerprint `f7e851d58`) · ✅ CP3 (G3 — the read-only
+  bars-lane staleness indicator + D3-D's overlay-live status field) also SIGNED
+  (`d3-cp3-build-record.md`, fingerprint `f028e4390`, 2026-09-19) and BUILT
+  (`21405e045` on `feat/s7-price-level`, cherry-picked to `origin/master` as
+  `3c4645ac9` — `last_tick_age()`/`bars_overlay_live` confirmed live in that tree
+  2026-09-20). ⚰️ This said *"CP3 is the next open checkpoint"* — it is closed. CP4
+  (the first real consumer, S7's price-level sweep) is the next open item and has not
+  been proposed. Corrected 2026-09-19/20; this line previously said "NOT APPROVED...
+  empty", which was already false the day after it was written.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-D3-REALTIME-STREAMING
 ---
 
-# ✅ D3 CP1/CP2 approved and merged; CP3 open
+# ✅ D3 CP1/CP2/CP3 approved and merged; CP4 open (⚰️ was "CP1/CP2 approved and merged; CP3 open")
 
 ## ⛔ APPROVAL
 
