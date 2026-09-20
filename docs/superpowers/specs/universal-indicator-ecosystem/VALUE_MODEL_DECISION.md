@@ -116,6 +116,41 @@ from.
   and because the collections work needs element types regardless. The lexer
   already carries them as `typeArgs` from plan 1.
 
+## ⭐⭐ WHAT IT ACTUALLY COST, MEASURED ON THE REAL VM (2026-09-19)
+
+The spike above predicted about **1.2x** on a numeric-only program. That was a
+standalone ISA in `tools/c5_value_model_spike/`, not this engine. Re-measured on
+`engine/runtime/vm.js` itself, on a persistent-slot recurrence
+(`acc := acc * 0.9 + close * 0.1`) over 20,000 bars, by swapping the three
+containers back to `Float64Array` and running the two arms **interleaved, median
+of 5**:
+
+| arm | median ns/instruction | range |
+|---|---|---|
+| boxed (shipped) | **201.93** | 150.13 – 217.86 |
+| unboxed (what it replaced) | **201.38** | 155.41 – 227.46 |
+
+**Ratio 1.003x — no measurable cost.** The ranges overlap almost entirely and
+the spread WITHIN each arm is larger than the gap between them. The prediction
+does not reproduce here; boxing the slots is free on numeric work in this VM.
+
+⛔ **The ABSOLUTE figure is not a benchmark and must not be quoted as one.** It
+was taken with the box at 99.5% CPU across 28 node processes, which is why one
+arm varies ~25% between rounds. Interleaving is what makes the RATIO survive
+that — the contention lands in both arms. A later run on a quieter box read
+124.65 ns/instruction for the same program, which is the same finding about the
+measurement, not a different finding about the code.
+
+⚠️ **An open question this raised, out of scope and recorded rather than
+chased:** ~200 ns/instruction is roughly 100x slower than a switch-dispatch loop
+should manage, and that is true of BOTH arms, so it is not about the value
+model. It points at per-bar bookkeeping (history rings, window buffers, budget
+charging) running even for a program that uses none of it. That belongs to a
+performance task.
+
+Standing rail: `engine/runtime/__tests__/boxedNumericCost.test.js`, which
+asserts a collapse ceiling rather than a stored comparison.
+
 ## Open, and deliberately not settled here
 
 - **Object handles** (`table`, `line`, `label`, `box`) are ids into the C3B
