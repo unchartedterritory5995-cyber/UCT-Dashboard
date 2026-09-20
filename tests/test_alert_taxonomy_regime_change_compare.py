@@ -190,7 +190,16 @@ def _drive_real_path_b(monkeypatch, *, current_label, summary_text,
     ⚠️ `maybe_emit_regime_shift` swallows every exception and returns 0, so a
     broken stub would look exactly like "did not fire". Every caller below pairs
     its assertion with a positive control for that reason.
+
+    ⛔ `init_db()` is required even when `add_insight` is stubbed: F-S7-RC-3's
+    fix added a real read of `voice_proactive_insights` (`_regime_shift_already_told`)
+    INSIDE `maybe_emit_regime_shift`, ahead of the (stubbable) write, so an
+    uninitialized auth DB now makes the whole call silently swallow a
+    "no such table" exception and look exactly like "did not fire" — the
+    same failure mode the docstring above already warns about, from a new source.
     """
+    from api.services.auth_db import init_db
+    init_db()
     from api.services import voice_memory_service as vms
     from api.services import voice_proactive_service as vps
     from api.services import voice_regime_classifier as vrc
@@ -313,15 +322,26 @@ def test_F_S7_RC_1_a_NULL_SYMBOL_insight_has_NO_cooldown_and_a_named_one_does():
     assert len(_insight_rows(uid2, "regime_flip")) == 1
 
 
-def test_F_S7_RC_3_path_B_REFIRES_for_an_unchanged_summary_until_the_shared_cap(monkeypatch):
-    """⛔⛔ SHARPER THAN F-S7-RC-1, AND NEW. Path A survives the missing cooldown
-    because the LEDGER moves — the next cycle's `prev_label` is the label just
-    recorded. Path B has no ledger: it diffs against the member's last session
-    SUMMARY, which does not change until they have another voice session.
+def test_F_S7_RC_3_path_B_no_longer_refires_for_an_unchanged_summary(monkeypatch):
+    """⚰️ FIXED 2026-09-20, owner-directed (OWNER_INPUTS.md B5). This test used
+    to be named `..._REFIRES_..._until_the_shared_cap` and asserted the BUG: 8
+    identical `regime_shift` rows landing for one unchanged summary, bounded
+    only by `MAX_INSIGHTS_PER_USER_PER_DAY` (shared across every insight kind,
+    so it also crowded out that member's `daily_focus`).
 
-    So every window scan queues ANOTHER `regime_shift` row for the same unchanged
-    flip, and the only bound is `MAX_INSIGHTS_PER_USER_PER_DAY`, which is SHARED
-    across every insight kind. Driven here with the REAL `add_insight`.
+    Path A survives the missing per-symbol cooldown because the LEDGER moves —
+    the next cycle's `prev_label` is the label just recorded. Path B has no
+    ledger: it diffs against the member's last session SUMMARY, which does not
+    change until they have another voice session, so without a dedicated check
+    every window scan re-queued the SAME row. `_regime_shift_already_told`
+    closes it by reading the most recent `regime_shift` row's own headline —
+    already `f"Regime shifted to {cur_regime}"` at write time — as the ledger
+    path A gets for free from `prev_label`.
+
+    F-S7-RC-1 (the null-symbol cooldown itself) is left as EXCLUDED per
+    OWNER_INPUTS.md B5's own conditional ("if the flip is more than a month
+    out, [fix RC-3 only]") — the flip is currently undated — so
+    `test_F_S7_RC_1_...` above is UNCHANGED and must keep passing.
     """
     from api.services.voice_proactive_service import MAX_INSIGHTS_PER_USER_PER_DAY
 
@@ -334,12 +354,28 @@ def test_F_S7_RC_3_path_B_REFIRES_for_an_unchanged_summary_until_the_shared_cap(
         fired += n
 
     rows = _insight_rows(uid, "regime_shift")
-    assert len(rows) > 1, "path B did not re-fire — F-S7-RC-3 is refuted"
-    assert len(rows) == MAX_INSIGHTS_PER_USER_PER_DAY == 8, (
-        "the ONLY thing that stopped path B was the shared daily cap")
-    assert fired == MAX_INSIGHTS_PER_USER_PER_DAY
-    # ...and every one of them is market-wide, so none was ever cooled down.
-    assert {r["symbol"] for r in rows} == {None}
+    assert len(rows) == 1, (
+        f"expected exactly one regime_shift row for an unchanged summary, got "
+        f"{len(rows)} — F-S7-RC-3's fix regressed")
+    assert fired == 1
+    assert rows[0]["symbol"] is None
+
+    # ⛔ THE CONTROL: a GENUINE new shift (a different current_label) must still
+    # fire — this is not a blanket cooldown, it is keyed on which shift was
+    # last told.
+    n2, _q2 = _drive_real_path_b(monkeypatch, current_label="bull_trend",
+                                 summary_text="we were in chop all week",
+                                 real_add_insight=True, user_id=uid)
+    assert n2 == 1, "a different regime shift must not be suppressed by the previous one"
+    assert len(_insight_rows(uid, "regime_shift")) == 2
+
+    # ⛔ AND a flap back to the FIRST regime (bear_trend again) must also fire —
+    # the most-recent-headline check is keyed on the LATEST row, not "ever told".
+    n3, _q3 = _drive_real_path_b(monkeypatch, current_label="bear_trend",
+                                 summary_text="we were in chop all week",
+                                 real_add_insight=True, user_id=uid)
+    assert n3 == 1, "a flap back to a prior regime must fire again, not stay suppressed"
+    assert len(_insight_rows(uid, "regime_shift")) == 3
 
 
 # ─────────────────────────────────────────────────────────────────────────────
