@@ -7,6 +7,7 @@ vi.mock('../../lib/offline/settleNoteWrite', () => ({
 }))
 
 import NoteCalendarView, { noteDateKey, datedDefs } from './NoteCalendarView'
+import { WRITE_FAILED_MESSAGE } from '../../lib/useOptimisticNoteProperty'
 
 /**
  * ⛔ THE LOAD-BEARING TESTS HERE ARE THE DATE-PARSING ONES.
@@ -241,7 +242,8 @@ describe('NoteCalendarView', () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }))
     renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
     dropOn('2026-09-17', 'a')
-    await vi.waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+    // ⛔ The sentence, not just the element — see the board's twin of this test.
+    await vi.waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(WRITE_FAILED_MESSAGE))
     expect(within(screen.getByRole('gridcell', { name: '2026-09-10' }))
       .getByText('NVDA review')).toBeInTheDocument()
     expect(settleSpy).not.toHaveBeenCalled()

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { buildMonthGrid, monthLabel, dowLabels, todayET, monthOffset } from '../../lib/calendar'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
@@ -68,6 +68,7 @@ export function datedDefs(propertyDefs) {
 
 export default function NoteCalendarView({
   notes, propertyDefs, onOpenNote, blockedNoteIds, onChanged,
+  initialDatePropertyId = null, onDatePropertyChange,
 }) {
   const defs = useMemo(() => datedDefs(propertyDefs), [propertyDefs])
   const [dragOver, setDragOver] = useState(null)
@@ -75,7 +76,8 @@ export default function NoteCalendarView({
     notes, blockedNoteIds, onChanged,
   })
 
-  const [pickedId, setPickedId] = useState(null)
+  // Seeded from a saved view; see the board's twin of this comment.
+  const [pickedId, setPickedId] = useState(initialDatePropertyId)
   const def = useMemo(() => {
     if (!defs.length) return null
     if (pickedId) return defs.find((d) => d.id === pickedId) || defs[0]
@@ -83,6 +85,11 @@ export default function NoteCalendarView({
     const used = defs.find((d) => (notes || []).some((n) => noteDateKey(n, d)))
     return used || defs[0]
   }, [defs, pickedId, notes])
+
+  // Report the RESOLVED date property, not the picked one.
+  useEffect(() => {
+    if (onDatePropertyChange) onDatePropertyChange(def?.id || null)
+  }, [def, onDatePropertyChange])
 
   const today = todayET()
   const [cursor, setCursor] = useState(() => ({

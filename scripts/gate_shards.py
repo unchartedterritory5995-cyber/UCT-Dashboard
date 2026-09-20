@@ -934,7 +934,7 @@ def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
                 f"> {e}\n\n"
                 f"Per-shard logs from the refused attempt were deleted ({removed} file(s)) so an\n"
                 f"empty log directory cannot be mistaken for a completed run.\n",
-                encoding="utf-8")
+                encoding="utf-8", newline="\n")
         say(f"\n  GATE INVALID: {e}\n", err=True)
         say(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n", err=True)
         say(verdict_line(EXIT_INVALID, cause=_invalid_cause(str(e))))
@@ -951,8 +951,15 @@ def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
         "reclaimed": lock.get("reclaimed"),
     }
     stamp = manifest["at"].replace(":", "-")
-    (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
+    # ⛔ newline="\n" IS LOAD-BEARING ON WINDOWS. `write_text` without it
+    # uses os.linesep, so every manifest lands CRLF while this repo stores LF and
+    # `tools/check_repo_hygiene.py` refuses the untracked file. It is invisible
+    # once staged (autocrlf normalises at `git add`), which is why it kept coming
+    # back: the committed blob looks right and the working file is wrong.
+    (out_dir / f"{stamp}.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")
+    (out_dir / f"{stamp}.md").write_text(
+        render(manifest), encoding="utf-8", newline="\n")
     say(render(manifest))
     code = verdict_exit_code(manifest, say=say)
     # ⛔ DERIVED FROM THE SAME MANIFEST AS THE EXIT CODE, in the same breath, so the line and

@@ -206,6 +206,22 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
   - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - **Saved views cover all five modes** (`SAVEABLE_VIEW_TYPES` in
+    `note_properties.py` ⇄ `SAVEABLE_VIEW_MODES` in `lib/savedViewModes.js`).
+    ⛔⛔ **ONE FACT IN TWO FILES, PINNED AGAINST EACH OTHER** by
+    `tests/test_journal_two_properties_router.py`, which PARSES the client list
+    rather than restating it — a copy in the test would be a third authority.
+    Client gains a mode the server refuses ⇒ a button that 400s; server gains
+    one the client lacks ⇒ an invisible capability. Neither file is wrong alone,
+    which is why the rail reads both. ⛔ Adding a mode is **not enough**:
+    `handleSelectView` needs a restore branch or the view saves and then opens
+    as a list — silently, because an unknown type falls back (deliberately, so a
+    view saved by a newer client cannot break an older one). ⛔ A board stores
+    `groupBy` and a calendar `dateProperty` in its spec, as property **IDs** —
+    that is what makes a saved view survive a rename. The server does not
+    resolve those two keys; the client applies them on restore, and the views
+    REPORT their resolved property up rather than the picked one (saving the
+    picked one would store "whatever the default picker chooses next time").
   - **Calendar view** (`NoteCalendarView.jsx`, fifth `viewMode`). Notes laid on a
     month grid by a `date` property. ⛔ **The month grid is NOT rederived** —
     `buildMonthGrid`/`monthLabel`/`dowLabels`/`todayET`/`monthOffset` in

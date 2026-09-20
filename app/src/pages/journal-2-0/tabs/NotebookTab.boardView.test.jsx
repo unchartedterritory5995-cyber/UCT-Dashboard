@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
@@ -137,10 +137,35 @@ describe('NotebookTab — board view wiring', () => {
     expect(screen.getAllByTestId('note-card').length).toBeGreaterThan(0)
   })
 
-  it('hides "Save view" in board mode -- the server refuses that view type', () => {
+  it('OFFERS "Save view" in board mode, and captures the GROUPING', async () => {
+    // ⚰️ Asserted the opposite while the server enum was ("list","table").
     renderTab()
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
     fireEvent.click(boardBtn())
-    expect(screen.queryByRole('button', { name: /save view/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
+
+    // ⛔ A board without what it groups by is not the view the member saved.
+    // The view REPORTS its resolved grouping up; the tab puts it in the spec.
+    expect(boardProps.onGroupByChange).toBeInstanceOf(Function)
+    expect(boardProps.initialGroupById).toBeNull()
+
+    // And the spec that actually goes to the server carries it.
+    boardProps.onGroupByChange('builtin:thesis_status')
+    fireEvent.click(screen.getByRole('button', { name: /save view/i }))
+    // ⛔ The dialog's confirm button carries the SAME name as the toolbar button
+    // that opened it, so a name query matches two. Name the field and press
+    // Enter -- which is also a real member path the component supports.
+    const nameInput = await screen.findByLabelText('Name')
+    fireEvent.change(nameInput, { target: { value: 'Active theses' } })
+    fireEvent.keyDown(nameInput, { key: 'Enter' })
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find(
+        ([u, o]) => String(u) === '/api/j2/saved-views' && o?.method === 'POST',
+      )
+      expect(call).toBeTruthy()
+      const body = JSON.parse(call[1].body)
+      expect(body.viewType).toBe('board')
+      expect(body.spec.groupBy).toBe('builtin:thesis_status')
+    })
   })
 })

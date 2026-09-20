@@ -1,0 +1,248 @@
+{
+  "at": "2026-09-19T23:01:59",
+  "tree_head_start": "c4f45103b783ff5d0309c4b98036c468da568618",
+  "tree_head_end": "c4f45103b783ff5d0309c4b98036c468da568618",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "b9fefce62687fbbd528a1d100fd19a1277431e7f",
+  "shards": 6,
+  "excluded": [],
+  "per_shard": [
+    {
+      "shard": 1,
+      "exit_code": 1,
+      "files": {
+        "failed": 8,
+        "passed": 263,
+        "skipped": 0,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 9,
+        "passed": 3419,
+        "skipped": 28,
+        "todo": 0,
+        "total": 3456
+      }
+    },
+    {
+      "shard": 2,
+      "exit_code": 1,
+      "files": {
+        "failed": 3,
+        "passed": 267,
+        "skipped": 1,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 4,
+        "passed": 3589,
+        "skipped": 5,
+        "todo": 0,
+        "total": 3598
+      }
+    },
+    {
+      "shard": 3,
+      "exit_code": 1,
+      "files": {
+        "failed": 5,
+        "passed": 266,
+        "skipped": 0,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 10,
+        "passed": 4663,
+        "skipped": 4,
+        "todo": 0,
+        "total": 4677
+      }
+    },
+    {
+      "shard": 4,
+      "exit_code": 1,
+      "files": {
+        "failed": 3,
+        "passed": 268,
+        "skipped": 0,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3652,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3654
+      }
+    },
+    {
+      "shard": 5,
+      "exit_code": 1,
+      "files": {
+        "failed": 6,
+        "passed": 265,
+        "skipped": 0,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 7,
+        "passed": 3304,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3311
+      }
+    },
+    {
+      "shard": 6,
+      "exit_code": 1,
+      "files": {
+        "failed": 1,
+        "passed": 270,
+        "skipped": 0,
+        "todo": 0,
+        "total": 271
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 4693,
+        "skipped": 0,
+        "todo": 0,
+        "total": 4694
+      }
+    }
+  ],
+  "shard_exit_codes": {
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "6": 1
+  },
+  "summed": {
+    "files": {
+      "failed": 26,
+      "passed": 1599,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1626
+    },
+    "tests": {
+      "failed": 33,
+      "passed": 23320,
+      "skipped": 37,
+      "todo": 0,
+      "total": 23390
+    }
+  },
+  "test_files_on_disk": 1626,
+  "test_files_waived": 0,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/Layout.pageTracking.test.jsx [ src/components/Layout.pageTracking.test.jsx ]",
+    "src/components/Layout.routeSuspense.test.jsx [ src/components/Layout.routeSuspense.test.jsx ]",
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/builder/BuilderSheet.pine.test.jsx > paste a real screener script and get a working scan > \u2b50 the SAVED DOCUMENT is byte-identical to the same formula typed by hand",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx > \ud83d\udd34 the offered call can be ACCEPTED from the box > \u26d4 the Pine door shows the offer and NO button \u2014 it cannot name the place",
+    "src/components/chart/builder/documentSize.measure.test.js > C2B.2 \u2014 the document-size distribution of the frozen 60 > source, AST, presentation and final document bytes",
+    "src/components/chart/builder/documentSize.measure.test.js > C2B.2/.3 \u2014 where the blocked document spends its bytes > \u26b0\ufe0f high_engagement__03-supertrend-kivancozbilgic builds NO document at all",
+    "src/components/chart/builder/graphSize.measure.test.js > C2C.10 \u2014 the blocked document, against the cap as it stands > \u26b0\ufe0f high_engagement__03-supertrend-kivancozbilgic builds NO V1 document at all",
+    "src/components/chart/builder/graphSize.measure.test.js > C2C.9 \u2014 V1 vs V2 document size across the frozen 60 > the distribution, and how many clear the UNCHANGED cap",
+    "src/components/chart/builder/objectDemandCensus.test.js > C3B.1 \u2014 the object-demand census > every family, every shape class, across the frozen 60",
+    "src/components/chart/builder/objectLadder.test.js > C3B ladder \u2014 LEVEL 10: a real reachable OOS composite > \u26d4 \u2026and what it could NOT carry is counted, not hidden",
+    "src/components/chart/builder/objectLadder.test.js > C3B ladder \u2014 LEVEL 10: a real reachable OOS composite > \u2b50\u2b50 a published script from the reachable 27 draws its dashboard",
+    "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u26d4 all three reach the member WITH a suggestion \u2014 through the shipped door",
+    "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u2b50 and each renders the CALL itself, which is the part the member copies",
+    "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u2b50\u2b50 a PINE paste is never told about thinkorswim",
+    "src/components/chart/builder/visualDemandCensus.test.js > C3A.1 \u2014 the visual demand census > scripts and call sites, declarative vs object lifecycle",
+    "src/components/chart/builder/visualParitySet.test.js > C3A-CLOSE \u2014 the fixed parity set, remeasured at HEAD > every member, seventeen facts each",
+    "src/components/chart/engine/__tests__/memberPaneGate.test.js > the member-pane gate > the ledger declares it, and names the reader that really reads it",
+    "src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js > a7.2 \u2014 both lanes agree on the facts, across every source > \u2b50\u2b50 the rail reaches all three sources, and Clouds is one of them",
+    "src/components/chart/engine/ast/capabilityDemandCensus.test.js > \u2b50\u2b50\u2b50 capability demand \u2014 total, not just first blocker (\u00a77) > reports both numbers for every family",
+    "src/components/chart/engine/ast/historyDemandCensus.test.js > 2F-2 \u2014 runtime history demand across every corpus > reports both numbers, and they are different questions",
+    "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u26d4\u26d4 NON-VACUITY \u2014 the corpus is really here and really translates",
+    "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u26d4\u26d4 THE ARTIFACT EXISTS AND COVERS EXACTLY THIS CORPUS",
+    "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u2b50 THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED",
+    "src/components/chart/engine/ast/paramIds.test.js > parameter ids are an address, and addresses do not move > \u26d4\u26d4 EVERY SCRIPT'S MAP IS UNCHANGED \u2014 reported by NAME, id, old and new",
+    "src/components/chart/engine/ast/paramIds.test.js > parameter ids are an address, and addresses do not move > \u26d4\u26d4 NON-VACUITY \u2014 the corpus is here and parameters really are minted",
+    "src/components/chart/engine/ast/recurrenceSteps.measure.test.js > \u2b50\u2b50 the deepest recurrence any real script declares > the corpus is the one on disk, and it was actually walked",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/hooks/usePreferences.additionsOnly.test.js > S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "src/pages/Login.totp.test.jsx > Login 2FA challenge step > a requires_totp response swaps to the code step and verifies",
+    "src/pages/Login.totp.test.jsx > Login 2FA challenge step > normal accounts log straight in \u2014 no code step",
+    "src/pages/formulas/formulaLibrary.route.test.jsx > \ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail",
+    "src/pages/journal-2-0/shareTarget.contract.test.js > the landing route is registered, and OUTSIDE the auth guard > \u26d4 the share path does not join FREE_PAGES by accident",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "1216958ed29aa263a91f7b3224e237ca4ecb7e03",
+  "baseline_measured_at": "2026-09-14 (ADOPTED from the six-shard run on master 1216958ed; manifest gate-runs/2026-09-14T17-48-27.md)",
+  "vs_baseline": {
+    "observed_count": 35,
+    "baseline_count": 10,
+    "new": [
+      "src/components/Layout.pageTracking.test.jsx [ src/components/Layout.pageTracking.test.jsx ]",
+      "src/components/Layout.routeSuspense.test.jsx [ src/components/Layout.routeSuspense.test.jsx ]",
+      "src/components/chart/builder/BuilderSheet.pine.test.jsx > paste a real screener script and get a working scan > \u2b50 the SAVED DOCUMENT is byte-identical to the same formula typed by hand",
+      "src/components/chart/builder/ImportBox.thinkscript.test.jsx > \ud83d\udd34 the offered call can be ACCEPTED from the box > \u26d4 the Pine door shows the offer and NO button \u2014 it cannot name the place",
+      "src/components/chart/builder/documentSize.measure.test.js > C2B.2 \u2014 the document-size distribution of the frozen 60 > source, AST, presentation and final document bytes",
+      "src/components/chart/builder/documentSize.measure.test.js > C2B.2/.3 \u2014 where the blocked document spends its bytes > \u26b0\ufe0f high_engagement__03-supertrend-kivancozbilgic builds NO document at all",
+      "src/components/chart/builder/graphSize.measure.test.js > C2C.10 \u2014 the blocked document, against the cap as it stands > \u26b0\ufe0f high_engagement__03-supertrend-kivancozbilgic builds NO V1 document at all",
+      "src/components/chart/builder/graphSize.measure.test.js > C2C.9 \u2014 V1 vs V2 document size across the frozen 60 > the distribution, and how many clear the UNCHANGED cap",
+      "src/components/chart/builder/objectDemandCensus.test.js > C3B.1 \u2014 the object-demand census > every family, every shape class, across the frozen 60",
+      "src/components/chart/builder/objectLadder.test.js > C3B ladder \u2014 LEVEL 10: a real reachable OOS composite > \u26d4 \u2026and what it could NOT carry is counted, not hidden",
+      "src/components/chart/builder/objectLadder.test.js > C3B ladder \u2014 LEVEL 10: a real reachable OOS composite > \u2b50\u2b50 a published script from the reachable 27 draws its dashboard",
+      "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u26d4 all three reach the member WITH a suggestion \u2014 through the shipped door",
+      "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u2b50 and each renders the CALL itself, which is the part the member copies",
+      "src/components/chart/builder/pineBoxSuggestVoice.test.jsx > the suggestion speaks about the script the member actually pasted > \u2b50\u2b50 a PINE paste is never told about thinkorswim",
+      "src/components/chart/builder/visualDemandCensus.test.js > C3A.1 \u2014 the visual demand census > scripts and call sites, declarative vs object lifecycle",
+      "src/components/chart/builder/visualParitySet.test.js > C3A-CLOSE \u2014 the fixed parity set, remeasured at HEAD > every member, seventeen facts each",
+      "src/components/chart/engine/__tests__/memberPaneGate.test.js > the member-pane gate > the ledger declares it, and names the reader that really reads it",
+      "src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js > a7.2 \u2014 both lanes agree on the facts, across every source > \u2b50\u2b50 the rail reaches all three sources, and Clouds is one of them",
+      "src/components/chart/engine/ast/capabilityDemandCensus.test.js > \u2b50\u2b50\u2b50 capability demand \u2014 total, not just first blocker (\u00a77) > reports both numbers for every family",
+      "src/components/chart/engine/ast/historyDemandCensus.test.js > 2F-2 \u2014 runtime history demand across every corpus > reports both numbers, and they are different questions",
+      "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u26d4\u26d4 NON-VACUITY \u2014 the corpus is really here and really translates",
+      "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u26d4\u26d4 THE ARTIFACT EXISTS AND COVERS EXACTLY THIS CORPUS",
+      "src/components/chart/engine/ast/oosMeasuredBaseline.test.js > the OOS corpus is measured, not merely exercised > \u2b50 THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED",
+      "src/components/chart/engine/ast/paramIds.test.js > parameter ids are an address, and addresses do not move > \u26d4\u26d4 EVERY SCRIPT'S MAP IS UNCHANGED \u2014 reported by NAME, id, old and new",
+      "src/components/chart/engine/ast/paramIds.test.js > parameter ids are an address, and addresses do not move > \u26d4\u26d4 NON-VACUITY \u2014 the corpus is here and parameters really are minted",
+      "src/components/chart/engine/ast/recurrenceSteps.measure.test.js > \u2b50\u2b50 the deepest recurrence any real script declares > the corpus is the one on disk, and it was actually walked",
+      "src/hooks/usePreferences.additionsOnly.test.js > S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+      "src/pages/Login.totp.test.jsx > Login 2FA challenge step > a requires_totp response swaps to the code step and verifies",
+      "src/pages/Login.totp.test.jsx > Login 2FA challenge step > normal accounts log straight in \u2014 no code step",
+      "src/pages/formulas/formulaLibrary.route.test.jsx > \ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail",
+      "src/pages/journal-2-0/shareTarget.contract.test.js > the landing route is registered, and OUTSIDE the auth guard > \u26d4 the share path does not join FREE_PAGES by accident"
+    ],
+    "expected_red_seen": [],
+    "expected_red_stale": [],
+    "no_longer_failing": [
+      "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+      "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+      "src/lib/presentation/presentationSingleFormatter.test.js > \u26a0\ufe0f formatPercent is DECLARED AND ADOPTED BY NOTHING \u2014 stated, not hidden > nothing outside lib/presentation imports formatPercent from S10",
+      "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+      "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+      "src/surfaces/manifest.test.js > S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+    ],
+    "matches_baseline": false,
+    "expected_red_unexplained": []
+  },
+  "do_not_build": {
+    "ran": true,
+    "clean": true,
+    "hits": [],
+    "output": "DO-NOT-BUILD sweep -- 20 item(s) checked across app/src, api, scripts, tools\n\nOK no DO-NOT-BUILD item has gained code in the swept trees."
+  },
+  "box_lock": {
+    "acquired": true,
+    "path": "C:\\ProgramData\\uct\\gate-box.lock",
+    "bypass": false,
+    "bypass_reason": null,
+    "overrode": null,
+    "reclaimed": null
+  }
+}

@@ -37,6 +37,16 @@ import { BLOCKED_TITLE } from './offline/unsyncedCopy'
  * @param blockedNoteIds Set of note ids with unsent work
  * @param onChanged      called after a write lands, so the parent can re-fetch
  */
+/**
+ * ⛔ THE SENTENCE A MEMBER READS WHEN A WRITE FAILS, AND ITS ONE DEFINITION.
+ * Two views render it. Exported so their rails assert THIS string rather than a
+ * hand-typed copy that can drift from it — the same reasoning as
+ * `unsyncedCopy.js`, and the reason both rails now check rendered TEXT: a blank
+ * message still satisfies `getByRole('status')`, which is how a feedback defect
+ * ships green (the JournalToast `message`/`msg` case).
+ */
+export const WRITE_FAILED_MESSAGE = 'That did not save. The note has been put back.'
+
 export function useOptimisticNoteProperty({ notes, blockedNoteIds, onChanged }) {
   const [overrides, setOverrides] = useState({})
   const [busy, setBusy] = useState({})
@@ -95,7 +105,7 @@ export function useOptimisticNoteProperty({ notes, blockedNoteIds, onChanged }) 
         delete next[note.id]
         return next
       })
-      setError('That did not save. The note has been put back.')
+      setError(WRITE_FAILED_MESSAGE)
       return false
     } finally {
       setBusy((b) => {

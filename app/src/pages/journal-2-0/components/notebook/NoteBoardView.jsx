@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
@@ -77,12 +77,18 @@ export default function NoteBoardView({
   onOpenNote,
   blockedNoteIds,
   onChanged,
+  initialGroupById = null,
+  onGroupByChange,
 }) {
   const defs = useMemo(() => groupableDefs(propertyDefs), [propertyDefs])
 
   // Default to the select property the member's notes ACTUALLY use, so a fresh
   // board opens on something populated rather than on an empty first column.
-  const [groupById, setGroupById] = useState(null)
+  // ⛔ SEEDED FROM A SAVED VIEW, NOT OWNED BY ONE. A saved board carries the
+  // property id it was saved with; absent that, the default-picker below still
+  // opens on a property the member's notes actually use. Seeding rather than
+  // controlling keeps that picker -- and its tests -- intact.
+  const [groupById, setGroupById] = useState(initialGroupById)
   const def = useMemo(() => {
     if (!defs.length) return null
     if (groupById) return defs.find((d) => d.id === groupById) || defs[0]
@@ -95,6 +101,14 @@ export default function NoteBoardView({
 
   const [dragOver, setDragOver] = useState(null)
   const blocked = blockedNoteIds || new Set()
+
+  // ⛔ REPORT THE RESOLVED GROUPING, NOT THE PICKED ONE. `groupById` is null
+  // until the member chooses, while `def` is what the board is ACTUALLY drawing
+  // (the default-picker's answer). Saving the former would store "whatever the
+  // picker decides next time", which is not the view the member saved.
+  useEffect(() => {
+    if (onGroupByChange) onGroupByChange(def?.id || null)
+  }, [def, onGroupByChange])
 
   // ⛔ One shared implementation — see the header.
   const { setProperty, overrideFor, isBusy, error } = useOptimisticNoteProperty({

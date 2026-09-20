@@ -17,6 +17,7 @@ vi.mock('../../lib/offline/settleNoteWrite', () => ({
 }))
 
 import NoteBoardView, { groupableDefs, columnsFor, columnIdFor } from './NoteBoardView'
+import { WRITE_FAILED_MESSAGE } from '../../lib/useOptimisticNoteProperty'
 
 const STATUS = {
   id: 'builtin:thesis_status',
@@ -183,7 +184,10 @@ describe('NoteBoardView', () => {
     const card = screen.getByText('NVDA thesis').closest('article')
     fireEvent.change(within(card).getByRole('combobox'), { target: { value: 'closed' } })
 
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+    // ⛔ THE SENTENCE, not just the element. A blank message still satisfies
+    // getByRole('status'), so existence-only is how a member ends up staring at
+    // an empty red box after a failed save.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(WRITE_FAILED_MESSAGE))
     // Back under Watching — landing it in No value would be a property the
     // member never cleared.
     expect(within(columnNamed('Watching')).getByText('NVDA thesis')).toBeInTheDocument()

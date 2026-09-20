@@ -142,14 +142,14 @@ describe('NotebookTab — graph view wiring', () => {
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
   })
 
-  it('hides "Save this view" in graph mode, because the server would refuse it', () => {
+  it('OFFERS "Save view" in graph mode', () => {
+    // ⚰️ This asserted the OPPOSITE, and correctly so at the time:
+    // `create_saved_view` refused any view_type outside ("list","table"), so
+    // the control would have been a button that 400s. The server enum is now
+    // SAVEABLE_VIEW_TYPES and carries all five, so hiding it would withhold a
+    // capability that works.
     renderTab()
-    // ⛔ create_saved_view rejects any view_type outside ("list", "table"), so
-    // offering the control in graph mode offers a button that 400s.
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
     fireEvent.click(graphBtn())
-    expect(screen.queryByRole('button', { name: /save view/i })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /list view/i }))
     expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
   })
 })

@@ -138,9 +138,15 @@ describe('NotebookTab — calendar view wiring', () => {
     expect(screen.getAllByTestId('note-card').length).toBeGreaterThan(0)
   })
 
-  it('hides "Save view" in calendar mode', () => {
+  it('OFFERS "Save view" in calendar mode, and captures the DATE PROPERTY', async () => {
+    // ⚰️ Asserted the opposite while the server enum was ("list","table").
     renderTab()
     fireEvent.click(calBtn())
-    expect(screen.queryByRole('button', { name: /save view/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
+
+    // ⛔ A calendar without its date property is not the view the member saved
+    // -- on restore the default-picker would choose again.
+    expect(calProps.onDatePropertyChange).toBeInstanceOf(Function)
+    expect(calProps.initialDatePropertyId).toBeNull()
   })
 })

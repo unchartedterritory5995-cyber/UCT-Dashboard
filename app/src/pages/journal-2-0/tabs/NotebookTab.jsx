@@ -29,6 +29,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
+import { SAVEABLE_VIEW_MODES } from '../lib/savedViewModes'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
@@ -154,6 +155,12 @@ export default function NotebookTab() {
   // view is active (a table-column-header click or a quick-filter chip).
   const [activeView, setActiveView] = useState(null)
   const [viewMode, setViewMode] = useState('list')
+  // What the board is grouping by / the calendar is laying out, reported up by
+  // those views so a saved view can capture it. The views keep their own
+  // "open on a property the notes actually use" default-picking; this only
+  // observes the answer.
+  const [boardGroupBy, setBoardGroupBy] = useState(null)
+  const [calendarDateProp, setCalendarDateProp] = useState(null)
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
@@ -403,7 +410,12 @@ export default function NotebookTab() {
     setPropertyFilter(null)
     setPropertySort(null)
     setActiveView(view)
-    setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    // ⛔ EVERY SAVEABLE TYPE NEEDS A BRANCH HERE. This read
+    // `view.viewType === 'table' ? 'table' : 'list'`, which silently opened a
+    // board as a list the moment boards became saveable -- the failure is
+    // quiet, which is why the server's SAVEABLE_VIEW_TYPES and this set are
+    // pinned against each other by a test.
+    setViewMode(SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list')
     clearViewAllParam()
     if (noteId) clearNoteParam()
   }
@@ -427,7 +439,13 @@ export default function NotebookTab() {
     // stored spec, never a client-reconstructed one), so a folder/tag
     // captured here would silently do nothing on activation. Keep the
     // spec's actual capability matched to what it actually restores.
+    // ⛔ A BOARD IS NOTHING WITHOUT WHAT IT GROUPS BY, and a calendar is
+    // nothing without which date it lays out. Saving the mode alone would
+    // restore a board grouped by whatever the default picker chose that day.
+    // Stored as property IDS so a rename cannot break the view.
     const spec = { propertyFilter, propertySort }
+    if (viewMode === 'board' && boardGroupBy) spec.groupBy = boardGroupBy
+    if (viewMode === 'calendar' && calendarDateProp) spec.dateProperty = calendarDateProp
     const view = await createSavedView(name, viewMode, spec)
     setActiveView(view)
     setSaveViewOpen(false)
@@ -749,7 +767,7 @@ export default function NotebookTab() {
                 offer it rather than to widen the server's enum for a spec the
                 graph would never read back.
               */}
-              {!activeView && viewMode !== 'graph' && viewMode !== 'board' && viewMode !== 'calendar' && (
+              {!activeView && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -911,6 +929,8 @@ export default function NotebookTab() {
                 onOpenNote={openNote}
                 blockedNoteIds={blockedNoteIds}
                 onChanged={refresh}
+                initialDatePropertyId={activeView?.spec?.dateProperty || null}
+                onDatePropertyChange={setCalendarDateProp}
               />
             ) : viewMode === 'board' && !isTrashView ? (
               <NoteBoardView
@@ -919,6 +939,8 @@ export default function NotebookTab() {
                 onOpenNote={openNote}
                 blockedNoteIds={blockedNoteIds}
                 onChanged={refresh}
+                initialGroupById={activeView?.spec?.groupBy || null}
+                onGroupByChange={setBoardGroupBy}
               />
             ) : viewMode === 'graph' && !isTrashView ? (
               /*
