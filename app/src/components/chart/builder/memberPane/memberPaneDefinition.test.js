@@ -14,13 +14,21 @@ import * as registry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { validateDefinition } from '../../engine/defSchema'
-import { translatePine } from '../../engine/ast/pine'
+import { translatePine, REFUSALS } from '../../engine/ast/pine'
 import {
   memberPaneDefinition, memberPaneVariants,
   MEMBER_PANE_HEIGHT, MEMBER_PANE_DEF_PREFIX,
 } from './memberPaneDefinition'
 
 const REPO = path.resolve(process.cwd(), '..')
+/** A table-only dashboard: it translates, and it offers nothing to draw. */
+const NO_PLOT_SCRIPT = [
+  '//@version=6',
+  'indicator("t", overlay = true)',
+  'var table t = table.new(position.top_right, 2, 2)',
+  'if barstate.islast',
+  '    table.cell(t, 0, 0, "x")',
+  ''].join('\n')
 const V2 = fs.readFileSync(
   path.join(REPO, 'tests/fixtures/member/uncharted-volume-v2.pine'), 'utf8')
 
@@ -181,6 +189,22 @@ describe('⛔⛔ the gate is the pane gate, not a second opinion about it', () =
     expect(r.ok).toBe(false)
     expect(r.guard).toBe('pine:request')
     expect(String(r.reason).length).toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ a TABLE-ONLY SCRIPT IS TOLD THE REAL REASON, not "the unknown lane"', () => {
+    // ⚰️ The member pastes a dashboard that draws no line — a perfectly good
+    // script this door cannot put on a pane — and was answered "this verdict
+    // came from the unknown lane, which answers a different question", because
+    // `translatePine`'s `pine:no-output` early return carried no `mode` and
+    // `paneGate` checks the lane before anything else. The sentence was about
+    // our internals and named nothing the member could act on.
+    const r = memberPaneDefinition({ source: NO_PLOT_SCRIPT })
+    expect(r.ok).toBe(false)
+    expect(r.reason, 'the member was told about a LANE instead of their script')
+      .toBe(REFUSALS['pine:no-output'])
+    expect(r.guard).toBe('pine:no-output')
+    expect(String(r.reason), 'the lane sentence reached a member')
+      .not.toMatch(/lane/i)
   })
 
   it('⛔ CONTROL: junk in, a reason out', () => {

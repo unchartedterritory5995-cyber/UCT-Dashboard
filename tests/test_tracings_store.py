@@ -160,13 +160,25 @@ def test_two_members_are_isolated_over_http(client):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# INERTNESS — CP3 is dark. A reader is CP4, and CP4 has not been authorized.
+# AUTHORIZED-CALLER ALLOW-LIST — CP4 (ea7178473) named its two files. Anything
+# else touching /api/tracings needs its own signed line, same as CP4 did.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_no_frontend_path_calls_api_tracings_yet():
-    """⛔ useTracingsSync.js still reads POST /api/auth/preferences. This
-    fails BY NAME the moment something starts calling the new endpoint
-    without CP4 having been signed for it."""
+#: ⛔ CP4 (fingerprint ea7178473) is the signed authorization for exactly these
+#: two files to reference /api/tracings: useTracingsSync.js (the real fetch
+#: calls, gated behind TRACINGS_STORE_ENABLED) and tracingsStoreFlag.js (a
+#: comment describing the flag's OFF behavior, not a call). No other file is
+#: authorized. This is CP3's original inertness rail, narrowed rather than
+#: deleted when CP4 made "nothing calls it" no longer the invariant to want.
+_CP4_AUTHORIZED_CALLERS = frozenset({
+    "app/src/components/chart/useTracingsSync.js",
+    "app/src/components/chart/tracingsStoreFlag.js",
+})
+
+
+def test_only_the_CP4_authorized_files_reference_api_tracings():
+    """⛔ Fails BY NAME the moment a THIRD file starts calling /api/tracings
+    without its own CP4-successor line naming it."""
     offenders = []
     scanned = 0
     for p in (_REPO / "app" / "src").rglob("*.js*"):
@@ -174,11 +186,23 @@ def test_no_frontend_path_calls_api_tracings_yet():
             continue
         code = p.read_text(encoding="utf-8", errors="ignore")
         scanned += 1
-        if "/api/tracings" in code:
-            offenders.append(str(p.relative_to(_REPO)))
+        rel = str(p.relative_to(_REPO)).replace("\\", "/")
+        if "/api/tracings" in code and rel not in _CP4_AUTHORIZED_CALLERS:
+            offenders.append(rel)
     assert scanned > 100, f"the module walk found almost nothing ({scanned}) -- it is broken"
     assert offenders == [], (
-        f"a frontend path calls /api/tracings before CP4 is authorized: {offenders}")
+        f"a frontend path calls /api/tracings without CP4 (or a successor line) naming it: {offenders}")
+
+
+def test_the_authorized_caller_list_is_not_stale():
+    """⛔ CONTROL, the other direction: both named files must actually exist
+    and actually reference it, or the allow-list is protecting nothing."""
+    for rel in _CP4_AUTHORIZED_CALLERS:
+        p = _REPO / rel
+        assert p.exists(), f"CP4 names {rel} but it does not exist"
+        assert "/api/tracings" in p.read_text(encoding="utf-8"), (
+            f"CP4 names {rel} as an authorized caller but it no longer references /api/tracings "
+            f"-- the allow-list entry is stale and should be removed")
 
 
 def test_the_inertness_rail_can_see_a_real_reference():
