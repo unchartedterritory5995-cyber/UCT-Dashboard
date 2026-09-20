@@ -682,10 +682,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple",
+        "pine:function",
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple",
+        "pine:function",
+        "pine:builtin"
       ]
     },
     {

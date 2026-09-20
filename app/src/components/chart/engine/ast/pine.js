@@ -2007,9 +2007,22 @@ export function lexPine(src) {
     if (ch === '"' || ch === "'") {
       let j = i + 1
       let out = ''
+      // ⭐⭐ A PINE STRING MAY SPAN LINES, and this lexer used to stop at the
+      // first newline and then call the result unterminated. Measured on the
+      // corpus: 3 of 266 published scripts die here, all of them on a long
+      // `tooltip =` sentence wrapped across two lines — which TradingView
+      // accepts and writes itself.
+      //
+      // ⛔ THE LINE COUNTER MUST FOLLOW THE STRING. Consuming a newline without
+      // counting it would silently shift the reported line of EVERY refusal
+      // after it — turning a fix for a rare script into wrong locations for
+      // every script, which is the more expensive defect by far.
+      let newlines = 0
+      let lastBreak = -1
+      const eat = (k) => { if (text[k] === '\n') { newlines += 1; lastBreak = k } }
       while (j < text.length && text[j] !== ch) {
-        if (text[j] === '\\' && j + 1 < text.length) { out += text[j + 1]; j += 2; continue }
-        if (text[j] === '\n') break
+        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1]; j += 2; continue }
+        eat(j)
         out += text[j]
         j += 1
       }
@@ -2019,6 +2032,8 @@ export function lexPine(src) {
       }
       tokens.push({ kind: 'string', value: out, line, column: col, index: i })
       i = j + 1
+      // ⭐ the token carries the line the string OPENED on; the counter moves on
+      if (newlines) { line += newlines; lineStart = lastBreak + 1 }
       continue
     }
 
@@ -2042,11 +2057,32 @@ export function lexPine(src) {
     if (IDENT_START.test(ch)) {
       let j = i
       while (j < text.length && IDENT_PART.test(text[j])) j += 1
-      while (text[j] === '.' && IDENT_START.test(text[j + 1] || '')) {
-        j += 1
+      // ⭐⭐ SPACES ARE ALLOWED AROUND THE DOT. Pine accepts `id .method(x)` and
+      // `data.HLmat .get(0, i)`; this rule required the dot to touch the name on
+      // both sides, so the dot fell through to punctuation, matched nothing, and
+      // raised *"Pine has no character like this one"* — pointing at a `.` in a
+      // script whose dots are all ordinary. Measured on the corpus: 20 of 266
+      // published scripts die on exactly this, the single largest lexical gap.
+      //
+      // ⛔ HORIZONTAL WHITESPACE ONLY — NEVER A NEWLINE. Joining across a line
+      // break would glue a name to whatever a continuation line starts with and
+      // invent a dotted name the author never wrote.
+      for (;;) {
+        let k = j
+        while (text[k] === ' ' || text[k] === '\t') k += 1
+        if (text[k] !== '.') break
+        let m = k + 1
+        while (text[m] === ' ' || text[m] === '\t') m += 1
+        if (!IDENT_START.test(text[m] || '')) break
+        j = m
         while (j < text.length && IDENT_PART.test(text[j])) j += 1
       }
-      tokens.push({ kind: 'ident', value: text.slice(i, j), line, column: col, index: i })
+      // ⛔ THE NAME IS NORMALISED, because every consumer downstream resolves a
+      // namespace by string prefix. Only ident characters, dots and the spaces
+      // just skipped can be in this span, so stripping horizontal whitespace
+      // cannot remove anything else.
+      const dotted = text.slice(i, j).replace(/[ \t]+/g, '')
+      tokens.push({ kind: 'ident', value: dotted, line, column: col, index: i })
       i = j
       continue
     }

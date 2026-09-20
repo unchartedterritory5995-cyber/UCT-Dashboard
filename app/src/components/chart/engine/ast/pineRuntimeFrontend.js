@@ -2482,6 +2482,21 @@ export const RUNTIME_LANE_REFUSALS = Object.freeze({
     + 'lanes still translate its numeric plots',
 })
 
+/** The source position of either refusal class, in one vocabulary.
+ *
+ *  ⭐ DERIVED FROM THE OBJECT, NOT FROM ITS CLASS. Asking `instanceof` would
+ *  need updating the day a third refusal class appears; asking for the fields
+ *  each one actually carries does not, and a refusal with neither reports null
+ *  three times rather than throwing. */
+const position = (e) => {
+  const src = (e && e.line != null) ? e : ((e && e.at) || null)
+  return {
+    line: src && src.line != null ? src.line : null,
+    column: src && src.column != null ? src.column : null,
+    token: src && src.token != null ? src.token : null,
+  }
+}
+
 function fail(e, diagnostics) {
   const guard = e instanceof RuntimeRefusal ? e.guard
     : (e instanceof PineRefusal ? e.guard : 'runtime:statement')
@@ -2493,9 +2508,21 @@ function fail(e, diagnostics) {
       // something about the OTHER rows is re-stated for this lane, which has none.
       message: (e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard])
         || String(e.message || e),
-      line: e.line != null ? e.line : null,
-      column: e.column != null ? e.column : null,
-      token: e.token != null ? e.token : null,
+      // ⛔⛔ TWO REFUSAL CLASSES CARRY THEIR POSITION DIFFERENTLY, and reading
+      // only one of them silently dropped it for the other. `RuntimeRefusal`
+      // FLATTENS `at` into `line`/`column`/`token` in its constructor;
+      // `PineRefusal` keeps the same object NESTED at `.at`. This read the flat
+      // form only, so every `pine:*` refusal that reached this lane — a bad
+      // character, an unknown builtin, an undefined name — arrived with
+      // `line: null`, which is most of what a member would actually hit.
+      //
+      // ⚠ MEASURED, AND IT COST AN INVESTIGATION: a corpus census of 266 real
+      // scripts reported 24 `pine:character` refusals with no location at all,
+      // and the hunt for the character went through three wrong answers (a ™ in
+      // the licence header, a library import, a method call) before the missing
+      // position turned out to be the whole reason it was hard. A refusal that
+      // cannot say WHERE is barely a refusal.
+      ...position(e),
       ...(e.locationIsStatement ? { locationIsStatement: true } : {}),
     },
     diagnostics,
