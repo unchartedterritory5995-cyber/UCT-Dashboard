@@ -29,7 +29,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
-import { SAVEABLE_VIEW_MODES } from '../lib/savedViewModes'
+import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
@@ -713,51 +713,29 @@ export default function NotebookTab() {
           )}
           {!isTrashView && (
             <div className={styles.viewModeWrap}>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'list' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('list')}
-                disabled={Boolean(activeView)}
-                title="List view"
-              >
-                <UIcon name="rows" size={14} gold={false} />
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('table')}
-                disabled={Boolean(activeView)}
-                title="Table view"
-              >
-                <UIcon name="columns" size={14} gold={false} />
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'board' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('board')}
-                disabled={Boolean(activeView)}
-                title="Board view"
-              >
-                <UIcon name="board" size={14} gold={false} />
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'calendar' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('calendar')}
-                disabled={Boolean(activeView)}
-                title="Calendar view"
-              >
-                <UIcon name="calendar" size={14} gold={false} />
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'graph' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('graph')}
-                disabled={Boolean(activeView)}
-                title="Graph view"
-              >
-                <UIcon name="graph" size={14} gold={false} />
-              </button>
+              {/*
+                ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
+                five hand-written blocks and every one of them was missing
+                aria-pressed, so a screen reader heard five identical icon
+                buttons and could not say which view was on. The active state
+                lived only in a CSS class, which is invisible to it by
+                definition. Written once, the attribute cannot be on four of
+                them and off the fifth.
+              */}
+              {VIEW_MODES.map(({ id, icon, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
+                  onClick={() => setViewMode(id)}
+                  disabled={Boolean(activeView)}
+                  aria-pressed={viewMode === id}
+                  aria-label={label}
+                  title={label}
+                >
+                  <UIcon name={icon} size={14} gold={false} />
+                </button>
+              ))}
               {/*
                 ⛔ NO "Save this view" IN GRAPH MODE. A saved view stores a
                 propertyFilter/propertySort pair and `create_saved_view` refuses

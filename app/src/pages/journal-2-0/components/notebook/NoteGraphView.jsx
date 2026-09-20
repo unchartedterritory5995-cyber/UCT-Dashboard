@@ -16,6 +16,14 @@ import styles from './NoteGraphView.module.css'
  * holds still. A loop that never settles pins a core for as long as the tab is
  * open — the same class as the render loop that froze navigation app-wide (H14).
  *
+ * ⛔⛔ BOUNDED IS NOT THE SAME AS CORRECT, AND THIS FILE LEARNED IT THE HARD WAY.
+ * The tick budget was measured, the per-frame cost was measured, the endpoint cap
+ * was set from those numbers — and at 500 notes the thing still drew a rectangle
+ * outline with an empty middle, because the layout DIVERGED inside its budget.
+ * Speed was the wrong axis. `tools/graph_layout_bench.mjs` now prints wall
+ * concentration and occupancy next to the milliseconds, so the next person
+ * raising a limit is shown both.
+ *
  * ⛔ HOVERING MUST NOT RE-RUN THE SIMULATION. The layout effect deliberately does
  * NOT depend on the hovered id: a fresh run re-seeds every node back onto the
  * start ring, so a mouse move would visibly scatter the graph the member is
@@ -41,8 +49,34 @@ const DAMPING = 0.86
 const MIN_R = 4
 const MAX_R = 16
 const HIT_SLOP = 8           // px of forgiveness around a node's own radius
+// ⛔⛔ A BUDGET, NOT A DEGREE CUT. The rule was `degree >= 3`, under a comment
+// saying "every label at once is illegible" — and at 500 notes that rule drew
+// 291 labels of which 54% overlapped another label. It was the thing the
+// comment warned about. Measured with the browser's own measureText, share of
+// labels colliding with another:
+//
+//     notes        degree >= 3          top 40 by degree
+//         5     2 labels,  0%          5 labels,  0%   <- and it labels ALL 5
+//        50    23 labels,  4%         40 labels,  8%
+//       200   111 labels, 24%         40 labels, 18%
+//       500   291 labels, 54%         40 labels, 15%
+//
+// A budget is the only form that holds at BOTH ends: a 5-note notebook wants
+// every title, a 500-note one wants the hubs. A degree threshold gets the small
+// case wrong (2 labels out of 5) and the large case wrong (291 out of 500).
+const LABEL_BUDGET = 40
 const RESIZE_EPSILON_PX = 8  // below this, a size change is not worth a re-layout
 const RESIZE_SETTLE_MS = 160 // one re-layout per resize gesture, not per tick
+// ⛔⛔ THE STEP CAP IS WHAT KEEPS THIS LAYOUT FROM DIVERGING. The seed ring puts
+// adjacent nodes ~2px apart at 500 notes, and REPULSION/d^2 at 2px is a ~1000px
+// impulse on tick one -- every node hits the frame before a spring ever acts.
+// Measured without it: 98% of 500 nodes held by the clamp, a rectangle outline
+// with an empty middle. With it: 4.8x wall concentration, 69-100% occupancy.
+// ⚠️ Raising MAX_STEP_FRAC re-opens that. `node tools/graph_layout_bench.mjs`
+// prints both the timing AND the shape numbers; run it before touching these.
+const MAX_STEP_FRAC = 0.02   // a node may cross 2% of the short side in one tick
+const COOLING = 0.985        // the cap decays, so late ticks settle instead of jitter
+const TEMP_FLOOR = 0.05      // ...but never to zero, or nothing can still move
 
 /** "1 note", not "1 notes" — this reaches the legend AND the canvas aria-label,
  *  so a screen reader reads the count out loud. */
@@ -155,16 +189,34 @@ export default function NoteGraphView({ onOpenNote }) {
         r: radiusFor(n.degree),
       }
     })
+    // ⛔ COMPUTED ONCE PER LAYOUT, NOT PER FRAME — draw() runs 220 times.
+    // Sorting is stable and `nodes` is built in a deterministic order, so the
+    // same notebook labels the same notes every time, ties included.
+    const labelled = new Set(
+      [...nodes]
+        .sort((a, b) => b.degree - a.degree)
+        .slice(0, LABEL_BUDGET)
+        .map((n) => n.id),
+    )
+
     const byId = new Map(nodes.map((n) => [n.id, n]))
     const edges = graph.edges
       .map((e) => ({ s: byId.get(e.source), t: byId.get(e.target) }))
       .filter((e) => e.s && e.t)
     simRef.current = { nodes, edges }
 
+    const stepCap0 = MAX_STEP_FRAC * Math.min(size.w, size.h)
+    const stepCapFloor = stepCap0 * TEMP_FLOOR
+    let stepCap = stepCap0
+
     const step = () => {
       // ⛔⛔ O(n^2), AND HERE IS WHAT THAT COSTS — MEASURED, not assumed.
-      // 220 ticks with these constants, per frame: 1500 nodes 5.9ms · 2000
-      // 10.6ms · 3000 26.8ms · 5000 80.9ms (~18s of blocked main thread).
+      // 220 ticks with these constants, per frame: 500 nodes 0.7ms · 1500
+      // 5.5ms · 2000 10.3ms · 3000 24.7ms · 5000 ~80ms (~18s of blocked main
+      // thread). ⚠️ Those are the SPEED numbers and speed is only half of it —
+      // this layout was once fast at every one of these sizes and still drew a
+      // rectangle outline. The bench prints wall concentration and occupancy
+      // beside the milliseconds now; read both.
       // ⚰️ This read "fine to ~1500 nodes, which is the endpoint's own default
       // cap" — half right, and the wrong half mattered: 1500 is the DEFAULT,
       // the ceiling was 5000, and the sentence read as if they were one number.
@@ -213,11 +265,19 @@ export default function NoteGraphView({ onOpenNote }) {
         n.vy += (size.h / 2 - n.y) * CENTER_PULL
         n.vx *= DAMPING
         n.vy *= DAMPING
+        // ⛔ NO NODE CROSSES THE SCREEN IN ONE TICK. See MAX_STEP_FRAC.
+        const speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy)
+        if (speed > stepCap) {
+          n.vx = (n.vx / speed) * stepCap
+          n.vy = (n.vy / speed) * stepCap
+        }
         n.x += n.vx
         n.y += n.vy
         n.x = Math.max(n.r + 2, Math.min(size.w - n.r - 2, n.x))
         n.y = Math.max(n.r + 2, Math.min(size.h - n.r - 2, n.y))
       }
+      // Cool AFTER the tick, so tick 0 gets the full budget to unpack the ring.
+      stepCap = Math.max(stepCap * COOLING, stepCapFloor)
     }
 
     const draw = () => {
@@ -246,8 +306,8 @@ export default function NoteGraphView({ onOpenNote }) {
           ctx.stroke()
           ctx.setLineDash([])
         }
-        // Label only hubs and the hovered node — every label at once is illegible.
-        if (isHover || n.degree >= 3) {
+        // The biggest hubs, and whatever is hovered. See LABEL_BUDGET.
+        if (isHover || labelled.has(n.id)) {
           ctx.fillStyle = isHover ? '#f8fafc' : 'rgba(226,232,240,0.62)'
           ctx.font = (isHover ? '12px ' : '10px ') + "'Instrument Sans', system-ui, sans-serif"
           ctx.textAlign = 'center'

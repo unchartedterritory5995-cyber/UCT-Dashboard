@@ -1633,9 +1633,14 @@ def get_note_graph(
     try:
         # ⛔⛔ 2000 IS A MEASURED CEILING, NOT A ROUND NUMBER. The renderer's
         # layout is O(n^2) over 220 ticks on the main thread; benchmarked with
-        # its real constants: 1500 -> 5.9ms/frame, 2000 -> 10.6ms (both inside
-        # the 16ms budget), 3000 -> 26.8ms janky, 5000 -> 80.9ms, which is
+        # its real constants: 1500 -> 5.5ms/frame, 2000 -> 10.3ms (both inside
+        # the 16ms budget), 3000 -> 24.7ms janky, 5000 -> ~80ms, which is
         # ~18 SECONDS of blocked main thread. This used to allow 5000.
+        # ⚠️ THE CEILING IS ABOUT TWO THINGS, NOT ONE. It was first set from
+        # timings alone, and timings alone said 2000 was fine while the
+        # renderer was drawing every one of those 2000 notes onto the border of
+        # the canvas. `tools/graph_layout_bench.mjs` now prints the shape of
+        # the layout next to its cost; a future raise needs both to hold.
         # ⚠️ Raising it is a promise about the RENDERER, not about this query --
         # re-run the benchmark before you do, and read NoteGraphView's header.
         cap = max(1, min(limit, 2000))

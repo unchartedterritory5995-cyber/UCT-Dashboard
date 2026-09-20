@@ -366,6 +366,101 @@ describe('NoteGraphView', () => {
     })
   })
 
+  describe('labels are budgeted, at both ends of the scale', () => {
+    // ⛔ THE OLD RULE WAS `degree >= 3` UNDER A COMMENT SAYING "every label at
+    // once is illegible". Measured with real font metrics at 500 notes, that
+    // rule drew 291 labels and 54% of them overlapped another one — it was the
+    // thing its own comment warned about. It was also wrong in the other
+    // direction: a 5-note notebook got 2 labels.
+    //
+    // TWO tests because a budget has two failure modes and one does not imply
+    // the other: too many labels on a big graph, too few on a small one.
+    const graphOf = (n, degreeOf) => ({
+      nodes: Array.from({ length: n }, (_, i) => ({
+        id: `n${i}`, title: `Note ${i}`, degree: degreeOf(i),
+      })),
+      edges: [],
+      truncated: false,
+    })
+
+    it('caps the labels on a big notebook, and keeps the biggest hub', () => {
+      // Degrees descend, so the top of the budget is n0 and the bottom is n199.
+      swrResult = { isLoading: false, data: graphOf(200, (i) => 200 - i) }
+      render(<NoteGraphView />)
+
+      const drawn = ctxLog.texts.slice(-40)
+      const titles = new Set(ctxLog.texts.map((t) => t.t))
+      // Every frame redraws, so count DISTINCT titles rather than fillText calls.
+      expect(titles.size).toBeLessThanOrEqual(40)
+      expect(titles.has('Note 0')).toBe(true)      // the biggest hub is labelled
+      expect(titles.has('Note 199')).toBe(false)   // the smallest is not
+      expect(drawn.length).toBeGreaterThan(0)
+    })
+
+    it('labels EVERY note in a small notebook, even the barely-linked ones', () => {
+      // ⛔ THE CASE THAT EXISTS TODAY. Under `degree >= 3` these five notes drew
+      // two labels between them, which is a graph that will not say what it is
+      // showing. A budget labels all five because five is under the budget.
+      swrResult = { isLoading: false, data: graphOf(5, () => 1) }
+      render(<NoteGraphView />)
+
+      const titles = new Set(ctxLog.texts.map((t) => t.t))
+      expect(titles).toEqual(new Set(['Note 0', 'Note 1', 'Note 2', 'Note 3', 'Note 4']))
+    })
+  })
+
+  describe('the layout spreads — it does not pile onto the frame', () => {
+    // ⛔⛔ WHY THIS EXISTS, AND WHY IT IS NOT ANOTHER TIMING TEST.
+    // The bench measured milliseconds per frame. The endpoint cap was set from
+    // those numbers. Every test in this file passed. And at 500 notes the
+    // product drew a RECTANGLE OUTLINE with an empty middle, because the layout
+    // diverged inside its tick budget: the seed ring puts adjacent nodes ~2px
+    // apart, and REPULSION/d^2 at 2px flings every node into the frame on tick
+    // one. Speed was the wrong axis. This asserts SHAPE.
+    //
+    // TWO assertions, because there are two ways to be wrong and neither one
+    // catches the other:
+    //   · on-frame fraction — the defect that actually shipped
+    //   · distinct cells    — the opposite failure, everything in one clump,
+    //                         which is what a too-aggressive cap would produce
+    const N = 100
+    const BAND = 10
+    const CELL = 40
+
+    const spreadGraph = () => ({
+      nodes: Array.from({ length: N }, (_, i) => ({ id: `n${i}`, title: `Note ${i}`, degree: 2 })),
+      edges: Array.from({ length: N - 1 }, (_, k) => ({
+        source: `n${k + 1}`, target: `n${((k + 1) * 7) % N}`, weight: 1,
+      })),
+      truncated: false,
+    })
+
+    it('does not pile the notes onto the edge of the canvas', () => {
+      swrResult = { isLoading: false, data: spreadGraph() }
+      render(<NoteGraphView />)
+
+      const drawn = drawnNodes(N)
+      expect(drawn).toHaveLength(N)
+
+      const onFrame = drawn.filter(
+        (a) => a.x < BAND || a.x > RECT.width - BAND || a.y < BAND || a.y > RECT.height - BAND,
+      ).length
+      // Measured on this canvas: 83/100 without the step cap, 15/100 with it.
+      expect(onFrame / N).toBeLessThan(0.4)
+    })
+
+    it('and does not collapse them into one clump', () => {
+      swrResult = { isLoading: false, data: spreadGraph() }
+      render(<NoteGraphView />)
+
+      const cells = new Set(
+        drawnNodes(N).map((a) => `${Math.floor(a.x / CELL)},${Math.floor(a.y / CELL)}`),
+      )
+      // Measured: 33 distinct cells without the cap, 99 with it.
+      expect(cells.size).toBeGreaterThan(70)
+    })
+  })
+
   it('lays the same notebook out the same way twice', () => {
     swrResult = {
       isLoading: false,

@@ -91,6 +91,42 @@ describe('NotebookTab — graph view wiring', () => {
     expect(graphBtn()).toBeInTheDocument()
   })
 
+  describe('the toggles SAY which view is on', () => {
+    // ⛔ THE ACTIVE STATE USED TO LIVE ONLY IN A CSS CLASS, which a screen
+    // reader cannot see. Five identical icon buttons, no way to tell which one
+    // was selected. Found by reading the live DOM, not by a test — every test
+    // here located buttons by their accessible NAME, which was unaffected.
+    //
+    // ⛔ THE SECOND ASSERTION IS THE LOAD-BEARING ONE. "graph is pressed" alone
+    // still passes if every button reports pressed; what makes it a single
+    // selection is that exactly ONE does.
+    const pressedNames = () => screen.getAllByRole('button')
+      .filter((b) => b.getAttribute('aria-pressed') === 'true')
+      .map((b) => b.getAttribute('aria-label'))
+
+    it('marks exactly one view mode pressed, and moves it on click', () => {
+      renderTab()
+      expect(pressedNames()).toEqual(['List view'])
+
+      fireEvent.click(graphBtn())
+      expect(pressedNames()).toEqual(['Graph view'])
+
+      fireEvent.click(screen.getByRole('button', { name: /table view/i }))
+      expect(pressedNames()).toEqual(['Table view'])
+    })
+
+    it('gives every toggle the attribute, not just the active one', () => {
+      renderTab()
+      // ⛔ An unselected toggle needs aria-pressed="false", not a missing
+      // attribute: absent means "not a toggle at all", which is a different
+      // announcement. This is what a per-button hand-written copy gets wrong.
+      for (const name of [/list view/i, /table view/i, /board view/i, /calendar view/i, /graph view/i]) {
+        const btn = screen.getByRole('button', { name })
+        expect(btn.getAttribute('aria-pressed')).toMatch(/^(true|false)$/)
+      }
+    })
+  })
+
   it('switching to graph mounts the graph and takes down the card grid', () => {
     renderTab()
     expect(screen.getAllByTestId('note-card').length).toBe(2)

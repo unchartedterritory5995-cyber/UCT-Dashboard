@@ -251,9 +251,13 @@ def test_the_server_and_client_view_type_lists_CANNOT_drift():
     from api.services.journal_two.note_properties import SAVEABLE_VIEW_TYPES
 
     js = Path("app/src/pages/journal-2-0/lib/savedViewModes.js").read_text(encoding="utf-8")
-    block = re.search(r"SAVEABLE_VIEW_MODES\s*=\s*new Set\(\[(.*?)\]\)", js, re.S)
-    assert block, "could not find SAVEABLE_VIEW_MODES in savedViewModes.js"
-    client = set(re.findall(r"'([a-z]+)'", block.group(1)))
+    # ⛔ PARSE VIEW_MODES, NOT THE SET. The client Set is now DERIVED from that
+    # ordered table (it used to be a hand-written literal, and the toolbar was
+    # quietly carrying a third copy of the same five ids). Reading the table
+    # reads the one authority; reading a derived expression would read nothing.
+    block = re.search(r"VIEW_MODES\s*=\s*\[(.*?)\n\]", js, re.S)
+    assert block, "could not find the VIEW_MODES table in savedViewModes.js"
+    client = set(re.findall(r"id:\s*'([a-z]+)'", block.group(1)))
 
     # Non-vacuity: a parse that found nothing would make any comparison pass.
     assert len(client) >= 2, f"parsed a suspiciously small client set: {client}"
