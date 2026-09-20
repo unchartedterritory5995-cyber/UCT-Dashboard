@@ -15,6 +15,7 @@ import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
+import UniverseBar from './UniverseBar'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
@@ -235,6 +236,10 @@ export default function ScannerShell({ embedded = false }) {
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
       {!isPhone && <div className={styles.railSlot}>{rail}</div>}
       <div className={styles.main}>
+        {/* Universe = the base pool the scan runs against (UCT Universe / a
+            watchlist / a union combo). Emits the existing `list` filter, so it
+            needs no new endpoint; a signed-out member sees only UCT Universe. */}
+        <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter} />
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
