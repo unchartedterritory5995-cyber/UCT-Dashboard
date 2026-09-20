@@ -1017,6 +1017,24 @@ def live_screen_state(rows, tier=None) -> dict:
     }
 
 
+# A value column whose columnDefs formatter renders a rich label by reading a
+# COMPANION column (`row.<companion>`) — "Tweezer Top (Hanging Man)" from
+# candle_type reading candle_label. The companion must be FETCHED for the label
+# to render, but it is NOT a displayed column: listing it in a view showed it
+# twice (the value column already renders the label). So it is fetched here and
+# left OFF out_columns. Unlike base_matches (fetched then DROPPED because
+# base_bias is derived server-side), these are KEPT in the row — the FRONTEND
+# formatter reads them.
+_DISPLAY_COMPANIONS = {
+    "candle_type": ("candle_label",),
+    "candle_weekly": ("candle_weekly_label",),
+    "candle_monthly": ("candle_monthly_label",),
+    "candle_recent": ("candle_recent_label",),
+    "bar_character": ("bar_character_label",),
+    "base_shape": ("base_shape_label",),
+}
+
+
 def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     """The EXACT statement `run_scan` executes, plus what describes its rows.
 
@@ -1133,14 +1151,24 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
                 seen.add(c)
                 select_cols.append(c)
         out_columns = select_cols
-        # base_bias (attached in run_scan, colours the structure tag) is derived
-        # from base_matches, which the client's explicit `columns` omits. When
-        # the tag is shown (base_render requested), FETCH base_matches for that
-        # derivation WITHOUT adding it to out_columns — run_scan drops it from
-        # the returned rows, so the requested-columns projection is unchanged.
-        # (`select_cols` becomes a new list here; out_columns keeps the old one.)
+        # Fetch-only extras — added to the SELECT but NOT to out_columns, so
+        # nothing renders twice (`select_cols` becomes a new list; out_columns
+        # keeps the display-only one):
+        #   • base_matches when the structure tag is shown, so run_scan can
+        #     derive base_bias — then DROPPED (base_bias is server-side);
+        #   • each displayed value column's render companion (candle_label etc.),
+        #     which its columnDefs formatter reads for the rich label — KEPT in
+        #     the row (the frontend reads it). This is what removes the duplicate
+        #     `X` / `X Label` columns the views used to list side by side.
+        extra = []
         if "base_render" in seen and "base_matches" not in seen:
-            select_cols = [*select_cols, "base_matches"]
+            extra.append("base_matches")
+        for c in out_columns:
+            for d in _DISPLAY_COMPANIONS.get(c, ()):
+                if d not in seen and d not in extra:
+                    extra.append(d)
+        if extra:
+            select_cols = [*out_columns, *extra]
     elif overlay.on:
         # ⚠️ `SELECT *` CANNOT SURVIVE THE JOIN. With a second table in the FROM
         # it returns BOTH tables' columns, and `sqlite3.Row` keeps only the last

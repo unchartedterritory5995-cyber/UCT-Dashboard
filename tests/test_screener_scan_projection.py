@@ -67,3 +67,21 @@ def test_base_render_scan_attaches_base_bias_without_leaking_base_matches(monkey
     assert "base_matches" not in row               # internal column not leaked
     assert "base_matches" not in out["view_columns"]
     assert row["base_render"] == "Advancing Structure"
+
+
+def test_display_companion_is_fetched_but_not_a_duplicate_column(monkeypatch, tmp_path):
+    # candle_type's formatter renders its rich label from row.candle_label. The
+    # view lists candle_type WITHOUT candle_label, so the query must FETCH the
+    # companion (kept in the row for the frontend) while NOT adding it as a
+    # displayed column — that is what removes the duplicate "Candle"/"Candle
+    # Label" columns.
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, query
+    snapshot_db.init_db()
+    snapshot_db.upsert_rows([
+        {"ticker": "AAA", "candle_type": "tweezer-top",
+         "candle_label": "Tweezer Top (Hanging Man)", "snapshot_date": "2026-08-21"},
+    ])
+    out = query.run_scan({"columns": ["candle_type"]})
+    assert "candle_label" not in out["view_columns"]          # not shown twice
+    assert out["rows"][0]["candle_label"] == "Tweezer Top (Hanging Man)"  # fetched

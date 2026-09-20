@@ -831,7 +831,9 @@ VIEWS = {
     # ⭐ A FILTER FAMILY WITH NO VIEW IS HALF-SHIPPED — the rail that caught
     # four candle columns filterable-and-invisible. These land together.
     "bases": {"label": "Bases & Structure", "columns": [
-        "ticker", "company", "base_render", "base_shape", "base_shape_label",
+        # base_shape_label is FETCHED (not listed) via query._DISPLAY_COMPANIONS
+        # so base_shape renders its rich label without a duplicate column.
+        "ticker", "company", "base_render", "base_shape",
         "base_relation_count", "price", "chg_pct_1d", "candle_score",
         "pct_vs_sma50", "dist_52w_high_pct", "vol_ratio"]},
     "patterns": {"label": "Patterns", "columns": [
@@ -864,19 +866,17 @@ VIEWS = {
         # ⭐ THE FOUR NEW BAR-NAMING COLUMNS LIVE HERE OR THEY LIVE NOWHERE.
         # Each shipped with its own filter, and a filter category with no view
         # behind it is a half-shipped family — the exact gap the comment above
-        # this block was written for, three waves earlier. `candle_type` was the
-        # only one of the five visible anywhere.
-        # 🔴 THE `_label` COMPANIONS MUST BE SELECTED OR THE RICH LABEL NEVER
-        # RENDERS. Each formatter in `columnDefs.js` reads `row.<col>_label` and
-        # falls back to the raw key — so without these the member sees
-        # `last-engulfing-top` instead of "Last Engulfing Top (Long White) +1".
-        # Caught by opening the actual screen; invisible to every test, because
-        # a formatter given a row that HAS the companion renders it correctly.
-        "ticker", "company", "candle_type", "candle_label",
-        "candle_trend", "bar_character", "bar_character_label",
-        "candle_recent", "candle_recent_label", "candle_recent_bars_ago",
-        "candle_weekly", "candle_weekly_label",
-        "candle_monthly", "candle_monthly_label",
+        # this block was written for, three waves earlier.
+        # 🔴 THE `_label` COMPANIONS ARE FETCHED, NOT LISTED. Each value column's
+        # columnDefs formatter reads `row.<col>_label` for its rich label; listing
+        # the companion here ALSO rendered it as a second, identical column ("Candle"
+        # + "Candle Label"). `query._DISPLAY_COMPANIONS` now fetches each companion
+        # for the derivation without displaying it — one column, rich label, no dup.
+        "ticker", "company", "candle_type",
+        "candle_trend", "bar_character",
+        "candle_recent", "candle_recent_bars_ago",
+        "candle_weekly",
+        "candle_monthly",
         "body_pct", "upper_wick_pct", "lower_wick_pct", "close_position",
         "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
 }
