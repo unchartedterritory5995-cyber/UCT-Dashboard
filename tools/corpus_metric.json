@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-20",
   "scripts": 266,
-  "host_ok": 35,
-  "screener_ok": 47,
+  "host_ok": 36,
+  "screener_ok": 49,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -948,17 +948,15 @@
     {
       "file": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
         "pine:function-def",
         "pine:cycle",
-        "pine:function",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:function-def",
         "pine:cycle",
-        "pine:function",
         "pine:state"
       ]
     },
@@ -1312,14 +1310,10 @@
     },
     {
       "file": "liquidity-pools__fa7b28e733.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
@@ -1472,10 +1466,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:collection"
       ]
     },
     {
@@ -2023,8 +2017,7 @@
       "hostGuards": [
         "pine:module",
         "pine:builtin",
-        "pine:tuple",
-        "pine:function"
+        "pine:tuple"
       ],
       "screenerGuards": [
         "pine:module",
@@ -2339,10 +2332,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:function",
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:function",
+        "pine:builtin"
       ]
     },
     {
@@ -2543,13 +2538,11 @@
     {
       "file": "support-and-resistance__1505.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:function",
         "pine:na"
       ],
       "screenerGuards": [
-        "pine:function",
         "pine:na"
       ]
     },

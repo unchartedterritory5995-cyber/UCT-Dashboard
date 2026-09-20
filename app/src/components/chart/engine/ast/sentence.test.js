@@ -249,6 +249,17 @@ const FORMS = [
     name: 'valuewhen',
     parts: ['the value of ', 1, ' on the most recent of the last ', 2,
             ' bars where ', 0, ' was true'] },
+  // ⭐⭐ `valuewhenOccurrence` (2026-09-20) -- hand-typed from the manifest's
+  // own sentence, like every row above. ⚠️ NOT ambiguous with `valuewhen`'s
+  // row despite sharing the "the value of {1} " opening: the literal
+  // IMMEDIATELY after that shared prefix diverges at the next character --
+  // 'on the most recent...' for `valuewhen` vs 'the {2}-from-the-end
+  // time...' for this entry -- so `matchForm`'s leading-literal anchor
+  // separates them at the very next token.
+  { kind: 'call',
+    name: 'valuewhenOccurrence',
+    parts: ['the value of ', 1, ' the ', 2, '-from-the-end time ', 0,
+            ' was true, counting occurrences backward'] },
   // ⚰️ THESE READ "most recent" UNTIL 2026-09-08, and the tie-break correction
   // moved the manifest's words to "oldest". Re-typing them here is the DESIGN
   // working, not friction: this oracle is hand-typed precisely so a wording
@@ -1132,6 +1143,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:sum',
       'function:tan',
       'function:valuewhen',
+      'function:valuewhenOccurrence',
       'function:vwap',
       'function:williamsR',
       'function:wma',
@@ -1148,7 +1160,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
-    expect(entries.length).toBe(120)
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    expect(entries.length).toBe(121)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1162,7 +1175,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
-    expect(subjects.length).toBe(120)
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    expect(subjects.length).toBe(121)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2380,6 +2394,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // SENTINEL means, and two of them carry the arg-extreme tie-break ruling.
       'barssince_the_last_up_bar',
       'valuewhen_the_last_up_bars_close',
+      'valuewhenOccurrence_the_second_most_recent_up_bar',
       'highestbars_the_offset_back_to_the_high',
       'lowestbars_the_offset_back_to_the_low',
       'obvN_bounded_signed_volume',
@@ -2577,7 +2592,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
-    expect(sentences.length).toBe(CORPUS.cases.length + 120)
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 121)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

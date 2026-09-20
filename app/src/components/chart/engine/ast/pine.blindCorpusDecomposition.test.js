@@ -46,7 +46,14 @@ describe('⛔⛔ RISK-004 — the assisted-edit mechanism has exactly ONE offer'
     // misses (function/builtin/tuple/role-order/undefined). None of these offer a
     // machine-appliable rewrite — `acceptEveryOffer` cannot act on any of them.
     const probes = [
-      ['ta.valuewhen arity', 'x = ta.valuewhen(close > open, close, 0)\nplot(x > 0 ? 1 : 0)'],
+      // ⚰️ `ta.valuewhen arity` USED TO REPRESENT THIS FAMILY HERE and no
+      // longer can (2026-09-20): `ta.valuewhen(...)` now TRANSLATES, onto a
+      // new `valuewhenOccurrence` primitive — see
+      // `pineValuewhenOccurrenceAccept.test.js`. `ta.nvi` is a genuinely
+      // undeclared function (no manifest entry, no expansion) and refuses
+      // the identical `pine:function` guard with no suggest, so it is the
+      // fresh representative for this family.
+      ['ta.nvi genuinely undeclared', 'x = ta.nvi\nplot(x > 0 ? 1 : 0)'],
       ['ta.barssince unbounded', 'x = nz(ta.barssince(close > open), 0)\nplot(x > 5 ? 1 : 0)'],
       // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06): `ta.falling`
       // no longer belongs in this probe list — it TRANSLATES now, resolved by
@@ -543,7 +550,15 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     + 'meanrev-consecutive-down-closes-exhaustion move from the passing set '
     + 'into misses, correctly, at guard pine:reassign. See '
     + 'pine.forLoopReassignSilentWrongResult.test.js for the mechanism and '
-    + 'permanent regression net.', () => {
+    + 'permanent regression net. '
+    + '⭐⭐ 20 → 19 ON 2026-09-20: `ta.valuewhen` joined the manifest as a real '
+    + 'occurrence-indexed primitive (`valuewhenOccurrence`, routed via a '
+    + 'namespace-aware special case in `resolveTableCall` — see '
+    + 'pineValuewhenOccurrenceAccept.test.js), and `recency-macd-turn-recent` '
+    + '— whose only blocker was `ta.valuewhen(cross, macdLine, 0)` — leaves '
+    + 'the miss set the same way `candles-doji-at-extension` and '
+    + '`volatility-range-contraction-base` did: new capability, read rather '
+    + 'than argued.', () => {
     const files = fs.readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.pine'))
     const misses = []
     for (const f of files) {
@@ -564,20 +579,36 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     // the miss set the way `candles-doji-at-extension` did — new capability, read
     // rather than argued. The two RISK-043 correctness misses above stay.
     expect(misses).not.toContain('volatility-range-contraction-base')
-    expect(misses.length).toBe(20)
+    // ⭐⭐ 20 → 19 ON 2026-09-20. See this test's own title-string changelog.
+    expect(misses).not.toContain('recency-macd-turn-recent')
+    expect(misses.length).toBe(19)
   })
 })
 
-describe('✅ RISK-004 — ta.valuewhen: CORRECTED classification, NO code change (Layer 2 capability gap, already correctly refused)', () => {
-  // The prior tranche's own probe tested the WRONG spelling — the bare,
-  // engine-vocabulary `valuewhen(...)` form the refusal's "TO UNBLOCK" text
-  // suggests retyping — and reported its `pine:role-order` wall as if it were
-  // `ta.valuewhen`'s own defect. It is not: `ta.valuewhen`, the ONLY spelling
-  // any real Pine script ever writes, already hits a DIFFERENT, correctly-
-  // reasoned refusal (`PINE_INEXPRESSIBLE.valuewhen`) — confirmed here for
-  // both occurrence=0 (every real corpus use) and occurrence=1 (Pine's own
-  // documented example), so this is not an artifact of the one value the
-  // corpus happens to use.
+describe('✅✅ RISK-004 — ta.valuewhen: THE "LAYER 2" RULING BELOW WAS PAID OFF (2026-09-20), a NEW runtime primitive WAS built', () => {
+  // ⚰️⚰️ THIS DESCRIBE BLOCK USED TO CONCLUDE `ta.valuewhen` WAS A PERMANENT
+  // EXECUTION-MODEL BOUNDARY — "no LOCAL identity ... exists without ... a
+  // new runtime primitive; neither is implemented this tranche." That
+  // conclusion was correct about what was true AT THE TIME and correctly
+  // scoped the remaining work rather than overclaiming it as impossible: the
+  // new primitive it named as the missing piece is exactly what shipped.
+  // `valuewhenOccurrence` (`interpret.js` / `ast_interpret.py`) is a genuine,
+  // separate backward-scanning primitive — a growing list of true-condition
+  // bar indices, O(n) total, unbounded — and `ta.valuewhen(...)` now routes
+  // onto it via a namespace-aware special case in `resolveTableCall` (search
+  // `valuewhenOccurrence` in `pine.js`). See `closedTable.json::
+  // _functions_valuewhen_occurrence` for the vendor citation (TradingView's
+  // own documented "second most recent cross" example) and
+  // `pineValuewhenOccurrenceAccept.test.js` for the dedicated coverage,
+  // including the honest real-corpus result (one script fully unlocked,
+  // three converge on separate unrelated blockers).
+  //
+  // ⭐ THE BAR-WINDOW `valuewhen` DID NOT MOVE. This table's own
+  // `valuewhen(condition, source, period)` still means a bounded bar window,
+  // reachable through the internal formula language exactly as before; only
+  // the PINE NAMESPACE `ta.valuewhen(...)` redirects, and only because that
+  // spelling was never reachable through the bar-window entry to begin with
+  // (real Pine's third argument counts occurrences, not bars).
 
   function formulaOf(src) {
     const out = translatePine(`//@version=6\nindicator("t")\n${src}`)
@@ -585,45 +616,37 @@ describe('✅ RISK-004 — ta.valuewhen: CORRECTED classification, NO code chang
     return { ok: true, formula: out.outputs[out.selected].formula }
   }
 
-  it('ta.valuewhen(cond, source, 0) — the real spelling — is refused with the REASONED, vendor-cited message, not the generic role-order one', () => {
+  it('ta.valuewhen(cond, source, 0) — the real spelling — now TRANSLATES, onto the true occurrence function', () => {
     const out = formulaOf('plot(ta.valuewhen(close > open, close, 0) > 0 ? 1 : 0)')
-    expect(out.ok).toBe(false)
-    expect(out.guard).toBe('pine:function')
-    expect(out.message).toContain('OCCURRENCES')
-    expect(out.message).toContain('BAR WINDOW')
-    expect(out.message).not.toBe('pine:role-order')
+    expect(out.ok, JSON.stringify(out)).toBe(true)
+    expect(out.formula).toContain('valuewhenOccurrence(close > open, close, 0)')
   })
 
-  it('the same true refusal holds at occurrence=1 (Pine\'s own documented "second most recent" example) — not specific to the corpus\'s occurrence=0 usage', () => {
+  it('and at occurrence=1 (Pine\'s own documented "second most recent" example) — not specific to the corpus\'s occurrence=0 usage', () => {
     const out = formulaOf('plot(ta.valuewhen(close > open, close, 1) > 0 ? 1 : 0)')
-    expect(out.ok).toBe(false)
-    expect(out.guard).toBe('pine:function')
-    expect(out.message).toContain('OCCURRENCES')
+    expect(out.ok, JSON.stringify(out)).toBe(true)
+    expect(out.formula).toContain('valuewhenOccurrence(close > open, close, 1)')
   })
 
-  it('DOCUMENTED, NOT FIXED (consistent with this program\'s treatment of every other refusal-advice-quality finding, e.g. ta.supertrend\'s truncated message): the refusal\'s own "TO UNBLOCK: write valuewhen(condition, source, n)" advice does not itself work — bare positional form hits an UNRELATED, differently-reasoned wall', () => {
+  it('the bare positional form is UNCHANGED from what this block already found — still an unrelated pine:role-order wall, never the occurrence function', () => {
+    // ⚰️ THE ROOT CAUSE THIS BLOCK ALREADY NAMED IS UNCHANGED: `argRoles` is
+    // consulted only by `interpret.js`'s `assertArgRoles` (a downstream
+    // formula-language validator), never by `pine.js`'s Pine-translation
+    // role-order resolution, and no `PINE_CALL_SHAPES` entry exists for the
+    // bare `valuewhen` spelling (deliberately — see `pine.js`'s own comment:
+    // adding one would hijack this exact bare call onto the occurrence
+    // function). This is intentional, not a residual gap: bare `valuewhen`
+    // means the bar-window function, unconditionally, and the fix must never
+    // make it ambiguous which one a member gets.
     const positional = formulaOf('plot(valuewhen(close > open, close, 5) > 0 ? 1 : 0)')
     expect(positional.ok).toBe(false)
-    expect(positional.guard).toBe('pine:role-order') // NOT the same reason as ta.valuewhen's own refusal
+    expect(positional.guard).toBe('pine:role-order')
     const named = formulaOf('plot(valuewhen(condition = close > open, source = close, period = 5) > 0 ? 1 : 0)')
     expect(named.ok).toBe(false)
     expect(named.guard).toBe('pine:named-argument')
-    // Root cause, confirmed by direct code reading: closedTable.json declares
-    // `argRoles: [condition, source, period]` for valuewhen, but `argRoles` is
-    // consulted in exactly one place in the whole engine — `interpret.js`'s
-    // `assertArgRoles`, a DOWNSTREAM semantic-kind validator for the formula
-    // LANGUAGE (catching e.g. a raw price series used as a condition) — never
-    // by pine.js's Pine-translation role-order resolution. No PINE_CALL_SHAPES
-    // entry exists for valuewhen (unlike cci/mfi's `sourceMustBe` adapters),
-    // so the generic "seriesSlots > 1, no measured order" refusal fires
-    // instead. This is a real, narrow, LOW-RISK adapter-mapping gap — but it
-    // affects NO corpus script (none writes the bare form) and is tangential
-    // to why `ta.valuewhen` blocks the blind corpus, so it is reported here
-    // and left unfixed, matching how this program has already treated every
-    // other refusal-advice-quality finding it turned up along the way.
   })
 
-  it('all three real corpus valuewhen scripts stay refused, EACH for a documented reason (not necessarily the same one) — reconstructed without editing any fixture', () => {
+  it('of the three real (blind-corpus) valuewhen scripts, reconstructed without editing any fixture: each now clears valuewhen and surfaces its own separate blocker, or fully translates', () => {
     const shapes = {
       'breakout-flat-base-pivot-breakout': [
         'pivLeft = input.int(10, "x")', 'pivRight = input.int(3, "x")', 'baseLen = input.int(35, "x")',
@@ -648,18 +671,15 @@ describe('✅ RISK-004 — ta.valuewhen: CORRECTED classification, NO code chang
     }
     for (const [label, lines] of Object.entries(shapes)) {
       const out = formulaOf(lines.join('\n'))
-      expect(out.ok, `${label} unexpectedly translated`).toBe(false)
-      expect(out.guard, label).toBe('pine:function')
-      expect(out.message, label).toContain('OCCURRENCES')
+      // ⚰️ THESE MINIMAL REDUCTIONS -- NOT THE THREE REAL BLIND-CORPUS SCRIPTS
+      // THEMSELVES -- ALL NOW TRANSLATE: none of them exercises a SEPARATE
+      // blocker the way the four `corpus/committed` scripts measured in
+      // `pineValuewhenOccurrenceAccept.test.js` do, because each reduction
+      // is deliberately minimal (built to isolate the valuewhen construct
+      // alone, per this file's own header rule). The full blind-corpus
+      // scripts' OWN standing pass/fail state is `pine.blindCorpus.test.js`'s
+      // to track, not reconstructed here.
+      expect(out.ok, `${label}: ${JSON.stringify(out)}`).toBe(true)
     }
-  })
-
-  it('LAYER 2, precisely: this is a permanent execution-model boundary, not a translation bug — occurrence-based "most recent occurrence" search is unbounded in general, and no LOCAL identity (unlike ta.barssince\'s comparison-bound trick) exists without either an external proven bound or a new runtime primitive; neither is implemented this tranche', () => {
-    // Mirrors ta.barssince's own already-accepted capability-gap classification
-    // (recency-breakout-hold-since-trigger's numeric use, recency-fresh-golden-
-    // cross's cross-comparison) — same reasoning, same conclusion, same choice
-    // not to invent new runtime state or whole-formula constraint propagation.
-    const out = formulaOf('plot(ta.valuewhen(close > open, close, 0) > 0 ? 1 : 0)')
-    expect(out.ok).toBe(false)
   })
 })

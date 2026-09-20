@@ -345,6 +345,49 @@ if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
 _ARG_REF = re.compile(r"^(?:(\d+)\s*\*\s*)?arg(\d+)$")
 
 
+def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
+    """Mirrors ``interpret.js::lint.js``'s ``argYieldsBool`` -- see that
+    function's own comment for the full reasoning (R-G, 2026-09-20). A THIRD
+    reader of ``_functions_arg_role_kinds``, beside ``ast_interpret._assert_arg_roles``
+    (which asks ``scan_definition.is_boolean_tree``) and ``interpret.js::assertArgRoles``
+    (which asks ``sentence.js::yieldsOf``) -- this file's own import graph cannot
+    reach either resolver, so this is a LOCAL, narrow read of the same manifest
+    data, restricted to the node shapes an argument tree can actually be here.
+    """
+    if not isinstance(node, dict):
+        return False
+    kind = node.get("type")
+    if kind == "num":
+        return node.get("value") in (0, 1)
+    if kind == "series":
+        clock = table.get("clock") or {}
+        name = node.get("name")
+        if name in clock:
+            return clock[name].get("yields") == "bool"
+        scalars = table.get("scalars") or {}
+        return scalars.get(name, {}).get("yields") == "bool" if name in scalars else False
+    if kind == "op":
+        operators = table.get("operators") or {}
+        declared = operators.get(node.get("name"), {}).get("yields", "num")
+        if declared != "passthrough":
+            return declared == "bool"
+        arms = (node.get("args") or [])[1:]
+        return len(arms) > 0 and all(_arg_yields_bool(a, table) for a in arms)
+    if kind == "call":
+        functions = table.get("functions") or {}
+        return functions.get(node.get("name"), {}).get("yields") == "bool"
+    if kind in ("sym", "tf_live", "tf"):
+        args = node.get("args") or []
+        return len(args) == 1 and _arg_yields_bool(args[0], table)
+    return False
+
+
+def _arg_role_kinds(table: Mapping[str, Any]) -> Dict[str, str]:
+    """The roles ``_functions_arg_role_kinds`` declares as requirements."""
+    raw = table.get("_functions_arg_role_kinds") or {}
+    return {k: v for k, v in raw.items() if not k.startswith("_") and isinstance(v, str)}
+
+
 def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
     """One declaration (``lookback`` or ``forward``) against a call's arguments.
 
@@ -860,24 +903,50 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                     reach_of[id(node)] = unknown(
                         "`%s` declares a window this linter cannot bound" % node.get("name"))
                 else:
-                    arg_back: Reach = 0
-                    arg_forward: Reach = 0
-                    for child in args:
-                        cb, cf = reach_of.get(id(child), (UNKNOWN, UNKNOWN))
-                        arg_back = _max_reach(arg_back, cb)
-                        arg_forward = _max_reach(arg_forward, cf)
-                    # The outer window COMPOSES on top of whatever the arguments
-                    # reach: an output at `i` reads argument outputs across
-                    # [i-back, i+forward], each already reaching `arg_forward`.
-                    forward = _add_reach(own_forward, arg_forward)
-                    if forward != UNKNOWN and forward != 0:
-                        reasons.append(
-                            "`%s` declares an UNBOUNDED forward reach - no bar makes this value final"
-                            % node.get("name")
-                            if forward == UNBOUNDED else
-                            "`%s` reads %d bar%s ahead of the bar it writes"
-                            % (node.get("name"), forward, "" if forward == 1 else "s"))
-                    reach_of[id(node)] = (_add_reach(own_back, arg_back), forward)
+                    # ⭐⭐ R-G, 2026-09-20 -- mirrors `lint.js`'s own arm; see
+                    # `_arg_yields_bool`'s docstring. `interpret.js::maxLookback`
+                    # refuses a call whose `condition`-role argument does not
+                    # settle to `bool`; this walk did not, so a tree like
+                    # `ta.valuewhen(swing_h, high[len], 0)` -- a real idiom in
+                    # `liquidity-pools__fa7b28e733.pine`, passing a value-or-`na`
+                    # series as an implicit condition -- answered a real number
+                    # here while `interpret` refused.
+                    role_kinds = _arg_role_kinds(table)
+                    roles = spec.get("argRoles") if isinstance(spec.get("argRoles"), list) else None
+                    bad_role = None
+                    if roles:
+                        for i, role in enumerate(roles):
+                            want = role_kinds.get(role)
+                            if not want:
+                                continue
+                            got = _arg_yields_bool(args[i], table) if want == "bool" else True
+                            if not got:
+                                bad_role = i
+                                break
+                    if bad_role is not None:
+                        reach_of[id(node)] = unknown(
+                            "`%s` argument %d is its %s: compare it to something, or use a "
+                            "name this table declares as yielding 0/1"
+                            % (node.get("name"), bad_role, roles[bad_role]))
+                    else:
+                        arg_back: Reach = 0
+                        arg_forward: Reach = 0
+                        for child in args:
+                            cb, cf = reach_of.get(id(child), (UNKNOWN, UNKNOWN))
+                            arg_back = _max_reach(arg_back, cb)
+                            arg_forward = _max_reach(arg_forward, cf)
+                        # The outer window COMPOSES on top of whatever the arguments
+                        # reach: an output at `i` reads argument outputs across
+                        # [i-back, i+forward], each already reaching `arg_forward`.
+                        forward = _add_reach(own_forward, arg_forward)
+                        if forward != UNKNOWN and forward != 0:
+                            reasons.append(
+                                "`%s` declares an UNBOUNDED forward reach - no bar makes this value final"
+                                % node.get("name")
+                                if forward == UNBOUNDED else
+                                "`%s` reads %d bar%s ahead of the bar it writes"
+                                % (node.get("name"), forward, "" if forward == 1 else "s"))
+                        reach_of[id(node)] = (_add_reach(own_back, arg_back), forward)
         else:
             reach_of[id(node)] = unknown(
                 "node type %r is not one of %s" % (kind, ", ".join(_CANONICAL_TYPES)))
