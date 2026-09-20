@@ -1189,17 +1189,27 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
  *  bundle has no column for — a declared name quietly seeded NaN would be a
  *  clock that reads "not computable" forever, on every bar, silently. */
-/** The two BARSTATE columns that read only the fetch's EXTENT — which bar this
- *  is out of how many — and no clock at all.
+/** The three EXTENT columns — which bar this is out of how many — and no
+ *  clock at all.
  *
  *  ⭐ THEY ARE OUTSIDE THE UNIT GATE FOR THE SAME REASON `barindex` IS: they
  *  never touch `t`, so a series stored in `YYYYMMDD` ints gives them no reason
  *  to doubt themselves. They also can never BLANK — there is no input they
  *  could be missing. `isfirst` is nonetheless WINDOW-DEPENDENT in the
- *  requirement-tag sense and `islast` is not — widen the fetch and the oldest
- *  bar moves while the newest one does not. That distinction is the ruling, and
- *  it is the reason these two are not one column with a flag. */
-export const CLOCK_EXTENT = Object.freeze(['islast', 'isfirst'])
+ *  requirement-tag sense and `islast`/`lastbarindex` are not — widen the fetch
+ *  and the oldest bar moves while the newest one does not.
+ *
+ *  ⭐ `lastbarindex` IS `islast`'S OWN RULING, APPLIED TO A NUMBER RATHER THAN A
+ *  FLAG: it is the newest bar's `barindex`, broadcast to every bar. Widening
+ *  the fetch shifts the VALUE (`barindex` renumbers from the new oldest bar),
+ *  exactly as it shifts every `barindex` reading — but it never changes WHICH
+ *  real bar the value names, the same non-dependence `islast` already has. It
+ *  is not tagged `window_dependent` in the closed table for that reason, and it
+ *  is not `_bind_time_constants` either: unlike `timeframe.isweekly`, its value
+ *  is the SAME on every bar within one fetch, so a window length built from it
+ *  would need no per-bar re-evaluation — but admitting it into that door is a
+ *  separate, unopened question, not a consequence of adding the column. */
+export const CLOCK_EXTENT = Object.freeze(['islast', 'isfirst', 'lastbarindex'])
 
 /** The four BARSTATE columns that need to know whether the newest bar's period
  *  has finished — a fact this module is TOLD, never one it computes.
@@ -1306,11 +1316,14 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   for (let i = 0; i < length; i++) cols.barindex[i] = i
 
   // ── barstate ─────────────────────────────────────────────────────────────
-  // ⭐ THE EXTENT PAIR reads no `t` and no clock, so it answers above the unit
+  // ⭐ THE EXTENT TRIO reads no `t` and no clock, so it answers above the unit
   // gate — the same line `barindex` sits on, for the same reason. It can never
   // blank: there is no input it could be missing.
   cols.isfirst[0] = 1
   cols.islast[length - 1] = 1
+  // `lastbarindex` is `barindex[length - 1]`, broadcast to every bar — the
+  // newest bar's own position, read from wherever a formula sits in the series.
+  cols.lastbarindex.fill(length - 1)
 
   // ⛔⛔ THE REALTIME FOUR ARE TRI-STATE AND FAIL CLOSED FIRST.
   // `newestBarIsForming` is `true | false | null`, and `null` means UNKNOWN —

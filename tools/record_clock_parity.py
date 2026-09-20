@@ -59,10 +59,10 @@ sys.path.insert(0, str(ROOT))
 STATES = (True, False, None)
 
 #: The barstate columns whose values the tri-state actually moves. The extent
-#: pair is deliberately outside it — those two read only the fetch's shape and
+#: trio is deliberately outside it — those three read only the fetch's shape and
 #: are identical under all three states, which the recorder asserts rather than
 #: assumes.
-BARSTATE_COLUMNS = ("islast", "isfirst", "isrealtime", "isconfirmed",
+BARSTATE_COLUMNS = ("islast", "isfirst", "lastbarindex", "isrealtime", "isconfirmed",
                     "ishistory", "islastconfirmedhistory")
 
 

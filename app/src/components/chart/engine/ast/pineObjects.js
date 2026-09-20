@@ -17,7 +17,12 @@
 // approximated, because both would produce a confident wrong picture:
 //
 //   * an object operation inside a `for`/`while` body — RISK-043 stands, the
-//     loop is not executed, and drawing the first iteration would be a lie;
+//     loop is not executed, and drawing the first iteration would be a lie.
+//     ⛔ THIS APPLIES ONLY ONCE AN OP IS KNOWN TO BE AN OBJECT OP. For a
+//     collection call (`array.<method>`) that means the target array must
+//     already be `decls`-registered `kind: 'coll'` — checked BEFORE `inLoop`,
+//     never after, or an ordinary numeric array inside a loop is misreported
+//     as a dropped drawing (Task 1, 2026-09-19);
 //   * `line.get_x1(l)` and every other GETTER — a getter reads runtime OBJECT
 //     state back into a VALUE, and the V2 computation graph is pure by
 //     construction. There is no node that means "whatever that line's x1 is
@@ -505,13 +510,32 @@ export function collectObjectOps(stmts, h) {
     })
   }
 
+  /** ⭐⭐ TASK 1 (2026-09) — RELEVANCE BEFORE THE LOOP BOUNDARY, NOT AFTER.
+   *
+   *  `array` is Pine's one generic namespace for every element type — a plain
+   *  `array.new_float()` regression scratch array and an `array.new_line()`
+   *  collection call the identical method spellings. Flagging `inLoop` before
+   *  asking whether THIS array was ever registered as an object-family
+   *  collection (`decls.get(name).kind === 'coll'`) counted an ordinary numeric
+   *  loop body as a dropped OBJECT op. Measured on
+   *  `high_engagement__10-rsi-divergence-faytterro.pine`: its reported
+   *  `loopBlocked: 6` was entirely six `array.set(dizi<N>, i, …)` calls on
+   *  `array.new_float()` scratch arrays — its six real (and separately, and
+   *  correctly, blocked by RISK-043's guard mechanism) `line.new`/`label.new`
+   *  creates were never in this count at all.
+   *
+   *  ⛔ RISK-043 STILL STANDS FOR THE CASE IT PROTECTS: an object-family
+   *  collection op (`decls.get(name).kind === 'coll'`) inside a loop is still
+   *  refused and still counted — this reorders WHEN irrelevance is detected, it
+   *  does not touch what happens once relevance is established.
+   */
   function emitCollection(method, toks, guards, inLoop, st, scope) {
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
     const args = argsOf(toks)
     if (!args || !args.length) return
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
     if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
     ops.push({
       k: `coll_${method}`, coll: collName, args: args.slice(1),
       guards, locals: scope, at: toks[0], line: st.header[0].line,

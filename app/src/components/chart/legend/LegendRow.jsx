@@ -125,6 +125,19 @@ export default function LegendRow({
    *  announced "SIG" for a door that manages MACD entirely. The volume strip is
    *  the other reason: its row carries no text at all. Defaults to `label`. */
   controlLabel,
+  /** Engine-instance identity, for the callers that HAVE one (a pane readout
+   *  for a UCT indicator) — absent for the callers that don't (legacy MA
+   *  overlays, the volume strip). When given, mirrors `IndicatorChip`'s own
+   *  `data-instance-id`/`data-plot-key`/`data-computed` triple verbatim, so a
+   *  harness that already knows those three handles (this repo's own stated
+   *  convention: "TESTIDS WHERE THEY EXIST... guessing at class names is how
+   *  a harness silently measures the wrong element") finds a pane-placed
+   *  study exactly the way it finds an overlay-placed one, with no separate
+   *  selector and no plot-key guessing. Costs nothing when absent — three
+   *  `undefined` attributes render as nothing. */
+  instanceId,
+  plotKey,
+  computed,
   onOpen,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
   // added to the drawn series while the pointer was on its label — retired by the
@@ -191,6 +204,9 @@ export default function LegendRow({
         className={`${styles.flat} ${tone} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
         data-legend-row={rowId}
         data-hidden={hidden ? 'true' : 'false'}
+        data-instance-id={instanceId}
+        data-plot-key={plotKey}
+        data-computed={computed === false ? 'false' : undefined}
         style={ink}
         {...trigger}
       >
@@ -217,6 +233,9 @@ export default function LegendRow({
       className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
+      data-instance-id={instanceId}
+      data-plot-key={plotKey}
+      data-computed={computed === false ? 'false' : undefined}
       style={ink}
       {...trigger}
     >

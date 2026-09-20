@@ -18483,6 +18483,15 @@ export default function StockChart({
                  chip opens. One address, one surface — a member cannot tell that
                  two components are involved. */
               rowId={c.instanceId}
+              /* ⭐ TESTID PARITY WITH `IndicatorChip` — see `LegendRow.jsx`'s
+                 own doc on these three props. `c` is the identical chip object
+                 an overlay-placed instance's `IndicatorChip` would receive;
+                 passing its `instanceId`/`plotKey`/`computed` through costs
+                 nothing rendered and gives a harness the same handles either
+                 placement uses. */
+              instanceId={c.instanceId}
+              plotKey={c.plotKey}
+              computed={c.computed}
               /* ⭐⭐ THE PANE SPELLS IT OUT — `Relative Strength Index`, not
                  `RSI(14)`; `UCT Stocks Up 20%+ in 5 Days`, not `UCTU20W`. The
                  strip six pixels up keeps the abbreviation, which is the owner's
