@@ -41,6 +41,7 @@ import {
   makeIrProgram, SLOT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
+  forStmt, breakStmt, continueStmt,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
@@ -1471,6 +1472,49 @@ export function buildRuntimeIr(source, opts = {}) {
       }
       if (word === 'type') { note('runtime:udt'); throw new RuntimeRefusal('runtime:udt', null, locate(first)) }
       if (word === 'varip') { note('runtime:varip'); throw new RuntimeRefusal('runtime:varip', null, locate(first)) }
+      // ⭐⭐ `for name = from to to [by step]`. `while` keeps the old refusal —
+      // neither acceptance script uses one, and a loop whose bound is re-read
+      // every pass is a different termination argument from this one's.
+      if (word === 'for') {
+        const nameTok = toks[1]
+        if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[2], '=')) {
+          throw new RuntimeRefusal('runtime:statement',
+            'a `for` needs `name = from to to`', locate(first))
+        }
+        const rest = toks.slice(3)
+        const toAt = findTop(rest, (x) => x.kind === 'ident' && x.value === 'to')
+        if (toAt < 0) {
+          throw new RuntimeRefusal('runtime:statement',
+            'a `for` needs a `to` bound', locate(first))
+        }
+        const after = rest.slice(toAt + 1)
+        const byAt = findTop(after, (x) => x.kind === 'ident' && x.value === 'by')
+        const fromToks = rest.slice(0, toAt)
+        const toToks = byAt < 0 ? after : after.slice(0, byAt)
+        const byToks = byAt < 0 ? null : after.slice(byAt + 1)
+        if (!fromToks.length || !toToks.length || (byAt >= 0 && !byToks.length)) {
+          throw new RuntimeRefusal('runtime:statement',
+            'a `for` bound is missing its expression', locate(first))
+        }
+        // ⛔ THE BOUNDS ARE LOWERED IN THE OUTER SCOPE, THE BODY IN A NEW ONE.
+        // The counter must not be visible to its own bounds (`for i = i to 3`
+        // is not a Pine program), and must not outlive the loop.
+        const fromIr = lowerExpr(parseWholeExpression(fromToks), scope)
+        const toIr = lowerExpr(parseWholeExpression(toToks), scope)
+        const stepIr = byToks ? lowerExpr(parseWholeExpression(byToks), scope) : num(1)
+        const inner = new Scope(scope)
+        const slot = inner.declare(nameTok.value, newSlot(nameTok.value, false))
+        // ⭐ The once-evaluated bound and step need somewhere to live that the
+        // member cannot name, so they get slots with names no Pine identifier
+        // can collide with.
+        const toSlot = newSlot(`${nameTok.value} to`, false)
+        const stepSlot = newSlot(`${nameTok.value} by`, false)
+        const body = lowerStmts(st.sub || [], inner)
+        out.push(forStmt({ slot, toSlot, stepSlot, from: fromIr, to: toIr, step: stepIr, body }))
+        continue
+      }
+      if (word === 'break') { out.push(breakStmt()); continue }
+      if (word === 'continue') { out.push(continueStmt()); continue }
       if (BLOCK_WORDS.has(word)) { note('runtime:loop'); throw new RuntimeRefusal('runtime:loop', `\`${word}\``, locate(first)) }
       if (word === 'switch') { note('runtime:switch'); throw new RuntimeRefusal('runtime:switch', null, locate(first)) }
 

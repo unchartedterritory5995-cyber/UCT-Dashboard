@@ -120,9 +120,14 @@ plot(ta.sma("ab", 5))
 
   it('⛔ CONTROL: a guard with no per-row promise passes through untouched', () => {
     // The override must be narrow. A lane that rewrote every message would lose
-    // the detail `RuntimeRefusal` appends (`— \`for\``), which is the part that
-    // says WHICH construct.
-    const r = buildRuntimeIr('//@version=6\nindicator("x")\nfor i = 0 to 3\n    a = 1\nplot(close)\n', { bars: BARS, inputs: {} })
+    // the detail `RuntimeRefusal` appends (`— \`while\``), which is the part
+    // that says WHICH construct.
+    //
+    // ⚰️ THIS USED A `for`, WHICH NOW LOWERS (runtime/__tests__/loops.test.js).
+    // `while` still refuses under the SAME guard, so the control keeps asking
+    // exactly what it asked: does a guard with no per-row promise reach the
+    // member with its own sentence and its own detail?
+    const r = buildRuntimeIr('//@version=6\nindicator("x")\nwhile close > 0\n    a = 1\nplot(close)\n', { bars: BARS, inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(RUNTIME_LANE_REFUSALS['runtime:loop']).toBeUndefined()

@@ -151,6 +151,12 @@ export const OP = Object.freeze({
   // one after. The reserved ids stay declared so nothing renumbers, and this
   // comment is the record that they were superseded rather than forgotten.
   ARRAY: 77,
+  // ⭐ ONE INSTRUCTION AT THE TOP OF EVERY ITERATION, carrying the loop's
+  // static NESTING DEPTH in `a`. It exists so `LOOP_ITERATIONS` and
+  // `LOOP_NESTING` are charged from inside the loop rather than estimated
+  // from outside it — a runaway is stopped by the thing counting the passes,
+  // not by a guess about how many there will be.
+  LOOP_TICK: 78,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -167,6 +173,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
+  OP.LOOP_TICK,
   OP.EMIT, OP.HALT,
 ]))
 

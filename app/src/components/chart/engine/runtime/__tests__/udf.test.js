@@ -246,7 +246,7 @@ describe('⛔ boundaries stated rather than approximated', () => {
     // ⛔ NO PARTIAL BODY EXECUTION. Compiling the statements it understands and
     // skipping the loop would produce a program that runs and computes something
     // other than what the member wrote.
-    const src = `${head}f(x) =>\n    var s = 0.0\n    for i = 0 to 3\n        s := s + i\n    s\nplot(f(1))\n`
+    const src = `${head}f(x) =>\n    var s = 0.0\n    while s < 3\n        s := s + 1\n    s\nplot(f(1))\n`
     const built = buildRuntimeIr(src, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.refusal.guard).toBe('runtime:loop')

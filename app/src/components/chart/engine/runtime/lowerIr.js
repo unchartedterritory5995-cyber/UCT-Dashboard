@@ -64,6 +64,9 @@ export function lowerIrProgram(ir) {
     arrayOps.push({ fn, typeArg: typeArg || null })
     return arrayOps.length - 1
   }
+  // ⭐ WHERE `break` AND `continue` JUMP TO. A stack, because loops nest and the
+  // innermost one owns both words — the depth is also what `LOOP_TICK` carries.
+  const loops = []
   const emit = (op, a = 0, b = 0) => { code.push(op, a, b) }
   const here = () => code.length / 3
   const patch = (at, slot, value) => { code[at * 3 + slot] = value }
@@ -237,6 +240,79 @@ export function lowerIrProgram(ir) {
           expr(s.value)
           emit(OP.EMIT, s.output)
           break
+        case STMT.FOR: {
+          // ⭐⭐ PINE'S LOOP, LOWERED FAITHFULLY, AND EVERY LINE HERE IS A
+          // SEMANTIC DECISION RATHER THAN A CODING ONE:
+          //
+          //   · both bounds are INCLUSIVE — `1 to 4` runs four times;
+          //   · when `to` is LESS than `from` the loop counts DOWN — `5 to 1` is
+          //     five descending passes, not an empty loop;
+          //   · `by` is a MAGNITUDE, so a descending loop steps by |by|;
+          //   · `from`, `to` and `by` are evaluated ONCE, at entry.
+          //
+          // ⛔ THE DIRECTION IS DECIDED AT RUNTIME, NOT AT BUILD. The bounds are
+          // usually `array.size(x) - 1`, which nothing knows before the bar runs,
+          // so a lowering that picked a direction from the source text would be
+          // right only for literal bounds — and wrong silently for every real
+          // watchlist walk.
+          const i = slotAddr(s.slot)
+          const toS = slotAddr(s.toSlot)
+          const stepS = slotAddr(s.stepSlot)
+          const store = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.STORE_PERSIST : OP.STORE_LOCAL, sl.index)
+          const load = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.LOAD_PERSIST : OP.LOAD_LOCAL, sl.index)
+
+          expr(s.from); store(i)          // i = from
+          expr(s.to); store(toS)          // to = <evaluated once>
+
+          // step = |by|, then negated when the loop runs downward.
+          expr(s.step); store(stepS)
+          load(stepS); emit(OP.CONST, constIndex(0)); emit(OP.LT)   // by < 0
+          load(stepS); emit(OP.NEG)                                  // -by
+          load(stepS)                                                // by
+          emit(OP.SELECT); store(stepS)                              // |by|
+          load(i); load(toS); emit(OP.LE)                            // from <= to
+          load(stepS)                                                // +|by|
+          load(stepS); emit(OP.NEG)                                  // -|by|
+          emit(OP.SELECT); store(stepS)
+
+          const top = here()
+          emit(OP.LOOP_TICK, loops.length + 1)
+          // continue while (step > 0 ? i <= to : i >= to)
+          load(stepS); emit(OP.CONST, constIndex(0)); emit(OP.GT)
+          load(i); load(toS); emit(OP.LE)
+          load(i); load(toS); emit(OP.GE)
+          emit(OP.SELECT)
+          const exitJump = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+
+          loops.push({ breaks: [], continues: [] })
+          stmts(s.body)
+          const frame = loops.pop()
+
+          const contTarget = here()
+          load(i); load(stepS); emit(OP.ADD); store(i)
+          emit(OP.JUMP, top)
+          const endTarget = here()
+          patch(exitJump, 1, endTarget)
+          // ⛔ `continue` LANDS ON THE STEP, NOT ON THE TEST. Jumping to the test
+          // would leave the counter where it was and loop forever on the same
+          // value — a hang, not a wrong number, and the ceiling would be the only
+          // thing that noticed.
+          for (const at of frame.continues) patch(at, 1, contTarget)
+          for (const at of frame.breaks) patch(at, 1, endTarget)
+          break
+        }
+        case STMT.BREAK: case STMT.CONTINUE: {
+          const frame = loops[loops.length - 1]
+          if (!frame) {
+            throw new LoweringGap(s.kind === STMT.BREAK ? 'break' : 'continue',
+              'outside a loop')
+          }
+          const at = here()
+          emit(OP.JUMP, 0)
+          ;(s.kind === STMT.BREAK ? frame.breaks : frame.continues).push(at)
+          break
+        }
         case STMT.EXPR:
           // ⭐⭐ A CALL CAN NOW HAVE AN EFFECT — `array.push(a, x)` mutates the
           // collection and returns NOTHING. A void call leaves nothing on the

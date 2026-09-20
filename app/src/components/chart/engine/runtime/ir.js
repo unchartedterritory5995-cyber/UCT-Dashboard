@@ -342,7 +342,21 @@ export function validateIr(p) {
         case STMT.EXPR:
           walkExpr(s.value, `${at}.value`)
           return
-        case STMT.FOR: case STMT.WHILE: case STMT.BREAK: case STMT.CONTINUE:
+        case STMT.FOR:
+          for (const k of ['slot', 'toSlot', 'stepSlot']) {
+            if (!Number.isInteger(s[k]) || s[k] < 0 || s[k] >= nSlots) {
+              throw new IrError(`${at}: for.${k} ${s[k]} outside ${nSlots} slots`)
+            }
+          }
+          walkExpr(s.from, `${at}.from`)
+          walkExpr(s.to, `${at}.to`)
+          walkExpr(s.step, `${at}.step`)
+          if (!Array.isArray(s.body)) throw new IrError(`${at}: for.body must be an array`)
+          walkStmts(s.body, `${at}.body`)
+          return
+        case STMT.BREAK: case STMT.CONTINUE:
+          return
+        case STMT.WHILE:
         case STMT.FUNC: case STMT.RETURN:
           return
         default:
@@ -528,3 +542,13 @@ export const emit = (output, value) => ({ kind: STMT.EMIT, output, value })
 /** An expression evaluated for its EFFECT. Admitted only for a call that has
  *  one — see `lowerIr.js`'s STMT.EXPR arm. */
 export const exprStmt = (value) => ({ kind: STMT.EXPR, value })
+/** `for slot = from to to [by step]`.
+ *
+ *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.
+ *  Pine does not re-read them per iteration, and a runtime that did would
+ *  make a body that grows the array it walks into a loop that never ends.
+ *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
+export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
+  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+export const breakStmt = () => ({ kind: STMT.BREAK })
+export const continueStmt = () => ({ kind: STMT.CONTINUE })

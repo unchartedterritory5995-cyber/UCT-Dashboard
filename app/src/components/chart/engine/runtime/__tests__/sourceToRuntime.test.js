@@ -181,7 +181,13 @@ describe('H — a member input drives state', () => {
 
 describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden', () => {
   const CASES = [
-    ['a loop', `${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
+    // ⚰️ WAS A `for`, WHICH NOW LOWERS (runtime/__tests__/loops.test.js).
+    // `while` is the loop this runtime still refuses — its bound is re-read
+    // every pass, which is a different termination argument from the counted
+    // loop's — and it refuses under the SAME guard, so this row, the LINE row
+    // and the NOTHING-IS-DROPPED row below all keep asking exactly what they
+    // asked before.
+    ['a loop', `${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
     // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
@@ -246,14 +252,14 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
   }
 
   it('⭐ a refusal carries a source LINE, so a gap is attributable', () => {
-    const r = refusalOf(`${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`)
+    const r = refusalOf(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`)
     expect(r.line).toBeGreaterThan(0)
   })
 
   it('⛔ NOTHING IS SILENTLY DROPPED — an unsupported statement refuses the PROGRAM', () => {
     // A front end that skipped what it could not lower would accept this script
     // and quietly compute a different indicator.
-    const built = buildRuntimeIr(`${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`, { bars: BARS })
+    const built = buildRuntimeIr(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.ir).toBeUndefined()
   })

@@ -611,6 +611,14 @@ export function execute(program, ctx, limits) {
           outputs[a][bar] = Number.isFinite(v) ? v : NaN
           break
         }
+        case OP.LOOP_TICK:
+          // ⛔ CHARGED PER ITERATION, ACROSS THE WHOLE RUN. A loop whose step
+          // never reaches its bound — `by 0`, or a bound a body keeps moving —
+          // is stopped here, by a limit that names itself, rather than hanging
+          // the browser tab a member is looking at.
+          budget.charge('LOOP_ITERATIONS', 1)
+          budget.peak('LOOP_NESTING', a)
+          break
         case OP.HALT: break
         default:
           throw new VmError(

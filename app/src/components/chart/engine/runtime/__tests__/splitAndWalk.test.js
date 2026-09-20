@@ -97,3 +97,57 @@ describe('str.split', () => {
       .toThrow(/`str\.split` argument 1 takes a string, got number/)
   })
 })
+
+// ─── THE WHOLE IDIOM, END TO END ───────────────────────────────────────────
+//
+// ⭐⭐ THIS IS THE SHAPE BOTH ACCEPTANCE SCRIPTS ARE BUILT ON, and it is tested
+// as ONE program rather than as six passing pieces: replace newlines with
+// commas, split, walk, trim each token, skip the empties, and prefix a default
+// exchange where the member did not write one. Each piece passing separately is
+// not evidence the idiom works — the pieces have to compose, and composition is
+// where a text value that merely COMPARED equal, or a loop bound read one pass
+// too many, would finally show.
+const PARSE = (raw) => (
+  `s = str.replace_all("${raw}", "\\n", ",")\n`
+  + 'p = str.split(s, ",")\n'
+  + 'out = array.new<string>()\n'
+  + 'for i = 0 to array.size(p) - 1\n'
+  + '    t = str.trim(array.get(p, i))\n'
+  + '    if str.length(t) > 0\n'
+  + '        array.push(out, str.contains(t, ":") ? t : "NASDAQ:" + t)\n')
+
+describe('the watchlist parse idiom', () => {
+  it('turns a pasted list into exactly the symbols the member meant', () => {
+    // Two lines, a doubled comma, a stray space, and a trailing space — all of
+    // which a real paste has.
+    expect(runPine(PARSE('AAPL,MSFT\\nNVDA,,  TSLA ')
+      + 'plot(array.size(out) == 4'
+      + ' and array.get(out, 0) == "NASDAQ:AAPL"'
+      + ' and array.get(out, 1) == "NASDAQ:MSFT"'
+      + ' and array.get(out, 2) == "NASDAQ:NVDA"'
+      + ' and array.get(out, 3) == "NASDAQ:TSLA" ? 1 : 0)\n')).toEqual(all(1))
+  })
+
+  it('⛔ a TRAILING separator adds no phantom symbol', () => {
+    // The whole reason the empty-token skip exists. A phantom would be
+    // requested, fail, and read to the member as a dead ticker.
+    expect(runPine(PARSE('AAPL,MSFT,')
+      + 'plot(array.size(out))\n')).toEqual(all(2))
+  })
+
+  it('a symbol that names its OWN exchange keeps it', () => {
+    expect(runPine(PARSE('NYSE:JPM,AAPL')
+      + 'plot(array.get(out, 0) == "NYSE:JPM" and array.get(out, 1) == "NASDAQ:AAPL" ? 1 : 0)\n'))
+      .toEqual(all(1))
+  })
+
+  it('CONTROL: an EMPTY paste yields an empty result, not one empty symbol', () => {
+    // `str.split("", ",")` is one empty element, so without the skip this
+    // would produce a single symbol called "NASDAQ:".
+    expect(runPine(PARSE('') + 'plot(array.size(out))\n')).toEqual(all(0))
+  })
+
+  it('CONTROL: whitespace-only entries are skipped too', () => {
+    expect(runPine(PARSE('AAPL,   ,MSFT') + 'plot(array.size(out))\n')).toEqual(all(2))
+  })
+})
