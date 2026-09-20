@@ -1318,6 +1318,15 @@ def _guarded_floor(x: float) -> float:
     return NAN if not math.isfinite(x) else float(math.floor(x))
 
 
+def _guarded_ceil(x: float) -> float:
+    """The same finite/non-finite split as `_guarded_floor` above --
+    ``math.ceil`` RAISES on NaN and on an infinite input for the identical
+    reason (both must become a Python ``int``), while JS's ``Math.ceil``
+    answers NaN for the first and returns the infinity unchanged for the
+    second."""
+    return NAN if not math.isfinite(x) else float(math.ceil(x))
+
+
 def _guarded_na(x: float) -> float:
     """⭐ ONE OF THE TWO ENTRIES THAT DO NOT PROPAGATE NaN. It INSPECTS
     not-computable rather than carrying it -- see `_functions_na`."""
@@ -1504,6 +1513,7 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "sign": _guarded_sign,
     "round": _guarded_round,
     "floor": _guarded_floor,
+    "ceil": _guarded_ceil,
     "na": _guarded_na,
     "nz": _guarded_nz,
     "sqrt": _guarded_sqrt,
@@ -1804,6 +1814,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "sign": lambda series: [_guarded_sign(v) for v in series],
     "round": lambda series: [_guarded_round(v) for v in series],
     "floor": lambda series: [_guarded_floor(v) for v in series],
+    "ceil": lambda series: [_guarded_ceil(v) for v in series],
     "na": lambda series: [_guarded_na(v) for v in series],
     "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),

@@ -2099,20 +2099,23 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     }
   })
 
-  it('⛔ Floor refuses — TS_CALL_SHAPES declares no route to it, though the table now does', () => {
+  it('⛔ Floor AND Ceil refuse — TS_CALL_SHAPES declares no route to either, though the table now declares both', () => {
     // Functions/Math---Trig/Floor — "Rounds a value down to the nearest integer".
     // ⭐ `floor` JOINED `closedTable.functions` 2026-09-20 (a real Pine corpus
-    // script's sole `math.floor` blocker) — but this ThinkScript FRONTEND has no
-    // `TS_CALL_SHAPES.floor` entry routing `Floor(...)` onto it, so the door
-    // stays shut here on a SEPARATE, unmeasured fact: nobody has fetched
-    // thinkorswim's Floor page to confirm its signature and cite it the way
+    // script's sole `math.floor` blocker), and `ceil` joined the SAME day
+    // (a real Pine corpus script's sole `math.ceil` blocker,
+    // `chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`) — but this
+    // ThinkScript FRONTEND has no `TS_CALL_SHAPES.floor` or `.ceil` entry
+    // routing `Floor(...)`/`Ceil(...)` onto either, so the door stays shut
+    // here on a SEPARATE, unmeasured fact: nobody has fetched thinkorswim's
+    // Floor/Ceiling page to confirm its signature and cite it the way
     // `Round`'s entry above does. `round` is round-to-whole (half away from
     // zero), which is a DIFFERENT function on every value whose fraction is
-    // ≥ .5, so it is not a stand-in either. `ceil` has no route on EITHER side
-    // — it is not yet in `closedTable.functions` at all.
+    // ≥ .5, so it is not a stand-in either.
     expect(guard('Floor(close)')).toBe('thinkscript:function')
+    expect(guard('Ceil(close)')).toBe('thinkscript:function')
     expect(Object.keys(TABLE.functions)).toContain('floor')
-    expect(Object.keys(TABLE.functions)).not.toContain('ceil')
+    expect(Object.keys(TABLE.functions)).toContain('ceil')
   })
 
   it('⛔⛔ RSI refuses BY NAME — the study page publishes NO default for `length` or `price`', () => {

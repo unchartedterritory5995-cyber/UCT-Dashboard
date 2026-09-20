@@ -81,7 +81,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (73)
+## Functions (74)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -100,6 +100,7 @@ decide whether a formula can run at all.
 | `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
+| `ceil(source)` | a number | 0 bars | `source` rounded up to a whole number |
 | `change(source)` | a number | 1 bar | the bar-over-bar change in `source` |
 | `cos(source)` | a number | 0 bars | the cosine of `source` |
 | `crossOver(left, right)` | true or false | 1 bar | `left` crossing above `right` |

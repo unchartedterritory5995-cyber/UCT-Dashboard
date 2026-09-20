@@ -1340,6 +1340,11 @@ const POINTWISE = Object.freeze({
   // both must become an `int`. `Number.isFinite` catches both NaN and ±Infinity
   // in one check, so both lanes say NaN for either.
   floor: (x) => (Number.isFinite(x) ? Math.floor(x) : NaN),
+  // `Math.ceil` has the SAME finite/non-finite split as `Math.floor` above —
+  // JS answers the infinity unchanged and Python's `math.ceil` raises on both
+  // NaN and an infinite input for the identical reason (both must become an
+  // `int`), so the guard is the same one-line rewrite.
+  ceil: (x) => (Number.isFinite(x) ? Math.ceil(x) : NaN),
   // ⭐⭐ THE TWO THAT DO NOT PROPAGATE, AND THEY ARE THE ONLY TWO. `na` INSPECTS
   // not-computable and `nz` REPLACES it — see `_functions_na` for why a table
   // built entirely around NaN meaning "we do not know" declares them anyway.
@@ -1694,6 +1699,11 @@ export const FN = Object.freeze({
   floor: (series) => {
     const out = nan(series.length)
     for (let i = 0; i < series.length; i++) out[i] = POINTWISE.floor(series[i])
+    return out
+  },
+  ceil: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.ceil(series[i])
     return out
   },
   na: (series) => {

@@ -1582,6 +1582,51 @@
       }
     },
     {
+      "id": "pine_ceil_rounds_toward_positive_infinity",
+      "source": "ceil((high - low) * 100 / 3)",
+      "why": "⛔ CEIL IS `floor`'s EXACT MIRROR, NOT ITS SYNONYM. `ceil(-2.33)` is -2 -- it rounds toward POSITIVE INFINITY for every input, the opposite convention from `floor` beside it in this corpus and still distinct from `round`'s away-from-zero rule and a truncating idiv toward zero. Scaling a bar range the same way `pine_floor_rounds_toward_negative_infinity` does puts a real fractional value in the input on every bar with a non-integer range, and Python's `math.ceil` raises on NaN/an infinite input where JS's `Math.ceil` would not -- see `_guarded_ceil`.",
+      "ast": {
+        "type": "call",
+        "name": "ceil",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "high"
+                      },
+                      {
+                        "type": "series",
+                        "name": "low"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_floor_rounds_toward_negative_infinity",
       "source": "floor((close - open) * 100 / 3)",
       "why": "⛔ FLOOR IS NOT ROUND AND NOT TRUNCATION. `floor(-2.33)` is -3 -- it rounds toward NEGATIVE INFINITY for every input, unlike `round`'s away-from-zero convention beside it in this corpus and unlike a truncating idiv toward zero. Scaling a price difference the same way `pine_round_a_half_away_from_zero` does puts real negative fractional values in the input on down bars, and Python's `math.floor` raises on NaN/an infinite input where JS's `Math.floor` would not -- see `_guarded_floor`.",
