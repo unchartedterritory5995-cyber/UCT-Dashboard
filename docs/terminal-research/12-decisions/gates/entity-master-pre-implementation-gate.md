@@ -4,7 +4,10 @@ title: Entity Master — Pre-Implementation Gate
 role: Narrow pre-implementation review packet, gating the first Terminal-Next implementation slice
 phase: 3.5 (pre-implementation, not implementation)
 date: 2026-09-02
-status: final — presented to owner, awaiting explicit approval
+status: APPROVED 2026-09-11 — owner confirmed 2026-09-20 that this approval, already
+  recorded in prose in the ⛔ note immediately below since 2026-09-11, is real. This
+  frontmatter field itself was never updated to match and sat reading "final —
+  presented to owner, awaiting explicit approval" for the intervening nine days.
 sources: PRD-S3-ENTITY-MASTER (prds/entity-master-prd.md, all 18 sections, read in full this pass),
   TSPEC-S3-ENTITY-MASTER (specs/entity-master-spec.md, all 20 sections, read in full this pass),
   plus independent re-verification against the current codebase this pass (not a re-read of the

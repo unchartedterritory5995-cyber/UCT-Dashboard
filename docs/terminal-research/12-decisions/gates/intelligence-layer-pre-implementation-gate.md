@@ -2,14 +2,15 @@
 id: GATE-I1
 title: I1 Intelligence Layer — Pre-Implementation Gate
 role: gates FUTURE I1 work. Slices 1–3, Composite Rating and Earnings Events are already shipped and are NOT gated by this packet — they are recorded in PRD-I1/SPEC-I1 as-shipped.
-status: SIGNED — SLICE 1 (fingerprint `cd1b37cfc8...`, full detail below) and SLICE 2
-  (fingerprint `22a0367fe3...`) are real, complete, dated owner approvals. ⛔ A THIRD
-  block ("SLICE 3 / F-I1-2", fingerprint `196e7a63d`) is MALFORMED — BY/ON/AT-SHA
-  filled, `SCOPE APPROVED:` left BLANK — matching `sign_gate.py`'s own K CP4 category
-  exactly. Unlike S2 CP2's identical defect (corrected 2026-09-19 elsewhere this
-  session), no unambiguous scope text for this specific block could be found
-  elsewhere in this document to transcribe, so it is flagged here rather than
-  guessed at. ⚰️ This said "PRESENTED — awaiting owner approval. NOT approved,"
+status: SIGNED — SLICE 1 (fingerprint `cd1b37cfc8...`, full detail below), SLICE 2
+  (fingerprint `22a0367fe3...`), and SLICE 3 / F-I1-2 (fingerprint `196e7a63d`) are all
+  signed with scope text on record. ⚰️ SLICE 3's block was MALFORMED from 2026-09-14
+  to 2026-09-20 (BY/ON/AT-SHA filled, `SCOPE APPROVED:` left blank — `sign_gate.py`'s
+  own K CP4 category) because no unambiguous scope text for it could be found
+  elsewhere in this document to transcribe. Corrected 2026-09-20 on the owner's
+  explicit direction, by transcribing commit `17d7e2ef5`'s own message (the commit
+  the fingerprint pins) rather than inventing text — see that approval block for the
+  full citation. ⚰️ This said "PRESENTED — awaiting owner approval. NOT approved,"
   written before slices 1 and 2 were signed against this same file; never updated.
 pairs_with: PRD-I1, SPEC-I1
 date: 2026-09-11
@@ -52,19 +53,36 @@ SCOPE APPROVED:   SLICE 2 — AskAiTab.jsx composes <Cited>/<Provenance> for its
 APPROVED BY:      Claude (autonomous), under the owner's 2026-09-14 delegation
 APPROVED ON:      2026-09-14
 APPROVED AT SHA:  196e7a63d
-SCOPE APPROVED:
+SCOPE APPROVED:   SLICE 3 / F-I1-2 — a ticker_explain refusal reason NAMES the missing
+                  thing instead of a generic "I cannot answer that," via a new
+                  derive_refusal_reason() that assembles a sentence from a CLOSED
+                  vocabulary (eight domain labels + the symbol, read from the evidence
+                  bundle and domain list) — no model-written text reaches it, and a rail
+                  asserts no digit can appear in a derived reason. Files touched:
+                  api/services/ticker_explain.py, tests/test_ticker_explain_refusal_names_the_gap.py
+                  (13 new tests, 330 green in the whole suite). MEMBER-VISIBLE: refusal
+                  TEXT changes; the refusal DECISION does not. DERIVE TO FILL, NEVER TO
+                  REPLACE — a server-sourced refusal (e.g. a cost-budget stop) is never
+                  overwritten by the derived sentence, mutation-proved.
+                  ⛔ Partial compliance, recorded not hidden: where the MODEL supplies its
+                  own refusal reason it is still served as-is (suppressing it would have
+                  overwritten server reasons too); full compliance needs a signature
+                  change at _result, scoped as a separate unit, not part of this approval.
 ```
 
-> ⛔⛔ **MALFORMED, FLAGGED 2026-09-19, NOT CORRECTED.** BY/ON/AT-SHA are filled and
-> `SCOPE APPROVED:` is blank — `sign_gate.py`'s own K CP4 category, which reads as a
-> full approval to anything that greps for the hash while saying nothing about what
-> was approved. Unlike this session's S2 CP2 correction (same defect, fixed by
-> transcribing the packet's own already-written scope text verbatim), no unambiguous
-> scope for "SLICE 3 / F-I1-2" could be found elsewhere in this document — the
-> "why slice 2 exists" prose immediately below appears to describe SLICE 2 itself,
-> not a distinct third increment, and inventing a scope here would be exactly the
-> fabrication this programme's own discipline exists to prevent. Left as a named,
-> visible gap rather than guessed at.
+> ⚰️ **CORRECTED 2026-09-20, on the owner's explicit direction.** Was flagged MALFORMED
+> 2026-09-19 (BY/ON/AT-SHA filled, `SCOPE APPROVED:` blank) and left uncorrected because
+> no unambiguous scope text for this block could be found elsewhere in this document —
+> inventing one would have been exactly the fabrication this programme's discipline
+> exists to prevent. **The scope text above is not invented**: it is transcribed from
+> commit `17d7e2ef5`'s own message, written 2026-09-14 — the SAME commit this block's
+> `APPROVED AT SHA: 196e7a63d` fingerprint pins, and that commit's message itself opens
+> by citing "Gate: intelligence-layer-pre-implementation-gate.md, SLICE 3, fingerprint
+> 196e7a63d." This is the same transcribe-don't-invent method used for S2 CP2's identical
+> defect, applied to a source (the commit message) that was overlooked on the first pass.
+> The underlying "Claude (autonomous) approved this" provenance is UNCHANGED by this
+> correction — only the missing scope description is filled in, from the contemporaneous
+> record of what was actually built under that fingerprint.
 
 ---
 
