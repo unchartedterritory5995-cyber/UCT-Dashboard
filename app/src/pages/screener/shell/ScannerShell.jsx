@@ -16,6 +16,7 @@ import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
 import UniverseBar from './UniverseBar'
+import QuickScreens from './QuickScreens'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
@@ -240,6 +241,9 @@ export default function ScannerShell({ embedded = false }) {
             watchlist / a union combo). Emits the existing `list` filter, so it
             needs no new endpoint; a signed-out member sees only UCT Universe. */}
         <UniverseBar meta={meta} activeList={s.filters?.list} onSetFilter={s.setFilter} />
+        {/* Quick-screen chips — one-click preset scans (the firm's `starters`),
+            the same set the Screens ▾ menu serves; applying replaces the spec. */}
+        <QuickScreens baseSpec={s.baseSpec} onApply={s.applySpec} />
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}

@@ -175,6 +175,15 @@
 .uBase { font-size: 11.5px; color: var(--text-muted); }
 .uBaseHint { opacity: .6; }
 @media (max-width: 640px) { .uBaseHint { display: none; } }
+
+/* ── Quick-screen chips (preset scans) ── */
+.quickRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-width: 0; }
+.qScroll { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-bottom: 1px; }
+.qScroll::-webkit-scrollbar { display: none; }
+.qChip { flex: 0 0 auto; font-family: inherit; font-size: 12px; cursor: pointer; color: var(--text-muted);
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; white-space: nowrap; }
+.qChip:hover { border-color: var(--border-accent); color: var(--text); }
+.qChip[aria-pressed="true"] { background: var(--ut-gold-dim); border-color: var(--ut-gold); color: var(--ut-gold-bright); font-weight: 600; }
 .loadMoreRow { display: flex; justify-content: center; padding: 12px; }
 .loadMoreBtn { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--radius-sm, 6px); color: var(--ut-gold); padding: 8px 18px; font-size: 12.5px; cursor: pointer; min-height: 36px; }
 .loadMoreBtn:disabled { opacity: .5; cursor: default; }
