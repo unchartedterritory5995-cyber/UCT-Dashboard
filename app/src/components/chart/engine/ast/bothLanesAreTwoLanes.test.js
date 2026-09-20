@@ -112,13 +112,22 @@ describe('the two lanes are two lanes', () => {
 // could act on, instead of "the pasted script offers no plot and no alert
 // condition to filter on".
 
-/** A real shape: a table-only dashboard. Translates fine and plots nothing. */
+/** A real shape: plots nothing and draws nothing either — no plot, no
+ *  alertcondition, no line/label/box/table call at all, just a value nobody
+ *  ever surfaces. ⚰️ THIS USED TO BE A TABLE-ONLY DASHBOARD (`table.new` +
+ *  `table.cell` under `barstate.islast`), which is EXACTLY the shape
+ *  `pineObjectOnlyHostAccept.test.js` now accepts for the host lane
+ *  (2026-09-20: a script with no value-lane output but a clean, zero-drop
+ *  object program is no longer `pine:no-output` — see `pine.js`'s
+ *  `objectOnlyCleanWin`). That table specimen started translating cleanly
+ *  under this very fix, which collapsed this test's three DIFFERENT early
+ *  returns onto two. The fixture is swapped for one with no object-lane
+ *  output at all, so it still exercises the same `pine:no-output` refusal
+ *  this test is asserting about, honestly. */
 const NO_PLOT = [
   '//@version=6',
   'indicator("t", overlay = true)',
-  'var table t = table.new(position.top_right, 2, 2)',
-  'if barstate.islast',
-  '    table.cell(t, 0, 0, "x")',
+  'x = close + 1',
   ''].join('\n')
 
 /** An unterminated string — `lexPine` throws before a statement is ever read. */
