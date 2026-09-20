@@ -9904,6 +9904,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // `pine:undefined`. That is a loud refusal, which is the right direction — a
   // silently wrong number is the one outcome this seam must not produce.
   const rawTrees = objectOpts.rawTrees === true
+  // ⭐⭐ PER-ITERATION TREES. Off, a counter-dependent value is REFUSED (the
+  // safe answer, and what every caller without a runtime lane must get). On,
+  // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
+  // promise only a lane with loops can keep, which is why it is opt-in.
+  const iterTrees = objectOpts.iterTrees === true
+  /** tree index → the counter it must be evaluated for. */
+  const iteratedTrees = {}
   const collected = collectObjectOps(stmts,
     { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression })
   const diagnostics = {
@@ -10024,6 +10031,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const i = trees.length
     trees.push(ast)
     if (f !== null) byFormula.set(f, i)
+    // ⭐⭐ MARKED HERE, AT THE ONE PLACE A TREE IS MADE, so every path that
+    // interns one — a value, a text node, a colour — gets the per-row channel
+    // without asking. Doing it per call site is how one path would silently
+    // keep serving a per-BAR value for a per-ROW cell.
+    if (iterTrees && loopIds.length && mentionsLoop(ast)) {
+      iteratedTrees[i] = loopIds[loopIds.length - 1]
+    }
     return { v: 'tree', tree: i }
   }
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
@@ -10231,6 +10245,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     const opened = openName(node, scope, depth)
     if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+    // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
+    // Pine's text slot requires a string, so an expression that reaches here
+    // inside a loop — `array.get(syms, r)`, a watchlist row — IS text; and the
+    // lane that evaluates it per row has a text channel to answer with.
+    // ⛔ AFTER the `str.tostring` branch above, never before: a NUMBER with a
+    // format must keep `{t:'num', fmt}` so the object runtime formats it.
+    if (iterTrees && loopIds.length && mentionsLoop(node)) {
+      const raw = internTree(canonicalOf(node, inline, envAt))
+      if (raw) return { t: 'str', tree: raw.tree }
+    }
     // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
     // required a string, so this is a value the author already stringified some
     // way this door cannot read — carrying the NUMBER is closer to the truth
@@ -10371,8 +10395,22 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // cell honestly, and `cell:text` already counts that.
     if (loopIds.length && mentionsLoop(node)) {
       const r = loopArgRef(node)
-      if (!r) diagnostics.loopValuesUnresolved += 1
-      return r
+      if (r) return r
+      // ⭐⭐ THE PER-ROW CHANNEL. The address grammar above could not say this
+      // value, so it becomes a TREE the caller evaluates once per iteration.
+      // ⛔ A COLOUR SLOT IS STILL REFUSED. A colour node is its own grammar
+      // (`{c:…}`) and a tree is not one; admitting it here would store a shape
+      // the runtime reads as “no colour” and paint every row the default.
+      // ⭐⭐ WITH THE PER-ROW CHANNEL ON, FALL THROUGH TO THE ORDINARY PATHS.
+      // ⛔ IT DELIBERATELY DOES NOT SHORT-CIRCUIT TO A TREE. `str.tostring(x,
+      // '#.0')` must still reach `textNodeOf`, which turns it into `{t:'num',
+      // tree, fmt}` — the object runtime's `formatNumber` is the ONE authority
+      // on Pine's number format, and a short-circuit here would have needed a
+      // second copy of it in the runtime lane.
+      if (!iterTrees) {
+        diagnostics.loopValuesUnresolved += 1
+        return null
+      }
     }
     if (slot && TEXT_SLOTS.has(slot)) {
       const t = textNodeOf(node, scopeEnv)
@@ -10698,7 +10736,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // empty body draws nothing"), so a loop whose every op was dropped is
       // dropped too — named, not silently emitted as a build error.
       if (!body.length) { dropped('loop:empty'); continue }
-      ops.push({ k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly })
+      // ⭐ IN PER-ITERATION MODE THE RAW BOUNDS RIDE ALONG. The runtime lane
+      // must lower a loop over the SAME range the drawing uses, and this op is
+      // the only place that range is written down. Gated, so an ordinary
+      // program carries no parse nodes.
+      ops.push({
+        k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly,
+        ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
+      })
       continue
     }
     if (op.k === 'create') {
@@ -10861,6 +10906,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       colls: colls.filter((c) => usedColls.has(c.id)),
       ops: keptOps,
       trees,
+      ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
       ...(Object.keys(limits).length ? { limits } : {}),
     },
     diagnostics,
@@ -12265,7 +12311,10 @@ export function translatePine(source, opts = {}) {
         r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
       }
       return r
-    }, bindingByStatement, { rawTrees: opts.objectRawTrees === true })
+    }, bindingByStatement, {
+      rawTrees: opts.objectRawTrees === true,
+      iterTrees: opts.objectIterTrees === true,
+    })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be

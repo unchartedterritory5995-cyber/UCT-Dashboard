@@ -82,7 +82,7 @@ export function buildObjectLane(source, opts = {}) {
   // nothing under it. With it, a tree is the raw parse node and the runtime
   // lane lowers it. See `buildObjectProgram` in pine.js for the full note.
   const t = translatePine(source, {
-    ...opts, strict: true, objects: true, objectRawTrees: true,
+    ...opts, strict: true, objects: true, objectRawTrees: true, objectIterTrees: true,
   })
   const objects = t.objects
   if (!objects || !Array.isArray(objects.ops) || objects.ops.length === 0) {
@@ -91,6 +91,59 @@ export function buildObjectLane(source, opts = {}) {
   }
 
   const trees = objects.trees || []
+
+  // ⭐⭐ THE PER-ROW TREES, AND THE BOUNDS THEY MUST BE EVALUATED OVER.
+  //
+  // A tree the object pass marked `iterated` is read once per ITERATION, so the
+  // runtime lane has to evaluate it inside a loop with the same bounds the
+  // drawing uses. Those bounds live on the `loop` op that encloses it, which is
+  // the only place that knows them — so the ops are walked to pair each counter
+  // with its range.
+  //
+  // ⛔⛔ AND A LOOP THAT IS NOT LAST-BAR GUARDED IS REFUSED, BY NAME. The
+  // iteration buffer is overwritten every bar (`iterOutputs.test.js` asserts
+  // exactly that), so only the bar that wrote it last can be read back. For a
+  // `barstate.islast` drawing — which is how every dashboard in the corpus is
+  // written — that bar IS the one being drawn. For anything else the buffer
+  // holds another bar's rows, and handing those back would be a table of real
+  // numbers from the wrong moment: the most convincing kind of wrong.
+  const iterated = objects.iteratedTrees || {}
+  const boundsByCounter = new Map()
+  let unguardedLoop = null
+  const walkLoops = (list) => {
+    for (const op of list || []) {
+      if (op.k !== 'loop') continue
+      if (!op.lastBarOnly) unguardedLoop = op.id
+      boundsByCounter.set(op.id, op)
+      walkLoops(op.body)
+    }
+  }
+  walkLoops(objects.ops)
+
+  const iterSpecs = []
+  const iterTreeIndex = new Map()
+  for (const [key, counter] of Object.entries(iterated)) {
+    const i = Number(key)
+    const loop = boundsByCounter.get(counter)
+    if (!loop) {
+      return refuse('objects', {
+        guard: 'objects:iterated-tree-unbounded',
+        message: `a per-row value names counter \`${counter}\`, which no loop in `
+          + 'this drawing declares — its range is unknown and cannot be guessed',
+      })
+    }
+    iterTreeIndex.set(i, iterSpecs.length)
+    iterSpecs.push({ node: trees[i], counter, from: loop.fromNode, to: loop.toNode })
+  }
+
+  if (iterSpecs.length && unguardedLoop !== null) {
+    return refuse('objects', {
+      guard: 'objects:iterated-tree-not-last-bar',
+      message: `the loop on counter \`${unguardedLoop}\` draws per-row values but is `
+        + 'not guarded to the last bar — the per-iteration buffer holds only the '
+        + 'bar that wrote it last, so those rows would come from another moment',
+    })
+  }
 
   // ⭐⭐ THE CLOCK TRI-STATE, ASKED OF THE CALLER FIRST AND THE BARS SECOND.
   //
@@ -118,7 +171,14 @@ export function buildObjectLane(source, opts = {}) {
     told !== null ? told : newestBarIsFormingFrom(opts.bars || null),
     opts.interpretOpts || {},
   )
-  const built = buildRuntimeIr(source, { ...opts, ...clock, objectTrees: trees })
+  const built = buildRuntimeIr(source, {
+    ...opts,
+    ...clock,
+    // ⭐ A PER-ROW TREE IS PASSED AS `null` HERE and supplied through
+    // `objectIterTrees` instead — same list, same indices, different channel.
+    objectTrees: trees.map((node, i) => (iterTreeIndex.has(i) ? null : node)),
+    objectIterTrees: iterSpecs,
+  })
   if (!built.ok) return refuse('runtime', built.refusal)
 
   const program = lowerIrProgram(built.ir)
@@ -144,7 +204,15 @@ export function buildObjectLane(source, opts = {}) {
   // reader is `readObjectLaneNode` below, which understands tree indices. Naming
   // the mapping here rather than inlining it keeps ONE authority over what a
   // node id means on this side of the seam.
-  return { ok: true, objects: bindObjectProgram(objects, (i) => i), program, treeOutputs }
+  return {
+    ok: true,
+    objects: bindObjectProgram(objects, (i) => i),
+    program,
+    treeOutputs,
+    // tree index → { buffer, counter } for the per-row values.
+    iterByTree: new Map([...iterTreeIndex].map(([i, b]) => (
+      [i, { buffer: b, counter: iterSpecs[b].counter }]))),
+  }
 }
 
 /**
@@ -161,7 +229,7 @@ export function buildObjectLane(source, opts = {}) {
  */
 export function runObjectLane(lane, view) {
   const bars = Math.max(0, view.bars | 0)
-  const { outputs } = execute(lane.program, {
+  const { outputs, iters } = execute(lane.program, {
     bars,
     series: view.series,
     columns: lane.program.columns,
@@ -170,7 +238,7 @@ export function runObjectLane(lane, view) {
 
   return evaluateObjects(lane.objects, {
     barCount: bars,
-    readNode: readObjectLaneNode(lane, outputs),
+    readNode: readObjectLaneNode(lane, outputs, iters),
     readTime: view.readTime,
     readParam: view.readParam,
     limits: view.limits,
@@ -184,9 +252,21 @@ export function runObjectLane(lane, view) {
  *  number and a colour; NaN is the only value the object runtime's own finiteness
  *  guards already treat as "do not draw this". `buildObjectLane` refuses the case
  *  where this could happen in bulk — this is the per-read floor under that. */
-export function readObjectLaneNode(lane, outputs) {
+export function readObjectLaneNode(lane, outputs, iters = []) {
   const map = lane.treeOutputs
-  return (treeIndex, bar) => {
+  const byTree = lane.iterByTree || new Map()
+  return (treeIndex, bar, loopVars) => {
+    // ⭐⭐ A PER-ROW TREE IS READ FROM ITS ITERATION BUFFER, BY COUNTER.
+    // ⛔ An unbound counter answers `undefined`, never slot 0: reading row
+    // zero for every pass is the forty-identical-rows failure this channel
+    // exists to prevent, and it looks exactly like data.
+    const it = byTree.get(treeIndex)
+    if (it) {
+      const k = loopVars && loopVars.get ? loopVars.get(it.counter) : undefined
+      if (!Number.isInteger(k)) return undefined
+      const buf = iters[it.buffer]
+      return buf ? buf[k] : undefined
+    }
     const out = map[treeIndex]
     if (out === undefined) return NaN
     const series = outputs[out]

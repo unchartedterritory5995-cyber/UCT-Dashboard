@@ -204,6 +204,7 @@ export function isNaRef(v) {
  *
  *   textNode = {t:'lit', s}
  *            | {t:'num', tree, fmt?}          str.tostring(x [, "#.##"])
+ *            | {t:'str', tree}                a tree whose VALUE IS TEXT
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
  */
@@ -220,6 +221,18 @@ function assertTextNode(v, where, depth = 0) {
       }
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
+      }
+      return
+    // ⭐⭐ A TREE WHOSE VALUE IS ALREADY TEXT, which `num` cannot express.
+    //
+    // ⛔ IT IS NOT REACHABLE FROM THE V2 GRAPH AND MUST NOT BECOME SO. That
+    // graph is numeric by construction, so the only lane that can answer this
+    // is one with a text channel — the runtime lane. A watchlist ROW is the
+    // case: `array.get(names, i)` is a string, and formatting a number is not
+    // a thing that can be done to it.
+    case 'str':
+      if (!Number.isInteger(v.tree) && !Number.isInteger(v.node)) {
+        throw new Error(`${where}: a text value must reference a tree or a graph node`)
       }
       return
     case 'cat':
@@ -585,7 +598,7 @@ export function graphNodesReferenced(program) {
   const seen = new Set()
   const walkText = (t) => {
     if (!isObj(t)) return
-    if (t.t === 'num' && Number.isInteger(t.node)) seen.add(t.node)
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.node)) seen.add(t.node)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -620,7 +633,7 @@ export function treeRefsReferenced(program) {
   const seen = new Set()
   const walkText = (t) => {
     if (!isObj(t)) return
-    if (t.t === 'num' && Number.isInteger(t.tree)) seen.add(t.tree)
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) seen.add(t.tree)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -685,7 +698,7 @@ export function paramsReferenced(program) {
 export function bindObjectProgram(program, nodeOf) {
   const bindText = (t) => {
     if (!isObj(t)) return t
-    if (t.t === 'num' && Number.isInteger(t.tree)) {
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }
     }

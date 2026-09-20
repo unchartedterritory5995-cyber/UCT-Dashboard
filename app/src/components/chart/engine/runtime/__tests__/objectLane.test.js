@@ -142,6 +142,94 @@ describe('⭐⭐ a cell holds a number only the runtime lane can compute', () =>
   })
 })
 
+describe('⭐⭐⭐ THE ACCEPTANCE SHAPE — a watchlist table, one row per symbol', () => {
+  // This is the dashboard in miniature, and it is the whole point of the wave:
+  // a table whose rows come from ARRAYS, addressed by a loop counter, with a
+  // STRING in one column and a formatted NUMBER in another. Neither lane can do
+  // it alone — the object pass cannot compute an array, the runtime lane cannot
+  // draw a table.
+  const WATCHLIST = 'var syms = array.from("AAPL", "MSFT", "NVDA")\n'
+    + 'var rv = array.from(1.5, 2.5, 3.5)\n'
+    + 'var t = table.new(position.top_right, 2, 4)\n'
+    + 'if barstate.islast\n'
+    + '    table.cell(t, 0, 0, "Symbol")\n'
+    + '    table.cell(t, 1, 0, "RVOL")\n'
+    + '    for r = 0 to 2\n'
+    + '        table.cell(t, 0, r + 1, array.get(syms, r))\n'
+    + '        table.cell(t, 1, r + 1, str.tostring(array.get(rv, r), "#.0"))\n'
+
+  it('⭐⭐⭐ draws THREE DISTINCT ROWS, each with its own symbol and number', () => {
+    const { run: r } = run(WATCHLIST, { newestBarIsForming: false })
+    expect(r.status).toBe('ok')
+    expect(cells(r)).toEqual({
+      '0,0': 'Symbol', '1,0': 'RVOL',
+      '0,1': 'AAPL', '1,1': '1.5',
+      '0,2': 'MSFT', '1,2': '2.5',
+      '0,3': 'NVDA', '1,3': '3.5',
+    })
+  })
+
+  it('⛔⛔ THE ROWS ARE DISTINCT — the failure this channel exists to prevent', () => {
+    // ⚰️ The first loop reader served per-row values from a per-BAR tree, which
+    // renders every row identical and reads as data. Asserting the CELL MAP
+    // above already catches it; this states it as its own claim so it cannot be
+    // weakened by someone relaxing the map.
+    const { run: r } = run(WATCHLIST, { newestBarIsForming: false })
+    const syms = [1, 2, 3].map((i) => cells(r)[`0,${i}`])
+    expect(new Set(syms).size, `all three rows read the same symbol: ${syms}`).toBe(3)
+  })
+})
+
+describe('⛔⛔ what the per-row channel refuses, and what it will not render', () => {
+  it('⛔⛔ AN UNGUARDED LOOP IS REFUSED — the buffer holds ONE bar', () => {
+    // ⚰️ The iteration buffer is overwritten every bar, so only the bar that
+    // wrote it last can be read back. A drawing that is not last-bar guarded
+    // would read another bar's rows: real numbers from the wrong moment, which
+    // is the most convincing kind of wrong. Every other case here IS guarded,
+    // so without this one the refusal could be deleted with nothing going red.
+    const lane = buildObjectLane(head
+      + 'var syms = array.from("AAPL", "MSFT")\n'
+      + 'var t = table.new(position.top_right, 1, 3)\n'
+      + 'for r = 0 to 1\n'
+      + '    table.cell(t, 0, r + 1, array.get(syms, r))\n',
+      { bars: BARS, inputs: {}, newestBarIsForming: false })
+    expect(lane.ok).toBe(false)
+    expect(lane.refusal.guard).toBe('objects:iterated-tree-not-last-bar')
+  })
+
+  it('⭐⭐ a per-row value in a NUMERIC slot — an address, not text', () => {
+    // ⚰️ Every other per-row case here lands in a TEXT node, so the value-side
+    // `graph` reader never saw a counter and dropping `loopVars` from it stayed
+    // green. A cell's COLUMN is the same channel through a different door.
+    const { run: r } = run(
+      'var cols = array.from(0, 1, 0)\n'
+      + 'var t = table.new(position.top_right, 2, 4)\n'
+      + 'if barstate.islast\n'
+      + '    for r = 0 to 2\n'
+      + '        table.cell(t, array.get(cols, r), r + 1, "x")\n',
+      { newestBarIsForming: false })
+    expect(r.status).toBe('ok')
+    // Three DIFFERENT addresses: (0,1), (1,2), (0,3). A reader that lost the
+    // counter would put all three in one place, or nowhere.
+    expect(Object.keys(cells(r)).sort()).toEqual(['0,1', '0,3', '1,2'])
+  })
+
+  it('⛔ a NON-STRING per-row value renders EMPTY, never `String(v)`', () => {
+    // Pine requires a string in a text slot; an author who put a number there
+    // has written something Pine itself rejects. Rendering `1.5` would present
+    // our guess as the author's intent, and `undefined` would print the word.
+    const { run: r } = run(
+      'var nums = array.from(1.5, 2.5)\n'
+      + 'var t = table.new(position.top_right, 1, 3)\n'
+      + 'if barstate.islast\n'
+      + '    for r = 0 to 1\n'
+      + '        table.cell(t, 0, r + 1, array.get(nums, r))\n',
+      { newestBarIsForming: false })
+    expect(r.status).toBe('ok')
+    expect(cells(r)).toEqual({ '0,1': '', '0,2': '' })
+  })
+})
+
 describe('⛔⛔ the clock tri-state reaches the lane', () => {
   // A script mentioning `barstate.*` refuses at `runtime:realtime-untold` unless
   // somebody says whether the newest bar has finished. The adapter must let a

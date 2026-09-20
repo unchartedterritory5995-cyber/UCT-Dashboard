@@ -171,8 +171,15 @@ export function evaluateObjects(program, ctx) {
       switch (t.t) {
         case 'lit': return t.s
         case 'num': {
-          const n = Number(readNode(t.node, bar))
+          const n = Number(readNode(t.node, bar, loopVars))
           return formatNumber(n, t.fmt)
+        }
+        // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
+        // string, never `String(v)`: an `undefined` row would render the word
+        // "undefined" into a dashboard cell, and a member reads that as data.
+        case 'str': {
+          const v = readNode(t.node, bar, loopVars)
+          return typeof v === 'string' ? v : ''
         }
         case 'cat': return (t.args || []).map(textOf).join('')
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
@@ -191,7 +198,9 @@ export function evaluateObjects(program, ctx) {
       if (!isObj(ref)) return undefined
       switch (ref.v) {
         case 'const': return ref.value
-        case 'graph': return readNode(ref.node, bar)
+        // ⭐ `loopVars` RIDES ALONG so a reader can answer a value that depends
+        // on the ITERATION, not just the bar. An ordinary reader ignores it.
+        case 'graph': return readNode(ref.node, bar, loopVars)
         case 'param': return readParam(ref.id)
         case 'bar': return bar
         // ⭐ THE LOOP COUNTER, supplied by the RUNTIME exactly as `bar` is.

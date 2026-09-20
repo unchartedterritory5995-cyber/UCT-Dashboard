@@ -2830,7 +2830,14 @@ export function buildRuntimeIr(source, opts = {}) {
     for (const tree of (opts.objectTrees || [])) {
       outputs.push({ call: 'objtree', role: `tree ${objectTreeOutputs.length}` })
       const index = outputs.length - 1
-      statements.push(emit(index, lowerExpr(tree, root)))
+      // ⛔⛔ A `null` ENTRY IS A PER-ROW TREE, HANDLED BY THE LOOP BELOW, and
+      // it still takes an output slot so the caller's tree→output map stays
+      // index-aligned. Lowering it HERE would resolve its counter at ROOT
+      // scope, where that name does not exist — measured: `this Pine name was
+      // never given a value — \`r\``, from a table whose rows were perfectly
+      // well defined inside their loop. The placeholder is never read: the
+      // reader checks the iteration buffers first.
+      statements.push(emit(index, tree ? lowerExpr(tree, root) : num(0)))
       objectTreeOutputs.push(index)
     }
     // ⭐⭐ AND THE PER-ITERATION ONES, EACH AS ITS OWN LOOP.
