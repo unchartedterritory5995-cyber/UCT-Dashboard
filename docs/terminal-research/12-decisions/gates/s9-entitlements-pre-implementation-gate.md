@@ -2,8 +2,11 @@
 id: GATE-S9
 title: Entitlements & Licensing Gate — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ✅ CP1 SIGNED AND BUILT 2026-09-19. CP2+ still ⛔ NOT PROPOSABLE — unchanged,
-  waits on OI-03(a)/OI-03(b)/OI-12.
+status: ✅ CP1 SIGNED AND BUILT 2026-09-19. OI-03(a)/(b) and OI-12 all ANSWERED BY THE OWNER
+  2026-09-19 — Massive Individual (confirmed, beta, commercial upgrade planned), FMP DDLA exists,
+  paid-only model confirmed. CP2's SHAPE is now determined (an enforcement boundary, per the
+  restrictive Massive answer) but CP2 itself is still unwritten — a scoped proposal naming exactly
+  what changes on which member-visible routes is the next step, not yet drafted.
 date: 2026-09-13
 ---
 
@@ -116,7 +119,7 @@ finding needed correcting and which didn't.
 | CP | scope | strands? | size |
 |---|---|---|---|
 | **CP1** | The entitlement axis as **INERT DATA** + a duplication rail: every site that answers 'may this member' enumerated from source, with `PAID_PLANS`' two copies named. **No gate changed.** | measure at build | **S/M** |
-| **CP2+** | ⛔ **NOT PROPOSABLE.** The shape depends on OI-03(a): a permissive answer makes CP2 a consolidation; a restrictive one makes it an enforcement boundary with member-visible consequences. | — | — |
+| **CP2+** | ⚰️ **OI-03(a) ANSWERED 2026-09-19 — the shape is now DETERMINED, not proposable-and-built in the same breath.** Massive tier confirmed Individual (owner: beta phase, commercial upgrade planned but not yet in place) — the RESTRICTIVE branch this row already named: **CP2 is an enforcement boundary with member-visible consequences**, not a consolidation. OI-03(b) (FMP DDLA exists) and OI-12 (paid-only, matching current code) are also answered, but neither changes CP2's shape — OI-03(a) alone decided that. A checkpoint with real member-visible consequences needs its own scoped proposal (what exactly gets redacted/blocked on which routes, and a measurement of what members currently see that this would change) before an approval line can name it — that proposal is the next concrete step, not yet written. | write the proposal first | **L**, and it touches member-visible surfaces |
 
 ---
 

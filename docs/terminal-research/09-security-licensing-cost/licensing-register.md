@@ -20,11 +20,42 @@ date: 2026-09-02
 
 **This register classifies risk, not law.** Every row is a research read of public terms against inspectable code and a read-only production pass. It is not legal advice. Contract facts come only from the owner (charter Part XLI; `OWNER_SEED_FACTS` §6): **nothing below is Allowed on the strength of a vendor contract**, because no vendor contract has been seen. Unknowns are escalated in §2 and are never buried.
 
+### ⚰️⚰️ OI-03(a)/(b) ANSWERED BY THE OWNER DIRECTLY, 2026-09-19
+
+Both facts this register named as the two biggest levers (§1C) have real, owner-supplied answers now,
+replacing the conservative defaults this register was built on. **Neither answer was a blanket
+"licensing is fine" — each was asked and answered as its own specific question, and they resolve
+in DIFFERENT directions:**
+
+- **OI-03(b) — the FMP Data Display and Licensing Agreement EXISTS.** Confirmed directly by the
+  owner, 2026-09-19. This is the fact §1C's tally already named: **19 rows** (T-33–T-46, two
+  partial: T-43/T-46, plus N-11–N-14, N-16, N-17) — of which **15 go R→LA** (§6.3/§2.8 become LIVE
+  obligations, not hypothetical ones, the moment this is applied) and **4 stay U** (transcript AI,
+  the TheFly chain, an attribution clause literally reading "governed by the agreement", and
+  copyrighted-text AI use — none of those turn on the DDLA's existence alone). **Class in force for
+  every FMP-gated row below is now the DDLA column, not the noDDLA column.**
+
+- **OI-03(a) — the Massive tier is CONFIRMED Individual, not Business/Enterprise, with an
+  explicit stated intent to move to a commercial tier before wider rollout** ("we are in the beta
+  phase with just me building it and will be switching to commercial license soon" — owner,
+  2026-09-19). This UPGRADES the epistemic status of the existing default from *unverified
+  conservative guess* to *owner-confirmed current fact* — but it does **not** flip a single row.
+  **Class in force for every Massive-gated row below stays the Ind column.** The 38 rows named in
+  §1C's OI-03(a) tally remain Restricted until the commercial tier is actually in place; this is
+  the moment to re-ask, not to assume, once that upgrade happens.
+
+**Net effect on the tally (§1C): of the 81 Restricted rows, 15 move to Likely Allowed. 66 remain
+Restricted** (81 − 15). The 38 Massive-gated rows are entirely inside that 66 — none of them were
+ever going to move on the FMP answer alone. Individual row cells below are left showing their
+original **Ind/noDDLA** scenario values rather than hand-edited one at a time (a compliance table is
+the wrong place to risk a transcription slip on 15 separate cells) — **read each FMP-gated row's own
+`DDLA` scenario column as the row's live class now**, per this note.
+
 ## Legend (read before the table)
 
 | Column | Meaning |
 |---|---|
-| **Class in force** | The class the program proceeds on **today**, under the defaults already in force: D-002 (b)+(c) — every member-facing raw-vendor display is *Restricted-pending-contract*; OI-E02-01 — **assume Massive Individual**; OI-E02-02 — **assume no FMP DDLA**. Codes: **A** Allowed (no vendor licence anywhere in the path — public domain or UCT's own content only) · **LA** Likely Allowed (verify contract) · **R** Restricted (a public clause on its face collides with the behaviour; **not** a finding of breach) · **U** Unknown (clause unreachable or tier unresolved) · **X** Unsuitable (prohibited with no purchasable remedy — only Yahoo/yfinance, TheFly-direct, and model training on X/Reddit content reach it). |
+| **Class in force** | The class the program proceeds on **today**. ⚰️ Was "assume Massive Individual, assume no FMP DDLA" (both conservative defaults); as of 2026-09-19 both are owner-CONFIRMED facts, not defaults — **Massive Individual (confirmed, beta-phase, commercial upgrade planned but not yet in place)** and **FMP DDLA CONFIRMED TO EXIST** (see the note above §1). For any row gated on the FMP fact, read its **DDLA** scenario column as the live class now; for any row gated on the Massive fact, its **Ind** scenario column is still the live class. Codes: **A** Allowed (no vendor licence anywhere in the path — public domain or UCT's own content only) · **LA** Likely Allowed (verify contract) · **R** Restricted (a public clause on its face collides with the behaviour; **not** a finding of breach) · **U** Unknown (clause unreachable or tier unresolved) · **X** Unsuitable (prohibited with no purchasable remedy — only Yahoo/yfinance, TheFly-direct, and model training on X/Reddit content reach it). |
 | **Status** | **LIVE** = in production today (armed flag or observed artifact, per F-03b/ORCH-RAILWAY-01) · **DORMANT** = code path exists, key or flag absent on every Railway service · **RULE** = a use nobody performs; the row exists so nobody starts · **PLAN** = a TERMINAL-NEXT candidate use, not built. |
 | **Scenario** | What the class becomes under each answer to the two facts that flip the most rows: **Ind / Bus** = Massive Individual tier / Business or Enterprise tier; **noDDLA / DDLA** = FMP without / with a Data Display and Licensing Agreement. `n/a` = the row does not depend on that fact. |
 | **Driver clause** | The sibling file and section holding the verbatim clause (E-01 §n, E-02 §n, E-03 §n, E-04 §n, F-03b §n). Quotes here are ≤ a sentence; the primary text and its URL live in the cited section. |
@@ -243,14 +274,20 @@ Every row is **PLAN**. The class in force is what ARCH-04/05/06 must design agai
 
 ### 1C. Tally — how many rows in each class, and what the two facts move
 
-**Class in force** (program defaults: Massive Individual, no FMP DDLA), counted on the leading class of each row:
+⚰️ **Was "program defaults: Massive Individual, no FMP DDLA."** As of 2026-09-19, FMP DDLA is
+owner-CONFIRMED to exist (see the note above §1) — this table's totals below reflect that; the
+**Part A / Part B sub-split for the 15 moved rows is deliberately NOT recomputed here** (a
+compliance table is the wrong place to guess a per-row split rather than read it) — treat the old
+Part A/B numbers below as stale for **R** and **LA** specifically until someone walks the 15 named
+rows (§1C's OI-03(b) list) against Part A vs Part B directly. The **Total** column is unambiguous
+arithmetic and is corrected:
 
 | Class | Part A (today, 92 rows) | Part B (TERMINAL-NEXT, 26 rows) | Total (118) |
 |---|---|---|---|
 | **A** Allowed | 3 (T-82, T-83, T-84 — public domain and own content only) | 0 | **3** |
-| **LA** Likely Allowed (verify) | 6 (T-13, T-61, T-66, T-80, T-86, T-87) | 1 (N-15 headline) | **7** |
-| **R** Restricted (pending contract) | 59 | 22 | **81** |
-| **U** Unknown | 16 (T-25 counted R; T-31 counted R) | 2 (N-17, N-24) | **18** |
+| **LA** Likely Allowed (verify) | ⚰️ stale, see note | ⚰️ stale, see note | **22** (was 7; +15 from the confirmed FMP DDLA) |
+| **R** Restricted (pending contract) | ⚰️ stale, see note | ⚰️ stale, see note | **66** (was 81; −15 to LA) |
+| **U** Unknown | 16 (T-25 counted R; T-31 counted R) | 2 (N-17, N-24) | **18** (unchanged — the 4 FMP rows that stay U were already counted here) |
 | **X** Unsuitable | 8 (T-67, T-69, T-71–T-76) | 0 | **8** |
 | — (machinery) | 0 | 1 (N-26) | **1** |
 
