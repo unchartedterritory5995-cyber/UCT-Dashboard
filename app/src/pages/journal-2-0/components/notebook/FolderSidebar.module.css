@@ -430,11 +430,18 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   /* Named by tools/mobile_audit.py at phone/phone390/tablet: "Hide folders
-     panel", "Show folders" and "Search notes" all measured 28x28. This block
-     already raised every other interactive element in the sidebar to
-     --tap-min; .sbHeaderBtn was simply missed, and its fixed 28px
-     width/height wins over nothing. These three are the Notebook's own
-     panel switch on a phone -- the most-tapped controls in the file. */
+     panel", "Show folders" and "Search notes" all measured 28x28.
+     .sbHeaderBtn was missed, and its fixed 28px width/height wins over
+     nothing. These three are the Notebook's own panel switch on a phone --
+     the most-tapped controls in the file.
+
+     ⚰️ This block used to claim it "already raised every other interactive
+     element in the sidebar to --tap-min". It had not: .starterViewsBtn
+     measured 236x24 at a real 820px viewport on 2026-09-20. A comment
+     asserting completeness over a list nobody derived is how the next miss
+     stays invisible -- so the sentence is gone rather than extended, and the
+     standing check is a measurement (an owned-browser probe at 390/820),
+     never this paragraph. */
   .sbHeaderBtn {
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
@@ -452,6 +459,10 @@
     min-height: var(--tap-min, 44px);
   }
   .addBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  /* Measured 236x24 at 820px — the shortest target in the panel. */
+  .starterViewsBtn {
     min-height: var(--tap-min, 44px);
   }
   .editInput {

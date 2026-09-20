@@ -259,10 +259,28 @@ def slug(route: str) -> str:
 
 
 def do_login(page, base: str) -> bool:
-    email = os.environ.get("MOBILE_AUDIT_EMAIL")
-    pw = os.environ.get("MOBILE_AUDIT_PASSWORD")
+    # ⛔ FALLS BACK TO THE SMOKE ACCOUNT, and that is the point rather than a
+    # convenience: `smoke@uctintelligence.internal` is the ONLY account any
+    # automated tool may sign in as on production, and this harness against
+    # `--base https://uctintelligence.com` is exactly such a tool. Before this
+    # fallback existed the documented production path needed a SECOND
+    # credential nobody had provisioned, so the tool could only ever run
+    # against a local backend — which is why the tablet tier went unmeasured
+    # on the deployed build. MOBILE_AUDIT_* still wins when set, for a local
+    # run against a throwaway account.
+    # ⚠️ The password is read from the environment and POSTed to the login
+    # endpoint. It never touches a form field, a log line or a file.
+    email = os.environ.get("MOBILE_AUDIT_EMAIL") or os.environ.get("SMOKE_EMAIL")
+    pw = os.environ.get("MOBILE_AUDIT_PASSWORD") or os.environ.get("SMOKE_PASSWORD")
     if not email or not pw:
-        print("  ! --auth requested but MOBILE_AUDIT_EMAIL / MOBILE_AUDIT_PASSWORD not set", file=sys.stderr)
+        print(
+            "  ! --auth requested but no credentials in the environment.\n"
+            "    Set MOBILE_AUDIT_EMAIL / MOBILE_AUDIT_PASSWORD for a local run,\n"
+            "    or SMOKE_EMAIL / SMOKE_PASSWORD to audit production as the smoke\n"
+            "    account. On Windows `setx` writes to the user environment, which an\n"
+            "    already-open shell does NOT inherit — open a new one.",
+            file=sys.stderr,
+        )
         return False
     # POST the login via the context's request API — the Set-Cookie persists
     # into the browser context's cookie jar, so subsequent navigations are
