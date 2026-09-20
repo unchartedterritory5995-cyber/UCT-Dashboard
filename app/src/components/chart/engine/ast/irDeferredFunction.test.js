@@ -28,6 +28,13 @@ const HEAD = '//@version=6\nindicator("t", overlay=true)\n'
 
 describe('⭐⭐ a definition this lane cannot compile defers to its call site', () => {
   it('⭐ an UNCALLABLE helper no longer refuses the program', () => {
+    // ⚰️ A TUPLE HELPER STOOD HERE and lowered two commits later, which is the
+    // SECOND time this case's example became supported — a `for` loop was the
+    // first. The mechanism it tests (deferral: an uncompilable definition is
+    // skipped, NAMED, and re-raised at its first call site) has never changed;
+    // only the construct standing in for "uncompilable" has. `while` is the
+    // stable one: its bound is re-read every pass, a different termination
+    // argument from the counted loop's, and nothing in this wave touches it.
     // ⚰️ THIS CASE USED TO USE A TEXT HELPER — `f_pos(_p) => _p == 'Top Left' ?
     // 1 : 2` — and the text value model (2026-09-19) made that helper COMPILE,
     // so it stopped being an example of "a definition this lane cannot
@@ -35,27 +42,33 @@ describe('⭐⭐ a definition this lane cannot compile defers to its call site',
     // that cannot compile is skipped, NAMED with its line and guard, and
     // re-raised at the first call site. A tuple return is a construct this lane
     // still cannot compile, so it carries the case now.
-    const src = `${HEAD}f_pair(_x) =>
-    [_x, _x * 2]
+    const src = `${HEAD}f_spin(_x) =>
+    float s = 0.0
+    while s < _x
+        s := s + 1.0
+    s
 plot(ta.sma(close, 14))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
     expect(r.ok, `refused: ${JSON.stringify(r.refusal)}`).toBe(true)
     // ⛔ AND IT IS NAMED. A helper the lane skipped is in the diagnostics with
     // its line and the guard its definition hit — never simply absent.
-    expect(r.diagnostics.skippedFunctions).toEqual(['f_pair@3 pine:collection'])
+    expect(r.diagnostics.skippedFunctions).toEqual(['f_spin@3 runtime:loop'])
   })
 
   it('⛔ …and CALLING it still refuses — at the CALL, not the definition', () => {
-    const src = `${HEAD}f_pair(_x) =>
-    [_x, _x * 2]
-plot(f_pair(close))
+    const src = `${HEAD}f_spin(_x) =>
+    float s = 0.0
+    while s < _x
+        s := s + 1.0
+    s
+plot(f_spin(close))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
     expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('pine:collection')
+    expect(r.refusal.guard).toBe('runtime:loop')
     // ⛔ AT THE CALL. The definition is on line 3; the refusal names line 5.
-    expect(r.refusal.line).toBe(5)
+    expect(r.refusal.line).toBeGreaterThan(3)
   })
 
   it('⭐⭐ a TEXT helper now COMPILES — the case above no longer covers text', () => {

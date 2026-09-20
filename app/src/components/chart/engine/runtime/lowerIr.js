@@ -95,6 +95,13 @@ export function lowerIrProgram(ir) {
         emit(OP.TEXT, textIndex(e.fn), e.args.length)
         return
       }
+      case EXPR.TUPLE:
+        // ⛔ NO OPCODE. A tuple IS its elements on the stack, in written
+        // order; only `RET` and a destructuring know how many to expect, and
+        // both carry the count. Anything else reaching this leaves values
+        // nothing pops, which the end-of-bar stack invariant then catches.
+        for (const x of e.elements) expr(x)
+        return
       case EXPR.ARRAY: {
         for (const a of e.args) expr(a)
         emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
@@ -302,6 +309,19 @@ export function lowerIrProgram(ir) {
           for (const at of frame.breaks) patch(at, 1, endTarget)
           break
         }
+        case STMT.DESTRUCTURE: {
+          // ⛔⛔ FILLED RIGHT TO LEFT, BECAUSE A STACK POPS IN REVERSE. The
+          // values were pushed in written order, so the LAST name takes the
+          // top of the stack. Filling left to right would assign every name
+          // the wrong value — and each one is a plausible number, so the only
+          // symptom is a dashboard column quietly showing the wrong figure.
+          expr(s.value)
+          for (let k = s.slots.length - 1; k >= 0; k -= 1) {
+            const sl = slotAddr(s.slots[k])
+            emit(sl.kind === SLOT.PERSIST ? OP.STORE_PERSIST : OP.STORE_LOCAL, sl.index)
+          }
+          break
+        }
         case STMT.BREAK: case STMT.CONTINUE: {
           const frame = loops[loops.length - 1]
           if (!frame) {
@@ -346,6 +366,12 @@ export function lowerIrProgram(ir) {
     const entry = here()
     stmts(fn.body || [])
     expr(fn.result)
+    // ⛔ NO COUNT ON THE RETURN, and that is a measured decision rather than an
+    // omission. The VM does not move a result across the frame boundary — `sp`
+    // is not part of a frame — so a count here would be written, carried in
+    // every artifact, and read by nothing. The count that IS load-bearing is
+    // `fn.returns` on the definition, which a destructuring checks its own name
+    // count against.
     emit(OP.RET)
     return {
       name: fn.name,

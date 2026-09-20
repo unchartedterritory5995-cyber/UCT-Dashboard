@@ -193,7 +193,16 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // it asserts now is that a function this front end cannot READ still refuses
     // by the same name, so the guard is still reachable.
     ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
-    ['a tuple', `${head}[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n`, 'runtime:tuple'],
+    // ⚰️ WAS `[a, b] = ta.macd(close, 12, 26, 9)`. A UDF tuple and a
+    // destructuring both LOWER now (runtime/__tests__/tuples.test.js), so that
+    // line reaches the columnar lane and refuses `pine:arity` — its own,
+    // accurate name, and no longer this guard's. What still trips the tuple
+    // guard is a destructuring whose right-hand side produces ONE value, which
+    // is the same question: does an unsupported multiple-value form refuse by
+    // name rather than silently taking whatever is on the stack?
+    ['a tuple', `${head}[a, b] = close
+plot(a)
+`, 'runtime:tuple'],
     // ⚰️ `history over a mutable variable → runtime:history-variable` LIVED HERE
     // UNTIL 2F-2, which executes it. The three cases that replace it are the
     // parts of the family that genuinely do not run yet — and they are three

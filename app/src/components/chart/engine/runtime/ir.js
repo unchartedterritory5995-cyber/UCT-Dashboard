@@ -32,6 +32,7 @@ export const STMT = Object.freeze({
   FOR: 'for',
   WHILE: 'while',
   BREAK: 'break',
+  DESTRUCTURE: 'destructure',   // `[a, b] = f()`
   CONTINUE: 'continue',
   FUNC: 'func',
   RETURN: 'return',
@@ -50,6 +51,7 @@ export const EXPR = Object.freeze({
   CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
   TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
   ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
+  TUPLE: 'tuple',         // several values at once — only a function RESULT
   SERIES: 'series',       // a price series, by name
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
@@ -62,7 +64,6 @@ export const EXPR = Object.freeze({
   WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
   CARRIED: 'carried',     // a CARRIED-STATE table builtin over a runtime series
   // ── declared, not yet lowerable ──
-  TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
 })
@@ -200,6 +201,12 @@ export function validateIr(p) {
       case EXPR.CONCAT:
         walkExpr(e.left, `${where}.left`)
         walkExpr(e.right, `${where}.right`)
+        return
+      case EXPR.TUPLE:
+        if (!Array.isArray(e.elements) || e.elements.length < 2) {
+          throw new IrError(`${where}: a tuple carries at least two elements`)
+        }
+        e.elements.forEach((x, i) => walkExpr(x, `${where}.tuple[${i}]`))
         return
       case EXPR.ARRAY:
         if (typeof e.fn !== 'string') throw new IrError(`${where}: an array call carries a name`)
@@ -353,6 +360,17 @@ export function validateIr(p) {
           walkExpr(s.step, `${at}.step`)
           if (!Array.isArray(s.body)) throw new IrError(`${at}: for.body must be an array`)
           walkStmts(s.body, `${at}.body`)
+          return
+        case STMT.DESTRUCTURE:
+          if (!Array.isArray(s.slots) || s.slots.length < 2) {
+            throw new IrError(`${at}: a destructuring binds at least two names`)
+          }
+          for (const sl of s.slots) {
+            if (!Number.isInteger(sl) || sl < 0 || sl >= nSlots) {
+              throw new IrError(`${at}: slot ${sl} outside ${nSlots}`)
+            }
+          }
+          walkExpr(s.value, `${at}.value`)
           return
         case STMT.BREAK: case STMT.CONTINUE:
           return
@@ -550,5 +568,12 @@ export const exprStmt = (value) => ({ kind: STMT.EXPR, value })
  *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
 export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
   { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+/** Several values at once. ⛔ ONLY VALID AS A FUNCTION'S RESULT or on the
+ *  right of a destructuring — anywhere else it would leave values on the
+ *  stack that nothing pops. */
+export const tuple = (elements) => ({ kind: EXPR.TUPLE, elements })
+/** `[a, b] = expr` — the slots are filled LEFT TO RIGHT from a value that
+ *  left `slots.length` results on the stack. */
+export const destructure = (slots, value) => ({ kind: STMT.DESTRUCTURE, slots, value })
 export const breakStmt = () => ({ kind: STMT.BREAK })
 export const continueStmt = () => ({ kind: STMT.CONTINUE })

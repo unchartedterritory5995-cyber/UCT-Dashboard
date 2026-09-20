@@ -554,7 +554,23 @@ export function execute(program, ctx, limits) {
           break
         }
                 case OP.RET: {
-          const value = stack[--sp]
+          // ⭐⭐ THE RESULT IS ALREADY WHERE THE CALLER WANTS IT, AND THIS CASE
+          // DELIBERATELY DOES NOT TOUCH THE STACK. `sp` is not part of a frame
+          // — CALL consumes the arguments as it binds them, so by the time a
+          // body finishes, the only thing above the caller's own values is what
+          // this invocation produced. One value or five, they are contiguous
+          // and in written order, and moving them would be work that changes
+          // nothing.
+          //
+          // ⚰️ IT DID MOVE THEM, briefly, and a mutation proof showed the move
+          // was decoration: cutting it to a single value left every tuple test
+          // green, because the values never needed relocating. What actually
+          // fixes the ORDER is the pair that does the real work — the tuple
+          // pushes its elements left to right (`lowerIr`'s EXPR.TUPLE) and the
+          // destructuring fills its slots right to left, because a stack pops
+          // in reverse. Both are mutation-proved. A no-op kept here would read
+          // to the next engineer as the mechanism, and they would look for the
+          // bug in the wrong place.
           // ⭐⭐ P7.2 — THE HAND-OFF. The frame is about to disappear, so
           // whatever this invocation produced for its history-bearing locals is
           // stashed in the SITE’s held cells now. The end-of-bar phase commits
@@ -577,7 +593,6 @@ export function execute(program, ctx, limits) {
           historyBase = frHistoryBase[depth]
           carriedBase = frCarriedBase[depth]
           windowBase = frWindowBase[depth]
-          stack[sp++] = value
           break
         }
         case OP.EMIT: {

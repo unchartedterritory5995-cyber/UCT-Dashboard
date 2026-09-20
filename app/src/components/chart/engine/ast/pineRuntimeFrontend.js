@@ -41,7 +41,7 @@ import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
-  forStmt, breakStmt, continueStmt,
+  forStmt, breakStmt, continueStmt, tuple, destructure,
 } from '../runtime/ir.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
@@ -841,6 +841,19 @@ export function buildRuntimeIr(source, opts = {}) {
     return false
   }
 
+  /** Lower a function's RESULT expression.
+   *
+   *  ⭐ A bracket list in RESULT position is a TUPLE — several values — rather
+   *  than the collection the same syntax means anywhere else. Pine tells them
+   *  apart by position and so does this. */
+  const lowerResult = (node, fnScope) => {
+    if (node && node.type === 'collection' && Array.isArray(node.elements)
+        && node.elements.length >= 2) {
+      return tuple(node.elements.map((x) => lowerExpr(x, fnScope)))
+    }
+    return lowerExpr(node, fnScope)
+  }
+
   /** A comparison whose OPERANDS are text.
    *
    *  ⛔ SEPARATE FROM `holdsText` BECAUSE THE VALUE IS A BOOLEAN, NOT TEXT.
@@ -1160,7 +1173,11 @@ export function buildRuntimeIr(source, opts = {}) {
     return null
   }
 
-  const lowerExpr = (node, scope) => {
+  // ⭐ `opts.multi` IS SET BY THE DESTRUCTURING AND BY NOTHING ELSE. It marks
+  // the ONE position where an expression may leave several values on the
+  // stack, and it deliberately does NOT propagate into sub-expressions —
+  // `plot(f() + 1)` is not a destructuring however deep `f()` sits.
+  const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
     }
@@ -1357,6 +1374,15 @@ export function buildRuntimeIr(source, opts = {}) {
         const fnIndex = fnByName.get(node.name)
         if (fnIndex !== undefined) {
           const fn = functions[fnIndex]
+          // ⛔⛔ A MULTI-VALUE CALL IS ONLY A DESTRUCTURING'S RIGHT-HAND SIDE.
+          // Anywhere else it pushes values nothing pops: `plot(f())` would
+          // draw whichever one happened to be on top and quietly grow the
+          // stack every bar until the run died far from this line.
+          if (fn.returns > 1 && !(opts && opts.multi)) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` returns ${fn.returns} values, so it can only be `
+              + 'unpacked by a `[a, b] = …` line', locate(node.tok))
+          }
           if (fn.compiling) {
             // Pine forbids a function calling itself. Saying so beats letting it
             // reach a depth limit and reporting exhaustion for a rule violation.
@@ -1742,8 +1768,43 @@ export function buildRuntimeIr(source, opts = {}) {
 
       // ── tuple destructuring: `[a, b] = …` ──
       if (isPunct(first, '[')) {
-        note('runtime:tuple')
-        throw new RuntimeRefusal('runtime:tuple', null, locate(first))
+        const close = toks.findIndex((x) => isPunct(x, ']'))
+        const eqAt = close > 0 ? close + 1 : -1
+        if (close < 0 || !isPunct(toks[eqAt], '=')) {
+          note('runtime:tuple')
+          throw new RuntimeRefusal('runtime:tuple',
+            'a bracket list outside a destructuring', locate(first))
+        }
+        const nameToks = toks.slice(1, close).filter((x) => x.kind === 'ident')
+        if (nameToks.length < 2) {
+          throw new RuntimeRefusal('runtime:statement',
+            'a destructuring binds at least two names', locate(first))
+        }
+        const rhs = parseWholeExpression(toks.slice(eqAt + 1))
+        // ⛔ THE COUNT IS CHECKED WHERE IT IS KNOWN. A UDF's result count is
+        // recorded on its definition, so a mismatch is refused by name here
+        // rather than padded with `na` — a padded name is a table column full
+        // of blanks with no reason given.
+        const lowered = lowerExpr(rhs, scope, { multi: true })
+        if (lowered && lowered.kind === EXPR.CALL) {
+          const fnRec = functions[lowered.fn]
+          const gives = fnRec && fnRec.returns ? fnRec.returns : 1
+          if (gives !== nameToks.length) {
+            throw new RuntimeRefusal('runtime:statement',
+              `this line unpacks ${nameToks.length} names from a call that returns ${gives}`,
+              locate(first))
+          }
+        } else if (!lowered || lowered.kind !== EXPR.TUPLE) {
+          throw new RuntimeRefusal('runtime:tuple',
+            'the right of a destructuring must produce several values', locate(first))
+        } else if (lowered.elements.length !== nameToks.length) {
+          throw new RuntimeRefusal('runtime:statement',
+            `this line unpacks ${nameToks.length} names from ${lowered.elements.length} values`,
+            locate(first))
+        }
+        const slotsOut = nameToks.map((nt) => scope.declare(nt.value, newSlot(nt.value, false)))
+        out.push(destructure(slotsOut, lowered))
+        continue
       }
 
       // ── if / else if / else ──
@@ -2039,13 +2100,17 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           result = read(slot)
         } else {
-          result = lowerExpr(parseWholeExpression(lt), fnScope)
+          result = lowerResult(parseWholeExpression(lt), fnScope)
         }
       } else {
-        result = lowerExpr(parseWholeExpression(toks.slice(arrow + 1)), fnScope)
+        result = lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope)
       }
       record.body = body
       record.result = result
+      // ⭐ HOW MANY VALUES THIS FUNCTION HANDS BACK. A destructuring compares
+      // its own name count against this, so a mismatch is named at the call
+      // rather than discovered as a stack that does not balance.
+      record.returns = result && result.kind === EXPR.TUPLE ? result.elements.length : 1
       record.frameSize = countFor(fnIndex, SLOT.LOCAL)
       record.persistCount = countFor(fnIndex, SLOT.PERSIST)
       // ⭐ EFFECT CLASSIFICATION PROPAGATES THROUGH THE CALL GRAPH (§25): a
