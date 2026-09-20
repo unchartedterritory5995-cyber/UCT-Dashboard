@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-20",
   "scripts": 266,
-  "host_ok": 34,
-  "screener_ok": 46,
+  "host_ok": 35,
+  "screener_ok": 47,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -923,14 +923,10 @@
     },
     {
       "file": "heat-map-seasons__53acdf3223.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "heikin-ashi-supertrend__2fb7267210.pine",

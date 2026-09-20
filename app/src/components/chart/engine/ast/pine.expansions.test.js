@@ -156,4 +156,99 @@ describe('Pine names answered from vocabulary this table already holds', () => {
     const out = translatePine(src('plot(ta.linreg(close, close > open ? 5 : 9, 0))'))
     expect(out.refusal).toBeTruthy()
   })
+
+  // ─── correlation ────────────────────────────────────────────────────────────
+
+  /** The Pearson coefficient from the raw definition — the INDEPENDENT reference.
+   *
+   *  ⚠️ DELIBERATELY WRITTEN THE LONG WAY, from Σ(x-x̄)(y-ȳ) directly, so it
+   *  shares no algebra with the sma/stdev closed form the translator uses. Two
+   *  derivations that agree are evidence; one derivation checked against itself
+   *  is decoration. */
+  const pearson = (xs, ys) => {
+    const n = xs.length
+    const mx = xs.reduce((a, b) => a + b, 0) / n
+    const my = ys.reduce((a, b) => a + b, 0) / n
+    let sxy = 0
+    let sxx = 0
+    let syy = 0
+    for (let i = 0; i < n; i += 1) {
+      sxy += (xs[i] - mx) * (ys[i] - my)
+      sxx += (xs[i] - mx) ** 2
+      syy += (ys[i] - my) ** 2
+    }
+    return sxy / Math.sqrt(sxx * syy)
+  }
+
+  const CLOSES2 = [12, 15, 11, 19, 22, 18, 25, 31, 27, 33, 29, 41, 38, 44, 40, 52]
+  const OPENS2 = [10, 17, 13, 16, 25, 15, 28, 26, 30, 29, 35, 36, 43, 39, 46, 48]
+
+  it('⭐⭐ MEASURED: TradingView\'s own page — "the sole blocker on a real corpus '
+    + 'script" (heat-map-seasons__53acdf3223.pine) is this one', () => {
+    // https://www.tradingview.com/pine-script-reference/v6/#fun_ta.correlation —
+    // "Correlation coefficient. Describes the degree to which two series tend to
+    // deviate from their ta.sma() values." Syntax: ta.correlation(source1,
+    // source2, length) -> series float. That description IS covariance-over-
+    // stdevs, which is the tree this expansion builds.
+    const ast = treeOf(translatePine(src('plot(ta.correlation(close, open, 5))')))
+    expect(ast.type).toBe('op')
+    expect(ast.name).toBe('/')
+  })
+
+  it('⭐⭐ `ta.correlation` equals a Pearson coefficient computed independently', () => {
+    for (const n of [5, 9, 14, 16]) {
+      const ast = treeOf(translatePine(src(`plot(ta.correlation(close, open, ${n}))`)))
+      const col = interpret(ast, barsOf(CLOSES2).map((b, i) => ({ ...b, o: OPENS2[i] })))
+      const want = pearson(CLOSES2.slice(-n), OPENS2.slice(-n))
+      expect(col[CLOSES2.length - 1], `n=${n}`).toBeCloseTo(want, 9)
+    }
+  })
+
+  it('⭐ a series is PERFECTLY correlated with itself — the case with an answer by eye', () => {
+    const ast = treeOf(translatePine(src('plot(ta.correlation(close, close, 5))')))
+    const col = interpret(ast, barsOf(CLOSES2))
+    expect(col[CLOSES2.length - 1]).toBeCloseTo(1, 9)
+  })
+
+  it('⛔⛔ CONTROL — a series and its own negation read -1, not just "not 1"', () => {
+    // Without this, a bug that always answered 1 (or any constant) would pass the
+    // self-correlation case above and prove nothing about the SIGN.
+    const ast = treeOf(translatePine(src('plot(ta.correlation(close, close * -1, 5))')))
+    const col = interpret(ast, barsOf(CLOSES2))
+    expect(col[CLOSES2.length - 1]).toBeCloseTo(-1, 9)
+  })
+
+  it('⭐ a square wave against a ramp matches the independent reference too — not just the two extremes', () => {
+    // The +1/-1 cases above both have PERFECT linear structure; this pair has
+    // none, so it is the third point that keeps the identity from being proven
+    // only at its boundaries.
+    const wave = [1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1]
+    const ast = treeOf(translatePine(src('plot(ta.correlation(close, open, 16))')))
+    const col = interpret(ast, barsOf(CLOSES2).map((b, i) => ({ ...b, o: wave[i] })))
+    expect(col[CLOSES2.length - 1]).toBeCloseTo(pearson(CLOSES2, wave), 9)
+  })
+
+  it('⭐ it costs NO new vocabulary — the tree is `sma`, `stdev` and arithmetic', () => {
+    const ast = treeOf(translatePine(src('plot(ta.correlation(close, open, 9))')))
+    const called = new Set()
+    const walk = (n) => {
+      if (!n || typeof n !== 'object') return
+      if (n.type === 'call') called.add(n.name)
+      for (const a of n.args || []) walk(a)
+    }
+    walk(ast)
+    expect([...called].sort()).toEqual(['sma', 'stdev'])
+  })
+
+  it('⛔ a length under 2 has no stdev to divide by, and declines rather than dividing by zero', () => {
+    for (const bad of ['1', '0']) {
+      const out = translatePine(src(`plot(ta.correlation(close, open, ${bad}))`))
+      expect(out.refusal, bad).toBeTruthy()
+    }
+  })
+
+  it('⛔ and a length that is not a plain number refuses — the same rule as `ta.linreg`', () => {
+    const out = translatePine(src('plot(ta.correlation(close, open, close > open ? 5 : 9))'))
+    expect(out.refusal).toBeTruthy()
+  })
 })
