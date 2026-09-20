@@ -834,7 +834,30 @@ export function buildRuntimeIr(source, opts = {}) {
   const admitTextInput = (node, scope) => {
     const at = locate(node.tok)
     const positional = node.args.filter((x) => !x || !x.name)
-    const first = positional.length ? (positional[0].value !== undefined ? positional[0].value : positional[0]) : null
+    // ⭐⭐ `defval` MAY BE NAMED, and this read only positional arguments.
+    // `input.string(defval = 'SMA', options = […])` is the ordinary spelling —
+    // TradingView's own docs write it that way — and it was refused with
+    // *"states no default"* about a line whose default is right there under its
+    // own parameter name. The reader is sent to add something already present.
+    //
+    // ⛔ THE PARAMETER'S NAME IS PINE'S, not a guess: `options` two blocks down
+    // has been read by name since this function was written, so the shape was
+    // already understood — only the FIRST parameter was assumed positional.
+    const named = node.args.find((x) => x && x.name === 'defval')
+    const firstPositional = positional.length
+      ? (positional[0].value !== undefined ? positional[0].value : positional[0])
+      : null
+    // ⛔ GIVEN TWICE IS A MISTAKE, NOT A PRECEDENCE QUESTION. Pine rejects a
+    // duplicate argument, so picking one silently would serve a default the
+    // member did not settle on — and which of the two we picked would be an
+    // arbitrary rule nobody wrote down. Refusing says what is actually wrong.
+    if (firstPositional && named) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` is given a default twice — once positionally and once as `
+        + '`defval`', at)
+    }
+    const first = firstPositional
+      || (named ? (named.value !== undefined ? named.value : named) : null)
     if (!first) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${node.name}\` states no default`, at)
