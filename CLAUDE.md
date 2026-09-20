@@ -206,6 +206,22 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
   - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - **Board view** (`NoteBoardView.jsx`, fourth `viewMode` beside list/table/graph).
+    Notion's board over Wave E's property system — no schema change, because
+    `builtin:thesis_status` (Watching/Active/Invalidated/Closed) is already a
+    pipeline. ⛔⛔ **Every move is a note write, so every move calls
+    `settleNoteWrite`** — a board drag is door seven in that file's ledger, and
+    five of the first six shipped without recording and FORKED the note. ⛔ Only
+    a `select` property can group it (multi_select ⇒ one note in many columns
+    and an ambiguous drop; text/number/date ⇒ unbounded columns). ⛔ The **"No
+    value" column is real and droppable** — without it an untriaged note is
+    invisible on the board that exists to triage it and nothing can clear a
+    property. ⛔ Columns keep **declared order**, never sorted by count. ⛔ A move
+    MERGES one property; a failed move rolls back to where it **came from**,
+    never to "No value". ⛔ A blocked note cannot be moved — guarded twice (render
+    branch + `move()`), and the drop path reaches only the second, so it has its
+    own test. ⛔ **Drag is not the only door**: HTML5 drag never fires on touch
+    and the touch tier is ≤1024px, so every card carries a real `<select>`.
   - **Graph view** (`GET /api/j2/notes/graph` → `notes.get_note_graph`; renderer
     `journal-2-0/components/notebook/NoteGraphView.jsx`, third `viewMode` beside
     list/table in `NotebookTab`). Obsidian's signature surface, over the
