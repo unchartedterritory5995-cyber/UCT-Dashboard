@@ -1,0 +1,267 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 31,
+    "fixed": 0,
+    "unchanged": 162,
+    "missing": 0,
+    "baseline": 162,
+    "current": 196,
+    "current_ran": 50618,
+    "new_flaky": 3,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 31
+  },
+  "arithmetic": "baseline 162 = unchanged 162 + fixed 0 + missing 0  |  current 196 = unchanged 162 + new 31 + new-but-flaky 3",
+  "invalid_because": [],
+  "baseline_run_id": "35541985859",
+  "current_run_id": "35543053367",
+  "baseline_sha": "f243fe3f752b70f7179a83f04741ff0e315d97da",
+  "current_sha": "af6069781faec496ca25ae8550f760ba0d1e23e4",
+  "commit_range": "f243fe3f752b70f7179a83f04741ff0e315d97da..af6069781faec496ca25ae8550f760ba0d1e23e4",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_graph_wire_size|test_a_caller_that_does_not_ask_still_gets_the_forest",
+    "pytest|tests.test_graph_wire_size|test_a_malformed_stored_graph_is_readable_but_never_expandable",
+    "pytest|tests.test_graph_wire_size|test_compacting_is_lossless_the_program_survives",
+    "pytest|tests.test_graph_wire_size|test_serialisation_and_parse_cost_of_each_read_shape",
+    "pytest|tests.test_graph_wire_size|test_stored_response_and_compact_response_bytes",
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins",
+    "pytest|tests.test_requirement_tags|test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers",
+    "pytest|tests.test_requirement_tags|test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.11 \u2014 the shared memo computes the SAME numbers > mid_engagement__22-rsi-levels-regime-map",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > expanding a graph costs about what walking the trees costs",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > wall clock per document, with and without the shared memo",
+    "vitest|src/components/chart/engine/runtime/__tests__/carriedState.test.js|\u2b50 length, resources and what is NOT admitted > \u26d4\u26d4 `barssince`/`valuewhen` are NOT carried members, and the reason is not shyness",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Delete asks first; Confirm issues ONE DELETE to the store and the row leaves My scans",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Edit \u2192 Save changes PUTs to the SAME id \u2014 an edit is a new VERSION, never a second scan",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > \u2b50 a REFUSED delete reaches the member in the SERVER'S OWN WORDS, and the row stays",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > Edit opens the SAME sheet on the row \u2014 its own source, in the box, on the Formula tab",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > New scan \u2192 the REAL sheet opens on Conditions \u2192 a starter \u2192 Save \u2192 ONE POST through saveUserDefinition \u2192 the new scan's results",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50 a row stored WITHOUT its source still opens on the Formula \u2014 the seed knew, and nothing else could have",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50\u2b50 Evidence is reachable FROM THE PAGE, and it asks the server for the study",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > a member with no saved formulas is told so \u2014 never shown a blank panel",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and a REFUSED read is reported, never rendered as \"you have none\"",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and the page never asks for /api/candidates at all",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > the \"Screens \u25be\" door is offered on the page App.jsx routes to",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan chip: the downgrade only the shell's scanJoins threading can produce > a scan filter applied via the manager renders scanJoins' downgrade, and clears through onReplace",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > /screener mounts the scan surface, and CoverageLine renders all four counts",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the hits are on screen, so the receipt is describing a real answer",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the read it drives carries the DEFINITION the member picked, by hash",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > the member sees the screen they saved, by the name THEY gave it",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a capped screen says what it did not look at, BESIDE the four counts",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a screen that answered NOTHING says it is a data gap, not a quiet market",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > and an UNRUN session says so, rather than rendering as zero matches"
+  ],
+  "missing": [],
+  "fixed": [],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_graph_wire_size|test_a_caller_that_does_not_ask_still_gets_the_forest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_a_malformed_stored_graph_is_readable_but_never_expandable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_compacting_is_lossless_the_program_survives": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_serialisation_and_parse_cost_of_each_read_shape": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_stored_response_and_compact_response_bytes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_requirement_tags|test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_requirement_tags.py or anything it imports"
+    },
+    "pytest|tests.test_requirement_tags|test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched tests/test_requirement_tags.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.11 \u2014 the shared memo computes the SAME numbers > mid_engagement__22-rsi-levels-regime-map": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > expanding a graph costs about what walking the trees costs": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > wall clock per document, with and without the shared memo": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/runtime/__tests__/carriedState.test.js|\u2b50 length, resources and what is NOT admitted > \u26d4\u26d4 `barssince`/`valuewhen` are NOT carried members, and the reason is not shyness": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/components/chart/engine/runtime/__tests__/carriedState.test.js or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Delete asks first; Confirm issues ONE DELETE to the store and the row leaves My scans": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Edit \u2192 Save changes PUTs to the SAME id \u2014 an edit is a new VERSION, never a second scan": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > \u2b50 a REFUSED delete reaches the member in the SERVER'S OWN WORDS, and the row stays": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > Edit opens the SAME sheet on the row \u2014 its own source, in the box, on the Formula tab": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > New scan \u2192 the REAL sheet opens on Conditions \u2192 a starter \u2192 Save \u2192 ONE POST through saveUserDefinition \u2192 the new scan's results": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50 a row stored WITHOUT its source still opens on the Formula \u2014 the seed knew, and nothing else could have": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50\u2b50 Evidence is reachable FROM THE PAGE, and it asks the server for the study": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > a member with no saved formulas is told so \u2014 never shown a blank panel": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and a REFUSED read is reported, never rendered as \"you have none\"": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and the page never asks for /api/candidates at all": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > the \"Screens \u25be\" door is offered on the page App.jsx routes to": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan chip: the downgrade only the shell's scanJoins threading can produce > a scan filter applied via the manager renders scanJoins' downgrade, and clears through onReplace": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > /screener mounts the scan surface, and CoverageLine renders all four counts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the hits are on screen, so the receipt is describing a real answer": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the read it drives carries the DEFINITION the member picked, by hash": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > the member sees the screen they saved, by the name THEY gave it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a capped screen says what it did not look at, BESIDE the four counts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a screen that answered NOTHING says it is a data gap, not a quiet market": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > and an UNRUN session says so, rather than rendering as zero matches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f243fe3f7..af6069781 touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    }
+  }
+}
