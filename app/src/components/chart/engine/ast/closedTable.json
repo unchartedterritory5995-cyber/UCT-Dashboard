@@ -130,6 +130,11 @@
       "yields": "bool",
       "sentence": "1 on the oldest bar the fetch delivered, otherwise 0"
     },
+    "lastbarindex": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar"
+    },
     "isrealtime": {
       "lookback": 0,
       "yields": "bool",

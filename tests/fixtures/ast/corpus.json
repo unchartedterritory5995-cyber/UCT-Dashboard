@@ -4494,6 +4494,19 @@
       }
     },
     {
+      "id": "barstate_lastbarindex",
+      "source": "lastbarindex",
+      "why": "⭐ `islast`'s ruling applied to a NUMBER, and bare rather than `+0` for that reason -- it is already numeric like `clock_barindex`, not boolean like its `islast`/`isfirst` neighbours. The newest bar's own `barindex`, broadcast to every bar: not window-dependent, because widening the fetch shifts the VALUE (every `barindex` renumbers from the new oldest bar) without ever changing WHICH real bar it names.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "series",
+        "name": "lastbarindex"
+      }
+    },
+    {
       "id": "barstate_isfirst",
       "source": "isfirst + 0",
       "why": "⭐ THE OLDEST BAR, AND IT IS WINDOW-DEPENDENT — which is a CONTAINMENT fact, not an arithmetic one. Both lanes must still agree on the column; what stops it reaching a screener or a sweep is `_requirement_tags.window_dependent`, stamped on the definition.",

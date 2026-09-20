@@ -1446,17 +1446,20 @@ CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
 #: over which of these names a formula may spell; this module is the authority
 #: over what each one MEANS, and ``ast_interpret`` raises by name when the two
 #: disagree.
-#: The two BARSTATE columns that read only the fetch's EXTENT -- which bar this
-#: is out of how many -- and no clock at all.
+#: The three EXTENT columns -- which bar this is out of how many -- and no
+#: clock at all.
 #:
 #: ⭐ OUTSIDE THE UNIT GATE, for the same reason ``barindex`` is: they never touch
 #: ``t``, so a series stored in ``YYYYMMDD`` ints gives them no reason to doubt
 #: themselves. They also can never BLANK -- there is no input they could be
 #: missing. ⚠️ ``isfirst`` is WINDOW-DEPENDENT in the requirement-tag sense and
-#: ``islast`` is not -- widen the fetch and the oldest bar moves while the newest
-#: one does not. That asymmetry is the ruling, and it is why these are two
-#: columns rather than one with a flag.
-CLOCK_EXTENT = ("islast", "isfirst")
+#: ``islast``/``lastbarindex`` are not -- widen the fetch and the oldest bar
+#: moves while the newest one does not.
+#:
+#: ⭐ ``lastbarindex`` is ``islast``'s own ruling applied to a number instead of
+#: a flag: the newest bar's ``barindex``, broadcast to every bar. Mirrors
+#: ``indicators.js::CLOCK_EXTENT`` -- read that docstring for the full argument.
+CLOCK_EXTENT = ("islast", "isfirst", "lastbarindex")
 
 #: The four BARSTATE columns that need to know whether the newest bar's period
 #: has finished -- a fact this function is TOLD, never one it computes.
@@ -1766,11 +1769,14 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     # what bar number a bar is would be a second authority over a compared value.
     cols["barindex"] = [float(i) for i in range(n)]
 
-    # ⭐ THE EXTENT PAIR reads no ``t`` and no clock, so it answers above the
+    # ⭐ THE EXTENT TRIO reads no ``t`` and no clock, so it answers above the
     # unit gate -- the same line ``barindex`` sits on, for the same reason. It
     # can never blank: there is no input it could be missing.
     cols["isfirst"] = [1.0 if i == 0 else 0.0 for i in range(n)]
     cols["islast"] = [1.0 if i == n - 1 else 0.0 for i in range(n)]
+    # ``lastbarindex`` is ``barindex[n - 1]``, broadcast to every bar -- the
+    # newest bar's own position, read from wherever a formula sits in the series.
+    cols["lastbarindex"] = [float(n - 1)] * n
 
     # ⛔⛔ THE REALTIME FOUR ARE TRI-STATE AND FAIL CLOSED FIRST.
     # ``newest_bar_is_forming`` is ``True`` / ``False`` / ``None``, and ``None``
