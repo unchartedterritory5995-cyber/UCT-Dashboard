@@ -3920,18 +3920,18 @@ function fractionalWindowAdvice(node) {
   // still less that it is the one this engine's own entries use.
   const down = Math.floor(v)
   const up = Math.round(v)
-  // ⛔ `floor` IS NOT DECLARED — `idiv` IS, and it is the only spelling of the
-  // downward choice a member can actually type. Deriving the roster rather than
-  // asserting it means this sentence stops offering `idiv` on the day the
-  // manifest stops declaring it, instead of advising a name that refuses.
-  //   AND ONLY ABOVE ZERO. `idiv` is declared as "rounded toward ZERO", which
-  //   equals `floor` for a positive value and NOT for a negative one. A window is
-  //   >= 1 by the `int` kind, so the two never diverge where this sentence is
-  //   reached — but offering a spelling whose semantics only coincide inside the
-  //   range you happen to be in is how the next reader inherits a false general
-  //   claim, so the bound is written down rather than relied upon.
+  // ⭐ `floor` IS THE MATHEMATICALLY OBVIOUS DOWNWARD SPELLING, AND IT IS NOW
+  // DECLARED (2026-09-20) — advise it directly. `idiv(x, 1)` survives as the
+  // FALLBACK, for the same reason it was the only choice before: it is declared
+  // as "rounded toward ZERO", which equals `floor` for a positive value and NOT
+  // for a negative one, and a window is >= 1 by the `int` kind so the two never
+  // diverge where this sentence is reached. Deriving the roster rather than
+  // asserting it means this sentence stops offering either name on the day the
+  // manifest stops declaring it, instead of advising one that refuses.
   const has = (k) => own(TABLE.functions || {}, k)
-  const downSpell = (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
+  const downSpell = has('floor') && text
+    ? `\`floor(${text})\``
+    : (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
   const upSpell = has('round') && text ? `\`round(${text})\`` : null
 
   let choice = ''

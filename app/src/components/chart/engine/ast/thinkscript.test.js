@@ -2099,13 +2099,19 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     }
   })
 
-  it('⛔ Floor refuses — this engine declares no `floor` callable, measured', () => {
+  it('⛔ Floor refuses — TS_CALL_SHAPES declares no route to it, though the table now does', () => {
     // Functions/Math---Trig/Floor — "Rounds a value down to the nearest integer".
-    // There is no `floor` in `closedTable.functions`, and `round` is round-to-
-    // whole (half away from zero), which is a DIFFERENT function on every value
-    // whose fraction is ≥ .5. Mapping it would be wrong on about half of all bars.
+    // ⭐ `floor` JOINED `closedTable.functions` 2026-09-20 (a real Pine corpus
+    // script's sole `math.floor` blocker) — but this ThinkScript FRONTEND has no
+    // `TS_CALL_SHAPES.floor` entry routing `Floor(...)` onto it, so the door
+    // stays shut here on a SEPARATE, unmeasured fact: nobody has fetched
+    // thinkorswim's Floor page to confirm its signature and cite it the way
+    // `Round`'s entry above does. `round` is round-to-whole (half away from
+    // zero), which is a DIFFERENT function on every value whose fraction is
+    // ≥ .5, so it is not a stand-in either. `ceil` has no route on EITHER side
+    // — it is not yet in `closedTable.functions` at all.
     expect(guard('Floor(close)')).toBe('thinkscript:function')
-    expect(Object.keys(TABLE.functions)).not.toContain('floor')
+    expect(Object.keys(TABLE.functions)).toContain('floor')
     expect(Object.keys(TABLE.functions)).not.toContain('ceil')
   })
 
