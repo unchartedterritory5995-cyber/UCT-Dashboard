@@ -447,7 +447,10 @@ export const PER_ROW_PROMISE_GUARDS = Object.freeze(['pine:text-value'])
  *  as a single series would offer a member a quarter of a candle under the
  *  script's title. They keep refusing at `pine:no-output` until there is a
  *  multi-column output shape to land them in. */
-const OUTPUT_CALLS = Object.freeze({
+/** ⭐ EXPORTED so the RUNTIME lane can agree with this one about which calls
+ *  are outputs, rather than keeping a second opinion. See
+ *  `presentationOutputs.test.js` — the rail that compares the two sets. */
+export const OUTPUT_CALLS = Object.freeze({
   plot: 'series',
   alertcondition: 'condition',
   plotshape: 'series',

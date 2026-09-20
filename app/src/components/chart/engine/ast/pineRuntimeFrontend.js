@@ -156,6 +156,15 @@ const BIN = Object.freeze({
 })
 const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
 const BLOCK_WORDS = new Set(['for', 'while'])
+/** The calls this lane turns into a VALUE SERIES.
+ *
+ *  ⭐ EXPORTED FOR THE RAIL, which compares it against `pine.js`'s own
+ *  `OUTPUT_CALLS` so the two lanes cannot quietly disagree about what an output
+ *  is. Where this set is WIDER the difference is deliberate and named there. */
+export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
+  'plot', 'plotshape', 'plotchar', 'plotarrow', 'alertcondition', 'hline',
+]))
+
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
 /** The input kinds whose VALUE IS TEXT.
@@ -1834,10 +1843,30 @@ export function buildRuntimeIr(source, opts = {}) {
   //   OUTPUT       carries a VALUE SERIES the runtime emits
   //   PRESENTATION carries appearance — the presentation program's, not this lane's
   //   DIRECTIVE    instructs the compiler and produces nothing
-  const OUTPUT_CALLS = new Set(['plot', 'plotshape', 'plotchar', 'plotarrow'])
+  // ⭐⭐ `alertcondition` AND `hline` ARE OUTPUTS HERE, not presentation.
+  //
+  // The line between the two families is *"does this call carry a VALUE SERIES
+  // this lane computes?"*, and for both of these it does: `alertcondition`'s
+  // first argument is the condition, `hline`'s is the level. They sat under
+  // PRESENTATION because the CALLS look decorative, which is a fact about what
+  // a chart does with the answer, not about whether this lane can compute it.
+  //
+  // ⭐ `alertcondition` IS pine.js'S `OUTPUT_CALLS` VERDICT TOO — it declares
+  // `alertcondition: 'condition'` — so this agrees with the lane next door
+  // rather than inventing a second opinion.
+  //
+  // ⛔ THEIR TITLE AND MESSAGE ARE NOT DROPPED, THEY ARE NOT THIS LANE'S. The
+  // host lane already carries `title`/`message` on its own output descriptors
+  // (`alertMessageRides.test.js`), and alert DELIVERY is its path. This lane
+  // computes bar-by-bar values; the condition series is the whole of its job.
+  //
+  // ⚠ `fill`, `bgcolor` and `barcolor` STAY REFUSED, and the reason is a real
+  // one rather than an ordering: each carries a COLOUR, and a colour is not a
+  // value this lane can hold — `pine:colour-value` refuses one by name. Serving
+  // them needs a colour channel, which is a capability, not a table entry.
+  const OUTPUT_CALLS = RUNTIME_OUTPUT_CALLS
   const PRESENTATION_CALLS = new Set([
-    'fill', 'bgcolor', 'barcolor', 'hline', 'plotcandle', 'plotbar',
-    'alertcondition', 'alert',
+    'fill', 'bgcolor', 'barcolor', 'plotcandle', 'plotbar', 'alert',
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
 
