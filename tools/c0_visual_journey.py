@@ -114,14 +114,38 @@ def login(page, base, email, pw):
 # `store-error`, `repaint-ack`, `plot-problem-N` are the product's own published
 # handles; guessing at class names is how a harness silently measures the wrong
 # element.
-JS_OPEN_BUILDER = """
-() => {
-  const vis = (e) => e && e.offsetParent !== null;
-  const ind = [...document.querySelectorAll('button')]
-    .find(b => vis(b) && b.innerText.trim() === 'Indicators');
-  if (ind) ind.click();
-  return !!ind;
-}"""
+def _open_indicator_library(page, attempts=5, per_try_ms=1500):
+    """Opens the same `IndicatorLibraryDialog` the retired toolbar "Indicators"
+    button used to. That button is gone (consolidated into
+    `ChartSettingsModal`'s "Indicators" tab -- see `ChartToolbar.jsx`'s own
+    retirement comment), but the dialog itself is untouched and the keyboard
+    chord `Alt+Shift+A` still opens it (`StockChart.jsx`'s `e.shiftKey &&
+    e.code === 'KeyA'` branch, under `e.altKey`, wired via a
+    `document.addEventListener('keydown', ...)` in a `useEffect`) -- one of the
+    openers the retirement comment names as deliberately kept.
+
+    ⚠️ THE REAL FAILURE WAS FOCUS, NOT TIMING. The default workspace layout
+    mounts a Watchlists widget whose "Search watchlists..." input autofocuses
+    on mount -- confirmed via `document.activeElement` at the exact moment
+    this function used to fire the chord and get nothing. A document-level
+    keydown listener still receives the event, but an Alt-chord typed while
+    focus sits in a text field is not something a chart shortcut should act
+    on, so this blurs the active element first rather than relying on timing.
+    Kept as a short retry loop anyway (cheap insurance against any other
+    widget re-stealing focus a beat later), but the blur is what actually
+    fixes it -- verified: without the blur this fails every attempt within
+    the same page state that works immediately once focus is cleared."""
+    for _ in range(attempts):
+        page.evaluate("() => { const a = document.activeElement; if (a && typeof a.blur === 'function') a.blur() }")
+        page.keyboard.press("Alt+Shift+A")
+        try:
+            page.wait_for_function(
+                "() => !!document.querySelector('[aria-label=\"Indicator library\"]')",
+                timeout=per_try_ms)
+            return True
+        except Exception:
+            continue
+    return False
 
 JS_NEW_FORMULA = """
 () => {
@@ -467,13 +491,19 @@ def _open_workspace(page, base, timeout=30000):
     page.goto(f"{base}/charts", wait_until="domcontentloaded", timeout=45000)
     if not dismiss_intro(page):
         return "intro overlay never dismissed"
+    # ⚠️ THIS USED TO WAIT FOR A BUTTON LABELLED "Indicators" -- that button was
+    # deliberately retired (see `ChartToolbar.jsx`'s own retirement comment above
+    # its old mount point: the add-flow consolidated into `ChartSettingsModal`'s
+    # "Indicators" tab, and the toolbar button was deleted rather than moved).
+    # A canvas existing is a copy-change-proof proxy for "the chart mounted and
+    # painted" -- it does not depend on any button's current label surviving the
+    # next toolbar redesign the way the old check did.
     try:
         page.wait_for_function(
-            "() => [...document.querySelectorAll('button')]"
-            ".some(b => b.offsetParent && b.innerText.trim() === 'Indicators')",
+            "() => document.querySelectorAll('canvas').length > 0",
             timeout=timeout)
     except Exception:
-        return "workspace never mounted (no Indicators control)"
+        return "workspace never mounted (no chart canvas)"
     return None
 
 
@@ -615,9 +645,9 @@ def run_one(page, base, name, source, out_dir, keep=False):
             ".some(b => b.offsetParent && b.innerText.trim() === t)",
             arg=label, timeout=timeout)
 
-    if not timed("open_builder", lambda: page.evaluate(JS_OPEN_BUILDER)):
+    if not timed("open_builder", lambda: _open_indicator_library(page)):
         row["result"] = "HARNESS_BLOCKED"
-        row["detail"] = "no Indicators button"
+        row["detail"] = "Alt+Shift+A never opened the indicator library"
         return row
     try:
         page.wait_for_function(

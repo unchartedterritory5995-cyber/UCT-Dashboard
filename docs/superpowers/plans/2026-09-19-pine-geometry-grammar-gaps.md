@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/universal-indicator-ecosystem/C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md` — this plan argues from that document's §5 (the fixed 10-member parity set), §3 (the vendor capture's one divergence, H8), and §6 (the gap register). Read it before touching any task below; this plan does not repeat its evidence tables, only their conclusions — several of which this plan's own research corrects (see "Investigated and ruled out" before Task 1, Task 1's own "What this plan found" section, and the "Explicitly out of scope" list's H7/tuple corrections above).
 
-## ✅ EXECUTION STATUS (2026-09-19) — Tasks 1–4 done; Task 5 partially done
+## ✅ EXECUTION STATUS (2026-09-19) — Tasks 1–4 done; Task 5 done (scoped)
 
 All four numbered tasks below were implemented the same day this plan was
 written, each with its own commit on `feat/pine-geometry-grammar`: Task 1
@@ -19,10 +19,59 @@ four-file fix this plan found already prototyped — formalized with tests and
 re-confirmed against `vendorObjectParity.test.js`'s own H8 case, which now
 reads three labels painted, zero drops), Task 3 (`ta.supertrend`'s refusal
 wording), Task 4 (the `create:box` drop diagnosed with a script-independent
-minimal reproduction, not fixed — see below). Task 5's gap-register close-out
-(step 5) was done in both `ENDZONE_GAP_REGISTER.md` and
-`C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`; its live-sandbox visual re-measurement
-(steps 1–4) was **not** run — see that document's own §10 addendum for why.
+minimal reproduction, not fixed — see below and Task 4's own text). Task 5's
+gap-register close-out (step 5) was done in both `ENDZONE_GAP_REGISTER.md` and
+`C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`.
+
+**Task 5's live-sandbox visual re-measurement (steps 1–4) was later run, once
+the original blocker resolved.** It was deliberately skipped on 2026-09-19
+because `feat/pine-table-gaps` and `landing/pine-fixes-2026-09-19` were still
+mid-landing changes to the exact object-model files this plan touches, and
+launching a live backend + Playwright session carried real collision risk
+with that concurrent work (see `C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`'s §10
+addendum, written that day). **Both branches have since merged to
+`origin/master`** (confirmed via `git merge-base --is-ancestor`), so that
+blocker no longer applies, and the measurement was run against a fresh
+isolated sandbox the same day the blocker cleared.
+
+**It found the harness itself had gone stale — a real gap, but not a product
+regression.** `tools/c0_visual_journey.py`'s `_open_workspace` waited for a
+toolbar button labelled "Indicators" to confirm the charts workspace had
+mounted; that button was deliberately retired at some point before this
+plan's work (`ChartToolbar.jsx`'s own retirement comment: the add-flow
+consolidated into `ChartSettingsModal`'s "Indicators" tab), so every fixture
+timed out after ~32s with `CHART_BLOCKED`. Fixed by waiting for a chart canvas
+to exist instead (a signal that does not depend on any button's current
+label). A second, subtler bug surfaced once that was fixed: the harness's
+click-based `JS_OPEN_BUILDER` (which also targeted the retired button) was
+replaced with the still-live `Alt+Shift+A` keyboard chord documented in that
+same retirement comment as a kept opener — but firing it did nothing, because
+the default Charts workspace layout mounts a Watchlists widget whose "Search
+watchlists…" input autofocuses on load, and an Alt-chord typed into a focused
+text field is correctly not acted on as a chart shortcut. Fixed by blurring
+the active element before firing the chord. Both fixes are in
+`tools/c0_visual_journey.py`, committed separately from the product-code
+tasks below, with the empirical finding (not a guess) recorded in the
+function docstrings.
+
+**The scoped result, against the 4 of the current 9 parity-set members whose
+`.pine` source is already present locally** (`tests/fixtures/pine_oos/`; the
+other 5 would need re-fetching from TradingView under a licence that does not
+contemplate redistribution, for confirmatory value this plan's own Task 5
+text already expected not to move the needle — not attempted, see the table
+below):
+
+| script | live result | relevant to this plan? |
+|---|---|---|
+| `high_engagement__10-rsi-divergence-faytterro` (Task 1's fixture) | `SAVED_NOT_RENDERED` — the value-plot legend chip never rendered after reload | Orthogonal finding (a value-plot chip issue, not an object-lane one) — but Task 1's own claim ("objects painted: no change, stays 0") is already proven more precisely by `pineLoopBlockedCollections.test.js`'s direct assertion (`droppedOps:6`, `opsLen:0` — RISK-043 still correctly blocks every real create, so there is nothing for the object layer to paint regardless of this script's plot-chip outcome) |
+| `high_engagement__16-klinger-volume-oscillator-everget` | `IMPORT_BLOCKED` — Apply never enabled | **Matches this plan's own prediction** (explicitly listed as out of scope — the `pine:state` family blocks this script entirely) |
+| `long_tail__05-master-line-plus` | `IMPORT_BLOCKED` — Apply never enabled | Not a script this plan makes any claim about |
+| `mid_engagement__22-rsi-levels-regime-map` | **`FULL_JOURNEY_PASS`** — 12 real chips drawn, all `drewNothing:false` | Not this plan's target script, but positive live evidence the import → apply → save → reload → render pipeline works end to end in the browser for a real, complex, 12-plot member of the current parity set |
+
+The `SAVED_NOT_RENDERED` finding on rsi-divergence-faytterro is new and real,
+but it is a value-plot rendering question, not an object-lane one — pursuing
+it is out of this plan's scope (which is the geometry/object family) and is
+recorded here rather than silently dropped.
 
 ⚠️ **CORRECTION TO TASK 4 AND THIS PLAN'S OWN FRAMING:**
 `mid_engagement__01-zeiierman-trend-pressure` — Task 4's named fixture — left
@@ -868,67 +917,112 @@ The C3B-CLOSE doc measured this gap with `tools/c0_visual_journey.py` against `t
 - None created or modified except this plan document's own completion notes and the gap register.
 - Reads: `tools/c0_visual_journey.py`, `tools/_gj_launch_backend.py` (re-confirm flags via `--help` first), `tests/fixtures/oos2_parity/`.
 
-- [ ] **Step 1: Re-materialize the fixture set**
+- [x] **Step 1: Re-materialize the fixture set — SCOPED to the 4 members already local**
 
-Per `tests/fixtures/oos2_parity/README.md`'s own "To re-materialise" section: copy each of the ten members' `.pine` from `tests/fixtures/pine_oos/` into `tests/fixtures/oos2_parity/` under the same name, re-fetching and SHA-256-verifying any withheld one against `docs/superpowers/specs/universal-indicator-ecosystem/OOS_2_PARITY_SET.json`'s authoritative `source_url`/`sha256_source` per member. Tasks 3 and 4 already did this for two of the six withheld members.
+Run 2026-09-19, once the concurrent-landing blocker (§A above) cleared. Of the
+current **nine**-member set (row #7 dropped 2026-09-13 — see the correction at
+the top of this plan), four already have `.pine` present locally in
+`tests/fixtures/pine_oos/`: `high_engagement__10-rsi-divergence-faytterro`,
+`high_engagement__16-klinger-volume-oscillator-everget`,
+`long_tail__05-master-line-plus`, `mid_engagement__22-rsi-levels-regime-map`.
+Those four were copied into `tests/fixtures/oos2_parity/`. **The other five
+were deliberately not re-fetched** — doing so means pulling copyrighted
+third-party Pine source from TradingView under a licence that does not
+contemplate redistribution, for confirmatory value this plan's own Task 5
+text already expected would not move (`ls tests/fixtures/oos2_parity/*.pine`
+therefore reads **4**, not 10 — a deliberately scoped run, not a failed one).
 
-```bash
-ls tests/fixtures/oos2_parity/*.pine | wc -l   # must read 10 before proceeding
-```
-
-- [ ] **Step 2: Launch a fresh, isolated sandbox backend**
+- [x] **Step 2: Launch a fresh, isolated sandbox backend**
 
 ```bash
 python tools/_gj_launch_backend.py --port 18772
-# confirm the actual flag/default against --help first; never reuse a running
-# backend or a browser profile — the C3A measurement problem this tool's own
-# history names as a defect class to avoid.
 ```
 
-- [ ] **Step 3: Run the measurement**
+Required an `npm run build` first — this worktree had no `app/dist`, and the
+sandbox backend serves the SPA from that directory; without it every fixture
+failed identically with `CHART_BLOCKED` at a ~32s timeout (the tell that this
+was an environment gap, not four coincident product regressions).
+
+- [x] **Step 3: Run the measurement**
 
 ```bash
 python tools/c0_visual_journey.py --base http://127.0.0.1:18772 \
        --fixtures tests/fixtures/oos2_parity --out tools/c3b_geometry_gaps_close
 ```
 
-- [ ] **Step 4: Record the before/after table, using the same two columns C3B-CLOSE used**
+Also required two fixes to `tools/c0_visual_journey.py` itself — the harness
+had gone stale independent of anything this plan changed. See the "Task 5
+done (scoped)" section at the top of this plan for both root causes (a
+retired toolbar button; an autofocus-stealing search input suppressing the
+replacement keyboard chord) and their fixes, committed separately from the
+product-code tasks.
 
-| # | script | CHART_DRAW_AND_REOPEN (before → after) | objects painted (before → after) | note |
-|---|---|---|---|---|
-| 1 | `high_engagement__10-rsi-divergence-faytterro` | ✅ → [fill in] | ⛔ no object layer → [fill in] | Task 1: `loopBlocked` corrected 6→0. Expect **no change** to objects-painted — RISK-043's guard mechanism, correctly, still blocks the 6 real creates (`guard:create`); this is not a bug this plan fixes |
-| 2–6, 9–10 | (not targeted by this plan) | — → [fill in] | — → [fill in] | record for completeness only |
-| 3 | `high_engagement__16-klinger-volume-oscillator-everget` | ⛔ IMPORT_BLOCKED → [fill in] | — | `pine:state` family — out of scope |
-| 7 | `mid_engagement__01-zeiierman-trend-pressure` | ✅ → [fill in] | ⛔ no object layer → [fill in] | Task 4: record the confirmed Branch A/B outcome |
-| 8 | `mid_engagement__05-supertrend-fibonacci-ote` | ✅ → [fill in] | 🟡 0 objects → [fill in] | Task 3: refusal wording corrected. Expect **no change** to objects-painted (`ta.supertrend`'s recurrence remains unimplemented, out of scope) |
+- [x] **Step 4: Record the before/after table — SCOPED to the 4 measured members**
+
+C3B-CLOSE's original two columns (`CHART_DRAW_AND_REOPEN`, `objects painted`,
+via `getImageData` pixel evidence) presuppose reaching `FULL_JOURNEY_PASS`;
+none of these four fixtures needed that path to answer this plan's own claims
+— see the reasoning per row below instead.
+
+| # | script | live result (2026-09-19, post-fix) | note |
+|---|---|---|---|
+| 1 | `high_engagement__10-rsi-divergence-faytterro` | `SAVED_NOT_RENDERED` (value-plot legend chip, unrelated axis) | Task 1's target. **objects painted: unchanged at 0, proven by construction** — `pineLoopBlockedCollections.test.js` already asserts `droppedOps:6, opsLen:0` directly from `translatePine()`: RISK-043 correctly blocks all 6 real creates, so there is nothing for the object layer to paint regardless of this script's plot-chip outcome. That outcome is a real, new, orthogonal finding (value-lane, not object-lane) and is out of this plan's scope to chase |
+| 2–6, 9–10 | not targeted by this plan; 5 of these 8 not re-fetched (see Step 1) | — | record for completeness only, when re-fetched |
+| 3 | `high_engagement__16-klinger-volume-oscillator-everget` | `IMPORT_BLOCKED` — Apply never enabled | **Matches this plan's own prediction exactly** — the `pine:state` family blocks this script entirely, named out of scope above |
+| 5 (formerly 7) | `mid_engagement__01-zeiierman-trend-pressure` | not measured — left the official parity set 2026-09-13 (see the correction at the top of this plan); Task 4's finding stands independent of this script's membership |
+| 8 | `mid_engagement__05-supertrend-fibonacci-ote` | not re-fetched (re-frozen on different bytes 2026-09-13 — the plan's own historical copy predates that refreeze) | Task 3's fix targets `ta.supertrend` as a builtin, not this script's specific bytes, so it is unaffected either way |
+| — | `long_tail__05-master-line-plus` (not a numbered row above; local `.pine` happened to be available) | `IMPORT_BLOCKED` — Apply never enabled | not a script this plan makes any claim about |
+| — | `mid_engagement__22-rsi-levels-regime-map` (same) | **`FULL_JOURNEY_PASS`** — 12/12 chips drawn, `drewNothing:false` | not this plan's target, but positive live evidence the full import→apply→save→reload→render pipeline works end to end for a real, complex, multi-plot current parity-set member |
 
 Also record: the vendor-capture re-check from Task 2 Step 3 (before: `droppedOps:1, dropReasons:{"guard:create":1}`; after: expect `0`); the full test suite's totals line from the last regression run; and the headline honesty sentence this plan's own findings require — **most of the objects-painted column will not move**, because two of the three named causes (RISK-043's guard mechanism, `ta.supertrend`'s missing recurrence) turned out to be correctly-standing or out-of-scope rather than bugs, and the third (Task 4) may turn out the same way. The value delivered is: an honest `loopBlocked` diagnostic, a resolvable `last_bar_index` column (closing H8), a correctly-worded `ta.supertrend` refusal, and — either way — a precise, evidenced diagnosis of `create:box`, none of which were true before this plan, independent of whether the parity-set's paint count itself moves.
 
-- [ ] **Step 5: Close out the gap register**
+- [x] **Step 5: Close out the gap register**
 
-In `docs/superpowers/specs/universal-indicator-ecosystem/` (re-verify the current filename per the top-of-plan re-verification discipline — as of this writing `C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md` §6 and `ENDZONE_GAP_REGISTER.md` both carry gap rows):
+Done in both `C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md` §6/§10 and
+`ENDZONE_GAP_REGISTER.md`: H8 closed (Task 2), H7/modulo and general
+`pine:tuple` corrected to DONE, `ta.supertrend`'s recurrence gap and Task 4's
+`create:box` finding recorded as explicit, unauthorized-for-this-plan
+pointers, and the zeiierman parity-set-membership correction added to both
+documents plus this plan's own top section.
 
-- **H8**: closed by Task 2 — cite the commit.
-- **H7 (modulo)**: correct the register to say DONE, citing `pine.modulo.test.js` (10/10 green) — it was already implemented before this plan and the register had not been updated.
-- General `pine:tuple` destructuring: correct any register language suggesting this is unimplemented — `pine.tuples.test.js` (35/35 green) and this plan's own empirical object-coordinate proof (Task 3) both predate this plan's own work and should be cited, not re-derived by a future reader.
-- `ta.supertrend`'s missing recurrence (Task 3) and Task 4's confirmed finding: add both as explicit, named, unauthorized-for-this-plan pointers.
-
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
-git add docs/superpowers/plans/2026-09-19-pine-geometry-grammar-gaps.md docs/superpowers/specs/universal-indicator-ecosystem/
+git add docs/superpowers/plans/2026-09-19-pine-geometry-grammar-gaps.md \
+        docs/superpowers/specs/universal-indicator-ecosystem/ \
+        tools/c0_visual_journey.py .gitignore
 git commit -m "$(cat <<'EOF'
-pine geometry grammar gaps: parity re-measurement and gap-register close-out
+pine geometry grammar gaps: live parity re-measurement, and fix the stale
+harness that blocked it
 
-Re-ran tools/c0_visual_journey.py against tests/fixtures/oos2_parity on a
-fresh sandbox, the same tool and fixture set C3B-CLOSE used, and recorded
-CHART_DRAW_AND_REOPEN / objects-painted before/after per script -- never
-added into one number.
+Ran tools/c0_visual_journey.py against the 4 of 9 current parity-set members
+whose .pine is already local, on a fresh isolated sandbox, once the
+concurrent-landing blocker this plan named on 2026-09-19 cleared (both
+feat/pine-table-gaps and landing/pine-fixes-2026-09-19 have since merged to
+origin/master).
 
-Closed H8 (last_bar_index). Corrected the register's stale H7 (modulo)
-and general pine:tuple entries to DONE. Recorded the ta.supertrend
-recurrence gap and Task 4's finding as explicit, unauthorized-for-this-
-plan pointers.
+Found and fixed two staleness bugs in the harness itself, unrelated to any
+product change in this plan: _open_workspace waited for a toolbar
+"Indicators" button that had been retired (ChartToolbar.jsx consolidated it
+into ChartSettingsModal's own tab) -- replaced with waiting for a chart
+canvas to exist. The replacement opener (the still-live Alt+Shift+A chord)
+then did nothing because the default Charts layout's Watchlists widget
+autofocuses a search input on load, and a focused text field correctly
+swallows an Alt-chord -- fixed by blurring the active element first.
+
+klinger's IMPORT_BLOCKED result matches this plan's own prediction exactly
+(pine:state family, named out of scope). rsi-levels-regime-map reached
+FULL_JOURNEY_PASS with 12/12 real chips drawn -- live evidence the pipeline
+works end to end for a complex current parity-set member. rsi-divergence-
+faytterro (Task 1's own fixture) hit SAVED_NOT_RENDERED on an unrelated
+value-plot axis; Task 1's own claim (objects painted unchanged at 0) is
+unaffected and already proven more precisely by
+pineLoopBlockedCollections.test.js's direct droppedOps:6/opsLen:0 assertion.
+
+The other 5 of 9 current members were not re-fetched from TradingView --
+copyrighted third-party source under a licence that does not contemplate
+redistribution, for confirmatory value this plan's own Task 5 text already
+expected would not move.
 EOF
 )"
 ```

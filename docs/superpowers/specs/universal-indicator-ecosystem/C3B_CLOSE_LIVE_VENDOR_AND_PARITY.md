@@ -497,20 +497,46 @@ case), so it is unaffected — but a future full re-run of §5's table against
 `tests/fixtures/oos2_parity` must use the CURRENT nine-member set and the
 CURRENT frozen bytes, not this document's own historical copies.
 
-**Not attempted in this addendum:** a fresh `tools/c0_visual_journey.py` run
-against a live sandboxed backend to re-measure §5's table pixel-for-pixel. This
-plan's own Task 5 scoped that as the closing step; it was deliberately not run
-here — launching a live backend and a Playwright session carries real,
-well-documented collision risk with the two other branches this plan's own
-research found mid-landing changes to these exact object-model files
-(`feat/pine-table-gaps`, `landing/pine-fixes-2026-09-19`), for a measurement
-this document's own Task 5 text already expects to show **no change** in the
-objects-painted column (RISK-043 and the `ta.supertrend` recurrence gap both
-correctly still stand). The verified value this addendum adds — three closed
+**Not attempted in this addendum, run later the same day once the blocker cleared:**
+a fresh `tools/c0_visual_journey.py` run against a live sandboxed backend, to
+re-measure §5's table pixel-for-pixel. It was deliberately not run at
+addendum-writing time — launching a live backend and a Playwright session
+carried real, well-documented collision risk with the two other branches this
+plan's own research found mid-landing changes to these exact object-model
+files (`feat/pine-table-gaps`, `landing/pine-fixes-2026-09-19`). **Both have
+since merged to `origin/master`** (confirmed via `git merge-base
+--is-ancestor`), so that blocker resolved, and the measurement was run
+against a fresh isolated sandbox.
+
+It found the harness itself had gone stale, independent of anything this
+addendum changed: `tools/c0_visual_journey.py` waited for a toolbar button
+labelled "Indicators" that had been retired (`ChartToolbar.jsx`'s own
+retirement comment: consolidated into `ChartSettingsModal`'s tab), so every
+fixture timed out identically. Fixed (waiting for a chart canvas instead,
+plus a second fix once that surfaced a focus-stealing widget suppressing the
+replacement `Alt+Shift+A` opener — both documented in the function docstrings
+in `tools/c0_visual_journey.py`). Run against the 4 of the current 9
+parity-set members whose `.pine` is already local (the other 5 were not
+re-fetched — copyrighted third-party source under a non-redistribution
+licence, for confirmatory value already expected not to move): `klinger`
+produced `IMPORT_BLOCKED`, matching this document's own prediction exactly
+(the `pine:state` family, named out of scope); `rsi-levels-regime-map`
+reached `FULL_JOURNEY_PASS` with 12/12 real chips drawn, live evidence the
+full pipeline works end to end for a complex current member; row #1
+(`rsi-divergence-faytterro`, Task 1's fixture) hit `SAVED_NOT_RENDERED` on an
+unrelated value-plot axis, which does not affect Task 1's own claim —
+objects-painted stays at 0, already proven more precisely by
+`pineLoopBlockedCollections.test.js`'s direct `droppedOps:6`/`opsLen:0`
+assertion than any pixel count could. Full table:
+`docs/superpowers/plans/2026-09-19-pine-geometry-grammar-gaps.md`, Task 5
+Step 4.
+
+The verified value this addendum adds — three closed
 compatibility gaps, one corrected refusal message, one diagnosed engine gap,
 one loopBlocked false-positive fixed, one parity-set membership correction — was
 confirmed by direct `translatePine` execution and the existing wired test
 suites (JS: `pine.test.js`, `pine.tuples.test.js`, `pine.modulo.test.js`,
 `vendorObjectParity.test.js`, `clockParity.test.js`, and others; Python:
 `test_ast_clock_parity.py`, `test_indicator_compute.py`, `test_ast_interpret.py`,
-`test_ast_scalars.py`, `test_ast_conformance.py`), not by the visual-journey tool.
+`test_ast_scalars.py`, `test_ast_conformance.py`); the live visual-journey run
+above corroborates rather than replaces that evidence.
