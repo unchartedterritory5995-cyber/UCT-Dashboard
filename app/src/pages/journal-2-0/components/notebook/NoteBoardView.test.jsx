@@ -233,6 +233,40 @@ describe('NoteBoardView', () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalled())
   })
 
+  it('the optimistic override EXPIRES once the server speaks', async () => {
+    // ⛔ THE DEFECT THIS EXISTS FOR: the override map was never cleared, so the
+    // board kept showing its own value for the life of the mount. Change the
+    // property in the EDITOR, come back, and the board still showed the old
+    // one -- a second authority over a value the server owns.
+    const { rerender } = renderBoard()
+    const card = screen.getByText('NVDA thesis').closest('article')
+    fireEvent.change(within(card).getByRole('combobox'), { target: { value: 'closed' } })
+    await waitFor(() => expect(settleSpy).toHaveBeenCalled())
+    expect(within(columnNamed('Closed')).getByText('NVDA thesis')).toBeInTheDocument()
+
+    // The server now reports something ELSE for that note (someone edited it
+    // in the editor). The revision advanced, so the override must retire and
+    // the server's value must win -- dropping only on AGREEMENT would keep the
+    // stale value in precisely this case.
+    const serverSaid = [
+      { ...NOTES[0], updatedAt: '2026-09-20T09:00:00Z', propertiesJson: { 'builtin:thesis_status': 'active' } },
+      NOTES[1], NOTES[2],
+    ]
+    rerender(
+      <NoteBoardView
+        notes={serverSaid}
+        propertyDefs={[STATUS, CONF]}
+        onOpenNote={vi.fn()}
+        blockedNoteIds={new Set()}
+        onChanged={onChanged}
+      />,
+    )
+    await waitFor(() => {
+      expect(within(columnNamed('Active')).getByText('NVDA thesis')).toBeInTheDocument()
+    })
+    expect(within(columnNamed('Closed')).queryByText('NVDA thesis')).toBeNull()
+  })
+
   it('regrouping to another property redraws the columns', () => {
     renderBoard()
     fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'builtin:confidence' } })

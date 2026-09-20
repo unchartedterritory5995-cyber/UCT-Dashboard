@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
@@ -94,8 +94,24 @@ export default function NoteBoardView({
     return used || defs[0]
   }, [defs, groupById, notes])
 
-  // Optimistic overrides: noteId -> option id. Cleared when the parent
-  // re-fetches and the server's own value agrees.
+  /**
+   * Optimistic overrides: noteId -> { value, at }, where `at` is the note's
+   * `updatedAt` AT THE MOMENT OF THE MOVE.
+   *
+   * ⛔⛔ AN OVERRIDE MUST EXPIRE, AND THE TRIGGER IS "THE SERVER SPOKE", NOT
+   * "THE SERVER AGREED". This started as a bare `noteId -> value` map that
+   * nothing ever cleared, under a comment claiming the parent's re-fetch
+   * cleared it — a mechanism nobody had wired. The board then held its own
+   * value for the life of the mount, so changing that property in the EDITOR
+   * and coming back showed the stale one: a second authority over a value the
+   * server owns.
+   *
+   * ⭐ Keying on `updatedAt` is what makes it correct in BOTH directions. Once
+   * the note's revision advances the override is dropped unconditionally —
+   * whether the new value is the one we sent (our save landed) or a different
+   * one (somebody edited it elsewhere). Dropping only on agreement would keep
+   * the stale value in exactly the case that matters.
+   */
   const [moved, setMoved] = useState({})
   const [busy, setBusy] = useState({})
   const [error, setError] = useState('')
@@ -105,13 +121,30 @@ export default function NoteBoardView({
 
   const columns = useMemo(() => (def ? columnsFor(def) : []), [def])
 
+  // Retire every override whose note has since moved on. Runs on the notes
+  // the parent handed us, so it fires exactly when new server truth arrives.
+  useEffect(() => {
+    setMoved((m) => {
+      const ids = Object.keys(m)
+      if (!ids.length) return m
+      const next = {}
+      let dropped = false
+      for (const id of ids) {
+        const note = (notes || []).find((n) => n.id === id)
+        if (note && note.updatedAt !== m[id].at) { dropped = true; continue }
+        next[id] = m[id]
+      }
+      return dropped ? next : m
+    })
+  }, [notes])
+
   const byColumn = useMemo(() => {
     if (!def) return {}
     const out = {}
     for (const c of columns) out[c.id] = []
     for (const n of notes || []) {
       const override = moved[n.id]
-      const col = override !== undefined ? override : columnIdFor(n, def)
+      const col = override ? override.value : columnIdFor(n, def)
       ;(out[col] || out[NO_VALUE]).push(n)
     }
     return out
@@ -128,7 +161,7 @@ export default function NoteBoardView({
       return
     }
     setError('')
-    setMoved((m) => ({ ...m, [note.id]: toColumnId }))
+    setMoved((m) => ({ ...m, [note.id]: { value: toColumnId, at: note.updatedAt } }))
     setBusy((b) => ({ ...b, [note.id]: true }))
     try {
       const value = toColumnId === NO_VALUE ? null : toColumnId
@@ -240,7 +273,7 @@ export default function NoteBoardView({
                           <span className={styles.srOnly}>{`Move ${n.title || 'Untitled'} to`}</span>
                           <select
                             className={styles.move}
-                            value={moved[n.id] !== undefined ? moved[n.id] : columnIdFor(n, def)}
+                            value={moved[n.id] ? moved[n.id].value : columnIdFor(n, def)}
                             disabled={Boolean(busy[n.id])}
                             onChange={(e) => move(n, e.target.value)}
                           >

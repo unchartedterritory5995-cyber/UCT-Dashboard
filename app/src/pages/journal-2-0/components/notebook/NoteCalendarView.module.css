@@ -1,0 +1,194 @@
+/* Declared tokens only: --text-muted / --text-dim / --border / --bg-surface /
+   --ut-gold. Neighbours in this directory use --color-text-*, which tokens.css
+   never defines; those survive on their fallback literal. Do not copy them. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navBtn,
+.todayBtn {
+  background: var(--bg-elevated, #1b2029);
+  color: var(--text-primary, #e8eaed);
+  border: 1px solid var(--border, #232932);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* The previous-month arrow is the next-month glyph turned around — the
+   registry has one chevron and two directions is a transform, not a second
+   piece of art. */
+.navBtn:first-child svg { transform: rotate(180deg); }
+
+.monthLabel {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 132px;
+  text-align: center;
+  color: var(--text-primary, #e8eaed);
+}
+
+.byLabel {
+  font-size: 12px;
+  color: var(--text-muted, #98a0aa);
+  margin-left: auto;
+}
+
+.bySelect {
+  background: var(--bg-elevated, #1b2029);
+  color: var(--text-primary, #e8eaed);
+  border: 1px solid var(--border, #232932);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  padding: 5px 8px;
+  min-height: var(--tap-min, 44px);
+}
+
+.elsewhere {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim, #7c848f);
+}
+
+.grid {
+  border: 1px solid var(--border, #232932);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  background: var(--bg-surface, #12161c);
+}
+
+.dowRow,
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dow {
+  padding: 6px 4px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-muted, #98a0aa);
+  border-bottom: 1px solid var(--border, #232932);
+}
+
+.cell,
+.padCell {
+  min-height: 92px;
+  border-right: 1px solid var(--border, #232932);
+  border-bottom: 1px solid var(--border, #232932);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.padCell { background: rgba(255, 255, 255, 0.015); }
+
+.cell:nth-child(7n),
+.padCell:nth-child(7n) { border-right: none; }
+
+.cellToday {
+  background: rgba(201, 168, 76, 0.08);
+  box-shadow: inset 0 0 0 1px var(--ut-gold, #c9a84c);
+}
+
+.dayNum {
+  font-size: 10px;
+  color: var(--text-muted, #98a0aa);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-elevated, #1b2029);
+  border: 1px solid var(--border, #232932);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary, #e8eaed);
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 3px 5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.unscheduled {
+  border: 1px dashed var(--border, #232932);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px;
+}
+
+.unschedHead {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim, #7c848f);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count {
+  color: var(--text-muted, #98a0aa);
+  font-variant-numeric: tabular-nums;
+}
+
+.unschedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.unschedList .chip { width: auto; max-width: 220px; }
+
+.state {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted, #98a0aa);
+  line-height: 1.6;
+}
+
+/* Phone: a 7-column month stays a month, but the cells get shorter and the
+   whole grid scrolls sideways rather than crushing each day to nothing. */
+@media (max-width: 640px) {
+  .grid { overflow-x: auto; }
+  .dowRow, .week { min-width: 520px; }
+  .cell, .padCell { min-height: 68px; }
+}

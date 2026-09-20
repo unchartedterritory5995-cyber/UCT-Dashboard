@@ -9,6 +9,7 @@ import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
 import NoteGraphView from '../components/notebook/NoteGraphView'
 import NoteBoardView from '../components/notebook/NoteBoardView'
+import NoteCalendarView from '../components/notebook/NoteCalendarView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -723,6 +724,15 @@ export default function NotebookTab() {
               </button>
               <button
                 type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'calendar' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('calendar')}
+                disabled={Boolean(activeView)}
+                title="Calendar view"
+              >
+                <UIcon name="calendar" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
                 className={`${styles.viewModeBtn} ${viewMode === 'graph' ? styles.viewModeActive : ''}`}
                 onClick={() => setViewMode('graph')}
                 disabled={Boolean(activeView)}
@@ -739,7 +749,7 @@ export default function NotebookTab() {
                 offer it rather than to widen the server's enum for a spec the
                 graph would never read back.
               */}
-              {!activeView && viewMode !== 'graph' && viewMode !== 'board' && (
+              {!activeView && viewMode !== 'graph' && viewMode !== 'board' && viewMode !== 'calendar' && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -887,7 +897,19 @@ export default function NotebookTab() {
               member already chose), whereas a graph is only honest when it draws
               the whole notebook.
             */}
-            {viewMode === 'board' && !isTrashView ? (
+            {/*
+              ⛔ Calendar is READ-ONLY, so unlike the board it could in principle
+              render over Trash — it is still excluded, because a month of
+              deleted notes under a Trash header is a view nobody asked for and
+              the four view modes should mean the same thing everywhere.
+            */}
+            {viewMode === 'calendar' && !isTrashView ? (
+              <NoteCalendarView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+              />
+            ) : viewMode === 'board' && !isTrashView ? (
               <NoteBoardView
                 notes={notes}
                 propertyDefs={propertyDefs}

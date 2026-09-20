@@ -206,6 +206,22 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
   - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - **Calendar view** (`NoteCalendarView.jsx`, fifth `viewMode`). Notes laid on a
+    month grid by a `date` property. ⛔ **The month grid is NOT rederived** —
+    `buildMonthGrid`/`monthLabel`/`dowLabels`/`todayET`/`monthOffset` in
+    `journal-2-0/lib/calendar.js` are what the Journal's own Calendar tab runs
+    on, and `todayET` is Intl-based so it stays right across DST. ⛔⛔ **A date
+    property is a FREE-FORM STRING** (`note_properties` checks only "non-empty
+    string"), so parsing is STRICT — a leading `YYYY-MM-DD`, with impossible
+    dates rejected. ⚰️ `new Date(value)` is the trap: it reads a bare date as
+    UTC, so an ET member sees notes on the PREVIOUS day — wrong in the evening
+    only, which is why the rail uses a `-04:00` stamp that changes day under
+    conversion (a `Z` stamp cannot distinguish the two implementations).
+    ⛔ Unparseable and undated notes appear under **Unscheduled**, never dropped,
+    and a count of dated notes in OTHER months is shown so an empty month is
+    not misread as "nothing scheduled". ⚠️ **READ-ONLY in v1 by decision** —
+    drag-to-reschedule would be another write door needing the board's
+    `settleNoteWrite` treatment, and half of that forks notes.
   - **Board view** (`NoteBoardView.jsx`, fourth `viewMode` beside list/table/graph).
     Notion's board over Wave E's property system — no schema change, because
     `builtin:thesis_status` (Watching/Active/Invalidated/Closed) is already a
