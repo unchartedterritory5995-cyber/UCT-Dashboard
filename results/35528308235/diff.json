@@ -1,0 +1,84 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 1,
+    "unchanged": 159,
+    "missing": 0,
+    "baseline": 160,
+    "current": 164,
+    "current_ran": 50581,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 160 = unchanged 159 + fixed 1 + missing 0  |  current 164 = unchanged 159 + new 4 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35526231513",
+  "current_run_id": "35528308235",
+  "baseline_sha": "a15242eeef2023f8118a54c1bfea15ddd22861df",
+  "current_sha": "42d6e439c2b2a0573652bc5bb812823dbc582d57",
+  "commit_range": "a15242eeef2023f8118a54c1bfea15ddd22861df..42d6e439c2b2a0573652bc5bb812823dbc582d57",
+  "first_run": false,
+  "new": [
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > CONTROL: with the toggle OFF the rendered order IS the snapshot one",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4 an EMPTY screen offers a disabled door, and publishes nothing",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4\u26d4 WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \ud83d\udd34 the review door is ON the toolbar, and it publishes the rendered order"
+  ],
+  "missing": [],
+  "fixed": [
+    "vitest|src/pages/screener/shell/ScannerShell.test.jsx|ScannerShell > an empty result keeps the toolbar mounted and usable"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > CONTROL: with the toggle OFF the rendered order IS the snapshot one": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a15242eee..42d6e439c touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4 an EMPTY screen offers a disabled door, and publishes nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a15242eee..42d6e439c touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4\u26d4 WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a15242eee..42d6e439c touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \ud83d\udd34 the review door is ON the toolbar, and it publishes the rendered order": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a15242eee..42d6e439c touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.test.jsx|ScannerShell > an empty result keeps the toolbar mounted and usable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a15242eee..42d6e439c touched src/pages/screener/shell/ScannerShell.test.jsx or anything it imports"
+    }
+  }
+}
