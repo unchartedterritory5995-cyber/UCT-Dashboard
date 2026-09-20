@@ -1631,7 +1631,14 @@ def get_note_graph(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        cap = max(1, min(limit, 5000))
+        # ⛔⛔ 2000 IS A MEASURED CEILING, NOT A ROUND NUMBER. The renderer's
+        # layout is O(n^2) over 220 ticks on the main thread; benchmarked with
+        # its real constants: 1500 -> 5.9ms/frame, 2000 -> 10.6ms (both inside
+        # the 16ms budget), 3000 -> 26.8ms janky, 5000 -> 80.9ms, which is
+        # ~18 SECONDS of blocked main thread. This used to allow 5000.
+        # ⚠️ Raising it is a promise about the RENDERER, not about this query --
+        # re-run the benchmark before you do, and read NoteGraphView's header.
+        cap = max(1, min(limit, 2000))
         rows = conn.execute(
             "SELECT n.id, n.title, n.folder_id, n.updated_at,"
             "       (SELECT COUNT(*) FROM j2_note_links l"

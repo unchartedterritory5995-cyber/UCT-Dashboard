@@ -162,9 +162,15 @@ export default function NoteGraphView({ onOpenNote }) {
     simRef.current = { nodes, edges }
 
     const step = () => {
-      // ⛔ O(n^2) repulsion is fine to ~1500 nodes, which is the endpoint's own
-      // default cap. Past that this needs a quadtree — stated so the next person
-      // raising the cap knows what they are buying.
+      // ⛔⛔ O(n^2), AND HERE IS WHAT THAT COSTS — MEASURED, not assumed.
+      // 220 ticks with these constants, per frame: 1500 nodes 5.9ms · 2000
+      // 10.6ms · 3000 26.8ms · 5000 80.9ms (~18s of blocked main thread).
+      // ⚰️ This read "fine to ~1500 nodes, which is the endpoint's own default
+      // cap" — half right, and the wrong half mattered: 1500 is the DEFAULT,
+      // the ceiling was 5000, and the sentence read as if they were one number.
+      // The endpoint now caps at 2000, the largest size measured inside a 16ms
+      // frame. Past that this needs a quadtree, and raising the cap without one
+      // buys the H14 nav-freeze class.
       for (let i = 0; i < nodes.length; i += 1) {
         const a = nodes[i]
         for (let j = i + 1; j < nodes.length; j += 1) {

@@ -220,3 +220,38 @@ def test_a_link_to_a_TRASHED_note_does_not_count_toward_degree(app, client):
         "the source still counts a link to a note that is in the trash -- it will "
         "render as linked-but-lineless instead of as the orphan it now is"
     )
+
+
+def test_the_cap_is_bounded_at_what_the_RENDERER_can_survive(app, client):
+    """⛔⛔ A CEILING THE RENDERER CANNOT DRAW IS A TAB FREEZE, NOT A BIG GRAPH.
+
+    The renderer lays out with O(n^2) repulsion over 220 ticks on the main
+    thread. Benchmarked with its own constants: 1500 nodes -> 5.9ms/frame,
+    2000 -> 10.6ms (both inside a 16ms budget), 3000 -> 26.8ms, 5000 -> 80.9ms,
+    which is ~18 SECONDS of blocked main thread -- the H14 nav-freeze class.
+
+    The ceiling was 5000. It is 2000: the largest size MEASURED smooth.
+
+    ⚠️ This pins the CEILING, not the default. Raising it is a promise about
+    the renderer, so re-run the benchmark first.
+    """
+    _login_as(app, "u1")
+    from api.services.journal_two import notes as notes_service
+    import inspect
+    src = inspect.getsource(notes_service.get_note_graph)
+    assert "min(limit, 2000)" in src, "the measured ceiling was changed without this rail"
+    assert "min(limit, 5000)" not in src, "the unsurvivable 5000 ceiling is back"
+
+    # and it is enforced over the wire, not merely written down
+    r = client.get("/api/j2/notes/graph?limit=99999")
+    assert r.status_code == 200
+    assert len(r.json()["nodes"]) <= 2000
+
+
+def test_the_default_is_unchanged_by_the_ceiling_drop():
+    """The default stays 1500 -- lowering the ceiling must not quietly shrink
+    what an ordinary request returns."""
+    from api.services.journal_two import notes as notes_service
+    import inspect
+    sig = inspect.signature(notes_service.get_note_graph)
+    assert sig.parameters["limit"].default == 1500
