@@ -234,7 +234,21 @@ export function makeProgram({
       throw new ProgramError(`const ${i}: a const is a number or a string, got ${typeof c}`)
     })),
     columns: Object.freeze((columns || []).slice()),
-    outputs: Object.freeze((outputs || []).slice()),
+    // ⭐⭐ AN OUTPUT IS A DESCRIPTOR, NOT A NAME. It began as a bare string
+    // and that was enough while every output was one series under one call.
+    // `fill` ended it: `fill(p1, p2, colour)` emits a colour series and has to
+    // say WHICH TWO PLOTS it fills between, and a string cannot. `plotcandle`
+    // needs the same shape for its four roles.
+    //
+    // ⛔ VALIDATED HERE so a malformed entry is a build error rather than a
+    // renderer reading `undefined` off it and drawing nothing.
+    outputs: Object.freeze((outputs || []).map((o, i) => {
+      const d = typeof o === 'string' ? { call: o } : o
+      if (!d || typeof d.call !== 'string' || !d.call) {
+        throw new ProgramError(`output ${i}: an output names the call that made it`)
+      }
+      return Object.freeze({ ...d })
+    })),
     locals, persists, version,
     // `entry` is the pc a CALL jumps to; `frameSize` is how many local slots the
     // invocation owns; `params` is how many of them are bound from the stack.

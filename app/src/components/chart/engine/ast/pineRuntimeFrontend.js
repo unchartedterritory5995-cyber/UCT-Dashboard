@@ -61,6 +61,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // wider than the capability: `x[1]` over a top-level mutable value now runs,
   // and the three shapes below are the parts that do not, each refused BY ITS OWN
   // NAME so the next dependency is a row rather than a rumour.
+  'runtime:fill-target': 'a fill spans two PLOTS, and this argument does not name one',
+  'runtime:fill-gradient': 'the gradient form of `fill` — `fill(plot1, plot2, top_value, bottom_value, top_color, bottom_color)` shades vertically between two values, and this engine’s fill paints one colour across a span',
   'runtime:colour': 'a colour was expected here — a colour is a packed integer in this lane, and a price packed into a colour slot would draw a plausible shade computed from the wrong thing',
   'runtime:plot-id': 'a plot id used as a number — `p = plot(…)` names a plot so that `fill()` can refer to it, and it is not a value the script can compute with',
   'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
@@ -1954,7 +1956,7 @@ export function buildRuntimeIr(source, opts = {}) {
   const OUTPUT_CALLS = RUNTIME_OUTPUT_CALLS
   const COLOUR_OUTPUTS = RUNTIME_COLOUR_OUTPUTS
   const PRESENTATION_CALLS = new Set([
-    'fill', 'plotcandle', 'plotbar', 'alert',
+    'plotcandle', 'plotbar', 'alert',
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
 
@@ -1966,7 +1968,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  is how the bound form came to compile and draw nothing; a single function
    *  is what makes that divergence impossible rather than merely fixed.
    */
-  const emitOutputCall = (callName, call, scope, out, at) => {
+  const emitOutputCall = (callName, call, scope, out, at, extra) => {
     const args = call && call.args ? call.args : []
     const arg0 = args.length ? (args[0].value !== undefined ? args[0].value : args[0]) : null
     if (!arg0) throw new RuntimeRefusal('runtime:statement', `\`${callName}()\` with no value`, at)
@@ -2010,10 +2012,66 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:colour',
         `\`${callName}()\` draws numbers, and a colour is not one`, at)
     }
-    outputs.push(callName)
+    outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
     out.push(emit(index, lowerExpr(arg0, scope)))
     return index
+  }
+
+  /** `fill(plot1, plot2, colour)` — emits the COLOUR series and records which
+   *  two outputs it spans.
+   *
+   *  ⭐⭐ THE TWO PLOTS ARE COMPILE-TIME HANDLES, which is what made this
+   *  tractable at all. Pine's plot ids cannot be computed, so `fill` never needs
+   *  a runtime value for them — it needs the output INDEX, and `plotRefs`
+   *  already holds it. What the output list could not do until now was carry
+   *  that index, which is why an output became a descriptor.
+   */
+  const emitFill = (call, scope, out, at) => {
+    const args = (call && call.args) || []
+    const positional = args.filter((x) => !x || !x.name)
+    const named = new Map(args.filter((x) => x && x.name).map((x) => [x.name, x.value]))
+    const argOf = (x) => (x && x.value !== undefined ? x.value : x)
+    if (positional.length < 2) {
+      throw new RuntimeRefusal('runtime:statement',
+        '`fill()` spans two plots, and fewer than two were given', at)
+    }
+    // ⛔ EACH SIDE MUST NAME A PLOT, and the refusal says which one did not.
+    // `fill(close, open, color.red)` is a real mistake a member makes, and
+    // "expected a plot" without naming the side sends them to check both.
+    const sideOf = (i) => {
+      const node = argOf(positional[i])
+      const ref = node && node.type === 'name' ? plotRefs.get(node.name) : null
+      if (!ref) {
+        note('runtime:fill-target')
+        throw new RuntimeRefusal('runtime:fill-target',
+          `argument ${i + 1} of \`fill()\` is not a plot — a fill spans two, and `
+          + 'each is named by binding one (`p = plot(…)`)', at)
+      }
+      return ref.index
+    }
+    const upper = sideOf(0)
+    const lower = sideOf(1)
+
+    const colourNode = named.has('color') ? named.get('color')
+      : (positional.length > 2 ? argOf(positional[2]) : null)
+    if (!colourNode || !holdsColour(colourNode, scope)) {
+      // ⛔⛔ THE GRADIENT FORM IS REFUSED BY ITS OWN NAME, not as "missing a
+      // colour". `fill(p1, p2, top_value, bottom_value, top_colour, bottom_colour)`
+      // is a DIFFERENT call that shades vertically between two values, and the
+      // fill primitive this engine has paints one colour across a span. Telling
+      // a member their colour is missing, when they passed two, would send them
+      // to fix a line that is correct.
+      if (positional.length >= 6) {
+        note('runtime:fill-gradient')
+        throw new RuntimeRefusal('runtime:fill-gradient', null, at)
+      }
+      note('runtime:colour')
+      throw new RuntimeRefusal('runtime:colour',
+        '`fill()` paints with a colour, and this is not one', at)
+    }
+    outputs.push({ call: 'fill', upper, lower })
+    out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
   }
 
   // ⚰️ A REFUSAL WITH `line: null` IS NOT AN ACCEPTABLE FINAL STATE.
@@ -2390,6 +2448,12 @@ export function buildRuntimeIr(source, opts = {}) {
         if (holdsColour(value, scope)) slots[slot].colour = true
         if (isCollection) slots[slot].collection = true
         out.push(declare(slot, lowerExpr(value, scope)))
+        continue
+      }
+
+      // ── `fill(a, b, colour)` — the band between two plots ──
+      if (word === 'fill' && isPunct(toks[1], '(')) {
+        emitFill(parseWholeExpression(toks), scope, out, locate(first))
         continue
       }
 

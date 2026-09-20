@@ -41,7 +41,10 @@ function run(src) {
     bars: N, series: SERIES, columns: program.columns, confirmed: true,
     barTimes: BARS.map((b) => b.t),
   })
-  return { outputs: program.outputs, series: res.outputs.map((o) => Array.from(o, (v) => v >>> 0)) }
+  return {
+    outputs: program.outputs.map((o) => o.call),
+    series: res.outputs.map((o) => Array.from(o, (v) => v >>> 0)),
+  }
 }
 
 const refusalOf = (src) => {

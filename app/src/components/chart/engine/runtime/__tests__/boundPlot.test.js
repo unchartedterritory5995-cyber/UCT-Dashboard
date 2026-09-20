@@ -35,7 +35,14 @@ function run(src) {
     bars: N, series: SERIES, columns: program.columns, confirmed: true,
     barTimes: BARS.map((b) => b.t),
   })
-  return { outputs: program.outputs, series: res.outputs.map((o) => Array.from(o)) }
+  // ⭐ THE CALL NAMES, not the whole descriptor — these cases are about WHICH
+  // call made each output, and an entry grew fields (`fill` carries the two
+  // plots it spans) that would make a whole-object compare fail for a reason
+  // that says nothing about plots being lost.
+  return {
+    outputs: program.outputs.map((o) => o.call),
+    series: res.outputs.map((o) => Array.from(o)),
+  }
 }
 
 const refusalOf = (src) => {

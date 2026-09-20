@@ -458,7 +458,9 @@ export function lowerIrProgram(ir) {
       const widest = (ir.requests || []).reduce((m, r) => Math.max(
         m, r.value && r.value.kind === EXPR.TUPLE ? r.value.elements.length : 1), 0)
       const outs = (ir.outputs || []).slice()
-      while (outs.length < widest) outs.push(`request result ${outs.length}`)
+      while (outs.length < widest) {
+        outs.push({ call: 'request', role: `result ${outs.length}` })
+      }
       return outs
     })(),
     locals: ir.slots.filter((s) => s.owner === null && s.kind === SLOT.LOCAL).length,

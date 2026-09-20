@@ -39,7 +39,10 @@ function run(src) {
     bars: N, series: SERIES, columns: program.columns, confirmed: true,
     barTimes: BARS.map((b) => b.t),
   })
-  return { outputs: program.outputs, series: res.outputs.map((o) => Array.from(o)) }
+  return {
+    outputs: program.outputs.map((o) => o.call),
+    series: res.outputs.map((o) => Array.from(o)),
+  }
 }
 
 const refusalOf = (src) => {
@@ -80,27 +83,35 @@ describe('hline carries its level', () => {
   })
 })
 
-describe('⛔ `fill` stays refused, and for a DIFFERENT reason now', () => {
-  // ⭐⭐ THIS CASE PREDICTED ITS OWN FAILURE AND THE PREDICTION CAME TRUE ONE
-  // INCREMENT LATER. It used to refuse `bgcolor` and `barcolor` alongside
-  // `fill`, and said in as many words: *"if a colour ever becomes plottable,
-  // this goes red and somebody revisits the family deliberately."* The colour
-  // channel landed, all three went red together, and this is that revisit.
+describe('⭐ the presentation family, and what is left of it', () => {
+  // ⭐⭐ THIS BLOCK HAS NOW PREDICTED ITS OWN FAILURE TWICE, ONE INCREMENT APART,
+  // AND BOTH TIMES THE PREDICTION WAS THE USEFUL PART.
   //
-  // ⭐ A rail that names the condition under which it should fail is worth more
-  // than one that merely passes — it turned a surprise into a checklist item.
-  it('fill(a, b, color.red)', () => {
-    const r = refusalOf('fill(a, b, color.red)\nplot(close)')
-    expect(r.guard).toBe('runtime:presentation')
+  //   v1  refused fill + bgcolor + barcolor, and said: "if a colour ever
+  //       becomes plottable, this goes red and somebody revisits the family."
+  //       → the colour channel landed and all three went red together.
+  //   v2  refused fill alone, and said its reason was now PLOT REFERENCES
+  //       rather than colours.
+  //       → the output descriptor landed and fill went red too.
+  //
+  // ⭐ Each time the rail named the condition under which it should fail, and
+  // each time that turned a surprise into a checklist item. What is left in
+  // PRESENTATION is now a short, specific list rather than "the hard ones".
+  it('fill runs, and its span is recorded', () => {
+    const built = buildRuntimeIr(
+      `${head}p1 = plot(close)\np2 = plot(open)\nfill(p1, p2, color.red)`,
+      { bars: BARS, inputs: {} })
+    expect(built.ok).toBe(true)
   })
 
-  it('⛔ and the reason is now PLOT REFERENCES, not colours', () => {
-    // `fill` names two PLOTS, so it needs the output list to carry WHICH two,
-    // and that list holds bare call names today. A colour is no longer the
-    // blocker — the case below is what says so.
-    const painted = buildRuntimeIr(`${head}bgcolor(color.red)\nplot(close)`,
-      { bars: BARS, inputs: {} })
-    expect(painted.ok).toBe(true)
+  it('⛔ what is STILL presentation, by name', () => {
+    // ⭐ `plotcandle`/`plotbar` need four roles on one call — the descriptor can
+    // carry that now, so they are a table entry rather than a capability.
+    // `alert()` is an EFFECT, not a value: it fires a message, and this lane
+    // has no effect system. Naming them keeps the remainder legible.
+    for (const call of ['plotcandle(open, high, low, close)', 'alert("hi")']) {
+      expect(refusalOf(`${call}\nplot(close)`).guard, call).toBe('runtime:presentation')
+    }
   })
 })
 
