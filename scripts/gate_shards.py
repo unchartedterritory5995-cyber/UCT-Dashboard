@@ -290,6 +290,15 @@ GATE_READ_PATHS = (
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",
+    # ⛔ THE PINE PARITY CORPUS IS READ, NOT JUST NAMED.
+    # `pineBoxCreateDrop.test.js` does a real fs.readFileSync on
+    # `mid_engagement__01-zeiierman-trend-pressure.pine`, so a change to a
+    # fixture here CAN change a suite result and a carry-over verdict must
+    # not cross it. ⚠️ Two of that fixture's three mentions are PROSE (a
+    # comment about why it left the parity set) -- classifying it from those
+    # alone would have put it in NAMED_BUT_NOT_READ and kept the hole open.
+    # ⭐ The DIRECTORY, so a fixture added later is covered the day it lands.
+    "tools/c0_parity_fixtures",
     "docs/formulas/GRAMMAR.md",
     "docs/plans/joystick/surface-matrix.md",
     "docs/plans/joystick/glass-acceptance-steps.md",
