@@ -771,7 +771,13 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # instead of a flag (`closedTable.json`'s `lastbarindex` clock entry). A
     # per-bar clock column, not a per-symbol one, so the scalar half is
     # untouched at 137.
-    assert len(parts["bar"]) == 111 and len(parts["scalar"]) == 137
+    # ⭐ 111 -> 112 (2026-09-20): `floor` (Pine's `math.floor`) -- a new
+    # pointwise scalar function, the same shape as `round`'s own bump into this
+    # half. It rides the `call` node like every other pointwise entry, so no
+    # node type, argument kind or lookback form moved. New bar-corpus case:
+    # `pine_floor_rounds_toward_negative_infinity`. The scalar half is
+    # untouched at 137 -- `floor` names no per-symbol column.
+    assert len(parts["bar"]) == 112 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
