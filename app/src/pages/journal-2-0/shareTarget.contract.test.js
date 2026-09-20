@@ -178,10 +178,33 @@ describe('the landing route is registered, and OUTSIDE the auth guard', () => {
   it('⛔ the share path does not join FREE_PAGES by accident', () => {
     // Notebook is paid. The page tells a free member so; it must not become
     // reachable as a free page through the guard's own allowlist instead.
-    const guard = fs.readFileSync(path.join(APP, 'src', 'components', 'AuthGuard.jsx'), 'utf8')
-    const freeLine = /const FREE_PAGES = \[([^\]]*)\]/.exec(guard)
-    expect(freeLine, 'FREE_PAGES could not be read').toBeTruthy()
+    //
+    // ⚰️ THIS READ `AuthGuard.jsx` AND STOPPED WORKING WHEN THE VALUE MOVED.
+    // S9 CP1 lifted FREE_PAGES into `constants/freePages.js` because it had
+    // been hand-typed in THREE files; after that the regex here matched
+    // nothing. The rail then failed loudly rather than passing vacuously --
+    // which is the behaviour you want -- but the protection it exists for had
+    // not actually been checked since the move. Kind 3b: a true record, with
+    // the world moved under it.
+    const freePages = fs.readFileSync(
+      path.join(APP, 'src', 'constants', 'freePages.js'), 'utf8')
+    const freeLine = /FREE_PAGES\s*=\s*\[([^\]]*)\]/.exec(freePages)
+    expect(freeLine, 'FREE_PAGES could not be read from constants/freePages.js').toBeTruthy()
+
+    // ⛔ NON-VACUITY. An empty capture would satisfy the assertion below for
+    // the wrong reason, which is exactly how this rail went quiet.
+    expect(freeLine[1].trim().length, 'FREE_PAGES parsed as empty').toBeGreaterThan(0)
+    expect(freeLine[1]).toContain('/morning-wire')
+
     expect(freeLine[1]).not.toContain('/journal')
+  })
+
+  it('⛔ and AuthGuard no longer declares its own FREE_PAGES', () => {
+    // If a second copy ever reappears in the guard, the rail above would be
+    // reading the wrong one and reporting green about a value nobody uses.
+    const guard = fs.readFileSync(path.join(APP, 'src', 'components', 'AuthGuard.jsx'), 'utf8')
+    expect(/const FREE_PAGES\s*=\s*\[/.test(guard)).toBe(false)
+    expect(guard).toContain("from '../constants/freePages'")
   })
 })
 

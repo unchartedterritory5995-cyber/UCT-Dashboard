@@ -73,6 +73,17 @@
 .blockers { font-size: 12px; opacity: 0.7; }
 .actions { display: flex; gap: 8px; }
 
+/* ⛔ THE FINGER FLOOR IS A TOUCH-TIER RULE, NOT A PHONE RULE. This lived in the
+   <=640px block below, so a tablet (641-1024, which is squarely a touch device
+   in this app) got sub-44px action buttons in a dialog whose whole job is to be
+   tapped. The tier boundaries are 640 / 1024 and nothing else --
+   `app/src/styles/breakpoints.css` owns them. `styles/tapFloor.test.js` is the
+   rail, and it had been reporting this. */
+@media (max-width: 1024px) {
+  .actions button { min-height: var(--tap-min, 44px); }
+}
+
+/* Phone-only: the dialog becomes a bottom sheet. Layout, not touch sizing. */
 @media (max-width: 640px) {
   .backdrop { align-items: flex-end; padding: 0; }
   .sheet {
@@ -81,7 +92,6 @@
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
   .foot { position: sticky; bottom: 0; background: var(--color-surface, #14161a); padding-top: 10px; }
-  .actions button { min-height: var(--tap-min, 44px); }
 }
 
 .destPicker {
