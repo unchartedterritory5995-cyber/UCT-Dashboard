@@ -118,12 +118,23 @@ taxonomy over the existing shared delivery seam. No counter-evidence found.
 
 ## DEC-08 — Corporate-actions and portfolio-risk scope: build now or defer
 
-**Status: RECOMMENDED, REVERSIBLE — defer confirmed.** product-architecture.md's D5 (data
-system) designs adjustment-as-policy now (small, needed regardless); A14 (Portfolio & Risk) has
-its boundary fixed but its build explicitly deferred; a genuine corporate-actions event calendar
-(beyond splits/dividends) has no provider today (F-09 confirmed this a class-G gap) and is not
-scoped into Phase 2. *Gated on:* OI-06 revealing the desk needs one of these daily; otherwise
-treat as an MVP/roadmap scoping call (H-01), not an architecture question.
+⚰️ **Status was "RECOMMENDED, REVERSIBLE — defer confirmed."** Gated on OI-06 revealing the desk
+needs a daily corporate-actions/portfolio-risk calendar. OI-06's actual 2026-09-19 answer turned
+out to be about desk-tool benchmarks (thinkorswim/TradingView/Finviz/Unusual Whales) — a
+different question — so it never triggered this gate (found and recorded in COMPLETION_AUDIT.md
+2026-09-20). The gating question was put to the owner directly, in a live session, 2026-09-20:
+*"does the desk need a corp-actions/portfolio-risk calendar on a daily basis?"* **Answer: "Yes,
+we need it daily."**
+
+**Status now: CONFIRMED NEEDED, NOT YET SCOPED.** This does not mean the calendar is built, or
+even scoped — it means the one condition that was holding DEC-08 in deliberate deferral is now
+satisfied, and it is no longer a roadmap-scoping call to defer (H-01) but a real, wanted piece of
+work awaiting its own scoping pass. **The provider gap named below is unchanged and still real:**
+a genuine corporate-actions event calendar beyond splits/dividends has no data provider today
+(F-09, a class-G gap) — the owner's "yes" answers *whether* this is wanted, not *how* it gets
+built without a data source. A14 (Portfolio & Risk) inherits this unblock (COMPLETION_AUDIT.md's
+A14 row: "BLOCKED-DEPENDENCY on DEC-08 only") but still needs a scoping pass — and, separately,
+F-09's provider gap — before any code is proposed.
 
 ## DEC-09 — Decisiveness for two audiences
 
@@ -262,7 +273,7 @@ self-expires the day D5 ships.
 | DEC-05 | Member-facing licensing posture | Owner-bound | OI-03(a)/(b) |
 | DEC-06 | AI provenance component | **Locked** | — |
 | DEC-07 | Alert-type taxonomy | **Locked** | — |
-| DEC-08 | Corporate-actions/portfolio-risk timing | Recommended, defer | OI-06 |
+| DEC-08 | Corporate-actions/portfolio-risk timing | ⚰️ was "Recommended, defer" — **CONFIRMED NEEDED 2026-09-20** (owner, direct) | needs a scoping pass; F-09's provider gap still open |
 | DEC-09 | Decisiveness for two audiences | Owner-bound | new escalation D-003 |
 | DEC-10 | Packs vs. tools | **Locked** | — |
 | DEC-11 | Canonical model migration scope | Recommended, reversible | future evidence |
