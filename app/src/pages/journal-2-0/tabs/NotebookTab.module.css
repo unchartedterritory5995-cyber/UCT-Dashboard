@@ -147,6 +147,17 @@
   display: flex;
   align-items: stretch;
   gap: 8px;
+  /* ⛔ WITHOUT THIS, "+ New note" HANGS OFF THE SCREEN ON A PHONE. Measured at
+     a real 390px viewport: Import/Export/Templates/+New need 393px of row, and
+     the last button's right edge landed at 437 — 47px past the viewport. An
+     ancestor clips rather than scrolls (documentElement overflow was 0 and this
+     row's scrollWidth equalled its clientWidth), so the page looked fine by
+     every overflow check while the notebook's primary create action was half
+     cut off. ⭐ Wrapping is the right DEFAULT for a toolbar action row, not a
+     phone special case: it costs nothing whenever the row fits, and a fifth
+     button added later cannot reintroduce this at some other width.
+     `.toolbar` above already wraps for exactly this reason. */
+  flex-wrap: wrap;
 }
 .newBtn {
   background: #dcbb5e;
