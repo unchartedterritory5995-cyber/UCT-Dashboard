@@ -85,3 +85,24 @@ def test_display_companion_is_fetched_but_not_a_duplicate_column(monkeypatch, tm
     out = query.run_scan({"columns": ["candle_type"]})
     assert "candle_label" not in out["view_columns"]          # not shown twice
     assert out["rows"][0]["candle_label"] == "Tweezer Top (Hanging Man)"  # fetched
+
+
+def test_uct_universe_gate_filters_to_liquid_priced_names(monkeypatch, tmp_path):
+    # UCT Universe = the curated subset (price >= $5 AND 30d $-vol >= $20M);
+    # "all"/absent = the full market. Resolved server-side, never a member chip.
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, query
+    snapshot_db.init_db()
+    snapshot_db.upsert_rows([
+        {"ticker": "LIQ", "price": 50.0, "dollar_vol_30d": 50_000_000, "snapshot_date": "2026-08-21"},
+        {"ticker": "CHEAP", "price": 3.0, "dollar_vol_30d": 50_000_000, "snapshot_date": "2026-08-21"},
+        {"ticker": "THIN", "price": 50.0, "dollar_vol_30d": 5_000_000, "snapshot_date": "2026-08-21"},
+    ])
+    allm = query.run_scan({"columns": ["price"]})
+    assert {r["ticker"] for r in allm["rows"]} == {"LIQ", "CHEAP", "THIN"}   # full market
+    uct = query.run_scan({"columns": ["price"],
+                          "filters": [{"key": "universe", "op": "eq", "value": "uct"}]})
+    assert {r["ticker"] for r in uct["rows"]} == {"LIQ"}                     # only liquid + priced
+    allv = query.run_scan({"columns": ["price"],
+                           "filters": [{"key": "universe", "op": "eq", "value": "all"}]})
+    assert len(allv["rows"]) == 3                                           # "all" adds no clause

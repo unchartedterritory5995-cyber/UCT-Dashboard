@@ -5,9 +5,13 @@ import styles from './ScannerPro.module.css'
 // Removable chips for every active filter + a Clear all. Returns null when empty.
 // `scanJoins` (per-request truth) and `onReplace` (key, nextSpecOrNull) are
 // only consulted by the `scan` branch — every other chip is unaffected.
+// The base-pool keys are owned by the Universe bar, not shown as removable
+// filter chips (they'd duplicate the UCT Universe / Watchlist / Combo control).
+const UNIVERSE_KEYS = new Set(['universe', 'list'])
+
 export default function FilterChips({ meta, activeFilters, onRemove, onClear, scanJoins, onReplace }) {
   if (!meta) return null
-  const entries = Object.entries(activeFilters).filter(([, v]) => v)
+  const entries = Object.entries(activeFilters).filter(([k, v]) => v && !UNIVERSE_KEYS.has(k))
   if (!entries.length) return null
   const byKey = Object.fromEntries((meta.filters || []).map(f => [f.key, f]))
   return (

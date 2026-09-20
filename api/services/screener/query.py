@@ -20,6 +20,25 @@ _SORTABLE = set(snapshot_db.COLUMNS)
 _MAX_PAGE = 500
 _SCAN_KEY = "scan"
 _LIST_KEY = "list"
+# The base-pool selector (UniverseBar). "all" (or absent) = the full snapshot;
+# "uct" = the curated, tradeable-quality subset. Resolved server-side like the
+# other reserved keys so it never shows as a member filter chip.
+_UNIVERSE_KEY = "universe"
+UCT_MIN_PRICE = 5.0            # $
+UCT_MIN_DOLLAR_VOL = 20_000_000  # 30-day avg $-volume
+
+
+def _universe_clauses(f, clauses, params, overlay):
+    """The UCT curated universe = liquid, tradeable names inside the snapshot
+    (which is already market-cap ≥ $300M). `value: "uct"` applies the gate;
+    "all"/anything else is the full market and adds no clause. Nulls fall
+    outside `>=`, so a name with unknown liquidity is (correctly) not "UCT"."""
+    if f.get("value") != "uct":
+        return
+    clauses.append(f'{overlay.col_expr("price")} >= ?')
+    params.append(UCT_MIN_PRICE)
+    clauses.append(f'{overlay.col_expr("dollar_vol_30d")} >= ?')
+    params.append(UCT_MIN_DOLLAR_VOL)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -485,6 +504,9 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             # could name its own user_id would let any member screen any other
             # member's watchlist.
             _list_clauses(f, clauses, params, list_joins, user_id)
+            continue
+        if key == _UNIVERSE_KEY:
+            _universe_clauses(f, clauses, params, overlay)
             continue
         retired = getattr(filters, "RETIRED", {}).get(key)
         if retired is not None:
