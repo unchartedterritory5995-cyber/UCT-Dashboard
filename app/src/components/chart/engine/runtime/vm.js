@@ -440,12 +440,16 @@ export function execute(program, ctx, limits) {
           for (let i = 0; i < b; i += 1) {
             const kind = spec.args[i]
             const v = stack[sp + i]
-            if (typeof v !== kind) {
+            // ⛔ ONE KIND VOCABULARY ACROSS BOTH TABLES. `typeof []` is
+            // "object", so a member who handed `str.length` the result of
+            // `str.split` was told "got object" — a JavaScript word for a Pine
+            // mistake. `kindOf` says "array", which is the thing they wrote.
+            if (kindOf(v) !== kind) {
               // ⛔ NAMED TO THE BUILTIN AND THE POSITION. "a string was expected"
               // sends a member hunting through a whole watchlist parser; naming
               // `str.replace_all` argument 2 points at the line.
               throw new VmError(
-                `pc ${pc - 1}: \`${name}\` argument ${i + 1} takes a ${kind}, got ${typeof v}`)
+                `pc ${pc - 1}: \`${name}\` argument ${i + 1} takes a ${kind}, got ${kindOf(v)}`)
             }
           }
           let v

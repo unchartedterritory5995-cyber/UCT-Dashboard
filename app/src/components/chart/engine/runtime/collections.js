@@ -107,6 +107,30 @@ export const ARRAY_FNS = Object.freeze({
     args: ['any'], returns: 'array', variadic: true, minArgs: 0, maxArgs: Infinity,
     fn: (a, budget) => { budget.peak('ARRAY_ELEMENTS', a.length); return a.slice() },
   },
+  // ⭐⭐ `str.split` LIVES WITH THE COLLECTIONS, NOT WITH THE TEXT BUILTINS, and
+  // the reason is the route decision rather than tidiness: what a call RETURNS
+  // is what decides which lane can hold it, and this one returns an array. It
+  // is the bridge a pasted watchlist crosses — text in, collection out.
+  //
+  // ⛔⛔ AN EMPTY INPUT YIELDS ONE EMPTY ELEMENT, NOT AN EMPTY ARRAY. That is
+  // Pine's documented behaviour and it is why both acceptance scripts skip
+  // empty tokens after splitting. JavaScript's `String.prototype.split` agrees
+  // by contract ("".split(",") is [""]), so this is a case to PIN rather than
+  // to implement — and pinning it matters because a runtime that answered "an
+  // empty array" would make the scripts' skip step look redundant, while a list
+  // pasted with a trailing newline quietly gained a phantom symbol.
+  //
+  // ⛔ THE SEPARATOR IS LITERAL. A string argument to `split` is not a regex,
+  // which is the same reason `str.replace_all` uses `replaceAll`: a member's
+  // `BRK.B` must split on the dot, not on every character.
+  'str.split': {
+    args: ['string', 'string'], returns: 'array',
+    fn: (a, budget) => {
+      const parts = a[0].split(a[1])
+      budget.peak('ARRAY_ELEMENTS', parts.length)
+      return parts
+    },
+  },
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },
   'array.get': {
     args: ['array', 'number'], returns: 'any',

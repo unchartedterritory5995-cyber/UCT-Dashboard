@@ -178,9 +178,14 @@ describe('str.* in the runtime lane', () => {
     expect(r.message).toMatch(/str\.substring/)
   })
 
-  it('CONTROL: str.split is refused BY NAME — it returns a collection', () => {
-    const r = refusalOf(mutated('"a,b"', 'str.length(str.split(s, ",")) == 2'))
-    expect(r.message).toMatch(/str\.split/)
+  it('CONTROL: str.split is served ELSEWHERE — it returns a collection', () => {
+    // ⚰️ THIS ASSERTED A REFUSAL until `str.split` landed with the collections
+    // (`splitAndWalk.test.js`). It lives in `collections.js` rather than
+    // `text.js` because what a call RETURNS decides which lane can hold it, and
+    // this one returns an array. The control is kept, pointed at what is still
+    // true: handing its ARRAY result to a text builtin is a kind error, named.
+    expect(() => runPine(mutated('"a,b"', 'str.length(str.split(s, ",")) == 2')))
+      .toThrow(/`str\.length` argument 1 takes a string, got array/)
   })
 
   it('CONTROL: a numeric script is unaffected', () => {
