@@ -1,0 +1,2674 @@
+▲ [WARNING] Duplicate key "build" in object literal [duplicate-object-key]
+
+    vite.config.js:207:2:
+      207 │   build: {
+          ╵   ~~~~~
+
+  The original key "build" is here:
+
+    vite.config.js:136:2:
+      136 │   build: {
+          ╵   ~~~~~
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-k/app[39m
+
+ [31m❯[39m src/pages/Login.totp.test.jsx [2m([22m[2m5 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 8577[2mms[22m[39m
+[31m     [31m×[31m normal accounts log straight in — no code step[39m[33m 4166[2mms[22m[39m
+[31m     [31m×[31m a requires_totp response swaps to the code step and verifies[39m[33m 4105[2mms[22m[39m
+     [32m✓[39m a wrong code shows the error and stays on the code step[32m 147[2mms[22m[39m
+     [32m✓[39m an expired challenge sends the user back to the password step[32m 88[2mms[22m[39m
+     [32m✓[39m the back link returns to the password step[32m 69[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/pineBoxSuggestVoice.test.jsx [2m([22m[2m4 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 8375[2mms[22m[39m
+[31m     [31m×[31m ⛔ all three reach the member WITH a suggestion — through the shipped door[39m[32m 16[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ a PINE paste is never told about thinkorswim[39m[33m 4042[2mms[22m[39m
+     [32m✓[39m ⭐ a thinkScript paste KEEPS its vendor sentence, because there it is true[32m 295[2mms[22m[39m
+[31m     [31m×[31m ⭐ and each renders the CALL itself, which is the part the member copies[39m[33m 4020[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/BuilderSheet.pine.test.jsx [2m([22m[2m16 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2743[2mms[22m[39m
+     [32m✓[39m a Pine tab exists beside the other three[32m 205[2mms[22m[39m
+     [32m✓[39m clicking it mounts a box a member can paste into[32m 93[2mms[22m[39m
+     [32m✓[39m the translated column, its formula and its read-back are on screen[32m 124[2mms[22m[39m
+     [32m✓[39m the author's lengths arrive as FIELDS, seeded with their own numbers[32m 117[2mms[22m[39m
+     [32m✓[39m "Use this formula" puts it in the box the member already types in[32m 101[2mms[22m[39m
+     [33m[2m✓[22m[39m ...and Save is then enabled, with no acknowledgement needed [33m 360[2mms[22m[39m
+[31m     [31m×[31m ⭐ the SAVED DOCUMENT is byte-identical to the same formula typed by hand[39m[33m 353[2mms[22m[39m
+     [32m✓[39m a strategy is refused by name with the line and a caret[32m 156[2mms[22m[39m
+     [32m✓[39m a variable bar offset is refused at the index, with the caret under it[32m 162[2mms[22m[39m
+     [32m✓[39m ⭐ but `close[1]` itself goes all the way to the formula box[32m 171[2mms[22m[39m
+     [32m✓[39m a refused script cannot reach the formula box at all[32m 214[2mms[22m[39m
+     [32m✓[39m ⭐ the BASE period is no refusal — ruling 3.5 folds it to the chart’s own series[32m 118[2mms[22m[39m
+     [32m✓[39m ⭐⭐ a hidden helper wears the name its AUTHOR gave it, tagged hidden, never the script title[32m 123[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL: a script with nothing folded gets no fold note[32m 126[2mms[22m[39m
+     [32m✓[39m one bad plot beside a good one offers the good one and NAMES the bad one[32m 158[2mms[22m[39m
+     [32m✓[39m a chart-only call is shown as an ignored line with its number[32m 159[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/ImportBox.thinkscript.test.jsx [2m([22m[2m25 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2745[2mms[22m[39m
+     [32m✓[39m the fixture is a script this engine actually translates[32m 4[2mms[22m[39m
+     [32m✓[39m one Import tab reaches the box, and the box reads thinkScript[32m 294[2mms[22m[39m
+     [32m✓[39m ⛔ the box says WHICH dialect it read — detected, not requested[32m 117[2mms[22m[39m
+     [32m✓[39m the translated column and its read-back are on screen[32m 108[2mms[22m[39m
+     [32m✓[39m ⭐ the chrome lines are LISTED, with their numbers — never dropped[32m 81[2mms[22m[39m
+     [32m✓[39m "Use this formula" puts it in the box the member already types in[32m 118[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ the SAVED DOCUMENT is byte-identical to the same formula typed by hand [33m 364[2mms[22m[39m
+     [32m✓[39m a study this engine will not translate refuses ON SCREEN, at its own token[32m 147[2mms[22m[39m
+     [32m✓[39m ⭐ …and the refusal names the DOCUMENT it needs, where a member reads it[32m 153[2mms[22m[39m
+     [32m✓[39m the top-level refusal carries the exact paste[32m 1[2mms[22m[39m
+     [32m✓[39m every PER-OUTPUT refusal carries it too[32m 0[2mms[22m[39m
+     [32m✓[39m ⭐ …on the Pine path and the plain-formula path as well — one door, one stamp[32m 10[2mms[22m[39m
+     [32m✓[39m ⛔ a stamp that does not match the document must mark NOTHING[32m 1[2mms[22m[39m
+     [32m✓[39m a Pine paste and a thinkScript paste both answer to `ignored`[32m 8[2mms[22m[39m
+     [32m✓[39m the report shape is the contract, for every dialect[32m 2[2mms[22m[39m
+     [32m✓[39m ⛔ an explicit dialect OVERRIDES the detector, and is honoured[32m 1[2mms[22m[39m
+     [32m✓[39m the fixture really is blocked on a missing default — non-vacuity[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the member sees the conventional call, verbatim from the registry[32m 151[2mms[22m[39m
+     [32m✓[39m ⛔ a study that translates offers NOTHING — the offer is not decoration[32m 158[2mms[22m[39m
+     [32m✓[39m the fixture is blocked, carries a span, and its own length is 30[32m 2[2mms[22m[39m
+     [32m✓[39m ⭐⭐ one click lands the call in their script, on THEIR number[32m 205[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐⭐ accepting every offer TRANSLATES the script — and on the member’s 30 [33m 354[2mms[22m[39m
+     [32m✓[39m ⭐⭐ it edits the call the refusal NAMES, not the first one that matches[32m 129[2mms[22m[39m
+     [32m✓[39m ⛔⛔ it DECLINES while the box is one keystroke behind[32m 204[2mms[22m[39m
+[31m     [31m×[31m ⛔ the Pine door shows the offer and NO button — it cannot name the place[39m[32m 129[2mms[22m[39m
+[90mstdout[2m | src/components/chart/builder/documentSize.measure.test.js[2m > [22m[2mC2B.2 — the document-size distribution of the frozen 60[2m > [22m[2msource, AST, presentation and final document bytes
+[22m[39m
+=== C2B.2 DOCUMENT SIZE, 8 buildable of 30 ===
+  source bytes    P50=10557  P95=50198  MAX=50198
+  document bytes  P50=6195  P75=28767  P90=181315  P95=181315  MAX=181315
+  cap 65536; over cap: 1/8
+  largest:
+     181315B  12 plots  12 trees  src 50198B  ×3.6  mid_engagement__22-rsi-levels-regime-map
+      28767B  7 plots  7 trees  src 4064B  ×7.1  mid_engagement__14-master-line-lite
+       9225B  5 plots  5 trees  src 10557B  ×0.9  mid_engagement__13-spma-trend
+       6195B  5 plots  5 trees  src 3930B  ×1.6  mid_engagement__19-oliver-kell-volume-monitor
+       3200B  2 plots  2 trees  src 2267B  ×1.4  long_tail__13-volatility-of-returns
+       3168B  2 plots  2 trees  src 21926B  ×0.1  mid_engagement__17-volume-surge-radar
+
+[90mstdout[2m | src/components/chart/builder/graphSize.measure.test.js[2m > [22m[2mC2C.9 — V1 vs V2 document size across the frozen 60[2m > [22m[2mthe distribution, and how many clear the UNCHANGED cap
+[22m[39m
+=== C2C.9 DOCUMENT SIZE, V1 vs V2, 7 buildable, cap 65536 UNCHANGED ===
+  V1  P50=6195  P90=181315  MAX=181315  over cap 1/7
+  V2  P50=3541  P90=10485  MAX=10485  over cap 0/7
+  the six heaviest V1 documents:
+     181315B ->  10485B  x17.3  12 trees, 146 distinct nodes  FITS  mid_engagement__22-rsi-levels-regime-map
+      28767B ->   4641B  x6.2  7 trees, 42 distinct nodes  FITS  mid_engagement__14-master-line-lite
+       9225B ->   3541B  x2.6  5 trees, 23 distinct nodes  FITS  mid_engagement__13-spma-trend
+       6195B ->   3641B  x1.7  5 trees, 34 distinct nodes  FITS  mid_engagement__19-oliver-kell-volume-monitor
+       3200B ->   1946B  x1.6  2 trees, 20 distinct nodes  FITS  long_tail__13-volatility-of-returns
+       3168B ->   1946B  x1.6  2 trees, 11 distinct nodes  FITS  mid_engagement__17-volume-surge-radar
+
+[90mstderr[2m | src/components/chart/builder/graphSize.measure.test.js[2m > [22m[2mC2C.9 — V1 vs V2 document size across the frozen 60[2m > [22m[2mthe distribution, and how many clear the UNCHANGED cap
+[22m[39m[uct] a document over the size budget could not be stored as a shared graph: not a multi-tree document — one tree is compute.ast
+
+[90mstdout[2m | src/components/chart/builder/documentSize.measure.test.js[2m > [22m[2mC2B.2/.3 — where the blocked document spends its bytes[2m > [22m[2mmid_engagement__22-rsi-levels-regime-map
+[22m[39m
+=== mid_engagement__22-rsi-levels-regime-map — 181315 bytes (cap 65536, ×2.8) ===
+   152943B   84.4%  compute.trees
+    19607B   10.8%  compute.sources
+     3796B    2.1%  compute.ast
+     2239B    1.2%  inputs
+     1693B    0.9%  plots
+      480B    0.3%  compute.source
+      206B    0.1%  compute.other
+        4B    0.0%  compute.paramManifest
+  trees: 12, largest:
+      57408B  out7
+      57267B  out6
+       6469B  out9
+       3796B  value
+  gzip: 4018B  (×45.1 smaller)  — UNDER the cap
+  parse 1.1ms  stringify 0.8ms  (per document, 181315B)
+
+ [31m❯[39m src/components/chart/builder/documentSize.measure.test.js [2m([22m[2m3 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 1046[2mms[22m[39m
+[31m     [31m×[31m source, AST, presentation and final document bytes[39m[33m 733[2mms[22m[39m
+[31m     [31m×[31m ⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO document at all[39m[32m 1[2mms[22m[39m
+     [33m[2m✓[22m[39m mid_engagement__22-rsi-levels-regime-map [33m 311[2mms[22m[39m
+[90mstdout[2m | src/components/chart/builder/graphSize.measure.test.js[2m > [22m[2mC2C.10 — the blocked document, against the cap as it stands[2m > [22m[2mmid_engagement__22-rsi-levels-regime-map
+[22m[39m
+=== mid_engagement__22-rsi-levels-regime-map ===
+  V1 181315B (x2.8 the cap)  ->  V2 10485B (16% of the cap — FITS)
+  inlined nodes across 12 trees: 4719  ->  146 distinct  (96.9% was repetition)
+
+ [31m❯[39m src/components/chart/builder/graphSize.measure.test.js [2m([22m[2m3 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 1105[2mms[22m[39m
+[31m     [31m×[31m the distribution, and how many clear the UNCHANGED cap[39m[33m 790[2mms[22m[39m
+[31m     [31m×[31m ⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO V1 document at all[39m[32m 1[2mms[22m[39m
+     [33m[2m✓[22m[39m mid_engagement__22-rsi-levels-regime-map [33m 314[2mms[22m[39m
+ [31m❯[39m src/pages/formulas/formulaLibrary.route.test.jsx [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 480[2mms[22m[39m
+     [32m✓[39m ⛔ `App.jsx` registers the route, and by the DERIVED constant[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ the page is lazily imported, like every other route in that block[32m 0[2mms[22m[39m
+[31m     [31m×[31m ⛔⛔ the library is BEHIND the paywall, and that is a ruling with a rail[39m[32m 4[2mms[22m[39m
+     [32m✓[39m ⛔⛔ …and something LINKS to it — a route nobody can reach is not shipped[32m 199[2mms[22m[39m
+     [32m✓[39m ⭐⭐ it lists what the server returned, with the facts a member chooses on[32m 54[2mms[22m[39m
+     [32m✓[39m ⛔⛔ it shows NO author — the page could not display one if it wanted[32m 23[2mms[22m[39m
+     [32m✓[39m ⛔ an EMPTY library is not an error, and does not read as one[32m 12[2mms[22m[39m
+     [32m✓[39m ⛔ a server refusal says so, and is NOT rendered as an empty library[32m 79[2mms[22m[39m
+     [32m✓[39m ⭐ installing goes through the SHIPPED install door, on the entry’s own token[32m 28[2mms[22m[39m
+     [32m✓[39m ⛔⛔ a grammar-move refusal on install names the ACTION, not just the error[32m 35[2mms[22m[39m
+     [32m✓[39m ⭐ paging APPENDS rather than replacing what is already on screen[32m 43[2mms[22m[39m
+ [31m❯[39m src/components/chart/engine/__tests__/memberPaneGate.test.js [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 927[2mms[22m[39m
+     [32m✓[39m is named, and the name is derivable from its one reader[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ defaults OFF, and ONLY the string "1" turns it on[32m 2[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ is read in exactly ONE place, so a rename is one line [33m 505[2mms[22m[39m
+     [32m✓[39m ⛔ …and the stripper has a CONTROL, so the sweep cannot pass by seeing nothing[32m 1[2mms[22m[39m
+[31m     [31m×[31m the ledger declares it, and names the reader that really reads it[39m[32m 6[2mms[22m[39m
+     [32m✓[39m ⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail[32m 131[2mms[22m[39m
+     [32m✓[39m ⭐⭐ THE GATE NOW HAS A CONSUMER, AND IT CONSULTS THE GATE (T5)[32m 280[2mms[22m[39m
+[90mstdout[2m | src/components/chart/builder/visualParitySet.test.js[2m > [22m[2mC3A-CLOSE — the fixed parity set, remeasured at HEAD[2m > [22m[2mevery member, seventeen facts each
+[22m[39m
+=== C3A-CLOSE — COMPLEX PINE VISUAL PARITY SET, at HEAD ===
+  legend  P=plot F=fill H=hline S=plotshape C=plotchar B=bgcolor R=barcolor K=plotcandle O=objects   (asked → carried)
+
+  SOURCE_MISSING          V5  mid_engagement__09-relative-volume-breakout-context
+      import=SOURCE_MISSING  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   0→  0   F   0→  0   H   0→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  SOURCE_MISSING          V5  mid_engagement__05-supertrend-fibonacci-ote
+      import=SOURCE_MISSING  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   0→  0   F   0→  0   H   0→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  SOURCE_MISSING          V5  high_engagement__24-coppock-curve-multi-filter-markittick
+      import=SOURCE_MISSING  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   0→  0   F   0→  0   H   0→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  SOURCE_MISSING          V5  long_tail__16-spy-position-helper
+      import=SOURCE_MISSING  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   0→  0   F   0→  0   H   0→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  VISUAL_BLOCKED          V5  long_tail__05-master-line-plus
+      import=IMPORT_REFUSED  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   4→  0   F   1→  0   H   0→  0   S   2→  0   C   0→  0
+      B   0→  0   R   1→  0   K   0→  0   O   1→  0   dyn-colour 0  static 0
+
+  VISUAL_BLOCKED          V4  high_engagement__16-klinger-volume-oscillator-everget
+      import=IMPORT_REFUSED  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   3→  0   F   1→  0   H   1→  0   S   2→  0   C   0→  0
+      B   1→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  VISUAL_PARTIAL          V5  mid_engagement__22-rsi-levels-regime-map
+      import=IMPORTED  saveGate=ACCEPTS  outputs=12  pane=price(overlay)  params=2
+      P  18→ 12   F   4→  0   H   0→  0   S   4→  2   C   0→  ↑
+      B   0→  0   R   0→  0   K   0→  0   O   5→  0   dyn-colour 0  static 12
+
+  SOURCE_MISSING          V5  high_engagement__13-ultimate-opening-range-breakout-luxalgo
+      import=SOURCE_MISSING  saveGate=REFUSES  outputs=0  pane=own pane  params=0
+      P   0→  0   F   0→  0   H   0→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   0→  0   dyn-colour 0  static 0
+
+  VISUAL_MINIMAL          V5  high_engagement__10-rsi-divergence-faytterro
+      import=IMPORTED  saveGate=ACCEPTS  outputs=1  pane=own pane  params=1
+      P   1→  1   F   1→  0   H   3→  0   S   0→  0   C   0→  0
+      B   0→  0   R   0→  0   K   0→  0   O   6→  0   dyn-colour 0  static 1
+
+  {"SOURCE_MISSING":5,"VISUAL_BLOCKED":2,"VISUAL_PARTIAL":1,"VISUAL_MINIMAL":1}
+  members whose OBJECT demand is unmet: 3/10
+  members drawing at least one MARKER:  1/10
+
+ [31m❯[39m src/components/chart/builder/visualParitySet.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 512[2mms[22m[39m
+[31m     [31m×[31m every member, seventeen facts each[39m[33m 511[2mms[22m[39m
+ [31m❯[39m src/components/chart/engine/ast/recurrenceSteps.measure.test.js [2m([22m[2m6 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 74[2mms[22m[39m
+[31m     [31m×[31m the corpus is the one on disk, and it was actually walked[39m[32m 7[2mms[22m[39m
+     [32m✓[39m ⭐⭐ THE DEEPEST REAL WARM-UP, and v2 is not an outlier in it[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐⭐ THE DERIVATION — the worst real product, and the ceiling above it[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — the sink records EVERY recurrence, not only the ones that refuse[32m 59[2mms[22m[39m
+     [32m✓[39m ⛔⛔ AND IT STILL FIRES, BY NAME — the guard is raised, not removed[32m 3[2mms[22m[39m
+     [32m✓[39m the catalog is bigger than the clock, and this is by how much[32m 1[2mms[22m[39m
+ [31m❯[39m src/pages/journal-2-0/shareTarget.contract.test.js [2m([22m[2m15 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 56[2mms[22m[39m
+     [32m✓[39m a share target is declared at all[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ it points at the route the module owns[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ the parameter NAMES match the ones the page reads[32m 1[2mms[22m[39m
+     [32m✓[39m the share target method is GET[32m 0[2mms[22m[39m
+     [32m✓[39m …and `sw.js` still has NO fetch handler[32m 5[2mms[22m[39m
+     [32m✓[39m the worker still unregisters itself[32m 0[2mms[22m[39m
+     [32m✓[39m declares a scope and an id[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ ships real 192 and 512 PNG icons, verified on disk[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐ ships a SEPARATE maskable icon[32m 0[2mms[22m[39m
+     [32m✓[39m App.jsx routes the share path[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ …and it is NOT nested inside AuthGuard[32m 9[2mms[22m[39m
+     [32m✓[39m ⭐ the probe can tell the two apart (non-vacuity, both directions)[32m 25[2mms[22m[39m
+[31m     [31m×[31m ⛔ the share path does not join FREE_PAGES by accident[39m[32m 9[2mms[22m[39m
+     [32m✓[39m `next` is the bare route identifier — never a template over the search[32m 3[2mms[22m[39m
+     [32m✓[39m ⭐ the probe can see a template literal (non-vacuity)[32m 0[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/objectLadder.test.js [2m([22m[2m12 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 60[2mms[22m[39m
+     [32m✓[39m ⭐ one line, born once, still one line 300 bars later[32m 16[2mms[22m[39m
+     [32m✓[39m ⭐ the same line is moved on every later bar and stays ONE object[32m 5[2mms[22m[39m
+     [32m✓[39m ⭐ a level that is drawn, tracked, and removed when it breaks[32m 8[2mms[22m[39m
+     [32m✓[39m ⭐⭐ `var line l = na` … `l := …` … `line.set_*(l)` — the corpus’s own idiom[32m 3[2mms[22m[39m
+     [32m✓[39m ⭐ labels carry text, colour and size all the way to the render state[32m 2[2mms[22m[39m
+     [32m✓[39m ⭐⭐ …and a DYNAMIC label text is computed per bar, not once[32m 2[2mms[22m[39m
+     [32m✓[39m ⭐ a zone is drawn with real corners and a border[32m 4[2mms[22m[39m
+     [32m✓[39m ⭐⭐ line + label + box + table, all alive at once, all independent[32m 7[2mms[22m[39m
+     [32m✓[39m ⭐ an object array holds handles, and the cap is real[32m 2[2mms[22m[39m
+     [32m✓[39m ⭐⭐ text, dynamic numbers and conditional colour reach every cell[32m 4[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ a published script from the reachable 27 draws its dashboard[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m ⛔ …and what it could NOT carry is counted, not hidden[39m[32m 1[2mms[22m[39m
+ [31m❯[39m src/hooks/usePreferences.additionsOnly.test.js [2m([22m[2m8 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 15[2mms[22m[39m
+     [32m✓[39m NON-VACUITY: it finds a real population of call sites, not zero[32m 1[2mms[22m[39m
+     [32m✓[39m NON-VACUITY: it reads JSX files, not only plain .js[32m 1[2mms[22m[39m
+     [32m✓[39m CONTROL: it distinguishes a literal key from a variable one[32m 0[2mms[22m[39m
+     [32m✓[39m NO NEW preference key is written through setPref[32m 0[2mms[22m[39m
+     [32m✓[39m the baseline has not gone stale in the other direction[32m 0[2mms[22m[39m
+[31m     [31m×[31m NO NEW opaque-key call site appears — the way around this rail is railed[39m[32m 11[2mms[22m[39m
+     [32m✓[39m the remedy the failure message names actually EXISTS[32m 0[2mms[22m[39m
+     [32m✓[39m every baselined key is classified structured or scalar, and both classes are populated[32m 0[2mms[22m[39m
+ [31m❯[39m src/components/chart/engine/ast/oosMeasuredBaseline.test.js [2m([22m[2m4 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 13[2mms[22m[39m
+[31m     [31m×[31m ⛔⛔ NON-VACUITY — the corpus is really here and really translates[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m ⛔⛔ THE ARTIFACT EXISTS AND COVERS EXACTLY THIS CORPUS[39m[32m 6[2mms[22m[39m
+     [32m✓[39m ⛔⛔ EVERY SCRIPT STILL MEASURES WHAT IT MEASURED — reported BY NAME[32m 1[2mms[22m[39m
+[31m     [31m×[31m ⭐ THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED[39m[32m 1[2mms[22m[39m
+ [31m❯[39m src/components/chart/engine/ast/paramIds.test.js [2m([22m[2m3 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 30[2mms[22m[39m
+[31m     [31m×[31m ⛔⛔ NON-VACUITY — the corpus is here and parameters really are minted[39m[32m 9[2mms[22m[39m
+     [32m✓[39m ⛔⛔ VOLUME v2 IS THE NAMED SPECIMEN — 3 params, HVE lookback at _3[32m 1[2mms[22m[39m
+[31m     [31m×[31m ⛔⛔ EVERY SCRIPT'S MAP IS UNCHANGED — reported by NAME, id, old and new[39m[32m 18[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/visualDemandCensus.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 8[2mms[22m[39m
+[31m     [31m×[31m scripts and call sites, declarative vs object lifecycle[39m[32m 7[2mms[22m[39m
+[90mstdout[2m | src/components/chart/engine/ast/capabilityDemandCensus.test.js[2m > [22m[2m⭐⭐⭐ capability demand — total, not just first blocker (§7)[2m > [22m[2mreports both numbers for every family
+[22m[39m
+  129 scripts, 28 executing end-to-end
+
+  family              DEMAND  sites  1st-blk  exec   hidden
+  --------------------------------------------------------------
+  state                   57   1071        —     1   —
+  history                 21    107        1     0   20
+  udf                     48    290        0     0   48
+  elseIf                  12     28        —     0   —
+  switch                  10     12        0     0   10
+  loop                    30    159        4     0   26
+  tuple                   31    151       15     0   16
+  collection              26    840        4     0   22
+  object                  39    762        1     0   38
+  mtf                     22     83        2     3   20
+  text                    27    302        3     0   24
+  conversion              16     55        1     0   15
+  presentation           124    676       13    28   111
+  udt                      5      8        1     0   4
+  varip                    0      0        0     0   0
+  windowedBuiltin        118    715        —    28   —
+  windowedOverState       15     80        1     0   14
+
+ [31m❯[39m src/components/chart/engine/ast/capabilityDemandCensus.test.js [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 9[2mms[22m[39m
+[31m     [31m×[31m reports both numbers for every family[39m[32m 6[2mms[22m[39m
+     [32m✓[39m ⛔ DEMAND is a superset of FIRST BLOCKER for every family that has a guard[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ NON-VACUITY — the detectors discriminate, on sources with a known answer[32m 1[2mms[22m[39m
+     [32m✓[39m ⭐⭐ the two numbers genuinely differ — which is the whole point[32m 0[2mms[22m[39m
+ [31m❯[39m src/components/chart/builder/objectDemandCensus.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 9[2mms[22m[39m
+[31m     [31m×[31m every family, every shape class, across the frozen 60[39m[32m 7[2mms[22m[39m
+[90mstdout[2m | src/components/chart/engine/ast/historyDemandCensus.test.js[2m > [22m[2m2F-2 — runtime history demand across every corpus[2m > [22m[2mreports both numbers, and they are different questions
+[22m[39m
+  corpus        n  earliest-blocker  syntactic-demand
+  oos1         30                 0                 9
+  blind        48                 0                 0
+  community    30                 0                 6
+  parity        0                 0                 0
+  curated      21                 0                 6
+  TOTAL       129                 0                21
+
+  deepest literal offset over a mutable name: 2
+  scripts with a NON-literal offset:          6
+
+ [31m❯[39m src/components/chart/engine/ast/historyDemandCensus.test.js [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 7[2mms[22m[39m
+[31m     [31m×[31m reports both numbers, and they are different questions[39m[32m 4[2mms[22m[39m
+     [32m✓[39m ⛔ the syntactic measure is a SUPERSET of the earliest-blocker measure[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔ NON-VACUITY — the measure discriminates, on sources with a known answer[32m 1[2mms[22m[39m
+ [31m❯[39m src/components/Layout.pageTracking.test.jsx [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 10[2mms[22m[39m
+[31m     [31m×[31m ⭐⭐ the rail reaches all three sources, and Clouds is one of them[39m[32m 6[2mms[22m[39m
+     [32m✓[39m ⭐⭐ OUTPUT COUNT agrees on every one of the 327 — no exceptions[32m 1[2mms[22m[39m
+     [32m✓[39m ⛔⛔ CONTROL — the verdicts DO differ somewhere, or this proves nothing[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔ CONTROL — the facts are real numbers, not a collapsed zero on both sides[32m 0[2mms[22m[39m
+     [32m✓[39m ⛔⛔ FINDING — exactly ONE script still THROWS out of translatePine[32m 0[2mms[22m[39m
+ [31m❯[39m src/components/Layout.routeSuspense.test.jsx [2m([22m[2m0 test[22m[2m)[22m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/Layout.pageTracking.test.jsx[2m [ src/components/Layout.pageTracking.test.jsx ][22m
+[41m[1m FAIL [22m[49m src/components/Layout.routeSuspense.test.jsx[2m [ src/components/Layout.routeSuspense.test.jsx ][22m
+[31m[1mError[22m: [vitest] No "NAV_ITEMS" export is defined on the "./NavBar" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+vi.mock(import("./NavBar"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+[36m [2m❯[22m src/surfaces/pageTitle.js:[2m40:35[22m[39m
+    [90m 38| [39m  [33m.[39m[34msort[39m((a[33m,[39m b) [33m=>[39m b[33m.[39mlength [33m-[39m a[33m.[39mlength)
+    [90m 39| [39m
+    [90m 40| [39mconst NAV_LABEL_BY_PATH = new Map(NAV_ITEMS.map((i) => [i.to, i.label]…
+    [90m   | [39m                                  [31m^[39m
+    [90m 41| [39m
+    [90m 42| [39m/** The document title for `pathname`, or `null` when this route is ou…
+[90m [2m❯[22m src/components/Layout.jsx:[2m20:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/31]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 29 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/hooks/usePreferences.additionsOnly.test.js[2m > [22mS5 CP2 — additions only[2m > [22mNO NEW opaque-key call site appears — the way around this rail is railed
+[31m[1mAssertionError[22m: pages/breadth/v2/BreadthChartsV2.jsx: 1 opaque setPref site(s), 0 baselined
+
+A setPref call whose key is a VARIABLE is invisible to this rail — it cannot
+tell which preference is being written. That is why the count is pinned:
+passing a new key through a variable must not be the quiet way past the gate.
+Prefer a literal key. If the key genuinely must be computed, say so here.: expected [ Array(1) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "pages/breadth/v2/BreadthChartsV2.jsx: 1 opaque setPref site(s), 0 baselined",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/hooks/usePreferences.additionsOnly.test.js:[2m286:13[22m[39m
+    [90m284| [39m        'passing a new key through a variable must not be the quiet wa…
+    [90m285| [39m        'Prefer a literal key. If the key genuinely must be computed, …
+    [90m286| [39m      [33m:[39m [32m''[39m)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m            [31m^[39m
+    [90m287| [39m  })
+    [90m288| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/Login.totp.test.jsx[2m > [22mLogin 2FA challenge step[2m > [22mnormal accounts log straight in — no code step
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ '/dashboard', { replace: true } ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "/dashboard",[90m
+[31m+   "/morning-wire",[90m
+[2m    {[22m
+[2m      "replace": true,[22m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"_page_8ef168"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"_card_8ef168"[31m
+        [36m>[31m
+          [36m<a[31m
+            [33mclass[31m=[32m"_brand_8ef168"[31m
+            [33mdata-discover[31m=[32m"true"[31m
+            [33mhref[31m=[32m"/"[31m
+          [36m>[31m
+            [0mUCT[0m
+          [36m</a>[31m
+          [36m<h1[31m
+            [33mclass[31m=[32m"_title_8ef168"[31m
+          [36m>[31m
+            [0mWelcome back[0m
+          [36m</h1>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"_subtitle_8ef168"[31m
+          [36m>[31m
+            [0mLog in to your dashboard[0m
+          [36m</p>[31m
+          [36m<form[31m
+            [33mclass[31m=[32m"_form_8ef168"[31m
+          [36m>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"_label_8ef168"[31m
+            [36m>[31m
+              [0mEmail[0m
+              [36m<input[31m
+                [33mautocomplete[31m=[32m"email"[31m
+                [33mclass[31m=[32m"_input_8ef168"[31m
+                [33mrequired[31m=[32m""[31m
+                [33mtype[31m=[32m"email"[31m
+                [33mvalue[31m=[32m"a@b.com"[31m
+              [36m/>[31m
+            [36m</label>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"_label_8ef168"[31m
+            [36m>[31m
+              [0mPassword[0m
+              [36m<input[31m
+                [33mautocomplete[31m=[32m"current-password"[31m
+                [33mclass[31m=[32m"_input_8ef168"[31m
+                [33mrequired[31m=[32m""[31m
+                [33mtype[31m=[32m"password"[31m
+                [33mvalue[31m=[32m"hunter22"[31m
+              [36m/>[31m
+            [36m</label>[31m
+            [36m<a[31m
+              [33mclass[31m=[32m"_forgotLink_8ef168"[31m
+              [33mdata-discover[31m=[32m"true"[31m
+              [33mhref[31m=[32m"/forgot-password"[31m
+            [36m>[31m
+              [0mForgot password?[0m
+            [36m</a>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"_submitPro_8ef168"[31m
+              [33mtype[31m=[32m"submit"[31m
+            [36m>[31m
+              [0mLog In[0m
+            [36m</button>[31m
+          [36m</form>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"_switchText_8ef168"[31m
+          [36m>[31m
+            [0mDon't have an account? [0m
+            [36m<a[31m
+              [33mclass[31m=[32m"_switchLink_8ef168"[31m
+              [33mdata-discover[31m=[32m"true"[31m
+              [33mhref[31m=[32m"/signup"[31m
+            [36m>[31m
+              [0mSign up[0m
+            [36m</a>[31m
+          [36m</p>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+[36m [2m❯[22m src/pages/Login.totp.test.jsx:[2m31:37[22m[39m
+    [90m 29| [39m    login[33m.[39m[34mmockResolvedValue[39m({ user[33m:[39m { role[33m:[39m [35mnull[39m }[33m,[39m plan[33m:[39m [32m'pro'[39m })
+    [90m 30| [39m    [34msubmitPassword[39m()
+    [90m 31| [39m    await waitFor(() => expect(nav).toHaveBeenCalledWith('/dashboard',…
+    [90m   | [39m                                    [31m^[39m
+    [90m 32| [39m    expect(screen.queryByText(/two-factor check/i)).not.toBeInTheDocum…
+    [90m 33| [39m  })
+[90m [2m❯[22m runWithExpensiveErrorDiagnosticsDisabled ../../notebook-flip/app/node_modules/@testing-library/dom/dist/config.js:[2m47:12[22m[39m
+[90m [2m❯[22m checkCallback ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m124:77[22m[39m
+[90m [2m❯[22m Timeout.checkRealTimersCallback ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m118:16[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/Login.totp.test.jsx[2m > [22mLogin 2FA challenge step[2m > [22ma requires_totp response swaps to the code step and verifies
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ '/dashboard', { replace: true } ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "/dashboard",[90m
+[31m+   "/morning-wire",[90m
+[2m    {[22m
+[2m      "replace": true,[22m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"_page_8ef168"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"_card_8ef168"[31m
+        [36m>[31m
+          [36m<a[31m
+            [33mclass[31m=[32m"_brand_8ef168"[31m
+            [33mdata-discover[31m=[32m"true"[31m
+            [33mhref[31m=[32m"/"[31m
+          [36m>[31m
+            [0mUCT[0m
+          [36m</a>[31m
+          [36m<h1[31m
+            [33mclass[31m=[32m"_title_8ef168"[31m
+          [36m>[31m
+            [0mTwo-factor check[0m
+          [36m</h1>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"_subtitle_8ef168"[31m
+          [36m>[31m
+            [0mEnter the 6-digit code from your authenticator app — or one of your backup codes.[0m
+          [36m</p>[31m
+          [36m<form[31m
+            [33mclass[31m=[32m"_form_8ef168"[31m
+          [36m>[31m
+            [36m<label[31m
+              [33mclass[31m=[32m"_label_8ef168"[31m
+            [36m>[31m
+              [0mCode[0m
+              [36m<input[31m
+                [33mautocomplete[31m=[32m"one-time-code"[31m
+                [33mclass[31m=[32m"_input_8ef168"[31m
+                [33minputmode[31m=[32m"text"[31m
+                [33mmaxlength[31m=[32m"12"[31m
+                [33mplaceholder[31m=[32m"123456 or XXXX-XXXX"[31m
+                [33mrequired[31m=[32m""[31m
+                [33mtype[31m=[32m"text"[31m
+                [33mvalue[31m=[32m"654321"[31m
+              [36m/>[31m
+            [36m</label>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"_submitPro_8ef168"[31m
+              [33mtype[31m=[32m"submit"[31m
+            [36m>[31m
+              [0mVerify[0m
+            [36m</button>[31m
+          [36m</form>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"_switchText_8ef168"[31m
+          [36m>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"_switchLink_8ef168"[31m
+              [33mstyle[31m=[32m"background: none; border: medium; cursor: pointer; font: inherit; padding: 0px;"[31m
+              [33mtype[31m=[32m"button"[31m
+            [36m>[31m
+              [0m← Back to password[0m
+            [36m</button>[31m
+          [36m</p>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</body>[31m
+[36m</html>[31m[39m
+[36m [2m❯[22m src/pages/Login.totp.test.jsx:[2m44:37[22m[39m
+    [90m 42| [39m    fireEvent[33m.[39m[34mclick[39m(screen[33m.[39m[34mgetByRole[39m([32m'button'[39m[33m,[39m { name[33m:[39m [36m/verify/i[39m }))
+    [90m 43| [39m    await waitFor(() => expect(verifyTotp).toHaveBeenCalledWith('tok12…
+    [90m 44| [39m    await waitFor(() => expect(nav).toHaveBeenCalledWith('/dashboard',…
+    [90m   | [39m                                    [31m^[39m
+    [90m 45| [39m  })
+    [90m 46| [39m
+[90m [2m❯[22m runWithExpensiveErrorDiagnosticsDisabled ../../notebook-flip/app/node_modules/@testing-library/dom/dist/config.js:[2m47:12[22m[39m
+[90m [2m❯[22m checkCallback ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m124:77[22m[39m
+[90m [2m❯[22m Timeout.checkRealTimersCallback ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m118:16[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/formulas/formulaLibrary.route.test.jsx[2m > [22m🔴 the library is wired into the app[2m > [22m⛔⛔ the library is BEHIND the paywall, and that is a ruling with a rail
+[31m[1mAssertionError[22m: FREE_PAGES could not be read: expected null to be truthy[39m
+
+[32m- Expected:[39m 
+true
+
+[31m+ Received:[39m 
+null
+
+[36m [2m❯[22m src/pages/formulas/formulaLibrary.route.test.jsx:[2m85:54[22m[39m
+    [90m 83| [39m      path.resolve(process.cwd(), 'src/components/AuthGuard.jsx'), 'ut…
+    [90m 84| [39m    [35mconst[39m freeLine [33m=[39m [36m/const FREE_PAGES = \[([^\]]*)\]/[39m[33m.[39m[34mexec[39m(guard)
+    [90m 85| [39m    [34mexpect[39m(freeLine[33m,[39m [32m'FREE_PAGES could not be read'[39m)[33m.[39m[34mtoBeTruthy[39m()
+    [90m   | [39m                                                     [31m^[39m
+    [90m 86| [39m    [34mexpect[39m(freeLine[[34m1[39m])[33m.[39mnot[33m.[39m[34mtoContain[39m([32m'/formulas'[39m)
+    [90m 87| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/shareTarget.contract.test.js[2m > [22mthe landing route is registered, and OUTSIDE the auth guard[2m > [22m⛔ the share path does not join FREE_PAGES by accident
+[31m[1mAssertionError[22m: FREE_PAGES could not be read: expected null to be truthy[39m
+
+[32m- Expected:[39m 
+true
+
+[31m+ Received:[39m 
+null
+
+[36m [2m❯[22m src/pages/journal-2-0/shareTarget.contract.test.js:[2m183:54[22m[39m
+    [90m181| [39m    const guard = fs.readFileSync(path.join(APP, 'src', 'components', …
+    [90m182| [39m    [35mconst[39m freeLine [33m=[39m [36m/const FREE_PAGES = \[([^\]]*)\]/[39m[33m.[39m[34mexec[39m(guard)
+    [90m183| [39m    [34mexpect[39m(freeLine[33m,[39m [32m'FREE_PAGES could not be read'[39m)[33m.[39m[34mtoBeTruthy[39m()
+    [90m   | [39m                                                     [31m^[39m
+    [90m184| [39m    [34mexpect[39m(freeLine[[34m1[39m])[33m.[39mnot[33m.[39m[34mtoContain[39m([32m'/journal'[39m)
+    [90m185| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/BuilderSheet.pine.test.jsx[2m > [22mpaste a real screener script and get a working scan[2m > [22m⭐ the SAVED DOCUMENT is byte-identical to the same formula typed by hand
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'id')[39m
+[36m [2m❯[22m src/components/chart/builder/BuilderSheet.pine.test.jsx:[2m215:19[22m[39m
+    [90m213| [39m
+    [90m214| [39m    [35mconst[39m typed [33m=[39m [34mbuildDefinition[39m({
+    [90m215| [39m      defId[33m:[39m sent[33m.[39mid[33m,[39m
+    [90m   | [39m                  [31m^[39m
+    [90m216| [39m      name[33m:[39m [32m'Oversold uptrend'[39m[33m,[39m
+    [90m217| [39m      source[33m:[39m [33mEXPECTED[39m[33m.[39mformula[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/documentSize.measure.test.js[2m > [22mC2B.2 — the document-size distribution of the frozen 60[2m > [22msource, AST, presentation and final document bytes
+[31m[1mAssertionError[22m: expected 8 to be greater than 10[39m
+[36m [2m❯[22m src/components/chart/builder/documentSize.measure.test.js:[2m120:25[22m[39m
+    [90m118| [39m        .map((r) => `    ${String(r.docBytes).padStart(7)}B  ${r.plots…
+    [90m119| [39m          + `src ${r.srcBytes}B  ×${(r.docBytes / r.srcBytes).toFixed(…
+    [90m120| [39m    [34mexpect[39m(rows[33m.[39mlength)[33m.[39m[34mtoBeGreaterThan[39m([34m10[39m)
+    [90m   | [39m                        [31m^[39m
+    [90m121| [39m  })
+    [90m122| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/documentSize.measure.test.js[2m > [22mC2B.2/.3 — where the blocked document spends its bytes[2m > [22m⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO document at all
+[31m[1mError[22m: ENOENT: no such file or directory, open 'C:\Users\Patrick\uct-worktrees\notebook-k\tests\fixtures\pine_oos\high_engagement__03-supertrend-kivancozbilgic.pine'[39m
+[36m [2m❯[22m documentFor src/components/chart/builder/documentSize.measure.test.js:[2m33:18[22m[39m
+    [90m 31| [39m[90m/** Build the document the product would save for a script, or null. */[39m
+    [90m 32| [39m[35mfunction[39m [34mdocumentFor[39m(file) {
+    [90m 33| [39m  [35mconst[39m src [33m=[39m fs[33m.[39m[34mreadFileSync[39m(path[33m.[39m[34mjoin[39m([33mOOS[39m[33m,[39m [32m`[39m[36m${[39mfile[36m}[39m[32m.pine`[39m)[33m,[39m [32m'utf8'[39m)
+    [90m   | [39m                 [31m^[39m
+    [90m 34| [39m  [35mlet[39m t
+    [90m 35| [39m  try { t = memberInputTranslation(translatePine, src, {}) } catch { r…
+[90m [2m❯[22m src/components/chart/builder/documentSize.measure.test.js:[2m134:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/graphSize.measure.test.js[2m > [22mC2C.9 — V1 vs V2 document size across the frozen 60[2m > [22mthe distribution, and how many clear the UNCHANGED cap
+[31m[1mAssertionError[22m: expected 7 to be greater than 10[39m
+[36m [2m❯[22m src/components/chart/builder/graphSize.measure.test.js:[2m129:25[22m[39m
+    [90m127| [39m        + `x${(r.v1 / r.v2).toFixed(1)}  ${r.trees} trees, ${r.graphNo…
+    [90m128| [39m        + `${r.v2 <= CAP ? 'FITS' : 'STILL OVER'}  ${r.name}`).join('\…
+    [90m129| [39m    [34mexpect[39m(rows[33m.[39mlength)[33m.[39m[34mtoBeGreaterThan[39m([34m10[39m)
+    [90m   | [39m                        [31m^[39m
+    [90m130| [39m    // ⛔ THE FINDING, ASSERTED — not merely printed. If a future chang…
+    [90m131| [39m    // the representation from paying for itself, this goes red rather…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/graphSize.measure.test.js[2m > [22mC2C.10 — the blocked document, against the cap as it stands[2m > [22m⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO V1 document at all
+[31m[1mError[22m: ENOENT: no such file or directory, open 'C:\Users\Patrick\uct-worktrees\notebook-k\tests\fixtures\pine_oos\high_engagement__03-supertrend-kivancozbilgic.pine'[39m
+[36m [2m❯[22m documentFor src/components/chart/builder/graphSize.measure.test.js:[2m35:18[22m[39m
+    [90m 33| [39m *  `documentSize.measure.test.js` so the two numbers are comparable. …
+    [90m 34| [39m[35mfunction[39m [34mdocumentFor[39m(file) {
+    [90m 35| [39m  [35mconst[39m src [33m=[39m fs[33m.[39m[34mreadFileSync[39m(path[33m.[39m[34mjoin[39m([33mOOS[39m[33m,[39m [32m`[39m[36m${[39mfile[36m}[39m[32m.pine`[39m)[33m,[39m [32m'utf8'[39m)
+    [90m   | [39m                 [31m^[39m
+    [90m 36| [39m  [35mlet[39m t
+    [90m 37| [39m  try { t = memberInputTranslation(translatePine, src, {}) } catch { r…
+[90m [2m❯[22m src/components/chart/builder/graphSize.measure.test.js:[2m147:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/ImportBox.thinkscript.test.jsx[2m > [22m🔴 the offered call can be ACCEPTED from the box[2m > [22m⛔ the Pine door shows the offer and NO button — it cannot name the place
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element by: [data-testid="import-suggest"]
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"_backdrop_2d2131 _modal_2d2131"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"_panel_2d2131 _panel_modal_2d2131 "[39m
+      [33mdata-sheet-panel[39m=[32m""[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"max-width: 640px;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_header_2d2131"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_title_2d2131"[39m
+        [36m>[39m
+          [0mNew formula[0m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"_close_2d2131"[39m
+        [36m>[39m
+          [0m×[0m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_body_2d2131 "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_body_bc5235"[39m
+          [33mdata-chart-portal-popup[39m=[32m"formula-builder"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mdata-kind[39m=[32m"indicator"[39m
+            [33mdata-testid[39m=[32m"concierge-box"[39m
+            [33mstyle[39m=[32m"display: flex; flex-direction: column; gap: 8px;"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mfor[39m=[32m"_r_e_"[39m
+              [33mstyle[39m=[32m"font-size: 12px; color: var(--text-muted); letter-spacing: 0.4px;"[39m
+            [36m>[39m
+              [0mDescribe the indicator in plain English[0m
+            [36m</label>[39m
+            [36m<textarea[39m
+              [33mid[39m=[32m"_r_e_"[39m
+              [33mplaceholder[39m=[32m"e.g. the twenty bar average of the close"[39m
+              [33mstyle[39m=[32m"width: 100%; min-height: 64px; padding: 8px 10px; resize: vertical; background: var(--bg-surface); color: var(--text-bright); border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px; line-height: 1.45;"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mstyle[39m=[32m"display: flex; gap: 8px; align-items: center;"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mstyle[39m=[32m"min-height: var(--tap-min); padding: 0px 14px; background: var(--bg-elevated); color: var(--text-bright); border: 1px solid var(--border-accent); border-radius: var(--radius-md); font-size: 13px; cursor: not-allowed; opacity: 0.45;"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mDraft a formula[0m
+              [36m</button>[39m
+              [36m<span[39m
+                [33mstyle[39m=[32m"font-size: 11px; color: var(--text-muted);"[39m
+              [36m>[39m
+                [0mDescribe it first[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"How to build this"[39m
+            [33mclass[39m=[32m"_modeRow_bc5235"[39m
+            [33mrole[39m=[32m"tablist"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-selected[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_modeTab_bc5235 "[39m
+              [33mrole[39m=[32m"tab"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mLibrary[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-selected[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_modeTab_bc5235 "[39m
+              [33mrole[39m=[32m"tab"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mConditions[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-selected[39m=[32m"true"[39m
+              [33mclass[39m=[32m"_modeTab_bc5235 _modeTabActive_bc5235"[39m
+              [33mrole[39m=[32m"tab"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mImport[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-selected[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_modeTab_bc5235 "[39m
+              [33mrole[39m=[32m"tab"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mScreenshot[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-selected[39m=[32m"false"[39m
+              [33mclass[39m=[32m"_modeTab_bc5235 "[39m
+              [33mrole[39m=[32m"tab"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mFormula[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"uct-pine-head"[39m
+            [33mclass[39m=[32m"_wrap_5ff86c"[39m
+            [33mdata-testid[39m=[32m"pine-box"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"_head_5ff86c"[39m
+              [33mid[39m=[32m"uct-pine-head"[39m
+            [36m>[39m
+              [0mPaste a script or a formula[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"_hint_5ff86c"[39m
+            [36m>[39m
+              [0mA TradingView [0m
+              [36m<b>[39m
+                [0mPine[0m
+              [36m</b>[39m
+              [0m indicator, a thinkorswim [0m
+              [36m<b>[39m
+                [0mthinkScript[0m
+              [36m</b>[39m
+              [0m study, a[0m
+              [0m [0m
+              [36m<b>[39m
+                [0mTC2000[0m
+              [36m</b>[39m
+              [0m formula, or one of this engine's own. Everything the screen[0m
+              [0m [0m
+              [0mwould read is listed below, in this engine's own words, before anything is[0m
+              [0m [0m
+              [0msaved.[0m
+            [36m</p>[39m
+            [36m<textarea[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33maria-label[39m=[32m"Script or formula"[39m
+              [33mautocapitalize[39m=[32m"off"[39m
+              [33mautocomplete[39m=[32m"off"[39m
+              [33mautocorrect[39m=[32m"off"[39m
+              [33mclass[39m=[32m"_area_5ff86c"[39m
+              [33mplaceholder[39m=[32m"//@version=5
+indicator(\"My screen\")
+r = ta.rsi(close, 14)
+plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, \"Signal\")"[39m
+              [33mrows[39m=[32m"8"[39m
+              [33mspellcheck[39m=[32m"false"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[...
+[90m [2m❯[22m Object.getElementError ../../notebook-flip/app/node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m ../../notebook-flip/app/node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m ../../notebook-flip/app/node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m ../../notebook-flip/app/node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/chart/builder/ImportBox.thinkscript.test.jsx:[2m579:19[22m[39m
+    [90m577| [39m    [34mmount[39m()
+    [90m578| [39m    [35mawait[39m [34mpaste[39m([33mPINE_WMA[39m)
+    [90m579| [39m    [34mexpect[39m(screen[33m.[39m[34mgetByTestId[39m([32m'import-suggest'[39m))[33m.[39m[34mtoBeTruthy[39m()
+    [90m   | [39m                  [31m^[39m
+    [90m580| [39m    [34mexpect[39m(screen[33m.[39m[34mqueryByTestId[39m([32m'import-suggest-apply'[39m))[33m.[39m[34mtoBeNull[39m()
+    [90m581| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/objectDemandCensus.test.js[2m > [22mC3B.1 — the object-demand census[2m > [22mevery family, every shape class, across the frozen 60
+[31m[1mAssertionError[22m: expected 30 to be 59 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 59[39m
+[31m+ 30[39m
+
+[36m [2m❯[22m src/components/chart/builder/objectDemandCensus.test.js:[2m169:26[22m[39m
+    [90m167| [39m  [34mit[39m([32m'every family, every shape class, across the frozen 60'[39m[33m,[39m () [33m=>[39m {
+    [90m168| [39m    const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine'…
+    [90m169| [39m    [34mexpect[39m(files[33m.[39mlength)[33m.[39m[34mtoBe[39m([33mFROZEN[39m)
+    [90m   | [39m                         [31m^[39m
+    [90m170| [39m
+    [90m171| [39m    [35mconst[39m rows [33m=[39m files[33m.[39m[34mmap[39m((f) [33m=>[39m {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/objectLadder.test.js[2m > [22mC3B ladder — LEVEL 10: a real reachable OOS composite[2m > [22m⭐⭐ a published script from the reachable 27 draws its dashboard
+[31m[1mError[22m: ENOENT: no such file or directory, open 'C:\Users\Patrick\uct-worktrees\notebook-k\tests\fixtures\pine_oos\long_tail__16-spy-position-helper.pine'[39m
+[36m [2m❯[22m src/components/chart/builder/objectLadder.test.js:[2m260:20[22m[39m
+    [90m258| [39m
+    [90m259| [39m  it('⭐⭐ a published script from the reachable 27 draws its dashboard'…
+    [90m260| [39m    [35mconst[39m src [33m=[39m fs[33m.[39m[34mreadFileSync[39m(path[33m.[39m[34mjoin[39m([33mOOS[39m[33m,[39m [32m`[39m[36m${[39m[33mNAME[39m[36m}[39m[32m.pine`[39m)[33m,[39m [32m'utf8'[39m)
+    [90m   | [39m                   [31m^[39m
+    [90m261| [39m    [35mconst[39m { t[33m,[39m program[33m,[39m res[33m,[39m state } [33m=[39m [34mrun[39m(src)
+    [90m262| [39m    [34mexpect[39m(t[33m.[39mok)[33m.[39m[34mtoBe[39m([35mtrue[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/objectLadder.test.js[2m > [22mC3B ladder — LEVEL 10: a real reachable OOS composite[2m > [22m⛔ …and what it could NOT carry is counted, not hidden
+[31m[1mError[22m: ENOENT: no such file or directory, open 'C:\Users\Patrick\uct-worktrees\notebook-k\tests\fixtures\pine_oos\long_tail__16-spy-position-helper.pine'[39m
+[36m [2m❯[22m src/components/chart/builder/objectLadder.test.js:[2m277:20[22m[39m
+    [90m275| [39m
+    [90m276| [39m  [34mit[39m([32m'⛔ …and what it could NOT carry is counted, not hidden'[39m[33m,[39m () [33m=>[39m {
+    [90m277| [39m    [35mconst[39m src [33m=[39m fs[33m.[39m[34mreadFileSync[39m(path[33m.[39m[34mjoin[39m([33mOOS[39m[33m,[39m [32m`[39m[36m${[39m[33mNAME[39m[36m}[39m[32m.pine`[39m)[33m,[39m [32m'utf8'[39m)
+    [90m   | [39m                   [31m^[39m
+    [90m278| [39m    [35mconst[39m t [33m=[39m [34mtranslatePine[39m(src)
+    [90m279| [39m    [34mexpect[39m(t[33m.[39mobjectDiagnostics)[33m.[39m[34mtoBeTruthy[39m()
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/pineBoxSuggestVoice.test.jsx[2m > [22mthe suggestion speaks about the script the member actually pasted[2m > [22m⛔ all three reach the member WITH a suggestion — through the shipped door
+[31m[1mAssertionError[22m: wma: expected null to be truthy[39m
+
+[32m- Expected:[39m 
+true
+
+[31m+ Received:[39m 
+null
+
+[36m [2m❯[22m src/components/chart/builder/pineBoxSuggestVoice.test.jsx:[2m65:32[22m[39m
+    [90m 63| [39m    for (const [label, src] of [['wma', PINE_WMA], ['security', PINE_S…
+    [90m 64| [39m      [35mconst[39m r [33m=[39m [34minspectSource[39m(src[33m,[39m [32m'auto'[39m)
+    [90m 65| [39m      [34mexpect[39m(r[33m.[39mrefusal[33m,[39m label)[33m.[39m[34mtoBeTruthy[39m()
+    [90m   | [39m                               [31m^[39m
+    [90m 66| [39m      expect(r.refusal.suggest, `${label} no longer reaches the member…
+    [90m 67| [39m        [33m.[39m[34mtoBeTruthy[39m()
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/pineBoxSuggestVoice.test.jsx[2m > [22mthe suggestion speaks about the script the member actually pasted[2m > [22m⭐⭐ a PINE paste is never told about thinkorswim
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element by: [data-testid="import-suggest"]
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"uct-pine-head"[39m
+      [33mclass[39m=[32m"_wrap_5ff86c"[39m
+      [33mdata-testid[39m=[32m"pine-box"[39m
+    [36m>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"_head_5ff86c"[39m
+        [33mid[39m=[32m"uct-pine-head"[39m
+      [36m>[39m
+        [0mPaste a script or a formula[0m
+      [36m</h3>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"_hint_5ff86c"[39m
+      [36m>[39m
+        [0mA TradingView [0m
+        [36m<b>[39m
+          [0mPine[0m
+        [36m</b>[39m
+        [0m indicator, a thinkorswim [0m
+        [36m<b>[39m
+          [0mthinkScript[0m
+        [36m</b>[39m
+        [0m study, a[0m
+        [0m [0m
+        [36m<b>[39m
+          [0mTC2000[0m
+        [36m</b>[39m
+        [0m formula, or one of this engine's own. Everything the screen[0m
+        [0m [0m
+        [0mwould read is listed below, in this engine's own words, before anything is[0m
+        [0m [0m
+        [0msaved.[0m
+      [36m</p>[39m
+      [36m<textarea[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33maria-label[39m=[32m"Script or formula"[39m
+        [33mautocapitalize[39m=[32m"off"[39m
+        [33mautocomplete[39m=[32m"off"[39m
+        [33mautocorrect[39m=[32m"off"[39m
+        [33mclass[39m=[32m"_area_5ff86c"[39m
+        [33mplaceholder[39m=[32m"//@version=5
+indicator(\"My screen\")
+r = ta.rsi(close, 14)
+plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, \"Signal\")"[39m
+        [33mrows[39m=[32m"8"[39m
+        [33mspellcheck[39m=[32m"false"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0m//@version=5
+indicator("t")
+plot(ta.wma(close, 27.5))
+[0m
+      [36m</textarea>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_editor_18fb12"[39m
+        [33mdata-dialect[39m=[32m"pine"[39m
+        [33mdata-testid[39m=[32m"pine-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cm-editor ͼ1 ͼ2 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"cm-announced"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cm-scroller"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"cm-gutters cm-gutters-before"[39m
+              [33mstyle[39m=[32m"min-height: 56px; position: sticky;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-gutter cm-gutter-lint"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Script or formula editor"[39m
+              [33maria-multiline[39m=[32m"true"[39m
+              [33mautocapitalize[39m=[32m"off"[39m
+              [33mautocorrect[39m=[32m"off"[39m
+              [33mclass[39m=[32m"cm-content cm-lineWrapping"[39m
+              [33mcontenteditable[39m=[32m"true"[39m
+              [33mdata-language[39m=[32m"pine"[39m
+              [33mrole[39m=[32m"textbox"[39m
+              [33mspellcheck[39m=[32m"false"[39m
+              [33mstyle[39m=[32m"tab-size: 4;"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtranslate[39m=[32m"no"[39m
+              [33mwritingsuggestions[39m=[32m"false"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_comment_18fb12"[39m
+                [36m>[39m
+                  [0m//@version=5[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mindicator[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_string_18fb12"[39m
+                [36m>[39m
+                  [0m"t"[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m)[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mplot[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_namespace_18fb12"[39m
+                [36m>[39m
+                  [0mta[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m.[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_name_18fb12"[39m
+                [36m>[39m
+                  [0mwma[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_series_18fb12"[39m
+                [36m>[39m
+                  [0mclose[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m,[0m
+                [36m</span>[39m
+                [0m [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_number_18fb12"[39m
+                [36m>[39m
+                  [0m27.5[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m))[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<br />[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_report_5ff86c"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_meta_5ff86c"[39m
+          [33mdata-dialect[39m=[32m"pine"[39m
+          [33mdata-testid[39m=[32m"pine-meta"[39m
+        [36m>[39m
+          [0mRead as Pine script[0m
+          [0m v5[0m
+          [0m · indicator()[0m
+          [0m · “t”[0m
+        [36m</p>[39m
+        [36m<fieldset[39m
+          [33mclass[39m=[32m"_outputs_5ff86c"[39m
+        [36m>[39m
+          [36m<legend[39m
+            [33mclass[39m=[32m"_legend_5ff86c"[39m
+          [36m>[39m
+            [0mThis script offers one column[0m
+          [36m</legend>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"_outputRow_5ff86c"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33mchecked[39m=[32m""[39m
+              [33mname[39m=[32m"uct-pine-output"[39m
+              [33mtype[39m=[32m"radio"[39m
+            [36m/>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outKind_5ff86c"[39m
+            [36m>[39m
+              [0mplot[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outTitle_5ff86c"[39m
+            [36m>[39m
+              [0mline 3[0m
+            [36m</span>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_outFormula_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-formula-0"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outBlocked_5ff86c"[39m
+              [33mdata-guard[39m=[32m"resolve:window"[39m
+            [36m>[39m
+              [0ma window must be a whole-number literal — wma argument 1 must be a whole number of at least 1, got 27.5[0m
+            [36m</span>[39m
+          [36m</label>[39m
+        [36m</fieldset>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_notesWrap_5ff86c"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33mclass[39m=[32m"_notesToggle_5ff86c"[39m
+            [33mdata-testid[39m=[32m"pine-notes-toggle"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mShow[0m
+            [0m [0m
+            [0m1[0m
+            [0m line[0m
+            [0m a screen does not read[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_refLink_5ff86c"[39m
+        [36m>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/reference"[39m
+          [36m>[39m
+            [0mSee every name you can write →[0m
+          [36m</a>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/library"[39m
+          [36m>[39m
+            [0mBrowse what other members published →[0m
+          [36m</a>[39m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_toScreen_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-to-screen"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenLead_5ff86c"[39m
+          [36m>[39m
+            [0mThis column is a number, so it can be charted as it is. To SCREEN with it, say what you are looking for:[0m
+          [36m</span>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_toScreenRow_5ff86c"[39m
+          [36m>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_toScreenCol_5ff86c"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<select[39m
+              [33maria-label[39m=[32m"comparison"[39m
+              [33mclass[39m=[32m"_toScreenOp_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-op"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">"[39m
+              [36m>[39m
+                [0mis above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<"[39m
+              [36m>[39m
+                [0mis below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">="[39m
+              [36m>[39m
+                [0mis at or above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<="[39m
+              [36m>[39m
+                [0mis at or below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"=="[39m
+              [36m>[39m
+                [0mequals[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"!="[39m
+              [36m>[39m
+                [0mis not[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"threshold"[39m
+              [33mclass[39m=[32m"_toScreenValue_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-value"[39m
+              [33minputmode[39m=[32m"decimal"[39m
+              [33mplaceholder[39m=[32m"value"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenWhy_5ff86c"[39m
+          [36m>[39m
+            [0mLeave this blank to keep the column as it is — you can still chart it.[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"_useBtn_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-use"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mUse this formula[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"uct-pine-head"[39m
+      [33mclass[39m=[32m"_wrap_5ff86c"[39m
+      [33mdata-testid[39m=[32m"pine-box"[39m
+    [36m>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"_head_5ff86c"[39m
+        [33mid[39m=[32m"uct-pine-head"[39m
+      [36m>[39m
+        [0mPaste a script or a formula[0m
+      [36m</h3>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"_hint_5ff86c"[39m
+      [36m>[39m
+        [0mA TradingView [0m
+        [36m<b>[39m
+          [0mPine[0m
+        [36m</b>[39m
+        [0m indicator, a thinkorswim [0m
+        [36m<b>[39m
+          [0mthinkScript[0m
+        [36m</b>[39m
+        [0m study, a[0m
+        [0m [0m
+        [36m<b>[39m
+          [0mTC2000[0m
+        [36m</b>[39m
+        [0m formula, or one of this engine's own. Everything the screen[0m
+        [0m [0m
+        [0mwould read is listed below, in this engine's own words, before anything is[0m
+        [0m [0m
+        [0msaved.[0m
+      [36m</p>[39m
+      [36m<textarea[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33maria-label[39m=[32m"Script or formula"[39m
+        [33mautocapitalize[39m=[32m"off"[39m
+        [33mautocomplete[39m=[32m"off"[39m
+        [33mautocorrect[39m=[32m"off"[39m
+        [33mclass[39m=[32m"_area_5ff86c"[39m
+        [33mplaceholder[39m=[32m"//@version=5
+indicator(\"My screen\")
+r = ta.rsi(close, 14)
+plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, \"Signal\")"[39m
+        [33mrows[39m=[32m"8"[39m
+        [33mspellcheck[39m=[32m"false"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0m//@version=5
+indicator("t")
+plot(ta.wma(close, 27.5))
+[0m
+      [36m</textarea>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_editor_18fb12"[39m
+        [33mdata-dialect[39m=[32m"pine"[39m
+        [33mdata-testid[39m=[32m"pine-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cm-editor ͼ1 ͼ2 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"cm-announced"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cm-scroller"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"cm-gutters cm-gutters-before"[39m
+              [33mstyle[39m=[32m"min-height: 56px; position: sticky;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-gutter cm-gutter-lint"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Script or formula editor"[39m
+              [33maria-multiline[39m=[32m"true"[39m
+              [33mautocapitalize[39m=[32m"off"[39m
+              [33mautocorrect[39m=[32m"off"[39m
+              [33mclass[39m=[32m"cm-content cm-lineWrapping"[39m
+              [33mcontenteditable[39m=[32m"true"[39m
+              [33mdata-language[39m=[32m"pine"[39m
+              [33mrole[39m=[32m"textbox"[39m
+              [33mspellcheck[39m=[32m"false"[39m
+              [33mstyle[39m=[32m"tab-size: 4;"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtranslate[39m=[32m"no"[39m
+              [33mwritingsuggestions[39m=[32m"false"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_comment_18fb12"[39m
+                [36m>[39m
+                  [0m//@version=5[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mindicator[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_string_18fb12"[39m
+                [36m>[39m
+                  [0m"t"[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m)[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mplot[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_namespace_18fb12"[39m
+                [36m>[39m
+                  [0mta[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m.[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_name_18fb12"[39m
+                [36m>[39m
+                  [0mwma[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_series_18fb12"[39m
+                [36m>[39m
+                  [0mclose[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m,[0m
+                [36m</span>[39m
+                [0m [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_number_18fb12"[39m
+                [36m>[39m
+                  [0m27.5[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m))[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<br />[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_report_5ff86c"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_meta_5ff86c"[39m
+          [33mdata-dialect[39m=[32m"pine"[39m
+          [33mdata-testid[39m=[32m"pine-meta"[39m
+        [36m>[39m
+          [0mRead as Pine script[0m
+          [0m v5[0m
+          [0m · indicator()[0m
+          [0m · “t”[0m
+        [36m</p>[39m
+        [36m<fieldset[39m
+          [33mclass[39m=[32m"_outputs_5ff86c"[39m
+        [36m>[39m
+          [36m<legend[39m
+            [33mclass[39m=[32m"_legend_5ff86c"[39m
+          [36m>[39m
+            [0mThis script offers one column[0m
+          [36m</legend>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"_outputRow_5ff86c"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33mchecked[39m=[32m""[39m
+              [33mname[39m=[32m"uct-pine-output"[39m
+              [33mtype[39m=[32m"radio"[39m
+            [36m/>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outKind_5ff86c"[39m
+            [36m>[39m
+              [0mplot[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outTitle_5ff86c"[39m
+            [36m>[39m
+              [0mline 3[0m
+            [36m</span>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_outFormula_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-formula-0"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outBlocked_5ff86c"[39m
+              [33mdata-guard[39m=[32m"resolve:window"[39m
+            [36m>[39m
+              [0ma window must be a whole-number literal — wma argument 1 must be a whole number of at least 1, got 27.5[0m
+            [36m</span>[39m
+          [36m</label>[39m
+        [36m</fieldset>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_notesWrap_5ff86c"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33mclass[39m=[32m"_notesToggle_5ff86c"[39m
+            [33mdata-testid[39m=[32m"pine-notes-toggle"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mShow[0m
+            [0m [0m
+            [0m1[0m
+            [0m line[0m
+            [0m a screen does not read[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_refLink_5ff86c"[39m
+        [36m>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/reference"[39m
+          [36m>[39m
+            [0mSee every name you can write →[0m
+          [36m</a>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/library"[39m
+          [36m>[39m
+            [0mBrowse what other members published →[0m
+          [36m</a>[39m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_toScreen_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-to-screen"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenLead_5ff86c"[39m
+          [36m>[39m
+            [0mThis column is a number, so it can be charted as it is. To SCREEN with it, say what you are looking for:[0m
+          [36m</span>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_toScreenRow_5ff86c"[39m
+          [36m>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_toScreenCol_5ff86c"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<select[39m
+              [33maria-label[39m=[32m"comparison"[39m
+              [33mclass[39m=[32m"_toScreenOp_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-op"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">"[39m
+              [36m>[39m
+                [0mis above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<"[39m
+              [36m>[39m
+                [0mis below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">="[39m
+              [36m>[39m
+                [0mis at or above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<="[39m
+              [36m>[39m
+                [0mis at or below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"=="[39m
+              [36m>[39m
+                [0mequals[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"!="[39m
+              [36m>[39m
+                [0mis not[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"threshold"[39m
+              [33mclass[39m=[32m"_toScreenValue_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-value"[39m
+              [33minputmode[39m=[32m"decimal"[39m
+              [33mplaceholder[39m=[32m"value"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenWhy_5ff86c"[39m
+          [36m>[39m
+            [0mLeave this blank to keep the column as it is — you can still chart it.[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"_useBtn_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-use"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mUse this formula[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m waitForWrapper ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m ../../notebook-flip/app/node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/components/chart/builder/pineBoxSuggestVoice.test.jsx:[2m78:32[22m[39m
+    [90m 76| [39m      [34mrender[39m([33m<[39m[33mImportBox[39m [33monPick[39m[33m=[39m[33m{[39mvi[33m.[39m[34mfn[39m()[33m}[39m [33m/[39m[33m>[39m)
+    [90m 77| [39m      [34mpaste[39m(src)
+    [90m 78| [39m      [35mconst[39m box [33m=[39m [35mawait[39m screen[33m.[39m[34mfindByTestId[39m([32m'import-suggest'[39m)
+    [90m   | [39m                               [31m^[39m
+    [90m 79| [39m      [34mexpect[39m(box[33m.[39mtextContent)[33m.[39mnot[33m.[39m[34mtoMatch[39m([36m/thinkorswim/i[39m)
+    [90m 80| [39m      // …and it does not claim a missing DEFAULT either — the other h…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/pineBoxSuggestVoice.test.jsx[2m > [22mthe suggestion speaks about the script the member actually pasted[2m > [22m⭐ and each renders the CALL itself, which is the part the member copies
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element by: [data-testid="import-suggest"]
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"uct-pine-head"[39m
+      [33mclass[39m=[32m"_wrap_5ff86c"[39m
+      [33mdata-testid[39m=[32m"pine-box"[39m
+    [36m>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"_head_5ff86c"[39m
+        [33mid[39m=[32m"uct-pine-head"[39m
+      [36m>[39m
+        [0mPaste a script or a formula[0m
+      [36m</h3>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"_hint_5ff86c"[39m
+      [36m>[39m
+        [0mA TradingView [0m
+        [36m<b>[39m
+          [0mPine[0m
+        [36m</b>[39m
+        [0m indicator, a thinkorswim [0m
+        [36m<b>[39m
+          [0mthinkScript[0m
+        [36m</b>[39m
+        [0m study, a[0m
+        [0m [0m
+        [36m<b>[39m
+          [0mTC2000[0m
+        [36m</b>[39m
+        [0m formula, or one of this engine's own. Everything the screen[0m
+        [0m [0m
+        [0mwould read is listed below, in this engine's own words, before anything is[0m
+        [0m [0m
+        [0msaved.[0m
+      [36m</p>[39m
+      [36m<textarea[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33maria-label[39m=[32m"Script or formula"[39m
+        [33mautocapitalize[39m=[32m"off"[39m
+        [33mautocomplete[39m=[32m"off"[39m
+        [33mautocorrect[39m=[32m"off"[39m
+        [33mclass[39m=[32m"_area_5ff86c"[39m
+        [33mplaceholder[39m=[32m"//@version=5
+indicator(\"My screen\")
+r = ta.rsi(close, 14)
+plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, \"Signal\")"[39m
+        [33mrows[39m=[32m"8"[39m
+        [33mspellcheck[39m=[32m"false"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0m//@version=5
+indicator("t")
+plot(ta.wma(close, 27.5))
+[0m
+      [36m</textarea>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_editor_18fb12"[39m
+        [33mdata-dialect[39m=[32m"pine"[39m
+        [33mdata-testid[39m=[32m"pine-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cm-editor ͼ1 ͼ2 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"cm-announced"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cm-scroller"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"cm-gutters cm-gutters-before"[39m
+              [33mstyle[39m=[32m"min-height: 56px; position: sticky;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-gutter cm-gutter-lint"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Script or formula editor"[39m
+              [33maria-multiline[39m=[32m"true"[39m
+              [33mautocapitalize[39m=[32m"off"[39m
+              [33mautocorrect[39m=[32m"off"[39m
+              [33mclass[39m=[32m"cm-content cm-lineWrapping"[39m
+              [33mcontenteditable[39m=[32m"true"[39m
+              [33mdata-language[39m=[32m"pine"[39m
+              [33mrole[39m=[32m"textbox"[39m
+              [33mspellcheck[39m=[32m"false"[39m
+              [33mstyle[39m=[32m"tab-size: 4;"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtranslate[39m=[32m"no"[39m
+              [33mwritingsuggestions[39m=[32m"false"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_comment_18fb12"[39m
+                [36m>[39m
+                  [0m//@version=5[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mindicator[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_string_18fb12"[39m
+                [36m>[39m
+                  [0m"t"[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m)[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mplot[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_namespace_18fb12"[39m
+                [36m>[39m
+                  [0mta[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m.[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_name_18fb12"[39m
+                [36m>[39m
+                  [0mwma[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_series_18fb12"[39m
+                [36m>[39m
+                  [0mclose[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m,[0m
+                [36m</span>[39m
+                [0m [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_number_18fb12"[39m
+                [36m>[39m
+                  [0m27.5[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m))[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<br />[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_report_5ff86c"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_meta_5ff86c"[39m
+          [33mdata-dialect[39m=[32m"pine"[39m
+          [33mdata-testid[39m=[32m"pine-meta"[39m
+        [36m>[39m
+          [0mRead as Pine script[0m
+          [0m v5[0m
+          [0m · indicator()[0m
+          [0m · “t”[0m
+        [36m</p>[39m
+        [36m<fieldset[39m
+          [33mclass[39m=[32m"_outputs_5ff86c"[39m
+        [36m>[39m
+          [36m<legend[39m
+            [33mclass[39m=[32m"_legend_5ff86c"[39m
+          [36m>[39m
+            [0mThis script offers one column[0m
+          [36m</legend>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"_outputRow_5ff86c"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33mchecked[39m=[32m""[39m
+              [33mname[39m=[32m"uct-pine-output"[39m
+              [33mtype[39m=[32m"radio"[39m
+            [36m/>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outKind_5ff86c"[39m
+            [36m>[39m
+              [0mplot[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outTitle_5ff86c"[39m
+            [36m>[39m
+              [0mline 3[0m
+            [36m</span>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_outFormula_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-formula-0"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outBlocked_5ff86c"[39m
+              [33mdata-guard[39m=[32m"resolve:window"[39m
+            [36m>[39m
+              [0ma window must be a whole-number literal — wma argument 1 must be a whole number of at least 1, got 27.5[0m
+            [36m</span>[39m
+          [36m</label>[39m
+        [36m</fieldset>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_notesWrap_5ff86c"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33mclass[39m=[32m"_notesToggle_5ff86c"[39m
+            [33mdata-testid[39m=[32m"pine-notes-toggle"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mShow[0m
+            [0m [0m
+            [0m1[0m
+            [0m line[0m
+            [0m a screen does not read[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_refLink_5ff86c"[39m
+        [36m>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/reference"[39m
+          [36m>[39m
+            [0mSee every name you can write →[0m
+          [36m</a>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/library"[39m
+          [36m>[39m
+            [0mBrowse what other members published →[0m
+          [36m</a>[39m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_toScreen_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-to-screen"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenLead_5ff86c"[39m
+          [36m>[39m
+            [0mThis column is a number, so it can be charted as it is. To SCREEN with it, say what you are looking for:[0m
+          [36m</span>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_toScreenRow_5ff86c"[39m
+          [36m>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_toScreenCol_5ff86c"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<select[39m
+              [33maria-label[39m=[32m"comparison"[39m
+              [33mclass[39m=[32m"_toScreenOp_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-op"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">"[39m
+              [36m>[39m
+                [0mis above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<"[39m
+              [36m>[39m
+                [0mis below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">="[39m
+              [36m>[39m
+                [0mis at or above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<="[39m
+              [36m>[39m
+                [0mis at or below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"=="[39m
+              [36m>[39m
+                [0mequals[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"!="[39m
+              [36m>[39m
+                [0mis not[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"threshold"[39m
+              [33mclass[39m=[32m"_toScreenValue_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-value"[39m
+              [33minputmode[39m=[32m"decimal"[39m
+              [33mplaceholder[39m=[32m"value"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenWhy_5ff86c"[39m
+          [36m>[39m
+            [0mLeave this blank to keep the column as it is — you can still chart it.[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"_useBtn_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-use"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mUse this formula[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"uct-pine-head"[39m
+      [33mclass[39m=[32m"_wrap_5ff86c"[39m
+      [33mdata-testid[39m=[32m"pine-box"[39m
+    [36m>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"_head_5ff86c"[39m
+        [33mid[39m=[32m"uct-pine-head"[39m
+      [36m>[39m
+        [0mPaste a script or a formula[0m
+      [36m</h3>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"_hint_5ff86c"[39m
+      [36m>[39m
+        [0mA TradingView [0m
+        [36m<b>[39m
+          [0mPine[0m
+        [36m</b>[39m
+        [0m indicator, a thinkorswim [0m
+        [36m<b>[39m
+          [0mthinkScript[0m
+        [36m</b>[39m
+        [0m study, a[0m
+        [0m [0m
+        [36m<b>[39m
+          [0mTC2000[0m
+        [36m</b>[39m
+        [0m formula, or one of this engine's own. Everything the screen[0m
+        [0m [0m
+        [0mwould read is listed below, in this engine's own words, before anything is[0m
+        [0m [0m
+        [0msaved.[0m
+      [36m</p>[39m
+      [36m<textarea[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33maria-label[39m=[32m"Script or formula"[39m
+        [33mautocapitalize[39m=[32m"off"[39m
+        [33mautocomplete[39m=[32m"off"[39m
+        [33mautocorrect[39m=[32m"off"[39m
+        [33mclass[39m=[32m"_area_5ff86c"[39m
+        [33mplaceholder[39m=[32m"//@version=5
+indicator(\"My screen\")
+r = ta.rsi(close, 14)
+plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, \"Signal\")"[39m
+        [33mrows[39m=[32m"8"[39m
+        [33mspellcheck[39m=[32m"false"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [0m//@version=5
+indicator("t")
+plot(ta.wma(close, 27.5))
+[0m
+      [36m</textarea>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_editor_18fb12"[39m
+        [33mdata-dialect[39m=[32m"pine"[39m
+        [33mdata-testid[39m=[32m"pine-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cm-editor ͼ1 ͼ2 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-live[39m=[32m"polite"[39m
+            [33mclass[39m=[32m"cm-announced"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"cm-scroller"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"cm-gutters cm-gutters-before"[39m
+              [33mstyle[39m=[32m"min-height: 56px; position: sticky;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-gutter cm-gutter-lint"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Script or formula editor"[39m
+              [33maria-multiline[39m=[32m"true"[39m
+              [33mautocapitalize[39m=[32m"off"[39m
+              [33mautocorrect[39m=[32m"off"[39m
+              [33mclass[39m=[32m"cm-content cm-lineWrapping"[39m
+              [33mcontenteditable[39m=[32m"true"[39m
+              [33mdata-language[39m=[32m"pine"[39m
+              [33mrole[39m=[32m"textbox"[39m
+              [33mspellcheck[39m=[32m"false"[39m
+              [33mstyle[39m=[32m"tab-size: 4;"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtranslate[39m=[32m"no"[39m
+              [33mwritingsuggestions[39m=[32m"false"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_comment_18fb12"[39m
+                [36m>[39m
+                  [0m//@version=5[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mindicator[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_string_18fb12"[39m
+                [36m>[39m
+                  [0m"t"[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m)[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_keyword_18fb12"[39m
+                [36m>[39m
+                  [0mplot[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_namespace_18fb12"[39m
+                [36m>[39m
+                  [0mta[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m.[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_name_18fb12"[39m
+                [36m>[39m
+                  [0mwma[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m([0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_series_18fb12"[39m
+                [36m>[39m
+                  [0mclose[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m,[0m
+                [36m</span>[39m
+                [0m [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_number_18fb12"[39m
+                [36m>[39m
+                  [0m27.5[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"_punctuation_18fb12"[39m
+                [36m>[39m
+                  [0m))[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"cm-line"[39m
+              [36m>[39m
+                [36m<br />[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_report_5ff86c"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_meta_5ff86c"[39m
+          [33mdata-dialect[39m=[32m"pine"[39m
+          [33mdata-testid[39m=[32m"pine-meta"[39m
+        [36m>[39m
+          [0mRead as Pine script[0m
+          [0m v5[0m
+          [0m · indicator()[0m
+          [0m · “t”[0m
+        [36m</p>[39m
+        [36m<fieldset[39m
+          [33mclass[39m=[32m"_outputs_5ff86c"[39m
+        [36m>[39m
+          [36m<legend[39m
+            [33mclass[39m=[32m"_legend_5ff86c"[39m
+          [36m>[39m
+            [0mThis script offers one column[0m
+          [36m</legend>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"_outputRow_5ff86c"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33mchecked[39m=[32m""[39m
+              [33mname[39m=[32m"uct-pine-output"[39m
+              [33mtype[39m=[32m"radio"[39m
+            [36m/>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outKind_5ff86c"[39m
+            [36m>[39m
+              [0mplot[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outTitle_5ff86c"[39m
+            [36m>[39m
+              [0mline 3[0m
+            [36m</span>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_outFormula_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-formula-0"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"_outBlocked_5ff86c"[39m
+              [33mdata-guard[39m=[32m"resolve:window"[39m
+            [36m>[39m
+              [0ma window must be a whole-number literal — wma argument 1 must be a whole number of at least 1, got 27.5[0m
+            [36m</span>[39m
+          [36m</label>[39m
+        [36m</fieldset>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_notesWrap_5ff86c"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33mclass[39m=[32m"_notesToggle_5ff86c"[39m
+            [33mdata-testid[39m=[32m"pine-notes-toggle"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mShow[0m
+            [0m [0m
+            [0m1[0m
+            [0m line[0m
+            [0m a screen does not read[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"_refLink_5ff86c"[39m
+        [36m>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/reference"[39m
+          [36m>[39m
+            [0mSee every name you can write →[0m
+          [36m</a>[39m
+          [36m<a[39m
+            [33mhref[39m=[32m"/formulas/library"[39m
+          [36m>[39m
+            [0mBrowse what other members published →[0m
+          [36m</a>[39m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_toScreen_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-to-screen"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenLead_5ff86c"[39m
+          [36m>[39m
+            [0mThis column is a number, so it can be charted as it is. To SCREEN with it, say what you are looking for:[0m
+          [36m</span>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_toScreenRow_5ff86c"[39m
+          [36m>[39m
+            [36m<code[39m
+              [33mclass[39m=[32m"_toScreenCol_5ff86c"[39m
+            [36m>[39m
+              [0mwma(close, 27.5)[0m
+            [36m</code>[39m
+            [36m<select[39m
+              [33maria-label[39m=[32m"comparison"[39m
+              [33mclass[39m=[32m"_toScreenOp_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-op"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">"[39m
+              [36m>[39m
+                [0mis above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<"[39m
+              [36m>[39m
+                [0mis below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m">="[39m
+              [36m>[39m
+                [0mis at or above[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"<="[39m
+              [36m>[39m
+                [0mis at or below[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"=="[39m
+              [36m>[39m
+                [0mequals[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"!="[39m
+              [36m>[39m
+                [0mis not[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"threshold"[39m
+              [33mclass[39m=[32m"_toScreenValue_5ff86c"[39m
+              [33mdata-testid[39m=[32m"pine-screen-value"[39m
+              [33minputmode[39m=[32m"decimal"[39m
+              [33mplaceholder[39m=[32m"value"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"_toScreenWhy_5ff86c"[39m
+          [36m>[39m
+            [0mLeave this blank to keep the column as it is — you can still chart it.[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"_useBtn_5ff86c"[39m
+          [33mdata-testid[39m=[32m"pine-use"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mUse this formula[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m waitForWrapper ../../notebook-flip/app/node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m ../../notebook-flip/app/node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/components/chart/builder/pineBoxSuggestVoice.test.jsx:[2m105:32[22m[39m
+    [90m103| [39m      [34mrender[39m([33m<[39m[33mImportBox[39m [33monPick[39m[33m=[39m[33m{[39mvi[33m.[39m[34mfn[39m()[33m}[39m [33m/[39m[33m>[39m)
+    [90m104| [39m      [34mpaste[39m(src)
+    [90m105| [39m      [35mconst[39m box [33m=[39m [35mawait[39m screen[33m.[39m[34mfindByTestId[39m([32m'import-suggest'[39m)
+    [90m   | [39m                               [31m^[39m
+    [90m106| [39m      [34mexpect[39m(box[33m.[39mtextContent)[33m.[39m[34mtoContain[39m(wanted)
+    [90m107| [39m    }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/visualDemandCensus.test.js[2m > [22mC3A.1 — the visual demand census[2m > [22mscripts and call sites, declarative vs object lifecycle
+[31m[1mAssertionError[22m: expected 30 to be 59 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 59[39m
+[31m+ 30[39m
+
+[36m [2m❯[22m src/components/chart/builder/visualDemandCensus.test.js:[2m82:26[22m[39m
+    [90m 80| [39m  [34mit[39m([32m'scripts and call sites, declarative vs object lifecycle'[39m[33m,[39m () [33m=>[39m {
+    [90m 81| [39m    const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine'…
+    [90m 82| [39m    [34mexpect[39m(files[33m.[39mlength)[33m.[39m[34mtoBe[39m([33mFROZEN[39m)
+    [90m   | [39m                         [31m^[39m
+    [90m 83| [39m
+    [90m 84| [39m    [35mconst[39m scripts [33m=[39m {}
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/builder/visualParitySet.test.js[2m > [22mC3A-CLOSE — the fixed parity set, remeasured at HEAD[2m > [22mevery member, seventeen facts each
+[31m[1mAssertionError[22m: these parity members have no committed source, so the set is measured on 5 of 10:
+  mid_engagement__09-relative-volume-breakout-context
+  mid_engagement__05-supertrend-fibonacci-ote
+  high_engagement__24-coppock-curve-multi-filter-markittick
+  long_tail__16-spy-position-helper
+  high_engagement__13-ultimate-opening-range-breakout-luxalgo
+
+They are `storage: "local-only"` in tests/fixtures/pine_oos/MANIFEST.json and each needs a fresh capture; their sha256_source is already recorded, so each one is verifiable on arrival.: expected [ …(5) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "mid_engagement__09-relative-volume-breakout-context",[39m
+[31m+   "mid_engagement__05-supertrend-fibonacci-ote",[39m
+[31m+   "high_engagement__24-coppock-curve-multi-filter-markittick",[39m
+[31m+   "long_tail__16-spy-position-helper",[39m
+[31m+   "high_engagement__13-ultimate-opening-range-breakout-luxalgo",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/components/chart/builder/visualParitySet.test.js:[2m291:50[22m[39m
+    [90m289| [39m      + 'They are `storage: "local-only"` in tests/fixtures/pine_oos/M…
+    [90m290| [39m      + 'and each needs a fresh capture; their sha256_source is alread…
+    [90m291| [39m      [33m+[39m [32m'so each one is verifiable on arrival.'[39m)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                                                 [31m^[39m
+    [90m292| [39m  })
+    [90m293| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js[2m > [22ma7.2 — both lanes agree on the facts, across every source[2m > [22m⭐⭐ the rail reaches all three sources, and Clouds is one of them
+[31m[1mAssertionError[22m: the corpus is not being read at all: expected 299 to be greater than 300[39m
+[36m [2m❯[22m src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js:[2m93:63[22m[39m
+    [90m 91| [39m    // passes perfectly, so the population is asserted before anything…
+    [90m 92| [39m    [90m// from it.[39m
+    [90m 93| [39m    expect(ALL.length, 'the corpus is not being read at all').toBeGrea…
+    [90m   | [39m                                                              [31m^[39m
+    [90m 94| [39m    [35mconst[39m byDir [33m=[39m {}
+    [90m 95| [39m    [35mfor[39m ([35mconst[39m s [35mof[39m [33mALL[39m) byDir[s[33m.[39mdir] [33m=[39m (byDir[s[33m.[39mdir] [33m||[39m [34m0[39m) [33m+[39m [34m1[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/capabilityDemandCensus.test.js[2m > [22m⭐⭐⭐ capability demand — total, not just first blocker (§7)[2m > [22mreports both numbers for every family
+[31m[1mAssertionError[22m: expected 129 to be greater than 150[39m
+[36m [2m❯[22m src/components/chart/engine/ast/capabilityDemandCensus.test.js:[2m267:28[22m[39m
+    [90m265| [39m    }
+    [90m266| [39m    [90m/* eslint-enable no-console */[39m
+    [90m267| [39m    [34mexpect[39m([33mREPORT[39m[33m.[39mscripts)[33m.[39m[34mtoBeGreaterThan[39m([34m150[39m)
+    [90m   | [39m                           [31m^[39m
+    [90m268| [39m  })
+    [90m269| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/historyDemandCensus.test.js[2m > [22m2F-2 — runtime history demand across every corpus[2m > [22mreports both numbers, and they are different questions
+[31m[1mAssertionError[22m: expected 129 to be greater than 150[39m
+[36m [2m❯[22m src/components/chart/engine/ast/historyDemandCensus.test.js:[2m140:35[22m[39m
+    [90m138| [39m    console.log(`  scripts with a NON-literal offset:          ${REPOR…
+    [90m139| [39m    [90m/* eslint-enable no-console */[39m
+    [90m140| [39m    [34mexpect[39m([33mREPORT[39m[33m.[39mtotals[33m.[39mscripts)[33m.[39m[34mtoBeGreaterThan[39m([34m150[39m)
+    [90m   | [39m                                  [31m^[39m
+    [90m141| [39m  })
+    [90m142| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/oosMeasuredBaseline.test.js[2m > [22mthe OOS corpus is measured, not merely exercised[2m > [22m⛔⛔ NON-VACUITY — the corpus is really here and really translates
+[31m[1mAssertionError[22m: expected 30 to be greater than 50[39m
+[36m [2m❯[22m src/components/chart/engine/ast/oosMeasuredBaseline.test.js:[2m69:26[22m[39m
+    [90m 67| [39m  it('⛔⛔ NON-VACUITY — the corpus is really here and really translates…
+    [90m 68| [39m    // Without this, every assertion below passes over an empty direct…
+    [90m 69| [39m    [34mexpect[39m([33mFILES[39m[33m.[39mlength)[33m.[39m[34mtoBeGreaterThan[39m([34m50[39m)
+    [90m   | [39m                         [31m^[39m
+    [90m 70| [39m    [35mconst[39m threw [33m=[39m [33mObject[39m[33m.[39m[34mentries[39m([33mMEASURED[39m)[33m.[39m[34mfilter[39m(([[33m,[39m m]) [33m=>[39m m[33m.[39mthrew)
+    [90m 71| [39m    [34mexpect[39m(threw[33m,[39m [32m'a script threw rather than refusing'[39m)[33m.[39m[34mtoEqual[39m([])
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/oosMeasuredBaseline.test.js[2m > [22mthe OOS corpus is measured, not merely exercised[2m > [22m⛔⛔ THE ARTIFACT EXISTS AND COVERS EXACTLY THIS CORPUS
+[31m[1mAssertionError[22m: the OOS corpus membership moved: expected { added: [], gone: [ …(29) ] } to deeply equal { added: [], gone: [] }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "added": [],[22m
+[32m-   "gone": [],[39m
+[31m+   "gone": [[39m
+[31m+     "high_engagement__02-waddah-attar-explosion-lazybear.pine",[39m
+[31m+     "high_engagement__03-supertrend-kivancozbilgic.pine",[39m
+[31m+     "high_engagement__04-ttm-squeeze-greeny.pine",[39m
+[31m+     "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo.pine",[39m
+[31m+     "high_engagement__11-vumanchu-cipher-a-vumanchu.pine",[39m
+[31m+     "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",[39m
+[31m+     "high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",[39m
+[31m+     "high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",[39m
+[31m+     "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd.pine",[39m
+[31m+     "high_engagement__19-anchored-vwap-stuehmer.pine",[39m
+[31m+     "high_engagement__21-parabolic-sar-deviation-bigbeluga.pine",[39m
+[31m+     "high_engagement__24-coppock-curve-multi-filter-markittick.pine",[39m
+[31m+     "long_tail__01-ny-macro-status.pine",[39m
+[31m+     "long_tail__10-mtf-supply-demand.pine",[39m
+[31m+     "long_tail__14-vwap-z-score-oscillator.pine",[39m
+[31m+     "long_tail__15-agreed-upon-dol.pine",[39m
+[31m+     "long_tail__16-spy-position-helper.pine",[39m
+[31m+     "long_tail__18-deltalabs-equal-highs-equal-lows.pine",[39m
+[31m+     "long_tail__19-session-fibs-falcon-ai.pine",[39m
+[31m+     "long_tail__20-cot-pulse-cloud-trend.pine",[39m
+[31m+     "mid_engagement__03-volatility-supply-demand-zones.pine",[39m
+[31m+     "mid_engagement__04-cisd-order-block.pine",[39m
+[31m+     "mid_engagement__05-supertrend-fibonacci-ote.pine",[39m
+[31m+     "mid_engagement__07-3way-bollinger-trend.pine",[39m
+[31m+     "mid_engagement__08-hourly-alpha-profile-terminal.pine",[39m
+[31m+     "mid_engagement__09-relative-volume-breakout-context.pine",[39m
+[31m+     "mid_engagement__10-smc-engine.pine",[39m
+[31m+     "mid_engagement__15-multi-timeframe-ma-forecast.pine",[39m
+[31m+     "mid_engagement__23-distilled-htf-po3.pine",[39m
+[31m+   ],[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/components/chart/engine/ast/oosMeasuredBaseline.test.js:[2m85:64[22m[39m
+    [90m 83| [39m    [35mconst[39m added [33m=[39m [33mFILES[39m[33m.[39m[34mfilter[39m((f) [33m=>[39m [33m![39m(f [35min[39m pinned))
+    [90m 84| [39m    [35mconst[39m gone [33m=[39m [33mObject[39m[33m.[39m[34mkeys[39m(pinned)[33m.[39m[34mfilter[39m((f) [33m=>[39m [33m![39m[33mFILES[39m[33m.[39m[34mincludes[39m(f))
+    [90m 85| [39m    expect({ added, gone }, 'the OOS corpus membership moved').toEqual…
+    [90m   | [39m                                                               [31m^[39m
+    [90m 86| [39m  })
+    [90m 87| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/oosMeasuredBaseline.test.js[2m > [22mthe OOS corpus is measured, not merely exercised[2m > [22m⭐ THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED
+[31m[1mAssertionError[22m: a census-named OOS script left the corpus: expected [ …(3) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",[39m
+[31m+   "mid_engagement__09-relative-volume-breakout-context.pine",[39m
+[31m+   "mid_engagement__23-distilled-htf-po3.pine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/components/chart/engine/ast/oosMeasuredBaseline.test.js:[2m113:66[22m[39m
+    [90m111| [39m    ]
+    [90m112| [39m    [35mconst[39m missing [33m=[39m [33mSIX[39m[33m.[39m[34mfilter[39m((f) [33m=>[39m [33m![39m[33mFILES[39m[33m.[39m[34mincludes[39m(f))
+    [90m113| [39m    expect(missing, 'a census-named OOS script left the corpus').toEqu…
+    [90m   | [39m                                                                 [31m^[39m
+    [90m114| [39m  })
+    [90m115| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/paramIds.test.js[2m > [22mparameter ids are an address, and addresses do not move[2m > [22m⛔⛔ NON-VACUITY — the corpus is here and parameters really are minted
+[31m[1mAssertionError[22m: expected 299 to be greater than 300[39m
+[36m [2m❯[22m src/components/chart/engine/ast/paramIds.test.js:[2m70:42[22m[39m
+    [90m 68| [39m    // Every assertion below is satisfied by an empty corpus or a mani…
+    [90m 69| [39m    [90m// never ran, so the premise is pinned first.[39m
+    [90m 70| [39m    [34mexpect[39m([33mObject[39m[33m.[39m[34mkeys[39m([33mMEASURED[39m)[33m.[39mlength)[33m.[39m[34mtoBeGreaterThan[39m([34m300[39m)
+    [90m   | [39m                                         [31m^[39m
+    [90m 71| [39m    const withParams = Object.values(MEASURED).filter((m) => Object.ke…
+    [90m 72| [39m    expect(withParams.length, 'nothing mints — the manifest is off').t…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/paramIds.test.js[2m > [22mparameter ids are an address, and addresses do not move[2m > [22m⛔⛔ EVERY SCRIPT'S MAP IS UNCHANGED — reported by NAME, id, old and new
+[31m[1mAssertionError[22m: the corpus membership moved: expected { added: [], gone: [ …(29) ] } to deeply equal { added: [], gone: [] }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[2m    "added": [],[22m
+[32m-   "gone": [],[39m
+[31m+   "gone": [[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__02-waddah-attar-explosion-lazybear.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__03-supertrend-kivancozbilgic.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__04-ttm-squeeze-greeny.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__19-anchored-vwap-stuehmer.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__21-parabolic-sar-deviation-bigbeluga.pine",[39m
+[31m+     "tests/fixtures/pine_oos/high_engagement__24-coppock-curve-multi-filter-markittick.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__01-ny-macro-status.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__10-mtf-supply-demand.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__14-vwap-z-score-oscillator.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__15-agreed-upon-dol.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__16-spy-position-helper.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__18-deltalabs-equal-highs-equal-lows.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__19-session-fibs-falcon-ai.pine",[39m
+[31m+     "tests/fixtures/pine_oos/long_tail__20-cot-pulse-cloud-trend.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__03-volatility-supply-demand-zones.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__04-cisd-order-block.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__05-supertrend-fibonacci-ote.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__07-3way-bollinger-trend.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__08-hourly-alpha-profile-terminal.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__09-relative-volume-breakout-context.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__10-smc-engine.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__15-multi-timeframe-ma-forecast.pine",[39m
+[31m+     "tests/fixtures/pine_oos/mid_engagement__23-distilled-htf-po3.pine",[39m
+[31m+   ],[39m
+[2m  }[22m
+
+[36m [2m❯[22m src/components/chart/engine/ast/paramIds.test.js:[2m93:60[22m[39m
+    [90m 91| [39m    [35mconst[39m added [33m=[39m [33mObject[39m[33m.[39m[34mkeys[39m([33mMEASURED[39m)[33m.[39m[34mfilter[39m((k) [33m=>[39m [33m![39m(k [35min[39m pinned))
+    [90m 92| [39m    [35mconst[39m gone [33m=[39m [33mObject[39m[33m.[39m[34mkeys[39m(pinned)[33m.[39m[34mfilter[39m((k) [33m=>[39m [33m![39m(k [35min[39m [33mMEASURED[39m))
+    [90m 93| [39m    expect({ added, gone }, 'the corpus membership moved').toEqual({ a…
+    [90m   | [39m                                                           [31m^[39m
+    [90m 94| [39m
+    [90m 95| [39m    // ⛔ A SET-AND-ORDER DIFF THAT NAMES BOTH TITLES. "The counts matc…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/ast/recurrenceSteps.measure.test.js[2m > [22m⭐⭐ the deepest recurrence any real script declares[2m > [22mthe corpus is the one on disk, and it was actually walked
+[31m[1mAssertionError[22m: expected 30 to be 59 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 59[39m
+[31m+ 30[39m
+
+[36m [2m❯[22m src/components/chart/engine/ast/recurrenceSteps.measure.test.js:[2m110:28[22m[39m
+    [90m108| [39m    // is a measurement of nothing, and `Math.max()` of an empty list …
+    [90m109| [39m    // `-Infinity` — which would derive a ceiling of zero and look dec…
+    [90m110| [39m    [34mexpect[39m([33mSCRIPTS[39m[33m.[39mlength)[33m.[39m[34mtoBe[39m([34m59[39m)
+    [90m   | [39m                           [31m^[39m
+    [90m111| [39m    expect(perScript.size, 'no script in the corpus declared a recurre…
+    [90m112| [39m    [34mexpect[39m(all[33m.[39mlength)[33m.[39m[34mtoBeGreaterThan[39m([34m0[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/chart/engine/__tests__/memberPaneGate.test.js[2m > [22mthe member-pane gate[2m > [22mthe ledger declares it, and names the reader that really reads it
+[31m[1mAssertionError[22m: expected 'armed' to be 'dark' // Object.is equality[39m
+
+Expected: [32m"[7md[27mar[7mk[27m"[39m
+Received: [31m"ar[7mmed[27m"[39m
+
+[36m [2m❯[22m src/components/chart/engine/__tests__/memberPaneGate.test.js:[2m111:26[22m[39m
+    [90m109| [39m    [35mconst[39m entry [33m=[39m led[33m.[39mflags[[33mGATE_NAME[39m]
+    [90m110| [39m    expect(entry, `${GATE_NAME} is not declared in docs/frontend_featu…
+    [90m111| [39m    [34mexpect[39m(entry[33m.[39mstatus)[33m.[39m[34mtoBe[39m([32m'dark'[39m)
+    [90m   | [39m                         [31m^[39m
+    [90m112| [39m    [35mconst[39m named [33m=[39m entry[33m.[39mreadBy[[34m0[39m][33m.[39m[34msplit[39m([32m'::'[39m)[[34m0[39m]
+    [90m113| [39m    expect(fs.existsSync(path.join(REPO, named)), `${named} does not e…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/31]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m22 failed[39m[22m[90m (22)[39m
+[2m      Tests [22m [1m[31m29 failed[39m[22m[2m | [22m[1m[32m108 passed[39m[22m[90m (137)[39m
+[2m   Start at [22m 19:07:22
+[2m   Duration [22m 34.09s[2m (transform 5.78s, setup 2.94s, import 22.17s, tests 26.80s, environment 11.35s)[22m
+
