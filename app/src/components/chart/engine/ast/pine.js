@@ -12126,6 +12126,25 @@ export function translatePine(source, opts = {}) {
       inputParams: [],
       objects: objectPass.program,
       objectDiagnostics: objectPass.diagnostics,
+      // ⛔⛔ THE LANE MUST TRAVEL WITH THE VERDICT, AND THIS RETURN HAD DROPPED
+      // IT. `paneGate` checks `t.mode` FIRST and explicitly — its own comment
+      // says the field "exists precisely so a verdict that travels cannot be
+      // ambiguous about which question it answered". Without it an objects-only
+      // verdict reached the pane as *"this verdict came from the unknown lane"*:
+      // a refusal that is true of the object handed over and says nothing about
+      // the script, which is the most misleading shape available.
+      //
+      // ⚠ IT WAS ABSENT BEFORE THIS CHANGE TOO — nothing had ever carried a
+      // no-output verdict to a consumer that reads `mode`, so the omission cost
+      // nothing and was invisible. It is not a regression; it is a hole this
+      // path only now reaches.
+      //
+      // ⛔ `opts.strict === true` IS READ DIRECTLY, not via the `strict` const
+      // declared ~50 lines below — which this return sits ABOVE, so naming it
+      // here is a temporal-dead-zone throw that surfaces to the member as
+      // *"the translator threw"*. The selector is the same expression the const
+      // itself uses; `bothLanesAreTwoLanes.test.js` is the rail on that reading.
+      mode: opts.strict === true ? 'host' : 'screener',
     }
   }
 
