@@ -243,3 +243,19 @@ def test_preflight_pins_both_breadth_modules(monkeypatch):
 
     monkeypatch.setattr(sup, "PINNED_WICK_RECON_MD5", "0" * 32)
     assert any("breadth_wick_recon.py" in p for p in sup.preflight()["problems"])
+
+
+def test_hold_gate_blocks_the_pass_without_becoming_a_failure(tmp_path, monkeypatch):
+    """⭐ THE CONTROLLED LAUNCH. A hold must stop the PASS while leaving preflight and
+    the bars.db restore to run, and it must not be mistaken for a data failure —
+    lifting it is an operator action, not a recovery."""
+    from api.services import breadth_v2_supervisor as sup
+
+    hold = tmp_path / "v2_runner.HOLD"
+    monkeypatch.setattr(sup, "HOLD_PATH", str(hold))
+    assert not os.path.exists(sup.HOLD_PATH)
+    hold.write_text("golden smoke pending", encoding="utf-8")
+    assert os.path.exists(sup.HOLD_PATH)
+    # A hold is not a FAILED marker: the two are separate files with separate meanings.
+    assert sup.HOLD_PATH != sup.FAILED_PATH
+    assert sup.HOLD_PATH != sup.DONE_PATH

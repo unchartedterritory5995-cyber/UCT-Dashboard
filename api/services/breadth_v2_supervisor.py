@@ -67,6 +67,12 @@ ARTIFACT = os.environ.get("BREADTH_V2_ARTIFACT",
 LOCK_PATH = os.path.join(AUDIT_DIR, "v2_runner.lock")
 DONE_PATH = os.path.join(AUDIT_DIR, "v2_runner.DONE")
 FAILED_PATH = os.path.join(AUDIT_DIR, "v2_runner.FAILED")
+#: ⭐ THE CONTROLLED-LAUNCH GATE. While this file exists the runner does everything
+#: EXCEPT start the pass: preflight runs, `bars.db` is restored, the status endpoint
+#: comes up — and then it parks. That is what makes the golden smoke a real gate rather
+#: than a thing done afterwards and hoped about: the smoke runs in THIS container, on
+#: THIS bars.db, against a separate artifact, and only then is the hold lifted.
+HOLD_PATH = os.path.join(AUDIT_DIR, "v2_runner.HOLD")
 LEDGER_PATH = os.path.join(AUDIT_DIR, "v2_status.json")
 
 #: The accepted remediation, pinned by content digest so this runner cannot silently
@@ -415,6 +421,12 @@ def main(argv=None) -> int:
         _log("bars.db unavailable; exiting non-zero so the platform retries")
         _write_ledger("waiting_for_bars_db", started, boots, {})
         return 3
+
+    if os.path.exists(HOLD_PATH):
+        with open(HOLD_PATH, encoding="utf-8") as f:
+            _log("HOLD in place — preflight passed and bars.db is ready, but the pass "
+                 "will NOT start until the hold is lifted:\n" + f.read())
+        return _park("held_pre_launch", started, boots, {})
 
     stop = threading.Event()
     t = threading.Thread(target=_ledger_thread, args=(stop, started, boots), daemon=True)
