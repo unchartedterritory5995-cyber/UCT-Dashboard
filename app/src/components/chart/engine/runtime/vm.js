@@ -23,11 +23,29 @@
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
-import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
+import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import { Budget } from './limits.js'
+import { etClockAt } from '../../indicators.js'
+
+/** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
+ *
+ *  DERIVED FROM `CLOCK_FIELDS` AND VALIDATED AT MODULE LOAD, so a field
+ *  appended to the wire table without a mapping here is a named throw on
+ *  import rather than a `undefined` read that reaches a member as a silent
+ *  `NaN` in one column of a dashboard. Two hand-typed lists in the same order
+ *  is the drift this repo keeps paying for.
+ */
+const CLOCK_PROP = Object.freeze({
+  year: 'y', month: 'm', dayofmonth: 'd', dayofweek: 'dow', hour: 'h', minute: 'min',
+})
+const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
+  const k = CLOCK_PROP[f]
+  if (!k) throw new Error(`vm: no etClockAt property for clock field \`${f}\``)
+  return k
+}))
 // ⭐ THE ITERATION CEILING IS THE OBJECT PROGRAM'S OWN COLLECTION CAP, imported
 // rather than restated. A drawing cannot hold more objects than that, so a
 // buffer sized to anything else would be a second authority on how many rows a
@@ -174,6 +192,12 @@ export function execute(program, ctx, limits, opts) {
   // `VALUE_MODEL_DECISION.md`.
   const stack = new Array(256).fill(NaN)
   const series = ctx.series
+  // ⭐ THE INSTANTS OF THE REGION BEING RUN, which is what makes the ET clock
+  // answer for the right symbol: `runRequest` builds a sub-`execute` whose
+  // `barTimes` are the REQUESTED series'. Defaulting to `[]` rather than to
+  // the chart's is deliberate — a caller that supplied none gets `na` from
+  // every clock read, never another symbol's hour.
+  const clockTimes = ctx.barTimes || []
   const columns = ctx.columns
   const n = program.instructions
 
@@ -366,6 +390,42 @@ export function execute(program, ctx, limits, opts) {
       switch (op) {
         case OP.CONST: stack[sp++] = consts[a]; break
         case OP.READ_SERIES: stack[sp++] = series[a][bar]; break
+        // ⭐ THE ET CLOCK OF THE BAR THIS REGION IS ON. `barTimes` is the
+        // REGION'S own instants — `runRequest` hands the requested symbol's
+        // — so inside a `request.security` this answers for the requested
+        // bar rather than for the chart's, which is the whole reason a
+        // column cannot serve it.
+        //
+        // ⛔ A MISSING OR UNREADABLE INSTANT IS `na`, NEVER A GUESS. An
+        // absent `barTimes` (a caller that never supplied one) and an instant
+        // below the epoch floor both land here, and answering `0` would make
+        // `hour == 9` quietly true on every such bar at midnight ET.
+        case OP.READ_CLOCK: {
+          const p = etClockAt(clockTimes[bar])
+          stack[sp++] = p === null ? NaN : p[CLOCK_GETTER[a]]
+          break
+        }
+        // `time(tf, "0930-1600", tz)` -- the bar's instant when it falls inside
+        // the session, `na` when it does not. A member reaches this through
+        // `not na(...)`, which is how Pine spells "is this a regular-session
+        // bar".
+        //
+        // MILLISECONDS, because that is the unit Pine's `time` carries and this
+        // value IS Pine's `time`. The columnar lane's `time` COLUMN is seconds,
+        // which is why bare `time` stays refused rather than being quietly
+        // served here at a second unit -- a 1000x error that would still look
+        // like a plausible timestamp.
+        //
+        // The END IS EXCLUSIVE: a 16:00 bar is the first one after a
+        // 0930-1600 session, not its last.
+        case OP.SESSION: {
+          const t = clockTimes[bar]
+          const p = etClockAt(t)
+          if (p === null) { stack[sp++] = NaN; break }
+          const mod = p.h * 60 + p.min
+          stack[sp++] = (mod >= a && mod < b) ? t * 1000 : NaN
+          break
+        }
         case OP.READ_SERIES_HIST:
           // ⛔ BEFORE THE FIRST BAR IS `na`, never a wrapped index. Reading
           // `series[bar - b]` with a negative index would answer `undefined`

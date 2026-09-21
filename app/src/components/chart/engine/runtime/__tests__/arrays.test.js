@@ -135,12 +135,46 @@ describe('typed arrays in the runtime lane', () => {
       + 'plot(array.size(a))\n')).toEqual(all(3))
   })
 
-  it('CONTROL: array.sort_indices is refused BY NAME — vendor M7 is only PARTIAL', () => {
-    // ⚠️ M7 was measured on 2026-09-19 for the tie case (ties keep their order
-    // ascending, reversed descending) but its all-equal and already-descending
-    // halves are still owed, and `sort_indices`'s whole value is the tie order.
-    const r = refusalOf('a = array.from(1.0, 2.0)\nplot(array.size(array.sort_indices(a)))\n')
-    expect(r.message).toMatch(/array\.sort_indices/)
+  // ⚰️ THIS ASSERTED A REFUSAL UNTIL 2026-09-20, and the refusal was right for
+  // the build that had it: M7 measured the TIE case (ties keep their order
+  // ascending, reversed descending) and `sort_indices`'s whole value is the tie
+  // order, so a half-measured sort was worse than none.
+  //
+  // ⭐ What changed is that the MEASURED half is now implemented as measured,
+  // rather than approximated by a stable sort. A stable sort keeps ties in BOTH
+  // directions, which is correct ascending and WRONG descending — the direction
+  // a dashboard ranks by. The first attempt at this function did exactly that
+  // and the control above caught it, which is the whole reason it existed.
+  //
+  // ⚠️ THE UNMEASURED HALVES ARE STILL UNMEASURED. M7's all-equal and
+  // already-descending cases are covered by the same rule by construction, not
+  // by observation; that is recorded beside the implementation rather than
+  // dressed up as a result here.
+  describe('⭐⭐ array.sort_indices — the RANKING, and its tie order', () => {
+    it('⭐ ascending ranks low to high; descending ranks high to low', () => {
+      const src = 'a = array.from(3.0, 1.0, 2.0)\n'
+      expect(runPine(`${src}i = array.sort_indices(a)\nplot(array.get(i, 0))\n`)).toEqual(all(1))
+      expect(runPine(`${src}i = array.sort_indices(a, order.descending)\nplot(array.get(i, 0))\n`))
+        .toEqual(all(0))
+    })
+
+    it('⭐⭐ M7 — ties KEEP their order ascending and REVERSE descending', () => {
+      // ⛔ THE DISCRIMINATING CASE. Two equal keys at positions 0 and 1: a
+      // stable sort answers 0 first in both directions, so this is the only
+      // fixture that can tell the measured rule from the plausible one.
+      const src = 'a = array.from(5.0, 5.0, 1.0)\n'
+      expect(runPine(`${src}i = array.sort_indices(a, order.descending)\nplot(array.get(i, 0))\n`),
+        'descending must reverse the tie — vendor M7').toEqual(all(1))
+      expect(runPine(`${src}i = array.sort_indices(a)\nplot(array.get(i, 1))\n`),
+        'ascending must keep the tie').toEqual(all(0))
+    })
+
+    it('⛔ the source array is NOT reordered — every parallel array stays addressable', () => {
+      // `array.sort` reorders in place; this one must not, or a dashboard's
+      // symbol/RVOL/ATR arrays silently stop lining up with each other.
+      expect(runPine('a = array.from(3.0, 1.0)\nx = array.sort_indices(a)\n'
+        + 'plot(array.get(a, 0))\n')).toEqual(all(3))
+    })
   })
 
   it('CONTROL: matrix.new is refused BY NAME', () => {

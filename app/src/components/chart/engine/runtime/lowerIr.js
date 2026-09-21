@@ -12,7 +12,7 @@
 // whole program exists to stop: a script that imports, saves, reopens and draws
 // while quietly losing what it asked for.
 
-import { OP, SERIES_NAMES, makeProgram } from './program.js'
+import { OP, SERIES_NAMES, CLOCK_FIELDS, makeProgram } from './program.js'
 import { STMT, EXPR, SLOT } from './ir.js'
 import { isVoid } from './collections.js'
 
@@ -139,6 +139,16 @@ export function lowerIrProgram(ir) {
         emit(OP.READ_SERIES, i)
         return
       }
+      case EXPR.CLOCK: {
+        const i = CLOCK_FIELDS.indexOf(e.field)
+        if (i < 0) {
+          throw new LoweringGap('clock',
+            `\`${e.field}\` is not one of ${CLOCK_FIELDS.join(', ')}`)
+        }
+        emit(OP.READ_CLOCK, i)
+        return
+      }
+      case EXPR.SESSION: emit(OP.SESSION, e.start, e.end); return
       case EXPR.COLUMN: emit(OP.READ_COLUMN, e.index); return
       case EXPR.READ: {
         const s = slotAddr(e.slot)

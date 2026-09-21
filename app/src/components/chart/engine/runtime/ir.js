@@ -57,6 +57,8 @@ export const EXPR = Object.freeze({
   TUPLE: 'tuple',         // several values at once — only a function RESULT
   REQUEST: 'request',     // `request.security` — another symbol's series
   SERIES: 'series',       // a price series, by name
+  CLOCK: 'clock',         // an ET clock field of the bar — see program.js
+  SESSION: 'session',     // `time(tf, "0930-1600", tz)` — in-session or `na`
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
   HIST: 'hist',           // `e[n]` over a COLUMN (see the lowering note)
@@ -243,6 +245,19 @@ export function validateIr(p) {
         return
       case EXPR.SERIES:
         if (typeof e.name !== 'string') throw new IrError(`${where}: a series carries a name`)
+        return
+      // ⭐ SHAPE ONLY, exactly as `SERIES` above. Which field names exist is a
+      // WIRE fact and `program.js::CLOCK_FIELDS` owns it; `lowerIr` fails by
+      // name on an unknown one. Checking membership here would make this file
+      // import the wire table it is deliberately independent of, and would put
+      // a second authority over the same list.
+      case EXPR.CLOCK:
+        if (typeof e.field !== 'string') throw new IrError(`${where}: a clock read carries a field`)
+        return
+      case EXPR.SESSION:
+        if (!Number.isInteger(e.start) || !Number.isInteger(e.end)) {
+          throw new IrError(`${where}: a session carries whole-minute bounds`)
+        }
         return
       case EXPR.COLUMN:
         if (!Number.isInteger(e.index) || e.index < 0 || e.index >= nCols) {
@@ -570,6 +585,8 @@ export const colourCall = (fn, args) => ({ kind: EXPR.COLOUR, fn, args })
 export const arrayCall = (fn, args, typeArg = null) => (
   { kind: EXPR.ARRAY, fn, args, typeArg })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
+export const clock = (field) => ({ kind: EXPR.CLOCK, field })
+export const session = (start, end) => ({ kind: EXPR.SESSION, start, end })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })

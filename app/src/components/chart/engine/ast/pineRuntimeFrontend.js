@@ -42,12 +42,21 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
+  clock, session,
 } from '../runtime/ir.js'
+import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
+/** The sort directions `array.sort_indices` reads, as the strings the
+ *  collection layer compares. Two entries, and a name that is neither stays
+ *  an ordinary unbound name rather than silently defaulting to ascending. */
+const ORDER_ENUM = Object.freeze({
+  'order.ascending': 'ascending', 'order.descending': 'descending',
+})
+
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
 import { COLOUR_FNS, producesColour, hexToPacked } from '../runtime/colours.js'
@@ -810,6 +819,14 @@ export function buildRuntimeIr(source, opts = {}) {
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
     }
+    // ⭐ A HEX LITERAL IS A COLOUR — `#141414`, which the parser gives its own
+    // node type. Missing this made `color ROW_DARK = #141414` read as "not a
+    // colour", so `row % 2 == 0 ? ROW_DARK : ROW_LIGHT` was routed to the
+    // columnar lane and refused `pine:colour-value` — a correct refusal from a
+    // lane that should never have been asked. Every OTHER way of spelling a
+    // colour was already here, which is why it survived: `color.new(…)` is a
+    // call, `color.red` is a name, and the literal is neither.
+    if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
@@ -1165,6 +1182,76 @@ export function buildRuntimeIr(source, opts = {}) {
     inliningNow.add(name)
     try {
       inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at }))
+      // ⭐⭐ THE STATEMENT FORM — a body the substitution reader will not take.
+      //
+      // A `var` is frame state and an `if` is control flow; neither can become
+      // an `env` macro without changing what the script computes. But a
+      // request's region is a STATEMENT SEQUENCE with its own entry point and
+      // its own bar loop, so the body's lines are lowered straight into it, by
+      // the same `lowerStmts` the top level uses. Nothing here re-implements a
+      // declaration, an assignment or a branch.
+      //
+      // ⭐ AND THE `var` LANDS IN THE RIGHT LIFETIME BY CONSTRUCTION.
+      // `runRequest` builds a FRESH `execute` per requested symbol, and
+      // `execute` allocates the persistent block per run — so each symbol's
+      // opening-range high starts uninitialised and accumulates over ITS bars.
+      // Sharing one block across symbols is the wrong-symbol defect this whole
+      // path exists to avoid, and it is avoided by the region, not by a guard.
+      //
+      // ⛔ A CHILD SCOPE, NOT THE CALLER'S. Two call sites of one helper each
+      // lower their own copy and must not collide on a name; declaring into the
+      // caller's scope would make the second call rebind the first's slot.
+      if (!inl.lines && inl.body) {
+        if (!hoistSink) {
+          throw new RuntimeRefusal('runtime:statement',
+            `\`${name}\` has a body this reader can only lower inside a request's `
+            + 'own region, and this call is not in one', at)
+        }
+        // ⛔⛔ ATOMIC, AND THAT IS NOT TIDINESS. Both call sites of this
+        // function CATCH and fall through to an older refusal, so a throw from
+        // halfway down a body would leave the statements lowered so far sitting
+        // in the request's region — attached to a value that was never built.
+        // The region would then run them on every bar, for a call that refused.
+        // Everything lands in a local sink and is spliced in only on success.
+        //
+        // ⛔ AND NESTED HOISTS MUST LAND THERE TOO: `lowerExpr` hoists a
+        // window's source into `hoistSink` itself, so the sink is SWAPPED for
+        // the duration rather than merely written past.
+        const bodyScope = new Scope(scope)
+        const localSink = []
+        const outerSink = hoistSink
+        hoistSink = localSink
+        let value
+        try {
+          for (const s of lowerStmts(inl.body.slice(0, -1), bodyScope)) localSink.push(s)
+          const last = inl.body[inl.body.length - 1]
+          const lt = last.header || []
+          // ⛔ A FINAL LINE THAT BINDS IS STILL A STATEMENT, and its value is
+          // the result (Pine §16) — lowered as a statement, then READ, rather
+          // than evaluated twice. Twice would run any effect in it twice.
+          const eq = (last.sub && last.sub.length) ? -1 : findTop(lt, (x) => isPunct(x, '='))
+          const bound = eq > 0 && !isPunct(lt[0], '[') && !lt.some((x) => isPunct(x, ':='))
+            ? boundName(lt, eq) : null
+          if (bound) {
+            for (const s of lowerStmts([last], bodyScope)) localSink.push(s)
+            const slot = bodyScope.lookup(bound.value)
+            if (slot === null) {
+              throw new RuntimeRefusal('runtime:statement',
+                `\`${name}\` ends on a binding this reader lowered but cannot read back`, at)
+            }
+            value = read(slot)
+          } else if (last.sub && last.sub.length) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${name}\` ends on a block rather than a value`, at)
+          } else {
+            value = lowerExpr(parseWholeExpression(lt), bodyScope, opts)
+          }
+        } finally {
+          hoistSink = outerSink
+        }
+        for (const s of localSink) hoistSink.push(s)
+        return value
+      }
       // ⛔ IN ORDER: a later binding may read an earlier one, exactly as the
       // author wrote them.
       for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at })
@@ -1651,7 +1738,14 @@ export function buildRuntimeIr(source, opts = {}) {
     // bar; an enum is a fixed string the drawing layer reads.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
         && !readsPlotRef(node) && !holdsColour(node, scope)
-        && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
+        && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
+        // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
+        // drawing enums one line up. Handling `order.*` in the name branch is
+        // not enough on its own: the ROUTE decision runs FIRST, so without this
+        // the name is handed to the columnar lane and refused `pine:builtin`
+        // before the branch that knows it can ever be reached. That is exactly
+        // how the `size.*` fix read as a no-op until BOTH places changed.
+        && !(node.type === 'name' && ORDER_ENUM[node.name] !== undefined)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1696,8 +1790,36 @@ export function buildRuntimeIr(source, opts = {}) {
     switch (node.type) {
       case 'number': return num(node.value)
       case 'string': return str(node.value)
+      // ⭐ `#141414` — packed the SAME way a named colour is two hundred lines
+      // down (`colourHexByName` → `hexToPacked(hex, 0)`), so a literal and
+      // `color.red` reach the drawing layer as the same kind of value.
+      case 'colour': return num(hexToPacked(node.value, 0))
       case 'name': {
         if (inRequestValue && PRICE.has(node.name)) return series(node.name)
+        // ⭐⭐ AN ET CLOCK FIELD INSIDE A REQUEST. Outside one the columnar lane
+        // owns these and answers them as columns; inside one that lane is barred
+        // — it runs over THIS chart's bars — so the name reached
+        // `runtime:unbound`, "a name nothing in this script binds", about a
+        // column the engine has held all along. Same shape as `na` and the
+        // object enums: a vocabulary we own, refused as unknown.
+        //
+        // ⛔ A BINDING STILL WINS. A member may name a variable `hour`, and
+        // replacing it with the clock would silently change what their script
+        // computes — so this fires only where nothing else binds the name.
+        if (inRequestValue && CLOCK_FIELDS.includes(node.name)
+            && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return clock(node.name)
+        }
+        // ⭐ `order.ascending` / `order.descending` — the sort direction, which
+        // reaches `array.sort_indices` as a plain string. It is NOT a drawing
+        // enum, so it deliberately does not live in `pine.js`'s object-enum
+        // table: that table is the vocabulary for how a thing is PAINTED, and
+        // putting a sort direction in it would make the next reader of either
+        // one wrong about what it holds.
+        if (ORDER_ENUM[node.name] !== undefined
+            && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return str(ORDER_ENUM[node.name])
+        }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
         // ⭐ AN IMMUTABLE TEXT BINDING IS EXPANDED INLINE. A non-mutated name
@@ -1786,6 +1908,25 @@ export function buildRuntimeIr(source, opts = {}) {
         throw new RuntimeRefusal('runtime:unbound', `\`${node.name}\``, locate(node.tok))
       }
       case 'binary': {
+        // ⭐⭐ `%` IS `mod`, AND ROUTING IT HERE IS WHAT MAKES THE TWO LANES
+        // AGREE. `pine.js` already resolves `%` to `cCall('mod', …)`, so the
+        // columnar lane has answered it all along — measured: `plot(close % 2)`
+        // compiles, while the same `%` beside a MUTABLE value refused. One
+        // operator, served or refused depending on where its operand came from,
+        // is worse than either answer on its own.
+        //
+        // ⛔ NO SECOND IMPLEMENTATION. This emits the SAME `POINTWISE.mod` the
+        // columnar lane calls — `x - y * trunc(x / y)`, `na` on a zero divisor
+        // or a non-finite quotient — rather than JavaScript's `%`, which agrees
+        // on the easy cases and disagrees exactly where `mod`'s comment says the
+        // overflow guard matters.
+        //
+        // ⚠️ THE VENDOR DIVERGENCE IS INHERITED, NOT INTRODUCED: Pine does not
+        // publish how `%` rounds a negative operand, and truncation toward zero
+        // is this engine's declared answer in both lanes now instead of one.
+        if (node.op === '%') {
+          return irBuiltin('mod', [lowerExpr(node.left, scope), lowerExpr(node.right, scope)])
+        }
         const op = BIN[node.op]
         if (!op) {
           throw new RuntimeRefusal('runtime:operator', `\`${node.op}\` beside a mutable value`, locate(node.tok))
@@ -2218,6 +2359,120 @@ export function buildRuntimeIr(source, opts = {}) {
         // exist, `Math.max` propagates the NaN, and `smoothStep` HOLDS on a
         // non-finite sample. That is what makes the warm-up land on the same bar
         // as the shipped one, which starts its loop at `i = 1`.
+        // ⭐⭐ `hour(time, "America/New_York")` IS THE `hour` COLUMN, and saying
+        // so is what keeps one clock. `indicators.js::etClockAt` already serves
+        // every ET field the columnar lane publishes; this routes the CALL form
+        // onto it instead of implementing a second timezone conversion, which
+        // is the same ruling `ta.atr` got and for the same reason.
+        //
+        // ⛔⛔ ANY OTHER TIMEZONE IS REFUSED BY NAME, NEVER COMPUTED AS ET. This
+        // engine's clock is `America/New_York` end to end; answering a Tokyo
+        // request with New York hours would put a number on screen that looks
+        // entirely reasonable and is wrong by a fixed offset — the most
+        // expensive kind of wrong answer available here. An absent timezone
+        // means the exchange's, which for this platform IS ET.
+        //
+        // ⛔ AND THE INSTANT MUST BE `time` — the bar's own. These fields read
+        // the bar being evaluated, so a computed instant (`time + 3600`, a
+        // stored timestamp) is refused rather than silently answered for the
+        // wrong moment.
+        if (CLOCK_FIELDS.includes(node.name) && node.args && node.args.length) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length > 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes an instant and an optional timezone, `
+              + `given ${given.length}`, at)
+          }
+          if (!(given[0] && given[0].type === 'name' && given[0].name === 'time')) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}(…)\` reads the clock of the bar being evaluated, so `
+              + 'its instant has to be `time` — a computed instant would be '
+              + 'answered for the wrong moment', at)
+          }
+          if (given.length === 2) {
+            const tzNode = given[1]
+            const tz = tzNode && tzNode.type === 'string' ? tzNode.value : null
+            if (tz !== 'America/New_York') {
+              throw new RuntimeRefusal('runtime:statement',
+                `\`${node.name}\` is served in America/New_York, and this asks for `
+                + `${tz === null ? 'a timezone only known while the bar runs' : `\`${tz}\``}`
+                + ' — answering it with New York hours would be wrong by a fixed '
+                + 'offset and would look entirely reasonable', at)
+            }
+          }
+          return clock(node.name)
+        }
+        // ⭐⭐ `time(timeframe.period, "0930-1600", "America/New_York")` — Pine's
+        // SESSION CLOCK, and the idiom is always `not na(…)`: "is this bar in
+        // the regular session". It answers the bar's own instant inside the
+        // window and `na` outside, which is what makes that check work.
+        //
+        // ⛔ THE BOUNDS ARE FOLDED HERE, NOT AT RUN TIME. A session is a literal
+        // in every script that uses one, so parsing it once at lowering keeps the
+        // bar loop free of string work — and, more importantly, makes a
+        // malformed session a REFUSAL with a line number rather than a silent
+        // `na` on every bar, which reads exactly like "the market was shut".
+        if (node.name === 'time' && node.args && node.args.length >= 2) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length > 3) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`time\` takes a timeframe, a session and an optional timezone, `
+              + `given ${given.length}`, at)
+          }
+          const tf = given[0]
+          if (!(tf && tf.type === 'name' && tf.name === 'timeframe.period')) {
+            throw new RuntimeRefusal('runtime:statement',
+              'the session clock reads the timeframe the bars are ON, so its first '
+              + 'argument has to be `timeframe.period` — a different timeframe would '
+              + 'need bars this region does not have', at)
+          }
+          if (!(given[1] && given[1].type === 'string')) {
+            throw new RuntimeRefusal('runtime:statement',
+              'a session has to reach the engine as a literal like `"0930-1600"`, so '
+              + 'its bounds are known before the first bar', at)
+          }
+          if (given.length === 3) {
+            const tzNode = given[2]
+            const tz = tzNode && tzNode.type === 'string' ? tzNode.value : null
+            if (tz !== 'America/New_York') {
+              throw new RuntimeRefusal('runtime:statement',
+                'the session clock is served in America/New_York, and this asks for '
+                + `${tz === null ? 'a timezone only known while the bar runs' : `\`${tz}\``}`
+                + ' — answering it with New York session bounds would put every bar '
+                + 'in or out of session by a fixed offset', at)
+            }
+          }
+          const spec = String(given[1].value).trim()
+          // ⛔ A DAY MASK (`"0930-1600:23456"`) IS REFUSED BY NAME. Serving the
+          // time half and dropping the day half would put weekend bars inside a
+          // weekday-only session — a wrong answer that looks like a working one.
+          const m = /^(\d{2})(\d{2})-(\d{2})(\d{2})$/.exec(spec)
+          if (!m) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${spec}\` is not a session this engine reads — it takes \`HHMM-HHMM\``
+              + (spec.includes(':') ? ', and a day mask is not served yet' : ''), at)
+          }
+          const [sh, sm, eh, em] = m.slice(1).map(Number)
+          if (sh > 23 || eh > 23 || sm > 59 || em > 59) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${spec}\` names a time that does not exist`, at)
+          }
+          const start = sh * 60 + sm
+          const end = eh * 60 + em
+          // ⛔ AN OVERNIGHT SESSION WRAPS MIDNIGHT and is a different membership
+          // test (two ranges, and a bar's session DAY stops matching its calendar
+          // day). Refused rather than tested with `start <= x < end`, which is
+          // empty for every wrapping session — so every bar would read as out of
+          // session and the script would simply show nothing.
+          if (end <= start) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${spec}\` runs overnight, and a wrapping session is a different `
+              + 'membership test this engine does not serve yet', at)
+          }
+          return session(start, end)
+        }
         if (node.name === 'ta.atr' || node.name === 'atr') {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
@@ -2244,7 +2499,7 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
         }
-                const car = carriedTarget(node.name)
+        const car = carriedTarget(node.name)
         if (car) {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
@@ -2986,18 +3241,30 @@ export function buildRuntimeIr(source, opts = {}) {
     // refuses that, correctly, and names re-lowering per requested symbol as the
     // next step. This is that step, for the shape the corpus actually writes.
     //
-    // ⛔ NARROW BY CONSTRUCTION: every body line must be a plain `name = expr`
-    // binding. A `var`, a `:=`, an `if` or a loop returns null and the call
-    // refuses exactly as it did before — substitution is only sound for bindings
-    // that are pure and used where they are written.
+    // ⭐ TWO FORMS, AND THE NARROW ONE IS TRIED FIRST ON PURPOSE.
+    //
+    // `lines` is the SUBSTITUTION form: every body line is a plain `name = expr`
+    // binding, so each becomes an `env` macro and the body is lowered in the
+    // CALLER's context. ⛔ That is what makes a parameter FOLDABLE —
+    // `calcDaily(simple int N) => ta.sma(volume[1], N)` sizes its window only
+    // because `N` substitutes to the caller's literal rather than staying a
+    // frame slot. Lowering it as statements instead would put `N` back in a slot
+    // and re-break the measured case, so this path keeps priority.
+    //
+    // `body` is the STATEMENT form, kept for every block body including the ones
+    // `lines` refuses. A `var`, a `:=` or an `if` is not substitutable — it is
+    // state and control flow — but a request's region IS a statement sequence,
+    // so those lines can be lowered INTO it. That is what `carriesColumn` named
+    // as the next capability, and it is what lets a helper like
+    // `isAbove30mOrb()` — `var` + `if` + a clock read — run per requested
+    // symbol instead of against this chart's bars.
     record.inlineBody = (() => {
       try {
         if (arrow !== toks.length - 1) {
-          return { params, lines: [], result: parseWholeExpression(toks.slice(arrow + 1)) }
+          return { params, lines: [], result: parseWholeExpression(toks.slice(arrow + 1)), body: null }
         }
         const lines = st.sub || []
         if (!lines.length) return null
-        const binds = []
         const readBind = (t) => {
           if (t.some((x) => isPunct(x, ':='))) return null
           if (t[0] && (t[0].value === 'var' || t[0].value === 'varip')) return null
@@ -3007,19 +3274,24 @@ export function buildRuntimeIr(source, opts = {}) {
           if (!nt) return null
           return { name: nt.value, node: parseWholeExpression(t.slice(eq + 1)) }
         }
-        for (const ln of lines.slice(0, -1)) {
-          if (ln.sub && ln.sub.length) return null
-          const b = readBind(ln.header || [])
-          if (!b) return null
-          binds.push(b)
-        }
-        const last = lines[lines.length - 1]
-        if (last.sub && last.sub.length) return null
-        const lt = last.header || []
-        const lb = readBind(lt)
-        // A final binding yields the value it bound (Pine §16), so the result is
-        // that expression — there is no name left to read it through.
-        return { params, lines: binds, result: lb ? lb.node : parseWholeExpression(lt) }
+        const narrow = (() => {
+          const binds = []
+          for (const ln of lines.slice(0, -1)) {
+            if (ln.sub && ln.sub.length) return null
+            const b = readBind(ln.header || [])
+            if (!b) return null
+            binds.push(b)
+          }
+          const last = lines[lines.length - 1]
+          if (last.sub && last.sub.length) return null
+          const lt = last.header || []
+          const lb = readBind(lt)
+          // A final binding yields the value it bound (Pine §16), so the result
+          // is that expression — there is no name left to read it through.
+          return { lines: binds, result: lb ? lb.node : parseWholeExpression(lt) }
+        })()
+        if (narrow) return { params, lines: narrow.lines, result: narrow.result, body: lines }
+        return { params, lines: null, result: null, body: lines }
       } catch { return null }
     })()
     if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)

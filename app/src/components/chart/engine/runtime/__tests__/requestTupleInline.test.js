@@ -97,12 +97,39 @@ describe('⭐⭐ a helper called inside a request is lowered AT THE CALL SITE', 
     expect(['runtime:recursion', 'runtime:function']).toContain(r.refusal.guard)
   })
 
-  it('⛔ a body this reader cannot substitute is NOT inlined', () => {
-    // A `var` is state that belongs to a frame; substituting it would make each
-    // use its own fresh binding and quietly change what the script computes.
+  // ⚰️ THIS ASSERTED A REFUSAL UNTIL 2026-09-20, and its reasoning was right
+  // about SUBSTITUTION and wrong about the conclusion. "A `var` is state that
+  // belongs to a frame; substituting it would make each use its own fresh
+  // binding" — true, and that is why the body is no longer SUBSTITUTED. It is
+  // LOWERED AS STATEMENTS into the request's own region, where `var` becomes a
+  // real persistent slot rather than a macro. The hazard the refusal named is
+  // avoided by not doing the thing it warned about, not by refusing the script.
+  it('⭐⭐ a `var` body is lowered as STATEMENTS into the request region', () => {
     const r = build('f(x) =>\n    var acc = 0.0\n    acc := acc + x\n    acc\n'
       + 'plot(request.security("AAPL", "1D", f(close)))\n')
-    expect(r.ok).toBe(false)
+    expect(r.ok, why(r)).toBe(true)
+    // ⭐ The statements are what shows the body went INTO the region rather than
+    // being shared from a frame lowered against this chart's bars.
+    expect(r.ir.requests[0].statements.length,
+      'nothing was lowered into the region — the body took some other path')
+      .toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ TWO call sites of one helper do NOT share its `var`', () => {
+    // ⛔ Pine's function-local `var` persists PER CALL SITE. Two calls sharing
+    // one slot is a wrong number with nothing red anywhere — the exact defect
+    // `ir.js`'s SLOT docstring names. Each call site lowers its own copy into
+    // its own child scope, so the two accumulate independently.
+    const r = build('f(x) =>\n    var acc = 0.0\n    acc := acc + x\n    acc\n'
+      + 'a = request.security("AAPL", "1D", f(close))\n'
+      + 'b = request.security("MSFT", "1D", f(volume))\n'
+      + 'plot(a + b)\n')
+    expect(r.ok, why(r)).toBe(true)
+    const slots = r.ir.requests.flatMap((q) => (q.statements || [])
+      .filter((s) => s.kind === 'declare').map((s) => s.slot))
+    expect(new Set(slots).size,
+      `both call sites declared into the same slot(s): ${slots.join(',')}`)
+      .toBe(slots.length)
   })
 
   it('⛔ OUTSIDE a request nothing changed — the shared frame is still used', () => {

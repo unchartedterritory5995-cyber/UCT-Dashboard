@@ -162,6 +162,66 @@ export const ARRAY_FNS = Object.freeze({
       return parts
     },
   },
+  // ⭐⭐ `array.sort_indices(id, order)` — the RANKING, not the sorted values.
+  // It returns the positions that WOULD sort the array, which is how a
+  // dashboard orders its rows while keeping every parallel array (symbols,
+  // RVOL, ATR, …) addressable by one index.
+  //
+  // ⛔ THE SOURCE IS NEVER MUTATED. `array.sort` reorders in place; this one
+  // does not, and a member's other arrays are indexed off the original order —
+  // sorting it here would silently re-point every one of them.
+  //
+  // ⛔⛔ THE TIE ORDER IS THE MEASURED PART, AND IT IS NOT SYMMETRIC.
+  // Vendor packet M7, measured 2026-09-19: ties KEEP their order ascending and
+  // are REVERSED descending. A plain stable sort keeps them in BOTH directions
+  // and is therefore wrong on descending — which is the direction a dashboard
+  // uses, and the case `sort_indices` exists for at all.
+  //
+  // ⚰️ A first version of this shipped that stable sort and was caught by
+  // `arrays.test.js`'s own control, which had refused the function BY NAME
+  // precisely because M7 is partial. A refusal backed by a measurement is not a
+  // gap to be filled in passing.
+  //
+  // ⚠️ STILL OWED, AND EXTRAPOLATED RATHER THAN MEASURED: M7's all-equal and
+  // already-descending halves. The reversed-tie rule below covers them by
+  // construction, so they are consistent with what WAS measured — but nobody
+  // has watched the vendor do them, and that is the honest status.
+  //
+  // ⚠️ `na` SINKS IN BOTH DIRECTIONS — also unmeasured. A comparator returning
+  // NaN makes the order implementation-defined, so a rule had to exist; sinking
+  // is the one that behaves for this product (a symbol with no data ranks last
+  // either way), and it is a choice, not a finding.
+  'array.sort_indices': {
+    args: ['array', 'string'], returns: 'array', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      const src = a[0]
+      const desc = a[1] === 'descending'
+      budget.charge('ARRAY_OPERATIONS', src.length)
+      budget.peak('ARRAY_ELEMENTS', src.length)
+      const idx = src.map((_, i) => i)
+      idx.sort((i, j) => {
+        const x = src[i]
+        const y = src[j]
+        const xs = typeof x === 'string'
+        const ys = typeof y === 'string'
+        let c
+        if (xs && ys) c = x < y ? -1 : x > y ? 1 : 0
+        else {
+          const xn = typeof x === 'number' && Number.isFinite(x)
+          const yn = typeof y === 'number' && Number.isFinite(y)
+          if (!xn && !yn) c = 0
+          else if (!xn) return 1
+          else if (!yn) return -1
+          else c = x < y ? -1 : x > y ? 1 : 0
+        }
+        // ⭐ THE TIE BRANCH IS THE WHOLE MEASUREMENT: equal keys keep their
+        // order ascending (`i - j`) and reverse descending (`j - i`).
+        if (c === 0) return desc ? j - i : i - j
+        return desc ? -c : c
+      })
+      return idx
+    },
+  },
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },
   'array.get': {
     args: ['array', 'number'], returns: 'any',

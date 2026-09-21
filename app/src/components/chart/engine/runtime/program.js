@@ -45,6 +45,16 @@ export const OP = Object.freeze({
   // owns price history, but a REQUEST runs over another symbol's series and
   // has no column of them — a: series index, b: bars back.
   READ_SERIES_HIST: 4,
+  // ⭐ AN ET CLOCK FIELD OF THE BAR BEING EVALUATED — a: `CLOCK_FIELDS` index.
+  // The columnar lane serves these as columns; a REQUEST cannot reach a column,
+  // because the columnar lane runs over THIS chart's bars and a request's value
+  // belongs to another symbol on another timeframe. This reads the region's own
+  // `barTimes`, so `hour(time, "America/New_York")` inside a request answers for
+  // the REQUESTED bar. See `indicators.js::etClockAt` — one clock, both lanes.
+  READ_CLOCK: 5,
+  // The bar's instant in MILLISECONDS when it falls inside a session, `na`
+  // otherwise — a: session start, b: session end, both minutes past ET midnight.
+  SESSION: 6,
   // ── arithmetic (NaN-propagating) ──
   ADD: 10,
   SUB: 11,
@@ -181,6 +191,8 @@ export const OP = Object.freeze({
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
   OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
+  OP.READ_CLOCK,
+  OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
   OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE,
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
@@ -199,6 +211,22 @@ export const OP_NAME = Object.freeze(
  *  is a wire fact: it is baked into every lowered program, so appending is safe
  *  and reordering silently re-points every saved artifact. */
 export const SERIES_NAMES = Object.freeze(['open', 'high', 'low', 'close', 'volume'])
+
+/** The ET clock fields the runtime lane serves, in the order it indexes them.
+ *  ⛔ A wire fact like `SERIES_NAMES`: appending is safe, reordering re-points
+ *  every lowered program.
+ *
+ *  ⛔⛔ `time` IS DELIBERATELY ABSENT. Pine's `time` is a bar timestamp in
+ *  MILLISECONDS and every instant inside this engine is SECONDS, so exposing it
+ *  here would put a 1000× error one careless read away — and it would look like
+ *  a plausible timestamp, not like an error. The existing `pine:builtin` refusal
+ *  on bare `time` says so by name and stays.
+ *
+ *  ⚠️ `second` is absent because `etClockAt` does not produce one: bar instants
+ *  on this platform are minute-resolution at best, and a fabricated `0` would be
+ *  indistinguishable from a real zero second. Refused by name instead. */
+export const CLOCK_FIELDS = Object.freeze(
+  ['year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute'])
 
 export class ProgramError extends Error {
   constructor(message) { super(message); this.name = 'ProgramError' }

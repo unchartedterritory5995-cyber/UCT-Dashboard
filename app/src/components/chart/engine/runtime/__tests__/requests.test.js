@@ -195,17 +195,41 @@ describe('request.security', () => {
     expect(built.ir.requests[0].statements.length).toBeGreaterThan(0)
   })
 
-  it("⛔ a body this reader cannot substitute is STILL refused", () => {
-    // Substitution is sound only for plain `name = expr` bindings. A `var` is
-    // frame state; inlining it would make each use its own fresh binding and
-    // quietly change what the script computes — so the shared frame is used,
-    // and the column guard fires exactly as before.
-    const r = refusalOf(
-      'f() =>\n'
+  it("⭐⭐ a body with STATE and CONTROL FLOW is now lowered into the region", () => {
+    // ⚰️ THIS ASSERTED A REFUSAL UNTIL 2026-09-20. Its reasoning was right about
+    // substitution — "a `var` is frame state; inlining it would make each use
+    // its own fresh binding" — and that is precisely why the body is no longer
+    // substituted. A request's region is a STATEMENT SEQUENCE, so the body is
+    // lowered into it: the `var` becomes a real persistent slot and
+    // `ta.sma(volume, 3)` runs over the REQUESTED symbol's volume, which is the
+    // wrong-symbol defect the old refusal was protecting against.
+    //
+    // ⭐ The lifetime is right BY CONSTRUCTION rather than by a guard:
+    // `runRequest` builds a fresh `execute` per requested symbol and `execute`
+    // allocates the persistent block per run, so each symbol accumulates its
+    // own `acc` and none of them sees this chart's.
+    const built = buildRuntimeIr(
+      `${head}f() =>\n`
       + '    var float acc = 0.0\n'
       + '    acc := acc + ta.sma(volume, 3)\n'
       + '    acc\n'
-      + 'y = request.security(\"OTHER\", \"D\", f())\n'
+      + 'y = request.security("OTHER", "D", f())\n'
+      + 'plot(y)\n', { bars: BARS, inputs: {} })
+    expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    expect(built.ir.requests[0].statements.length,
+      'the body did not reach the region').toBeGreaterThan(0)
+  })
+
+  it("⛔ and a body that ends on a BLOCK rather than a value is still refused", () => {
+    // ⭐ The statement path did not become a blanket yes. A body whose last line
+    // is an `if` has no value to hand back, and inventing one — `na`, or the
+    // last assignment — would answer a number the author never wrote.
+    const r = refusalOf(
+      'f() =>\n'
+      + '    var float acc = 0.0\n'
+      + '    if close > 0\n'
+      + '        acc := 1.0\n'
+      + 'y = request.security("OTHER", "D", f())\n'
       + 'plot(y)\n')
     expect(r).toBeTruthy()
   })
