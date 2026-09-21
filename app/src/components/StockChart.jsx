@@ -3795,6 +3795,16 @@ export default function StockChart({
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  // ⛔ WHOSE BARS `prevBarsRef` IS HOLDING. It carries no symbol of its own, and the
+  // off-cursor readout (`computeLatestCrosshair`) reads it — so on a ticker switch the
+  // bar-info strip printed the PREVIOUS ticker's O/H/L/C and Volume under the NEW
+  // ticker's name. Confirmed against production quotes 2026-09-20: a chart headed
+  // GOOGL showed MU's candle (1015.80 / +3.92% / O 984.72 H 1016.44 L 977.83) and one
+  // headed NOW showed TRI's, exact to the volume (4,007,052).
+  //
+  // ⚠️ `lastBarSymRef` below already stamps the DEVELOPING bar for the same reason;
+  // this is the same guard for the BASE bar, which that one never covered.
+  const prevBarsSymRef = useRef(null)
   // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
   // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
   // the no-op/incremental render plan must be measured against what's on screen, or a
@@ -4477,6 +4487,14 @@ export default function StockChart({
   const computeLatestCrosshair = () => {
     const bars = prevBarsRef.current
     if (!bars || !bars.length) return null
+    // ⛔ IDENTITY BEFORE VALUES. Clearing `prevBarsRef` on the empty-bars path fixes
+    // the route that produced the GOOGL-showing-MU readout; this makes the whole
+    // class unreachable. The ref is written in ONE place, so any future path that
+    // leaves bars behind on a switch cannot turn them into a readout for the wrong
+    // ticker — it just shows no readout for the frame until the new bars land.
+    // `_legendSymOk` below guards only the DEVELOPING bar and the live-price
+    // overlay; the base o/h/l/c was taken from this array unconditionally.
+    if (prevBarsSymRef.current !== symRef.current) return null
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
@@ -9621,6 +9639,19 @@ export default function StockChart({
       }
       lastCfgSigRef.current = null
       prevPaintBarsRef.current = null   // series were cleared — next paint must be full
+      // ⛔ THE READOUT'S SOURCE IS CLEARED WITH THE SERIES IT DESCRIBES. This arm
+      // emptied every series but left `prevBarsRef` holding the OUTGOING ticker's
+      // bars, and `computeLatestCrosshair` reads that ref — so the bar-info strip
+      // kept printing the old ticker's O/H/L/C and Volume under the new ticker's
+      // name, on top of an opaque skeleton. Worse, `ohlcData` recomputing to a
+      // fresh [] re-fires the readout effect, actively RE-publishing the stale
+      // payload. A chart with no bars must have no readout.
+      //
+      // ⚠️ `lastBarCountRef` is deliberately NOT reset here. It anchors the preserved
+      // view across a ticker switch (`oldBarCount`), which is separate machinery with
+      // its own feedback-loop history — this fix is about data identity, not framing.
+      prevBarsRef.current = null
+      prevBarsSymRef.current = null
       return
     }
 
@@ -12763,6 +12794,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
+    prevBarsSymRef.current = symRef.current   // whose bars these are — see the ref's note
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -16354,6 +16386,7 @@ export default function StockChart({
         lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
         lastCfgSigRef.current = null
         prevBarsRef.current = null
+        prevBarsSymRef.current = null           // the stamp goes with the bars it names
         prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null
