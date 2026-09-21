@@ -95,7 +95,7 @@ import { anyCachedBars } from './engine/secondaryBars'
 // function would classify a Cboe volatility index as a plain security and offer it
 // candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
 // until both registries have landed.
-import useMarketIndicators, { canonicalFamily } from '../../hooks/useMarketIndicators'
+import useMarketIndicators, { canonicalFamily, presentationFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
@@ -1784,7 +1784,12 @@ export default function ChartSettingsIndicators({
     if (def.meta.labelFrom === 'source') {
       const parsed = rawSource ? parseSource(rawSource) : null
       if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
-      const fam = canonicalFamily(parsed.symbol)
+      // ⛔ PRESENTATION, NOT CAPABILITY. This is the subtitle under the row's name;
+      // `canCandle` above is the gate, and it keeps the fail-closed `canonicalFamily`.
+      // Reading the gate's classifier here blanked the KIND line for ordinary
+      // securities until the market-indicator registry landed — a label paying the
+      // price of a security decision.
+      const fam = presentationFamily(parsed.symbol)
       if (fam === 'breadth') return BREADTH_CATEGORY
       if (fam === 'security') return 'Market data'
       return null

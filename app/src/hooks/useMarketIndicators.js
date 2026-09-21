@@ -118,6 +118,41 @@ export function canonicalFamily(sym) {
   return OHLC_FAMILY.SECURITY
 }
 
+/**
+ * `OHLC_FAMILY[...]` FOR PRESENTATION ONLY — never for a capability decision.
+ *
+ * ⭐⭐ TWO RESPONSIBILITIES, TWO FUNCTIONS, AND THAT SEPARATION IS THE WHOLE POINT.
+ * `canonicalFamily` answers the question "may this draw a candle?" and is fail-closed:
+ * until BOTH registries have answered it says `'unknown'`, because admitting a survey
+ * as a security for the first few hundred milliseconds of a page load is a real defect.
+ * This function answers a different question — "what noun do I print under the row's
+ * name?" — and a blank subtitle is the only thing at stake.
+ *
+ * ⚰️ MEASURED, NOT ASSUMED. Pointing the inspector's subtitle at the fail-closed
+ * classifier blanked the KIND line for ordinary securities whenever the market-indicator
+ * registry had not landed, and — because the same classifier feeds `ohlcCapabilityOf`
+ * — briefly withheld CANDLES from every ordinary stock too. One function was doing
+ * both jobs, so tightening it for the gate silently tightened it for a label.
+ *
+ * ⛔ IT IS AUTHORITATIVE WHENEVER IT CAN BE. The MI registry is consulted FIRST via
+ * `canonicalFamily`, so a Cboe series is named a volatility index and a survey a survey
+ * the moment the registry exists. Only the `'unknown'` case — the registry genuinely
+ * has not answered — falls back to the breadth-only classification, which is exactly
+ * what this call site read before the market-indicator catalogue existed.
+ *
+ * ⛔⛔ DO NOT PASS THIS TO `ohlcCapabilityOf`. Presentation metadata may not weaken a
+ * capability gate; `marketIndicatorPresentationIsNotACapability` in the engine's
+ * capability rail asserts that it never does.
+ */
+export function presentationFamily(sym) {
+  const fam = canonicalFamily(sym)
+  if (fam !== OHLC_FAMILY.UNKNOWN) return fam
+  // `canonicalFamily` withholds an answer when EITHER registry is missing. The breadth
+  // registry is the one this label has always depended on, so defer to it alone.
+  if (!marketIndicatorRegistryReady()) return breadthSymbolFamily(sym)
+  return fam
+}
+
 /** Start the fetch without mounting a component. Safe to call repeatedly. */
 export function loadMarketIndicators() {
   return _load()
