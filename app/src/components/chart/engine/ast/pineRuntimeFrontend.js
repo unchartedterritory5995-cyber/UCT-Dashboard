@@ -1109,6 +1109,19 @@ export function buildRuntimeIr(source, opts = {}) {
    */
   /** Names currently being inlined — a recursion guard, since an inlined body
    *  can reach another call to the same function. */
+  /** Pine's TRUE RANGE, parsed from source so the expression has ONE spelling.
+   *  ⭐ Built here rather than assembled from IR constructors: written as IR
+   *  it is twelve nested calls nobody can read, and a reader cannot check it
+   *  against Pine's definition at a glance. Parsed fresh per call — lowering
+   *  may stamp nodes, and a shared AST would carry one call's marks to the
+   *  next. */
+  const trueRangeAst = () => {
+    const src = ['//@version=6', 'x = math.max(high - low, math.max('
+      + 'math.abs(high - close[1]), math.abs(low - close[1])))', ''].join('\n')
+    const { tokens } = lexPine(src)
+    const eq = tokens.findIndex((t) => isPunct(t, '='))
+    return parseWholeExpression(tokens.slice(eq + 1))
+  }
   const inliningNow = new Set()
   /** Statements hoisted OUT of the expression being lowered, to run before it
    *  on the same bar. ⭐ Non-null only inside a request's value — the one
@@ -2184,6 +2197,52 @@ export function buildRuntimeIr(source, opts = {}) {
             ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, 1, at), 1)
             : histSlot(varSlot, historySlotFor(varSlot, 1, at), 1)
           return binary('-', read(varSlot), prev)
+        }
+        // ⭐⭐ `ta.atr(n)` IS `ta.rma(trueRange, n)`, AND THAT IS NOT A
+        // CONVENIENCE — IT IS HOW THE TWO LANES ARE KEPT TO ONE NUMBER.
+        //
+        // The columnar lane serves ATR from the SHIPPED `computeATR`, which
+        // accumulates the first `n` true ranges, seeds `atr = sum / n`, then
+        // steps `atr = (atr * (n - 1) + tr) / n`. `CARRIED.rma` with `k = 1/n`
+        // does exactly that: `smoothStep` seeds from an SMA over the first `n`
+        // finite samples and then runs `prev * (1 - k) + v * k`. Read side by
+        // side, they are the same recurrence with the same seed.
+        //
+        // ⛔ SO THIS DESUGARS RATHER THAN IMPLEMENTING. A second ATR here would
+        // be a second authority on a number a member reads off the screen, and
+        // the two would drift the first time either seed changed. `atrParity`
+        // in `runtime/__tests__/atr.test.js` measures the agreement against
+        // `computeATR` itself rather than asserting it.
+        //
+        // ⛔ THE TRUE RANGE IS `na` ON BAR 0, deliberately: `close[1]` does not
+        // exist, `Math.max` propagates the NaN, and `smoothStep` HOLDS on a
+        // non-finite sample. That is what makes the warm-up land on the same bar
+        // as the shipped one, which starts its loop at `i = 1`.
+        if (node.name === 'ta.atr' || node.name === 'atr') {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes a length, given ${given.length}`, at)
+          }
+          const n = foldConstNode(given[0], at,
+            `the length of \`${node.name}\` is only known while the bar is running, `
+            + 'so the state it needs cannot be sized before bar 0')
+          if (n < 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+          }
+          const entry = { fn: 'rma', n, name: `${node.name}(${n})` }
+          let aidx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            aidx = list.length
+            list.push(entry)
+          } else {
+            aidx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
         }
                 const car = carriedTarget(node.name)
         if (car) {
