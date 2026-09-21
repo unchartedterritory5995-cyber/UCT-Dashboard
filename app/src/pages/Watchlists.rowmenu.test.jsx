@@ -40,12 +40,18 @@ const COMMUNITY_WL = {
 const mutateMine = vi.fn()
 // Prebuilt rows are swapped per test (an alias pick needs one carrying `alias`).
 const hoisted = vi.hoisted(() => ({ prebuilt: [] }))
+// Keys are matched on the PATH: the prebuilt catalogue is now requested as the
+// slim directory (`?include_items=0`), and a prebuilt list's MEMBERSHIP arrives
+// through a separate array-keyed fetch. Matching whole URL strings made this mock
+// silently answer `[]` the moment a flag was added — which is how the page under
+// test lost its rows without any production code being wrong.
+const _key = (k) => (typeof k === 'string' ? k.split('?')[0] : null)
 vi.mock('swr', () => ({
   default: (key) => {
-    if (key === '/api/watchlists') return { data: [WL], mutate: mutateMine }
-    if (key === '/api/watchlists/public') return { data: [COMMUNITY_WL], mutate: () => {} }
-    if (key === '/api/watchlists/prebuilt') return { data: hoisted.prebuilt, mutate: () => {} }
-    return { data: [], mutate: () => {} }
+    if (_key(key) === '/api/watchlists') return { data: [WL], mutate: mutateMine }
+    if (_key(key) === '/api/watchlists/public') return { data: [COMMUNITY_WL], mutate: () => {} }
+    if (_key(key) === '/api/watchlists/prebuilt') return { data: hoisted.prebuilt, mutate: () => {} }
+    return { data: undefined, mutate: () => {} }
   },
 }))
 vi.mock('../context/AuthContext', () => ({

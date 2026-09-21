@@ -19,6 +19,7 @@ import PickerHeader from './PickerHeader'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { aliasKey } from '../../watchlist/communityPick'
+import { PREBUILT_DIRECTORY_URL, PICKER_MY_LISTS_URL } from '../../watchlist/prebuiltDirectory'
 import styles from './WatchlistPicker.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : []))
@@ -65,9 +66,12 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   const patchSettings = useCallback((patch) => onSettingsPersist?.({ ...wlSettings, ...patch }), [wlSettings, onSettingsPersist])
   const resetSettings = useCallback(() => onSettingsPersist?.({ ...WATCHLIST_DEFAULTS }), [onSettingsPersist])
 
-  const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher)
+  // ⛔ The picker draws NAMES and COUNTS — it reads neither list's `items`. See
+  // `prebuiltDirectory.js` for the 607 KB / 4,704-row payload that used to arrive
+  // here, and for why both URLs stay imported constants rather than literals.
+  const { data: myLists, mutate: mutateMine } = useSWR(PICKER_MY_LISTS_URL, fetcher)
   const { data: communityLists } = useSWR('/api/watchlists/public', fetcher)
-  const { data: prebuiltLists } = useSWR('/api/watchlists/prebuilt', fetcher)
+  const { data: prebuiltLists } = useSWR(PREBUILT_DIRECTORY_URL, fetcher)
   const { templates } = useWatchlistTemplates()
 
   const [tab, setTab] = useState(initialTab || 'mine')   // restore the tab the user left from

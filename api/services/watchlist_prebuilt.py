@@ -262,11 +262,24 @@ def issue_date_map():
 def alias_map():
     """{lowercased list name: {"alias", "label"}} — the stable alias the NEWEST
     Sunday Scans issue carries (exactly one row, or none when the store is
-    unavailable), so a widget can pin "the latest issue" rather than a date."""
-    specs = sunday_scans_specs()
-    if not specs:
+    unavailable), so a widget can pin "the latest issue" rather than a date.
+
+    ⚠️ Reads the DATED rows of the memoized config rather than calling
+    `sunday_scans_specs()` again. `_load_committed()` already appends exactly those
+    specs — they ARE the rows carrying `issue_date`, which is the same set
+    `issue_date_map()` answers from — so the newest is identical either way. What
+    changes is the cost: the direct call opened a FIFTH fresh SQLite connection to
+    the desk store per request and ran a double unindexed LIKE scan, on a network
+    volume, to re-derive something the memo was already holding.
+
+    Freshness contract: a newly published issue takes over the alias within the
+    config memo's TTL, not instantly. That is the right trade for a WEEKLY source.
+    The seeder and `_reconcile_sunday_family` still call `sunday_scans_specs()`
+    directly — they are writers reconciling against the store and must see it now."""
+    dated = [l for l in _load_committed() if l.get("issue_date")]
+    if not dated:
         return {}
-    newest = max(specs, key=lambda s: s["issue_date"])
+    newest = max(dated, key=lambda s: s["issue_date"])
     return {newest["name"].strip().lower():
             {"alias": SUNDAY_SCANS_LATEST_ALIAS, "label": SUNDAY_SCANS_LATEST_LABEL}}
 

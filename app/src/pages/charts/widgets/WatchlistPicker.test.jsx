@@ -20,12 +20,17 @@ vi.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ user: { display_name: 'Test' } }),
 }))
 
+// The picker asks for the SLIM directory (`?include_items=0`) and slim own-lists,
+// so these mocks match the PATH — they describe which endpoint answered, not
+// which flags the caller happened to send.
+const _path = (url) => String(url).split('?')[0]
+
 let created = []
 
 beforeEach(() => {
   created = []
   vi.stubGlobal('fetch', vi.fn((url, opts) => {
-    if (String(url) === '/api/watchlists' && opts?.method === 'POST') {
+    if (_path(url) === '/api/watchlists' && opts?.method === 'POST') {
       const body = JSON.parse(opts.body)
       if (body.name === 'BOOM') return Promise.resolve({ ok: false, status: 500 })
       // A 2xx that carries no id — the shape that would build `user:undefined`.
@@ -139,7 +144,7 @@ const PREBUILT = [
 test('dated prebuilt lists render newest-first in a single column; undated sections stay A→Z', async () => {
   const user = userEvent.setup()
   vi.stubGlobal('fetch', vi.fn((url) => {
-    if (String(url) === '/api/watchlists/prebuilt') {
+    if (_path(url) === '/api/watchlists/prebuilt') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(PREBUILT) })
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
@@ -164,7 +169,7 @@ test('dated prebuilt lists render newest-first in a single column; undated secti
 test('My Lists hides prebuilt rows the admin account owns — they live under Prebuilt', async () => {
   const user = userEvent.setup()
   vi.stubGlobal('fetch', vi.fn((url) => {
-    if (String(url) === '/api/watchlists') {
+    if (_path(url) === '/api/watchlists') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve([
         { id: 'mine-1', name: 'Breakouts', items: [] },
         { id: 'a16', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1, items: [] },
@@ -190,7 +195,7 @@ test('the newest issue also offers a "Latest issue" cell first, whose pick follo
     ? { ...r, alias: 'sunday-scans-latest', alias_label: 'Sunday Scans — Latest issue' }
     : r)
   vi.stubGlobal('fetch', vi.fn((url) => {
-    if (String(url) === '/api/watchlists/prebuilt') return Promise.resolve({ ok: true, json: () => Promise.resolve(rows) })
+    if (_path(url) === '/api/watchlists/prebuilt') return Promise.resolve({ ok: true, json: () => Promise.resolve(rows) })
     return Promise.resolve({ ok: true, json: () => Promise.resolve([]) })
   }))
   render(

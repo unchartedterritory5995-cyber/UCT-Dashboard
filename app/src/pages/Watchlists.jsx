@@ -82,6 +82,7 @@ import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mer
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 import { resolveCommunityPick, ALIAS_PREFIX } from './watchlist/communityPick'
+import { PREBUILT_DIRECTORY_URL, usePrebuiltMembership, mergeMembership } from './watchlist/prebuiltDirectory'
 import { chordById, matchesChord } from './command/chords.js'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
@@ -997,10 +998,27 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // EXCLUDES is_prebuilt lists (they live in their own tab). So a picked prebuilt list must be
   // resolved against BOTH pools, or it opens with 0 items. `communityLists` still drives the
   // Community-tab listing (prebuilt stays out of there).
-  const { data: prebuiltLists } = useSWR('/api/watchlists/prebuilt', fetcher, { refreshInterval: 60000 })
+  //
+  // ⛔ THE DIRECTORY, NOT THE MEMBERSHIP. This used to arrive carrying every member
+  // of every prebuilt list — 4,704 rows / 607,445 bytes, measured 172 ms warm to
+  // 9,859 ms cold on prod 2026-09-20 — and was re-polled EVERY 60 s by every mounted
+  // widget. It is now names + counts; the members of whichever list is actually open
+  // are fetched per-list below. The poll goes with it: this catalogue is rebuilt
+  // MONTHLY by the refresh cron, so a request a minute re-paid the whole cost to
+  // learn nothing. The response carries an ETag and `private, max-age=300`, so a
+  // remount revalidates into a 304 instead of a rebuild.
+  const { data: prebuiltLists } = useSWR(PREBUILT_DIRECTORY_URL, fetcher)
+  // Membership for the prebuilt lists currently OPEN. A widget has exactly one; the
+  // standalone page can expand several. Keyed on the id SET, so re-opening a list
+  // already seen costs no request and two widgets on one list share one fetch.
+  const openPrebuiltIds = useMemo(
+    () => (prebuiltLists || []).filter(wl => expandedLists.has(wl.id)).map(wl => wl.id),
+    [prebuiltLists, expandedLists],
+  )
+  const prebuiltMembership = usePrebuiltMembership(openPrebuiltIds)
   const communityResolvable = useMemo(
-    () => [...(communityLists || []), ...(prebuiltLists || [])],
-    [communityLists, prebuiltLists],
+    () => [...(communityLists || []), ...mergeMembership(prebuiltLists || [], prebuiltMembership)],
+    [communityLists, prebuiltLists, prebuiltMembership],
   )
   // An ALIAS pick (community:alias:<alias>, e.g. "the latest Sunday Scans issue") names
   // no id up front — it resolves to whichever row carries the alias once the pools load.
