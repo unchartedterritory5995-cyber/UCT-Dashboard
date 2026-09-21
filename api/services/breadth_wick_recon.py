@@ -269,8 +269,31 @@ def session_eod_closes(conn, day_ts: int, tickers=None) -> dict:
     want = set(tickers) if tickers is not None else None
     out: dict = {}
     try:
-        for t, c in conn.execute(
-                "SELECT ticker, c FROM ohlcv WHERE tf='D' AND ts=?", (day_ts,)):
+        if want is None:
+            rows = conn.execute(
+                "SELECT ticker, c FROM ohlcv WHERE tf='D' AND ts=?", (day_ts,))
+        else:
+            # ⛔⛔ THE SAME ROWS, REACHED THROUGH THE INDEX — and this is not a
+            # micro-optimisation, it was the WHOLE of the V2 runtime regression.
+            # `ohlcv`'s PK and its only index are both `(ticker, tf, ts)`, so
+            # `WHERE tf=? AND ts=?` has no usable prefix and SQLite answers it with
+            # `SCAN ohlcv` over a 26 GB table: measured at 73.0 s, ONCE PER SESSION,
+            # against a V1 session cost of 13.7 s. The caller always knows the union
+            # it is asking about, so ask for those names BY KEY instead — one covering
+            # probe each, ~6 s for 5,000 names, and the PK makes at most one row per
+            # ticker so the result is identical by construction, not by luck.
+            # ⚠️ Do NOT "improve" this into a temp-table JOIN or an IN (...) list:
+            # both were measured and the planner still drives from `ohlcv`, giving
+            # 59-60 s. The per-key probe is the only formulation that uses the index.
+            def _by_key():
+                for t in want:
+                    r = conn.execute(
+                        "SELECT c FROM ohlcv WHERE ticker=? AND tf='D' AND ts=?",
+                        (t, day_ts)).fetchone()
+                    if r is not None:
+                        yield t, r[0]
+            rows = _by_key()
+        for t, c in rows:
             if c is None or (want is not None and t not in want):
                 continue
             try:
