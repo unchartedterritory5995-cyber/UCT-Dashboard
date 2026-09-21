@@ -87,6 +87,8 @@ function makeCrosshairBus() {
 export function drillWorkspaceValue({
   groupSyms,
   setGroupSym,
+  groupTfs,
+  setGroupTf,
   chartsTheme = 'default',
   widgetCanvasByType = {},
   widgetCanvasById = {},
@@ -99,6 +101,12 @@ export function drillWorkspaceValue({
     // ── LIVE: the drill is an interactive host ──
     groupSyms,
     setGroupSym,
+    // LIVE, not inert: the drill board pairs a Watchlists widget with a REAL
+    // ChartWidget, which is exactly the pairing `groupTfs` exists for — the list
+    // must warm the timeframe the drill's own chart is showing, or scanning a
+    // breadth drill-down is cold on every row (see ThemeTrackerPage's warmTf).
+    groupTfs,
+    setGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -121,6 +129,16 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
   // so an unstable identity would re-render every row on every selection.
   const setGroupSym = useCallback((color, sym) => {
     setGroupSyms(prev => (prev[color] === sym ? prev : { ...prev, [color]: sym }));
+  }, [])
+
+  // The timeframe each colour group's chart is showing. EPHEMERAL, like the
+  // workspace's — `opts.tf` on the widget stays the authority. Bails when
+  // unchanged: ChartWidget publishes from an effect, so a fresh object every
+  // time would re-render the whole board per chart paint.
+  const [groupTfs, setGroupTfs] = useState({ A: 'D', B: 'D', C: 'D', D: 'D' })
+  const setGroupTf = useCallback((color, tf) => {
+    if (!color || !tf) return
+    setGroupTfs(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
   }, [])
 
   // Per-instance registries and owner refs. Per-instance matters for the same
@@ -147,6 +165,8 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
   return useMemo(() => drillWorkspaceValue({
     groupSyms,
     setGroupSym,
+    groupTfs,
+    setGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -154,5 +174,5 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     activeChartRef,
     chartApiById,
     activeWatchlistRef,
-  }), [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
+  }), [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
 }
