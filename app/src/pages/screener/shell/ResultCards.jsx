@@ -2,6 +2,8 @@ import { useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
+import UIcon from '../../../components/ui/UIcon'
+import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS } from '../columnDefs'
 import { REQUIRED_COLS } from './useScreenSpec'
 import styles from './ScannerShell.module.css'
@@ -27,6 +29,7 @@ import styles from './ScannerShell.module.css'
 const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
   hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
   const scrollRef = useRef(null)
   const statCols = columns.filter(c => !REQUIRED_COLS.includes(c)).slice(0, 3)
   const virtualizer = useVirtualizer({
@@ -65,6 +68,15 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
                     {chg == null ? '' : ` ${chg >= 0 ? '+' : ''}${Number(chg).toFixed(2)}%`}
                   </span>
                 </span>
+                {/* Flag while scrolling — always visible on the phone (no hover);
+                    feeds the shared Flagged set moved to a watchlist from the bar. */}
+                <button type="button"
+                  className={`${styles.cardFlag} ${isFlagged(row.ticker) ? styles.rowFlagOn : ''}`}
+                  aria-pressed={isFlagged(row.ticker)}
+                  aria-label={isFlagged(row.ticker) ? `Unflag ${row.ticker}` : `Flag ${row.ticker}`}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleFlag(row.ticker) }}>
+                  <UIcon name="flag" size={14} />
+                </button>
               </div>
               <div className={styles.cardStats}>
                 {statCols.map(c => {

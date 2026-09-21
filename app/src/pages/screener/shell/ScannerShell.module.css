@@ -160,6 +160,37 @@
 .rowFb { visibility: hidden; }
 [role="row"]:hover .rowFb, .rowFb:focus-within { visibility: visible; }
 @media (hover: none) { .rowFb { visibility: visible; } }
+
+/* Flag-while-scrolling toggle in the sticky ticker cell. Same hover-reveal idiom
+   as .rowFb — hidden until the row is hovered — EXCEPT a flagged row keeps its
+   star lit at all times, and touch (no hover) shows it always. */
+.rowFlag { margin-left: auto; visibility: hidden; background: none; border: none;
+  color: var(--text-muted); cursor: pointer; padding: 2px 3px; display: inline-flex;
+  align-items: center; border-radius: 4px; }
+[role="row"]:hover .rowFlag, .rowFlag:focus-visible { visibility: visible; }
+.rowFlag:hover { color: var(--ut-gold); }
+.rowFlagOn { visibility: visible !important; color: var(--ut-gold); }
+@media (hover: none) { .rowFlag { visibility: visible; } }
+/* Phone card flag: always visible, full tap target. */
+.cardFlag { margin-left: auto; background: none; border: none; color: var(--text-muted);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+.cardFlag:hover { color: var(--ut-gold); }
+
+/* "Flagged N → watchlist" control in the underbar (FlaggedActions.jsx). */
+.flaggedWrap { position: relative; display: inline-flex; align-items: center; }
+.flaggedToast { margin-left: 8px; font-size: 11.5px; color: var(--ut-gold); }
+.flaggedMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 244px;
+  background: var(--bg-surface); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4));
+  padding: 6px; max-height: 60vh; overflow-y: auto; }
+.flaggedHint { font-size: 11.5px; color: var(--text-muted); padding: 4px 8px; }
+.flaggedNewRow { display: flex; gap: 6px; padding: 8px 4px 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+.flaggedInput { flex: 1; min-width: 0; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 5px; padding: 6px 8px; color: var(--text); font-size: 12px; }
+.flaggedClear { width: 100%; text-align: left; background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 11.5px; padding: 6px 8px; margin-top: 4px; border-radius: 5px; }
+.flaggedClear:hover { color: var(--color-danger, #f87171); background: var(--bg-hover); }
 .dotLive, .dotStatic { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .dotLive { background: var(--ut-gold); }
 .dotStatic { border: 1px solid var(--text-muted); background: transparent; }
