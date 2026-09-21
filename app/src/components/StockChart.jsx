@@ -6552,7 +6552,48 @@ export default function StockChart({
   // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
   // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
   // don't poll while a cutoff is set. The static `?to=` window never changes.
-  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
+  // ⭐⭐ A PROVISIONAL TAIL GETS A TINY, DETERMINISTIC LIFETIME — NOT 30 SECONDS.
+  // Two paths can put a behind-the-market tail on screen: `_idbProvisional` (a
+  // known-stale cache painted deliberately for an instant first frame) and a server
+  // payload shed at `_bounded_delta`'s deadline. Both are the right trade for
+  // LATENCY and both are wrong to leave sitting: at 13:00 a 10:00 tail waited a full
+  // 30 s poll to catch up, which is the reported symptom ("chart ends around 10 AM,
+  // later catches up") and the reason fast first paint must never be reported as a
+  // fast chart.
+  //
+  // ⭐ THE STALENESS TEST IS THE CLIENT'S EXISTING ONE. `isIntradayTailStale` already
+  // owns "is this tail behind its session" (weekend/holiday/half-day aware), so this
+  // reads it rather than re-deriving a second answer that could disagree with the
+  // one gating `since=` two hundred lines above.
+  //
+  // ⛔ BOUNDED, because an illiquid symbol that genuinely has not printed looks
+  // identical to one we failed to fetch. Without the cap a quiet ticker would fast-
+  // poll forever — a self-inflicted load storm on exactly the names the origin is
+  // slowest for. Five tries ≈ 7.5 s of catch-up, then back to the normal cadence;
+  // the counter resets on a fresh tail and on any symbol/timeframe change.
+  const TAIL_CATCHUP_POLL_MS = 1500
+  const TAIL_CATCHUP_MAX_TRIES = 5
+  const INTRADAY_POLL_MS = 30_000
+  const _tailCatchupRef = useRef({ key: '', tries: 0 })
+  const _intradayPollMs = useCallback((latest) => {
+    const key = `${sym}_${resolvedTf}`
+    const st = _tailCatchupRef.current
+    if (st.key !== key) { st.key = key; st.tries = 0 }
+    // The tail ACTUALLY ON SCREEN: a `since=` response carries only the delta (and
+    // is empty when nothing is new), so the merged cache tail is the honest reading.
+    const rows = latest?.bars
+    const respT = Array.isArray(rows) && rows.length ? rows[rows.length - 1]?.t : null
+    const idbT = idbSinceRef.current
+    const tailT = Math.max(
+      typeof respT === 'number' ? respT : 0,
+      typeof idbT === 'number' ? idbT : 0,
+    )
+    if (!tailT || !isIntradayTailStale(tailT, resolvedTf)) { st.tries = 0; return INTRADAY_POLL_MS }
+    if (st.tries >= TAIL_CATCHUP_MAX_TRIES) return INTRADAY_POLL_MS
+    st.tries += 1
+    return TAIL_CATCHUP_POLL_MS
+  }, [sym, resolvedTf])
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? _intradayPollMs : 300_000)
   const { data, error, mutate, isValidating } = useSWR(
     swrUrl,
     instFetcher,
