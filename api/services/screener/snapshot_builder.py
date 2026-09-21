@@ -842,16 +842,14 @@ def _read_market_source(label, reader, targets, failures=None) -> dict:
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 def _load_universe():
-    import json
-    for p in ("api/data/cap_universe.json",
-              os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                           "cap_universe.json")):
-        if os.path.exists(p):
-            with open(p) as fh:
-                data = json.load(fh)
-            # file is a flat list of ticker strings
-            return [t for t in data if isinstance(t, str)]
-    return []
+    # The screener has its OWN, wider universe (every US common + ADR that trades,
+    # no price/cap floor) so "All Market" can mean the whole market without
+    # bloating the app-wide `cap_universe` that the bars pre-cache / ticker search
+    # / prewarmers iterate. `screener_universe.symbols()` falls back to the cap
+    # universe when the wider file has not been generated yet, so this is a strict
+    # superset of the old behaviour and never returns fewer names than before.
+    from api.services.screener import screener_universe
+    return list(screener_universe.symbols())
 
 
 def _stalest(tickers, limit):
