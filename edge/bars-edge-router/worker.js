@@ -33,6 +33,27 @@ const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
 const BARS_TIMEOUT_MS = 8000;
 
+// ⛔⛔ MARKET INDICATORS THAT CARRY NO COLON — the second half of the same lesson the
+// colon rule above records. Those series are served from WEB-POD stores
+// (`cboe_indices.db`, `naaim_series.db`, a derivation over `breadth_daily_ohlc`) that
+// the bars tier does not have, exactly like breadth. Their member-facing symbols are
+// bare words, so neither `startsWith("UCT")` nor `includes(":")` catches them, and all
+// eight were forwarded to the tier and answered `bars: []` — a valid, cacheable 200
+// carrying nothing. Measured on production 2026-09-21: every one of them, blank chart,
+// no error.
+//
+// ⚠️ A LIST, BECAUSE THERE IS NO SYNTAX TO TEST. `VXN` and `SKEW` are shaped exactly
+// like ordinary tickers; only the registry knows the difference, and the edge has no
+// registry. `tests/test_market_indicators_edge_routing.py` pins this list against
+// `registry.published_rows()` so a newly published bare-word series cannot ship without
+// it — the failure mode is silent and member-visible, so it gets a rail, not a comment.
+//
+// ⛔ SYNTAX GRANTS NOTHING DOWNSTREAM. Being on this list only means "ask web"; web
+// answers from its own registry, so a stale entry costs a redirect and nothing more.
+const MARKET_INDICATOR_SYMBOLS = new Set([
+  "VIX9D", "VIX3M", "VIX6M", "VVIX", "VXN", "RVX", "SKEW", "NAAIM",
+]);
+
 // ── chart edge entitlement (shadow) ─────────────────────────────────────────
 // Mirrors api/chart_edge_token.py. The two are proven equal by
 // tests/test_chart_edge_worker_interop.py, which mints in Python and classifies
@@ -212,7 +233,12 @@ export default {
     // this covers `NASDAQ:*` and `NYSE:*` the day they are published without touching this
     // file again. Syntax still grants nothing downstream — `resolve()` is a dict lookup
     // against minted identities, so `FOO:BAR` reaches web and is answered with nothing.
-    const isBreadth = ticker.startsWith("UCT") || ticker.includes(":");
+    // ⭐ "SERVED BY THE WEB POD", which is what this flag has always actually meant:
+    // breadth (`UCT*`), any namespaced identity (a colon), and the bare-word market
+    // indicators that have no syntax to recognise them by.
+    const isBreadth = ticker.startsWith("UCT")
+      || ticker.includes(":")
+      || MARKET_INDICATOR_SYMBOLS.has(ticker);
 
     const headers = new Headers(request.headers);
     headers.delete("host");

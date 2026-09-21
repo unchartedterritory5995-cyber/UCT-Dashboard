@@ -368,6 +368,26 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
     return resp
 
 
+def _is_market_indicator(ticker: str) -> bool:
+    """Is this canonical symbol served by the Market Indicators library?
+
+    ⭐⭐ ONE AUTHORITY, ASKED BY EVERY DOOR IN THIS MODULE. There are three places that
+    must agree — the proxy exclusion, `/api/bars`' serve branch and `/api/bars-history`'s
+    — and when the answer was inlined at only two of them the third silently served
+    `bars: []` from bars.db, which has no market-indicator rows. A 200 carrying nothing
+    is indistinguishable from a flat market to a chart, so every member saw a blank
+    canvas and no error.
+
+    ⚠️ DEFENSIVE BY DESIGN. If the registry cannot be imported the answer is "no", which
+    routes the symbol down the ordinary path rather than failing the request.
+    """
+    try:
+        from api.services.market_indicators import registry as _mireg
+        return _mireg.is_market_indicator(ticker)
+    except Exception:
+        return False
+
+
 def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
     BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
@@ -394,12 +414,8 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # derivation over `breadth_daily_ohlc`) that the bars-serving tier does not have.
     # Proxying one returns an empty chart. Same authority `serve_bars` routes on, so
     # the exclusion cannot drift from the routing.
-    try:
-        from api.services.market_indicators import registry as _mireg
-        if _mireg.is_market_indicator(ticker):
-            return False
-    except Exception:
-        pass
+    if _is_market_indicator(ticker):
+        return False
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -704,13 +720,7 @@ def serve_bars(
             from api.services import breadth_symbols as _breadth_syms
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
-            _is_mkt_ind = False
-            if not _is_breadth:
-                try:
-                    from api.services.market_indicators import registry as _mireg
-                    _is_mkt_ind = _mireg.is_market_indicator(ticker)
-                except Exception:
-                    _is_mkt_ind = False
+            _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
             _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
             if _is_breadth:
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
@@ -969,6 +979,18 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
         from api.services import breadth_symbols as _bsym
         if _bsym.is_breadth_symbol(sym):
             all_bars = (_bsym.build_breadth_bars(sym, tfu, bars) or {}).get("bars") or []  # cache-first, no provider
+        elif _is_market_indicator(sym):
+            # ⛔⛔ THE SAME BRANCH `/api/bars` HAS, IN THE SAME PLACE, AND ITS ABSENCE
+            # HERE WAS THE WHOLE DEFECT. A market indicator has no rows in bars.db, so
+            # without this it fell through to the `else` below, read an empty SQLite
+            # result and served `bars: []` — a VALID, CACHEABLE 200 carrying nothing.
+            # Every member chart painted blank while `/api/bars` had the data all along.
+            #
+            # ⚰️ TWO ENDPOINTS SERVE CHART HISTORY AND ONLY ONE WAS TAUGHT. Breadth is
+            # branched in BOTH — which is exactly why `UCTA50` never broke — while the
+            # new catalogue was added to `/api/bars` alone.
+            from api.services.market_indicators import series as _mseries
+            all_bars = (_mseries.build_bars(sym, tfu, bars) or {}).get("bars") or []
         elif is_index(sym):
             # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
             return _no_store(JSONResponse(content={
