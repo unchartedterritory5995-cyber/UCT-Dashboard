@@ -50,7 +50,8 @@ function seriesDisplayable(bars, tf) {
  *  nothing for this coordinator (measured ~19ms TC, and that must not move). */
 export function peekDisplayable(sym, tf) {
   if (!sym || !tf) return false
-  if (!isNativeTf(tf)) return true          // custom tf: the base path owns it
+  // Anything the handoff does not govern is displayable by definition.
+  if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return true
   return seriesDisplayable(memPeek(sym, tf), tf)
 }
 
@@ -94,10 +95,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (peekDisplayable(requestedSym, tf)) { commit(); return undefined }
 
-    // Non-native (2m etc): DEFERRED ARCHITECTURE, so never hold it back — the
-    // custom path fetches its own base and this coordinator has no view of it.
+    // ⛔ INTRADAY ONLY, AND THAT IS A SCOPE DECISION NOT AN OVERSIGHT.
+    //   • D/W/M: the defect is intraday (the frontier maths is bucket
+    //     arithmetic over a session), daily already paints from the pack, and
+    //     "do not regress global daily chart speed" is an explicit constraint.
+    //     A cold daily switch must not start waiting on this coordinator.
+    //   • Custom codes (2m, 45m…): the separately-deferred architecture fetches
+    //     its own base and this coordinator has no view of it.
+    // Both pass straight through, byte-for-byte as before.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!isNativeTf(tf)) { commit(); return undefined }
+    if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) { commit(); return undefined }
 
     let alive = true
     // PREPARE. `prefetchBarsToIDB` is the canonical warm door and now performs

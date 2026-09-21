@@ -146,12 +146,24 @@ describe('scope — what the handoff must NOT hold back', () => {
     expect(result.current).toBe('AAPL')
   })
 
-  it('DAILY commits immediately — the frontier maths is intraday-only', () => {
-    memState.set('B_D', [{ t: '2026-09-16', c: 1 }])
+  it('DAILY commits immediately EVEN WITH A COLD CACHE — daily speed is protected', () => {
+    // No mem entry at all. Daily must not start waiting on this coordinator:
+    // the defect is intraday, daily already paints from the pack, and "do not
+    // regress global daily chart speed" is an explicit constraint.
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })
     expect(result.current).toBe('B')
+    expect(prefetchMock).not.toHaveBeenCalled()
+  })
+
+  it('W and M pass straight through too', () => {
+    for (const tf of ['W', 'M']) {
+      const { result, rerender } = renderHook(
+        ({ s }) => useSymbolHandoff(s, tf), { initialProps: { s: 'A' } })
+      act(() => { rerender({ s: 'B' }) })
+      expect(result.current).toBe('B')
+    }
   })
 
   it('a CUSTOM timeframe (2m) is passed straight through — deferred architecture', () => {

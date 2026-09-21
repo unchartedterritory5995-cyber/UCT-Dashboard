@@ -122,9 +122,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // FIRST READER OF `sym` (isThemeIndex, a few lines down). An earlier attempt
   // put this after `tf`'s original position and threw
   // `ReferenceError: Cannot access 'sym' before initialization` — the third
-  // temporal-dead-zone crash in this project, and the `awk '/sym/'` check
-  // that was supposed to catch it matched NOTHING because POSIX awk has no .
-  // Verify a TDZ window with grep, never with awk word boundaries.
+  // temporal-dead-zone crash in this project, and the awk word-boundary check
+  // that was supposed to catch it matched NOTHING, because POSIX awk has no
+  // word-boundary escape at all -- the pattern silently matches nothing and
+  // reads like a clean result. Verify a TDZ window with grep.
   const sym = useSymbolHandoff(requestedSym, tf)
 
   // Thematic-ETF pseudo-ticker ("$IDX:<slug>" — see useThemeIndexBars, which the
