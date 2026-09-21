@@ -250,30 +250,51 @@ if (typeof window !== 'undefined') {
   }
 }
 
-export function isIntradayTailStale(lastTUnixSec, tf) {
-  if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return true
+/**
+ * Classify an intraday cache tail. THREE answers, because the old two-way
+ * stale/fresh split is what forced the whole history to be thrown away.
+ *
+ *   'fresh'  — the tail reaches the market. Poll with `since=`.
+ *   'behind' — the CACHE IS SOUND but stops short of now (the 10:00 tail at 13:17).
+ *              Its history is still trustworthy, so keep it and fetch ONLY the gap.
+ *   'gapped' — the tail predates the last closed session, so the cache may be
+ *              discontinuous. A `since=` delta cannot vouch for bars BEFORE the
+ *              tail, so this one must still refetch in full.
+ *
+ * ⛔⛔ WHY THE MIDDLE CASE EXISTS. `isIntradayTailStale` answered one bit, and
+ * every "stale" tail — including a perfectly continuous one that merely stopped
+ * three hours ago — dropped `since=` and re-downloaded the entire window. That is
+ * the "re-download thousands of bars to obtain today's last twenty" shape: it
+ * makes the request big exactly when the user is waiting, and it discards sound
+ * history to recover a handful of bars.
+ *
+ * ⭐ 'behind' is the case the session tail is FOR. The cached history paints
+ * immediately and the small `since=` response carries today's completed bars.
+ */
+export function classifyIntradayTail(lastTUnixSec, tf) {
+  if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return 'gapped'
   const tailDate = _etDateOfUnix(lastTUnixSec)
-  const expected = expectedLatestDailySessionET()   // last CLOSED trading session (ET date)
-  if (tailDate < expected) return true               // missing a whole closed session
-  if (tailDate > expected) {                         // tail is in TODAY's still-open session
+  const expected = expectedLatestDailySessionET()   // last CLOSED trading session
+  if (tailDate < expected) return 'gapped'          // missing a whole closed session
+  if (tailDate > expected) {                        // inside today's still-open session
     const tfSec = Math.max(60, (Number(tf) || 5) * 60)
-    return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180)
+    return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180) ? 'behind' : 'fresh'
   }
-  // tailDate == expected → a CLOSED session BY DEFINITION (expected is the last closed
-  // session). The date-only check treated ANY tail on that date as fresh — so a cache
-  // written mid-session (e.g. a 13:30 bar, then the market closed) read as fresh and the
-  // client only ever since-polled it, never backfilling 13:30→close: the "missing the last
-  // hours of the day on first open after close" bug. A truly-fresh tail must REACH the
-  // session close. Last RTH bucket START by tf: 5m→15:55, 15m→15:45, 30m→15:30, 60m→15:00
-  // (all = 16:00 − one bar) → "reached close" == tailMin >= 960 − tf-minutes. An earlier tail
-  // is an incomplete session → stale → forces a FULL no-since refetch that REPLACES the
-  // truncated series (a since= delta cannot reliably backfill it). Post-market / RTH-complete
-  // tails (tailMin ≥ last RTH bucket) stay fresh; the since-poll appends any newer post bars.
+  // tailDate === expected → a CLOSED session by definition. Complete iff it reached
+  // the close; an incomplete one is BEHIND (sound history, short tail), not gapped.
   if (_intradayCompletenessOn()) {
     const tfMin = Math.max(1, Number(tf) || 5)
     const tailD = new Date(new Date(lastTUnixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
     const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
-    if (tailMin < 960 - tfMin) return true           // incomplete closed session → refetch
+    if (tailMin < 960 - tfMin) return 'behind'
   }
-  return false                                       // tail == last closed session, complete → fresh
+  return 'fresh'
 }
+
+export function isIntradayTailStale(lastTUnixSec, tf) {
+  // ⭐ DERIVED, never a second opinion. `barsIDB` eviction and the provisional-paint
+  // gate both read this; keeping it a projection of `classifyIntradayTail` is what
+  // stops "is this tail usable" from having two answers that can drift apart.
+  return classifyIntradayTail(lastTUnixSec, tf) !== 'fresh'
+}
+

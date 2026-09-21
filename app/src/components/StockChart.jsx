@@ -770,7 +770,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
+import { classifyIntradayTail, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -6405,9 +6405,17 @@ export default function StockChart({
   // the CURRENT session's recent closed bars refetches. Replaces the old flat
   // max(3*tf,180s) age gate that treated every prior-session tail as stale (which is
   // why the intraday pack could never paint as primary).
-  const idbStaleIntraday = isIntraday
-    && typeof idbSinceRef.current === 'number'
-    && isIntradayTailStale(idbSinceRef.current, resolvedTf)
+  // ⭐⭐ THREE-WAY, NOT TWO. `classifyIntradayTail` separates a cache that is merely
+  // BEHIND (sound history, short tail — the 10:00 tail at 13:17) from one that is
+  // GAPPED (missing a whole closed session, so its continuity cannot be vouched for).
+  // Only the gapped case may discard history. A behind cache keeps its bars, paints
+  // them as the PRIMARY layer, and fetches only the gap via `since=` — which is the
+  // whole point of an authoritative session tail: never re-download thousands of
+  // bars to recover today's last twenty.
+  const _intradayTail = isIntraday && typeof idbSinceRef.current === 'number'
+    ? classifyIntradayTail(idbSinceRef.current, resolvedTf)
+    : null
+  const idbStaleIntraday = _intradayTail === 'gapped'
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
@@ -6458,7 +6466,12 @@ export default function StockChart({
     return isDailyTailStaleForPaint(_t) || isDailyTodayCloseProvisionalForPaint(_t)
   }
   let _sinceParam = null
-  if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
+  // ⭐ 'behind' NOW TAKES THE TAIL PATH TOO (it used to force a full refetch).
+  // `get_bars_since` returns EVERY row past the threshold, not just the newest, so
+  // one small request carries the entire 10:00 → 13:15 gap. Only 'gapped' refetches
+  // in full, because a `since=` delta says nothing about bars BEFORE the tail.
+  if (isIntraday && typeof idbSinceRef.current === 'number'
+      && (_intradayTail === 'fresh' || _intradayTail === 'behind')) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
   // Viewport-first backfill: once we've bumped PAST the shallow first-paint depth

@@ -225,3 +225,44 @@ def test_intraday_IS_routed_through_the_ceiling(monkeypatch):
 
     bars_fetch._get_bars_inner("AAPL", "5", 600)
     assert seen["bounded"] == 1, "intraday must go through the ceiling"
+
+
+# ── the since= tail path (highest-QPS entrypoint) ────────────────────────────
+
+def _stub_since(monkeypatch, tf, last_ts):
+    monkeypatch.setattr(bars_fetch.cache, "get", lambda k: None)
+    monkeypatch.setattr(bars_fetch.cache, "set", lambda k, v, ttl=None: None)
+    monkeypatch.setattr(bars_fetch.cache, "invalidate", lambda k: None)
+    monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, t: last_ts)
+    monkeypatch.setattr(bars_fetch._sqlite, "get_bars_since", lambda s, t, ts: [])
+    monkeypatch.setattr(bars_fetch._sqlite, "get_bars", lambda s, t, n: [])
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, t, tk=None: [])
+    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, t, tk=None: True)
+    monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_since_async_heal", lambda: False)
+
+
+def test_the_since_tail_delta_is_bounded_for_intraday(monkeypatch):
+    """⭐ This is the request that CARRIES today's completed bars, and the highest-QPS
+    bars entrypoint (every open chart × every member). It was the third unbounded
+    provider call on a request thread."""
+    seen = {"bounded": 0}
+    monkeypatch.setattr(bars_fetch, "_bounded_delta",
+                        lambda *a, **k: seen.__setitem__("bounded", seen["bounded"] + 1) or True)
+    _stub_since(monkeypatch, "5", _RECENT)
+    bars_fetch._get_bars_since_response("AAPL", "5", 600, str(_RECENT - 3600))
+    assert seen["bounded"] == 1
+
+
+def test_the_since_tail_delta_is_NOT_bounded_for_daily(monkeypatch):
+    """⛔ Same daily rule as Layer 4: D/W/M poll at 300 s with no catch-up, so a shed
+    daily tail would sit stale for five minutes."""
+    seen = {"bounded": 0, "daily": 0}
+    monkeypatch.setattr(bars_fetch, "_bounded_delta",
+                        lambda *a, **k: seen.__setitem__("bounded", seen["bounded"] + 1) or True)
+    monkeypatch.setattr(bars_fetch, "_delta_daily",
+                        lambda t, lt: seen.__setitem__("daily", seen["daily"] + 1) or [])
+    _stub_since(monkeypatch, "D", 20260918)
+    bars_fetch._get_bars_since_response("AAPL", "D", 600, "2026-09-17")
+    assert seen["daily"] == 1 and seen["bounded"] == 0

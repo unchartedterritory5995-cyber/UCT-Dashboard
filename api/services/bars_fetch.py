@@ -2390,17 +2390,32 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
             _enqueue_since_bg_heal(cache_key, ticker_up, tf, last_ts or 0, date_tf)
         else:
             try:
-                if tf == "D":
-                    new = _delta_daily(ticker_up, last_ts or 0)
-                elif tf == "W":
-                    new = _delta_weekly(ticker_up, last_ts or 0)
-                elif tf == "M":
-                    new = _delta_monthly(ticker_up, last_ts or 0)
+                # ⛔ THE THIRD UNBOUNDED PROVIDER CALL ON A REQUEST THREAD, and the
+                # highest-QPS one — this is the browser's tail poll, every open chart
+                # × every member. Bounded for the same reason as the other two
+                # (`_bounded_delta`): a slow provider must never push the tier past
+                # the edge's 8 s abort. ⭐ It matters MORE here, not less: this is the
+                # request that carries today's completed bars, so when it is shed the
+                # client's bounded catch-up poll re-asks in 1.5 s and the just-landed
+                # rows are read straight from SQLite.
+                # ⛔⛔ INTRADAY ONLY — D/W/M keep the blocking call. Daily polls at 300 s
+                # and has no catch-up, so shedding a daily tail would hold it stale for
+                # five minutes. Same rule as Layer 4.
+                if date_tf:
+                    if tf == "D":
+                        new = _delta_daily(ticker_up, last_ts or 0)
+                    elif tf == "W":
+                        new = _delta_weekly(ticker_up, last_ts or 0)
+                    else:
+                        new = _delta_monthly(ticker_up, last_ts or 0)
+                    if new:
+                        _sqlite.put_bars(ticker_up, tf, new, date_tf=True)
+                        last_ts = _sqlite.get_last_ts(ticker_up, tf)
                 else:
-                    new = _delta_intraday(ticker_up, tf, last_ts or 0)
-                if new:
-                    _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
-                    last_ts = _sqlite.get_last_ts(ticker_up, tf)
+                    if _bounded_delta(ticker_up, tf, last_ts or 0, False):
+                        last_ts = _sqlite.get_last_ts(ticker_up, tf)
+                    else:
+                        _mark_serve("delta-deadline")
             except Exception:
                 pass
 
