@@ -1107,6 +1107,68 @@ export function buildRuntimeIr(source, opts = {}) {
    *  watchlist. The TIMEFRAME is not: it selects which bars must be fetched
    *  before the run, so it has to be fixed when the script is written.
    */
+  /** Names currently being inlined — a recursion guard, since an inlined body
+   *  can reach another call to the same function. */
+  const inliningNow = new Set()
+  /** name → a function body kept as an AST, so a call site can lower it in the
+   *  CALLER's context when the shared frame will not do. */
+  const inlineBodyByName = new Map()
+
+  /** Lower a user function AT THE CALL SITE, substituting its arguments.
+   *
+   *  ⭐ SUBSTITUTION, NOT A FRAME. Each parameter and each body binding becomes
+   *  an `env` macro, which is the same mechanism a top-level `x = expr` already
+   *  uses here — so the body is lowered in the CALLER's context and sees exactly
+   *  what a reader of that line would expect.
+   *
+   *  ⭐⭐ AND THAT IS WHAT MAKES A PARAMETER FOLDABLE. `calcDaily(lookback)` with
+   *  `ta.sma(volume[1], N)` refused because `N` is a frame slot and a window
+   *  needs its length before bar 0. Substituted, `N` IS `lookback` — an input,
+   *  which folds — and the window sizes. Measured: the same expression written
+   *  with the input directly has always compiled. */
+  const lowerInlineCall = (name, inl, node, scope, opts) => {
+    const at = locate(node.tok)
+    if (inliningNow.has(name)) {
+      note('runtime:recursion')
+      throw new RuntimeRefusal('runtime:recursion', `\`${name}\``, at)
+    }
+    const args = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+    if (args.length !== inl.params.length) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${name}\` takes ${inl.params.length} argument`
+        + `${inl.params.length === 1 ? '' : 's'}, given ${args.length}`, at)
+    }
+    for (const a of node.args) {
+      if (a && a.name) {
+        throw new RuntimeRefusal('runtime:statement',
+          `a named argument \`${a.name}\` on the user function \`${name}\``, at)
+      }
+    }
+    const saved = new Map(env)
+    inliningNow.add(name)
+    try {
+      inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at }))
+      // ⛔ IN ORDER: a later binding may read an earlier one, exactly as the
+      // author wrote them.
+      for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at })
+      // ⭐ A `[a, b, …]` RESULT IS A TUPLE, and `lowerExpr` has no case for a
+      // collection — that conversion lives in `lowerResult`, the FUNCTION-result
+      // path this inlining replaces. Mirrored here rather than routed through
+      // it, because `lowerResult` lowers against a frame scope and the whole
+      // point of inlining is to lower against the caller's.
+      const res = inl.result
+      if (res && res.type === 'collection' && Array.isArray(res.elements)
+          && res.elements.length >= 2 && opts && opts.multi) {
+        return tuple(res.elements.map((x) => lowerExpr(x, scope)))
+      }
+      return lowerExpr(res, scope, opts)
+    } finally {
+      inliningNow.delete(name)
+      env.clear()
+      for (const [k, v] of saved) env.set(k, v)
+    }
+  }
+
   const admitRequest = (node, scope, callerOpts) => {
     const at = locate(node.tok)
     const positional = node.args.filter((x) => !x || !x.name)
@@ -1161,10 +1223,21 @@ export function buildRuntimeIr(source, opts = {}) {
     inRequestValue = true
     let valueIr
     try {
+      // ⭐⭐ THE DESTRUCTURING FLAG REACHES THE VALUE, and without it a request
+      // could only return a tuple written INLINE.
+      //
+      // ⚰️ `[rv, cg, o, l, pc] = request.security(sym, "1D", calcDaily(lb))` is
+      // the acceptance dashboard's own line, and the corpus idiom: a helper
+      // computes several daily metrics and the request carries them across
+      // together. Lowered without `multi`, the UDF call refused with "`calcDaily`
+      // returns 5 values, so it can only be unpacked by a `[a, b] = …` line" —
+      // about a line that IS one. The tuple machinery was already here; only the
+      // permission to use it was missing.
+      const valueOpts = callerOpts && callerOpts.multi ? { multi: true } : undefined
       valueIr = valueNode && valueNode.type === 'collection'
         && Array.isArray(valueNode.elements) && valueNode.elements.length >= 2
         ? tuple(valueNode.elements.map((x) => lowerExpr(x, inner)))
-        : lowerExpr(valueNode, inner)
+        : lowerExpr(valueNode, inner, valueOpts)
     } finally { inRequestValue = wasInRequest }
 
     // ⛔ A COLUMN INSIDE A REQUEST IS REFUSED BY NAME. A column is computed once,
@@ -1768,6 +1841,25 @@ export function buildRuntimeIr(source, opts = {}) {
         // so this is where a member is told.
         if (deferredFnRefusals.has(node.name)) {
           const held = deferredFnRefusals.get(node.name)
+          // ⭐⭐ INSIDE A REQUEST, TRY LOWERING THE BODY HERE BEFORE RE-RAISING.
+          // The shared frame is what refused — `calcDaily(simple int N) =>
+          // ta.sma(volume[1], N)` cannot size a window from a frame slot — and
+          // the same expression written with the caller's argument compiles.
+          //
+          // ⛔⛔ SCOPED TO A REQUEST, AND NARROWLY, BECAUSE THE WIDER VERSION WAS
+          // TRIED AND MEASURED. Inlining every deferred function also lifted two
+          // refusals nobody asked to lift — a function reading a mutable global
+          // (`udf.test.js`) and history over an expression inside a function
+          // (`sourceToRuntime.test.js`). Both would then COMPILE, and both are
+          // arguably correct Pine — but that is a capability decision with its
+          // own measurement, not a side effect of fixing requests.
+          //
+          // ⛔ AND IF THE INLINE ALSO FAILS, THE HELD REFUSAL IS WHAT IS SHOWN.
+          // Nothing is lost and no new message is invented.
+          const inl = inRequestValue ? inlineBodyByName.get(node.name) : null
+          if (inl) {
+            try { return lowerInlineCall(node.name, inl, node, scope, opts) } catch { /* the held refusal below is the better message */ }
+          }
           note(held && held.guard ? held.guard : 'runtime:function')
           throw held
         }
@@ -1800,6 +1892,19 @@ export function buildRuntimeIr(source, opts = {}) {
               throw new RuntimeRefusal('runtime:statement',
                 `a named argument \`${a.name}\` on the user function \`${node.name}\``, locate(node.tok))
             }
+          }
+          // ⭐⭐ INSIDE A REQUEST, THE BODY IS LOWERED HERE INSTEAD OF SHARED.
+          // See `lowerInlineCall`. Outside one, nothing changes: the shared
+          // frame is cheaper and is what every other call still uses.
+          // ⛔ AND IT FALLS BACK TO THE SHARED FRAME IF INLINING REFUSES. That
+          // path produces `carriesColumn`'s refusal — "this request computes a
+          // value that needs the columnar lane" — which names the real problem.
+          // Inlined, the same script refused as `function-global-state`, a
+          // sentence about a frame the member is no longer in.
+          if (inRequestValue && fn.inlineBody) {
+            try {
+              return lowerInlineCall(node.name, fn.inlineBody, node, scope, opts)
+            } catch { /* fall through to the shared frame, and its refusal */ }
           }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
@@ -2744,6 +2849,54 @@ export function buildRuntimeIr(source, opts = {}) {
     guardOuter = root
     const fnScope = new Scope(null)
     params.forEach((p, k) => fnScope.declare(p, newSlot(p, false, k)))
+
+    // ⭐⭐ THE BODY IS ALSO KEPT AS AN AST, for the call sites that must lower it
+    // THEMSELVES rather than share the compiled copy.
+    //
+    // ⛔⛔ A UDF INSIDE `request.security` CANNOT USE THE SHARED BODY, and the
+    // reason is a wrong number rather than a missing one: the shared body was
+    // lowered against THIS chart's bars, so its columns hold THIS symbol's
+    // values — served under another symbol's heading. `carriesColumn` already
+    // refuses that, correctly, and names re-lowering per requested symbol as the
+    // next step. This is that step, for the shape the corpus actually writes.
+    //
+    // ⛔ NARROW BY CONSTRUCTION: every body line must be a plain `name = expr`
+    // binding. A `var`, a `:=`, an `if` or a loop returns null and the call
+    // refuses exactly as it did before — substitution is only sound for bindings
+    // that are pure and used where they are written.
+    record.inlineBody = (() => {
+      try {
+        if (arrow !== toks.length - 1) {
+          return { params, lines: [], result: parseWholeExpression(toks.slice(arrow + 1)) }
+        }
+        const lines = st.sub || []
+        if (!lines.length) return null
+        const binds = []
+        const readBind = (t) => {
+          if (t.some((x) => isPunct(x, ':='))) return null
+          if (t[0] && (t[0].value === 'var' || t[0].value === 'varip')) return null
+          const eq = findTop(t, (x) => isPunct(x, '='))
+          if (eq <= 0 || isPunct(t[0], '[')) return null
+          const nt = boundName(t, eq)
+          if (!nt) return null
+          return { name: nt.value, node: parseWholeExpression(t.slice(eq + 1)) }
+        }
+        for (const ln of lines.slice(0, -1)) {
+          if (ln.sub && ln.sub.length) return null
+          const b = readBind(ln.header || [])
+          if (!b) return null
+          binds.push(b)
+        }
+        const last = lines[lines.length - 1]
+        if (last.sub && last.sub.length) return null
+        const lt = last.header || []
+        const lb = readBind(lt)
+        // A final binding yields the value it bound (Pine §16), so the result is
+        // that expression — there is no name left to read it through.
+        return { params, lines: binds, result: lb ? lb.node : parseWholeExpression(lt) }
+      } catch { return null }
+    })()
+    if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
 
     const sitesBefore = callSites.length
     try {
