@@ -123,6 +123,74 @@ def themes_batch(body: ThemesBatchRequest, user: dict = Depends(get_current_user
     return {"results": results}
 
 
+# ── Bulk row enrichment (large lists) ──
+
+class BulkMetaRequest(BaseModel):
+    tickers: list[str]
+
+
+# Deliberately the SAME ceiling `scatter` already proves on the request path
+# (`scatter._MAX_TICKERS = 2500`), because this reads the same table the same way.
+_BULK_META_MAX = 2500
+
+# The watchlist's meta columns, mapped to their `screener_rows` names. `avg_volume_30d`
+# stands in for the old `avg_vol_20d` — a 30-session window rather than 20, which for an
+# RVOL denominator is a difference without a distinction, and it is already computed.
+_BULK_META_COLS = {
+    "name": "company",
+    "sector": "sector",
+    "industry": "industry",
+    "market_cap": "market_cap",
+    "composite": "uct_composite",
+    "next_earnings": "next_earnings_date",
+    "ipo_date": "ipo_date",
+    "avg_vol_20d": "avg_volume_30d",
+}
+
+
+@router.post("/api/watchlists/bulk-meta")
+def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
+    """Row metadata for a WHOLE watchlist, in one indexed read.
+
+    ⛔ WHY THIS EXISTS RATHER THAN A BIGGER CAP ON `snapshot-batch`. That endpoint
+    is hard-capped at 100 tickers and measured **10,031 ms** for those 100 on prod
+    2026-09-20, because its floor is one yfinance `.info` HTTP call PER SYMBOL
+    (`fundamentals.get_fundamentals`) plus one SQLite query per symbol for average
+    volume. Raising 100 → 2,000 would mean 2,000 Yahoo round-trips. The cap was
+    never the defect; the per-symbol shape was. Meanwhile rows 101+ of Russell 2000
+    could never show Name, Market Cap, Rating, Earnings or Sector at all — not slow
+    hydration, a permanent truncation.
+
+    `screener_rows` already holds exactly these fields for the whole ~3,745-name
+    universe, rebuilt nightly, and `scatter.bundle()` already reads it this way on
+    the request path at a 2,500 cap. Measured: 2,000 tickers with projected columns
+    is ~7 ms of SQLite.
+
+    ⚠️ WHAT THIS IS NOT. The snapshot universe has a ~$300M market-cap floor, so a
+    few hundred Russell 2000 micro-caps have no row. Those symbols are ABSENT from
+    the response rather than present-and-null, so the client can tell "outside the
+    snapshot universe" from "no value" and fall back for just the misses instead of
+    rendering a confident blank.
+    """
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:_BULK_META_MAX]
+    if not syms:
+        return {"results": {}, "missing": []}
+    try:
+        from api.services.screener import snapshot_db
+        rows = snapshot_db.get_projected(syms, list(_BULK_META_COLS.values()))
+    except Exception:
+        # The snapshot being unreadable must not take the watchlist down — every
+        # row still renders its symbol, and the caller falls back.
+        return {"results": {}, "missing": syms}
+    results = {
+        sym: {out_key: row.get(col) for out_key, col in _BULK_META_COLS.items()}
+        for sym, row in rows.items()
+    }
+    return {"results": results, "missing": [s for s in syms if s not in results]}
+
+
 # ── Performance data ──
 
 @router.post("/api/watchlist-performance")

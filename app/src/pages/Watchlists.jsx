@@ -26,9 +26,15 @@
 //     you chose yourself will happily exercise code no user can reach — that
 //     mistake already cost one design rework (2026-07-31).
 //
-import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
+
+// Above this many rows a watchlist renders through the virtualizer. Chosen to sit
+// just above the enrichment batches' own 100-ticker boundary, so a list either fits
+// every batch AND renders outright, or takes the windowed path for both — rather
+// than straddling the two and behaving differently column by column.
+const VIRTUALIZE_MIN_ROWS = 120
 
 // rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
 // widget width (a Scanner dragged/squeezed toward its minW) the list body's
@@ -55,6 +61,7 @@ import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useBulkQuotes from '../hooks/useBulkQuotes'
 import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistIntelligence from '../hooks/useWatchlistIntelligence'
@@ -556,12 +563,36 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef }) {
+function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
+  // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
+  // measures against the SCROLL element, so its arithmetic is only right when this
+  // container starts at the scroller's top. A scan owns the whole body, so it does.
+  // A watchlist GROUP may not: a list description or the inline "add symbol" row can
+  // sit above the rows. `measureOffset` is opt-in, so the scan path that has shipped
+  // for months keeps byte-identical behaviour and only the watchlist path pays for it.
+  //
+  // ⚠️ Measured in a layout effect on mount and when the row COUNT changes — never
+  // per render, and with no ResizeObserver. A measurement that re-runs on every paint
+  // is exactly the feedback loop `rafObserveElementRect` above exists to survive.
+  const hostRef = useRef(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+  useLayoutEffect(() => {
+    if (!measureOffset) return
+    const host = hostRef.current
+    const scroller = scrollRef?.current
+    if (!host || !scroller) return
+    const top = host.getBoundingClientRect().top
+      - scroller.getBoundingClientRect().top
+      + scroller.scrollTop
+    setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+  }, [measureOffset, scrollRef, items.length])
+
   const virt = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 30,
     overscan: 12,
+    scrollMargin,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
     observeElementRect: rafObserveElementRect,
   })
@@ -595,7 +626,11 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
   return (
-    <div className={styles.wlItems} style={{ height: virt.getTotalSize(), position: 'relative', width: '100%' }}>
+    <div
+      ref={hostRef}
+      className={styles.wlItems}
+      style={{ height: virt.getTotalSize() - scrollMargin, position: 'relative', width: '100%' }}
+    >
       {vItems.map((vi) => {
         const item = items[vi.index]
         return (
@@ -603,7 +638,10 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
             key={item.id || item.sym}
             data-index={vi.index}
             ref={virt.measureElement}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}
+            // `vi.start` is measured from the SCROLLER's origin, so the container's
+            // own offset comes back off before positioning inside it. With
+            // `scrollMargin: 0` (every pre-existing caller) this is `vi.start`.
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - scrollMargin}px)` }}
           >
             {renderRow(item)}
           </div>
@@ -1052,22 +1090,46 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     onScanVisibleSyms?.(syms)
     setScanVisibleSyms(syms)
   }, [onScanVisibleSyms])
-  // Collect all visible tickers for live prices
-  const allTickers = useMemo(() => {
+  // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
+  // list id so several open lists can each report their own window.
+  const [listVisible, setListVisible] = useState({})
+  // ⚠️ One STABLE callback per list id. `onVisibleChange` is in ScanRows' effect deps,
+  // so a fresh closure per render would re-run that effect every render — set state,
+  // re-render, re-run. Cached by id, created once.
+  const listVisibleCbs = useRef(new Map())
+  const handleListVisible = useCallback((wlId) => {
+    let cb = listVisibleCbs.current.get(wlId)
+    if (!cb) {
+      cb = (syms) => setListVisible(prev => {
+        const cur = prev[wlId]
+        // Scrolling re-reports the same window constantly; only a real change may
+        // write, or the identity churn cascades into every downstream memo.
+        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) return prev
+        return { ...prev, [wlId]: syms }
+      })
+      listVisibleCbs.current.set(wlId, cb)
+    }
+    return cb
+  }, [])
+  const visibleFromVirtualized = useMemo(
+    () => Object.values(listVisible).flat(),
+    [listVisible],
+  )
+  // ── TWO TICKER SETS, AND THE DIFFERENCE IS THE WHOLE POINT ──────────────────
+  //
+  // `listUniverse` is EVERY symbol of every open list. `allTickers` is what gets
+  // STREAMED — the visible window, once a list is big enough to virtualize.
+  //
+  // ⛔ VISIBLE HYDRATION IS FOR PRESENTATION; IT IS NOT THE SORT UNIVERSE. Sorting
+  // Russell 2000 by % Change must rank all 1,872 members, not the 40 on screen, or
+  // the column header quietly starts lying about what it ordered. So the universe
+  // feeds the batch enrichment and the slow whole-list quote vector, while only the
+  // window feeds the real-time path (SSE opens one connection per 50 symbols — 1,872
+  // streamed rows is ~38 of them, per widget).
+  const listUniverse = useMemo(() => {
     const tickers = []
-    if (scanMode) {
-      const all = scanWl?.items || []
-      // A whole-market scan (e.g. Custom-Period Sort, ~5,000 rows) streams ONLY the
-      // visible window — streaming every row would open ~100 SSE connections. Small
-      // scans (top-gainers/volume, a few hundred) still stream every row so their
-      // data-dependent sorts (RVOL/meta, which need all rows) rank correctly.
-      if (all.length > 800) return scanVisibleSyms
-      all.forEach(i => { if (i.sym) tickers.push(i.sym) })
-      return tickers
-    }
-    if (activeTab === 'mine' && expandedLists.has('flagged')) {
-      tickers.push(...flagged)
-    }
+    if (scanMode) return tickers
+    if (activeTab === 'mine' && expandedLists.has('flagged')) tickers.push(...flagged)
     if (activeTab === 'mine') {
       TAG_COLORS.forEach(tc => {
         if (expandedLists.has(`tag:${tc.key}`)) {
@@ -1085,19 +1147,71 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms])
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode])
+
+  // Collect all visible tickers for live prices
+  const allTickers = useMemo(() => {
+    const tickers = []
+    if (scanMode) {
+      const all = scanWl?.items || []
+      // A whole-market scan (e.g. Custom-Period Sort, ~5,000 rows) streams ONLY the
+      // visible window — streaming every row would open ~100 SSE connections. Small
+      // scans (top-gainers/volume, a few hundred) still stream every row so their
+      // data-dependent sorts (RVOL/meta, which need all rows) rank correctly.
+      if (all.length > 800) return scanVisibleSyms
+      all.forEach(i => { if (i.sym) tickers.push(i.sym) })
+      return tickers
+    }
+    if (activeTab === 'mine' && expandedLists.has('flagged')) tickers.push(...flagged)
+    if (activeTab === 'mine') {
+      TAG_COLORS.forEach(tc => {
+        if (expandedLists.has(`tag:${tc.key}`)) {
+          Object.entries(tags).filter(([, c]) => c === tc.key).forEach(([s]) => tickers.push(s))
+        }
+      })
+    }
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
+    if (lists) {
+      lists.filter(wl => expandedLists.has(wl.id)).forEach(wl => {
+        const its = wl.items || []
+        // A virtualized list reports its own window through `onVisibleChange`; taking
+        // its symbols here as well would put the whole list back on the stream.
+        if (its.length > VIRTUALIZE_MIN_ROWS) return
+        its.forEach(i => { if (i.sym) tickers.push(i.sym) })
+      })
+    }
+    tickers.push(...visibleFromVirtualized)
+    return tickers
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
+  // The whole-list SORT VECTOR. Only fetched when a list is actually virtualized —
+  // reading 1,872 quotes to render a list in its stored order would be the request
+  // storm this change exists to remove. One slow pass (15 s, matching the server's
+  // own quote-cache TTL); the fast feed above wins for any row you can see.
+  const bulkQuotes = useBulkQuotes(listUniverse, listUniverse.length > VIRTUALIZE_MIN_ROWS)
   // Thematic-index rows ("$IDX:<slug>", the "UCT Thematic Indexes" prebuilt list)
   // have no Massive feed — their live daily % comes from the theme-performance
   // snapshot via a batch endpoint, fetched only when such rows are on screen.
-  const hasIdxRows = useMemo(() => allTickers.some(s => typeof s === 'string' && s.startsWith('$IDX:')), [allTickers])
+  //
+  // ⚠️ Asked of the whole LIST, not the visible window. "Does this list contain
+  // thematic-index rows" and "is it made ENTIRELY of them" are properties of the
+  // list; answering them from whatever happens to be scrolled into view would make
+  // the column layout change as you scroll. Scan mode keeps its own window — that
+  // is the only set it has.
+  const idxProbe = scanMode ? allTickers : listUniverse
+  // The set the BATCH enrichments ask about. A virtualized list hands over its WHOLE
+  // membership, because `/api/watchlists/bulk-meta` answers 2,000 tickers in one
+  // indexed read — so Market Cap / Rating / Sector exist for sorting across the list,
+  // not merely for the rows on screen. Scan mode keeps its own window.
+  const listUniverseOrScan = scanMode ? allTickers : listUniverse
+  const hasIdxRows = useMemo(() => idxProbe.some(s => typeof s === 'string' && s.startsWith('$IDX:')), [idxProbe])
   const { quotes: idxQuotes } = useThemeIndexQuotes(hasIdxRows)
   // An all-thematic-index list (the "UCT Thematic Indexes" prebuilt) has no price /
   // volume — just Symbol + % Change. Drives the default column view below.
   const isAllIdxList = useMemo(
-    () => allTickers.length > 0 && allTickers.every(s => typeof s === 'string' && s.startsWith('$IDX:')),
-    [allTickers],
+    () => idxProbe.length > 0 && idxProbe.every(s => typeof s === 'string' && s.startsWith('$IDX:')),
+    [idxProbe],
   )
   // Mirror the chart: when a StockChart of the same ticker is open, its published
   // readout (the EXACT price/volume/%chg its legend + "Pre" tag + volume pane
@@ -1124,8 +1238,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // Price, Vol and % Chg blank on every row. Caught in the browser, not by a
     // test: every fixture that exercised the merge happened to have readouts.
     const hasOverride = !!quoteOverride && Object.keys(quoteOverride).length > 0
-    if (!hasFreshReadouts() && idxKeys.length === 0 && !hasOverride) return feedPrices
-    const merged = { ...feedPrices }
+    // ⭐ THE SORT VECTOR GOES UNDERNEATH, NEVER ON TOP. `bulkQuotes` is the slow
+    // whole-list pass that exists so a virtualized list can still be SORTED over
+    // every member (see `useBulkQuotes`). A row you can actually see is streamed at
+    // full rate, so `feedPrices` must win wherever both have a value — spreading it
+    // second would make visible rows tick at 15 s.
+    const hasBulk = bulkQuotes && Object.keys(bulkQuotes).length > 0
+    if (!hasFreshReadouts() && idxKeys.length === 0 && !hasOverride && !hasBulk) return feedPrices
+    const merged = hasBulk ? { ...bulkQuotes, ...feedPrices } : { ...feedPrices }
     if (hasFreshReadouts()) {
       for (const sym of Object.keys(merged)) {
         const r = getChartReadout(sym)
@@ -1158,7 +1278,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
     }
     return merged
-  }, [feedPrices, readoutTick, idxQuotes, quoteOverride])
+  }, [feedPrices, readoutTick, idxQuotes, quoteOverride, bulkQuotes])
   // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
   // The widget has no chrome of its own (it IS this page), so the door lives
   // on each accordion header. Payload freeze (owner-approved): {sym, note,
@@ -1735,7 +1855,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // least one is actually shown (fundamentals are heavy per ticker). The quote-derived
   // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
   const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
-  const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? allTickers : [])
+  const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? listUniverseOrScan : [])
   // Watchlist Intelligence V1 — only fetched when the Attention column is shown.
   // `changes` is intentionally NOT part of the SWR key (it ticks every ~15s with
   // the live quote feed; keying on it would refetch the whole batch every tick) —
@@ -2287,9 +2407,75 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           let sortedItems = sortAndFilterItems(items)
           if (colSort) {
             const order = applyColSort(sortedItems.map(i => i.sym))
-            sortedItems = order.map(s => sortedItems.find(i => i.sym === s)).filter(Boolean)
+            // O(n) reorder. This was `order.map(s => sortedItems.find(...))` — an
+            // O(n²) scan, re-run on EVERY quote tick: ~3.5M comparisons a second on
+            // the main thread for a 1,872-row Russell 2000. The scan path above was
+            // given precisely this Map fix and it was never backported here.
+            const bySym = new Map(sortedItems.map(i => [i.sym, i]))
+            sortedItems = order.map(s => bySym.get(s)).filter(Boolean)
           }
-          const dragOk = isOwner && !sortBy
+          // ⭐ 2,000 MEMBERS IS NOT 2,000 LIVE ROW COMPONENTS. Past this many rows the
+          // list renders through the SAME `ScanRows` virtualizer the scan path has used
+          // for months — not a second windowing framework. Below it, nothing changes:
+          // a short list costs less to render outright than to window, and every
+          // affordance that reads the DOM keeps working exactly as it did.
+          //
+          // Measured floor for the un-virtualized path (DOM build + layout only — no
+          // React, no logos, no effects): 1,872 rows = 618 ms and 13,104 nodes. The
+          // real cost is a multiple of that, because each row also mounts a
+          // CompanyLogo (3 useState + an effect + an eager <img>), a RowSpark with its
+          // own matchMedia listener, and ~3 FlashCells with timers.
+          const virtualize = sortedItems.length > VIRTUALIZE_MIN_ROWS
+
+          // ONE renderer for both paths — a virtualized row and a plain row must never
+          // be able to drift apart.
+          const renderListItem = (item) => (
+            <>
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner, wlId: wl.id })}
+              {/* Note editor, opened from the row menu's "Notes" entry (and closed by
+                  picking it again). Editable on YOUR lists only — a shared list's
+                  notes are read-only. */}
+              {expandedNote === item.id && (
+                <div className={styles.noteRow}>
+                  {isOwner ? (
+                    <textarea
+                      className={styles.noteTextarea}
+                      value={noteText}
+                      onChange={e => setNoteText(e.target.value)}
+                      onBlur={() => saveNote(wl.id, item.id, noteText)}
+                      placeholder="Add a note..."
+                      rows={2}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div className={styles.noteReadonly}>{item.notes || 'No notes'}</div>
+                  )}
+                </div>
+              )}
+            </>
+          )
+
+          if (virtualize) {
+            return (
+              <>
+                {/* The description and the inline "add symbol" row sit ABOVE the
+                    virtualized container, which is why ScanRows measures its own
+                    offset within the scroller (`measureOffset`). */}
+                {wl.description && !wl.is_prebuilt && <div className={styles.wlDesc}>{wl.description}</div>}
+                <ScanRows
+                  scrollRef={listBodyRef}
+                  items={sortedItems}
+                  renderRow={renderListItem}
+                  emptyText={items.length === 0 ? 'No symbols yet.' : 'No matches.'}
+                  onVisibleChange={handleListVisible(wl.id)}
+                  scrollToSym={selectedSym}
+                  noScrollRef={clickSelectRef}
+                  measureOffset
+                />
+              </>
+            )
+          }
+
           return (
           <div className={styles.wlItems}>
             {/* Prebuilt (curated UCT) lists hide their description — the symbol list speaks
@@ -2321,42 +2507,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               </div>
             )}
             {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
-            {sortedItems.map(item => {
-              const q = prices[item.sym]
-              const price = q?.price ?? null
-              const changePct = q?.change_pct ?? null
-              const isStarred = starred.has(`${wl.id}:${item.sym}`)
-              return (
-                <React.Fragment key={item.id}>
-                  {renderTickerRow({
-                    sym: item.sym,
-                    name: item.name,
-                    isOwner,
-                    wlId: wl.id,
-                  })}
-                  {/* Note editor, opened from the row menu's "Notes" entry (and
-                      closed by picking it again). Editable on YOUR lists only —
-                      a shared list's notes are read-only. */}
-                  {expandedNote === item.id && (
-                    <div className={styles.noteRow}>
-                      {isOwner ? (
-                        <textarea
-                          className={styles.noteTextarea}
-                          value={noteText}
-                          onChange={e => setNoteText(e.target.value)}
-                          onBlur={() => saveNote(wl.id, item.id, noteText)}
-                          placeholder="Add a note..."
-                          rows={2}
-                          onClick={e => e.stopPropagation()}
-                        />
-                      ) : (
-                        <div className={styles.noteReadonly}>{item.notes || 'No notes'}</div>
-                      )}
-                    </div>
-                  )}
-                </React.Fragment>
-            )
-            })}
+            {!virtualize && sortedItems.map(item => (
+              <React.Fragment key={item.id}>{renderListItem(item)}</React.Fragment>
+            ))}
           </div>
           )})()}
       </div>

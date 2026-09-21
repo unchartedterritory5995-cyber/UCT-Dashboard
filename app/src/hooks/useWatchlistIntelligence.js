@@ -17,7 +17,15 @@ import useSWR from 'swr'
 // value stale enough to matter.
 export default function useWatchlistIntelligence(tickers = [], changes = {}, priceObservedAt = {}) {
   const sorted = [...new Set(tickers)].sort()
-  const key = sorted.length ? ['/api/watchlists/intelligence', sorted, changes] : null
+  // ⛔ `changes` IS NOT IN THIS KEY, and the paragraph above is the reason — it said
+  // so already while the code did the opposite. `changes` is rebuilt from the live
+  // quote feed every tick and SWR hashes an array key's CONTENTS, so keying on it
+  // re-POSTed the whole batch (up to 100 tickers) roughly once a second for as long
+  // as the Attention column was visible. Watchlists.jsx's own `changesForIntel`
+  // carries the same warning. The fetcher closes over the latest `changes` fresh on
+  // every render, so the POST body still sends current values — exactly the
+  // arrangement `priceObservedAt` already had.
+  const key = sorted.length ? ['/api/watchlists/intelligence', sorted] : null
 
   const postFetcher = ([url]) =>
     fetch(url, {

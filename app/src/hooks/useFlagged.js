@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const STORAGE_KEY = 'uct_flagged'
@@ -31,11 +31,24 @@ export function useFlagged() {
   const timerRef = useRef(null)
   const mountedRef = useRef(true)
 
-  // Stay in sync across components on the same page
+  // Stay in sync across components on the same page — and across TABS.
+  //
+  // `SYNC_EVENT` is a same-window custom event, so it never crossed tabs. That was
+  // survivable while `isFlagged` re-read localStorage on every call: a star drawn
+  // in this tab would eventually reflect another tab's write, even though the
+  // `flagged` ARRAY driving the Flagged list stayed stale — an inconsistency, but
+  // a quiet one. Now that both read from the same state, the browser's own
+  // `storage` event (which fires only in the OTHER tabs) closes it properly
+  // instead of leaving half the UI fresh and half stale.
   useEffect(() => {
     const sync = () => setFlagged(read())
+    const onStorage = (e) => { if (!e.key || e.key === STORAGE_KEY) sync() }
     window.addEventListener(SYNC_EVENT, sync)
-    return () => window.removeEventListener(SYNC_EVENT, sync)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener(SYNC_EVENT, sync)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [])
 
   // Cleanup
@@ -97,8 +110,25 @@ export function useFlagged() {
     syncToServer()
   }, [syncToServer])
 
-  // Reads fresh from localStorage — always accurate inside event handlers
-  const isFlagged = useCallback((sym) => read().includes(sym), [])
+  // ⛔ THIS IS CALLED ONCE PER ROW, PER RENDER, AND THE LIST RE-RENDERS EVERY
+  // QUOTE TICK. It used to be `read().includes(sym)` — a `localStorage.getItem`
+  // plus a `JSON.parse` plus an O(k) scan, per row. On a 1,872-row Russell 2000
+  // that is ~1,900 synchronous storage reads and parses PER SECOND, on the main
+  // thread, re-deriving a value that had not changed.
+  //
+  // The `flagged` state above is already the same array, kept in sync by the
+  // SYNC_EVENT listener and by every writer in this hook — so a Set derived from
+  // it answers identically without touching storage. The membership test is now
+  // O(1) and the parse happens once per actual change.
+  //
+  // ⚠️ The old comment said "reads fresh from localStorage — always accurate
+  // inside event handlers". It stays accurate: `write()` dispatches SYNC_EVENT
+  // synchronously, and the listener calls `setFlagged(read())`, so state and
+  // storage never diverge across a render boundary. What a stale read could
+  // previously catch — another TAB's write — is handled by the `storage` listener
+  // added above, which keeps the array and the membership test equally fresh.
+  const flaggedSet = useMemo(() => new Set(flagged), [flagged])
+  const isFlagged = useCallback((sym) => flaggedSet.has(sym), [flaggedSet])
 
   const toggleShare = useCallback(() => {
     if (!user) return
