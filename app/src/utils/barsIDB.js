@@ -9,7 +9,7 @@
  * Value shape: { bars: [...], lastT: <last bar's t value>, savedAt: <ms> }
  */
 
-import { isIntradayTailStale } from './marketSession'
+import { classifyIntradayTail } from './marketSession'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -62,11 +62,11 @@ const STORE      = 'bars'
 const CACHE_LOGIC_VERSION = 7
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
-// (weekend/holiday-aware) via marketSession.isIntradayTailStale — NOT a flat wall-clock
+// (weekend/holiday-aware) via marketSession.classifyIntradayTail — NOT a flat wall-clock
 // age. The old flat gates (a 2-day save-time bound + a 26h bar-age wall) wrongly evicted
 // a pre-seeded intraday pack holding Friday's 15:55 bar on a Monday (65h old but the last
-// closed session), which is exactly what blocked intraday-instant. isIntradayTailStale
-// replaces both in idbGet below; anti-spike safety stays on the writer side
+// closed session), which is exactly what blocked intraday-instant. The classifier
+// replaces both in idbGet below, and only its 'gapped' verdict evicts; anti-spike safety stays on the writer side
 // (classifyLiveBar contiguity + provisionalStaleRef).
 // Max age for daily/weekly/monthly. Without this, corrupted historical bars
 // (wrong company, pre-split, etc.) persist indefinitely because delta fetches
@@ -202,7 +202,15 @@ export async function idbGet(sym, tf) {
           // the live feed / a since-fetch); a series missing a whole closed session — or
           // the current session's recent closed bars — is stale → full refetch. Subsumes
           // the old 26h bar-age + 2-day save-time gates. lastT for intraday is unix secs.
-          if (isIntradayTailStale(entry.lastT, tf)) return resolve(null)
+          // ⛔⛔ ONLY 'gapped' MAY BE DISCARDED HERE, AND THIS GATE IS WHY THE
+          // SESSION TAIL EXISTED ON PAPER ONLY. `isIntradayTailStale` is true for
+          // BEHIND as well as GAPPED, so a cache that was merely a few hours short
+          // was nulled at this layer — StockChart never saw it, never classified
+          // it, and fell back to a full refetch. Caught by the browser harness
+          // (tools/intraday_tail_harness.py): FRESH sent `since=`, BEHIND did not.
+          // A BEHIND entry is structurally SOUND; handing it back is what lets the
+          // chart paint history instantly and ask only for the gap.
+          if (classifyIntradayTail(entry.lastT, tf) === 'gapped') return resolve(null)
         } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
           // D/W/M: save-time bound catches corrupted historical bars delta can't heal
           // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.

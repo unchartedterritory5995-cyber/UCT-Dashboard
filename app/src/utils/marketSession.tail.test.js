@@ -71,3 +71,28 @@ describe('classifyIntradayTail', () => {
     expect(classifyIntradayTail(Math.floor(Date.UTC(2026, 8, 18, 23, 55) / 1000), '5')).toBe('fresh')
   })
 })
+
+describe('the IDB eviction policy rides on this classifier', () => {
+  // ⚰️ THE DEFECT THE BROWSER HARNESS FOUND. `barsIDB.idbGet` gated on
+  // `isIntradayTailStale`, which is true for BEHIND as well as GAPPED — so a
+  // cache that was merely a few hours short was nulled at the IDB layer.
+  // StockChart never saw it, never classified it, and fell back to a full
+  // refetch: the session tail existed on paper and never fired.
+  //
+  // ⛔ EVERY UNIT TEST IN THIS FILE PASSED WHILE THAT WAS TRUE. The classifier
+  // was correct in isolation; the consumer upstream of it was not. Only
+  // tools/intraday_tail_harness.py caught it — FRESH sent `since=`, BEHIND did
+  // not. This asserts the POLICY so the wiring has something to be wrong about.
+  const evicts = (cls) => cls === 'gapped'
+
+  it('only GAPPED may be evicted from the cache', () => {
+    expect(evicts(classifyIntradayTail(et(10, 0), '5'))).toBe(false)     // behind
+    expect(evicts(classifyIntradayTail(et(13, 10), '5'))).toBe(true === false)  // fresh
+    expect(evicts(classifyIntradayTail(et(15, 55, 11), '5'))).toBe(true) // gapped
+  })
+
+  it('CONTROL — the old one-bit gate would have evicted BEHIND too', () => {
+    expect(isIntradayTailStale(et(10, 0), '5')).toBe(true)               // would evict
+    expect(evicts(classifyIntradayTail(et(10, 0), '5'))).toBe(false)     // must not
+  })
+})
