@@ -1,0 +1,752 @@
+{
+ "2011-01-03": {
+  "union": 4072,
+  "basis_before_gate": 4029,
+  "basis_after_gate": 3915,
+  "gate_dropped": 114,
+  "eod": 2151,
+  "universes": {
+   "uct": {
+    "members": 1372,
+    "priced": 1276,
+    "session": {
+     "buckets": 389,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 434.0,
+      "corrected": 198.0,
+      "oracle": 198
+     },
+     "new_52w_lows": {
+      "old": 80.0,
+      "corrected": 0.0,
+      "oracle": 0
+     },
+     "near_52w_high": {
+      "old": 752.0,
+      "corrected": 614.0,
+      "oracle": 614
+     },
+     "pct_above_20ema": {
+      "old": 82.9,
+      "corrected": 83.5,
+      "oracle": 83.5
+     },
+     "pct_above_50sma": {
+      "old": 83.8,
+      "corrected": 84.4,
+      "oracle": 84.4
+     },
+     "pct_above_200sma": {
+      "old": 84.3,
+      "corrected": 86.8,
+      "oracle": 86.8
+     },
+     "stage2_count": {
+      "old": 528.0,
+      "corrected": 447.0,
+      "oracle": 447
+     },
+     "stage4_count": {
+      "old": 31.0,
+      "corrected": 17.0,
+      "oracle": 17
+     },
+     "net_new_high_low": {
+      "old": 354.0,
+      "corrected": 198.0,
+      "oracle": 198.0
+     },
+     "advancing": {
+      "old": 1108.0,
+      "corrected": 1052.0,
+      "oracle": 1052
+     },
+     "declining": {
+      "old": 253.0,
+      "corrected": 208.0,
+      "oracle": 208
+     }
+    }
+   },
+   "us": {
+    "members": 4067,
+    "priced": 2012,
+    "session": {
+     "buckets": 389,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 543.0,
+      "corrected": 280.0,
+      "oracle": 280
+     },
+     "new_52w_lows": {
+      "old": 203.0,
+      "corrected": 1.0,
+      "oracle": 1
+     },
+     "near_52w_high": {
+      "old": 996.0,
+      "corrected": 861.0,
+      "oracle": 861
+     },
+     "pct_above_20ema": {
+      "old": 76.8,
+      "corrected": 81.7,
+      "oracle": 81.7
+     },
+     "pct_above_50sma": {
+      "old": 77.9,
+      "corrected": 83.2,
+      "oracle": 83.2
+     },
+     "pct_above_200sma": {
+      "old": 78.8,
+      "corrected": 84.9,
+      "oracle": 84.9
+     },
+     "stage2_count": {
+      "old": 696.0,
+      "corrected": 644.0,
+      "oracle": 644
+     },
+     "stage4_count": {
+      "old": 68.0,
+      "corrected": 39.0,
+      "oracle": 39
+     },
+     "net_new_high_low": {
+      "old": 340.0,
+      "corrected": 279.0,
+      "oracle": 279.0
+     },
+     "advancing": {
+      "old": 1571.0,
+      "corrected": 1582.0,
+      "oracle": 1582
+     },
+     "declining": {
+      "old": 531.0,
+      "corrected": 382.0,
+      "oracle": 382
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 1276,
+   "within2pct": 99.69,
+   "off10": 0,
+   "split_sized": 0
+  }
+ },
+ "2015-08-24": {
+  "union": 4707,
+  "basis_before_gate": 4674,
+  "basis_after_gate": 4596,
+  "gate_dropped": 78,
+  "eod": 2571,
+  "universes": {
+   "uct": {
+    "members": 1623,
+    "priced": 1561,
+    "session": {
+     "buckets": 390,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 184.0,
+      "corrected": 0.0,
+      "oracle": 0
+     },
+     "new_52w_lows": {
+      "old": 415.0,
+      "corrected": 399.0,
+      "oracle": 399
+     },
+     "near_52w_high": {
+      "old": 194.0,
+      "corrected": 8.0,
+      "oracle": 8
+     },
+     "pct_above_20ema": {
+      "old": 14.9,
+      "corrected": 2.7,
+      "oracle": 2.7
+     },
+     "pct_above_50sma": {
+      "old": 18.7,
+      "corrected": 7.6,
+      "oracle": 7.6
+     },
+     "pct_above_200sma": {
+      "old": 29.0,
+      "corrected": 20.9,
+      "oracle": 20.9
+     },
+     "stage2_count": {
+      "old": 152.0,
+      "corrected": 52.0,
+      "oracle": 52
+     },
+     "stage4_count": {
+      "old": 410.0,
+      "corrected": 429.0,
+      "oracle": 429
+     },
+     "net_new_high_low": {
+      "old": -231.0,
+      "corrected": -399.0,
+      "oracle": -399.0
+     },
+     "advancing": {
+      "old": 257.0,
+      "corrected": 50.0,
+      "oracle": 50
+     },
+     "declining": {
+      "old": 1361.0,
+      "corrected": 1505.0,
+      "oracle": 1505
+     }
+    }
+   },
+   "us": {
+    "members": 4702,
+    "priced": 2468,
+    "session": {
+     "buckets": 390,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 214.0,
+      "corrected": 2.0,
+      "oracle": 2
+     },
+     "new_52w_lows": {
+      "old": 695.0,
+      "corrected": 594.0,
+      "oracle": 594
+     },
+     "near_52w_high": {
+      "old": 242.0,
+      "corrected": 34.0,
+      "oracle": 34
+     },
+     "pct_above_20ema": {
+      "old": 13.9,
+      "corrected": 4.6,
+      "oracle": 4.6
+     },
+     "pct_above_50sma": {
+      "old": 16.6,
+      "corrected": 8.7,
+      "oracle": 8.7
+     },
+     "pct_above_200sma": {
+      "old": 26.7,
+      "corrected": 21.4,
+      "oracle": 21.4
+     },
+     "stage2_count": {
+      "old": 205.0,
+      "corrected": 98.0,
+      "oracle": 98
+     },
+     "stage4_count": {
+      "old": 661.0,
+      "corrected": 666.0,
+      "oracle": 666
+     },
+     "net_new_high_low": {
+      "old": -481.0,
+      "corrected": -592.0,
+      "oracle": -592.0
+     },
+     "advancing": {
+      "old": 378.0,
+      "corrected": 130.0,
+      "oracle": 130
+     },
+     "declining": {
+      "old": 2150.0,
+      "corrected": 2292.0,
+      "oracle": 2292
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 1561,
+   "within2pct": 99.62,
+   "off10": 2,
+   "split_sized": 0
+  }
+ },
+ "2020-03-16": {
+  "union": 4817,
+  "basis_before_gate": 4783,
+  "basis_after_gate": 4733,
+  "gate_dropped": 50,
+  "eod": 3220,
+  "universes": {
+   "uct": {
+    "members": 1962,
+    "priced": 1926,
+    "session": {
+     "buckets": 375,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 110.0,
+      "corrected": 1.0,
+      "oracle": 1
+     },
+     "new_52w_lows": {
+      "old": 1100.0,
+      "corrected": 1138.0,
+      "oracle": 1138
+     },
+     "near_52w_high": {
+      "old": 117.0,
+      "corrected": 3.0,
+      "oracle": 3
+     },
+     "pct_above_20ema": {
+      "old": 7.6,
+      "corrected": 1.3,
+      "oracle": 1.3
+     },
+     "pct_above_50sma": {
+      "old": 7.8,
+      "corrected": 1.8,
+      "oracle": 1.8
+     },
+     "pct_above_200sma": {
+      "old": 10.0,
+      "corrected": 4.0,
+      "oracle": 4.0
+     },
+     "stage2_count": {
+      "old": 92.0,
+      "corrected": 10.0,
+      "oracle": 10
+     },
+     "stage4_count": {
+      "old": 523.0,
+      "corrected": 520.0,
+      "oracle": 520
+     },
+     "net_new_high_low": {
+      "old": -990.0,
+      "corrected": -1137.0,
+      "oracle": -1137.0
+     },
+     "advancing": {
+      "old": 206.0,
+      "corrected": 75.0,
+      "oracle": 75
+     },
+     "declining": {
+      "old": 1755.0,
+      "corrected": 1847.0,
+      "oracle": 1847
+     }
+    }
+   },
+   "us": {
+    "members": 4813,
+    "priced": 3148,
+    "session": {
+     "buckets": 375,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 127.0,
+      "corrected": 1.0,
+      "oracle": 1
+     },
+     "new_52w_lows": {
+      "old": 1786.0,
+      "corrected": 1721.0,
+      "oracle": 1721
+     },
+     "near_52w_high": {
+      "old": 137.0,
+      "corrected": 5.0,
+      "oracle": 5
+     },
+     "pct_above_20ema": {
+      "old": 6.0,
+      "corrected": 1.4,
+      "oracle": 1.4
+     },
+     "pct_above_50sma": {
+      "old": 6.1,
+      "corrected": 1.9,
+      "oracle": 1.9
+     },
+     "pct_above_200sma": {
+      "old": 7.8,
+      "corrected": 3.9,
+      "oracle": 3.9
+     },
+     "stage2_count": {
+      "old": 105.0,
+      "corrected": 21.0,
+      "oracle": 21
+     },
+     "stage4_count": {
+      "old": 929.0,
+      "corrected": 922.0,
+      "oracle": 922
+     },
+     "net_new_high_low": {
+      "old": -1659.0,
+      "corrected": -1720.0,
+      "oracle": -1720.0
+     },
+     "advancing": {
+      "old": 306.0,
+      "corrected": 177.0,
+      "oracle": 177
+     },
+     "declining": {
+      "old": 2898.0,
+      "corrected": 2954.0,
+      "oracle": 2954
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 1926,
+   "within2pct": 97.98,
+   "off10": 3,
+   "split_sized": 0
+  }
+ },
+ "2026-09-11": {
+  "union": 5530,
+  "basis_before_gate": 5509,
+  "basis_after_gate": 5503,
+  "gate_dropped": 6,
+  "eod": 5530,
+  "universes": {
+   "uct": {
+    "members": 2703,
+    "priced": 2703,
+    "session": {
+     "buckets": 390,
+     "early_close": false,
+     "close_basis": "calendar-confirmed"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 53.0,
+      "corrected": 52.0,
+      "oracle": 52
+     },
+     "new_52w_lows": {
+      "old": 88.0,
+      "corrected": 87.0,
+      "oracle": 87
+     },
+     "near_52w_high": {
+      "old": 297.0,
+      "corrected": 296.0,
+      "oracle": 296
+     },
+     "pct_above_20ema": {
+      "old": 28.4,
+      "corrected": 28.6,
+      "oracle": 28.6
+     },
+     "pct_above_50sma": {
+      "old": 37.7,
+      "corrected": 37.7,
+      "oracle": 37.7
+     },
+     "pct_above_200sma": {
+      "old": 52.9,
+      "corrected": 52.9,
+      "oracle": 52.9
+     },
+     "stage2_count": {
+      "old": 467.0,
+      "corrected": 468.0,
+      "oracle": 468
+     },
+     "stage4_count": {
+      "old": 413.0,
+      "corrected": 413.0,
+      "oracle": 413
+     },
+     "net_new_high_low": {
+      "old": -35.0,
+      "corrected": -35.0,
+      "oracle": -35.0
+     },
+     "advancing": {
+      "old": 1644.0,
+      "corrected": 1634.0,
+      "oracle": 1634
+     },
+     "declining": {
+      "old": 1034.0,
+      "corrected": 1032.0,
+      "oracle": 1032
+     }
+    }
+   },
+   "us": {
+    "members": 5528,
+    "priced": 5501,
+    "session": {
+     "buckets": 390,
+     "early_close": false,
+     "close_basis": "calendar-confirmed"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 91.0,
+      "corrected": 93.0,
+      "oracle": 93
+     },
+     "new_52w_lows": {
+      "old": 255.0,
+      "corrected": 249.0,
+      "oracle": 249
+     },
+     "near_52w_high": {
+      "old": 539.0,
+      "corrected": 539.0,
+      "oracle": 539
+     },
+     "pct_above_20ema": {
+      "old": 31.6,
+      "corrected": 31.8,
+      "oracle": 31.8
+     },
+     "pct_above_50sma": {
+      "old": 37.3,
+      "corrected": 37.4,
+      "oracle": 37.4
+     },
+     "pct_above_200sma": {
+      "old": 46.3,
+      "corrected": 46.4,
+      "oracle": 46.4
+     },
+     "stage2_count": {
+      "old": 793.0,
+      "corrected": 796.0,
+      "oracle": 796
+     },
+     "stage4_count": {
+      "old": 1142.0,
+      "corrected": 1131.0,
+      "oracle": 1131
+     },
+     "net_new_high_low": {
+      "old": -164.0,
+      "corrected": -156.0,
+      "oracle": -156.0
+     },
+     "advancing": {
+      "old": 3018.0,
+      "corrected": 2980.0,
+      "oracle": 2980
+     },
+     "declining": {
+      "old": 2311.0,
+      "corrected": 2302.0,
+      "oracle": 2302
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 2703,
+   "within2pct": 99.96,
+   "off10": 0,
+   "split_sized": 0
+  }
+ },
+ "2025-12-24": {
+  "union": 2668,
+  "basis_before_gate": 2668,
+  "basis_after_gate": 2664,
+  "gate_dropped": 4,
+  "eod": 2668,
+  "universes": {
+   "uct": {
+    "members": 2668,
+    "priced": 2664,
+    "session": {
+     "buckets": 210,
+     "early_close": true,
+     "close_basis": "calendar-confirmed"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 154.0,
+      "corrected": 142.0,
+      "oracle": 142
+     },
+     "new_52w_lows": {
+      "old": 15.0,
+      "corrected": 8.0,
+      "oracle": 8
+     },
+     "near_52w_high": {
+      "old": 657.0,
+      "corrected": 642.0,
+      "oracle": 642
+     },
+     "pct_above_20ema": {
+      "old": 63.2,
+      "corrected": 63.1,
+      "oracle": 63.1
+     },
+     "pct_above_50sma": {
+      "old": 62.8,
+      "corrected": 62.8,
+      "oracle": 62.8
+     },
+     "pct_above_200sma": {
+      "old": 65.2,
+      "corrected": 65.3,
+      "oracle": 65.3
+     },
+     "stage2_count": {
+      "old": 926.0,
+      "corrected": 917.0,
+      "oracle": 917
+     },
+     "stage4_count": {
+      "old": 273.0,
+      "corrected": 271.0,
+      "oracle": 271
+     },
+     "net_new_high_low": {
+      "old": 139.0,
+      "corrected": 134.0,
+      "oracle": 134.0
+     },
+     "advancing": {
+      "old": 1750.0,
+      "corrected": 1735.0,
+      "oracle": 1735
+     },
+     "declining": {
+      "old": 882.0,
+      "corrected": 865.0,
+      "oracle": 865
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 2664,
+   "within2pct": 99.92,
+   "off10": 0,
+   "split_sized": 0
+  }
+ },
+ "2017-10-17": {
+  "union": 1737,
+  "basis_before_gate": 1737,
+  "basis_after_gate": 1687,
+  "gate_dropped": 50,
+  "eod": 1737,
+  "universes": {
+   "uct": {
+    "members": 1737,
+    "priced": 1687,
+    "session": {
+     "buckets": 390,
+     "early_close": false,
+     "close_basis": "derived/unverified-by-repo-calendar"
+    },
+    "metrics": {
+     "new_52w_highs": {
+      "old": 266.0,
+      "corrected": 109.0,
+      "oracle": 109
+     },
+     "new_52w_lows": {
+      "old": 71.0,
+      "corrected": 10.0,
+      "oracle": 10
+     },
+     "near_52w_high": {
+      "old": 820.0,
+      "corrected": 740.0,
+      "oracle": 740
+     },
+     "pct_above_20ema": {
+      "old": 66.0,
+      "corrected": 65.4,
+      "oracle": 65.4
+     },
+     "pct_above_50sma": {
+      "old": 76.4,
+      "corrected": 77.2,
+      "oracle": 77.2
+     },
+     "pct_above_200sma": {
+      "old": 70.7,
+      "corrected": 70.7,
+      "oracle": 70.7
+     },
+     "stage2_count": {
+      "old": 712.0,
+      "corrected": 674.0,
+      "oracle": 674
+     },
+     "stage4_count": {
+      "old": 135.0,
+      "corrected": 119.0,
+      "oracle": 119
+     },
+     "net_new_high_low": {
+      "old": 195.0,
+      "corrected": 99.0,
+      "oracle": 99.0
+     },
+     "advancing": {
+      "old": 743.0,
+      "corrected": 639.0,
+      "oracle": 639
+     },
+     "declining": {
+      "old": 961.0,
+      "corrected": 997.0,
+      "oracle": 997
+     }
+    }
+   }
+  },
+  "residual": {
+   "n": 1687,
+   "within2pct": 99.88,
+   "off10": 0,
+   "split_sized": 0
+  }
+ }
+}
