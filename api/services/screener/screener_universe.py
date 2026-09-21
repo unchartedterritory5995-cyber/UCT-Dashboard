@@ -160,13 +160,15 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
         except Exception:                                  # noqa: BLE001
             min_shares = 1000.0
 
+    from api.ticker_types import ETF_TYPES          # {ETF, ETN, ETV, FUND}
     ref = massive.list_reference_tickers(active=True, market="stocks") or []
-    typed: dict[str, str] = {}
+    ref_type: dict[str, str] = {}
     for r in ref:
         tk = str(r.get("ticker") or "").upper()
         typ = str(r.get("type") or "").upper()
-        if tk and typ in KEEP_TYPES:
-            typed[tk] = typ
+        if tk:
+            ref_type[tk] = typ
+    typed = {t for t, ty in ref_type.items() if ty in KEEP_TYPES}   # reference CS/ADR
 
     if not typed:
         # Reference call failed — do NOT overwrite a good file with nothing.
@@ -178,16 +180,28 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
     try:
         from api.services import cap_universe
         core = set(cap_universe.symbols())
+        etf_like = {t for t, ty in ref_type.items() if ty in ETF_TYPES}
+        etf_like |= set(cap_universe.etf_symbols())
     except Exception:                                      # noqa: BLE001
-        core = set()
+        core, etf_like = set(), set()
     excl = buyout_excludes()
 
-    # Keep a typed name if it traded recently OR is in the curated core; then drop
-    # buyouts. If the liveness frame came back empty (provider hiccup), don't let
-    # it delete the world — fall through to "all typed minus buyouts".
+    # ⛔ THE REFERENCE ENUMERATION IS INCOMPLETE — it dropped real common stocks
+    # (AL, AMWD, ASGN, AVB … present in the curated cap_universe but absent from
+    # `list_reference_tickers`). So the universe is the UNION of two sources, not
+    # the reference alone:
+    #   1. reference CS/ADR that actually TRADE (live) or are curated (core), and
+    #   2. every curated cap_universe name — a $300M+ EQUITY set, so a core name
+    #      the reference missed is a common stock we must keep.
+    # Then subtract ETFs/funds (reference type OR the prebuilt-ETF list) and the
+    # buyout list. A blank liveness frame (provider hiccup) must not delete the
+    # world, so `keep_live` falls back to all typed names.
     keep_live = live or set(typed)
-    final = sorted(t for t in typed
-                   if (t in keep_live or t in core) and t not in excl)
+    keep = {t for t in typed if t in keep_live or t in core}
+    keep |= {t for t in core if t not in etf_like}
+    keep -= etf_like
+    keep -= excl
+    final = sorted(keep)
 
     dest = write_path or writable_path()
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
@@ -199,9 +213,11 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
     summary = {
         "ok": True,
         "reference_total": len(ref),
-        "kept_type": len(typed),
+        "reference_cs_adr": len(typed),
+        "core_added": len({t for t in core if t not in etf_like} - typed),
         "traded_recently": len(live),
-        "excluded_buyouts": sum(1 for t in typed if t in excl),
+        "excluded_etf": len(etf_like),
+        "excluded_buyouts": len({t for t in (typed | core) if t in excl}),
         "final": len(final),
         "min_shares": min_shares,
         "path": dest,
