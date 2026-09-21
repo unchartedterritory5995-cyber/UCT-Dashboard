@@ -2,6 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 
+// ── What each pool actually IS ──────────────────────────────────────────────
+// The rules here MIRROR the server: All Market = the whole snapshot, which is
+// already US-listed common stock at market cap ≥ $300M; UCT Universe applies the
+// two liquidity gates in `query.py::_universe_clauses` (UCT_MIN_PRICE $5,
+// UCT_MIN_DOLLAR_VOL $20M). `short` rides inline beside the count; `body` fills
+// the ⓘ popover. Kept beside the buttons on purpose — a member should be able to
+// see WHY a pool is 2,097 and not 3,745 without leaving the row.
+const UNIVERSE_INFO = {
+  all: {
+    name: 'All Market',
+    short: 'US-listed · cap ≥ $300M',
+    body: 'Every name we track — US-listed common stocks with a market cap of at least $300M. Micro-caps, OTC and most funds are already outside the snapshot.',
+  },
+  uct: {
+    name: 'UCT Universe',
+    short: 'price ≥ $5 · 30-day $-vol ≥ $20M',
+    body: 'All Market, then narrowed to the liquid, tradeable subset: price ≥ $5 and 30-day average dollar-volume ≥ $20M.',
+  },
+}
+
 // ── UniverseBar — the pool a scan runs against, chosen BEFORE filtering ──
 //
 // It does NOT add a new API surface. The screener already resolves a member's
@@ -46,6 +66,8 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
   const single = !isCombo && val != null ? options.find(o => o.value === val) : null
   const isUCT = !activeList && activeUniverse?.value === 'uct'
   const isAllMarket = !activeList && !isUCT
+  // The firm pools carry a fixed rule to show inline; a member's own list does not.
+  const activeCriteria = isAllMarket ? UNIVERSE_INFO.all.short : isUCT ? UNIVERSE_INFO.uct.short : null
 
   // Selecting any base clears the others so they stay mutually exclusive.
   const pickAllMarket = () => { onSetFilter('universe', null); onSetFilter('list', null); setOpen(null) }
@@ -81,6 +103,28 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
   return (
     <div className={styles.universeBar} ref={rootRef}>
       <span className={styles.uEyebrow} title="The pool your filters run against. Pick before you filter.">Universe</span>
+      {/* ⓘ — the criteria for BOTH pools, spelled out, so 3,745 vs 2,097 is
+          explained in place rather than guessed at. */}
+      <div className={styles.uddWrap}>
+        <button type="button" className={styles.uInfoBtn} aria-label="Universe criteria"
+          aria-haspopup="true" aria-expanded={open === 'info'}
+          onClick={() => setOpen(o => (o === 'info' ? null : 'info'))}>
+          <UIcon name="info" size={12} />
+        </button>
+        {open === 'info' && (
+          <div className={`${styles.uMenu} ${styles.uInfoMenu}`} role="menu">
+            <div className={styles.uMenuHd}>What each pool means</div>
+            {[UNIVERSE_INFO.all, UNIVERSE_INFO.uct].map(u => (
+              <div key={u.name} className={styles.uInfoRow}>
+                <div className={styles.uInfoName}>
+                  {u.name}<span className={styles.uInfoRule}>{u.short}</span>
+                </div>
+                <div className={styles.uInfoBody}>{u.body}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className={styles.uSeg}>
         <button type="button" className={styles.uBtn} aria-pressed={isAllMarket} onClick={pickAllMarket}>
           All Market
@@ -138,6 +182,20 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
           </div>
         )}
       </div>
+
+      {/* The active pool's rule, in place — so the criteria driving the count
+          are visible without opening the ⓘ. Only the two firm pools have a fixed
+          rule; a member's own list does not. */}
+      {activeCriteria && <span className={styles.uCriteria}>{activeCriteria}</span>}
+
+      {/* Reset the pool to All Market. Shown only when something narrows it —
+          All Market IS the cleared state, so there is nothing to clear there. */}
+      {!isAllMarket && (
+        <button type="button" className={styles.uClear} onClick={pickAllMarket}
+          title="Reset the pool to All Market">
+          Clear
+        </button>
+      )}
 
       <span className={styles.uBase}>
         {isAllMarket ? 'All Market' : isUCT ? 'UCT Universe' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
