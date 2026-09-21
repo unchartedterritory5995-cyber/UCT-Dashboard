@@ -1,0 +1,378 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 45,
+    "fixed": 2,
+    "unchanged": 208,
+    "missing": 0,
+    "baseline": 210,
+    "current": 254,
+    "current_ran": 50799,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 45
+  },
+  "arithmetic": "baseline 210 = unchanged 208 + fixed 2 + missing 0  |  current 254 = unchanged 208 + new 45 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35566926820",
+  "current_run_id": "35572914078",
+  "baseline_sha": "6798bdada1ac518d5f888564b9cb213d09b71ddd",
+  "current_sha": "7ac9ff5ce1c8db94c6d62d3615873949affed539",
+  "commit_range": "6798bdada1ac518d5f888564b9cb213d09b71ddd..7ac9ff5ce1c8db94c6d62d3615873949affed539",
+  "first_run": false,
+  "new": [
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for NOTHING extra while the list is unsorted",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for the WHOLE list the moment a column sort is active",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > mounts far fewer rows than it has members",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > streams only what is on screen",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a small watchlist > renders every row outright and streams all of them",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|keyboard navigation across a virtualized list > walks past the edge of the rendered window",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > History lists only this symbol: the open entry + the AAPL closed trade",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > Your Position shows the six figures from the open AAPL position only",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > analyst bar reflects RH bucketing",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > renders header, chart, and every RH section for the symbol",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > reads a different symbol's attention entry on symbol change (no stale prior-symbol card)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders a distinct \"could not check\" state on a total fetch failure, never silence",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders nothing when the symbol has no open position (attention map has no entry)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > shows \"Nothing notable\" for a non-notable held symbol, never fabricating a fact",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > surfaces a degraded status pill rather than hiding it silently",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > clicking the closed AAPL trade row navigates to its real j2_trades.id detail page",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > keyboard Enter on the closed-trade row also navigates",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > the OPEN position row is not clickable (no navigation on click)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > renders nothing extra for a symbol with no linked research (no forced empty state)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > ArrowRight navigates to the next trade in the filtered set",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > True R shows the no-adverse dash when trueR is null on a computed excursion",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > a real excursion renders the % + bar-approx resolution label",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > insufficient data quality shows N/A",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > keeps the executions section collapsed by default",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > null excursion shows the Pending exit-efficiency state",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders True R from the excursion (stop-free, signed, colored)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the excursion-analysis placeholder copy (pending, no excursion)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the outcome header from the fixture trade",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > shows the no-stop R label + an Add-stop affordance",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > underlying data quality is labeled underlying-based",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Compare reveals the \"+ Compare\" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > opens without disturbing the other 4 CTA elements",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Save to Notebook (Wave 1, P1-1: tradeRef) > captures this trade's chart, framed to the holding window, tagged with tradeRef",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > does not fire a PATCH on unmount when the Notes draft was never edited",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > flushes an unsaved Notes edit to the server when the page unmounts without ever blurring",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > still flushes via onBlur for the ordinary case (unchanged behavior)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Copy image renders the card then copies it to the clipboard",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Save image renders the card then downloads it",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > hides Save/Copy image when the tradePng flag is off",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > shows Save/Copy image buttons when the flag is on"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for NOTHING extra while the list is unsorted": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for the WHOLE list the moment a column sort is active": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > mounts far fewer rows than it has members": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > streams only what is on screen": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a small watchlist > renders every row outright and streams all of them": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|keyboard navigation across a virtualized list > walks past the edge of the rendered window": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > History lists only this symbol: the open entry + the AAPL closed trade": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > Your Position shows the six figures from the open AAPL position only": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > analyst bar reflects RH bucketing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > renders header, chart, and every RH section for the symbol": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > reads a different symbol's attention entry on symbol change (no stale prior-symbol card)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders a distinct \"could not check\" state on a total fetch failure, never silence": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders nothing when the symbol has no open position (attention map has no entry)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > shows \"Nothing notable\" for a non-notable held symbol, never fabricating a fact": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > surfaces a degraded status pill rather than hiding it silently": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > clicking the closed AAPL trade row navigates to its real j2_trades.id detail page": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > keyboard Enter on the closed-trade row also navigates": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > the OPEN position row is not clickable (no navigation on click)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > renders nothing extra for a symbol with no linked research (no forced empty state)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > ArrowRight navigates to the next trade in the filtered set": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > True R shows the no-adverse dash when trueR is null on a computed excursion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > a real excursion renders the % + bar-approx resolution label": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > insufficient data quality shows N/A": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > keeps the executions section collapsed by default": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > null excursion shows the Pending exit-efficiency state": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders True R from the excursion (stop-free, signed, colored)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the excursion-analysis placeholder copy (pending, no excursion)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the outcome header from the fixture trade": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > shows the no-stop R label + an Add-stop affordance": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > underlying data quality is labeled underlying-based": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Compare reveals the \"+ Compare\" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > opens without disturbing the other 4 CTA elements": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Save to Notebook (Wave 1, P1-1: tradeRef) > captures this trade's chart, framed to the holding window, tagged with tradeRef": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > does not fire a PATCH on unmount when the Notes draft was never edited": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > flushes an unsaved Notes edit to the server when the page unmounts without ever blurring": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > still flushes via onBlur for the ordinary case (unchanged behavior)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Copy image renders the card then copies it to the clipboard": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Save image renders the card then downloads it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > hides Save/Copy image when the tradePng flag is off": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > shows Save/Copy image buttons when the flag is on": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6798bdada..7ac9ff5ce touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
