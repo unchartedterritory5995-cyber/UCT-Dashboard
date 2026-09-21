@@ -229,6 +229,30 @@ def ticker_search(
         except Exception:
             pass
 
+    # MARKET INDICATORS (US:MCO, NAAIM, VIX9D…): the fourth searchable family, beside
+    # live tickers, breadth pseudo-tickers and delisted entities.
+    #
+    # ⛔ PAID, ON THE SAME REASONING AS THE BREADTH ROWS ABOVE — these are derived from
+    # UCT's own canonical breadth or ingested under licensing we carry, and enumerating
+    # them is step one of "enumerate, then fetch the history".
+    #
+    # ⚠️ NAMES, NOT PSEUDO-TICKERS. `name` is the Rule-2/Rule-1 display sentence
+    # ("US · McClellan Oscillator", "NAAIM Exposure Index"), so a member who does not
+    # know the symbol still recognises the row. `symbol_hit` promotes an exact identity
+    # or alias match to the front, the same ranking the breadth rows get.
+    if want_breadth and _bars_entitled(uct_session):
+        try:
+            from api.services.market_indicators import discovery as _mi_disc
+            m_front, m_back = [], []
+            for rec in _mi_disc.search(qq, limit=limit, include_breadth=False):
+                row = {"ticker": rec["symbol"], "name": rec["display"],
+                       "type": "indicator", "exchange": "UCT", "entity_id": None,
+                       "indicator": True, "group_label": rec["family_label"]}
+                (m_front if rec.get("symbol_hit") else m_back).append(row)
+            results = m_front + results + m_back
+        except Exception:
+            pass
+
     # DELISTED tickers (Yahoo, Twitter, Lehman…) — a live ticker sharing a symbol wins.
     if want_delisted:
         try:

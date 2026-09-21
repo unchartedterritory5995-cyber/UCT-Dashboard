@@ -389,6 +389,17 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
             return False
     except Exception:
         pass
+    # ⛔ MARKET INDICATORS ALSO STAY LOCAL, for exactly the reason breadth does: they
+    # are served from web-pod stores (`naaim_series.db`, `cboe_indices.db`, and a
+    # derivation over `breadth_daily_ohlc`) that the bars-serving tier does not have.
+    # Proxying one returns an empty chart. Same authority `serve_bars` routes on, so
+    # the exclusion cannot drift from the routing.
+    try:
+        from api.services.market_indicators import registry as _mireg
+        if _mireg.is_market_indicator(ticker):
+            return False
+    except Exception:
+        pass
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -676,15 +687,40 @@ def serve_bars(
             # any market-data provider. Checked FIRST so it never touches the live
             # fetch path (a UCT symbol has no provider and would 503). Membership
             # test — not a bare 'UCT' prefix — so a real ticker like UCTT is untouched.
+            # MARKET INDICATOR (US:MCO, NAAIM, VIX9D, …): one more locally-served
+            # family, same contract — `t` is 'YYYY-MM-DD', D/W/M only, no provider.
+            #
+            # ⛔⛔ CHECKED AFTER BREADTH AND BEFORE EVERYTHING ELSE, and the order is
+            # load-bearing in BOTH directions. After breadth, because the 44 shipped
+            # pseudo-tickers must answer exactly as they always have and no new
+            # catalogue may shadow one. Before the index and live-fetch paths, because
+            # a market indicator has no market-data provider and would 503 there.
+            #
+            # ⛔ MEMBERSHIP IS A REGISTRY LOOKUP, NEVER A SHAPE TEST. `US:MCO` is one
+            # because `market_indicators.registry` contains that identity; `US:NOPE`
+            # has the identical shape and is not. DORMANT rows (NYMO/NYSI/NAMO/NASI)
+            # resolve to None here, so a symbol whose inputs do not exist yet cannot be
+            # charted no matter what a stale client asks for.
             from api.services import breadth_symbols as _breadth_syms
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
-            _drec = None if _is_breadth else _delisted.resolve(ticker)
+            _is_mkt_ind = False
+            if not _is_breadth:
+                try:
+                    from api.services.market_indicators import registry as _mireg
+                    _is_mkt_ind = _mireg.is_market_indicator(ticker)
+                except Exception:
+                    _is_mkt_ind = False
+            _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
             if _is_breadth:
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
                 # breadth-build once the bars-layer cache lands (Phase 2).
                 _mark_serve("breadth")
                 response = JSONResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
+            elif _is_mkt_ind:
+                from api.services.market_indicators import series as _mseries
+                _mark_serve("market-indicator")
+                response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
