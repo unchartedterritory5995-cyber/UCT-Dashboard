@@ -104,6 +104,18 @@ BACKOFF_SECONDS = (60, 180, 420, 900, 1800)
 
 LEDGER_INTERVAL_SECONDS = 60
 
+#: Weekdays in 2008-01-02..2026-09-11 — what a COMPLETE pass checkpoints, holidays
+#: included (they land as `missing_source`, which is still a checkpoint). V1 finished on
+#: exactly 4,878, so this is measured rather than computed, and it is only ever used to
+#: turn progress into a percentage and an ETA. Nothing decides anything from it.
+EXPECTED_CHECKPOINTS = 4878
+
+#: A rolling window of (monotonic, checkpoints) samples. Throughput from the whole run
+#: would be dominated by the 2-universe leg and quietly lie about the 4-universe one,
+#: so the ETA is built from the RECENT rate instead.
+_RATE_WINDOW = []
+_RATE_WINDOW_MAX = 30
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -224,6 +236,7 @@ def _write_ledger(state: str, started: str, boot_count: int, extra: dict) -> Non
         "cache_bytes": _dir_bytes(os.path.join(DATA_DIR, "grouped_closes")),
     }
     payload.update(prog)
+    payload.update(_throughput(prog.get("checkpoints")))
     payload.update(extra or {})
     try:
         free = os.statvfs(DATA_DIR)
@@ -237,6 +250,31 @@ def _write_ledger(state: str, started: str, boot_count: int, extra: dict) -> Non
         os.replace(tmp, LEDGER_PATH)
     except OSError:
         pass
+
+
+def _throughput(checkpoints) -> dict:
+    """Recent sessions/hour and an ETA, from the ledger's own samples."""
+    out = {"sessions_per_hour_recent": None, "eta_hours": None, "eta_utc": None,
+           "percent_complete": None}
+    if checkpoints is None:
+        return out
+    out["percent_complete"] = round(100.0 * checkpoints / EXPECTED_CHECKPOINTS, 2)
+    _RATE_WINDOW.append((time.monotonic(), checkpoints))
+    del _RATE_WINDOW[:-_RATE_WINDOW_MAX]
+    if len(_RATE_WINDOW) < 2:
+        return out
+    (t0, c0), (t1, c1) = _RATE_WINDOW[0], _RATE_WINDOW[-1]
+    dt, dc = t1 - t0, c1 - c0
+    if dt <= 0 or dc <= 0:
+        return out
+    rate = dc / dt                                     # checkpoints per second
+    out["sessions_per_hour_recent"] = round(rate * 3600.0, 1)
+    remaining = max(EXPECTED_CHECKPOINTS - checkpoints, 0)
+    hours = remaining / rate / 3600.0
+    out["eta_hours"] = round(hours, 1)
+    out["eta_utc"] = datetime.fromtimestamp(
+        time.time() + remaining / rate, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return out
 
 
 def _ledger_thread(stop: threading.Event, started: str, boot_count: int) -> None:

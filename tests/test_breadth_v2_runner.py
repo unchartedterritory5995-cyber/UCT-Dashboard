@@ -259,3 +259,32 @@ def test_hold_gate_blocks_the_pass_without_becoming_a_failure(tmp_path, monkeypa
     # A hold is not a FAILED marker: the two are separate files with separate meanings.
     assert sup.HOLD_PATH != sup.FAILED_PATH
     assert sup.HOLD_PATH != sup.DONE_PATH
+
+
+def test_throughput_uses_the_recent_rate_not_the_whole_run():
+    """⚠️ A rate averaged over the whole run is dominated by the 2-universe leg and
+    would quietly under-state the 4-universe one, so the ETA must come from the recent
+    window. Also: no samples, no guess."""
+    from api.services import breadth_v2_supervisor as sup
+
+    sup._RATE_WINDOW.clear()
+    first = sup._throughput(100)
+    assert first["percent_complete"] == round(100 * 100 / sup.EXPECTED_CHECKPOINTS, 2)
+    assert first["sessions_per_hour_recent"] is None, "one sample is not a rate"
+    assert first["eta_hours"] is None
+
+    # Two samples an hour apart, 100 checkpoints of progress -> 100/hour.
+    sup._RATE_WINDOW.clear()
+    sup._RATE_WINDOW.append((0.0, 100))
+    import time as _t
+    monotonic = _t.monotonic
+    try:
+        _t.monotonic = lambda: 3600.0
+        second = sup._throughput(200)
+    finally:
+        _t.monotonic = monotonic
+    assert second["sessions_per_hour_recent"] == 100.0
+    assert second["eta_hours"] == round((sup.EXPECTED_CHECKPOINTS - 200) / 100.0, 1)
+
+    sup._RATE_WINDOW.clear()
+    assert sup._throughput(None)["percent_complete"] is None
