@@ -4785,6 +4785,15 @@ async def lifespan(app: FastAPI):
                           f"errors={res['errors']}")
                 except Exception as e:
                     print(f"[startup] cboe refresh error (non-fatal): {e}")
+                # ⭐ WARM THE COVERAGE SNAPSHOT RIGHT AFTER INGEST, off the request
+                # path. `availability()` materialises every published series (87s
+                # measured on production) and its route is unauthenticated, so the
+                # first member to ask must never be the one who computes it.
+                try:
+                    from api.services.market_indicators import series as _mseries
+                    _mseries.warm_availability()
+                except Exception as e:
+                    print(f"[startup] market-indicator availability warm failed: {e}")
                 time.sleep(int(os.environ.get("CBOE_REFRESH_SECS", "86400")))
 
         threading.Thread(target=_cboe_refresh_loop, daemon=True,

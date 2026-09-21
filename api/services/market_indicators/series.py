@@ -23,6 +23,8 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import math
+import threading
+import time
 from typing import Optional
 
 from api.services.market_indicators import registry as reg
@@ -240,12 +242,15 @@ def build_bars(symbol: str, tf: str = "D", bars: int = 5000) -> dict:
     return {"ticker": row.symbol, "tf": tf, "bars": out}
 
 
-def availability() -> dict:
-    """`{series_id: {first, last, points}}` for every PUBLISHED series.
+#: How long a computed availability snapshot stays servable.
+AVAILABILITY_TTL_SECS = 900
 
-    ⭐ WHAT ACTUALLY EXISTS, not what the catalogue describes. The two are different
-    questions and conflating them is how a member finds an identity with no history.
-    """
+_avail_lock = threading.Lock()
+_avail_cache: tuple[float, dict] | None = None      # (computed_at, payload)
+
+
+def _availability_uncached() -> dict:
+    """`{series_id: {first, last, points}}` for every PUBLISHED series."""
     out = {}
     for row in reg.published_rows():
         try:
@@ -256,3 +261,48 @@ def availability() -> dict:
                        "last": b[-1]["t"] if b else None,
                        "points": len(b)}
     return out
+
+
+def availability(max_age: float | None = None) -> dict:
+    """`{series_id: {first, last, points}}` for every PUBLISHED series.
+
+    ⭐ WHAT ACTUALLY EXISTS, not what the catalogue describes. The two are different
+    questions and conflating them is how a member finds an identity with no history.
+
+    ⛔⛔ CACHED AND SINGLE-FLIGHTED, AND THAT IS NOT AN OPTIMISATION. This materialises
+    every published series to count its points: on production, with 4,708 breadth
+    sessions and seven Cboe families of several thousand rows, ONE call measured
+    **87 seconds**. It is served by an UNAUTHENTICATED route, so without this guard any
+    caller could hold a web worker for a minute and a half at will, and a handful in
+    parallel would exhaust the pod's threadpool — the same class as the 2026-07-01
+    524 outage that `auth_db`'s 3-second timeout exists for.
+
+    ⚠️ A WAITER SERVES STALE RATHER THAN QUEUEING. If another thread is already
+    computing, we return the previous snapshot immediately (or `{}` when there is none)
+    instead of blocking — coverage metadata a few minutes old is worth far more than a
+    held connection.
+    """
+    global _avail_cache
+    ttl = AVAILABILITY_TTL_SECS if max_age is None else max_age
+    now = time.time()
+
+    cached = _avail_cache
+    if cached is not None and (now - cached[0]) < ttl:
+        return cached[1]
+
+    if not _avail_lock.acquire(blocking=False):
+        return cached[1] if cached is not None else {}
+    try:
+        cached = _avail_cache                       # a racer may have just filled it
+        if cached is not None and (time.time() - cached[0]) < ttl:
+            return cached[1]
+        payload = _availability_uncached()
+        _avail_cache = (time.time(), payload)
+        return payload
+    finally:
+        _avail_lock.release()
+
+
+def warm_availability() -> dict:
+    """Compute the snapshot off the request path, so no member pays the cold cost."""
+    return availability()

@@ -589,3 +589,55 @@ def test_the_reference_anchor_is_labelled_as_a_reference_not_as_a_declaration():
     assert a.source.startswith("reference:")
     d = mc.Anchor(at="2026-01-02", value=0.0, source="declared")
     assert not d.source.startswith("reference:")
+
+
+# ── The unauthenticated status route may not be a thread sink ────────────────
+
+def test_availability_is_cached_so_the_open_route_cannot_hold_a_worker(monkeypatch):
+    """⛔⛔ MEASURED ON PRODUCTION AT 87 SECONDS, on a route with NO AUTH.
+
+    `availability()` materialises every published series to count its points. A
+    caller could hold a web worker for a minute and a half at will, and a handful
+    in parallel would exhaust the pod's threadpool.
+    """
+    from api.services.market_indicators import series as ms
+    calls = []
+    monkeypatch.setattr(ms, "_avail_cache", None, raising=False)
+    monkeypatch.setattr(ms, "_availability_uncached",
+                        lambda: (calls.append(1), {"X": {"points": 1}})[1])
+    a = ms.availability()
+    b = ms.availability()
+    c = ms.availability()
+    assert a == b == c
+    assert len(calls) == 1, f"recomputed {len(calls)} times — the cache is not holding"
+
+
+def test_a_concurrent_caller_gets_the_previous_snapshot_rather_than_queueing():
+    """⚠️ STALE BEATS BLOCKED. While one thread computes, others must return at once."""
+    from api.services.market_indicators import series as ms
+    ms._avail_cache = (0.0, {"OLD": {"points": 7}})      # expired, but present
+    ms._avail_lock.acquire()                             # pretend a computation is running
+    try:
+        got = ms.availability()
+    finally:
+        ms._avail_lock.release()
+        ms._avail_cache = None
+    assert got == {"OLD": {"points": 7}}, "a waiter must be served, not queued"
+
+
+def test_with_no_snapshot_at_all_a_concurrent_caller_still_does_not_block():
+    from api.services.market_indicators import series as ms
+    ms._avail_cache = None
+    ms._avail_lock.acquire()
+    try:
+        assert ms.availability() == {}
+    finally:
+        ms._avail_lock.release()
+
+
+def test_the_warm_door_exists_and_is_called_off_the_request_path():
+    import inspect
+    from api.services.market_indicators import series as ms
+    import api.main as main
+    assert callable(ms.warm_availability)
+    assert "warm_availability" in inspect.getsource(main)
