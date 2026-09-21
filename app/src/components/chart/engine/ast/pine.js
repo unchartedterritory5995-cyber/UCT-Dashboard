@@ -674,6 +674,20 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
 export const PINE_SHORT_FORM = Object.freeze({
   highest: Object.freeze({ fills: Object.freeze(['high']) }),
   lowest: Object.freeze({ fills: Object.freeze(['low']) }),
+  // ⭐⭐ (2026-09-20) `highestbars`/`lowestbars` GET THE IDENTICAL 1-ARGUMENT
+  // DEFAULT `negatedBars` (below) ALREADY ESTABLISHED AND SHIPPED for the
+  // NAMESPACED `ta.highestbars`/`ta.lowestbars` — this entry reaches only
+  // the BARE spelling, since the namespaced one is intercepted earlier by
+  // `PINE_NAMESPACED_TREE` and never falls through this far. Unlike
+  // `pivothigh`/`pivotlow` below, no sign flip or bar-shift is needed here:
+  // this table's bare 2-argument `highestbars(source, period)` already
+  // reports the SAME positive-distance convention the 1-argument short form
+  // asks for, so filling the source is the whole fix — confirmed by the real
+  // target script's OWN `* -1` (`nubia-auto-midas-anchored-vwap`), which
+  // manually converts our positive convention to Pine's non-positive one,
+  // exactly as it would for an explicit 2-argument bare call today.
+  highestbars: Object.freeze({ fills: Object.freeze(['high']) }),
+  lowestbars: Object.freeze({ fills: Object.freeze(['low']) }),
 })
 
 export const PINE_CALL_SHAPES = Object.freeze({
@@ -7889,6 +7903,36 @@ export class Resolver {
       }
       plan = shape.build
     } else {
+      // ⭐⭐⭐ (2026-09-20) THE BARE 2-ARGUMENT SHORT FORM OF `pivothigh`/
+      // `pivotlow` REUSES `pivotAtConfirmation` — THE SAME FUNCTION THE
+      // NAMESPACED `ta.pivothigh`/`ta.pivotlow` FORM ALREADY CALLS, not a
+      // fresh default-fill.
+      // ⛔ A PLAIN `PINE_SHORT_FORM` ENTRY WOULD BE WRONG HERE: `pivotAtConfirmation`
+      // does two things a default-fill alone does not — it fills the source
+      // AND shifts the result to the confirmation bar (an `offset` node),
+      // because this table's OWN 3-argument bare `pivothigh(source, left,
+      // right)` reports the value AT THE PIVOT BAR (unshifted — "our own
+      // vocabulary", per `PINE_NAMESPACED_TREE`'s own comment), while Pine's
+      // real `ta.pivothigh(left, right)` reports it `right` bars LATER, at
+      // confirmation. The real target script proves members write the
+      // 2-argument bare form EXPECTING that shift:
+      // `pivot-point-supertrend__HN4w1eNW3B.pine` writes
+      // `plotshape(ph, ..., offset = -prd)`, manually shifting the PLOT back
+      // by `prd` bars to undo Pine's forward confirmation delay — a
+      // fill-only fix would leave `ph` unshifted and the member's own
+      // compensation would then shift it `prd` bars too far, silently.
+      // ⭐ ARITY IS THE DISCRIMINATOR, exactly as it is for `time`'s anchor
+      // form: a 2-argument BARE call never worked before (pure `pine:arity`
+      // refusal), so giving it Pine's real, shift-inclusive meaning changes
+      // no existing script's answer — the 3-argument bare form (source
+      // written out) is untouched by this branch and keeps its own,
+      // unshifted meaning exactly as before.
+      if ((bare === 'pivothigh' || bare === 'pivotlow') && args.length === 2
+          && !args.some((a) => a && a.name)) {
+        const resolvedArgs = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+        const shifted = pivotAtConfirmation(bare, resolvedArgs)
+        if (shifted) return shifted
+      }
       if (seriesSlots > 1) {
         // ⭐⭐ FAIL CLOSED ON AN UNMEASURED ROLE ORDER. A function the indicator
         // agent adds tomorrow with two price arguments lands HERE, refused by
