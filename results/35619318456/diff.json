@@ -1,0 +1,75 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 3,
+    "unchanged": 265,
+    "missing": 0,
+    "baseline": 268,
+    "current": 266,
+    "current_ran": 50969,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 268 = unchanged 265 + fixed 3 + missing 0  |  current 266 = unchanged 265 + new 1 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35611768062",
+  "current_run_id": "35619318456",
+  "baseline_sha": "36b4097dba9417c1529e2b631714ef4a0d174331",
+  "current_sha": "68ca09939e4fb231c816f6e056ef6825018eb09d",
+  "commit_range": "36b4097dba9417c1529e2b631714ef4a0d174331..68ca09939e4fb231c816f6e056ef6825018eb09d",
+  "first_run": false,
+  "new": [
+    "vitest|src/utils/jsonFetcher.test.js|no shipped surface parses a response it never checked > NO NEW SURFACE joins the list \u2014 and a healed one must leave it"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/utils/jsonFetcher.test.js|no shipped surface parses a response it never checked > NO NEW SURFACE joins the list \u2014 and a healed one must leave it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 36b4097db..68ca09939 touched src/utils/jsonFetcher.test.js or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 36b4097db..68ca09939 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 36b4097db..68ca09939 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 36b4097db..68ca09939 touched tests/test_flow_tape_spool.py or anything it imports"
+    }
+  }
+}
