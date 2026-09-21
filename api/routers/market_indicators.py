@@ -78,14 +78,23 @@ def search_indicators(q: str = Query(default="", max_length=120),
 def indicator_status():
     """Coverage + provenance. No auth — read-only metadata, no series values.
 
-    ⭐ WHAT ACTUALLY EXISTS, not what the catalogue describes. `availability()` walks
-    every published series and reports its real first/last/point-count, so "the
-    catalogue offers it" and "there is history behind it" stay two separate questions.
+    ⭐ WHAT ACTUALLY EXISTS, not what the catalogue describes. Availability reports each
+    published series' real first/last/point-count, so "the catalogue offers it" and
+    "there is history behind it" stay two separate questions.
+
+    ⛔⛔ IT READS A SNAPSHOT AND NEVER COMPUTES ONE. This route takes no auth, and
+    computing availability here measured 87 SECONDS on production — four of the series
+    read the shared breadth store, which is large and under concurrent write, so the
+    cost depended on another writer's behaviour. A background thread warms the snapshot;
+    this handler only ever reads it, and says so when it is not yet warm.
     """
+    avail, fresh = mseries.availability_snapshot()
     out = {
         "published": len(reg.published_rows()),
         "dormant": len(reg.dormant_rows()),
-        "availability": mseries.availability(),
+        "availability": avail,
+        # ⚠️ An EMPTY availability map and an UNCOMPUTED one are different claims.
+        "availability_warming": not fresh,
     }
     try:
         from api.services.market_indicators import naaim_store

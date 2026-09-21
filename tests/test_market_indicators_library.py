@@ -641,3 +641,42 @@ def test_the_warm_door_exists_and_is_called_off_the_request_path():
     import api.main as main
     assert callable(ms.warm_availability)
     assert "warm_availability" in inspect.getsource(main)
+
+
+def test_the_status_route_never_computes_availability_on_the_request_thread():
+    """⛔⛔ THE UNAUTHENTICATED ROUTE READS A SNAPSHOT, FULL STOP.
+
+    Computing here measured 87s on production. The handler must call the
+    snapshot reader, never the computing one.
+    """
+    import inspect
+    from api.routers import market_indicators as r
+    src = inspect.getsource(r.indicator_status)
+    assert "availability_snapshot()" in src
+    assert "mseries.availability()" not in src, (
+        "the status handler must not compute availability on the request thread")
+
+
+def test_an_uncomputed_snapshot_is_distinguishable_from_an_empty_one():
+    from api.services.market_indicators import series as ms
+    ms._avail_cache = None
+    assert ms.availability_snapshot() == ({}, False)
+    ms._avail_cache = (9e18, {})          # computed, and genuinely empty
+    try:
+        assert ms.availability_snapshot() == ({}, True)
+    finally:
+        ms._avail_cache = None
+
+
+def test_disabling_the_cboe_refresh_does_not_disable_the_availability_warm():
+    """⚠️ A flag that switches off a second, unrelated job is a trap."""
+    import inspect
+    import api.main as main
+    src = inspect.getsource(main)
+    i = src.index("_market_indicator_jobs")
+    block = src[i:i + 1400]
+    w = block.index("warm_availability")
+    c = block.index('MARKET_INDICATORS_CBOE_REFRESH')
+    # the warm must sit OUTSIDE the cboe flag's block — i.e. after it, not nested under
+    assert w > c
+    assert "MARKET_INDICATORS_BOOT_JOBS" in src

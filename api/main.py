@@ -4775,20 +4775,25 @@ async def lifespan(app: FastAPI):
     # ⚠️ SEVEN SMALL EOD CSVs, NOT A BAR WARM. A few MB once at boot and once a day, in
     # a daemon thread, every symbol isolated — deliberately unlike the bulk bar-warming
     # that has OOM'd this pod before.
-    if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
-        def _cboe_refresh_loop():
+    # ⚠️ ONE THREAD, TWO INDEPENDENTLY GATED JOBS. The availability warm is NOT inside
+    # the Cboe flag: turning off the refresh must not silently leave the status route
+    # reporting `availability_warming` forever. A flag that disables a second, unrelated
+    # thing is a trap, and this one would only show up as permanently missing metadata.
+    if os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0":
+        def _market_indicator_jobs():
             while True:
-                try:
-                    from api.services.market_indicators import cboe_store as _cs
-                    res = _cs.refresh()
-                    print(f"[startup] cboe refresh: ingested={res['ingested']} "
-                          f"errors={res['errors']}")
-                except Exception as e:
-                    print(f"[startup] cboe refresh error (non-fatal): {e}")
-                # ⭐ WARM THE COVERAGE SNAPSHOT RIGHT AFTER INGEST, off the request
-                # path. `availability()` materialises every published series (87s
-                # measured on production) and its route is unauthenticated, so the
-                # first member to ask must never be the one who computes it.
+                if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
+                    try:
+                        from api.services.market_indicators import cboe_store as _cs
+                        res = _cs.refresh()
+                        print(f"[startup] cboe refresh: ingested={res['ingested']} "
+                              f"errors={res['errors']}")
+                    except Exception as e:
+                        print(f"[startup] cboe refresh error (non-fatal): {e}")
+                # ⭐ WARM THE COVERAGE SNAPSHOT AFTER INGEST, off the request path. The
+                # status route is unauthenticated and only ever READS this snapshot
+                # (computing it measured 87s on production), so the first member to ask
+                # must never be the one who computes it.
                 try:
                     from api.services.market_indicators import series as _mseries
                     _mseries.warm_availability()
@@ -4796,8 +4801,8 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] market-indicator availability warm failed: {e}")
                 time.sleep(int(os.environ.get("CBOE_REFRESH_SECS", "86400")))
 
-        threading.Thread(target=_cboe_refresh_loop, daemon=True,
-                         name="cboe_refresh").start()
+        threading.Thread(target=_market_indicator_jobs, daemon=True,
+                         name="market_indicator_jobs").start()
 
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's

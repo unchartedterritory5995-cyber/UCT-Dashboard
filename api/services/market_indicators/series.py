@@ -303,6 +303,26 @@ def availability(max_age: float | None = None) -> dict:
         _avail_lock.release()
 
 
+def availability_snapshot() -> tuple[dict, bool]:
+    """`(payload, fresh)` — the cached snapshot, NEVER computing on the caller's thread.
+
+    ⛔⛔ THIS IS WHAT THE UNAUTHENTICATED ROUTE USES, and the distinction is the whole
+    fix. `availability()` will compute when the cache is cold, and on production that
+    measured 87 seconds — not because the work is large (the same call over
+    production-sized Cboe data runs in 0.06s locally) but because four of the series
+    read the shared breadth store, which is large and under concurrent write. A route
+    with no auth may not inherit a cost that depends on another writer's behaviour.
+
+    `fresh` is False when nothing has been computed yet, so the route can say
+    "warming" rather than imply the library is empty — an EMPTY availability map and
+    an UNCOMPUTED one mean very different things to a reader.
+    """
+    cached = _avail_cache
+    if cached is None:
+        return {}, False
+    return cached[1], True
+
+
 def warm_availability() -> dict:
     """Compute the snapshot off the request path, so no member pays the cold cost."""
-    return availability()
+    return availability(max_age=0)

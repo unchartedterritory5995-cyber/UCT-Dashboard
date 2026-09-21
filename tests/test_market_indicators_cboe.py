@@ -141,11 +141,11 @@ def test_the_refresh_is_actually_wired_into_boot():
     import inspect
     import api.main as main
     src = inspect.getsource(main)
-    i = src.index("_cboe_refresh_loop")
+    i = src.index("_market_indicator_jobs")
     block = src[i:i + 900]
     assert "cboe_store" in block and ".refresh()" in block
-    assert "threading.Thread(target=_cboe_refresh_loop" in src
-    assert ".start()" in src[src.index("threading.Thread(target=_cboe_refresh_loop"):][:300]
+    assert "threading.Thread(target=_market_indicator_jobs" in src
+    assert ".start()" in src[src.index("threading.Thread(target=_market_indicator_jobs"):][:300]
 
 
 def test_one_symbols_failure_cannot_cost_the_others(monkeypatch):
