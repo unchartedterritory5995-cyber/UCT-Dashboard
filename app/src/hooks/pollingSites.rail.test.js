@@ -284,7 +284,32 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useTickerTags.js': 1,
   'app/src/hooks/useUserTickerSet.js': 1,
   'app/src/hooks/useWatchlistAlerts.js': 1,
-  'app/src/hooks/useWatchlistMeta.js': 1,
+  // ⭐ A POST-CENSUS ROW, and the decision goes the opposite way to most: this tick
+  // must NOT be slowed on a touch client. `useBulkQuotes` is the whole-list SORT
+  // VECTOR behind a virtualized watchlist — what lets "sort Russell 2000 by %
+  // Change" rank all 1,872 members while only ~40 rows are mounted. It is not a
+  // display tick; nothing on screen prefers it to the live feed.
+  //   • its 15s cadence is PINNED TO THE SERVER'S OWN CACHE: `_CACHE_TTL = 15` in
+  //     api/routers/live_prices.py, for both the whole-set and per-ticker caches.
+  //     Polling faster cannot return a newer number, and `useMobileSWR` DOUBLING it
+  //     to 30s would hand a sorted column values half a minute old on exactly the
+  //     client where a long list is hardest to scan;
+  //   • it already sets `revalidateOnFocus: false` by hand, so the app-global half
+  //     of the trade — the reason most sites take the wrapper — is kept, and the
+  //     wrapper would flip it to `true`;
+  //   • SWR's own `refreshWhenHidden` default of false already parks the tick on a
+  //     hidden tab, so the wrapper's visibilitychange listener would duplicate it,
+  //     while its `useMarketOpen` 60s interval would run per call site for a hook
+  //     that exists only while a >120-row list is open.
+  'app/src/hooks/useBulkQuotes.js': 1,
+  // ⚠️ 1 → 2 ON 2026-09-20, and it is the SAME decision this row already recorded,
+  // not a new one. The hook grew a second branch: a list longer than
+  // `snapshot-batch`'s 100-ticker cap reads `/api/watchlists/bulk-meta` instead —
+  // one indexed `screener_rows` query, ~7 ms for 2,000 tickers — because that cap
+  // was a PERMANENT truncation, not slow hydration: rows 101+ of Russell 2000 could
+  // never show Market Cap or Rating at all. Same 10-minute interval, same options
+  // object, same trade, one more call site.
+  'app/src/hooks/useWatchlistMeta.js': 2,
   'app/src/hooks/useWatchlistPerformance.js': 1,
   'app/src/hooks/useWatchlistThemes.js': 1,
   // ⚰️ A THIRD SITE LIVED HERE FOR EXACTLY ONE COMMIT. The infinitely-

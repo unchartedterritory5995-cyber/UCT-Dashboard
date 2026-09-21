@@ -1399,6 +1399,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return () => clearTimeout(t)
   }, [flagToast])
 
+  // The DISPLAY-ORDER symbol sequence arrow keys walk, published through a ref.
+  //
+  // ⚠️ A ref rather than a value in `handleKeyDown`'s deps, because the memo that
+  // fills it (`orderedSymsFlat`) is built from `applyColSort`, which is declared
+  // several hundred lines BELOW this point — naming it in a dependency array here
+  // is a temporal-dead-zone ReferenceError during render, not a lint nit. The file
+  // already uses this idiom (`rowStateRef`) to keep callbacks stable. Written by an
+  // effect beside that memo; read only inside the handler, which runs after render.
+  const navOrderRef = useRef({ syms: [], virtualized: false })
+
   // Build a flat, deduped, top-to-bottom list of every sym currently visible
   // across expanded watchlists / flagged / color-tag auto-lists. Arrow keys
   // navigate through this flat list so the user can move row-by-row no matter
@@ -1452,16 +1462,26 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // Derive the order straight from the DOM (the actual on-screen order) so arrow
       // nav ALWAYS matches the displayed rows — including any active column sort.
       // Falls back to visibleSymsFlat if the DOM isn't reachable.
+      // ⛔ …UNLESS THE LIST IS VIRTUALIZED, in which case the DOM holds a WINDOW,
+      // not the list. Reading it there would stop the arrows dead at the edge of
+      // the ~40 rendered rows of a 1,872-row list — and the `!flat.length` fallback
+      // below never fires, because that window is short, not empty. `navOrderRef`
+      // carries the same sort the rows are drawn in, for the whole list.
       let flat = []
-      const root = pageRef.current
-      if (root) {
-        const seen = new Set()
-        root.querySelectorAll('[data-watch-sym]').forEach(el => {
-          const s = el.getAttribute('data-watch-sym')
-          if (s && !seen.has(s)) { seen.add(s); flat.push(s) }
-        })
+      const nav = navOrderRef.current
+      if (nav.virtualized && nav.syms.length) {
+        flat = nav.syms
+      } else {
+        const root = pageRef.current
+        if (root) {
+          const seen = new Set()
+          root.querySelectorAll('[data-watch-sym]').forEach(el => {
+            const s = el.getAttribute('data-watch-sym')
+            if (s && !seen.has(s)) { seen.add(s); flat.push(s) }
+          })
+        }
       }
-      if (!flat.length) flat = visibleSymsFlat
+      if (!flat.length) flat = nav.syms.length ? nav.syms : visibleSymsFlat
       if (!flat.length) return
       const idx = selectedSym ? flat.indexOf(selectedSym) : -1
       // If selection is set but not in THIS widget's list, don't navigate —
@@ -2075,6 +2095,77 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     })
   }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData])
 
+  // ── The sorted order of every expanded list, computed ONCE ──────────────────
+  //
+  // ⛔ ARROW-KEY NAV READS THE DOM, AND A VIRTUALIZED LIST HAS ONLY ITS WINDOW
+  // THERE. `handleKeyDown` derives its order from `[data-watch-sym]` elements
+  // precisely so nav follows the active COLUMN SORT, which the stored order
+  // (`visibleSymsFlat`) does not know about. That was exact while every row was
+  // mounted; once a 1,872-row list renders ~40 of them, walking down with the arrow
+  // keys would stop dead at the edge of the rendered window — and the existing
+  // `if (!flat.length) visibleSymsFlat` fallback never fires, because the window is
+  // not empty, just short.
+  //
+  // So the sort is lifted here and BOTH consumers read it: the renderer below and
+  // the keyboard handler. One computation instead of two, which also means the row
+  // order on screen and the order the arrows walk cannot drift apart.
+  //
+  // ⭐ And it is memoized. `renderWatchlistGroup` re-sorted its whole list on every
+  // render, which for a list under a live feed is every quote tick.
+  const sortedItemsByList = useMemo(() => {
+    const out = {}
+    if (scanMode) return out
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
+    if (!lists) return out
+    for (const wl of lists) {
+      if (!expandedLists.has(wl.id)) continue
+      let items = sortAndFilterItems(wl.items || [])
+      if (colSort) {
+        const order = applyColSort(items.map(i => i.sym))
+        const bySym = new Map(items.map(i => [i.sym, i]))
+        items = order.map(s => bySym.get(s)).filter(Boolean)
+      }
+      out[wl.id] = items
+    }
+    return out
+  }, [scanMode, activeTab, myLists, communityResolvable, expandedLists, sortAndFilterItems, applyColSort, colSort])
+
+  // Every expanded list's symbols IN DISPLAY ORDER, flattened — the sequence arrow
+  // keys walk when the DOM cannot be trusted to hold all of it.
+  const orderedSymsFlat = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    const push = (s) => { if (s && !seen.has(s)) { seen.add(s); out.push(s) } }
+    if (activeTab === 'mine' && expandedLists.has('flagged')) flagged.forEach(push)
+    if (activeTab === 'mine') {
+      TAG_COLORS.forEach(tc => {
+        if (expandedLists.has(`tag:${tc.key}`)) {
+          Object.entries(tags).filter(([, c]) => c === tc.key).forEach(([s]) => push(s))
+        }
+      })
+    }
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
+    if (lists) {
+      lists.filter(wl => expandedLists.has(wl.id)).forEach(wl => {
+        (sortedItemsByList[wl.id] || wl.items || []).forEach(i => push(i.sym))
+      })
+    }
+    return out
+  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityResolvable, sortedItemsByList])
+
+  // True when any expanded list renders through the virtualizer, i.e. when the DOM
+  // holds a window rather than the whole list.
+  const anyListVirtualized = useMemo(
+    () => Object.values(sortedItemsByList).some(it => it.length > VIRTUALIZE_MIN_ROWS),
+    [sortedItemsByList],
+  )
+
+  // Publish both to the ref `handleKeyDown` reads. See `navOrderRef`'s declaration
+  // for why this cannot simply be a dependency of that callback.
+  useEffect(() => {
+    navOrderRef.current = { syms: orderedSymsFlat, virtualized: anyListVirtualized }
+  }, [orderedSymsFlat, anyListVirtualized])
+
   // Scan mode: the sorted row list, MEMOIZED so a huge (~5,000-row) scan re-sorts only
   // when the data/sort actually changes — NOT on every scroll frame (which updates
   // scanVisibleSyms → re-renders). Keyed on the sort callbacks (they already change
@@ -2404,16 +2495,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         </div>
 
         {open && (() => {
-          let sortedItems = sortAndFilterItems(items)
-          if (colSort) {
-            const order = applyColSort(sortedItems.map(i => i.sym))
-            // O(n) reorder. This was `order.map(s => sortedItems.find(...))` — an
-            // O(n²) scan, re-run on EVERY quote tick: ~3.5M comparisons a second on
-            // the main thread for a 1,872-row Russell 2000. The scan path above was
-            // given precisely this Map fix and it was never backported here.
-            const bySym = new Map(sortedItems.map(i => [i.sym, i]))
-            sortedItems = order.map(s => bySym.get(s)).filter(Boolean)
-          }
+          // ⭐ ONE sort, shared with arrow-key navigation. This used to re-sort the
+          // whole list inline on every render — which under a live feed is every
+          // quote tick — and its reorder was an O(n²) `find`-in-loop (~3.5M
+          // comparisons a second on a 1,872-row Russell 2000; the scan path had the
+          // Map fix and it was never backported). `sortedItemsByList` is memoized and
+          // is also what `orderedSymsFlat` walks, so what is drawn and what the
+          // arrows step through cannot drift apart.
+          const sortedItems = sortedItemsByList[wl.id] || sortAndFilterItems(items)
           // ⭐ 2,000 MEMBERS IS NOT 2,000 LIVE ROW COMPONENTS. Past this many rows the
           // list renders through the SAME `ScanRows` virtualizer the scan path has used
           // for months — not a second windowing framework. Below it, nothing changes:

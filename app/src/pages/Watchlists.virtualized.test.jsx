@@ -17,7 +17,8 @@
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, waitFor, act } from '@testing-library/react'
+import { ChartsSymContext } from './charts/ChartsSymContext'
 
 const BIG = 400          // > VIRTUALIZE_MIN_ROWS
 const SMALL = 12         // < VIRTUALIZE_MIN_ROWS
@@ -147,5 +148,42 @@ describe('a small watchlist', () => {
     // Below the threshold there is no separate whole-list pass to pay for — the
     // stream already covers every row.
     expect(lastArg('bulk-quotes')).toBeNull()
+  })
+})
+
+describe('keyboard navigation across a virtualized list', () => {
+  beforeEach(() => {
+    hoisted.prebuilt = [{ id: 'big', name: 'Russell 2000', items: mkItems(BIG) }]
+  })
+
+  it('walks past the edge of the rendered window', async () => {
+    // ⛔ THE REGRESSION THIS PINS. `handleKeyDown` derives its order from the
+    // `[data-watch-sym]` elements in the DOM — deliberately, so nav follows the
+    // active COLUMN SORT, which the stored order does not know about. That is exact
+    // while every row is mounted. Once 1,872 rows render ~40, the arrows would stop
+    // dead at the edge of the window, and the existing `if (!flat.length)` fallback
+    // never fires because the window is short, not empty.
+    const picked = []
+    const ctx = { sym: null, setSym: (s) => { ctx.sym = s; picked.push(s) } }
+    const { container } = render(
+      <ChartsSymContext.Provider value={ctx}>
+        <Watchlists embedded pickList="community:big" pickName="Russell 2000" />
+      </ChartsSymContext.Provider>,
+    )
+    await waitFor(() => expect(container.querySelectorAll('[data-watch-sym]').length).toBeGreaterThan(0))
+
+    const mounted = container.querySelectorAll('[data-watch-sym]').length
+    // Step further than the DOM alone could ever answer for.
+    for (let i = 0; i < mounted + 25; i++) {
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+      })
+    }
+
+    expect(picked.length).toBeGreaterThan(mounted)
+    // …and it is still walking the LIST's order, never repeating the window.
+    expect(new Set(picked).size).toBe(picked.length)
+    expect(picked[0]).toBe('S0')
+    expect(picked[picked.length - 1]).toBe(`S${picked.length - 1}`)
   })
 })
