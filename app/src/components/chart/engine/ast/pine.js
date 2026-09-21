@@ -9866,7 +9866,7 @@ const OBJECT_ENUM_VALUES = Object.freeze({
 const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
 const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
-function objectEnumValue(name) {
+export function objectEnumValue(name) {
   if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
   if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
   if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)

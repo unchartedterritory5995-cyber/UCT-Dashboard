@@ -31,7 +31,7 @@
 import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
-  VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName,
+  VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -1631,8 +1631,14 @@ export function buildRuntimeIr(source, opts = {}) {
     // not yet exist, and left behind it would have read as a live guard —
     // `lesson_a_guard_repeated_is_a_guard_unproved`. The skip is the one guard;
     // `holdsObjectCall` still exists and is still called, from there.
+    // ⛔ AN OBJECT ENUM IS NOT A COLUMN EITHER. `size.tiny` reads no slot, so
+    // the route sent it to the columnar lane — which refuses the whole family
+    // at `pine:builtin`, "names something the engine grammar does not hold",
+    // about a vocabulary `objectEnumValue` holds. A column is a number per
+    // bar; an enum is a fixed string the drawing layer reads.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
-        && !readsPlotRef(node) && !holdsColour(node, scope)) {
+        && !readsPlotRef(node) && !holdsColour(node, scope)
+        && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -1730,6 +1736,27 @@ export function buildRuntimeIr(source, opts = {}) {
           // it. A request bars that lane, which is what exposed the gap.
           if (node.name === 'na' && scope.lookup('na') === null && !env.has('na')) {
             return naValue()
+          }
+          // ⭐⭐ AN OBJECT ENUM IS A STRING CONSTANT — `size.tiny`,
+          // `position.top_right`, `text.align_left`, `line.style_dashed`.
+          //
+          // ⚠️ A TOP-LEVEL BINDING OF ONE NEVER REACHES HERE: it is not mutable
+          // and reads no slot, so it takes the `env` macro path and is never
+          // lowered at all. Inside a FUNCTION BODY it IS lowered, and
+          // `getTextSize(s) => s == "tiny" ? size.tiny : size.small` is how a
+          // dashboard picks its text size — so the whole family read as
+          // `pine:builtin`, "names something the engine grammar does not hold",
+          // about a vocabulary `objectEnumValue` has held all along.
+          //
+          // ⛔ ONE AUTHORITY: the table is `pine.js`'s, read rather than copied.
+          // A second list here would drift from the one the object pass uses to
+          // decide what a cell's `text_size` means.
+          {
+            const enumValue = objectEnumValue(node.name)
+            if (enumValue !== undefined && scope.lookup(node.name) === null
+                && !env.has(node.name)) {
+              return str(enumValue)
+            }
           }
           const bound = env.get(node.name)
           if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
