@@ -1,0 +1,190 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 12,
+    "fixed": 3,
+    "unchanged": 191,
+    "missing": 0,
+    "baseline": 194,
+    "current": 204,
+    "current_ran": 50782,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 1,
+    "new_unattributed": 11
+  },
+  "arithmetic": "baseline 194 = unchanged 191 + fixed 3 + missing 0  |  current 204 = unchanged 191 + new 12 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35556113368",
+  "current_run_id": "35558864272",
+  "baseline_sha": "4fec5bb9910031ce63c50da032f545a1ad14b4e5",
+  "current_sha": "602f8865abff9f3b7ba55cfa839bc6d544602df2",
+  "commit_range": "4fec5bb9910031ce63c50da032f545a1ad14b4e5..602f8865abff9f3b7ba55cfa839bc6d544602df2",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_cold_fetch_pool_protection|test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch",
+    "pytest|tests.test_concept_vocabulary|test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed",
+    "pytest|tests.test_concept_vocabulary|test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS",
+    "pytest|tests.test_concept_vocabulary|test_a_concept_that_screens_on_an_UNCITED_column_is_refused",
+    "pytest|tests.test_concept_vocabulary|test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved",
+    "pytest|tests.test_concept_vocabulary|test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES",
+    "pytest|tests.test_concept_vocabulary|test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift",
+    "pytest|tests.test_starter_library|test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER",
+    "pytest|tests.test_starter_library|test_every_DECLARED_starter_ACTUALLY_RESOLVES",
+    "pytest|tests.test_starter_library|test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "imported-file-change",
+      "commits": [
+        "61a25f435",
+        "e0bbff9b6",
+        "b1997959b",
+        "606a129c2",
+        "bc4b7c5f8"
+      ],
+      "workstreams": [
+        {
+          "commit": "61a25f435",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "e0bbff9b6",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b1997959b",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "606a129c2",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bc4b7c5f8",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_cold_fetch_pool_protection|test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_cold_fetch_pool_protection.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_a_concept_that_screens_on_an_UNCITED_column_is_refused": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_concept_vocabulary|test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_concept_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_starter_library|test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_starter_library.py or anything it imports"
+    },
+    "pytest|tests.test_starter_library|test_every_DECLARED_starter_ACTUALLY_RESOLVES": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_starter_library.py or anything it imports"
+    },
+    "pytest|tests.test_starter_library|test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_starter_library.py or anything it imports"
+    },
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_flow_prepare.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4fec5bb99..602f8865a touched tests/test_theme_index_watchlist.py or anything it imports"
+    }
+  }
+}
