@@ -2404,6 +2404,83 @@ def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             _cold_bg_inflight.discard(key)
 
 
+# ── The one place a REQUEST thread may wait on a provider ────────────────────
+# ⛔⛔ A BARE BLOCKING PROVIDER CALL ON THE REQUEST PATH IS THE 16-SECOND CLASS.
+# Measured on production 2026-09-20: `UTMD tf=5` answered in 16,102 ms and then
+# 503; `BATRK tf=1` in 16,331 ms. Neither number is a provider latency — it is TWO
+# 8-second timeouts in series. The Cloudflare Worker `bars-edge-router` aborts
+# `BARS_ORIGIN` at `BARS_TIMEOUT_MS = 8000` and retries against `WEB_ORIGIN`; the
+# web pod then re-proxies to THIS SAME TIER with its own 8 s `httpx` timeout before
+# finally serving locally. The Worker's fallback is meant to be a different path and
+# it is not, so a slow tier is paid for twice.
+#
+# ⭐ SO THE FIX IS A CEILING HERE, NOT A BIGGER TIMEOUT THERE. Keep the tier under
+# the edge's budget and the second hop never happens — the double path stops being
+# reachable instead of being made faster.
+#
+# ⭐⭐ THE JOB IS NEVER CANCELLED. On timeout it keeps running and its SQLite write
+# lands for the next poll, so a slow provider costs the caller a deadline and never a
+# lost fetch. That is what makes this strictly better than the blocking call in every
+# case: a fast provider behaves identically (correct first paint), and a slow one
+# degrades to "serve the local store now, heal shortly" instead of holding an anyio
+# worker for 8-20 s.
+#
+# ⚠️ CAPACITY IS THE EXISTING BOUND, NOT A NEW ONE. `_bg_delta_sem` already bounds
+# background delta work (`BARS_BG_DELTA_MAX`, 3 on the bars tier); a request-path
+# delta is the same kind of work, so it draws on the same budget. No free slot means
+# the local store is served immediately — precise shedding under a scan storm rather
+# than an unbounded pile-up.
+_REQUEST_DEADLINE_SECONDS = float(
+    _os.environ.get("BARS_REQUEST_DEADLINE_SECONDS", "2.5")
+)
+
+
+def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
+                   deadline: float | None = None) -> bool:
+    """Run the (ticker, tf) provider delta with a HARD wait ceiling.
+
+    Returns True when the delta finished inside the deadline (the caller should
+    re-read SQLite), False when it was shed for capacity or is still running (the
+    caller serves what the local store already holds).
+    """
+    if deadline is None:
+        deadline = _REQUEST_DEADLINE_SECONDS
+    if not _bg_delta_sem.acquire(blocking=False):
+        return False                      # no capacity → serve the local store now
+    done = _threading.Event()
+
+    def _job():
+        try:
+            if tf == "D":
+                new = _delta_daily(ticker_up, last_ts)
+            elif tf == "W":
+                new = _delta_weekly(ticker_up, last_ts)
+            elif tf == "M":
+                new = _delta_monthly(ticker_up, last_ts)
+            else:
+                new = _delta_intraday(ticker_up, tf, last_ts)
+            # Mirror `_bg_delta`'s guard: never persist an hours-old yfinance
+            # fallback as fresh — `_needs_fresh` reads last_ts age, not data age.
+            if new and (date_tf or not _is_intraday_stale(new)):
+                _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
+        except Exception as _e:           # noqa: BLE001 — never raise into a serve
+            import logging as _log_bd
+            _log_bd.getLogger(__name__).warning(
+                "[bars] bounded delta %s tf=%s: %s: %s",
+                ticker_up, tf, type(_e).__name__, _e)
+        finally:
+            _bg_delta_sem.release()
+            done.set()
+
+    try:
+        _threading.Thread(target=_job, daemon=True,
+                          name=f"bars-reqdelta-{ticker_up}-{tf}").start()
+    except Exception:                     # noqa: BLE001 — thread exhaustion → serve local
+        _bg_delta_sem.release()
+        return False
+    return done.wait(timeout=deadline)
+
+
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None:
     """Fire-and-forget cache warmer. Submits one task per ticker to a bounded
     thread pool and returns immediately. Errors are silenced (best-effort).
@@ -3074,9 +3151,13 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             i_am_fetcher = True
 
     if not i_am_fetcher:
-        # Wait up to 12 s for the fetcher to finish, then read from cache.
+        # ⛔ Bounded by the SAME budget as the fetcher (`_bounded_delta`). This was
+        # 12 s, which outlived the fetcher's own ceiling and re-introduced exactly
+        # the long request hold that ceiling exists to remove — a second viewer of a
+        # cold symbol would wait 12 s to be handed the same stale rows the fetcher
+        # already served. +0.5 s so the waiter loses the race, never the fetcher.
         _mark_serve("inflight-wait")
-        waiter_ev.wait(timeout=12)
+        waiter_ev.wait(timeout=_REQUEST_DEADLINE_SECONDS + 0.5)
         hit = cache.get(cache_key)
         if hit is not None:
             return JSONResponse(
@@ -3102,24 +3183,25 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
     try:
         if stored_rows and last_ts:
-            # ── Delta fetch: only new bars since last stored ts (fast) ────────
+            # ── Delta fetch: only new bars since last stored ts ──────────────
+            # ⛔ BOUNDED. This call USED to be a bare `_delta_intraday(...)` on the
+            # request thread, and that is the measured 16-second path (see
+            # `_bounded_delta`): this branch is reached exactly when the tail is
+            # cold-stale and not deblockable, which is the common case for any
+            # symbol outside the prewarm tier. The delta still runs — and still
+            # persists — but the REQUEST stops waiting at the deadline and answers
+            # from the local store, so the edge can never reach its 8 s abort.
             try:
-                if tf == "D":
-                    new_bars = _delta_daily(ticker_up, last_ts)
-                elif tf == "W":
-                    new_bars = _delta_weekly(ticker_up, last_ts)
-                elif tf == "M":
-                    new_bars = _delta_monthly(ticker_up, last_ts)
-                else:  # intraday
-                    new_bars = _delta_intraday(ticker_up, tf, last_ts)
-
-                if new_bars:
-                    _sqlite.put_bars(ticker_up, tf, new_bars, date_tf=date_tf)
-
-                # Read fresh rows from SQLite (includes the new bars)
-                fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
-                result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up)
-
+                _completed = _bounded_delta(ticker_up, tf, last_ts, date_tf)
+                if _completed:
+                    # Read fresh rows from SQLite (includes the new bars)
+                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up)
+                else:
+                    # Deadline expired or no capacity. Serve what we hold; the job
+                    # (when one started) lands its write for the next poll.
+                    _mark_serve("delta-deadline")
+                    result_bars = _fmt_sqlite_bars(stored_rows, tf, ticker_up)
             except Exception as e:
                 _logger.warning(f"[bars] delta failed {ticker_up} tf={tf}: {e}")
                 result_bars = _fmt_sqlite_bars(stored_rows, tf, ticker_up)
