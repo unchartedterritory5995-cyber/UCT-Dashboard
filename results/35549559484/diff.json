@@ -1,0 +1,62 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 2,
+    "unchanged": 192,
+    "missing": 0,
+    "baseline": 194,
+    "current": 193,
+    "current_ran": 50648,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 194 = unchanged 192 + fixed 2 + missing 0  |  current 193 = unchanged 192 + new 0 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35547233158",
+  "current_run_id": "35549559484",
+  "baseline_sha": "8a4b8ddd14c4e5ed81a44e09e26ee9dbd8a6990b",
+  "current_sha": "e8eb1faf68159c5b1b2505edd8961aa06d564268",
+  "commit_range": "8a4b8ddd14c4e5ed81a44e09e26ee9dbd8a6990b..e8eb1faf68159c5b1b2505edd8961aa06d564268",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8a4b8ddd1..e8eb1faf6 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8a4b8ddd1..e8eb1faf6 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    }
+  }
+}
