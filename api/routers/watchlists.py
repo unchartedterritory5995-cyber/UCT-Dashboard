@@ -147,6 +147,20 @@ _BULK_META_COLS = {
     "avg_vol_20d": "avg_volume_30d",
 }
 
+# ⛔ `market_cap` CROSSES THE WIRE PRE-FORMATTED, AND THE ROW RENDERER IS WHY.
+# `renderTickerRow` prints this field VERBATIM — `{mcap || '—'}`, no formatter on
+# the client — because `snapshot-batch`, the path this endpoint replaces for large
+# lists, runs `fundamentals._fmt_billions` before returning it. `screener_rows`
+# stores the raw REAL, so returning it unchanged rendered "2981473797.96" in the
+# Market Cap column instead of "$2.98B". Caught in production acceptance 2026-09-21,
+# not by a test: every fixture asserted the KEY was present, never how it reads.
+#
+# ⭐ It reuses that same helper rather than reimplementing the thresholds — two
+# formatters for one column is how the two paths drift apart again. Sorting is
+# unaffected either way: the client's `parseMcap` already accepts both a number and
+# a "$2.98B" string, which is the only reason this defect was cosmetic.
+_BULK_META_FORMATTERS = {"market_cap": "_fmt_billions"}
+
 
 @router.post("/api/watchlists/bulk-meta")
 def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
@@ -184,10 +198,17 @@ def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
         # The snapshot being unreadable must not take the watchlist down — every
         # row still renders its symbol, and the caller falls back.
         return {"results": {}, "missing": syms}
-    results = {
-        sym: {out_key: row.get(col) for out_key, col in _BULK_META_COLS.items()}
-        for sym, row in rows.items()
-    }
+    try:
+        from api.services.fundamentals import _fmt_billions
+    except Exception:
+        _fmt_billions = None
+    results = {}
+    for sym, row in rows.items():
+        out = {out_key: row.get(col) for out_key, col in _BULK_META_COLS.items()}
+        # See _BULK_META_FORMATTERS: the row renderer prints market_cap verbatim.
+        if _fmt_billions is not None and out.get("market_cap") is not None:
+            out["market_cap"] = _fmt_billions(out["market_cap"])
+        results[sym] = out
     return {"results": results, "missing": [s for s in syms if s not in results]}
 
 

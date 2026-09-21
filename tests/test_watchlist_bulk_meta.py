@@ -61,7 +61,8 @@ def test_a_whole_russell_2000_is_enriched_in_one_call(snap):
     assert len(seen["tickers"]) == 1872
     assert out["results"]["AAPL"]["name"] == "Apple Inc."
     assert out["results"]["AAPL"]["composite"] == 92
-    assert out["results"]["AAPL"]["market_cap"] == 3.1e12
+    # Pre-formatted on the wire — see the wire-SHAPE rail at the bottom of this file.
+    assert out["results"]["AAPL"]["market_cap"] == "$3.10T"
     assert out["results"]["AAPL"]["avg_vol_20d"] == 51234567.0
 
 
@@ -160,3 +161,50 @@ def test_get_projected_chunks_past_sqlites_variable_limit(tmp_path, monkeypatch)
     got = snapshot_db.get_projected([f"T{i}" for i in range(2000)], ["company"])
     assert len(got) == 2000
     assert got["T1999"] == {"company": "Co 1999"}
+
+
+# ── Wire SHAPE, not just wire KEYS ───────────────────────────────────────────
+#
+# ⛔ THE DEFECT THIS RAILS, CAUGHT IN PRODUCTION ACCEPTANCE 2026-09-21. Every test
+# above asserted the market_cap KEY was present and carried the right VALUE. None
+# asserted how it READS — and `renderTickerRow` prints this one field verbatim
+# (`{mcap || '—'}`, no client formatter) because `snapshot-batch`, the path this
+# endpoint replaces for large lists, pre-formats it with `_fmt_billions`.
+# `screener_rows` stores the raw REAL, so the Market Cap column rendered
+# "2981473797.96" where it used to read "$2.98B".
+#
+# A cap that this endpoint and `snapshot-batch` disagree about is a cap the member
+# sees two ways depending on how long their list is. Pin the format.
+
+def test_market_cap_crosses_the_wire_pre_formatted_like_snapshot_batch(snap):
+    r, _ = snap
+    out = r.bulk_meta(r.BulkMetaRequest(tickers=["AAPL"]), user={"id": "u"})
+    mc = out["results"]["AAPL"]["market_cap"]
+
+    assert isinstance(mc, str), f"row renderer prints this verbatim; got {type(mc).__name__} {mc!r}"
+    assert mc == "$3.10T", mc
+
+    # …and it is the SAME helper `snapshot-batch` uses, not a second implementation.
+    from api.services.fundamentals import _fmt_billions
+    assert mc == _fmt_billions(3.1e12)
+
+
+def test_a_null_market_cap_stays_null_rather_than_becoming_a_dollar_sign(snap):
+    """CRNX has no market cap in the fixture. `_fmt_billions(None)` returns None, and
+    the row must render '—', not '$0'."""
+    r, _ = snap
+    out = r.bulk_meta(r.BulkMetaRequest(tickers=["CRNX"]), user={"id": "u"})
+    assert out["results"]["CRNX"]["market_cap"] is None
+
+
+def test_the_other_fields_keep_the_types_their_renderers_require(snap):
+    """`rating` is gated on `Number.isFinite(rating)` and `earn` goes through
+    `fmtEarn(iso)` — so composite must stay numeric and next_earnings must stay an
+    ISO date. Only market_cap is formatted server-side."""
+    r, _ = snap
+    v = r.bulk_meta(r.BulkMetaRequest(tickers=["AAPL"]), user={"id": "u"})["results"]["AAPL"]
+    assert isinstance(v["composite"], int)
+    assert v["next_earnings"] == "2026-10-30"
+    assert v["ipo_date"] == "1980-12-12"
+    assert isinstance(v["avg_vol_20d"], float)
+    assert isinstance(v["name"], str)
