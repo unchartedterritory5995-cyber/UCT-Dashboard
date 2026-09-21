@@ -3,17 +3,18 @@ import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 
 // ── What each pool actually IS ──────────────────────────────────────────────
-// The rules here MIRROR the server: All Market = the whole snapshot, which is
-// already US-listed common stock at market cap ≥ $300M; UCT Universe applies the
-// two liquidity gates in `query.py::_universe_clauses` (UCT_MIN_PRICE $5,
-// UCT_MIN_DOLLAR_VOL $20M). `short` rides inline beside the count; `body` fills
-// the ⓘ popover. Kept beside the buttons on purpose — a member should be able to
-// see WHY a pool is 2,097 and not 3,745 without leaving the row.
+// The rules here MIRROR the server. All Market = the screener's OWN universe
+// (`screener_universe.py`): every US-listed common stock + ADR that trades, NO
+// price/market-cap floor (ETFs, funds and buyout targets excluded). UCT Universe
+// applies the two liquidity gates in `query.py::_universe_clauses` (UCT_MIN_PRICE
+// $5, UCT_MIN_DOLLAR_VOL $20M). `short` rides inline beside the count; `body`
+// fills the ⓘ popover. Kept beside the buttons so a member can see WHY UCT is a
+// smaller number than All Market without leaving the row.
 const UNIVERSE_INFO = {
   all: {
     name: 'All Market',
-    short: 'US-listed · cap ≥ $300M',
-    body: 'Every name we track — US-listed common stocks with a market cap of at least $300M. Micro-caps, OTC and most funds are already outside the snapshot.',
+    short: 'US common + ADR · no price floor',
+    body: 'Every US-listed common stock and ADR that trades — no price or market-cap floor. ETFs, funds, and buyout / acquisition targets are excluded.',
   },
   uct: {
     name: 'UCT Universe',
