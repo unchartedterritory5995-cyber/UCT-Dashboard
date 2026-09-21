@@ -812,9 +812,8 @@ import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chrom
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { useServerColumns } from './chart/engine/useServerColumns'
-import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
-import { canonicalFamily, loadMarketIndicators, marketIndicatorRecord }
-  from '../hooks/useMarketIndicators'
+import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
+import { canonicalFamily, loadMarketIndicators } from '../hooks/useMarketIndicators'
 
 const NOOP = () => {}
 
@@ -6288,7 +6287,7 @@ export default function StockChart({
   const serverColumnsGeneration = useServerColumns()
 
   // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
-  // A SIBLING LOADED IT. `symbolFamily` answers `'unknown'` until the breadth
+  // A SIBLING LOADED IT. The family oracle answers `'unknown'` until the breadth
   // registry has landed, and the OHLC gate REFUSES `'unknown'` — fail-closed, so
   // a chart that never triggers the fetch would simply never offer candles, on
   // every surface that does not happen to mount `ChartPane` (the pane harness is
