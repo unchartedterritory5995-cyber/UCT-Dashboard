@@ -15,7 +15,13 @@ const idbState = new Map()
 const idbGetMock = vi.fn(async (sym, tf) => idbState.get(`${sym}_${tf}`))
 vi.mock('../utils/barsIDB', () => ({ idbGet: (...a) => idbGetMock(...a) }))
 const prefetchMock = vi.fn()
-vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB: (...a) => prefetchMock(...a) }))
+// `prepareForDisplay` resolves with the OUTCOME; tests drive it per case so a
+// degraded commit ('nodata'/'error') can be told apart from a successful one.
+const prepareMock = vi.fn(async () => new Promise(() => {}))   // pending by default
+vi.mock('../utils/prefetchBars', () => ({
+  prefetchBarsToIDB: (...a) => prefetchMock(...a),
+  prepareForDisplay: (...a) => prepareMock(...a),
+}))
 
 import useSymbolHandoff, { peekDisplayable } from './useSymbolHandoff'
 
@@ -32,6 +38,7 @@ const STALE = () => series(unix('10:00'))
 beforeEach(() => {
   memState.clear(); idbState.clear()
   idbGetMock.mockClear(); prefetchMock.mockClear()
+  prepareMock.mockReset(); prepareMock.mockImplementation(() => new Promise(() => {}))
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
 })
@@ -80,24 +87,77 @@ describe('slow path — A stays whole while B prepares', () => {
     expect(result.current).toBe('B')
   })
 
-  it('keeps displaying A for a COLD B until its data arrives', async () => {
+  it('keeps displaying A for a COLD B until the prepare reports a real chart', async () => {
+    let settle
+    prepareMock.mockImplementation(() => new Promise(r => { settle = r }))
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })
     expect(result.current).toBe('A')
-    idbState.set('B_5', { bars: CURRENT() })
-    await act(async () => { await vi.advanceTimersByTimeAsync(60) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    expect(result.current).toBe('A')          // still preparing — A stays whole
+    memState.set('B_5', CURRENT())
+    await act(async () => { settle('current'); await vi.advanceTimersByTimeAsync(10) })
     expect(result.current).toBe('B')
   })
 
-  it('⛔⛔ a DEADLINE commits anyway — a dead ticker must not silently pin A', async () => {
+  it('1. B SLOW BUT EVENTUALLY SUCCEEDS — A is held the whole time, then B commits', async () => {
+    let settle
+    prepareMock.mockImplementation(() => new Promise(r => { settle = r }))
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
-    act(() => { rerender({ s: 'DEAD' }) })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    // Well past the OLD 600ms blind deadline — under it this had already
+    // committed B onto a black canvas.
     expect(result.current).toBe('A')
-    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-    // Refusing the click forever would be a worse bug than the blank frame.
-    expect(result.current).toBe('DEAD')
+    memState.set('B_5', CURRENT())
+    await act(async () => { settle('current'); await vi.advanceTimersByTimeAsync(10) })
+    expect(result.current).toBe('B')
+  })
+
+  it('2. B RETURNS NO DATA — commits (the click is answered) and reports DEGRADED', async () => {
+    prepareMock.mockResolvedValue('nodata')
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    // Being silently pinned to A would hide a real answer ("this ticker has no
+    // data"); the chart shows its own no-data state instead.
+    expect(result.current).toBe('B')
+  })
+
+  it('3. B ERRORS — same: commit, classified degraded, never silently stuck on A', async () => {
+    prepareMock.mockRejectedValue(new Error('boom'))
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    expect(result.current).toBe('B')
+  })
+
+  it('4. B HANGS FOREVER — the backstop fires only after the hang guard, not at 600ms', async () => {
+    prepareMock.mockImplementation(() => new Promise(() => {}))
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(600) })
+    expect(result.current).toBe('A')          // the old blind deadline is GONE
+    await act(async () => { await vi.advanceTimersByTimeAsync(3600) })
+    expect(result.current).toBe('B')          // hang guard, recorded as degraded
+  })
+
+  it('⭐ AUTHORITATIVE: a halted symbol with nothing newer is displayable, not stale', async () => {
+    // We asked with since= and the server had nothing newer — the cache IS the
+    // frontier for this symbol. Waiting for a bar that will never print would
+    // pin A forever; calling it stale would be wrong about the data.
+    prepareMock.mockResolvedValue('authoritative')
+    memState.set('HALT_5', STALE())
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'HALT' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    expect(result.current).toBe('HALT')
   })
 })
 

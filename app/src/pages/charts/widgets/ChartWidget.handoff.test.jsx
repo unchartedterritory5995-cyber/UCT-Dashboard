@@ -25,8 +25,12 @@ vi.mock('../../../utils/barsMemCache', () => ({
 }))
 vi.mock('../../../utils/barsIDB', () => ({ idbGet: vi.fn(async () => undefined) }))
 const prefetchMock = vi.fn()
+// `prepareForDisplay` resolves with the OUTCOME; tests drive it per case so a
+// degraded commit ('nodata'/'error') can be told apart from a successful one.
+const prepareMock = vi.fn(async () => new Promise(() => {}))   // pending by default
 vi.mock('../../../utils/prefetchBars', () => ({
   prefetchBarsToIDB: (...a) => prefetchMock(...a),
+  prepareForDisplay: (...a) => prepareMock(...a),
   prefetchReplayTimeframes: () => {},
 }))
 
@@ -104,6 +108,7 @@ const settle = async (ms = 200) => { await act(async () => { await vi.advanceTim
 
 beforeEach(() => {
   memState.clear(); prefetchMock.mockClear()
+  prepareMock.mockReset(); prepareMock.mockImplementation(() => new Promise(() => {}))
   vi.useFakeTimers(); vi.setSystemTime(NOW)
 })
 afterEach(() => { vi.useRealTimers() })
@@ -136,7 +141,7 @@ test('…then commits to B as one piece once the repair lands', async () => {
   act(() => { setGroup('BBB') })
   await settle(150)
   expect(identity()).toBe('AAA')
-  memState.set('BBB_5', CURRENT())          // the warmer repairs it
+  memState.set('BBB_5', CURRENT())          // the ±6 warmer repairs it first
   await settle(100)
   expect(identity()).toBe('BBB')
 })
@@ -158,13 +163,15 @@ test('⛔⛔ rapid A→B→C: B must never appear once C has been requested', as
   expect(identity()).toBe('CCC')
 })
 
-test('a DEAD ticker still commits at the deadline — the click is never refused', async () => {
+test('a DEAD ticker commits on its NO-DATA outcome, not on a stopwatch', async () => {
   memState.set('AAA_5', CURRENT())
+  prepareMock.mockResolvedValue('nodata')
   render(<Wrap initial="AAA" />)
   act(() => { setGroup('ZZZ') })
-  await settle(150)
-  expect(identity()).toBe('AAA')
-  await settle(800)
+  await settle(200)
+  // Committed because the prepare ANSWERED ("no data"), not because a timer
+  // expired. The chart then shows its own no-data state — an honest degraded
+  // handoff, which the harness must count separately from a successful one.
   expect(identity()).toBe('ZZZ')
 })
 

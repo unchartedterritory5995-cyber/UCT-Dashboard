@@ -27,8 +27,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { memPeek } from '../utils/barsMemCache'
-import { idbGet } from '../utils/barsIDB'
-import { prefetchBarsToIDB } from '../utils/prefetchBars'
+import { prefetchBarsToIDB, prepareForDisplay } from '../utils/prefetchBars'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 
@@ -76,8 +75,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
   // read could land after D was requested and commit B over D — a wrong-symbol
   // frame, which is the exact class the whole handoff exists to prevent.
   const genRef = useRef(0)
+  // How the last commit was reached, for the harness + tests to classify a
+  // DEGRADED handoff separately from a successful one. Diagnostic only — no
+  // rendering decision reads it.
+  const lastOutcomeRef = useRef(null)
 
   useEffect(() => {
+    // Disabled / nothing requested: pass straight through, same tick. The
+    // synchronous setState is the bypass working correctly, not a cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!enabled || !requestedSym || !tf) { setDisplayedSym(requestedSym); return undefined }
     if (requestedSym === displayedSym) return undefined
@@ -103,40 +108,53 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     //   • Custom codes (2m, 45m…): the separately-deferred architecture fetches
     //     its own base and this coordinator has no view of it.
     // Both pass straight through, byte-for-byte as before.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) { commit(); return undefined }
 
     let alive = true
-    // PREPARE. `prefetchBarsToIDB` is the canonical warm door and now performs
-    // the `since=` repair for a behind cache, so this reuses the bounded,
-    // idle-deferred, backpressure-guarded, cooldown-gated queue rather than
-    // inventing a second fetch path.
+    // PREPARE, AND COMMIT ON WHAT IT REPORTS — never on a stopwatch.
+    //
+    // ⛔⛔ THE PREVIOUS VERSION COMMITTED AFTER A FLAT 600ms REGARDLESS. That
+    // handed StockChart a symbol with no data, fired the empty-bars teardown,
+    // and put B's header over a black canvas — the original defect, postponed.
+    // A timeout is not a result, so it can no longer stand in for one.
+    //
+    //   current / authoritative → a real chart exists → COMMIT (success)
+    //   nodata / error          → COMMIT, but DEGRADED: the member clicked and
+    //                             must not be silently pinned to the old chart;
+    //                             the chart then shows its own honest state.
+    //
+    // ⭐ 'authoritative' is the halted / illiquid symbol: we asked with `since=`
+    // and the server has nothing newer, so its cache IS the frontier. Without
+    // this the handoff would wait forever for a bar that will never print.
     prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true })
+    prepareForDisplay(requestedSym, fetchTf(tf)).then((outcome) => {
+      if (!alive || genRef.current !== gen) return   // a newer request owns the screen
+      lastOutcomeRef.current = outcome
+      commit()
+    }).catch(() => { if (alive && genRef.current === gen) commit() })
 
-    // Poll the cache rather than threading a callback through the warm queue:
-    // the queue is shared by many callers and giving it per-job subscribers
-    // would be a second coordination system. A short interval is cheap (a mem
-    // lookup, then one IDB read) and stops the moment it commits.
+    // A poll alongside it, because the ±6 neighbour warmer may repair this
+    // symbol from the shared queue before our own prepare resolves — committing
+    // the moment the cache is good is strictly better than waiting for our
+    // request to come back.
     let timer = null
-    const tick = async () => {
+    const tick = () => {
       if (!alive || genRef.current !== gen) return
       if (peekDisplayable(requestedSym, tf)) { commit(); return }
-      try {
-        const entry = await idbGet(requestedSym, tf)
-        if (!alive || genRef.current !== gen) return
-        if (seriesDisplayable(entry?.bars, tf)) { commit(); return }
-      } catch { /* best-effort; the deadline below still commits */ }
-      if (alive && genRef.current === gen) timer = setTimeout(tick, POLL_MS)
+      timer = setTimeout(tick, POLL_MS)
     }
-    tick()
+    timer = setTimeout(tick, POLL_MS)
 
-    // ⛔⛔ A DEADLINE, NOT AN OPEN-ENDED WAIT. If B never becomes current-enough
-    // — a dead ticker, a shedding server, an illiquid name with no recent print
-    // — holding A on screen forever under A's identity would be a WORSE bug than
-    // the blank frame: the member clicked B and the product silently refused.
-    // At the deadline we commit B regardless and let StockChart show its own
-    // loading state, which is honest about what is happening.
-    const deadline = setTimeout(commit, HANDOFF_DEADLINE_MS)
+    // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
+    // on success AND on failure, so the only way to reach this is a request that
+    // never settles at all. Committing is still the least-bad answer — a member
+    // staring at the previous symbol forever is worse than a chart that says it
+    // is loading — but it is recorded as degraded, exactly like 'error'.
+    const deadline = setTimeout(() => {
+      if (!alive || genRef.current !== gen) return
+      lastOutcomeRef.current = 'hang'
+      commit()
+    }, HANDOFF_HANG_MS)
 
     return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline) }
     // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
@@ -149,10 +167,17 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
   return displayedSym
 }
 
+/** @internal test/harness seam: how the most recent commit was reached
+ *  ('current' | 'authoritative' | 'nodata' | 'error' | 'hang' | null for the
+ *  synchronous warm path). A harness must not count a degraded commit as a
+ *  successful handoff, so it has to be able to tell them apart. */
+export function lastHandoffOutcome(ref) { return ref?.current ?? null }
+
 // Fast enough that a repair landing between ticks is not perceptible, slow
 // enough that a long prepare costs a handful of cache reads, not hundreds.
 const POLL_MS = 25
-// Above the measured cold p95 (~410ms) so a genuinely cold symbol still commits
-// through the prepared path, but well inside the point where a member decides
-// the click was ignored.
-const HANDOFF_DEADLINE_MS = 600
+// ⚠️ A HANG GUARD, NOT A LATENCY BUDGET. `prepareForDisplay` settles on success
+// and on failure, so this only fires when a request never settles at all.
+// Deliberately generous: firing it early would race a slow-but-healthy prepare
+// and reintroduce the blind commit it exists to prevent.
+const HANDOFF_HANG_MS = 4000

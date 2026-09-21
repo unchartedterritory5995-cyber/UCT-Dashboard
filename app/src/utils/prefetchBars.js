@@ -208,6 +208,67 @@ function _sinceUrl(sym, tf, lastT) {
        + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
 }
 
+// ── PREPARE ONE SYMBOL FOR DISPLAY, AND SAY WHAT HAPPENED ───────────────────
+//
+// ⛔⛔ THE BLIND TIMER THIS REPLACES WAS THE ORIGINAL DEFECT POSTPONED. The
+// handoff used to commit the new symbol after a flat 600ms whatever the state
+// of its data — so a symbol that never prepared got committed anyway, StockChart
+// received it with `bars` null, the empty-bars arm fired, and the member got
+// B's header over a black canvas. "Timed out" was being reported as success.
+//
+// ⭐⭐ AND THERE IS A CASE NEITHER "current" NOR "stale" DESCRIBES. A HALTED or
+// thinly-traded symbol legitimately has no print since 10:00. Its cache is not
+// behind the market — it IS the market for that symbol. Rejecting it forever
+// (there is no newer bar to wait for) and calling it stale are both wrong. Once
+// we have ASKED the server with `since=` and been told there is nothing newer,
+// the cache is AUTHORITATIVE and fit to display. That is a real answer, not a
+// tolerance fudge, and it is why this returns an outcome instead of a boolean.
+//
+//   'current'       repaired (or already) at the session frontier
+//   'authoritative' asked; the server has nothing newer. Correct to display.
+//   'nodata'        the symbol yielded no bars at all (dead / delisted / typo)
+//   'error'         the request failed
+//
+// ⛔ 'nodata' AND 'error' ARE NOT SUCCESS. The caller may commit on them — the
+// member clicked, and being silently pinned to the previous chart is its own
+// bug — but it must classify them as DEGRADED, never count them as a completed
+// handoff, and let the chart show its own honest loading/no-data state.
+export async function prepareForDisplay(sym, tf) {
+  if (!sym || !tf) return 'error'
+  try {
+    const have = await idbGet(sym, tf)
+    const lastT = have?.lastT
+    const hasBars = !!have?.bars?.length
+    if (hasBars && _INTRADAY_TFS.has(String(tf)) && typeof lastT === 'number'
+        && isCurrentEnoughForPaint(lastT, tf)) {
+      memPut(sym, tf, have.bars)
+      return 'current'
+    }
+    // Ask for exactly what is missing: the tail when we have a sound base to
+    // repair, the window when we have nothing. Same URLs the warmer uses, so
+    // this shares its dedupe and its shed-ability rather than opening a door.
+    const url = (hasBars && typeof lastT === 'number'
+      && classifyIntradayTail(lastT, tf) === 'behind')
+      ? _sinceUrl(sym, tf, lastT)
+      : _url(sym, tf)
+    const json = _noteWarmResult(await preload(url, warmFetcher))
+    const rows = json?.bars ?? []
+    if (!rows.length && !hasBars) return 'nodata'
+    const next = (hasBars && json?.delta) ? mergeDelta(have.bars, rows)
+      : (rows.length ? rows : have.bars)
+    if (!next?.length) return 'nodata'
+    await idbPut(sym, tf, next)
+    memPut(sym, tf, next)
+    const newestT = next[next.length - 1]?.t
+    if (!_INTRADAY_TFS.has(String(tf))) return 'current'
+    if (typeof newestT === 'number' && isCurrentEnoughForPaint(newestT, tf)) return 'current'
+    // We asked and this is everything that exists for this symbol right now.
+    return 'authoritative'
+  } catch {
+    return 'error'
+  }
+}
+
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
 // `priority` jumps them to the front of the shared queue — e.g. the year the user
 // just switched to, so its charts warm before the background catalog trickle.
