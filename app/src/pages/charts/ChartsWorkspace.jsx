@@ -783,6 +783,24 @@ export default function ChartsWorkspace() {
     })
   }, [setPref])
 
+  // Which timeframe each color group's chart is showing right now. Broadcast by
+  // ChartWidget, read by list widgets (Theme Tracker) so their bar warming lands
+  // on the key the LINKED chart reads — before this, an embedded Theme Tracker
+  // warmed its own hidden `chartPeriod` default ('D') while the chart it drives
+  // was on 5m, so every intraday scan flip was a 100% cache miss (~287ms of
+  // blank canvas vs ~12ms warm).
+  //
+  // ⚠️ EPHEMERAL ONLY — deliberately NOT written to prefs. `opts.tf` on the
+  // chart widget already persists the timeframe; a second stored copy would be
+  // a competing authority on layout restore.
+  const [groupTfs, setGroupTfsState] = useState({ A: 'D', B: 'D', C: 'D', D: 'D' })
+  const setGroupTf = useCallback((color, tf) => {
+    if (!color || !tf) return
+    // Bail when unchanged: ChartWidget publishes from an effect, so returning a
+    // new object every time would re-render every workspace consumer per paint.
+    setGroupTfsState(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
+  }, [])
+
   // If prefs arrive AFTER initial render (the SWR fetch usually resolves a beat after
   // mount), pick up the saved group syms — otherwise the useState seed above ran while
   // prefs was still undefined, left every group null, and the chart widget fell back to
@@ -961,8 +979,8 @@ export default function ChartsWorkspace() {
   const applyThemeAllRef = useRef(null)
   const applyThemeAllWidgetsRef = useRef(null)
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
+    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
+    [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
   // Debounced layout persist (500ms).

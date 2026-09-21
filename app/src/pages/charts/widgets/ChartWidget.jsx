@@ -14,6 +14,7 @@ import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
+import { fetchTf } from '../../../components/chart/timeframes'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -46,7 +47,7 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
   const navigate = useNavigate()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
@@ -165,6 +166,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   symRef.current = sym
   const tfRef = useRef(tf)
   tfRef.current = tf
+  // Broadcast the timeframe this group is on so list widgets sharing the color
+  // (Theme Tracker, Watchlists) warm bars under the key this chart will read.
+  // Publish-only: `opts.tf` above stays the authority, this is a derived mirror.
+  //
+  // ⛔ PUBLISH THE NATIVE FETCH BASE, NOT THE DISPLAY CODE. A CUSTOM timeframe
+  // (2m, 45m, 4h, 2D …) is client-resampled from a native one, so the bars cache
+  // is keyed by the BASE — warming `SYM_2` for a 2m chart is as useless as
+  // warming `SYM_D` was, and the harness measured exactly that (2m "warm" p50
+  // 409ms, i.e. no better than cold, while every native tf warmed to ~10ms).
+  //
+  // Optional-call: hosts outside ChartsWorkspace (tests, /r/chart, pop-outs)
+  // hand-build a partial workspace value, and a missing broadcast channel must
+  // never break the chart — the list just keeps its own timeframe.
+  const barsTf = fetchTf(tf)
+  useEffect(() => { setGroupTf?.(activeColor, barsTf) }, [activeColor, barsTf, setGroupTf])
+
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })

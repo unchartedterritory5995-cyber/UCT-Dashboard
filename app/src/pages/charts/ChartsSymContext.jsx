@@ -12,6 +12,11 @@ export const ChartsSymContext = createContext(null)
  *   2) WorkspaceContext Group A (V1 callers like Watchlists/ThemeTrackerPage
  *      adapters that haven't been migrated to color-group-aware widgets)
  *   3) Null-safe fallback ({ sym: null, setSym: () => {} })
+ *
+ * `tf` rides along READ-ONLY: the timeframe the linked chart is showing, so a
+ * list widget can warm the cache key that chart reads. An older explicit
+ * provider that doesn't supply one yields undefined — callers must treat that
+ * as "no linked chart" and fall back to their own timeframe.
  */
 export function useChartsSym() {
   const explicit = useContext(ChartsSymContext)
@@ -20,5 +25,6 @@ export function useChartsSym() {
   return {
     sym: workspace.groupSyms.A,
     setSym: (s) => workspace.setGroupSym('A', s),
+    tf: workspace.groupTfs?.A,
   }
 }

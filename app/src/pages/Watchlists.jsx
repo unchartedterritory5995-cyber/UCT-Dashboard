@@ -80,6 +80,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
+import { fetchTf } from '../components/chart/timeframes'
 import { enter as enterReview, publish as publishReview } from './charts/review/reviewSession'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
@@ -816,7 +817,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
   // it — only the gold highlight moves. The list only snaps on an external SEARCH.
   const clickSelectRef = useRef(null)
-  const { sym: hubSym, setSym: setHubSym } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
@@ -853,6 +854,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
   }, [pickList])
   const [chartPeriod, setChartPeriod] = useState('D')
+  // WHICH TIMEFRAME TO WARM — see ThemeTrackerPage for the full note. Embedded in
+  // the /charts workspace this page's own chart panel is hidden (`{!embedded && (`
+  // below), so `chartPeriod` never leaves 'D' while the chart this list drives is
+  // on 5m, and every intraday scan flip was a cold miss. The linked chart's live
+  // timeframe arrives on the sym hub; standalone keeps the on-page selector.
+  // `fetchTf` maps a CUSTOM code (2m, 45m, 4h, 2D …) to the NATIVE timeframe the
+  // bars cache is actually keyed by — warming `SYM_2` for a 2m chart warms
+  // nothing (measured: 2m "warm" p50 409ms == cold).
+  const warmTf = fetchTf((embedded && hubTf) || chartPeriod)
+  // Row-intent handlers below are stable callbacks, so they read through a ref.
+  const warmTfRef = useRef(warmTf)
+  warmTfRef.current = warmTf
   const [flagToast, setFlagToast] = useState(null)
   const [expandedLists, setExpandedLists] = useState(new Set())
   const [showCreate, setShowCreate] = useState(false)
@@ -1582,8 +1595,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // for a short one.
   useEffect(() => {
     if (!allTickers.length) return
-    prewarmVisibleList(allTickers, { chartTf: chartPeriod })
-  }, [allTickers, chartPeriod])
+    prewarmVisibleList(allTickers, { chartTf: warmTf })
+  }, [allTickers, warmTf])
 
   // Same-frame scan paint: promote the ±6 arrow-nav neighbors' cached bars from
   // IndexedDB into the synchronous mem cache (zero network) so the NEXT press
@@ -1625,8 +1638,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const idx = flagged.indexOf(selectedSym)
     if (idx < 0) return
     const upcoming = flagged.slice(idx + 1, idx + 6)
-    prefetchBars(upcoming, chartPeriod)
-  }, [selectedSym, flagged, chartPeriod])
+    prefetchBars(upcoming, warmTf)
+  }, [selectedSym, flagged, warmTf])
 
   function toggleList(id) {
     setExpandedLists(prev => {
@@ -2316,7 +2329,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     } catch { /* a review is a convenience; the chart is not */ }
   }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
-  const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
+  const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, warmTfRef.current), [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
     e.preventDefault(); e.stopPropagation()
     // Community lists aren't yours — no add/remove/notes, so no row menu at all.

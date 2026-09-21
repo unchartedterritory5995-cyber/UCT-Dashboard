@@ -46,13 +46,50 @@ def _pct(vals, q):
     return v[min(len(v) - 1, int(q * len(v)))] if v else None
 
 
-def run(page, fixture, base, tf, syms, seed_idb, label):
-    """Drive a scan and return the per-switch paint times."""
+NATIVE_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+
+def native_base(code):
+    """The tf the bars cache is KEYED by for a display code.
+
+    Mirrors app/src/components/chart/timeframes.js `fetchTf`: a custom intraday
+    code (2m, 45m, 4h …) is client-resampled from the coarsest native base that
+    divides it, so warming the display code warms nothing.
+    """
+    if code in NATIVE_TFS:
+        return code
+    m = int(code)
+    return str(next(b for b in (60, 30, 15, 5, 1) if m % b == 0 and m > b))
+
+
+CLEAR_IDB = ("() => new Promise(res => { const r = indexedDB.deleteDatabase('uct_bars_v1'); "
+             "r.onsuccess = r.onerror = r.onblocked = () => res(true) })")
+
+
+def run(page, fixture, base, tf, syms, seed_idb, label, seed_tf=None, clear_idb=True):
+    """Drive a scan and return the per-switch paint times.
+
+    `seed_tf` is which cache key the LIST WARMED, which is not always the one the
+    CHART READS. That difference is the whole defect: an embedded Theme Tracker /
+    Watchlist keyed every warm on its own hidden `chartPeriod` (stuck at 'D'
+    because the panel that moves it is hidden when embedded), so a member
+    scanning on 5m had the warmer fill SYM_D while the chart asked for SYM_5.
+    Seeding `seed_tf='D'` for a tf='5' scan reproduces that exactly.
+    """
     fixture.requests.clear()
     page.goto(f"{base}/blank.html", wait_until="domcontentloaded")
+    # ⚠️ RUNS SHARE A BROWSER CONTEXT, SO IndexedDB SURVIVES BETWEEN THEM. Without
+    # this wipe the second run inherits the first run's bars and every arm after
+    # "COLD" reads warm — which is exactly how a first draft of this harness made
+    # the WRONG-KEY arm look fast (11 ms) when it is the defect being measured.
+    # The mem cache needs no wipe: `goto` tears the module singleton down.
+    if clear_idb:
+        page.evaluate(CLEAR_IDB)
     if seed_idb:
+        warm_tf = seed_tf or native_base(tf)
         for sym in syms:
-            page.evaluate(SEED_JS, [sym, tf, make_bars(int(tf), FAKE_NOW, 8),
+            page.evaluate(SEED_JS, [sym, warm_tf,
+                                    make_bars(int(warm_tf) if warm_tf.isdigit() else 5, FAKE_NOW, 8),
                                     CACHE_LOGIC_VERSION])
     page.evaluate("() => { try { localStorage.setItem('uct.chartTiming','1') } catch {} }")
 
@@ -105,11 +142,20 @@ def main():
             page = ctx.new_page()
 
             out.append(run(page, fixture, base, "5", SCAN, False, "COLD client cache (first visit)"))
+            # ⛔ THE DEFECT, MODELLED: the list warmed, but under the WRONG KEY.
+            # Warming is not a boolean — a full warm on 'D' buys a 5m scan nothing.
+            out.append(run(page, fixture, base, "5", SCAN, True,
+                           "WRONG-KEY WARM (list warmed D, chart reads 5m)", seed_tf="D"))
             out.append(run(page, fixture, base, "5", SCAN, True, "WARM client cache (IDB seeded)"))
             # the same list again in the SAME context: now genuinely revisited
-            out.append(run(page, fixture, base, "5", SCAN, False, "REVISIT (same session)"))
-            for tf in ("1", "15", "60"):
-                out.append(run(page, fixture, base, tf, SCAN[:8], False, f"COLD spot-check"))
+            # The ONE arm that must NOT wipe: it is the same list, visited again.
+            out.append(run(page, fixture, base, "5", SCAN, False, "REVISIT (same session)",
+                           clear_idb=False))
+            # Spot-checks across the rest of the intraday ladder, each BOTH ways,
+            # so the win is shown to be a property of the scan and not of 5m.
+            for tf in ("1", "2", "15", "30", "60"):
+                out.append(run(page, fixture, base, tf, SCAN[:8], False, "COLD spot-check"))
+                out.append(run(page, fixture, base, tf, SCAN[:8], True, "WARM spot-check"))
             b.close()
     finally:
         httpd.shutdown()

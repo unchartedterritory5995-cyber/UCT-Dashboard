@@ -36,7 +36,7 @@ const DRILL_DEFAULT_COLS = {
 const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill`
 
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
-  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const drill = useDrillSource()
   const widgetId = useId()
   const items = drill?.items ?? NO_ITEMS
@@ -44,9 +44,11 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // Scoped sym context: a row click publishes into THIS widget's colour group so
   // the paired chart follows — identical wiring to ScannerResults/WatchlistWidget.
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
+  // `tf` = the timeframe this group's chart is on, so the wrapped list warms
+  // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
   const scopedSymContext = useMemo(
-    () => ({ sym: color ? groupSyms?.[color] : null, setSym }),
-    [groupSyms, color, setSym],
+    () => ({ sym: color ? groupSyms?.[color] : null, setSym, tf: color ? groupTfs?.[color] : undefined }),
+    [groupSyms, groupTfs, color, setSym],
   )
 
   // The shared grouping toolkit — the same engine the retired bespoke table used,

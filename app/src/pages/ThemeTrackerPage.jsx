@@ -13,6 +13,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
 import { useNeighborWarm } from '../hooks/useNeighborWarm'
+import { fetchTf } from '../components/chart/timeframes'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -876,7 +877,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   })
   const rotationRankings = rotationData?.rankings || {}
 
-  const { sym: hubSym, setSym: setHubSym } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf } = useChartsSym()
   const [selectedSym, setSelectedSym] = useState(null)
   // Which INSTANCE is selected — `${themeTicker}::${sym}`. A ticker can appear in
   // several open themes, so arrow-nav + row highlight key off this, not the bare
@@ -891,6 +892,22 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // *after* those would be in the temporal dead zone at render time.
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
+
+  // WHICH TIMEFRAME TO WARM. Not always `chartPeriod`: embedded in the /charts
+  // workspace this page's own chart panel is hidden (`{!embedded && (` below),
+  // so nothing ever moves `chartPeriod` off its 'D' default while the chart it
+  // actually drives sits on 5m. Every warm then landed on SYM_D and every
+  // intraday scan flip was a cold miss (~287ms of blank canvas vs ~12ms warm).
+  // The linked chart's live timeframe arrives on the sym hub; standalone (no
+  // hub) keeps using the on-page selector.
+  // `fetchTf` maps a CUSTOM code (2m, 45m, 4h, 2D …) to the NATIVE timeframe the
+  // bars cache is actually keyed by — warming `SYM_2` for a 2m chart warms
+  // nothing (measured: 2m "warm" p50 409ms == cold).
+  const warmTf = fetchTf((embedded && hubTf) || chartPeriod)
+  // toggleTheme / handleHoverSym below are plain callbacks that must not be
+  // rebuilt every time the linked chart retimes, so they read through a ref.
+  const warmTfRef = useRef(warmTf)
+  warmTfRef.current = warmTf
 
   // ── Thematic-ETF ── A theme's equal-weight index is a pseudo-ticker
   // ("$IDX:<slug>") selected from an "… Index" row in the holdings list, so it
@@ -927,7 +944,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         // Daily-only + idle-deferred via the shared helper — NOT all timeframes,
         // which 503-floods the origin at market open and starves the visible chart
         // (see prewarmVisibleList). Intraday warms on-demand per clicked symbol.
-        prewarmVisibleList(syms, { chartTf: chartPeriod })
+        prewarmVisibleList(syms, { chartTf: warmTfRef.current })
       }
       return ticker                      // opening a new one closes the previous
     })
@@ -936,8 +953,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Row-hover prefetch: by the time the click commits (~200ms of mouse-down
   // latency on average), the bars are already in flight or cached.
   const handleHoverSym = useCallback(sym => {
-    prefetchBarOnIntent(sym, chartPeriod)
-  }, [chartPeriod])
+    prefetchBarOnIntent(sym, warmTfRef.current)
+  }, [])
 
   const chartRef = useRef(null)
 
@@ -1175,15 +1192,27 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     const idx = allStocks.findIndex(s => s.sym === selectedSym)
     if (idx < 0) return
     const upcoming = allStocks.slice(idx + 1, idx + 6).map(s => s.sym)
-    prefetchBars(upcoming, chartPeriod)
-  }, [selectedSym, allStocks, chartPeriod])
+    prefetchBars(upcoming, warmTf)
+  }, [selectedSym, allStocks, warmTf])
 
   // Same-frame scan paint: promote the ±6 arrow-nav neighbors into the synchronous
   // mem cache (and fetch any cold ones) so the NEXT arrow press paints on the first
   // render via StockChart's memPeek fallback — the accelerator Watchlists had and
   // Theme Tracker was missing. Order matches the arrow handler (allStocks).
   const allStockSyms = useMemo(() => allStocks.map(s => s.sym), [allStocks])
-  useNeighborWarm(allStockSyms, selectedSym, chartPeriod)
+  useNeighborWarm(allStockSyms, selectedSym, warmTf)
+
+  // RE-WARM THE OPEN LIST WHEN THE LINKED CHART RETIMES. `toggleTheme` warms the
+  // whole group at the timeframe in force WHEN IT WAS OPENED; retiming the chart
+  // afterwards used to leave only the ±6 neighbours above covered, so the first
+  // few jumps into the rest of the group went cold again. Same envelope Watchlists
+  // has always run on this call — capped, idle-deferred behind the visible chart,
+  // and backpressure-guarded inside prefetchBars — so a timeframe keypress can't
+  // flood the origin.
+  useEffect(() => {
+    if (!allStockSyms.length) return
+    prewarmVisibleList(allStockSyms, { chartTf: warmTf })
+  }, [allStockSyms, warmTf])
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()

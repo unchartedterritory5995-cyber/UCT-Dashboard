@@ -141,16 +141,18 @@ import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalT
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
-  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   // Stable per-instance key for the wrapped watchlist table (arrow-nav / active id).
   const widgetId = useId()
 
   // Scoped sym context: a row click / selection routes into THIS widget's color
   // group (not Group A), so a paired chart follows — same wiring as WatchlistWidget.
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
+  // `tf` = the timeframe this group's chart is on, so the wrapped list warms
+  // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
   const scopedSymContext = useMemo(
-    () => ({ sym: color ? groupSyms?.[color] : null, setSym }),
-    [groupSyms, color, setSym],
+    () => ({ sym: color ? groupSyms?.[color] : null, setSym, tf: color ? groupTfs?.[color] : undefined }),
+    [groupSyms, groupTfs, color, setSym],
   )
 
   const url = SCAN_ENDPOINTS[scanKey] || null
