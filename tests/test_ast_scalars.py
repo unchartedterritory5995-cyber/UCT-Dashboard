@@ -801,7 +801,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # through the NAMESPACED `ta.valuewhen(...)`, never a bare call. New
     # bar-corpus case: `valuewhenOccurrence_the_second_most_recent_up_bar`.
     # The scalar half is untouched at 137 -- it names no per-symbol column.
-    assert len(parts["bar"]) == 121 and len(parts["scalar"]) == 137
+    # ⭐ 121 -> 122 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
+    # key turned into a value, this engine's answer for Pine's
+    # `time(<timeframe>)` one-argument form when it folds to "D". New
+    # bar-corpus case: `clock_dayopentime`. The scalar half is untouched at
+    # 137 -- a per-bar clock column names no per-symbol column.
+    assert len(parts["bar"]) == 122 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

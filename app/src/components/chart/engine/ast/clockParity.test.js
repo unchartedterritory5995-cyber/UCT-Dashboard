@@ -136,11 +136,12 @@ describe('the clock oracle — this lane against the committed fixture', () => {
       .filter(([, col]) => col.every((v) => v === null)).map(([n]) => n)
     // ⭐⭐ `lastbartime` + its five calendar fields (2026-09-20) read the SAME
     // `t` the eight above do, so a fetch that fails their unit gate fails
-    // this one too -- fourteen names now, not eight.
-    expect(blank.sort()).toEqual(['dayofmonth', 'dayofweek', 'hour',
-      'lastbardayofmonth', 'lastbarhour', 'lastbarminute', 'lastbarmonth',
-      'lastbartime', 'lastbaryear', 'minute', 'month', 'sessionfirst', 'time',
-      'year'])
+    // this one too -- and `dayopentime` (2026-09-20) joins the SAME nine, so
+    // fifteen names now, not eight.
+    expect(blank.sort()).toEqual(['dayofmonth', 'dayofweek', 'dayopentime',
+      'hour', 'lastbardayofmonth', 'lastbarhour', 'lastbarminute',
+      'lastbarmonth', 'lastbartime', 'lastbaryear', 'minute', 'month',
+      'sessionfirst', 'time', 'year'])
   })
 
   it('⛔ `sessionfirst` is WINDOW-INDEPENDENT — every slice agrees from its second bar', () => {

@@ -7761,16 +7761,35 @@ export class Resolver {
       // comment records that this arm was split from the bare-NAME arm so each
       // construct gets its own true sentence; it stopped one notch short.
       const anchorForm = bare === 'time' && args.length === 1
+      // ⭐⭐⭐ (2026-09-20) THE "node this engine does not have" ABOVE IS NOW
+      // ONLY TRUE FOR NON-"D" PERIODS. `dayopentime` (`indicators.js`/
+      // `indicator_compute.py::CLOCK_TIME_DERIVED`) is exactly that node for
+      // the daily case: the opening timestamp of the ET calendar day each bar
+      // falls in, broadcast to every bar of that day. `timeframeLiteralOf`
+      // resolves the argument the SAME way `request.security`'s own
+      // timeframe argument already does (a literal, a bound variable, a
+      // constant-foldable ternary, or an `input.timeframe`/`input.string`/
+      // `input` fold — recorded in `usedInputs` on the fold, same as every
+      // other site). ⛔ ONLY "D"/"1D" REDIRECTS — W/M/intraday resampling is
+      // a separate, harder capability (real weekly/monthly bucket rules, or
+      // session-open-vs-midnight bucket alignment for intraday codes — see
+      // the memory's own scoping note) nothing in the real corpus asks for
+      // today, so it stays refused rather than silently guessed at.
+      if (anchorForm) {
+        const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
+        const rawTf = this.timeframeLiteralOf(argNode)
+        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
+        if (tfCode === 'D') return clockLeaf('dayopentime')
+      }
       throw new PineRefusal('pine:function',
         anchorForm
           ? `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
             + 'period — the anchor Pine scripts compare with `>` to detect a new day '
-            + 'or week. This engine holds the `time` of each bar and the period it '
-            + 'sits inside is a node this engine does not have, so there is nothing '
-            + 'to compare against. The clock it '
-            + 'does declare is `dayofweek`, `dayofmonth`, `month`, `year` and '
-            + '`sessionfirst` — and `sessionfirst` is the closest to what an anchor '
-            + 'comparison is usually asking'
+            + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
+            + 'translates. Any OTHER period this engine does not have a node for: '
+            + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
+            + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
+            + 'an anchor comparison is usually asking'
           : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {

@@ -1437,10 +1437,28 @@ def compute_avwap(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
 CLOCK_INTRADAY_TFS = ("1", "5", "15", "30", "60")
 CLOCK_TIMEFRAMES = CLOCK_INTRADAY_TFS + ("D", "W", "M")
 
-#: The eight columns that read the bar's ``t`` — and therefore the eight the
+#: The nine columns that read the bar's ``t`` — and therefore the nine the
 #: unit gate refuses together.
 CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
-                      "hour", "minute", "sessionfirst")
+                      "hour", "minute", "sessionfirst", "dayopentime")
+
+#: ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
+#: BROADCAST TO EVERY BAR OF THAT DAY. Mirrors ``indicators.js``'s own
+#: ``dayopentime`` doc comment value for value — read that one for the full
+#: argument (why no calendar/DST arithmetic is needed, why it is in UNIX
+#: SECONDS not Pine's milliseconds, and the deliberate no-session-filtering
+#: simplification vs. real Pine ``time(<timeframe>)``). In one line:
+#: ``sessionfirst``'s own ``day`` key, turned into a VALUE instead of a
+#: boundary flag — this bar's ``t`` minus "seconds since ET midnight",
+#: where the latter is read straight off the same ``h``/``minute`` this
+#: loop already computes, never a fixed 24h step back.
+#:
+#: ⛔ ONE NARROW, DOCUMENTED EXCEPTION (same file, full argument): on a
+#: FALL-BACK DST transition day the repeated 1:00-1:59 AM ET hour makes this
+#: column disagree with itself by exactly one hour between its two passes,
+#: even though ``sessionfirst`` correctly agrees they are the same day.
+#: NYSE never trades that hour, so this cannot surface on a real corpus
+#: script's chart — measured directly in ``clock_parity.json`` (bars 8-11).
 
 #: Every column ``compute_clock`` produces. The CLOSED TABLE is the authority
 #: over which of these names a formula may spell; this module is the authority
@@ -1750,7 +1768,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     ``bars_sqlite`` stores daily/weekly/monthly ``t`` as ``YYYYMMDD`` INTS and
     ``indicator_alert_evaluator`` passes them through, and ``20250101`` read as
     unix seconds is 1970-08-23. So a series that is not in seconds refuses the
-    eight time-derived columns, all-or-nothing — a per-bar skip would leave the
+    nine time-derived columns, all-or-nothing — a per-bar skip would leave the
     survivors in one ET day, which IS the shape being refused — and leaves
     ``barindex`` and the four timeframe booleans alone, because those read no
     ``t`` at all and a guard firing on them would refuse a column it has no
@@ -1903,6 +1921,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     hour: List[MaybeNum] = [None] * n
     minute: List[MaybeNum] = [None] * n
     first: List[MaybeNum] = [None] * n
+    day_open: List[MaybeNum] = [None] * n
 
     # One-entry memo on the UTC hour, exactly as ``compute_vwap_raw`` does and
     # EXACT for the same reason: every ``America/New_York`` offset is a whole
@@ -1951,6 +1970,10 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         day = y * 10000 + mo * 100 + d
         first[i] = None if prev_day < 0 else (0.0 if day == prev_day else 1.0)
         prev_day = day
+        # ``dayopentime``: this bar's ``t`` minus "seconds since ET midnight"
+        # -- see the column's own doc comment above for why no calendar/DST
+        # arithmetic is needed to get this exactly right.
+        day_open[i] = float(t - (h * 3600 + minute[i] * 60 + (t % 60)))
 
     cols["time"] = time_col
     cols["year"] = year
@@ -1960,6 +1983,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     cols["hour"] = hour
     cols["minute"] = minute
     cols["sessionfirst"] = first
+    cols["dayopentime"] = day_open
     # `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
     # computed above -- read back, never recomputed, so this broadcast can
     # never disagree with what `year`/`month`/… already say about that bar.

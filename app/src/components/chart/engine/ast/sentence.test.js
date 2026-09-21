@@ -995,6 +995,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:barindex',
       'clock:dayofmonth',
       'clock:dayofweek',
+      'clock:dayopentime',
       'clock:hour',
       // ⭐⭐ 104 -> 110: THE SIX BARSTATE COLUMNS (2026-09-09), NAMED rather than
       // a bumped count. They arrived under an owner ruling that UCT defines
@@ -1161,7 +1162,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
-    expect(entries.length).toBe(121)
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(entries.length).toBe(122)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1176,7 +1178,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
-    expect(subjects.length).toBe(121)
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(subjects.length).toBe(122)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2378,7 +2381,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // ones where the two lanes are two readers of the IANA database rather than
       // one formula written twice.
       'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
-      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_barindex', 'clock_isintraday',
+      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_dayopentime', 'clock_barindex', 'clock_isintraday',
       'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
       // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
       // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
@@ -2593,7 +2596,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
-    expect(sentences.length).toBe(CORPUS.cases.length + 121)
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 122)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
