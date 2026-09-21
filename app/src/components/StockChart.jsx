@@ -770,8 +770,8 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { timingStart, timingMark } from '../utils/intradayTiming'
-import { classifyIntradayTail, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
+import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -6452,6 +6452,24 @@ export default function StockChart({
     ? classifyIntradayTail(idbSinceRef.current, resolvedTf)
     : null
   const idbStaleIntraday = _intradayTail === 'gapped'
+  // ⛔⛔ SOUND-AS-A-REPAIR-BASE IS NOT ELIGIBLE-TO-DISPLAY, AND TREATING THEM AS
+  // ONE QUESTION IS WHAT PUT 10:00 ON SCREEN AT 15:55 (owner report: MU near the
+  // close, chart rendered through ~10:00, caught up half a second later).
+  // `_intradayTail === 'behind'` correctly keeps the cache and correctly asks for
+  // only the gap via `since=` — both of those stay exactly as they are. What it
+  // must NOT also mean is "show this to the member as the present session".
+  //
+  //   repair base  → _intradayTail !== 'gapped'      (drives `since=`, untouched)
+  //   displayable  → isCurrentEnoughForPaint(...)    (drives the first frame)
+  //
+  // ⭐ MEASURED, NOT ASSERTED: with this gate absent the harness records a 23 ms
+  // first paint that is 38 five-minute buckets stale, 19/19 switches — i.e. the
+  // best-looking number in the run was the defect.
+  const _idbNotCurrent = isIntraday && typeof idbSinceRef.current === 'number'
+    && _intradayTail === 'behind'
+    && !isCurrentEnoughForPaint(idbSinceRef.current, resolvedTf, {
+      session: showExtended ? 'extended' : 'rth',
+    })
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
@@ -6999,7 +7017,7 @@ export default function StockChart({
   const _netClosed = (_netMatches && data.bars.length >= 2) ? data.bars[data.bars.length - 2] : null
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
   // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
   // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
   // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
@@ -7075,11 +7093,21 @@ export default function StockChart({
                 // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
                 // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
                 ? idbBars
-                : (_netMatches
-                    ? data.bars
-                    : (_memBars?.length
-                        ? _memBars
-                        : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
+                : (_idbNotCurrent && data?.delta
+                    // ⛔ A DELTA IS NOT A CHART. With the IDB layer held back for
+                    // being stale, the next arm would hand `data.bars` to the
+                    // canvas — and under `since=` that is ONLY the gap rows (~38
+                    // of them), so suppressing a stale frame would have produced a
+                    // broken 38-bar one instead. Yield null and wait: the merge
+                    // effect below folds this delta into idbBars, refreshes
+                    // idbSinceRef, and the very next render classifies 'fresh' and
+                    // paints the COMPLETE, CURRENT series.
+                    ? null
+                    : (_netMatches
+                        ? data.bars
+                        : (_memBars?.length
+                            ? _memBars
+                            : (_aggBars?.length ? _aggBars : (_idbProvisional || null))))))))
   // The live-bar writers consult this to freeze until a CURRENT-session payload
   // replaces the data — BUT only when the stale tail is from a PRIOR session
   // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
@@ -9759,6 +9787,11 @@ export default function StockChart({
     // until the new SWR fetch returns — that's the "blended data" the user
     // sees flipping between charts.
     if (!filteredBars?.length) {
+      // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
+      // is emptied, so whatever the member was looking at is gone and nothing has
+      // replaced it. Inferring the rate from "T4 was small" is how the stale-paint
+      // defect hid for a whole cycle.
+      timingMarkEmpty(_timingIdRef.current)
       try { candleSeriesRef.current?.setData([]) } catch {}
       try { volumeSeriesRef.current?.setData([]) } catch {}
       for (const s of overlaySeriesRefs.current) {
@@ -10599,9 +10632,29 @@ export default function StockChart({
     // moment a scanning member stops seeing the previous chart and starts seeing this
     // one. Marked HERE rather than at a React state change because `loading === false`
     // is a decision, and this is the paint.
-    if (!_paintMarkedRef.current && (isOhlcType(cs.chartType) ? ohlcData : closeData)?.length) {
+    // ⛔⛔ RECORD WHAT WAS PAINTED, NOT ONLY WHEN. `paint` alone scored the MU
+    // stale-first-paint (a 10:00 tail shown at 15:55) as the FASTEST switch in the
+    // run. timingMarkPaint carries the newest bar's timestamp so the frontier gap
+    // is measured at the instant the member sees the frame, and TC is marked only
+    // once a CURRENT-ENOUGH frame reaches the canvas.
+    // ⚠️ Not latched on `paint` any more: a stale frame followed by the repaired
+    // one must leave BOTH marks, so the stale interval is measurable.
+    const _painted = isOhlcType(cs.chartType) ? ohlcData : closeData
+    if (_painted?.length) {
+      // ⚠️ INTRADAY ONLY. `filteredBars[].t` is unix SECONDS intraday but a
+      // 'YYYY-MM-DD' STRING on D/W/M, and the frontier math is bucket arithmetic
+      // over the former. Handing it a string would score every daily switch as
+      // Infinity-behind — a fabricated failure, which is worse than no metric.
+      // Daily keeps the plain timing mark it always had.
+      if (isIntraday) {
+        const _lastT = filteredBars[filteredBars.length - 1]?.t
+        timingMarkPaint(_timingIdRef.current, typeof _lastT === 'number' ? _lastT : null, {
+          session: showExtended ? 'extended' : 'rth',
+        })
+      } else if (!_paintMarkedRef.current) {
+        timingMark(_timingIdRef.current, 'paint')
+      }
       _paintMarkedRef.current = true
-      timingMark(_timingIdRef.current, 'paint')
     }
 
     // Store the last bar for live updates

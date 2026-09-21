@@ -242,3 +242,4 @@ tools/intraday_scan_out.json
 # `api/data/`. Every committed file under there — `breadth_sentiment_history.csv`,
 # `cap_universe.json`, the voice KB — is tracked the same way. A `!api/data/...`
 # line would look like it worked and would not.
+tools/intraday_current_out.json

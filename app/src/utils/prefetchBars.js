@@ -14,7 +14,7 @@ import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut, mergeDelta } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale } from './marketSession'
+import { isDailyTailStale, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -163,6 +163,51 @@ function _url(sym, tf, warm = true) {
   return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}${warm ? '&warm=1' : ''}`
 }
 
+// The native intraday codes. Declared ABOVE its first use on purpose: this file
+// has already produced one temporal-dead-zone crash class in this project, and a
+// module-scope `const` referenced from a function defined earlier is only safe
+// while nothing calls that function during module init — a property that is easy
+// to break and invisible until it throws.
+const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
+
+// ── REPAIR COOLDOWN ─────────────────────────────────────────────────────────
+// ⛔⛔ WITHOUT THIS, THE FIX IS A REQUEST STORM. `prefetchBarsToIDB` deliberately
+// BYPASSES the `_idbSeen` skip when `priority` is set (`if (_idbSeen.has(key) &&
+// !priority) continue`) so an imminent click can jump the queue — which means
+// `useNeighborWarm` re-enqueues all ±6 neighbours on EVERY selection. That was
+// free while a behind cache returned early doing nothing; now each one would
+// issue a tail fetch, so a fast scan would multiply into ~12 requests per click.
+//
+// ⭐ THE INTERVAL IS THE TIMEFRAME'S OWN BUCKET, NOT A PICKED NUMBER. A repaired
+// cache cannot become stale again faster than one bar can close, so repairing a
+// given (sym, tf) more than once per bucket cannot buy a single fresher bar — it
+// is pure traffic. 60s floor so 1m does not repair every minute of a long scan.
+const _repairAt = new Map()   // `${sym}_${tf}` -> ms of last repair attempt
+function _repairCooldownOk(sym, tf) {
+  const key = `${sym}_${tf}`
+  const now = Date.now()
+  const gap = Math.max(60_000, (Number(tf) || 5) * 60_000)
+  const last = _repairAt.get(key)
+  if (last != null && now - last < gap) return false
+  _repairAt.set(key, now)
+  // Bounded: a long scanning session must not grow this map without limit.
+  if (_repairAt.size > 400) {
+    for (const [k, t] of _repairAt) { if (now - t > gap) _repairAt.delete(k) }
+  }
+  return true
+}
+
+/** @internal test seam — a fresh cooldown table per case. */
+export function _resetRepairCooldown() { _repairAt.clear() }
+
+// The TAIL-REPAIR url: every row past the cache's newest bar, nothing before it.
+// `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
+// still a background nicety and must never outrank the chart the member clicked.
+function _sinceUrl(sym, tf, lastT) {
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}`
+       + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
+}
+
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
 // `priority` jumps them to the front of the shared queue — e.g. the year the user
 // just switched to, so its charts warm before the background catalog trickle.
@@ -246,9 +291,40 @@ async function _idbWarmOne({ sym, tf }) {
     // A DAILY entry missing recent sessions is NOT fresh: the chart's daily
     // staleness gate refuses to paint it, so leaving it here is what makes the
     // NEXT click cold-load on a black screen. Refresh it so scanning keeps the
-    // daily cache current and the click paints instantly. (Intraday is already
-    // handled: idbGet returns null for a stale-intraday entry → `have` is null.)
+    // daily cache current and the click paints instantly.
     const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+
+    // ⚰️⚰️ THE COMMENT THAT USED TO SIT HERE SAID "Intraday is already handled:
+    // idbGet returns null for a stale-intraday entry → `have` is null". THAT
+    // STOPPED BEING TRUE and nothing noticed. `idbGet` was correctly changed to
+    // hand BEHIND entries back (they are sound repair bases; discarding them is
+    // what forced re-downloading thousands of bars to recover today's last
+    // twenty) — and this early return, which had been leaning on that eviction as
+    // its staleness signal, silently became "an hours-stale intraday cache is
+    // already warm, do nothing". So the warmer stopped repairing exactly the
+    // caches that most needed it, and the next click painted 10:00 at 15:55.
+    //
+    // ⭐ REPAIR IT WITH THE TAIL, NOT A REFETCH. `since=` returns every row past
+    // the threshold, so one small request (production-measured 8.5 KB / 59 ms vs
+    // 81 KB / 111 ms for the full window) carries the whole gap. This is the
+    // difference between "the likely-next symbol is warm" and "the likely-next
+    // symbol is CURRENT", which is the only one the member can see.
+    const behindIntraday = _INTRADAY_TFS.has(String(tf)) && have?.bars?.length
+      && typeof have.lastT === 'number'
+      && classifyIntradayTail(have.lastT, tf) === 'behind'
+      && !isCurrentEnoughForPaint(have.lastT, tf)
+    if (behindIntraday) {
+      if (_holdBackgroundWarm()) return
+      if (!_repairCooldownOk(sym, tf)) return
+      const tail = _noteWarmResult(
+        await preload(_sinceUrl(sym, tf, have.lastT), warmFetcher))
+      if (tail?.bars?.length) {
+        const merged = mergeDelta(have.bars, tail.bars)
+        await idbPut(sym, tf, merged)
+        memPut(sym, tf, merged)
+      }
+      return
+    }
     if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
     // Don't race the pack to origin, and don't pile onto a shedding server (see
     // _holdBackgroundWarm). The pack is writing these tickers into IDB; a click
@@ -349,7 +425,6 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
 // whose newest bar is older than max(6 tf-periods, 20min) is NOT promoted,
 // because the chart itself refuses to paint it (it full-refetches instead);
 // promoting it would flash an old session mid-scan. D/W/M always promote.
-const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
 function _memPromoteFresh(tf, lastT) {
   // Daily: reject a tail missing recent sessions (mirrors the chart's gate — a
   // stale daily promoted to mem would just be suppressed, or flash old data).

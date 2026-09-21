@@ -342,6 +342,71 @@ export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = '
   return prevStart
 }
 
+// ── DISPLAY ELIGIBILITY: "current enough to be the FIRST THING THE USER SEES" ──
+//
+// ⛔⛔ THIS ANSWERS A DIFFERENT QUESTION FROM `classifyIntradayTail`, AND CONFLATING
+// THE TWO IS THE DEFECT THIS EXISTS TO FIX. The classifier answers *is this cache a
+// sound base for repair?* — and a tail that merely stopped at 10:00 IS sound, which
+// is why `barsIDB` correctly keeps it and `since=` correctly repairs only the gap.
+// It does NOT answer *may this be painted as the current chart?* Opening MU at 15:55
+// with a 10:00 tail classified 'behind', passed every gate, and put six hours of
+// missing price action on screen as though it were the present session — then caught
+// up half a second later. Sound-as-a-base became showable, and they are not the same
+// property.
+//
+//   CACHE USABLE FOR REPAIR      → classifyIntradayTail() !== 'gapped'
+//   CACHE ELIGIBLE FOR FIRST PAINT → isCurrentEnoughForPaint()   (this)
+//
+// ⭐ THE THRESHOLD IS DERIVED FROM SESSION SEMANTICS, NOT PICKED. The frontier is
+// `expectedLatestCompletedBar` — already early-close aware, extended-hours aware,
+// holiday/weekend aware, and correct for the irregular opening bucket. "How stale"
+// is then counted in EXPECTED BUCKETS, not wall-clock seconds, so the same rule
+// means the same thing on 1m and 1h and does not need re-tuning per timeframe.
+//
+// ⚠️ `toleranceBars` DEFAULTS TO 1 FOR A REASON, AND IT IS NOT SLOP. Expectation is
+// not existence: an illiquid name legitimately has no print in the newest bucket, so
+// a zero-tolerance rule would block its paint forever waiting for a bar that will
+// never exist, on every scan. One bucket absorbs exactly that case and nothing more.
+
+/** How many EXPECTED buckets lie between a cached tail and the session frontier.
+ *  null when there is no expectation to measure against (closed market, pre-open,
+ *  unbucketable tf) — "no expectation" is an answer, never a fabricated zero. */
+export function expectedBarsBehind(lastTUnixSec, tf, nowMs = Date.now(), { session = 'rth' } = {}) {
+  const frontier = expectedLatestCompletedBar(tf, nowMs, { session })
+  if (frontier == null) return null
+  if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return Infinity
+  if (lastTUnixSec >= frontier) return 0
+  const tfMin = Math.max(1, Number(tf) || 5)
+  const open = session === 'extended' ? _EXT_OPEN_MINUTES : _RTH_OPEN_MINUTES
+  // ⛔ WALK BY RE-BUCKETING, NEVER BY DIVIDING THE TIME DIFFERENCE. The opening
+  // bucket is short on coarse timeframes (09:30-10:00 on tf=60) and an overnight
+  // gap is not made of buckets at all, so `(frontier - lastT) / tfSec` both
+  // over- and under-counts. Bounded: past a full session's worth the answer is
+  // only ever "materially behind", so the cap costs nothing and guarantees exit.
+  const CAP = 600
+  let cur = frontier
+  let n = 0
+  while (n < CAP) {
+    const prev = _bucketStartUnix(cur - 1, tfMin)
+    if (prev <= lastTUnixSec) return n + 1
+    if (_etMinutesOfUnix(prev) < open) return n + 1   // walked off the session open
+    cur = prev
+    n++
+  }
+  return CAP
+}
+
+/** May this cached tail be the FIRST VISIBLE FRAME for (tf)? */
+export function isCurrentEnoughForPaint(lastTUnixSec, tf, { nowMs = Date.now(), session = 'rth', toleranceBars = 1 } = {}) {
+  const behind = expectedBarsBehind(lastTUnixSec, tf, nowMs, { session })
+  // No expectation (market shut, pre-open, unbucketable) → nothing to be stale
+  // against, so the cache is as current as anything can be. Refusing here would
+  // block every weekend and pre-market paint on a network round-trip that cannot
+  // return anything newer.
+  if (behind == null) return true
+  return behind <= toleranceBars
+}
+
 /** The interval currently forming, or null when nothing is. */
 export function expectedFormingBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
   if (expectedLatestCompletedBar(tf, nowMs, { session }) == null) return null
