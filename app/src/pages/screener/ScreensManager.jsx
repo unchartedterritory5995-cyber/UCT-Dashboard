@@ -9,6 +9,7 @@ import { scannableScreens, SCAN_TF, defaultSession } from '../../components/scre
 import ScanResults from '../../components/screener/ScanResults'
 import RunNowButton from '../../components/screener/RunNowButton'
 import { DEFAULT_BUDGET } from '../../components/chart/engine/ast/budget'
+import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 
@@ -183,13 +184,6 @@ const badgeStyle = {
   marginLeft: 6, textTransform: 'uppercase', fontWeight: 600, verticalAlign: 'middle',
 }
 
-/** The "My scans" header carries a control on its right. `.saveMenuHdr` is a
- *  label, not a row, so the layout is stated here rather than by borrowing
- *  `.saveMenuItem` — which also paints a hover background this is not. */
-const hdrRowStyle = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-}
-
 /** The delete prompt sits BELOW its row, not inside `.saveMenuAct` — that strip
  *  is a fixed run of icon buttons and this question has to fit a scan's NAME,
  *  which is as long as a member made it. The share panel is placed the same way
@@ -209,6 +203,17 @@ const deleteErrStyle = {
   color: 'var(--color-danger, #f87171)',
 }
 
+/** "New scan" leads the menu now — it is the authoring door and a member arriving
+ *  to build one should not have to scan past the starter list to find it. Made a
+ *  full-width `btn btn-primary` (the same gold accent "Save current" carries) so
+ *  it reads as the primary action, not a menu row. Inline width rather than a new
+ *  CSS-module key for the reason `deleteAskStyle` states above: `ScannerPro.module.css`
+ *  has no stylesheet rail, so an undeclared class would be a silent hole. */
+const newScanTopStyle = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  width: '100%',
+}
+
 function TypeBadge({ children }) {
   return <span style={badgeStyle}>{children}</span>
 }
@@ -224,6 +229,34 @@ function scanName(row) {
 
 export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
+  // ─── FAVORITES: pin the ones a member reaches for to the TOP ────────────────
+  // Stored server-side as a set of namespaced keys — `starter:<id>` for a UCT
+  // preset, `screen:<id>` for a saved screen — because a preset's string id and a
+  // saved screen's numeric id share a namespace otherwise and a favorite would
+  // pin the wrong one. Written through `setPrefMerged` (not `setPref`) so two
+  // rapid toggles serialise instead of the second overwriting the first with a
+  // stale snapshot — the exact race that hook exists to close.
+  const { prefs, setPrefMerged } = usePreferences()
+  const favSet = useMemo(
+    () => new Set(parsePref(prefs.screener_favorite_screens, [])
+      .filter((k) => typeof k === 'string')),
+    [prefs.screener_favorite_screens],
+  )
+  const toggleFav = (key) => setPrefMerged('screener_favorite_screens', (cur) => {
+    const arr = (Array.isArray(cur) ? cur : []).filter((k) => typeof k === 'string')
+    return arr.includes(key) ? arr.filter((k) => k !== key) : [...arr, key]
+  })
+  // Both favoritable lists resolve to an `apply(s.spec)` action, so one catalog
+  // keyed by the namespaced id feeds the top Favorites section. A favorite whose
+  // underlying screen was deleted simply falls out — the filter is over what
+  // still exists, never over the stored key list.
+  const favEntries = useMemo(() => {
+    const cat = [
+      ...(starters || []).map((s) => ({ key: `starter:${s.id}`, item: s })),
+      ...(saved || []).map((s) => ({ key: `screen:${s.id}`, item: s })),
+    ]
+    return cat.filter((e) => favSet.has(e.key))
+  }, [starters, saved, favSet])
   const { rows: defRows, error: defsError, refresh: refreshDefs } = useUserDefinitions()
   const scans = useMemo(() => scannableScreens(defRows), [defRows])
   // ⭐⭐ THE ONES THAT CANNOT SCAN, AND WHY — the server already knows and nobody
@@ -412,14 +445,61 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
       </button>
       {open && (
         <div className={styles.saveMenuPop} role="menu">
-          {starters.length > 0 && (
+          {/* 🔴 THE AUTHORING DOOR, LED WITH. It was the last row in the menu and
+              got no attention; it is the primary action here, so it leads and
+              wears the gold `btn-primary` accent. Closes the menu first for the
+              same portal reason the old placement did — the sheet mounts outside
+              `wrapRef`. ⛔ EXACTLY ONE "New scan" button exists (the door test
+              finds it by role name), so this is a MOVE, not a second copy. */}
+          <div className={styles.saveMenuSection}>
+            <button type="button" aria-label="New scan"
+              className="btn btn-primary" style={newScanTopStyle}
+              onClick={() => { setOpen(false); setBuilder({ row: null }) }}>
+              <UIcon name="plus" size={12} /> New scan
+            </button>
+          </div>
+
+          {/* ⭐ FAVORITES — whatever the member pinned, at the top. Only rendered
+              when there is something to show; the ★ toggle lives on each starter
+              and saved-screen row below. Applying one is the same `apply(s.spec)`
+              those rows run. */}
+          {favEntries.length > 0 && (
             <div className={styles.saveMenuSection}>
-              <div className={styles.saveMenuHdr}>Starters</div>
-              {starters.map(s => (
-                <div key={s.id} className={styles.saveMenuItem}>
-                  <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
+              <div className={styles.saveMenuHdr}>Favorites</div>
+              {favEntries.map(({ key, item }) => (
+                <div key={key} className={styles.saveMenuItem}>
+                  <button type="button" className={styles.saveMenuName} onClick={() => apply(item)}>{item.name}</button>
+                  <span className={styles.saveMenuAct}>
+                    <button type="button" aria-pressed="true"
+                      aria-label={`Unfavorite ${item.name}`}
+                      onClick={() => toggleFav(key)}>
+                      <UIcon name="star-fill" size={12} />
+                    </button>
+                  </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {starters.length > 0 && (
+            <div className={styles.saveMenuSection}>
+              <div className={styles.saveMenuHdr}>UCT Preset Scans</div>
+              {starters.map(s => {
+                const favKey = `starter:${s.id}`
+                const fav = favSet.has(favKey)
+                return (
+                  <div key={s.id} className={styles.saveMenuItem}>
+                    <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
+                    <span className={styles.saveMenuAct}>
+                      <button type="button" aria-pressed={fav}
+                        aria-label={fav ? `Unfavorite ${s.name}` : `Favorite ${s.name}`}
+                        onClick={() => toggleFav(favKey)}>
+                        <UIcon name={fav ? 'star-fill' : 'star'} size={12} />
+                      </button>
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -443,6 +523,15 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
                   )}
                   <span className={styles.saveMenuAct}>
+                    {/* ⭐ PIN IT TO THE TOP. Same toggle as the preset rows,
+                        namespaced `screen:<id>` so a numeric saved-screen id
+                        never collides with a preset's string id. */}
+                    <button type="button" aria-pressed={favSet.has(`screen:${s.id}`)}
+                      aria-label={favSet.has(`screen:${s.id}`)
+                        ? `Unfavorite ${s.name}` : `Favorite ${s.name}`}
+                      onClick={() => toggleFav(`screen:${s.id}`)}>
+                      <UIcon name={favSet.has(`screen:${s.id}`) ? 'star-fill' : 'star'} size={12} />
+                    </button>
                     {/* 🔴 THE DOOR. Opens the panel below; the panel is where
                         the member actually publishes. */}
                     <button type="button" aria-label={`Share ${s.name}`}
@@ -538,21 +627,9 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           </div>
 
           <div className={styles.saveMenuSection}>
-            <div className={styles.saveMenuHdr} style={hdrRowStyle}>
-              <span>My scans<TypeBadge>SCAN</TypeBadge></span>
-              {/* 🔴 THE AUTHORING DOOR. Closes the menu first: the sheet is a
-                  `Sheet` portalled to document.body, i.e. OUTSIDE `wrapRef`,
-                  so the menu's own outside-click handler would fire on the
-                  first click inside the sheet and shut the menu underneath it
-                  anyway — this just does it deliberately, before the sheet is
-                  on screen. */}
-              <span className={styles.saveMenuAct}>
-                <button type="button" aria-label="New scan"
-                  onClick={() => { setOpen(false); setBuilder({ row: null }) }}>
-                  <UIcon name="plus" size={11} /> New scan
-                </button>
-              </span>
-            </div>
+            {/* The authoring door moved to the TOP of the menu (it was here and
+                got no attention). This header is now just its label. */}
+            <div className={styles.saveMenuHdr}>My scans<TypeBadge>SCAN</TypeBadge></div>
             {defsError ? (
               <p role="alert" data-testid="screens-manager-error--scans" className={styles.saveMenuEmpty}>
                 Your saved scans could not be read ({String(defsError.message || defsError)}).
