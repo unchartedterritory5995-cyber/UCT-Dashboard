@@ -1,0 +1,138 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 11,
+    "fixed": 2,
+    "unchanged": 254,
+    "missing": 0,
+    "baseline": 256,
+    "current": 265,
+    "current_ran": 50802,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 11
+  },
+  "arithmetic": "baseline 256 = unchanged 254 + fixed 2 + missing 0  |  current 265 = unchanged 254 + new 11 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35589575938",
+  "current_run_id": "35593302626",
+  "baseline_sha": "267d512ce739c3aae0945a74a14eb84afa9f2df5",
+  "current_sha": "46d03d3c4136032882df2d2406d9903badba1647",
+  "commit_range": "267d512ce739c3aae0945a74a14eb84afa9f2df5..46d03d3c4136032882df2d2406d9903badba1647",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll",
+    "pytest|tests.test_screener_filters|test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view",
+    "pytest|tests.test_screener_filters|test_no_filter_family_is_entirely_invisible",
+    "pytest|tests.test_screener_saved|test_every_valid_op_declares_its_operands",
+    "pytest|tests.test_screener_wave1_columndefs|test_every_filterable_and_viewed_column_has_a_def",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a REFUSAL is what the select points at when there is no range",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a control with no band names no description \u2014 same probe, both populations",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > mounts the band under the real control, off the real meta payload",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > renders the server's own disclaimer verbatim, exactly once",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > the select is DESCRIBED BY its measured band, not merely followed by it",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > two rails on the page keep two separate associations"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_screener_wave1_columndefs|test_every_computed_column_is_MEMBER_REACHABLE_or_named_provenance"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_flow_prepare.py or anything it imports"
+    },
+    "pytest|tests.test_screener_filters|test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_screener_filters.py or anything it imports"
+    },
+    "pytest|tests.test_screener_filters|test_no_filter_family_is_entirely_invisible": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_screener_filters.py or anything it imports"
+    },
+    "pytest|tests.test_screener_saved|test_every_valid_op_declares_its_operands": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_screener_saved.py or anything it imports"
+    },
+    "pytest|tests.test_screener_wave1_columndefs|test_every_filterable_and_viewed_column_has_a_def": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_screener_wave1_columndefs.py or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a REFUSAL is what the select points at when there is no range": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a control with no band names no description \u2014 same probe, both populations": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > mounts the band under the real control, off the real meta payload": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > renders the server's own disclaimer verbatim, exactly once": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > the select is DESCRIBED BY its measured band, not merely followed by it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > two rails on the page keep two separate associations": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched src/pages/screener/shell/FilterBand.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_screener_wave1_columndefs|test_every_computed_column_is_MEMBER_REACHABLE_or_named_provenance": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 267d512ce..46d03d3c4 touched tests/test_screener_wave1_columndefs.py or anything it imports"
+    }
+  }
+}
