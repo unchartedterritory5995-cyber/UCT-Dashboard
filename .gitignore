@@ -225,3 +225,6 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 # scratch directory a run writes before it is compared, and committing it would
 # make every capture a diff.
 docs/breadth-data-charts/shots/
+
+# harness run output (regenerated on each run)
+tools/intraday_tail_harness_out.json
