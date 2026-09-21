@@ -1,0 +1,22 @@
+{
+  "suite": "pytest",
+  "collected": 1780,
+  "passed": 1746,
+  "failed": 32,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 408.91,
+  "failed_files": [
+    "tests/test_screener_wave2_analyst_store.py",
+    "tests/test_screener_wave2_earnings_dates.py",
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_spa_head_reachability.py",
+    "tests/test_starter_library.py",
+    "tests/test_ticker_logos.py",
+    "tests/test_ticker_meta.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "32 failed, 1746 passed, 2 skipped, 15180 warnings in 408.91s (0:06:48)2026-09-21 07:21:23,170 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set \u2014 Finnhub call skipped (/stock/profile2)",
+  "ok": true
+}
