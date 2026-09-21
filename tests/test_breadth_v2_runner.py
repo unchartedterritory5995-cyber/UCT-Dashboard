@@ -205,3 +205,41 @@ def test_progress_ledger_degrades_instead_of_crashing(tmp_path):
         sup.ARTIFACT = monkey
     assert prog["artifact_bytes"] is None
     assert prog["done"] is None
+
+
+def test_the_build_pin_survives_a_line_ending(tmp_path):
+    """⚰️⚰️ THE TRAP THAT ACTUALLY FIRED. `v2_manifest.json` pinned the md5 of a copy
+    scp'd out of a Windows worktree — 19,016 bytes with 391 CRLF pairs. The same file
+    checked out on Linux is 18,625 bytes of LF and hashes differently, so preflight
+    refused the CORRECT code and a line ending got to veto a five-day run. The digest
+    must be over normalised content."""
+    from api.services import breadth_v2_supervisor as sup
+
+    body = "def f():\n    return 1\n" * 40
+    lf = tmp_path / "lf.py"
+    crlf = tmp_path / "crlf.py"
+    lf.write_bytes(body.encode())
+    crlf.write_bytes(body.replace("\n", "\r\n").encode())
+
+    assert lf.read_bytes() != crlf.read_bytes(), "the fixture must actually differ"
+    assert sup._md5(str(lf)) == sup._md5(str(crlf))
+
+
+def test_preflight_pins_both_breadth_modules(monkeypatch):
+    """⛔ The pass must be the accepted build EXACTLY, and wick_recon must be the
+    accepted build plus the proved index fix — nothing else."""
+    from api.services import breadth_v2_supervisor as sup
+    from api.services import breadth_combined_pass as cp
+
+    for var in ("BREADTH_COMBINED_PASS_ENABLED", "BREADTH_HISTORY_BACKFILL_ENABLED",
+                "BREADTH_WICKS_ENABLED", "BREADTH_OHLC_REMOTE"):
+        monkeypatch.setenv(var, "0")
+    monkeypatch.delenv("BREADTH_DIVIDEND_BASIS", raising=False)
+
+    checks = sup.preflight()
+    assert checks["combined_md5"] == sup.PINNED_COMBINED_MD5
+    assert checks["wick_recon_md5"] == sup.PINNED_WICK_RECON_MD5
+    assert checks["problems"] == []
+
+    monkeypatch.setattr(sup, "PINNED_WICK_RECON_MD5", "0" * 32)
+    assert any("breadth_wick_recon.py" in p for p in sup.preflight()["problems"])

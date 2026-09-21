@@ -69,13 +69,25 @@ DONE_PATH = os.path.join(AUDIT_DIR, "v2_runner.DONE")
 FAILED_PATH = os.path.join(AUDIT_DIR, "v2_runner.FAILED")
 LEDGER_PATH = os.path.join(AUDIT_DIR, "v2_status.json")
 
-#: The accepted remediation, pinned. `breadth_combined_pass.py` must be byte-identical
-#: to what produced the 110/110 golden matrix. `breadth_wick_recon.py` carries exactly
-#: one further change — the `session_eod_closes` index fix — which was proved
-#: result-identical before it was allowed anywhere near this runner, so its digest is
-#: recorded rather than asserted.
+#: The accepted remediation, pinned by content digest so this runner cannot silently
+#: drift onto a different build of the methodology.
+#:
+#: ⚠️⚰️ THE DIGESTS ARE OVER LF-NORMALISED CONTENT, AND THAT IS NOT A DETAIL.
+#: `v2_manifest.json` records `breadth_combined_pass.py` as `7e0fa63e…`, which is the
+#: md5 of the copy sitting on the worker's volume — 19,016 bytes carrying 391 CRLF
+#: pairs, because it was scp'd out of a Windows worktree. The same file checked out on
+#: Linux is 18,625 bytes of LF and hashes to `14e7a59d…`. Pinning the raw digest makes
+#: preflight refuse the CORRECT code for a reason that has nothing to do with the code,
+#: which is how a line ending gets to veto a five-day run. Normalise, then compare.
+#:
+#: Verified: `cp_accepted == cp_head` byte for byte after normalisation (zero changes
+#: to the pass), and `wick_recon` differs from the accepted build by exactly the
+#: `session_eod_closes` index fix — 25 insertions, 2 deletions, one file, proved
+#: result-identical before it was allowed near this runner.
 ACCEPTED_SHA = "6d7e4c0deaa8003491b0450a837e521afe020f39"
-PINNED_COMBINED_MD5 = "7e0fa63e1732883bee3c42cf08d637b3"
+PINNED_COMBINED_MD5 = "14e7a59d935a8b891a58bbd5e0e8a00c"
+ACCEPTED_WICK_RECON_MD5 = "cc041dba7dc16caec6c5de7e93360bb9"
+PINNED_WICK_RECON_MD5 = "9422957bcfd5df65eebfb15b62c72370"
 
 #: A `ArtifactRefused` from universe resolution is the deferred web-502 defect, not a
 #: data defect (see the `breadth-pass-universe-resolution-502` note). The guard itself
@@ -97,11 +109,10 @@ def _log(msg: str) -> None:
 
 
 def _md5(path: str) -> str:
-    h = hashlib.md5()
+    """md5 of the file's LF-NORMALISED bytes — see the digest note above. A CRLF copy
+    of identical source must not read as a different build."""
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+        return hashlib.md5(f.read().replace(b"\r\n", b"\n")).hexdigest()
 
 
 # ---------------------------------------------------------------- singleton lease
@@ -305,6 +316,11 @@ def preflight() -> dict:
     if checks["combined_md5"] != PINNED_COMBINED_MD5:
         problems.append("breadth_combined_pass.py is not the accepted build "
                         "(%s != %s)" % (checks["combined_md5"], PINNED_COMBINED_MD5))
+    if checks["wick_recon_md5"] != PINNED_WICK_RECON_MD5:
+        problems.append(
+            "breadth_wick_recon.py is neither the accepted build (%s) nor the accepted "
+            "build plus the proved index fix (%s) — it is %s"
+            % (ACCEPTED_WICK_RECON_MD5, PINNED_WICK_RECON_MD5, checks["wick_recon_md5"]))
     if checks["methodology"] != "rth-1m-composites-v1":
         problems.append("methodology drifted: %r" % (checks["methodology"],))
     if not checks["gate_present"] or not checks["session_basis_present"]:
