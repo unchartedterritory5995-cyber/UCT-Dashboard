@@ -11,6 +11,7 @@ is fast proves nothing, so `test_a_slow_delta_would_block_without_the_ceiling`
 drives the SAME fake through a bare call and asserts it really does take longer
 than the deadline. Without that, deleting `_bounded_delta` leaves this file green.
 """
+import io
 import threading
 import time
 
@@ -167,3 +168,60 @@ def test_a_shed_deep_fetch_still_persists_and_marks_history_complete(monkeypatch
     assert bars_fetch._bounded_fetch_intraday("AAPL", "5", 5000) is False
     time.sleep(0.9)
     assert persisted == ["AAPL"] and marked == ["AAPL"]
+
+
+# ── daily must NOT be shed ───────────────────────────────────────────────────
+
+def _force_layer4(monkeypatch, tf, last_ts):
+    """Stub the store so `_get_bars_inner` reaches Layer 4's delta branch."""
+    monkeypatch.setattr(bars_fetch.cache, "get", lambda k: None)
+    monkeypatch.setattr(bars_fetch.cache, "set", lambda k, v, ttl=None: None)
+    monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, t: last_ts)
+    monkeypatch.setattr(bars_fetch._sqlite, "get_bars",
+                        lambda s, t, n: [(last_ts, 1.0, 1.1, 0.9, 1.05, 100)])
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, t, tk=None: [{"t": 1}])
+    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, t, tk=None: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, t: True)
+    monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
+    # cold-stale + not deblockable -> falls past the stale-serve block into Layer 4
+    monkeypatch.setattr(bars_fetch, "_is_cold_stale_intraday", lambda t, ts, now=None: True)
+    monkeypatch.setattr(bars_fetch, "_is_cold_stale_daily", lambda t, ts, now=None: True)
+    monkeypatch.setattr(bars_fetch, "_intraday_deblockable", lambda t, ts: False)
+    monkeypatch.setattr(bars_fetch, "_daily_deblockable", lambda t, ts: False)
+    monkeypatch.setattr(bars_fetch, "_inflight", {})
+
+
+def test_daily_is_NOT_routed_through_the_ceiling(monkeypatch):
+    """⛔ DO NOT REGRESS DAILY. The ceiling is safe on intraday only because the
+    client fast-polls a behind-the-market intraday tail (1.5 s × 5). D/W/M poll at
+    300 s, so a shed daily would hold a stale first paint for FIVE MINUTES — worse
+    than the correct-but-slower blocking fetch it replaced. Daily was never the
+    defect: the 16 s was measured on 5m and 1m, and daily is already instant
+    (edge-cached history + the server-side today bar + BARS_DAILY_ASYNC_HEAL).
+
+    Behavioural, not a source read: drive the real serve path and watch which
+    delta runs."""
+    seen = {"bounded": 0, "daily": 0}
+    monkeypatch.setattr(bars_fetch, "_bounded_delta",
+                        lambda *a, **k: seen.__setitem__("bounded", seen["bounded"] + 1) or True)
+    monkeypatch.setattr(bars_fetch, "_delta_daily",
+                        lambda t, lt: seen.__setitem__("daily", seen["daily"] + 1) or [])
+    _force_layer4(monkeypatch, tf="D", last_ts=20260918)
+
+    bars_fetch._get_bars_inner("AAPL", "D", 600)
+    assert seen["daily"] == 1, "daily must still take its own blocking delta"
+    assert seen["bounded"] == 0, "daily must not be shed at the intraday ceiling"
+
+
+def test_intraday_IS_routed_through_the_ceiling(monkeypatch):
+    """CONTROL for the test above — without it, deleting the intraday branch
+    entirely would leave that test green."""
+    seen = {"bounded": 0}
+    monkeypatch.setattr(bars_fetch, "_bounded_delta",
+                        lambda *a, **k: seen.__setitem__("bounded", seen["bounded"] + 1) or True)
+    _force_layer4(monkeypatch, tf="5", last_ts=int(time.time()) - 400_000)
+
+    bars_fetch._get_bars_inner("AAPL", "5", 600)
+    assert seen["bounded"] == 1, "intraday must go through the ceiling"

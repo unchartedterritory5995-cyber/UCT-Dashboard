@@ -3349,7 +3349,26 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             # persists — but the REQUEST stops waiting at the deadline and answers
             # from the local store, so the edge can never reach its 8 s abort.
             try:
-                _completed = _bounded_delta(ticker_up, tf, last_ts, date_tf)
+                # ⛔⛔ INTRADAY ONLY. D/W/M keep the ORIGINAL blocking delta, on purpose:
+                # the 16-second class was measured on 5m and 1m, daily was already
+                # instant (edge-cached history + `_augment_daily_with_today` +
+                # BARS_DAILY_ASYNC_HEAL), and — decisively — the client's bounded
+                # catch-up poll that makes a shed payload safe is intraday-only
+                # (`refreshInterval` is 300 s on D/W/M). Shedding a daily here would
+                # trade a correct-but-slow first paint for a stale one held for five
+                # minutes. That is a daily regression, which this project may not make.
+                if date_tf:
+                    if tf == "D":
+                        new_bars = _delta_daily(ticker_up, last_ts)
+                    elif tf == "W":
+                        new_bars = _delta_weekly(ticker_up, last_ts)
+                    else:
+                        new_bars = _delta_monthly(ticker_up, last_ts)
+                    if new_bars:
+                        _sqlite.put_bars(ticker_up, tf, new_bars, date_tf=True)
+                    _completed = True
+                else:
+                    _completed = _bounded_delta(ticker_up, tf, last_ts, date_tf)
                 if _completed:
                     # Read fresh rows from SQLite (includes the new bars)
                     fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
