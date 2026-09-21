@@ -98,6 +98,11 @@ class Fixture:
     def __init__(self):
         self.requests = []          # {sym, tf, bars, since, returned, delta}
         self.server_now = FAKE_NOW
+        #: Modelled origin latency. ⭐ Production-measured, not invented: AAPL 5m at
+        #: bars=1152 answered in 111 ms and the `since=` tail in 59 ms (2026-09-21).
+        #: A harness with a 0 ms server would hide exactly the wait under test.
+        self.full_latency_ms = 111
+        self.tail_latency_ms = 59
 
     def bars_response(self, sym, tf, want, since):
         tf_min = int(tf) if tf.isdigit() else 5
@@ -130,9 +135,12 @@ def route_handler(fixture: Fixture):
 
         m = re.search(r"/api/bars/([^/?]+)$", path)
         if m:
-            return send(fixture.bars_response(
+            body = fixture.bars_response(
                 m.group(1).upper(), qs.get("tf", "D"),
-                int(qs.get("bars", "600")), qs.get("since") or None))
+                int(qs.get("bars", "600")), qs.get("since") or None)
+            time.sleep((fixture.tail_latency_ms if qs.get("since")
+                        else fixture.full_latency_ms) / 1000.0)
+            return send(body)
         if "/api/bars-history/" in path:
             return send({"ticker": "X", "tf": qs.get("tf", "D"), "bars": [], "sealed": True})
         if "/api/auth/me" in path:

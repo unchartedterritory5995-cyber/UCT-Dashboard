@@ -6074,6 +6074,8 @@ export default function StockChart({
   const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
   const _timingIdRef = useRef(null)   // T0-T4 diagnostic load id (null when off)
+  const _paintMarkedRef = useRef(false)   // first candle paint recorded for THIS switch
+  const _t2MarkedRef = useRef(false)      // T2 recorded for THIS switch (onBarsReady stays per-mount)
   const _fullTarget = fullBarsFor(resolvedTf)
   // First paint is SHALLOW (FIRST_PAINT_BARS) for an instant cold open on EVERY tf. An earlier
   // smooth-switch cut set _fpBars = INTRADAY_DEFAULT_BARS to show weeks of history in one paint,
@@ -6106,6 +6108,18 @@ export default function StockChart({
     _timingIdRef.current = timingStart(sym, resolvedTf, {
       session: showExtended ? 'extended' : 'rth',
     })
+    // ⭐ PER-SWITCH, NOT PER-MOUNT. A scanning member never remounts this component;
+    // they change `sym` on a live one. Latching these once per mount measured only
+    // the first symbol and reported null for every switch after it — which is how a
+    // visible half-second black frame between stocks stayed invisible to an
+    // instrument that claimed to cover first paint.
+    // ⛔ `barsReadyFiredRef` is NOT reset here, for two independent reasons: it is
+    // declared ~1000 lines below (a temporal dead zone — the crash class from
+    // 2026-09-21), and `onBarsReady` is contractually ONCE PER MOUNT because the grid
+    // mount queue releases a concurrency slot on it. The per-switch metric gets its
+    // own latch instead.
+    _t2MarkedRef.current = false
+    _paintMarkedRef.current = false
     if (fetchDepth !== _fpBars) setFetchDepth(_fpBars)
     if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
     if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
@@ -7129,12 +7143,15 @@ export default function StockChart({
   onComparisonsReadyRef.current = onComparisonsReady
   const barsReadyFiredRef = useRef(false)
   useEffect(() => {
+    if (!loading && !_t2MarkedRef.current) {
+      _t2MarkedRef.current = true
+      // T2 — the bars question SETTLED for this switch (a React decision, not a
+      // paint; `paint` above is the canvas). Per-switch latch so scanning is
+      // measurable; `onBarsReady` below keeps its once-per-mount contract.
+      timingMark(_timingIdRef.current, 'T2')
+    }
     if (!loading && !barsReadyFiredRef.current) {
       barsReadyFiredRef.current = true
-      // T2 — first useful paint. Reuses the EXISTING settled-bars latch rather than
-      // adding a second definition of "the chart is up"; the grid mount queue already
-      // trusts this one.
-      timingMark(_timingIdRef.current, 'T2')
       try { onBarsReadyRef.current?.() } catch {}
     }
   }, [loading])
@@ -10569,6 +10586,14 @@ export default function StockChart({
     // effect's deps would re-run the whole updateChart (incl. the visible-range /
     // zoom logic) on every focus change and fight the setup focus zoom.
     _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? ohlcData : closeData)
+    // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
+    // moment a scanning member stops seeing the previous chart and starts seeing this
+    // one. Marked HERE rather than at a React state change because `loading === false`
+    // is a decision, and this is the paint.
+    if (!_paintMarkedRef.current && (isOhlcType(cs.chartType) ? ohlcData : closeData)?.length) {
+      _paintMarkedRef.current = true
+      timingMark(_timingIdRef.current, 'paint')
+    }
 
     // Store the last bar for live updates
     if (filteredBars.length) {

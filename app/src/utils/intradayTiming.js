@@ -20,7 +20,13 @@ import { expectedLatestCompletedBar } from './marketSession'
 const KEY = 'uct.chartTiming'
 const MAX_LOADS = 200          // bounded — a scanning session must not grow unbounded
 
-/** id -> {sym, tf, session, cache, t0, T1, T2, T3, T4, historyEnd, tailEnd, formingAt} */
+/** id -> {sym, tf, session, cache, t0, T1, T2, T3, T4, paint, historyEnd, tailEnd, formingAt}
+ *
+ * ⭐ PER SWITCH, NOT PER MOUNT. A scanning member never remounts the chart — they
+ * change `sym` on a live component — so a metric latched once per mount measures
+ * only the first symbol and reports `null` for every switch after it. That is how a
+ * 0.5 s black frame between stocks stayed invisible to an instrument that claimed to
+ * cover first paint. */
 const _loads = new Map()
 let _order = []
 
@@ -70,6 +76,9 @@ export function timingReport() {
     tf: L.tf,
     session: L.session,
     cache: L.cache,
+    // ⭐ THE HEADLINE NUMBER: select → candles on the canvas. Everything else is
+    // diagnosis; this is what a scanning member actually experiences.
+    'T0→paint': L.paint ?? null,
     'T0→T1': L.T1 ?? null,
     'T0→T2': L.T2 ?? null,
     'T0→T3': L.T3 ?? null,
@@ -85,12 +94,25 @@ export function timingReport() {
 
 export function timingClear() { _loads.clear(); _order = [] }
 
+/**
+ * p50 / p90 / p95 of one phase across recorded switches.
+ * ⛔ One lucky switch is not a measurement; a scan is a DISTRIBUTION, so the
+ * harness reports percentiles and never a single best case.
+ */
+export function timingPercentiles(phase = 'T0→paint') {
+  const v = timingReport().map((r) => r[phase]).filter((x) => typeof x === 'number').sort((a, b) => a - b)
+  if (!v.length) return null
+  const at = (q) => v[Math.min(v.length - 1, Math.floor(q * v.length))]
+  return { n: v.length, p50: at(0.5), p90: at(0.9), p95: at(0.95), max: v[v.length - 1] }
+}
+
 if (typeof window !== 'undefined') {
   window.__uctChartTiming = {
     enable() { try { localStorage.setItem(KEY, '1') } catch { /* ignore */ } },
     disable() { try { localStorage.removeItem(KEY) } catch { /* ignore */ } },
     report: timingReport,
     clear: timingClear,
+    percentiles: timingPercentiles,
     // ⭐ The acceptance view: latency AND freshness in one table, never one alone.
     table() {
       try { console.table(timingReport()) } catch { /* ignore */ }

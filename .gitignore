@@ -228,3 +228,4 @@ docs/breadth-data-charts/shots/
 
 # harness run output (regenerated on each run)
 tools/intraday_tail_harness_out.json
+tools/intraday_scan_out.json
