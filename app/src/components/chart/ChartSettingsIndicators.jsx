@@ -67,7 +67,7 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
-  securityResults, breadthResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
+  securityResults, breadthResults, marketIndicatorResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
   glyphNameOf, glyphFamilyOf,
 } from './discoveryCatalog'
 import UIcon from '../ui/UIcon'
@@ -89,7 +89,13 @@ import SourceField from './SourceField'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
 import { ohlcCapabilityOf } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
-import { symbolFamily } from '../../hooks/useBreadthSymbols'
+// ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
+// ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
+// about a symbol that may now come from either catalogue, so asking the breadth-only
+// function would classify a Cboe volatility index as a plain security and offer it
+// candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
+// until both registries have landed.
+import useMarketIndicators, { canonicalFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
@@ -199,7 +205,7 @@ function ohlcCapableFor(def, inst) {
   if (!declared.length) return false
   const parsed = parseSource(declared[0][1])
   if (!parsed || parsed.kind !== 'symbol') return false
-  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
+  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), canonicalFamily).ok
 }
 
 export default function ChartSettingsIndicators({
@@ -784,6 +790,8 @@ export default function ChartSettingsIndicators({
   // `/api/breadth-symbols` ONCE per module and hands back the cache — this adds
   // no request, exactly as `useSymbolDiscovery`'s own header records.
   const breadthAll = useBreadthSymbols()
+  // ⭐ THE SECOND CATALOGUE, fetched once per session exactly like the first.
+  const marketAll = useMarketIndicators()
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -822,8 +830,12 @@ export default function ChartSettingsIndicators({
     const idx = securityResults(INDICES_PRESET, { tf: TF, bars: BARS })
     const brd = breadthAll && typeof breadthAll.all === 'function'
       ? breadthResults(breadthAll.all(), { tf: TF, bars: BARS }) : []
-    return [...secs, ...idx, ...brd]
-  }, [breadthAll])
+    // ⭐ THE MARKET INDICATORS BROWSE TOO, and through the SAME shapers — so a
+    // browsed row and a searched row are the same object with the same capability
+    // and the same create door, which is the invariant the browse-add no-op broke.
+    const mkt = marketIndicatorResults(marketAll.rows, { tf: TF, bars: BARS })
+    return [...secs, ...idx, ...brd, ...mkt]
+  }, [breadthAll, marketAll.rows])
 
   // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
   // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
@@ -1772,7 +1784,7 @@ export default function ChartSettingsIndicators({
     if (def.meta.labelFrom === 'source') {
       const parsed = rawSource ? parseSource(rawSource) : null
       if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
-      const fam = symbolFamily(parsed.symbol)
+      const fam = canonicalFamily(parsed.symbol)
       if (fam === 'breadth') return BREADTH_CATEGORY
       if (fam === 'security') return 'Market data'
       return null

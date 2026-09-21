@@ -813,6 +813,8 @@ import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
+import { canonicalFamily, loadMarketIndicators, marketIndicatorRecord }
+  from '../hooks/useMarketIndicators'
 
 const NOOP = () => {}
 
@@ -6292,7 +6294,15 @@ export default function StockChart({
   // every surface that does not happen to mount `ChartPane` (the pane harness is
   // one). It is one module-level fetch per session, already shared with the
   // symbol search and the breadth widgets, and calling it twice is a no-op.
-  useEffect(() => { try { loadBreadthSymbols() } catch { /* offline: stays unknown */ } }, [])
+  // ⭐ BOTH REGISTRIES, for the same reason. `canonicalFamily` composes the breadth
+  // registry and the market-indicator registry, and answers `'unknown'` until BOTH
+  // have landed — so a chart that warmed only one would never offer candles on a
+  // Cboe volatility series. Two module-level fetches per session, shared with search
+  // and the discovery panel; calling either twice is a no-op.
+  useEffect(() => {
+    try { loadBreadthSymbols() } catch { /* offline: stays unknown */ }
+    try { loadMarketIndicators() } catch { /* offline: stays unknown */ }
+  }, [])
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -11896,7 +11906,7 @@ export default function StockChart({
         // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
         // No ticker, no prefix: the binder asks what KIND of thing this is, and
         // `ohlcCapability` owns what each kind may be drawn as.
-        ohlcFamilyOf: symbolFamily,
+        ohlcFamilyOf: canonicalFamily,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
