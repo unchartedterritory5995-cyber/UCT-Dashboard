@@ -9980,8 +9980,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
-    // ⭐⭐ See `rawTrees` at the top of this function. The node goes on untouched.
-    if (rawTrees) return node || null
+    // ⭐⭐ See `rawTrees` at the top of this function. The node goes on almost
+    // untouched — but a FRAME cannot ride a raw tree, so it is applied to it.
+    if (rawTrees) return node ? substituteFrame(node, inline) : null
     try {
       // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
       // `inline` is `{bound, args, callerEnv}`, set only while walking a user
@@ -10040,6 +10041,62 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     return { v: 'tree', tree: i }
   }
+  /** ⭐⭐ APPLY AN INLINE FRAME TO A RAW TREE, because a raw tree cannot carry
+   *  one.
+   *
+   *  The resolved path pushes `inline` onto the Resolver's frame stack and a
+   *  parameter resolves by INDEX while that frame is live. `rawTrees` has no
+   *  resolver and no stack: the node travels to the runtime lane on its own, so
+   *  whatever the frame would have supplied has to already be IN it.
+   *
+   *  ⚰️ Without this the frame was simply dropped, and the body's own names went
+   *  with it. Measured on the acceptance dashboard: `formatPercent(value)` and
+   *  `extractSymbol(fullSymbol)` interned as their BODIES — `na(value) ? "-" :
+   *  …` and `array.size(symbolParts) > 1 ? …` — so eight trees refused
+   *  `pine:undefined` naming `value` and `symbolParts`, which are a parameter
+   *  and a function-local: names that exist only inside the frame that was
+   *  thrown away. Six table cells, blamed on a script that was correct.
+   *
+   *  ⛔ A PARAMETER BECOMES ITS ARGUMENT, not a copy of the body's idea of it,
+   *  so the substituted tree reads the CALLER's bindings — which is the whole
+   *  point of a frame, and is what the resolved path does by index.
+   *
+   *  ⛔ `tok` AND `endTok` ARE CARRIED THROUGH UNWALKED. They are lexer tokens,
+   *  not expressions; rebuilding them would cost every refusal its line number.
+   */
+  const substituteFrame = (node, inline) => {
+    if (!inline || !node || typeof node !== 'object') return node
+    const params = (inline.bound && inline.bound.params) || []
+    const args = inline.args || []
+    const bodyEnv = inline.bodyEnv
+      || (inline.bound && inline.bound.value && inline.bound.value.env) || null
+    if (!params.length && !bodyEnv) return node
+    const walk = (n, d) => {
+      if (d > 24 || !n || typeof n !== 'object') return n
+      if (Array.isArray(n)) return n.map((x) => walk(x, d + 1))
+      if (n.type === 'name') {
+        const pi = params.indexOf(n.name)
+        if (pi >= 0) {
+          const a = args[pi]
+          const v = a && a.value !== undefined ? a.value : a
+          return v || n
+        }
+        const b = bodyEnv && typeof bodyEnv.get === 'function' ? bodyEnv.get(n.name) : null
+        // ⛔ ONLY A BODY-LOCAL EXPRESSION BINDING. Anything else — a function, a
+        // tuple part — is left alone rather than half-expanded into a shape no
+        // reader downstream expects.
+        if (b && b.kind === 'expr' && b.node) return walk(b.node, d + 1)
+        return n
+      }
+      const out = {}
+      for (const k of Object.keys(n)) {
+        out[k] = (k === 'tok' || k === 'endTok') ? n[k] : walk(n[k], d + 1)
+      }
+      return out
+    }
+    return walk(node, 0)
+  }
+
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
@@ -10251,7 +10308,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // lane that evaluates it per row has a text channel to answer with.
     // ⛔ AFTER the `str.tostring` branch above, never before: a NUMBER with a
     // format must keep `{t:'num', fmt}` so the object runtime formats it.
-    if (iterTrees && loopIds.length && mentionsLoop(node)) {
+    // ⛔⛔ ASKED OF THE SUBSTITUTED NODE, because that is the one that will be
+    // EVALUATED. Inside a frame the counter is usually reached through a
+    // PARAMETER — `extractSymbol(fullSymbol)` where the caller passes
+    // `array.get(names, dataIndex)` — and the raw body mentions no loop at all.
+    //
+    // ⚰️ Measured on the acceptance dashboard: the Symbol column's `then` arm
+    // (`array.get(symbolParts, 1)`) answered "no counter", took the numeric
+    // last resort below, and was written `{t:'num'}` — while its per-row buffer
+    // correctly held a STRING. Every row's symbol rendered as `NaN`, beside
+    // five columns of right answers. The `else` arm, which reaches the counter
+    // without a parameter, was classified correctly the whole time, which is
+    // why only half the cell was wrong.
+    const framed = inline ? substituteFrame(node, inline) : node
+    if (iterTrees && loopIds.length && mentionsLoop(framed)) {
       const raw = internTree(canonicalOf(node, inline, envAt))
       if (raw) return { t: 'str', tree: raw.tree }
     }
@@ -10294,7 +10364,28 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  that can now produce a LITERAL from a name in front of slots whose current
    *  refusal is load-bearing. Add a slot here when a script needs it, with the
    *  script named. */
-  const ENUM_SLOTS = new Set(['position'])
+  // ⭐⭐ THE SLOTS WHOSE VALUE IS A WORD, NOT A NUMBER.
+  //
+  // ⚰️ This was `['position']` alone, and every other enum slot fell through to
+  // `resolveTree` — which mints a tree the runtime lane emits into a NUMERIC
+  // output. A literal `text_size = size.small` survived that (the branch above
+  // answers a bare `objectEnumValue` name before this one), so the gap only
+  // opened when a script COMPUTED the enum:
+  //
+  //     getTextSize(s) => s == "tiny" ? size.tiny : size.small
+  //     textSize = getTextSize(tableSizeInput)
+  //     table.cell(…, text_size = textSize)
+  //
+  // Measured on the acceptance dashboard: that became per-bar tree 9, and the
+  // VM threw `output 9 must carry a number, got string` — a translator defect
+  // reported at RUN time, on the one path a unit test of the object pass cannot
+  // see because the pass itself succeeded.
+  //
+  // ⭐ Every name here is a PROP the families declare (`OBJECT_FAMILY_PROPS`,
+  // `CELL_PROPS`) whose vocabulary is `objectEnumValue`'s. `width`/`height` are
+  // deliberately absent: they are numbers.
+  const ENUM_SLOTS = new Set(['position', 'text_size', 'size', 'style', 'border_style',
+    'text_halign', 'text_valign', 'text_align', 'xloc', 'yloc', 'extend'])
 
   /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
    *  Returns a `text` template because that is what the object runtime already
@@ -10609,6 +10700,22 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const ast = canonicalOf(node)
       if (!ast) return undefined
+      // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
+      //
+      // ⚰️ These were `{type:'op', name:'!'}` and `{type:'op', name:'&&'}` —
+      // the shape `resolve` PRODUCES, handed back in as if it were a shape the
+      // parser produces. That worked only because the columnar resolver happens
+      // to accept `op` on the way in, and it broke the moment a second reader
+      // existed: under `rawTrees` these nodes go to the RUNTIME lane, which
+      // reads what the parser emits (`unary`/`not`, `binary`/`and`) and refused
+      // a guard it could have lowered with `pine:statement` — "not a shape the
+      // translator reads", about a node this file had just built.
+      //
+      // ⭐ Every reader downstream takes the parser's shape: the resolver's
+      // `case 'unary'` maps `not` to `cOp('!')`, `readNaGuard` accepts `not`,
+      // the guard reader accepts `and`, and `BIN` maps `and` to `&&`. One
+      // spelling for one meaning.
+      const tok = ast && ast.tok
       const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
       acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
     }

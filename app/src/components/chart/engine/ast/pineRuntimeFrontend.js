@@ -734,14 +734,14 @@ export function buildRuntimeIr(source, opts = {}) {
    *  can only ever move text OUT of the columnar lane — never a number into it.
    *  Where the read is wrong, `OP.CONCAT`'s own kind check refuses by name
    *  rather than inventing an answer. */
-  const holdsText = (node, scope) => {
-    if (!node || typeof node !== 'object') return false
+  const holdsText = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
     if (node.type === 'string') return true
     if (node.type === 'name') {
       const slot = scope.lookup(node.name)
       if (slot !== null) return !!(slots[slot] && slots[slot].text)
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && holdsText(bound.node, scope))
+      return !!(bound && bound.kind === 'expr' && holdsText(bound.node, scope, depth + 1))
     }
     // ⛔ A `str.*` THAT RETURNS A STRING IS TEXT; one that returns a NUMBER is
     // not. `str.length(s)` composes with ordinary arithmetic and must not mark
@@ -760,13 +760,39 @@ export function buildRuntimeIr(source, opts = {}) {
       if (av && av.type === 'name') {
         const s0 = scope.lookup(av.name)
         if (s0 !== null) return !!(slots[s0] && slots[s0].elemText)
+        const b0 = env.get(av.name)
+        if (b0 && b0.kind === 'expr') return arrayHoldsText(b0.node, scope, depth + 1)
       }
+      // ⭐ THE ARRAY CAN BE AN EXPRESSION, NOT ONLY A NAME. A slot records the
+      // element kind for a DECLARED collection, and there is no slot when the
+      // array is built inline — `array.get(str.split(sym, ":"), 1)`, which is
+      // how a script pulls the ticker out of `NASDAQ:AAPL`, and which is what a
+      // helper's body becomes once its frame is substituted in.
+      return arrayHoldsText(av, scope, depth + 1)
     }
     if (node.type === 'binary' && node.op === '+') {
-      return holdsText(node.left, scope) || holdsText(node.right, scope)
+      return holdsText(node.left, scope, depth + 1) || holdsText(node.right, scope, depth + 1)
     }
     if (node.type === 'ternary') {
-      return holdsText(node.yes, scope) || holdsText(node.no, scope)
+      return holdsText(node.yes, scope, depth + 1) || holdsText(node.no, scope, depth + 1)
+    }
+    // ⭐⭐ A USER FUNCTION THAT RETURNS TEXT IS TEXT, and this is the corpus's
+    // commonest table cell:
+    //
+    //     formatPercent(value) => na(value) ? "-" : str.tostring(value, "#") + "%"
+    //
+    // ⛔ WITHOUT IT THE BUFFER IS ALLOCATED NUMERIC AND THROWS ON THE FIRST ROW
+    // — "iteration buffer N is numeric and got string" — at RUN time, after the
+    // program built clean. Every other spelling of text was already read here,
+    // which is why a helper hid: `str.tostring(…)` is a call this knows,
+    // `"-"` is a literal, and a call to the member's OWN function was neither.
+    //
+    // ⛔ THE RESULT EXPRESSION, NOT THE BODY'S STATEMENTS. Only the narrow
+    // substitution form carries one; a statement body answers `false` rather
+    // than guessing, which costs a named refusal instead of a wrong container.
+    if (node.type === 'call' && depth < 8 && inlineBodyByName.has(node.name)) {
+      const inl = inlineBodyByName.get(node.name)
+      if (inl && inl.result) return holdsText(inl.result, scope, depth + 1)
     }
     return false
   }
@@ -780,6 +806,11 @@ export function buildRuntimeIr(source, opts = {}) {
   const arrayHoldsText = (node, scope, depth = 0) => {
     if (!node || node.type !== 'call' || depth > 8) return false
     const n = String(node.name || '')
+    // ⭐⭐ `str.split` ALWAYS YIELDS STRINGS — it is how every watchlist in the
+    // corpus is built, and `collections.js` files it with the arrays for that
+    // reason. Its absence here made `array.get(str.split(s, ":"), 1)` read as
+    // numeric, and the per-row buffer behind it threw on the first symbol.
+    if (n === 'str.split') return true
     if (n === 'array.new_string') return true
     if (n.startsWith('array.new')) {
       const ta = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
@@ -787,7 +818,7 @@ export function buildRuntimeIr(source, opts = {}) {
     }
     const first = (node.args || [])[0]
     const fv = first && first.value !== undefined ? first.value : first
-    if (n === 'array.from') return holdsText(fv, scope)
+    if (n === 'array.from') return holdsText(fv, scope, depth + 1)
     // `array.copy(a)` / `array.slice(a, …)` keep their source's element kind.
     if (n === 'array.copy' || n === 'array.slice') {
       if (fv && fv.type === 'name') {
@@ -1961,6 +1992,27 @@ export function buildRuntimeIr(source, opts = {}) {
         if (node.op === 'not') return unary('!', lowerExpr(node.arg, scope))
         throw new RuntimeRefusal('runtime:operator', `unary \`${node.op}\``, locate(node.tok))
       }
+      // ⭐⭐ A GUARD THE OBJECT PASS SYNTHESISED. `guardOf` builds a drawing's
+      // `when` condition out of `{type:'op', name:'!'|'&&'}` — the shape the
+      // COLUMNAR resolver reads on its way in, not the shape the parser emits.
+      // Under `rawTrees` that node travels here instead, and this lane refused
+      // it `pine:statement` ("not a shape the translator reads") about a node
+      // the engine had just built for itself.
+      //
+      // ⛔ READ HERE RATHER THAN RESPELLED THERE, and that direction is the
+      // whole lesson. Changing the object pass to emit the parser's shape looks
+      // tidier — one spelling for one meaning — and it broke the table vendor
+      // parity suite outright, because another reader depends on `op`. The
+      // shape has an owner; this lane is a second READER of it, so it reads.
+      case 'op': {
+        const args = (node.args || []).map((a) => lowerExpr(a, scope))
+        if (node.name === '!' && args.length === 1) return unary('!', args[0])
+        if (node.name === '&&' && args.length === 2) return binary('&&', args[0], args[1])
+        if (node.name === '||' && args.length === 2) return binary('||', args[0], args[1])
+        throw new RuntimeRefusal('runtime:operator',
+          `\`${node.name}\` with ${args.length} operand${args.length === 1 ? '' : 's'}`,
+          locate(node.tok))
+      }
       case 'ternary':
         // ⚠️ BOTH ARMS EVALUATE, which is Pine's `?:` over values. A branch that
         // MUTATES is an `if` STATEMENT and is lowered by `lowerStmts`, never here
@@ -2763,6 +2815,39 @@ export function buildRuntimeIr(source, opts = {}) {
         const toSlot = newSlot(`${nameTok.value} to`, false)
         const stepSlot = newSlot(`${nameTok.value} by`, false)
         const body = lowerStmts(st.sub || [], inner)
+        // ⭐⭐ THE PER-ITERATION VALUES RIDE THE MEMBER'S OWN LOOP.
+        //
+        // They used to be emitted as a PARALLEL loop at the end of the program,
+        // and that loop's counter was declared fresh so it would resolve — but
+        // its BOUNDS were still lowered at ROOT scope, and the corpus idiom
+        // puts them inside `if barstate.islast`:
+        //
+        //     if barstate.islast
+        //         int rowCount = array.size(sortedPositions)
+        //         for row = 0 to rowCount - 1
+        //
+        // `rowCount` does not exist at root, so the bound refused
+        // `pine:undefined` about a name that is plainly defined two lines up.
+        // Declaring the counter fixed half of one bug and left the other half.
+        //
+        // ⭐ Riding the real loop fixes both halves and removes the duplicate:
+        // the bounds, the counter, the enclosing `barstate.islast` guard and
+        // the scope are the member's own, by construction rather than by being
+        // reconstructed. Nothing here has to agree with anything.
+        const waiting = iterPending.get(nameTok.value)
+        iterCounterSeen.set(nameTok.value, (iterCounterSeen.get(nameTok.value) || 0) + 1)
+        if (waiting && waiting.length) {
+          iterPending.delete(nameTok.value)
+          for (const { i, spec } of waiting) {
+            // ⛔ THE KIND IS DECIDED IN `inner`, where the counter exists. A
+            // per-row cell's text usually READS the counter, so asking this in
+            // any other scope answers about a different expression.
+            const kind = holdsText(spec.node, inner) ? 'text' : 'num'
+            iterOutputs[i] = { kind }
+            objectIterTreeKinds[i] = kind
+            body.push(emitIter(i, read(slot), lowerExpr(spec.node, inner)))
+          }
+        }
         out.push(forStmt({ slot, toSlot, stepSlot, from: fromIr, to: toIr, step: stepIr, body }))
         continue
       }
@@ -2924,11 +3009,34 @@ export function buildRuntimeIr(source, opts = {}) {
         // rings, so doing it back-to-front would number the artifact by an order
         // nobody wrote. Assembly has to run last-arm-first because each arm's
         // `else` IS the rest of the chain.
-        const lowered = arms.map((a) => ({
-          test: lowerExpr(a.test, scope),
-          body: lowerStmts(a.from.sub || [], new Scope(scope)),
-        }))
-        const tail = finalElse ? lowerStmts(finalElse.sub || [], new Scope(scope)) : []
+        // ⭐ THE BRANCH SCOPE AND ITS BODY ARE RECORDED, for the object trees.
+        // A drawing's values live inside `if barstate.islast` — the corpus
+        // idiom — so a tree over them can only be lowered here. See
+        // `objectBlocks` where they are placed.
+        // ⛔⛔ THE TEST IS LOWERED BEFORE THE BODY, and that is SOURCE ORDER,
+        // not a style. ⚰️ Recording the scopes here first inverted it — the
+        // object literal below used to evaluate `test` then `body`, and a
+        // rewrite that computed `body` first flipped them. The cost was not a
+        // mis-numbered artifact but a MOVED REFUSAL: `if not isRatioSymbol` at
+        // v2:249 reads `syminfo.ticker`, and with the body lowered first the
+        // `lookahead` refusal twelve lines INSIDE that body fired instead. The
+        // symbol seam silently stopped being reached, so a script that needs a
+        // symbol nobody supplied walked straight past the guard that says so —
+        // and the "with symbol / without symbol" pair read identically, which
+        // is exactly the control `irSymbolFold` exists to be.
+        const lowered = arms.map((a) => {
+          const test = lowerExpr(a.test, scope)
+          const armScope = new Scope(scope)
+          const body = lowerStmts(a.from.sub || [], armScope)
+          objectBlocks.push({ scope: armScope, body })
+          return { test, body }
+        })
+        let tail = []
+        if (finalElse) {
+          const elseScope = new Scope(scope)
+          tail = lowerStmts(finalElse.sub || [], elseScope)
+          objectBlocks.push({ scope: elseScope, body: tail })
+        }
         // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
         // and b` — the runtime must not evaluate a later arm's test after an
         // earlier one matched, and nesting is what makes that structural rather
@@ -3372,6 +3480,28 @@ export function buildRuntimeIr(source, opts = {}) {
    *  this lane can say whether an expression yields text. */
   const iterOutputs = []
   const objectIterTreeKinds = []
+  /** ⭐⭐ counter name → the iteration specs that belong to THAT loop.
+   *
+   *  The buffers are pre-sized in SPEC order and filled in as each loop is
+   *  reached, because the caller pairs tree index to buffer index positionally
+   *  — filling them in the order the loops happen to appear would silently
+   *  re-point every per-row value in the table. */
+  /** Every `if`-branch scope the walk opened, with the statement list it
+   *  produced. ⭐ An object tree over a value declared inside a branch can only
+   *  be lowered THERE, and appending to the recorded list really does reach the
+   *  emitted `ifStmt` — it is the same array. */
+  const objectBlocks = []
+  const iterPending = new Map()
+  /** How many lowered `for` loops carried each counter name — see the refusal
+   *  at the end of the walk. */
+  const iterCounterSeen = new Map()
+  ;(opts.objectIterTrees || []).forEach((spec, i) => {
+    iterOutputs.push(null)
+    objectIterTreeKinds.push(null)
+    const list = iterPending.get(spec.counter) || []
+    list.push({ i, spec })
+    iterPending.set(spec.counter, list)
+  })
   try {
     statements = lowerStmts(stmts, root)
     // ⛔ AFTER THE WALK, ON THE FINISHED SCOPE. An object coordinate is an
@@ -3388,7 +3518,59 @@ export function buildRuntimeIr(source, opts = {}) {
       // never given a value — \`r\``, from a table whose rows were perfectly
       // well defined inside their loop. The placeholder is never read: the
       // reader checks the iteration buffers first.
-      statements.push(emit(index, tree ? lowerExpr(tree, root) : num(0)))
+      // ⭐⭐ LOWERED WHERE ITS NAMES LIVE, not always at root.
+      //
+      // ⚰️ Root was the only site until 2026-09-20, and the corpus idiom breaks
+      // it: a dashboard computes `rowCount = array.size(sortedPositions)` INSIDE
+      // `if barstate.islast` and writes `for row = 0 to rowCount - 1`. That
+      // bound becomes an object tree, and at root `rowCount` does not exist — so
+      // the script refused `pine:undefined` about a name defined two lines above
+      // its use. The value genuinely only exists inside that branch, so there is
+      // no root lowering to be had; the emit has to go where the name is.
+      //
+      // ⛔ ROOT IS STILL TRIED FIRST, so nothing that already resolved moves.
+      // ⛔ AND AMBIGUITY IS REFUSED, NOT RESOLVED BY ORDER: a tree that resolves
+      // inside two different branches is reading two different `rowCount`s, and
+      // picking the earlier one paints a table of real numbers from the wrong
+      // block — indistinguishable from a working one.
+      if (tree === null) {
+        statements.push(emit(index, num(0)))
+      } else {
+        const sites = []
+        let rootIr = null
+        try { rootIr = lowerExpr(tree, root) } catch { /* try the branches */ }
+        if (rootIr) {
+          statements.push(emit(index, rootIr))
+        } else {
+          // ⛔⛔ THE OUTERMOST BLOCK THAT RESOLVES IT WINS, and that is not a
+          // tie-break — it is the only correct answer. A branch scope CHAINS to
+          // its parent, so a value declared in `if barstate.islast` resolves
+          // from every nested branch inside it too. Treating that as ambiguity
+          // refused the acceptance dashboard with "resolves inside 6 different
+          // blocks" when all six were the same binding seen from six depths.
+          // ⛔ TWO CANDIDATES AT THE SAME DEPTH ARE STILL REFUSED: neither
+          // encloses the other, so they really are different bindings.
+          const depthOf = (s) => { let d = 0; for (let x = s; x; x = x.parent) d += 1; return d }
+          for (const blk of objectBlocks) {
+            try {
+              sites.push({ blk, ir: lowerExpr(tree, blk.scope), depth: depthOf(blk.scope) })
+            } catch { /* this block does not bind it */ }
+          }
+          if (sites.length === 0) {
+            // Re-raise the ROOT failure: it names the missing binding, which is
+            // the sentence a member can act on.
+            lowerExpr(tree, root)
+          }
+          const best = Math.min(...sites.map((s) => s.depth))
+          const outermost = sites.filter((s) => s.depth === best)
+          if (outermost.length > 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `a drawing value resolves inside ${outermost.length} sibling blocks, so `
+              + 'which one it belongs to cannot be settled', null)
+          }
+          outermost[0].blk.body.push(emit(index, outermost[0].ir))
+        }
+      }
       objectTreeOutputs.push(index)
     }
     // ⭐⭐ AND THE PER-ITERATION ONES, EACH AS ITS OWN LOOP.
@@ -3409,22 +3591,47 @@ export function buildRuntimeIr(source, opts = {}) {
     // knows a cell wants text; only this lane knows whether the EXPRESSION
     // produces one, and a buffer allocated as the wrong container coerces every
     // value it holds — which is why the kinds are reported back.
-    for (const spec of (opts.objectIterTrees || [])) {
-      const inner = new Scope(root)
-      const slot = inner.declare(spec.counter, newSlot(spec.counter, false))
-      const kind = holdsText(spec.node, inner) ? 'text' : 'num'
-      const k = iterOutputs.length
-      iterOutputs.push({ kind })
-      objectIterTreeKinds.push(kind)
-      statements.push(forStmt({
-        slot,
-        toSlot: newSlot(`${spec.counter} to`, false),
-        stepSlot: newSlot(`${spec.counter} by`, false),
-        from: lowerExpr(spec.from, root),
-        to: lowerExpr(spec.to, root),
-        step: num(1),
-        body: [emitIter(k, read(slot), lowerExpr(spec.node, inner))],
-      }))
+    // ⭐⭐ THE FALLBACK: A SPEC THAT FOUND NO LOOP GETS ITS OWN.
+    //
+    // ⚰️ A first cut REPLACED this with the injection above and broke every
+    // case that has no member `for` to ride — a caller may hand this lane
+    // iteration specs directly, which is exactly what `iterTrees.test.js` does.
+    // Injection is an ADDITION: it fixes the bound that only resolves inside a
+    // block, and it must not remove the path that was already working.
+    //
+    // ⛔ THE BOUNDS RESOLVE AT ROOT HERE, which is the limitation injection
+    // exists to lift — so this path still refuses a bound that names a
+    // block-local, by the same `pine:undefined` it always did.
+    for (const [, waiting] of iterPending) {
+      for (const { i, spec } of waiting) {
+        const inner = new Scope(root)
+        const slot = inner.declare(spec.counter, newSlot(spec.counter, false))
+        const kind = holdsText(spec.node, inner) ? 'text' : 'num'
+        iterOutputs[i] = { kind }
+        objectIterTreeKinds[i] = kind
+        statements.push(forStmt({
+          slot,
+          toSlot: newSlot(`${spec.counter} to`, false),
+          stepSlot: newSlot(`${spec.counter} by`, false),
+          from: lowerExpr(spec.from, root),
+          to: lowerExpr(spec.to, root),
+          step: num(1),
+          body: [emitIter(i, read(slot), lowerExpr(spec.node, inner))],
+        }))
+      }
+    }
+    iterPending.clear()
+    // ⛔ AND THE MATCH IS BY COUNTER NAME, so two loops sharing one name would
+    // make "which loop does this row belong to" unanswerable. Refused rather
+    // than resolved by source order: the wrong choice paints a table of real
+    // numbers taken from the wrong loop, which is indistinguishable from a
+    // working one.
+    for (const [name, n] of iterCounterSeen) {
+      if (n > 1 && (opts.objectIterTrees || []).some((s) => s.counter === name)) {
+        throw new RuntimeRefusal('runtime:statement',
+          `two loops share the counter \`${name}\` and a per-row value is written `
+          + 'against it, so which loop owns that value cannot be settled', null)
+      }
     }
   } catch (e) {
     // ⭐⭐ R2 STEP 5 — THE SKIPPED LIST IS ATTACHED ON THE FAILING PATH TOO.

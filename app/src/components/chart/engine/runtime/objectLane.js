@@ -229,14 +229,29 @@ export function buildObjectLane(source, opts = {}) {
  */
 export function runObjectLane(lane, view) {
   const bars = Math.max(0, view.bars | 0)
-  const { outputs, iters } = execute(lane.program, {
+  // ⛔⛔ `barTimes` AND `requestBars` ARE NOT OPTIONAL EXTRAS FOR THIS LANE.
+  //
+  // A watchlist dashboard is made ENTIRELY of `request.security` — its every
+  // number belongs to another symbol — and its session columns read the ET
+  // clock off the bar's own instant. Without these two the program still runs
+  // and still draws: every request answers `na`, every clock read answers `na`,
+  // and the table paints its "no data" state. ⭐ That is the worst shape a gap
+  // can take here, because it is indistinguishable from a quiet market, and it
+  // is exactly what this runner produced before they were forwarded.
+  //
+  // ⚠️ They stay OPTIONAL on `view` on purpose: a drawing that reads neither
+  // (a label on this chart's own price) must not have to invent them. What is
+  // fixed is that a caller which HAS them can no longer fail to pass them.
+  const { outputs, iters, requested } = execute(lane.program, {
     bars,
     series: view.series,
     columns: lane.program.columns,
     confirmed: view.confirmed !== false,
+    barTimes: view.barTimes,
+    requestBars: view.requestBars,
   }, view.limits)
 
-  return evaluateObjects(lane.objects, {
+  const drawn = evaluateObjects(lane.objects, {
     barCount: bars,
     readNode: readObjectLaneNode(lane, outputs, iters),
     readTime: view.readTime,
@@ -244,6 +259,13 @@ export function runObjectLane(lane, view) {
     limits: view.limits,
     trace: view.trace,
   })
+  // ⭐⭐ WHAT THE RUN ASKED FOR AND COULD NOT GET, CARRIED OUT WITH THE DRAWING.
+  // A watchlist dashboard discovers its symbols WHILE it runs, so the host
+  // cannot know what to fetch until the first pass reports it — that is the
+  // fixed-point the request lane was built for. Dropping the report here made
+  // the second pass impossible and left the caller with a table of `na` and no
+  // way to learn why.
+  return { ...drawn, requested: [...(requested || [])] }
 }
 
 /** tree index → its value on a bar, through the output the front end assigned.

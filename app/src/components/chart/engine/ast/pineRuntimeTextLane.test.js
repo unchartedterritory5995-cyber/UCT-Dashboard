@@ -43,6 +43,13 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     expect(a.refusal.guard).not.toBe('pine:text-value')
     expect(b.refusal.guard).not.toBe('pine:text-value')
     // ⭐ AND THE LANE GETS FURTHER: 40 statements before, 77 now.
+    //
+    // ⚰️ 2026-09-20: this was briefly "updated" to 88 to match a build in which
+    // an `if`'s BODY was lowered before its TEST. That inverted source order and
+    // let a refusal inside the body preempt the one on the test, so the lane
+    // appeared to walk further when it had actually stopped CHECKING. The
+    // number was right and the code was wrong. A ledger that gets edited to
+    // match the code it is supposed to measure is not a ledger.
     expect(a.diagnostics.statements).toBe(77)
     expect(b.diagnostics.statements).toBe(76)
     // ⛔ NOTHING WAS SWALLOWED. Every skipped definition is named with its line
@@ -76,6 +83,12 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // plumbing at all: item 1 threaded `{ticker, exchange}` through
     // `binder.sync` → `computeFor` for the DEFINITION lane, and this lane raises
     // its refusal while LOWERING, before any `interpret` call could see one.
+    //
+    // ⚰️ 2026-09-20: this briefly read 261/259 with a `lookahead` guard, and
+    // that was a REGRESSION being written down rather than a capability. An
+    // `if` whose BODY was lowered before its TEST let the body's refusal fire
+    // first, so the seam stopped being reached at all — with and without a
+    // symbol read identically, which is what `irSymbolFold`'s control is for.
     for (const [r, line] of [[told(V2), 249], [told(V1), 247]]) {
       expect(r.ok).toBe(false)
       expect(r.refusal.line).toBe(line)
