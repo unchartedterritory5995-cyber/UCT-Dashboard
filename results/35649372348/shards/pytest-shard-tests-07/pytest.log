@@ -1,0 +1,2401 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+..............................................FFFFFF...FFFFF....FFFF.... [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+....................................................F................... [ 62%]
+.
+BEFORE   200 users x  50 tickers ( 2567 distinct) cap=1000   steady-state upstream fetches=6922    tier1 hits=0     per-ticker miss=13836/16860 (82.1%)
+.
+BEFORE   250 users x  50 tickers ( 3000 distinct) cap=1000   steady-state upstream fetches=9124    tier1 hits=0     per-ticker miss=18158/21509 (84.4%)
+.
+BEFORE   200 users x 250 tickers ( 4000 distinct) cap=1000   steady-state upstream fetches=37272   tier1 hits=0     per-ticker miss=74548/85891 (86.8%)
+.AFTER    200 users x  50 tickers ( 2567 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/9892 (0.0%)
+.AFTER    250 users x  50 tickers ( 3000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=250   per-ticker miss=0/12430 (0.0%)
+.AFTER    200 users x 250 tickers ( 4000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/48372 (0.0%)
+........
+MEMORY  live-prices cache at full saturation (9000 entries): 21.0 MB
+.......................................................... [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 86%]
+...................................................................F...F [ 89%]
+..F.........F..F.F.FFFF........F..F.F.FF.F....FF........................ [ 92%]
+..............................................................F......... [ 96%]
+........................................................................ [ 99%]
+.............                                                            [100%]
+=================================== FAILURES ===================================
+________ TestFiscalJoin.test_off_calendar_filer_gets_the_right_quarter _________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857c500>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_off_calendar_filer_gets_the_right_quarter(self, providers):
+        """NVDA is the case a 'most recent period before the announcement'
+        rule mislabels — every quarter, by exactly one, silently."""
+        got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
+>              for r in ib.past_reports("NVDA", 4)}
+
+tests/test_implied_backfill.py:326: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+__________ TestFiscalJoin.test_september_filer_gets_the_right_quarter __________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857ca10>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_september_filer_gets_the_right_quarter(self, providers):
+        """AAPL is the mirror case, which an 'on or after' rule mislabels."""
+        got = {r["report_date"]: (r["fiscal_year"], r["fiscal_quarter"])
+>              for r in ib.past_reports("AAPL", 4)}
+
+tests/test_implied_backfill.py:334: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'AAPL', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+____________ TestFiscalJoin.test_future_announcements_are_excluded _____________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857cf50>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_future_announcements_are_excluded(self, providers):
+        """NVDA's 2026-08-26 row has not reported — there is no implied move
+        to reconstruct and no realized move to pair it against."""
+>       dates = [r["report_date"] for r in ib.past_reports("NVDA", 8)]
+
+tests/test_implied_backfill.py:342: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+____________ TestFiscalJoin.test_one_quarter_is_never_claimed_twice ____________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857d460>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff1193e0050>
+
+    def test_one_quarter_is_never_claimed_twice(self, monkeypatch):
+        """Two announcements can land in one fiscal bucket — a restatement, a
+        duplicated provider row, or a preliminary followed by a final. Only
+        one may be kept: the store is keyed on (sym, report_date), so a second
+        row would quietly add a SECOND implied move for one quarter and skew
+        whatever the verdict averages.
+    
+        The fixture must actually collide; an earlier version of this test
+        asserted uniqueness over data that was already unique and passed
+        vacuously (a mutation removing the dedupe survived it).
+        """
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        # Both announcements sit inside the same quarter bucket.
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [
+            {"date": "2025-11-19"}, {"date": "2025-11-25"},
+        ])
+        monkeypatch.setattr(ee_mod, "_fh_get", lambda p, q: [
+            {"period": "2025-12-31", "year": 2026, "quarter": 3},
+        ])
+>       rows = ib.past_reports("NVDA", 8)
+
+tests/test_implied_backfill.py:365: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.test_one_quarter_is_never_claimed_twice.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+______________ TestFiscalJoin.test_distinct_quarters_all_survive _______________
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857d9a0>
+providers = <module 'tools.implied_backfill_run' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/implied_backfill_run.py'>
+
+    def test_distinct_quarters_all_survive(self, providers):
+>       rows = ib.past_reports("NVDA", 8)
+
+tests/test_implied_backfill.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 8
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_______ TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong _______
+
+self = <tests.test_implied_backfill.TestFiscalJoin object at 0x7ff10857deb0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff119fc4dd0>
+
+    def test_a_far_away_period_is_refused_not_least_wrong(self, monkeypatch):
+        """With no plausible bucket, "nearest" degenerates into "least far
+        wrong" — which is the silent mispairing this whole rule exists to
+        prevent. Refuse instead."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fh_get",
+                            lambda p, q: [{"period": "2023-03-31", "year": 2023, "quarter": 1}])
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7ff10857f470>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff1193e3560>
+fmp_result = None, why = 'a shrug — the provider never answered'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7ff10857f5f0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff0fbef70b0>
+fmp_result = [], why = 'answered, but with no history'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity] _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7ff10857f6b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff118e29070>
+fmp_result = [{'quarter': None, 'report_date': '2026-08-03', 'year': None}]
+why = 'answered, but the income statement carried no fiscal identity'
+
+    @pytest.mark.parametrize("fmp_result, why", [
+        (None, "a shrug — the provider never answered"),
+        ([], "answered, but with no history"),
+        ([{"report_date": "2026-08-03", "year": None, "quarter": None}],
+         "answered, but the income statement carried no fiscal identity"),
+    ])
+    def test_falls_back_to_finnhub_rather_than_dropping_the_symbol(
+            self, monkeypatch, fmp_result, why):
+        """A bad FMP response must not be indistinguishable from 'this company
+        has never reported' — that would skip the symbol for good."""
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       got = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:461: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_ TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7ff10857e1e0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff118e28e30>
+
+    def test_an_exception_from_fmp_falls_back_instead_of_escaping(self, monkeypatch):
+        """`past_reports` runs inside the sweep's per-symbol try, but raising
+        here would still cost the symbol its Finnhub fallback."""
+        from api.services import earnings_estimates as ee_mod
+    
+        def boom(sym, limit=8):
+            raise RuntimeError("provider exploded")
+    
+        monkeypatch.setattr(ib, "fmp_beat_history", boom)
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(
+            ee_mod, "_fh_get",
+            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       assert ib.past_reports("NVDA", 4)[0]["fiscal_quarter"] == 3
+
+tests/test_implied_backfill.py:479: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+----------------------------- Captured stderr call -----------------------------
+2026-09-21 20:18:58,632 WARNING api.services.implied_backfill: implied_backfill: FMP history failed for NVDA: provider exploded
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.implied_backfill:implied_backfill.py:322 implied_backfill: FMP history failed for NVDA: provider exploded
+_ TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end _
+
+self = <tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource object at 0x7ff10857f980>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff118e2b410>
+fh_spy = {'n': 0}
+
+    def test_the_real_fmp_leg_is_wired_up_end_to_end(self, monkeypatch, fh_spy):
+        """The tests above stub `fmp_beat_history`. This one drives the actual
+        function through faked HTTP so a broken import or a renamed key can't
+        pass silently."""
+        from api.services import earnings_estimates as ee_mod
+    
+        def fake_fmp(path, params):
+            if "income-statement" in path:
+                return [{"date": "2026-06-30", "period": "Q2",
+                         "fiscalYear": "2026", "acceptedDate": "2026-08-03 16:05:00"}]
+            return [{"date": "2026-08-03", "epsActual": 5.71, "epsEstimated": 6.18}]
+    
+        # Patching the OWNING module is the whole point: `earnings_history_fmp`
+        # resolves `_fmp_get` through `earnings_estimates` at call time rather
+        # than binding its own copy, so it cannot escape the guards (or the
+        # stubs) that every other caller goes through.
+        monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp)
+>       got = ib.past_reports("JAZZ", 4)
+
+tests/test_implied_backfill.py:498: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'JAZZ', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+----------------------------- Captured stderr call -----------------------------
+2026-09-21 20:18:58,657 WARNING api.services.implied_backfill: implied_backfill: FMP history failed for JAZZ: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.implied_backfill:implied_backfill.py:322 implied_backfill: FMP history failed for JAZZ: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+___ TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted ___
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7ff108581940>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff118e2a570>
+
+    def test_an_empty_finnhub_response_is_retried_not_accepted(self, monkeypatch):
+        """The bug: a cooldown-induced empty read was indistinguishable from
+        'this company has no earnings history', so the symbol was dropped."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+    
+        def flaky(path, params):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return []                     # the 429 cooldown window
+            return [{"period": "2025-12-31", "year": 2026, "quarter": 3}]
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", flaky)
+>       rows = ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:583: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+___________ TestFinnhubPacing.test_gives_up_after_the_attempt_budget ___________
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7ff108581df0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff119b146b0>
+
+    def test_gives_up_after_the_attempt_budget(self, monkeypatch):
+        """A ticker Finnhub genuinely does not cover must not retry forever."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        calls = {"n": 0}
+    
+        def always_empty(path, params):
+            calls["n"] += 1
+            return []
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", always_empty)
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:601: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_gives_up_after_the_attempt_budget.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+______ TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing ______
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7ff1085822d0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff1194e73b0>
+
+    def test_no_finnhub_call_at_all_when_fmp_has_nothing(self, monkeypatch):
+        """Don't spend the shared budget on a symbol we already know we cannot
+        place — FMP supplies the announcement dates the labels attach to."""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [])
+        called = {"n": 0}
+    
+        def spy(path, params):
+            called["n"] += 1
+            return []
+    
+        monkeypatch.setattr(ee_mod, "_fh_get", spy)
+>       assert ib.past_reports("NVDA", 4) == []
+
+tests/test_implied_backfill.py:618: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+_________ TestFinnhubPacing.test_every_finnhub_call_is_actually_paced __________
+
+self = <tests.test_implied_backfill.TestFinnhubPacing object at 0x7ff1085827b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff1190388c0>
+
+    def test_every_finnhub_call_is_actually_paced(self, monkeypatch):
+        """Pacing is the whole reason this job stops starving live traffic, so
+        assert the sleep really happens at the configured interval rather than
+        trusting that the line is present. (Other tests set the pace to 0, so a
+        mutation deleting the sleep is invisible to them.)"""
+        import tools.implied_backfill_run as run
+        from api.services import earnings_estimates as ee_mod
+        monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 2.5)
+        slept = []
+        monkeypatch.setattr(ib.time, "sleep", lambda s: slept.append(s))
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fh_get",
+                            lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
+>       ib.past_reports("NVDA", 4)
+
+tests/test_implied_backfill.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sym = 'NVDA', limit = 4
+
+    def past_reports(sym: str, limit: int) -> list[dict]:
+        """Past ANNOUNCEMENT dates carrying real fiscal identity, newest first.
+    
+        TWO SOURCES, FMP FIRST
+        ----------------------
+        `earnings_history_fmp.fmp_beat_history` already resolves exactly this pair
+        -- announcement date + fiscal year/quarter -- entirely inside FMP, by
+        joining `stable/earnings` to `stable/income-statement` on `acceptedDate`
+        (the FILING timestamp, which is the same event as the announcement rather
+        than something inferred from it). Measured 2026-08-06 across JAZZ, AAPL,
+        NVDA, MSFT, AIG, ASLE and ARLO: every returned row carried fiscal identity
+        -- no unmatched announcements at all.
+    
+        Preferring it here is not just tidiness. Finnhub's budget is a ~55/min
+        bucket SHARED WITH LIVE MEMBER TRAFFIC, which forced the 3s pacing below;
+        at 739 symbols that is ~37 minutes of a nightly job that has repeatedly
+        failed to finish. It also caps at 4 quarters per symbol, so it bounded how
+        much history could ever be reconstructed. The FMP path pays neither cost.
+    
+        Finnhub remains the FALLBACK, unchanged, for any symbol FMP cannot resolve
+        -- a shrug from one provider should cost coverage on that symbol, not the
+        whole capability.
+    
+        THE FALLBACK'S JOIN RULE: the fiscal row whose `period` is NEAREST the
+        announcement.
+    
+        "Most recent period ending before the announcement" is the intuitive rule
+        and it is WRONG. Finnhub's `period` is the calendar quarter-end CONTAINING
+        the fiscal period end, which can land on either side of the announcement:
+    
+            AAPL  fiscal Q4 FY2025 ended Sep 27 -> period 2025-09-30, announced
+                  Oct 30. The period precedes the announcement.
+            NVDA  fiscal Q3 FY2026 ended Oct 26 -> period 2025-12-31, announced
+                  Nov 19. The period FOLLOWS the announcement.
+    
+        So "before" silently mislabels every NVDA quarter and "on or after"
+        silently mislabels every AAPL quarter — each off by exactly one, in
+        opposite directions, which is the worst kind of wrong: it pairs a snapshot
+        against a real but incorrect quarter's realized move rather than failing.
+        Nearest handles both. Verified 2026-08-06 against 9 known announcements
+        across three fiscal shapes (NVDA Jan-end, AAPL Sep-end, MSFT Jun-end):
+        9/9 correct, where each single-sided rule scored 3/9 or 6/9.
+    
+        Deliberately NOT derived from the announcement month either. A
+        calendar-fiscal guess (Jan-Mar -> Q4, Apr-Jun -> Q1, ...) is wrong for
+        every off-calendar filer. Unmatched announcements are dropped.
+        """
+        today = _dt.date.today().isoformat()
+    
+        # ── primary: FMP for BOTH halves ─────────────────────────────────────────
+        # `< today` matches the fallback's rule below: a report that has not yet
+        # happened has no prior-session straddle to reconstruct, and today's is the
+        # live capture's to own.
+        try:
+            fmp_rows = fmp_beat_history(sym, limit=max(limit * 2, 8))
+        except Exception as exc:                       # noqa: BLE001 - fall back
+            _log.warning("implied_backfill: FMP history failed for %s: %s", sym, exc)
+            fmp_rows = None
+        if fmp_rows:
+            out = [
+                {"report_date": r["report_date"],
+                 "fiscal_year": r["year"], "fiscal_quarter": r["quarter"]}
+                for r in fmp_rows
+                if r.get("report_date") and r["report_date"] < today
+                and r.get("year") is not None and r.get("quarter") is not None
+            ]
+            if out:
+                return out[:limit]
+        # Falls through to Finnhub on a shrug (None), an empty history, or rows
+        # that carried no fiscal identity -- never silently returns [] here, or a
+        # single bad FMP response would look exactly like "this company has never
+        # reported" and permanently skip the symbol.
+    
+        # Newest-first, and includes not-yet-reported rows (filtered below).
+>       fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
+E       TypeError: TestFinnhubPacing.test_every_finnhub_call_is_actually_paced.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+
+api/services/implied_backfill.py:340: TypeError
+___________________ test_theme_warm_is_throttled_and_capped ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff0f8ba78f0>
+
+    def test_theme_warm_is_throttled_and_capped(monkeypatch):
+        import importlib
+        import api.routers.theme_performance as tp
+        importlib.reload(tp)
+    
+        warm_calls = []
+        monkeypatch.setattr("api.routers.bars.warm_bars_async",
+                            lambda tickers, tf="D", bars=8000: warm_calls.append(list(tickers)))
+        big = [{"ticker": "XLK", "holdings": [{"sym": f"T{i}"} for i in range(200)]}]
+        monkeypatch.setattr(tp.svc, "get_theme_performance", lambda: big)
+        monkeypatch.setattr(tp.svc, "looks_like_ticker", lambda s: True)
+        monkeypatch.setattr(tp, "_COLD_TAIL_CAP", 30, raising=False)
+        tp._last_theme_warm = 0.0  # force first call to warm
+    
+        tp.get_theme_performance()
+        tp.get_theme_performance()  # immediate second poll must NOT re-warm
+    
+>       assert len(warm_calls) == 1, "second immediate poll should be throttled"
+E       AssertionError: second immediate poll should be throttled
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_launch_hardening.py:145: AssertionError
+_ TestRestoreGuarantee.test_the_file_is_byte_identical_after_a_detected_mutation _
+
+self = <tests.test_mutation_check.TestRestoreGuarantee object at 0x7ff0fbcd2180>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_file_is_byte_identica0')
+
+    def test_the_file_is_byte_identical_after_a_detected_mutation(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        before = impl.read_bytes()
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'")
+        assert impl.read_bytes() == before
+        assert "byte-identical restore verified" in r.stdout
+>       assert r.returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+
+tests/test_mutation_check.py:110: AssertionError
+____________ TestVerdicts.test_a_detected_mutation_passes_the_check ____________
+
+self = <tests.test_mutation_check.TestVerdicts object at 0x7ff0fbc165d0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0')
+
+    def test_a_detected_mutation_passes_the_check(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'")
+>       assert "MUTATION CHECK PASSED" in r.stdout
+E       AssertionError: assert 'MUTATION CHECK PASSED' in '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n'
+E        +  where '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n' = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').stdout
+
+tests/test_mutation_check.py:141: AssertionError
+__________ TestVerdicts.test_expect_red_naming_the_right_test_passes ___________
+
+self = <tests.test_mutation_check.TestVerdicts object at 0x7ff0fbc14b90>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_expect_red_naming_the_rig0')
+
+    def test_expect_red_naming_the_right_test_passes(self, tmp_path):
+        impl, rail = _project(tmp_path)
+        r = _run(impl, rail, "--replace", "'right'", "--with", "'wrong'",
+                 "--expect-red", "test_value")
+>       assert r.returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+
+tests/test_mutation_check.py:165: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py] _
+
+harness = 'mutation_harness_contract.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_contract.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py] _
+
+harness = 'mutation_harness_flipgate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_flipgate.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py] _
+
+harness = 'mutation_harness_load_model.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_load_model.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py] _
+
+harness = 'mutation_harness_push_guard.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_push_guard.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py] _
+
+harness = 'mutation_harness_render_gate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_render_gate.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py] _
+
+harness = 'mutation_harness_renderer.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+        assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+    
+        bad = []
+        for c in controls:
+            if c.needle is None or c.target is None:
+                continue                      # UNREADABLE is reported by the gate step, not here
+            target = REPO / c.target
+            if not target.is_file():
+                bad.append(f"{c.name}: target {c.target} does not exist")
+                continue
+            outcome, raw, code, detail = anchor_check.classify(
+                target.read_text(encoding="utf-8", errors="replace"), c.needle)
+            if outcome != anchor_check.OK:
+                bad.append(f"{c.name}: {outcome} (raw={raw} code={code}) {detail}")
+>       assert not bad, (
+            f"{harness} has anchors that no longer match exactly once in code:\n  "
+            + "\n  ".join(bad))
+E       AssertionError: mutation_harness_renderer.py has anchors that no longer match exactly once in code:
+E           A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all
+E       assert not ['A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all']
+
+tests/test_mutation_harness_anchors.py:87: AssertionError
+_ test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py] _
+
+harness = 'mutation_harness_stall_record.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_every_mutation_anchor_still_matches_exactly_once(harness):
+        """Run the harness's own `--dry-check`. No tests are executed; this reads the anchors.
+    
+        ⚠️ A harness WITHOUT `--dry-check` is skipped with the reason named, not silently passed — but
+        `test_the_two_harnesses_this_programme_owns_have_a_dry_check` below refuses to let the two that
+        matter drift into that state."""
+        # ⛔⛔ THIS NO LONGER EXECUTES THE HARNESS, AND THAT IS THE POINT.
+        #
+        # ⚰️ Version 1 shelled out to each harness with `--dry-check`. Harnesses that do not dispatch
+        # that flag ignore it and run their FULL mutation set against `api/**` — this test did exactly
+        # that, was killed mid-run, and LEFT A MUTATION BEHIND IN `badge.py`.
+        #
+        # ⚰️ Version 2 asked the source for the flag first. Better, and still an execution: on
+        # 2026-09-14 B4's `harness_guard` — whose entire job is to stop a harness mutating the
+        # integrator's tree — made every harness refuse with a banner and no totals line, and THIS TEST
+        # WENT RED. The guard was right and the test was the thing doing the dangerous act.
+        #
+        # ⭐ B5's `anchor_check` answers the same question as a pure READ: AST over the harness, no
+        # import, no subprocess, no write. So the rail delegates to it instead of racing it. Two rails
+        # that disagree about whether a harness may run is one rail too many.
+        sys.path.insert(0, str(INSTRUMENTS))
+        try:
+            import anchor_check
+        finally:
+            sys.path.pop(0)
+    
+        controls, err = anchor_check.extract_controls(INSTRUMENTS / harness)
+        assert not err, f"{harness}: {err}"
+        # ⛔ NON-VACUITY. An empty control list satisfies every assertion below, and "we parsed nothing"
+        # and "everything matched" are the same green. An absence is only evidence if the instrument
+        # could have seen a presence.
+>       assert controls, f"{harness}: anchor_check extracted ZERO controls — that is a failed read"
+E       AssertionError: mutation_harness_stall_record.py: anchor_check extracted ZERO controls — that is a failed read
+E       assert []
+
+tests/test_mutation_harness_anchors.py:73: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py] _
+
+harness = 'mutation_harness_contract.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_contract.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb322740>()
+E        +      where <built-in method values of dict object at 0x7ff0fb322740> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py] _
+
+harness = 'mutation_harness_flipgate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_flipgate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb321000>()
+E        +      where <built-in method values of dict object at 0x7ff0fb321000> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py] _
+
+harness = 'mutation_harness_load_model.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_load_model.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0e8961840>()
+E        +      where <built-in method values of dict object at 0x7ff0e8961840> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py] _
+
+harness = 'mutation_harness_push_guard.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_push_guard.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb6ae700>()
+E        +      where <built-in method values of dict object at 0x7ff0fb6ae700> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py] _
+
+harness = 'mutation_harness_render_gate.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_render_gate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0f83e7f80>()
+E        +      where <built-in method values of dict object at 0x7ff0f83e7f80> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py] _
+
+harness = 'mutation_harness_stall_record.py'
+
+    @pytest.mark.parametrize("harness", HARNESSES)
+    def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
+        """Owner ruling: NOT-APPLIED ≠ 0 must FAIL, never merely print.
+    
+        ⛔ READ AS SOURCE STRUCTURE, NOT BY RUNNING A 25-MINUTE SET. Each harness reaches the same
+        verdict one of two ways — a `bad` list that admits any non-RED verdict, or an `ok_all` flag
+        cleared when the match count is not 1. Both are accepted; a harness with NEITHER is one where a
+        skipped proof can exit 0."""
+        src = (INSTRUMENTS / harness).read_text(encoding="utf-8")
+        # ⚰️ THE FIRST VERSION OF THIS PREDICATE KNEW TWO IDIOMS AND THERE ARE THREE, so it failed
+        # `mutation_harness_envlogs.py` — which sets `ok = False` on a non-1 match count and exits 1,
+        # i.e. does exactly the right thing. An instrument reporting a property of its own pattern list
+        # as a property of what it measured, for the third time in this programme.
+        idioms = {
+            'the `bad` list admits any non-RED verdict': 'if v != "RED"' in src,
+            'an `ok_all` flag cleared on a bad match count':
+                "ok_all = False" in src and "count != 1" in src,
+            'an `ok` flag cleared on a bad match count':
+                "ok = False" in src and "!= 1" in src,
+        }
+>       assert any(idioms.values()), (
+            f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "
+            f"proof that did not happen would be printed and the run would still pass. If it uses a "
+            f"FOURTH idiom, add it here with its name rather than loosening the check: "
+            f"{list(idioms)}")
+E       AssertionError: mutation_harness_stall_record.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+E       assert False
+E        +  where False = any(dict_values([False, False, False]))
+E        +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0e8963e40>()
+E        +      where <built-in method values of dict object at 0x7ff0e8963e40> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+
+tests/test_mutation_harness_anchors.py:123: AssertionError
+_ test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write _
+
+    def test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write():
+        """The guard is useless if a harness forgets it, or calls it after the first write."""
+        harnesses = _harnesses()
+        # NON-VACUITY: if the glob matched nothing this test would pass by iterating zero times.
+        assert len(harnesses) >= 5, f"only {len(harnesses)} harnesses found — the glob is wrong"
+    
+        for h in harnesses:
+            src = h.read_text(encoding="utf-8")
+            tree = ast.parse(src)
+    
+            imported = any(
+                isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                and any(a.name == "guard" for a in n.names)
+                for n in ast.walk(tree))
+>           assert imported, f"{h.name} does not import the shared guard"
+E           AssertionError: mutation_harness_contract.py does not import the shared guard
+E           assert False
+
+tests/test_mutation_harness_hygiene.py:105: AssertionError
+___ test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard ___
+
+    def test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard():
+        """B4 says "any harness that can leave a mutation in a working-tree file" — that is not
+        the same set as `mutation_harness*.py`.
+    
+        ⚰️ `prove_eol_gate.py` plants real line-ending flips in TRACKED files, and its ROOT was
+        the hard-coded literal `C:\\Users\\Patrick\\uct-worktrees\\discord-render` — the
+        integrator's tree — so running it from anywhere mutated that tree. It is guarded now.
+        """
+        writers, unguarded = [], []
+        for path in sorted(INSTRUMENTS.glob("*.py")):
+            if path.name == "harness_guard.py":
+                continue                       # it IS the guard; importing itself proves nothing
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError, OSError):
+                continue
+            if not _writes_to_a_file(tree):
+                continue
+            writers.append(path.name)
+            if path.name in NOT_MUTATORS:
+                continue
+            guarded = any(isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                          for n in ast.walk(tree))
+            if not guarded:
+                unguarded.append(path.name)
+    
+        # NON-VACUITY: if the AST probe found no writers, it is broken, not the tree clean.
+        assert len(writers) >= 10, f"only {len(writers)} writing instruments found: {writers}"
+    
+        # The exemption list must describe reality, or it is exempting names nobody has.
+        for name in sorted(NOT_MUTATORS):
+            assert (INSTRUMENTS / name).exists(), f"{name} is exempted but does not exist"
+            assert name in writers, (
+                f"{name} is exempted from a rail it would not trip — a stale exemption")
+    
+>       assert not unguarded, (
+            "these instruments can write to a working-tree file and do not import the shared "
+            f"guard: {unguarded}. Either call guard()/require_throwaway_worktree(), or add the "
+            "file to NOT_MUTATORS with the reason it cannot leave a mutation behind.")
+E       AssertionError: these instruments can write to a working-tree file and do not import the shared guard: ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'mutation_harness_stall_record.py', 'oi44_cold_paths.py', 'oi44_loop_blockers.py', 'patch_guard.py', 'w8_accuracy_audit.py']. Either call guard()/require_throwaway_worktree(), or add the file to NOT_MUTATORS with the reason it cannot leave a mutation behind.
+E       assert not ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'mutation_harness_stall_record.py', 'oi44_cold_paths.py', 'oi44_loop_blockers.py', ...]
+
+tests/test_mutation_harness_hygiene.py:188: AssertionError
+_________________ test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY _________________
+
+    def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
+        """⛔ A reading that could not be TAKEN is not a finding. Production 502s on
+        every Tier 1 deploy; an ANOMALY row there makes the Sunday gate REVERT a
+        healthy product because another workstream deployed at 17:05."""
+        obs_src = (TOOLS / "nb_observe.py").read_text(encoding="utf-8")
+        gate_src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
+        assert "production unreachable (HTTP 5xx" in obs_src
+        assert 'not a finding, and not evidence of a clean interval either' in obs_src
+        # ...and the gate must not count a SKIPPED row as a trigger, in ANY trigger.
+        # ⚰️ THIS USED TO PIN THE STRING `'"SKIPPED" not in x[-1]'`, which was the
+        # spelling inside trigger 1 — and pinning a spelling is how a rail comes to
+        # describe one caller while the property it names is missing from the other
+        # three. It WAS missing: trigger 4 counted the 20 console errors a 5xx SKIP
+        # recorded from a page that could not load, and printed REVERT
+        # (`lesson_a_guard_repeated_is_a_guard_unproved`).
+        #
+        # ⭐ So the structural claim is now ONE AUTHORITY, and every trigger reading
+        # the partition it produces. The behavioural half lives in
+        # tests/test_nb_gate_columns.py, which drives a real SKIPPED row through.
+        assert "def is_skipped(" in gate_src
+        body = gate_src[gate_src.index("    recs, gripes = parsed_rows()"):]
+        assert "observed = [x for x in recs if not is_skipped(x)]" in body
+        for trigger in ("bad = [x for x in observed", "conf = [x for x in observed",
+                        "errs = [x for x in observed"):
+>           assert trigger in body, trigger
+E           AssertionError: bad = [x for x in observed
+E           assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+
+tests/test_nb_observe.py:143: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_implied_move.py::test_compute_expected_move_maps_class_share_symbol_end_to_end
+tests/test_implied_move_bounds.py::test_production_outlier_pepg_refuses_as_implausible_move_not_as_no_atm_strike
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_budget_denied_mid_fanout_gets_short_ttl
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_no_denial_gets_the_full_1h_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_dual_provider_failure_mid_fanout_gets_short_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_no_failure_gets_full_ttl
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:1340: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+  <unknown>:10: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_mobile_audit_route_validity.py:34: mobile_audit import failed: No module named 'playwright'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_off_calendar_filer_gets_the_right_quarter - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_september_filer_gets_the_right_quarter - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_future_announcements_are_excluded - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_one_quarter_is_never_claimed_twice - TypeError: TestFiscalJoin.test_one_quarter_is_never_claimed_twice.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_distinct_quarters_all_survive - TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_a_far_away_period_is_refused_not_least_wrong - TypeError: TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity] - TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_an_exception_from_fmp_falls_back_instead_of_escaping - TypeError: TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_the_real_fmp_leg_is_wired_up_end_to_end - TypeError: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_an_empty_finnhub_response_is_retried_not_accepted - TypeError: TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_gives_up_after_the_attempt_budget - TypeError: TestFinnhubPacing.test_gives_up_after_the_attempt_budget.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_no_finnhub_call_at_all_when_fmp_has_nothing - TypeError: TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_every_finnhub_call_is_actually_paced - TypeError: TestFinnhubPacing.test_every_finnhub_call_is_actually_paced.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+FAILED tests/test_launch_hardening.py::test_theme_warm_is_throttled_and_capped - AssertionError: second immediate poll should be throttled
+assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_mutation_check.py::TestRestoreGuarantee::test_the_file_is_byte_identical_after_a_detected_mutation - AssertionError: assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+FAILED tests/test_mutation_check.py::TestVerdicts::test_a_detected_mutation_passes_the_check - AssertionError: assert 'MUTATION CHECK PASSED' in '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n'
+ +  where '[1] snapshot /tmp/pytest-of-runner/pytest-0/test_a_detected_mutation_passe0/impl.py (49 bytes, sha256 1cc65c43961f)\n...already failing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n' = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').stdout
+FAILED tests/test_mutation_check.py::TestVerdicts::test_expect_red_naming_the_right_test_passes - AssertionError: assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...ing before this ran.\n[6] byte-identical restore verified (sha256 1cc65c43961f)\n\nMUTATION CHECK FAILED\n', stderr='').returncode
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py] - AssertionError: mutation_harness_contract.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py] - AssertionError: mutation_harness_flipgate.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py] - AssertionError: mutation_harness_load_model.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py] - AssertionError: mutation_harness_push_guard.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py] - AssertionError: mutation_harness_render_gate.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py] - AssertionError: mutation_harness_renderer.py has anchors that no longer match exactly once in code:
+    A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all
+assert not ['A1 scrub is a no-op: STALE (raw=0 code=0) anchor text is not in the file at all']
+FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py] - AssertionError: mutation_harness_stall_record.py: anchor_check extracted ZERO controls — that is a failed read
+assert []
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py] - AssertionError: mutation_harness_contract.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb322740>()
+ +      where <built-in method values of dict object at 0x7ff0fb322740> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py] - AssertionError: mutation_harness_flipgate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb321000>()
+ +      where <built-in method values of dict object at 0x7ff0fb321000> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py] - AssertionError: mutation_harness_load_model.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0e8961840>()
+ +      where <built-in method values of dict object at 0x7ff0e8961840> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py] - AssertionError: mutation_harness_push_guard.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0fb6ae700>()
+ +      where <built-in method values of dict object at 0x7ff0fb6ae700> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py] - AssertionError: mutation_harness_render_gate.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0f83e7f80>()
+ +      where <built-in method values of dict object at 0x7ff0f83e7f80> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py] - AssertionError: mutation_harness_stall_record.py has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a proof that did not happen would be printed and the run would still pass. If it uses a FOURTH idiom, add it here with its name rather than loosening the check: ['the `bad` list admits any non-RED verdict', 'an `ok_all` flag cleared on a bad match count', 'an `ok` flag cleared on a bad match count']
+assert False
+ +  where False = any(dict_values([False, False, False]))
+ +    where dict_values([False, False, False]) = <built-in method values of dict object at 0x7ff0e8963e40>()
+ +      where <built-in method values of dict object at 0x7ff0e8963e40> = {'an `ok_all` flag cleared on a bad match count': False, 'an `ok` flag cleared on a bad match count': False, 'the `bad` list admits any non-RED verdict': False}.values
+FAILED tests/test_mutation_harness_hygiene.py::test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write - AssertionError: mutation_harness_contract.py does not import the shared guard
+assert False
+FAILED tests/test_mutation_harness_hygiene.py::test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard - AssertionError: these instruments can write to a working-tree file and do not import the shared guard: ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'mutation_harness_stall_record.py', 'oi44_cold_paths.py', 'oi44_loop_blockers.py', 'patch_guard.py', 'w8_accuracy_audit.py']. Either call guard()/require_throwaway_worktree(), or add the file to NOT_MUTATORS with the reason it cannot leave a mutation behind.
+assert not ['arrival_census.py', 'canary_scope_readback.py', 'gate_snapshot.py', 'mutation_harness_stall_record.py', 'oi44_cold_paths.py', 'oi44_loop_blockers.py', ...]
+FAILED tests/test_nb_observe.py::test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY - AssertionError: bad = [x for x in observed
+assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+35 failed, 2138 passed, 1 skipped, 19 warnings in 236.90s (0:03:56)
