@@ -96,6 +96,11 @@
       "yields": "bool",
       "sentence": "1 on the first bar of a New York calendar day, otherwise 0 (blank on the oldest bar, which has no previous day to differ from)"
     },
+    "dayopentime": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to \"D\" -- with no session filtering (Pine's session argument, which this engine does not read here)"
+    },
     "barindex": {
       "lookback": 0,
       "yields": "num",

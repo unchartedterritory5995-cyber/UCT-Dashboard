@@ -41,7 +41,7 @@
    "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:function": 2
+   "pine:state": 2
   },
   "hiddenScaffolding": 14
  },

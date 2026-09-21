@@ -39,6 +39,7 @@ says which name and why — it never guesses a meaning.
 | `hour` | the hour of the bar on a 24-hour clock, 0 to 23, in New York time |
 | `minute` | the minute of the bar, 0 to 59, in New York time |
 | `sessionfirst` | 1 on the first bar of a New York calendar day, otherwise 0 (blank on the oldest bar, which has no previous day to differ from) |
+| `dayopentime` | the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to "D" -- with no session filtering (Pine's session argument, which this engine does not read here) |
 | `barindex` | the bar's position in the series, 0 on the oldest bar |
 | `isintraday` | 1 when the chart's timeframe is 1, 5, 15, 30 or 60 minutes, otherwise 0 |
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |

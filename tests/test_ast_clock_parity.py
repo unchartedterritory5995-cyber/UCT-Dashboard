@@ -216,10 +216,10 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
     bars = doc["non_instant_bars"]
     exp = doc["non_instant_expected"]
     time_derived = [n for n, col in exp.items() if all(v is None for v in col)]
-    # ⭐⭐ 8 -> 14 (2026-09-20): `lastbartime` + its five calendar fields read
-    # the SAME `t` the original eight do, so a fetch that fails their unit
-    # gate fails this one too.
-    assert len(time_derived) == 14, sorted(time_derived)
+    # ⭐⭐ 8 -> 15 (2026-09-20): `lastbartime` + its five calendar fields, and
+    # `dayopentime`, all read the SAME `t` the original eight do, so a fetch
+    # that fails their unit gate fails these too.
+    assert len(time_derived) == 15, sorted(time_derived)
     for name in sorted(exp):
         # ⭐ `False` EXPLICITLY — the same reasoning as the JS twin. Omit it and
         # the four realtime columns blank for want of a tri-state, which is the

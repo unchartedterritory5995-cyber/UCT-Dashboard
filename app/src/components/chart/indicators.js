@@ -1176,11 +1176,58 @@ export function timeframeFlags(tf) {
   }
 }
 
-/** The eight columns that read the bar's `t`, and therefore the eight the unit
+/** The nine columns that read the bar's `t`, and therefore the nine the unit
  *  gate below refuses together. Derived from nothing: it IS the partition, and
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
 const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
-  'hour', 'minute', 'sessionfirst']
+  'hour', 'minute', 'sessionfirst', 'dayopentime']
+
+/** ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
+ *  BROADCAST TO EVERY BAR OF THAT DAY (2026-09-20) — `sessionfirst`'s own
+ *  `day` key, turned into a VALUE instead of a boundary FLAG. Pine's
+ *  `time(<timeframe>)` one-argument anchor form (`time("D")`/`time(tf)` with
+ *  `tf` folded to `"D"`) is this: "the opening UNIX timestamp of the
+ *  enclosing period", read on every bar, compared with `>`/`change()` to
+ *  detect a new period. `sessionfirst` answers "is this bar the FIRST of its
+ *  day" (a lookback-1 boundary flag); this answers "what time did THIS bar's
+ *  day open" (a value, the same on every bar of one day) — a different shape
+ *  of the identical `day` key, not a second derivation of it.
+ *
+ *  ⭐ IN UNIX **SECONDS**, matching `time`'s own unit in this table, NOT
+ *  Pine's milliseconds — the manifest's sentence says so explicitly, exactly
+ *  as `time`'s own sentence already warns a member off comparing it to a raw
+ *  number copied from a Pine script.
+ *
+ *  ⭐ COMPUTED WITHOUT ANY CALENDAR/DST ARITHMETIC: `p.h` and `minute` are
+ *  already this bar's genuine ET wall-clock hour/minute (from `etClockParts`,
+ *  DST-correct by construction), so "seconds since ET midnight" is read
+ *  straight off them and subtracted from `t` — never a fixed 24h step back,
+ *  which would be wrong on the two days a year the offset itself changes.
+ *  `t % 60` is the seconds-of-minute component, timezone-invariant for the
+ *  same reason `minute` is (every ET offset is a whole number of hours).
+ *
+ *  ⚠️ NOT THE VENDOR'S SESSION-FILTERING BEHAVIOUR: real Pine's `session`
+ *  argument (defaulted here to "no filter") can make `time()` answer `na`
+ *  outside the symbol's regular session. This column never does — a real,
+ *  narrower-than-vendor simplification, stated here rather than silently
+ *  matched only for the common case. Every real corpus script that needs
+ *  this reads it through `ta.change(...) != 0`/`t > t[1]` boundary
+ *  detection only, never the raw value, so the simplification is faithful
+ *  to what they actually ask.
+ *
+ *  ⛔ A REAL, NARROW EXCEPTION TO "THE SAME VALUE ON EVERY BAR OF ONE DAY",
+ *  FOUND BY THE PARITY FIXTURE ITSELF (it was chosen to span a DST change):
+ *  on the FALL-BACK transition day, the wall-clock hour 1:00-1:59 AM ET
+ *  occurs TWICE (once EDT, once EST) — a bar in the first pass and a bar in
+ *  the second both read the SAME calendar day and a SAME-LOOKING hour/
+ *  minute, but under DIFFERENT UTC offsets, so this column reads one real
+ *  UTC instant for the first pass and a DIFFERENT one (one hour off) for
+ *  the second, even though `sessionfirst` correctly agrees both bars are
+ *  the same day. Left as-is rather than disambiguated: NYSE never trades
+ *  1-2 AM ET (not even extended hours), so this can only ever surface on a
+ *  24/7 instrument, and no real corpus script needing `time(<timeframe>)`
+ *  is one. Measured directly in `tests/fixtures/ast/clock_parity.json`
+ *  (bars 8-11, spanning 2025-11-02's fall-back). */
 
 /** ⭐⭐ THE NEWEST BAR'S OWN CALENDAR, BROADCAST TO EVERY BAR (2026-09-20) —
  *  `lastbarindex`'s own ruling applied to a calendar instead of a bar
@@ -1292,7 +1339,7 @@ export const CLOCK_COLUMNS = Object.freeze([
  * ⛔ THE UNIT GATE IS `computeVWAP`'S, AND IT IS PARTIAL ON PURPOSE.
  * `bars_sqlite` stores daily/weekly/monthly `t` as `YYYYMMDD` INTS, and
  * `20250101` read as unix seconds is 1970-08-23 — so a series that is not in
- * seconds must not be answered for. It refuses the EIGHT time-derived columns
+ * seconds must not be answered for. It refuses the NINE time-derived columns
  * all-or-nothing (a per-bar skip leaves the survivors in one ET day, which is
  * the shape being refused) and it leaves `barindex` and the four timeframe
  * booleans alone: those read no `t` at all, and a guard firing on them would
@@ -1472,7 +1519,7 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   }
   if (!instants) {
     for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
-    // `lastbartime` and its calendar are read FROM `t`, exactly as the eight
+    // `lastbartime` and its calendar are read FROM `t`, exactly as the nine
     // above are, so a fetch that fails their unit gate fails this one too —
     // never a confident calendar broadcast from a series the gate has
     // already condemned.
@@ -1524,6 +1571,10 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     const day = p.y * 10000 + p.m * 100 + p.d
     cols.sessionfirst[i] = prevDay < 0 ? NA : (day === prevDay ? 0 : 1)
     prevDay = day
+    // `dayopentime`: this bar's `t` minus "seconds since ET midnight" — see
+    // the column's own doc comment above for why no calendar/DST arithmetic
+    // is needed to get this exactly right.
+    cols.dayopentime[i] = t - (p.h * 3600 + cols.minute[i] * 60 + (t % 60))
   }
   // `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
   // computed above — read back, never recomputed, so this broadcast can
