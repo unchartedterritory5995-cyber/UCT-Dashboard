@@ -6097,9 +6097,14 @@ export default function StockChart({
     _depthKeyRef.current = _depthKey
     // T0 — a new (symbol, timeframe) load begins. Inert unless the diagnostic flag
     // is on; see utils/intradayTiming.js.
+    // ⚠️ NOTHING FROM THE IDB STATE MAY BE READ HERE. This block runs during
+    // render, ABOVE `const [idbBars] = useState(...)`, so touching it is a temporal
+    // dead zone — `ReferenceError: Cannot access 'idbBars' before initialization`,
+    // thrown on EVERY mount. Neither `no-undef` nor the production build sees it
+    // (the identifier exists, just not yet); only a mount test does. Cache state is
+    // recorded at T1 instead, where it is genuinely in scope.
     _timingIdRef.current = timingStart(sym, resolvedTf, {
       session: showExtended ? 'extended' : 'rth',
-      cache: (idbBars?.length ? 'client-warm' : 'cold'),
     })
     if (fetchDepth !== _fpBars) setFetchDepth(_fpBars)
     if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
@@ -6709,7 +6714,10 @@ export default function StockChart({
     if (_timingIdRef.current) {
       const _rows = data.bars
       const _tail = _rows.length ? _rows[_rows.length - 1]?.t : null
-      timingMark(_timingIdRef.current, 'T1', { historyEnd: _tail })
+      timingMark(_timingIdRef.current, 'T1', {
+        historyEnd: _tail,
+        cache: (idbBars?.length ? 'client-warm' : 'cold'),
+      })
       const _merged = typeof idbSinceRef.current === 'number' ? idbSinceRef.current : _tail
       if (typeof _merged === 'number' && classifyIntradayTail(_merged, resolvedTf) === 'fresh') {
         timingMark(_timingIdRef.current, 'T3', { tailEnd: _merged })
