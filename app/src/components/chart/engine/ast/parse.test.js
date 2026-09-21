@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 26 clock, 15 operators, 75 functions and 137 scalars — 258 names, one grammar', () => {
+  it('declares 5 series, 27 clock, 15 operators, 75 functions and 137 scalars — 259 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -475,7 +475,10 @@ describe('the manifest', () => {
     // `timenow` (a live wall clock a static translator has no instant for).
     // All six ride the EXISTING `series` node and add no argument `interpret`
     // did not already have, so `tableVersion` is unmoved at 2.
-    expect(Object.keys(TABLE.clock)).toHaveLength(26)
+    // ⭐ 26 -> 27 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
+    // key turned into a value, the anchor for Pine's `time(<timeframe>)`
+    // one-argument form when the timeframe folds to "D". Same `series` node.
+    expect(Object.keys(TABLE.clock)).toHaveLength(27)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -674,9 +677,12 @@ describe('the manifest', () => {
     // ⭐⭐ 120 -> 121 IS `valuewhenOccurrence` (2026-09-20) -- see the
     // functions-count note above. Scalar half untouched at 137, which is
     // what makes the total 258, not 259.
-    expect(bar.size).toBe(121)
+    // ⭐ 121 -> 122 IS `dayopentime` (2026-09-20) -- see the clock-count note
+    // above. Scalar half untouched at 137, which is what makes the total
+    // 259, not 260.
+    expect(bar.size).toBe(122)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(258)
+    expect(declared.size).toBe(259)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

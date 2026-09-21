@@ -309,7 +309,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # via the existing `int`-kind mechanism -- no new node type, argument kind
     # or lookback form (`lookback: "series"` already exists for `cum`). The
     # scalar half is untouched at 137.
-    assert len(ast_table.bar_names()) == 121, len(ast_table.bar_names())
+    # ⭐ 121 -> 122 (2026-09-20): `dayopentime`, `sessionfirst`'s own `day` key
+    # turned into a value -- this engine's answer for Pine's
+    # `time(<timeframe>)` one-argument form when it folds to "D". Bound via
+    # the existing `series` clock-leaf mechanism -- no new node type,
+    # argument kind or lookback form. The scalar half is untouched at 137.
+    assert len(ast_table.bar_names()) == 122, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -350,7 +355,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # scalar half is untouched at 137; this is their sum.
     # 257 -> 258 (2026-09-20): `valuewhenOccurrence`. The bar half moved
     # 120 -> 121, the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 258, f"the table declares {len(declared)} names, not 258"
+    # 258 -> 259 (2026-09-20): `dayopentime`. The bar half moved 121 -> 122,
+    # the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 259, f"the table declares {len(declared)} names, not 259"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

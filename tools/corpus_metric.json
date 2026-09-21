@@ -2,7 +2,7 @@
   "measured_at": "2026-09-20",
   "scripts": 266,
   "host_ok": 36,
-  "screener_ok": 49,
+  "screener_ok": 50,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -764,12 +764,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:state",
-        "pine:function"
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:state",
-        "pine:function"
+        "pine:state"
       ]
     },
     {
@@ -844,13 +842,11 @@
     {
       "file": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:function",
         "pine:statement"
       ],
       "screenerGuards": [
-        "pine:function",
         "pine:statement",
         "pine:window-dependent"
       ]
@@ -1828,10 +1824,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:reassign"
       ]
     },
     {

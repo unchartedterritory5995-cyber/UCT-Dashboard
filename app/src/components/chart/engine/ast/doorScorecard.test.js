@@ -95,6 +95,21 @@ const RULED = {
     'x[1] + x[2] is Fibonacci: it grows without bound and genuinely never forgets '
     + 'its seed, so the bounded accumulator refuses it correctly',
 
+  // ⭐ ADDED 2026-09-20, ARRIVED HERE FROM `time`'s SIDE. `time(i_range_1)`
+  // (`i_range_1` folds to "D") now translates onto the new `dayopentime`
+  // clock entry, which exposed this script's REAL next blocker for the
+  // first time: `is_near_since_back`'s `for i = 0 to far by 1` loop. Unlike
+  // `27`/`28` above, `far` IS a compile-time literal (25) here, not an
+  // array-walked trip count — but this engine's `pine:block` guard refuses
+  // EVERY multi-statement `for` block unconditionally; it does not attempt
+  // to unroll even a constant bound. Unrolling a constant-bound loop is a
+  // real, general, separate capability (nothing about `time()` or this
+  // script specifically) and not this ruling's to open.
+  '25-spy-expected-move-by-vix.pine':
+    'is_near_since_back loops with `for i = 0 to far by 1`; this engine has no '
+    + 'multi-statement block support at all, so even a compile-time-constant trip '
+    + 'count cannot fold into one expression',
+
   // ⭐⭐ FIVE ADDED 2026-08-30, after every OPEN script was adjudicated. ⛔ THE BAR
   // WAS NOT "hard" — it was "refuses on a principle no amount of data or code can
   // retire". Four further candidates were REJECTED from this table in the same

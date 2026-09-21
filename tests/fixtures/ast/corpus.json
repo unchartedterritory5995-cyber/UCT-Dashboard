@@ -2329,6 +2329,15 @@
       }
     },
     {
+      "id": "clock_dayopentime",
+      "source": "dayopentime",
+      "why": "⭐ `sessionfirst`'s own `day` key, turned into a VALUE instead of a boundary flag -- the opening UNIX-SECONDS timestamp of the ET calendar day this bar falls in, the same value on every bar of that day. This engine's answer for Pine's `time(<timeframe>)` one-argument anchor form when the timeframe argument folds to `\"D\"` -- `pine.js::resolveTableCall` reaches this entry only through that redirect, never a bare Pine spelling. See `closedTable.json::clock.dayopentime` for the full argument (no calendar/DST arithmetic, no session filtering).",
+      "ast": {
+        "type": "series",
+        "name": "dayopentime"
+      }
+    },
+    {
       "id": "clock_barindex",
       "source": "barindex",
       "why": "the bar's position in the series, 0 on the oldest. The one clock column that reads no timestamp at all, so it is also the control: it must still be right on a series whose `t` the unit gate refuses, and a lane that folded it into the gate would answer all-null",
