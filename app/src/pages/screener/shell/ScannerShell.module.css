@@ -191,6 +191,20 @@
 .flaggedClear { width: 100%; text-align: left; background: none; border: none; color: var(--text-muted);
   cursor: pointer; font-size: 11.5px; padding: 6px 8px; margin-top: 4px; border-radius: 5px; }
 .flaggedClear:hover { color: var(--color-danger, #f87171); background: var(--bg-hover); }
+
+/* The Type filter's Include/Exclude multi-select (TypeFilterControl). */
+.typeCtl { padding: 4px 8px 8px; }
+.typeToggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; margin-bottom: 8px; }
+.typeToggleBtn { font-family: inherit; font-size: 11.5px; padding: 5px 12px; min-height: 28px;
+  background: var(--bg-elevated); border: none; color: var(--text-muted); cursor: pointer; }
+.typeToggleBtn + .typeToggleBtn { border-left: 1px solid var(--border); }
+.typeToggleOn { background: var(--ut-gold); color: #141207; font-weight: 600; }
+.typeOpts { display: flex; flex-direction: column; gap: 2px; }
+.typeOpt { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text);
+  cursor: pointer; padding: 4px 2px; border-radius: 5px; }
+.typeOpt:hover { background: var(--bg-hover); }
+.typeOpt input { accent-color: var(--ut-gold); width: 15px; height: 15px; }
 .dotLive, .dotStatic { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .dotLive { background: var(--ut-gold); }
 .dotStatic { border: 1px solid var(--text-muted); background: transparent; }

@@ -708,7 +708,7 @@ FILTERS = dict([
 _VALID_OPS = {
     "range": {"gte", "lte", "between", "gt", "lt", "eq",
               "gt_col", "gte_col", "lt_col", "lte_col"},
-    "enum": {"eq", "in", "contains"},
+    "enum": {"eq", "in", "not_in", "contains"},
     "bool": {"eq"},
 }
 
@@ -881,7 +881,22 @@ VIEWS = {
         "inside_bar_run", "nr7", "vol_ratio", "chg_pct_1d"]},
 }
 
+# ── The Type filter (instrument class) ──────────────────────────────────────
+# A member-facing Include/Exclude control over `security_type` (Stock / ADR /
+# ETF), the coarse bucket the snapshot stamps from the universe generator's type
+# map. `control: "typeset"` tells the rail to render the dedicated multi-select
+# instead of the standard single-value <select>; `options` are the buckets the
+# rows actually carry. Include = `{op:"in", values:[…]}`, Exclude =
+# `{op:"not_in", values:[…]}`.
+_st_key, _st_spec = _enum("security_type", "Type", "type", "security_type",
+                          [{"label": "Any"}])
+_st_spec["control"] = "typeset"
+_st_spec["options"] = ["Stock", "ADR", "ETF"]
+FILTERS[_st_key] = _st_spec
+
+
 CATEGORIES = [
+    {"key": "type", "label": "Type"},
     {"key": "descriptive", "label": "Descriptive"},
     {"key": "fundamental", "label": "Fundamental"},
     {"key": "performance", "label": "Performance"},
@@ -1214,6 +1229,12 @@ def meta(user_id=None) -> dict:
                  "category": f["category"], "type": f["type"],
                  "presets": presets, "allow_custom": f["allow_custom"],
                  "unit": f["unit"]}
+        # A custom control (e.g. the Type filter's Include/Exclude multi-select)
+        # rides beside the standard fields; the rail picks the renderer off it.
+        if f.get("control"):
+            entry["control"] = f["control"]
+        if f.get("options"):
+            entry["options"] = list(f["options"])
         if f["type"] == "range":
             band = bands.get(f["column"])
             if band is not None:

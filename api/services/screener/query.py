@@ -561,6 +561,17 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             if vals:
                 clauses.append(f"{col} IN ({','.join('?' for _ in vals)})")
                 params.extend(vals)
+        elif op == "not_in":
+            # Exclude: keep rows whose value is none of `values`. A NULL value is
+            # NULL under `NOT IN`, so it would be dropped — but "exclude ETFs"
+            # must not silently also drop a row whose type we simply do not hold,
+            # so the NULL is kept explicitly. (Include's `IN` has the opposite,
+            # correct default: an unknown type is not one of the chosen buckets.)
+            vals = f.get("values") or []
+            if vals:
+                ph = ",".join("?" for _ in vals)
+                clauses.append(f"({col} NOT IN ({ph}) OR {col} IS NULL)")
+                params.extend(vals)
         elif op == "contains":
             clauses.append(f"{col} LIKE ?"); params.append(f"%{f['value']}%")
         else:
