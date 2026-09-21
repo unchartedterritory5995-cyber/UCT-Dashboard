@@ -1273,6 +1273,31 @@ async def push_breadth_snapshot(request: Request):
 
     invalidate_analogues_cache()
 
+    # ⭐⭐ THE CANONICAL NAAIM APPEND. The collector's accepted weekly NAAIM value and
+    # the NAAIM chart must be ONE truth — a tile and a chart that each found the number
+    # themselves is precisely the split-brain this hook exists to prevent. So the moment
+    # a snapshot carrying NAAIM is accepted here, that same observation lands in
+    # `naaim_store`, which is what the chart reads.
+    #
+    # ⛔ THE ACCEPT GATE LIVES IN THE STORE, NOT HERE. `naaim_store.ingest` refuses the
+    # morning-wire placeholder (undated 75.0), refuses a frozen undated feed, refuses a
+    # value outside NAAIM's published −200..+200 range, and refuses an inferred date
+    # overwriting a real one — and it RECORDS every refusal with its reason. Duplicating
+    # any of that here would be a second authority over what counts as an observation.
+    #
+    # ⚠️ BEST-EFFORT, NEVER FATAL. Breadth ingestion is the load-bearing path; a market
+    # indicator failing to append must not reject a snapshot the Monitor needs.
+    try:
+        _naaim_value = metrics.get("naaim")
+        if _naaim_value is not None:
+            from api.services.market_indicators import naaim_store as _naaim
+            _naaim.ingest(_naaim_value,
+                          observed_on=metrics.get("naaim_date"),
+                          seen_on=date_str,
+                          source=_naaim.SOURCE_COLLECTOR)
+    except Exception:
+        pass
+
     # Warm bars for every ticker in every _list field of this snapshot so
     # Breadth drill charts load instantly for the new day's data.
     try:

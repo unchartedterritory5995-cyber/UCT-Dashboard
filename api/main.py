@@ -8417,6 +8417,12 @@ app.include_router(discord_interactions_router.router)
 app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
+# Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.
+# ⚠️ Its `/api/market-indicators/{series_id:path}` is a greedy catch-all, so the two
+# fixed sub-paths (`/search`, `/status`) are declared BEFORE it inside that router and
+# nothing outside shares the prefix. Same trap `/live/drill/{metric_key}` hit.
+from api.routers import market_indicators as market_indicators_router  # noqa: E402
+app.include_router(market_indicators_router.router)
 app.include_router(theme_performance_router.router)
 from api.routers import theme_sets as theme_sets_router  # per-user custom theme sets
 app.include_router(theme_sets_router.router)

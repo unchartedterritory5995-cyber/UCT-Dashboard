@@ -1165,3 +1165,53 @@ export function symbolLibraryRow(res) {
     sessionOnly: false, tier: null, measuredRepaint: null, repaintingPlots: [],
   }
 }
+
+/**
+ * MARKET INDICATOR ROWS → discovery results, through the shapers that already exist.
+ *
+ * ⭐⭐ NO NEW TAB, NO NEW RESULT KIND, NO NEW CREATE DOOR. The Indicators panel's
+ * five-tab strip is an accepted model with a fixed shell width — eight tabs needed
+ * 509px against 386, which is why three were removed — so a sixth would re-open a
+ * navigation decision the owner already made. A market indicator is instead filed by
+ * WHAT IT IS, using the taxonomy `tabOf` already applies:
+ *
+ *   volatility (a published Cboe index)  → `kind: 'security'`, `category: 'index'`
+ *                                          → the **Indexes** tab, where an index belongs
+ *   everything else (McClellan, breadth- → `kind: 'breadth'`
+ *   derived, survey)                       → the **Breadth** tab, the market-internals door
+ *
+ * ⛔ AND THE FAMILY LABEL IS CARRIED AS THE CATEGORY, so "McClellan" and
+ * "Sentiment & Positioning" appear as the group heading a member reads even though
+ * both live under one tab. That is the owner's family model expressed as DATA rather
+ * than as a second UI.
+ *
+ * ⚠️ DORMANT ROWS NEVER ARRIVE HERE. `/api/market-indicators` returns them in a
+ * separate `dormant` array that the hook does not index, so NYMO cannot be shaped
+ * into a result and cannot be clicked.
+ */
+export function marketIndicatorResults(rows, { tf, bars } = {}) {
+  const vol = []
+  const internals = []
+  for (const row of (Array.isArray(rows) ? rows : [])) {
+    if (!row || !row.symbol) continue
+    if (row.source_type === 'volatility') {
+      vol.push({ ticker: row.symbol, name: row.display, type: 'index', exchange: 'CBOE' })
+      continue
+    }
+    internals.push({
+      symbol: row.symbol,
+      name: row.display,
+      short_name: row.short,
+      // ⚠️ `legacy: true` SUPPRESSES THE UNIVERSE BADGE, and that is right for every
+      // row here: `US · McClellan Oscillator` already states its universe in the name
+      // the naming rules produced, so a second "US" chip beside it is noise. A breadth
+      // library row differs — its name is the metric alone.
+      legacy: true,
+      group_label: row.family_label,
+      presentation: row.presentation,
+      domain: row.domain,
+    })
+  }
+  return [...breadthResults(internals, { tf, bars }),
+          ...securityResults(vol, { tf, bars })]
+}
