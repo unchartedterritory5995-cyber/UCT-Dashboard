@@ -4737,6 +4737,30 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_breadth_sentiment_seed, daemon=True,
                          name="breadth_sentiment_seed").start()
 
+    # ⭐ THE CANONICAL NAAIM SERIES gets the same treatment, from its own CSV.
+    #
+    # ⛔⛔ WITHOUT THIS THE SERIES SHIPS EMPTY. `naaim_store` is what the CHART reads;
+    # the weekly collector push appends to it one observation at a time, so a fresh pod
+    # would serve a published indicator with nothing in it until months of pushes had
+    # accumulated. `api/data/naaim_history.csv` is version-controlled for exactly this
+    # reason — it is the history, not a convenience.
+    #
+    # ⚠️ SEPARATE FROM THE SEED ABOVE, DELIBERATELY. `breadth_sentiment_history` feeds
+    # the Monitor's sentiment block; this feeds the chartable series. They are two stores
+    # with two schemas and two accept gates, and collapsing them would make the chart's
+    # point-in-time semantics depend on a table that has none.
+    if os.environ.get("MARKET_INDICATORS_SEED", "1") != "0":
+        def _naaim_series_seed():
+            try:
+                from api.services.market_indicators import naaim_store as _ns
+                res = _ns.seed_from_bundled_csv()
+                print(f"[startup] naaim series seed: {res}")
+            except Exception as e:
+                print(f"[startup] naaim series seed error (non-fatal): {e}")
+
+        threading.Thread(target=_naaim_series_seed, daemon=True,
+                         name="naaim_series_seed").start()
+
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
     # current + prior days are always accurate. Boot pass fixes any leftover bad

@@ -243,3 +243,40 @@ def test_a_push_carrying_the_placeholder_leaves_the_series_untouched(isolated_st
               source=ns.SOURCE_COLLECTOR)                      # the placeholder
     assert ns.bounds()["count"] == 1
     assert ns.latest()["value"] == pytest.approx(64.0)
+
+
+# ── The series must not ship EMPTY ───────────────────────────────────────────
+
+def test_the_bundled_history_is_actually_wired_into_boot():
+    """⛔⛔ THE FUNCTION EXISTING IS NOT THE FUNCTION RUNNING.
+
+    `seed_from_bundled_csv` was written, tested and documented — and called from
+    nowhere. `naaim_store` is what the CHART reads, so a fresh pod would have served
+    a PUBLISHED indicator with nothing in it, filling one observation per week as the
+    collector pushed, and every test here would still have passed.
+
+    ⚠️ ASSERTED AGAINST `api/main.py`'s SOURCE, because the thing under test is the
+    WIRING. Importing the module and checking a symbol exists is what missed it.
+    """
+    import inspect
+    import api.main as main
+    src = inspect.getsource(main)
+    assert "naaim_store" in src, "nothing in main.py mentions the canonical NAAIM store"
+    i = src.index("_naaim_series_seed")
+    block = src[i:i + 700]
+    assert "seed_from_bundled_csv" in block, "the boot hook must seed from the CSV"
+    # and it must be started, not merely defined
+    assert "threading.Thread(target=_naaim_series_seed" in src
+    assert ".start()" in src[src.index("threading.Thread(target=_naaim_series_seed"):][:300]
+
+
+def test_the_bundled_csv_is_present_and_parses():
+    """The seed is only as real as the file it reads."""
+    import csv
+    import os
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "api", "data", "naaim_history.csv")
+    assert os.path.exists(p), "api/data/naaim_history.csv must be version-controlled"
+    with open(p, newline="", encoding="utf-8") as fh:
+        rows = [r for r in csv.DictReader(fh)]
+    assert len(rows) > 100, f"only {len(rows)} rows — the seed would be nearly empty"
