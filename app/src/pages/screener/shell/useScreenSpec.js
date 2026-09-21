@@ -89,7 +89,26 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   const setView = useCallback(k => { setViewState(k); setColumnsState(null); setPage(1) }, [])
   const setColumns = useCallback(c => { setColumnsState(c?.length ? c : null); setPage(1) }, [])
   const applySpec = useCallback(s => {
-    setFilters(specToFilters(s))
+    setFilters(prev => {
+      const next = specToFilters(s)
+      // ⭐ THE CHOSEN POOL SURVIVES A SCAN. A preset / saved scan carries its
+      // conditions (RS, price, structure…) but is pool-agnostic — the member has
+      // already picked Global Universe / UCT Universe / Watchlist / Combo, so that
+      // selection is kept UNLESS the incoming spec names its own pool. This is
+      // what lets a scan run WITHIN a watchlist or a combo instead of resetting
+      // the pool to the whole market.
+      //
+      // ⛔ THE POOL IS ATOMIC. `universe` and `list` are the two reserved pool
+      // keys and they are MUTUALLY EXCLUSIVE (UniverseBar clears one when it sets
+      // the other). So if the incoming spec names EITHER, it owns the pool whole
+      // and the current one is dropped; only when it names NEITHER do we carry
+      // the member's selection forward.
+      const POOL_KEYS = ['universe', 'list']
+      if (!POOL_KEYS.some(k => next[k])) {
+        for (const k of POOL_KEYS) if (prev[k]) next[k] = prev[k]
+      }
+      return next
+    })
     if (s?.view) setViewState(s.view)
     // Copy, never alias: the spec belongs to the caller (a saved row in the SWR
     // cache, a fetched shared screen) — aliasing `sort`/`columns` into state
