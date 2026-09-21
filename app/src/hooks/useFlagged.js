@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react'
+import { AuthContext } from '../context/AuthContext'
 
 const STORAGE_KEY = 'uct_flagged'
 const SYNC_EVENT  = 'uct:flagged-changed'
@@ -27,7 +27,12 @@ export function useFlagged() {
   const [flagged, setFlagged] = useState(read)
   const [isShared, setIsShared] = useState(false)
   const [flaggedName, setFlaggedName] = useState(null) // null = use default
-  const { user } = useAuth()
+  // Defensive: `useContext` (not `useAuth`) so a consumer rendered outside an
+  // AuthProvider — e.g. a unit test of a result row — gets `user = undefined`
+  // and the server-sync guards below simply no-op, instead of throwing. In the
+  // app this is always inside the provider, so behaviour is unchanged.
+  const ctx = useContext(AuthContext)
+  const user = ctx?.user
   const timerRef = useRef(null)
   const mountedRef = useRef(true)
 
@@ -110,6 +115,13 @@ export function useFlagged() {
     syncToServer()
   }, [syncToServer])
 
+  // Clear every flag at once — used after the screener moves a flagged batch into
+  // a watchlist, so the staging set empties in one write (not N events).
+  const clearAll = useCallback(() => {
+    write([])
+    syncToServer()
+  }, [syncToServer])
+
   // ⛔ THIS IS CALLED ONCE PER ROW, PER RENDER, AND THE LIST RE-RENDERS EVERY
   // QUOTE TICK. It used to be `read().includes(sym)` — a `localStorage.getItem`
   // plus a `JSON.parse` plus an O(k) scan, per row. On a 1,872-row Russell 2000
@@ -156,5 +168,5 @@ export function useFlagged() {
     }).catch(() => {})
   }, [user])
 
-  return { flagged, toggle, remove, isFlagged, isShared, toggleShare, flaggedName, renameFlagged }
+  return { flagged, toggle, remove, clearAll, isFlagged, isShared, toggleShare, flaggedName, renameFlagged }
 }

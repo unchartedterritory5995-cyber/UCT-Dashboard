@@ -61,8 +61,45 @@ def test_build_keeps_only_common_and_adr_drops_etf_pfd_etc(tmp_path, monkeypatch
 
     out = su.build_and_save(min_shares=1000, sessions=1)
     assert out["ok"] is True
-    assert out["kept_type"] == 2
+    assert out["reference_cs_adr"] == 2
     assert su.symbols() == ["AAA", "BBB"]        # ETF/PFD/WARRANT gone
+
+
+def test_build_keeps_curated_core_names_the_reference_ENUMERATION_MISSED(tmp_path, monkeypatch):
+    # Regression: `list_reference_tickers` is incomplete (real names like AL/AMWD
+    # are absent from it), so a cap_universe common stock the reference omits must
+    # still be kept — the reference alone is NOT the universe.
+    monkeypatch.setenv("SCREENER_UNIVERSE_PATH", str(tmp_path / "out.json"))
+    monkeypatch.setattr("api.services.massive.list_reference_tickers", _fake_ref([
+        {"ticker": "NEWADR", "type": "ADRC"},   # in ref → keep (traded)
+    ]))
+    monkeypatch.setattr("api.services.massive.get_grouped_daily_ohlcv",
+                        lambda day, adjusted=False: {"NEWADR": {"v": 1e6}})
+    # AL is NOT in the reference at all, but IS a curated core equity.
+    monkeypatch.setattr("api.services.cap_universe.symbols", lambda: frozenset({"AL"}))
+    monkeypatch.setattr("api.services.cap_universe.etf_symbols", lambda: frozenset())
+    monkeypatch.setattr(su, "buyout_excludes", lambda: frozenset())
+
+    out = su.build_and_save(min_shares=1000, sessions=1)
+    assert out["core_added"] == 1
+    assert su.symbols() == ["AL", "NEWADR"]      # the reference-missing core name survived
+
+
+def test_build_excludes_etfs_and_funds_even_from_core(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCREENER_UNIVERSE_PATH", str(tmp_path / "out.json"))
+    monkeypatch.setattr("api.services.massive.list_reference_tickers", _fake_ref([
+        {"ticker": "REALCS", "type": "CS"},
+        {"ticker": "ARKK", "type": "ETF"},      # reference says ETF → drop
+    ]))
+    monkeypatch.setattr("api.services.massive.get_grouped_daily_ohlcv",
+                        lambda day, adjusted=False: {"REALCS": {"v": 1e6}, "ARKK": {"v": 1e6}, "SPY": {"v": 1e6}})
+    # SPY sits in cap_universe core AND the prebuilt-ETF list → must be dropped.
+    monkeypatch.setattr("api.services.cap_universe.symbols", lambda: frozenset({"REALCS", "SPY", "ARKK"}))
+    monkeypatch.setattr("api.services.cap_universe.etf_symbols", lambda: frozenset({"SPY"}))
+    monkeypatch.setattr(su, "buyout_excludes", lambda: frozenset())
+
+    su.build_and_save(min_shares=1000, sessions=1)
+    assert su.symbols() == ["REALCS"]            # ARKK (ref ETF) + SPY (etf list) gone
 
 
 def test_build_drops_dead_shells_but_keeps_curated_core(tmp_path, monkeypatch):

@@ -23,6 +23,7 @@ import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ScreenerReviewOverlay from './ScreenerReviewOverlay'
+import FlaggedActions from './FlaggedActions'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
@@ -303,6 +304,9 @@ export default function ScannerShell({ embedded = false }) {
               </button>
             </span>
           )}
+          {/* Appears only once something is flagged; moves the flagged set into a
+              watchlist. Self-contained (owns useFlagged); safe to always mount. */}
+          <FlaggedActions />
         </div>
         {error && (
           <div className={styles.scanError} role="alert">

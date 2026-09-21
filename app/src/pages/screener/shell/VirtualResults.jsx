@@ -2,7 +2,8 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
-import PatternFeedbackChip from '../../../components/PatternFeedbackChip'
+import UIcon from '../../../components/ui/UIcon'
+import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
@@ -57,8 +58,9 @@ const rsColor = n =>
   // hub's `scrollToIndex` seam; spreading the cursor's own props onto the row it already
   // scrolls to is that seam finishing its sentence, not a second reach into the page.
 const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
+  density = 'compact', hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
   const scrollRef = useRef(null)
   /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
    * `ScannerShell` (which now owns it for every renderer) rather than living
@@ -175,13 +177,20 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
                         <span {...ta.longPressProps(row.ticker)}>
                           <TickerPopup sym={row.ticker}>{row.ticker}</TickerPopup>
                         </span>
-                        {/* Admin curation chip: hover-revealed on pointer
-                            devices so a scanned grid stays clean; always
-                            visible where hover doesn't exist (touch). */}
-                        <span className={styles.rowFb}>
-                          <PatternFeedbackChip ticker={row.ticker}
-                            setup={`scan:${view || 'screener'}`} source="scanner" compact />
-                        </span>
+                        {/* Flag while scrolling. Hover-revealed on pointer devices
+                            so a scanned grid stays clean; a FLAGGED row keeps its
+                            star lit even without hover, and touch shows it always.
+                            Feeds the shared "Flagged" set → moved to a watchlist
+                            from the underbar. Stops propagation so flagging never
+                            opens the ticker popup / row selection. */}
+                        <button type="button"
+                          className={`${styles.rowFlag} ${isFlagged(row.ticker) ? styles.rowFlagOn : ''}`}
+                          aria-pressed={isFlagged(row.ticker)}
+                          aria-label={isFlagged(row.ticker) ? `Unflag ${row.ticker}` : `Flag ${row.ticker}`}
+                          title={isFlagged(row.ticker) ? 'Flagged — click to remove' : 'Flag'}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleFlag(row.ticker) }}>
+                          <UIcon name="flag" size={12} />
+                        </button>
                       </div>
                     )
                   }
