@@ -1115,6 +1115,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     () => Object.values(listVisible).flat(),
     [listVisible],
   )
+  // Column config (persisted per-user in localStorage) — declared HERE, above the
+  // ticker sets AND the perf/theme fetches, so both can gate on which columns show.
+  //
+  // ⚠️ It moved UP from below the price merge on 2026-09-20 and the ORDER IS LOAD-
+  // BEARING: `useBulkQuotes` below asks whether a COLUMN SORT is active, and naming
+  // `colSort` (derived from this state, several hundred lines further down) in a
+  // hook argument up here would be a temporal-dead-zone ReferenceError during
+  // render. Its own invariant is unchanged — it is still above every fetch that
+  // gates on a visible column.
+  const [colCfg, setColCfg] = useState(() => {
+    // ephemeralCols (Custom-Period Sort): ALWAYS start from the caller's default columns,
+    // never a saved layout — every run shows the same column view.
+    if (ephemeralCols) return defaultColCfg || {}
+    // Saved config wins; otherwise the caller's default (the scanner seeds RVOL on +
+    // RVOL-sorted). Once the user edits columns, saveColCfg persists over this.
+    try { const s = JSON.parse(localStorage.getItem(_colKey)); if (s && typeof s === 'object') return s } catch { /* ignore */ }
+    return defaultColCfg || {}
+  })
+
   // ── TWO TICKER SETS, AND THE DIFFERENCE IS THE WHOLE POINT ──────────────────
   //
   // `listUniverse` is EVERY symbol of every open list. `allTickers` is what gets
@@ -1185,11 +1204,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
-  // The whole-list SORT VECTOR. Only fetched when a list is actually virtualized —
-  // reading 1,872 quotes to render a list in its stored order would be the request
-  // storm this change exists to remove. One slow pass (15 s, matching the server's
-  // own quote-cache TTL); the fast feed above wins for any row you can see.
-  const bulkQuotes = useBulkQuotes(listUniverse, listUniverse.length > VIRTUALIZE_MIN_ROWS)
+  // The whole-list SORT VECTOR — one slow pass at 15 s, matching the server's own
+  // quote-cache TTL. The fast feed above wins for any row you can actually see.
+  //
+  // ⛔ ONLY WHILE A COLUMN SORT IS ACTIVE, and the first browser pass is why that
+  // clause is here: with the gate on list SIZE alone, opening Russell 2000 issued
+  // 8 × 250-ticker calls immediately, with no sort set — exactly the request storm
+  // this work exists to remove. An unsorted list renders in its STORED order, which
+  // needs no quote to compute. The moment a header is clicked the vector loads (one
+  // pass, then every 15 s) and the ordering covers every member; visible rows are
+  // live either way, so the top of the list sorts at once while the tail settles.
+  const bulkQuotes = useBulkQuotes(
+    listUniverse,
+    !!colCfg.sort && listUniverse.length > VIRTUALIZE_MIN_ROWS,
+  )
   // Thematic-index rows ("$IDX:<slug>", the "UCT Thematic Indexes" prebuilt list)
   // have no Massive feed — their live daily % comes from the theme-performance
   // snapshot via a batch endpoint, fetched only when such rows are on screen.
@@ -1319,17 +1347,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
   // a company logo/monogram — they have no company logo.
   const breadth = useBreadthSymbols()
-  // Column config (persisted per-user in localStorage) — declared HERE, above the
-  // perf/theme fetches, so those can gate on which columns are shown.
-  const [colCfg, setColCfg] = useState(() => {
-    // ephemeralCols (Custom-Period Sort): ALWAYS start from the caller's default columns,
-    // never a saved layout — every run shows the same column view.
-    if (ephemeralCols) return defaultColCfg || {}
-    // Saved config wins; otherwise the caller's default (the scanner seeds RVOL on +
-    // RVOL-sorted). Once the user edits columns, saveColCfg persists over this.
-    try { const s = JSON.parse(localStorage.getItem(_colKey)); if (s && typeof s === 'object') return s } catch { /* ignore */ }
-    return defaultColCfg || {}
-  })
   const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
   // Perf batch: fetched when a legacy perf pill OR an N-day column is active. `periodchg`
   // is excluded — its value always arrives via perfOverride (the period scan), never the
@@ -1353,15 +1370,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Theme batch: only when the Theme column is shown.
   const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
 
-  // Broad, low-priority background DAILY warm of every ticker across ALL lists
-  // (incl. collapsed ones) so expanding another list is already warm. Daily-only +
-  // idle-deferred (prewarmVisibleList) — NOT all timeframes, which 503-floods the
-  // origin at market open (see prewarmVisibleList). Debounced so it settles first.
-  useEffect(() => {
-    if (!allTickers.length) return
-    const t = setTimeout(() => prewarmVisibleList(allTickers), 1200)
-    return () => clearTimeout(t)
-  }, [allTickers])
+  // ⚰️ A SECOND `prewarmVisibleList(allTickers)` STOOD HERE, debounced 1200 ms, and
+  // it is gone rather than kept. Its comment described warming "every ticker across
+  // ALL lists (incl. collapsed ones)" — but it was passed `allTickers`, which has
+  // only ever held EXPANDED lists, so it warmed exactly the same set as the effect
+  // further down and simply did it twice, 1.2 s apart. That one also passes
+  // `chartTf`, so it warms the on-screen timeframe AND daily; this one warmed daily
+  // alone. A strict subset, on a duplicate timer.
 
   // Moved here from earlier in the file — depends on `prices` and `perfData`,
   // which are declared above. Putting it earlier hits a TDZ on those consts
@@ -1550,10 +1565,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // on-screen TF), the other scan TFs into durable IDB, and the top rows promoted to
   // the sync mem cache for same-frame paint. Bounded/deferred/backpressure-guarded
   // inside prewarmVisibleList; already-warm tickers skip, so a big list can't flood.
+  //
+  // ⛔ THE INPUT USED TO BE `visibleSymsFlat`, WHICH IS THE WHOLE LIST — the name
+  // means "every row of every EXPANDED list" and predates any of this being
+  // windowed. `prewarmVisibleList` caps at 500 and queues the bars, which is why
+  // the comment above could say the warm was "bounded/deferred/backpressure-guarded"
+  // and a big list "can't flood". That was true of the BARS and not of the company-
+  // metadata call riding along with them: measured opening Russell 2000 in a real
+  // browser 2026-09-20, **245 concurrent `/api/ticker-meta/*` requests**, the
+  // slowest 14.5 s, saturating the connection pool.
+  //
+  // Both halves are fixed. `prefetchTickerMeta` now has its own queue (see that
+  // function), and the input here is the ON-SCREEN set — which is what "warm what
+  // the member is about to look at" meant in the first place. `allTickers` is
+  // already exactly that: the visible window for a virtualized list, the whole list
+  // for a short one.
   useEffect(() => {
-    if (!visibleSymsFlat.length) return
-    prewarmVisibleList(visibleSymsFlat, { chartTf: chartPeriod })
-  }, [visibleSymsFlat, chartPeriod])
+    if (!allTickers.length) return
+    prewarmVisibleList(allTickers, { chartTf: chartPeriod })
+  }, [allTickers, chartPeriod])
 
   // Same-frame scan paint: promote the ±6 arrow-nav neighbors' cached bars from
   // IndexedDB into the synchronous mem cache (zero network) so the NEXT press

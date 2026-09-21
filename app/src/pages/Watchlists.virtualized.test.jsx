@@ -73,6 +73,10 @@ function lastArg(path) {
 
 beforeEach(() => {
   hoisted.calls = []
+  // ⚠️ `saveColCfg` PERSISTS the column layout to localStorage, so a test that
+  // clicks a sort header leaves the NEXT test's list sorted — which is how the
+  // keyboard case started walking a different symbol order than it asserted.
+  try { localStorage.clear() } catch { /* private mode */ }
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
   // jsdom gives every element a zero-sized box AND ships a no-op ResizeObserver
   // (src/test-setup.js), so the virtualizer would measure a 0px viewport and render
@@ -125,12 +129,28 @@ describe('a large watchlist', () => {
     expect(streamed.length).toBeLessThan(BIG / 2)
   })
 
-  it('still asks for the WHOLE list to sort by', async () => {
+  it('asks for NOTHING extra while the list is unsorted', async () => {
+    // ⛔ An unsorted list renders in its STORED order, which needs no quote to
+    // compute. The first browser pass had this gated on list SIZE alone and measured
+    // 8 × 250-ticker calls firing on open with no sort set — the exact request storm
+    // this work exists to remove.
     render(<Watchlists embedded pickList="community:big" pickName="Russell 2000" />)
-    await waitFor(() => expect(lastArg('bulk-quotes')).toBeTruthy())
+    await waitFor(() => expect(lastArg('stream')?.length || 0).toBeGreaterThan(0))
+    expect(lastArg('bulk-quotes')).toBeNull()
+  })
+
+  it('asks for the WHOLE list the moment a column sort is active', async () => {
+    const { container } = render(<Watchlists embedded pickList="community:big" pickName="Russell 2000" />)
+    await waitFor(() => expect(container.querySelectorAll('[data-watch-sym]').length).toBeGreaterThan(0))
+
+    const header = [...container.querySelectorAll('[role=button]')]
+      .find(el => /Sort by/.test(el.getAttribute('aria-label') || ''))
+    expect(header, 'a sortable column header').toBeTruthy()
+    await act(async () => { header.click() })
 
     // ⛔ The sort universe is the LIST, never the window. If this ever narrows to the
-    // visible rows, "sort by % Change" silently starts ranking ~40 of 1,872.
+    // rendered rows, "sort by % Change" silently starts ranking ~40 of 1,872.
+    await waitFor(() => expect(lastArg('bulk-quotes')).toBeTruthy())
     expect(lastArg('bulk-quotes')).toHaveLength(BIG)
   })
 })
