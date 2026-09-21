@@ -25,16 +25,24 @@ lifecycle on its own service; it is never armed by a worker boot.
 
 ⭐ RESTART SEMANTICS, and they are the whole design:
 
-    infrastructure kills the container  -> non-zero/killed -> Railway ON_FAILURE
-                                           restarts -> we resume from checkpoints
-    pass completes                      -> DONE marker  -> exit 0 -> no restart
-    canonical data failure              -> FAILED marker -> exit 0 -> no restart
+    infrastructure kills the container  -> the platform restarts us -> we resume
+                                           from checkpoints, recomputing nothing
+    pass completes                      -> DONE marker  -> PARK, serving the ledger
+    canonical data failure              -> FAILED marker -> PARK, serving the ledger
     transient (web 502 during universe
     resolution -- the deferred defect)  -> bounded backoff retry, then FAILED
 
-Exit 0 on every terminal state is deliberate: under ON_FAILURE a non-zero exit would
-restart-loop the very failure we want a human to look at. The terminal state lives in
-the marker file and the ledger, not in the exit code.
+⛔ PARKING, NOT EXITING, IS DELIBERATE. `railway.json` sets `restartPolicyType: ALWAYS`
+for every service in this repo, so ANY exit — zero or not — is restarted. A terminal
+state that exits would therefore restart-loop the very failure a human needs to look
+at. So the runner stays up and keeps answering with its terminal state instead. The
+outcome lives in the marker file, the ledger and the HTTP endpoint, never in an exit
+code that nothing would read.
+
+⭐ It also serves `/api/health`, which is what the repo's shared `railway.json` health
+check asks for. That is why this service needs no config divergence at all beyond one
+inert `elif` in the start-command dispatcher — and it gives the progress ledger a live
+URL, so checking on a five-day job is a `curl`, not an `ssh` and a `sqlite3`.
 
 ⚠️ The ledger is derived by READING `pass_checkpoint` out of the artifact on a timer.
 Nothing in the accepted pass is instrumented, wrapped, or timed from the inside — the
@@ -219,6 +227,50 @@ def _ledger_thread(stop: threading.Event, started: str, boot_count: int) -> None
         _write_ledger("running", started, boot_count, {})
 
 
+# ---------------------------------------------------------------- status endpoint
+
+def serve_status(port: int) -> None:
+    """Answer the repo's shared health check, and publish the ledger over HTTP.
+
+    ⭐ Two jobs in one tiny server. `railway.json`'s `healthcheckPath` is `/api/health`
+    for every service built from this repo; without an answer the deploy never goes
+    live. And because it is here anyway, the progress ledger gets a URL — checking a
+    five-day job becomes a `curl`, with no ssh and no reader touching the artifact.
+    """
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):                              # noqa: N802
+            if self.path.rstrip("/") in ("/api/health", "/health"):
+                body = b'{"ok":true}'
+            else:
+                try:
+                    with open(LEDGER_PATH, "rb") as f:
+                        body = f.read()
+                except OSError:
+                    body = b'{"state":"starting"}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_a):                    # noqa: D102 - silence the noise
+            return
+
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+
+
+def _park(state: str, started: str, boots: int, extra: dict) -> int:
+    """Hold the terminal state forever rather than hand it to a restart policy."""
+    _write_ledger(state, started, boots, extra)
+    _log("PARKED in terminal state %r — the ledger and /  hold the outcome. "
+         "Nothing further will run in this container." % state)
+    while True:
+        time.sleep(3600)
+        _write_ledger(state, started, boots, extra)
+
+
 # ---------------------------------------------------------------- preflight
 
 def preflight() -> dict:
@@ -311,20 +363,22 @@ def main(argv=None) -> int:
     boots = _boot_count()
     _log("boot #%d  artifact=%s  accepted_sha=%s" % (boots, ARTIFACT, ACCEPTED_SHA))
 
+    port = int(os.environ.get("PORT") or 8080)
+    threading.Thread(target=serve_status, args=(port,), daemon=True).start()
+    _log("status endpoint listening on :%d (/api/health, / = ledger)" % port)
+
     if os.path.exists(DONE_PATH):
-        _log("DONE marker present — the pass already finished. Nothing to do.")
-        _write_ledger("done", started, boots, {})
-        return 0
+        _log("DONE marker present — the pass already finished.")
+        return _park("done", started, boots, {})
     if os.path.exists(FAILED_PATH):
         with open(FAILED_PATH, encoding="utf-8") as f:
-            _log("FAILED marker present, parking instead of restart-looping:\n" + f.read())
-        _write_ledger("failed", started, boots, {})
-        return 0
+            _log("FAILED marker present:\n" + f.read())
+        return _park("failed", started, boots, {})
 
     lease = _Lease(LOCK_PATH)
     if not lease.acquire():
-        _log("another runner holds the singleton lease — exiting without writing")
-        return 0
+        _log("another runner holds the singleton lease — this process will NOT write")
+        return _park("standby_not_lease_holder", started, boots, {})
     _log("singleton lease acquired")
 
     checks = preflight()
@@ -336,9 +390,8 @@ def main(argv=None) -> int:
             _log("  ⛔ PREFLIGHT " + p)
         with open(FAILED_PATH, "w", encoding="utf-8") as f:
             f.write(_now() + " preflight refused:\n" + "\n".join(checks["problems"]))
-        _write_ledger("failed", started, boots, {"failure": "preflight",
-                                                 "problems": checks["problems"]})
-        return 0
+        return _park("failed", started, boots, {"failure": "preflight",
+                                                "problems": checks["problems"]})
 
     if not ensure_bars_db():
         # Not a data failure — the level source simply is not here yet. Let the
@@ -367,16 +420,14 @@ def main(argv=None) -> int:
                     _log("⛔ " + msg)
                     with open(FAILED_PATH, "w", encoding="utf-8") as f:
                         f.write(_now() + " " + msg + "\n" + json.dumps(prog, indent=1))
-                    _write_ledger("failed", started, boots, {"failure": msg})
-                    return 0
+                    return _park("failed", started, boots, {"failure": msg})
                 if rc == 0:
                     with open(DONE_PATH, "w", encoding="utf-8") as f:
                         f.write(_now() + " PASS COMPLETE\n" + json.dumps(prog, indent=1))
-                    _write_ledger("done", started, boots, {})
                     _log("🏁 PASS COMPLETE — frontier %s, %s rows, %s checkpoints"
                          % (prog.get("last_session"), prog.get("rows"),
                             prog.get("checkpoints")))
-                    return 0
+                    return _park("done", started, boots, {})
                 raise RuntimeError("canonical pass returned rc=%r" % (rc,))
             except Exception as exc:                   # noqa: BLE001
                 name = type(exc).__name__
@@ -391,9 +442,8 @@ def main(argv=None) -> int:
                     with open(FAILED_PATH, "w", encoding="utf-8") as f:
                         f.write("%s exhausted %d retries\n%s"
                                 % (_now(), MAX_TRANSIENT_RETRIES, tb))
-                    _write_ledger("failed", started, boots,
-                                  {"failure": name, "traceback": tb[-2000:]})
-                    return 0
+                    return _park("failed", started, boots,
+                                 {"failure": name, "traceback": tb[-2000:]})
                 delay = BACKOFF_SECONDS[min(attempt, len(BACKOFF_SECONDS) - 1)]
                 _write_ledger("retrying", started, boots,
                               {"last_error": name, "retry_in_seconds": delay})
