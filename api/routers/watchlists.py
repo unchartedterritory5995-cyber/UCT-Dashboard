@@ -1,6 +1,6 @@
 """Watchlist API — per-user watchlists with public sharing."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from typing import Optional
 
@@ -8,9 +8,24 @@ from api.middleware.auth_middleware import get_current_user
 from api.services import watchlist_service
 from api.services.watchlist_performance import get_batch_returns
 from api.services.auth_db import get_connection
+import hashlib
 import json
 
 router = APIRouter()
+
+# ⛔ HOW MANY SYMBOLS A LIST-OPEN MAY WARM. `warm_bars_async`'s own docstring says
+# "Caller should pass a SHORT list (≤30)" and its pool is max_workers=4 — but both
+# call sites below passed the WHOLE list. That was survivable only because nothing
+# routed a large list through them; the moment the picker fetches membership from
+# `GET /api/watchlists/{wl_id}`, opening Russell 2000 becomes 1,872 symbols × 8,000
+# daily bars queued on the web pod. See the OOM and write-lock incidents this repo
+# has already paid for. A member's own list (a few dozen names) is warmed exactly as
+# before; an index list warms its head and no more.
+#
+# This is a CEILING, not a prefetch strategy. Warming the first 30 of a $-volume-
+# sorted index list is merely harmless; warming what the member is about to click
+# is Phase 3's job, and belongs on the navigation path, not on list-open.
+_WARM_MAX = 30
 
 
 class WatchlistCreate(BaseModel):
@@ -56,7 +71,7 @@ def get_flagged(user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (result.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
+            warm_bars_async(tickers[:_WARM_MAX], tf="D", bars=8000)
     except Exception:
         pass
     return result
@@ -196,26 +211,38 @@ def list_public(user: dict = Depends(get_current_user)):
 
 
 @router.get("/api/watchlists/prebuilt")
-def list_prebuilt(user: dict = Depends(get_current_user)):
+def list_prebuilt(
+    request: Request,
+    include_items: bool = True,
+    user: dict = Depends(get_current_user),
+):
     """Admin-curated UCT watchlists (the picker's Prebuilt tab). Any logged-in user.
 
     Each row is tagged with its `category` (the section it appears under in the picker),
-    resolved from the committed prebuilt config."""
-    rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
+    resolved from the committed prebuilt config.
+
+    `?include_items=0` omits every list's members and returns metadata + `item_count`
+    only — what the picker actually draws. See `list_prebuilt_watchlists` for the
+    measured 607 KB / 4,704-row cost the full mode pays to render 33 names, and
+    `_WARM_MAX` above for the landmine that moving membership off this route arms.
+
+    Caching: the catalogue is derived from files that change MONTHLY (the refresh
+    cron) and weekly (Sunday Scans), so it carries an ETag over the exact bytes and
+    a short `private` max-age. `private` is mandatory, never `public` — the response
+    is cookie-authenticated and `owner_name` is per-row identity."""
+    rows = watchlist_service.list_prebuilt_watchlists(limit=1000, include_items=include_items)
     try:
         from api.services.watchlist_prebuilt import (
-            category_map, sample_map, category_order, issue_date_map, alias_map,
+            category_map, category_order, issue_date_map, alias_map,
             _DEFAULT_CATEGORY,
         )
         cats = category_map()
-        samples = sample_map()
         order = category_order()
         dated = issue_date_map()
         aliases = alias_map()
         for r in rows:
             key = (r.get("name") or "").strip().lower()
             r["category"] = cats.get(key, _DEFAULT_CATEGORY)
-            r["sample"] = samples.get(key, [])
             if dated.get(key):
                 r["issue_date"] = dated[key]     # 'YYYY-MM-DD' — only the dated archive lists
             if aliases.get(key):
@@ -236,7 +263,13 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
         ))
     except Exception:
         pass
-    return rows
+
+    body = json.dumps(rows, separators=(",", ":"), default=str).encode()
+    etag = '"wlpb-%s"' % hashlib.md5(body).hexdigest()
+    headers = {"Cache-Control": "private, max-age=300", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.post("/api/watchlists")
@@ -245,7 +278,24 @@ def create_watchlist(body: WatchlistCreate, user: dict = Depends(get_current_use
 
 
 @router.get("/api/watchlists/{wl_id}")
-def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
+def get_watchlist(
+    request: Request,
+    wl_id: str,
+    slim: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """One list and its members. This is the MEMBERSHIP endpoint the picker now calls
+    on selection, once the directory stopped carrying every list's members.
+
+    `?slim=1` trims each item to `{id, sym, notes}` — dropping `watchlist_id`
+    (repeated once per row: 1,872 times for Russell 2000), `added_at` and
+    `sort_order`, none of which any client reads. `id` stays because it is the row's
+    React key and the handle for note/delete on a list the member owns; `notes` stays
+    because the row renders it. Ordering is unchanged — `sort_order` still drives the
+    SQL, it just no longer rides the wire. Russell 2000: ~253 KB → ~85 KB.
+
+    Membership is deliberately NOT enriched here. A member gets "this list contains
+    these symbols" without waiting on a quote, a logo, or a fundamental."""
     wl = watchlist_service.get_watchlist(wl_id, user["id"])
     if not wl:
         raise HTTPException(status_code=404, detail="Watchlist not found")
@@ -253,10 +303,25 @@ def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
+            # ⛔ BOUNDED. See _WARM_MAX — this line used to pass the whole list, and
+            # this route is now how a 1,872-symbol index list is opened.
+            warm_bars_async(tickers[:_WARM_MAX], tf="D", bars=8000)
     except Exception:
         pass
-    return wl
+    if slim:
+        wl = {**wl, "items": [
+            {"id": i.get("id"), "sym": i.get("sym"), "notes": i.get("notes") or ""}
+            for i in (wl.get("items") or []) if isinstance(i, dict)
+        ]}
+    body = json.dumps(wl, separators=(",", ":"), default=str).encode()
+    etag = '"wlm-%s"' % hashlib.md5(body).hexdigest()
+    # Membership changes when an admin re-ranks an index (monthly) or the member edits
+    # their own list. A short private max-age plus the ETag makes a re-open free
+    # without ever pinning stale membership.
+    headers = {"Cache-Control": "private, max-age=60", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.put("/api/watchlists/{wl_id}")

@@ -121,20 +121,43 @@ def list_public_watchlists(limit: int = 50) -> list[dict]:
         conn.close()
 
 
-def list_prebuilt_watchlists(limit: int = 50) -> list[dict]:
+def list_prebuilt_watchlists(limit: int = 50, include_items: bool = True) -> list[dict]:
     """Admin-curated UCT watchlists shown in the picker's Prebuilt tab. Flagged with
-    is_prebuilt = 1 (and kept is_public = 1 so they open via the community: key)."""
+    is_prebuilt = 1 (and kept is_public = 1 so they open via the community: key).
+
+    `include_items=False` returns metadata + `item_count` only — the SAME slim/full
+    split `list_user_watchlists` above already documents, applied one level down.
+
+    Why it exists: this endpoint is a DIRECTORY — the picker renders list NAMES and
+    counts, and reads neither `items` nor the route's `sample` field — but it was
+    shipping every member of every list to draw it. Measured on prod 2026-09-20:
+    33 lists carrying **4,704 item rows / 607,445 bytes**, of which Russell 2000
+    alone is 1,872, to render a menu of 33 names. The same request in one session
+    ranged **172 ms warm to 9,859 ms cold**, essentially all of it server time.
+    Members are fetched per-list on selection instead, through `get_watchlist`.
+
+    ⚠️ Defaults True so every existing caller stays byte-identical — and, the trap
+    `list_user_watchlists` records, the flag is only real if the ROUTE forwards it.
+    `item_count` is preserved in BOTH modes and stays derived from the same rows the
+    response describes."""
     conn = get_connection()
     try:
         rows = conn.execute(
             "SELECT * FROM watchlists WHERE is_prebuilt = 1 ORDER BY name ASC LIMIT ?", (limit,)
         ).fetchall()
         results = [dict(r) for r in rows]
-        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        ids = [wl["id"] for wl in results]
+        if include_items:
+            items_by_list = _get_items_bulk(conn, ids)
+            for wl in results:
+                wl["items"] = items_by_list.get(wl["id"], [])
+                wl["item_count"] = len(wl["items"])
+        else:
+            counts = _get_item_counts_bulk(conn, ids)
+            for wl in results:
+                wl["item_count"] = counts.get(wl["id"], 0)
         names_by_user = _get_display_names_bulk(conn, [wl["user_id"] for wl in results])
         for wl in results:
-            wl["items"] = items_by_list.get(wl["id"], [])
-            wl["item_count"] = len(wl["items"])
             wl["owner_name"] = names_by_user.get(wl["user_id"], "Unknown")
         return results
     finally:

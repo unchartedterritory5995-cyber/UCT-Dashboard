@@ -1078,3 +1078,27 @@ def _env_derived_paths_survive_a_reload():
 # (at conftest import, before any test module) makes the warm opt-IN: the tests
 # that exercise it re-enable it explicitly with a stubbed builder and zero delay.
 os.environ.setdefault("SCREENER_SNAPSHOT_WARM_ENABLED", "0")
+
+
+# ─── prebuilt catalogue memo: cleared between tests ────────────────────────
+#
+# `watchlist_prebuilt._load_committed()` is memoized (TTL + config-file mtime) so
+# one `GET /api/watchlists/prebuilt` stops rebuilding the catalogue four times from
+# disk — measured 172 ms warm / 9,859 ms cold on prod 2026-09-20.
+#
+# That memo is PROCESS-GLOBAL, and its inputs are exactly what these tests
+# monkeypatch: `_fake_desk` swaps the Sunday Scans source, then asserts on
+# `_load_committed()`. Without this reset the second such test reads the first
+# one's cached answer — `test_sunday_scans_watchlist.py` passed alone and failed in
+# the suite, which is the signature of leaked cache state rather than a real defect.
+# Clearing it per-test restores the independence every one of these tests assumes.
+@pytest.fixture(autouse=True)
+def _prebuilt_config_memo_is_per_test():
+    try:
+        from api.services import watchlist_prebuilt
+    except Exception:
+        yield
+        return
+    watchlist_prebuilt.invalidate_prebuilt_config_cache()
+    yield
+    watchlist_prebuilt.invalidate_prebuilt_config_cache()
