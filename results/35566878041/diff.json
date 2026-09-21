@@ -1,0 +1,92 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 2,
+    "unchanged": 203,
+    "missing": 0,
+    "baseline": 205,
+    "current": 209,
+    "current_ran": 50792,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 205 = unchanged 203 + fixed 2 + missing 0  |  current 209 = unchanged 203 + new 4 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35560238829",
+  "current_run_id": "35566878041",
+  "baseline_sha": "69b05f97c53ed751599657f39ba44a2b493ca445",
+  "current_sha": "6798bdada1ac518d5f888564b9cb213d09b71ddd",
+  "commit_range": "69b05f97c53ed751599657f39ba44a2b493ca445..6798bdada1ac518d5f888564b9cb213d09b71ddd",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_scan_screener_auth|test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence",
+    "pytest|tests.test_scan_screener_auth|test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door",
+    "pytest|tests.test_scan_screener_auth|test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door",
+    "pytest|tests.test_scan_screener_auth|test_the_route_counts_are_what_the_router_SOURCE_declares"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_scan_screener_auth|test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched tests/test_scan_screener_auth.py or anything it imports"
+    },
+    "pytest|tests.test_scan_screener_auth|test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched tests/test_scan_screener_auth.py or anything it imports"
+    },
+    "pytest|tests.test_scan_screener_auth|test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched tests/test_scan_screener_auth.py or anything it imports"
+    },
+    "pytest|tests.test_scan_screener_auth|test_the_route_counts_are_what_the_router_SOURCE_declares": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched tests/test_scan_screener_auth.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched tests/test_mutation_check.py or anything it imports"
+    },
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 69b05f97c..6798bdada touched src/pages/charts/widgets/IndexesWidget.test.jsx or anything it imports"
+    }
+  }
+}
