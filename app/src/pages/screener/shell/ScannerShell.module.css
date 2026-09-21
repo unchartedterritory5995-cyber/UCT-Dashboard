@@ -225,6 +225,42 @@
 .uBaseHint { opacity: .6; }
 @media (max-width: 640px) { .uBaseHint { display: none; } }
 
+/* The ⓘ that opens the "what each universe means" popover, and the Clear that
+   resets the pool to All Market. Both sit in the Universe row. */
+.uInfoBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer; font-family: inherit;
+}
+.uInfoBtn:hover { color: var(--text); border-color: var(--ut-gold); }
+.uClear {
+  font-family: inherit; font-size: 11.5px; color: var(--text-muted);
+  background: transparent; border: none; cursor: pointer; padding: 4px 6px;
+  border-radius: 5px; text-decoration: underline; text-underline-offset: 2px;
+}
+.uClear:hover { color: var(--ut-gold); background: var(--bg-hover); }
+/* Criteria popover body: each universe's name + its plain-English rule. */
+.uInfoMenu { min-width: 288px; }
+.uInfoRow { padding: 7px 9px; border-radius: 6px; }
+.uInfoRow + .uInfoRow { margin-top: 2px; }
+.uInfoName {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  display: flex; align-items: baseline; gap: 8px;
+}
+.uInfoRule {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  color: var(--ut-gold); font-variant-numeric: tabular-nums;
+}
+.uInfoBody { font-size: 11.5px; line-height: 1.5; color: var(--text-muted); margin-top: 3px; }
+/* The active pool's rule, shown inline beside the count so the criteria are
+   visible without opening the popover. */
+.uCriteria {
+  font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Quick-screen chips (preset scans) ── */
 .quickRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-width: 0; }
 .qScroll { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-bottom: 1px; }

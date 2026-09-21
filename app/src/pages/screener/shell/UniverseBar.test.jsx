@@ -81,4 +81,32 @@ describe('UniverseBar', () => {
     expect(screen.getByText('120')).toBeInTheDocument()
     expect(screen.getByText(/matches/)).toBeInTheDocument()
   })
+
+  it('shows the ACTIVE pool\'s criteria inline — All Market vs UCT', () => {
+    const { rerender } = render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}} />)
+    expect(screen.getByText(/cap ≥ \$300M/)).toBeInTheDocument()          // All Market rule
+    rerender(<UniverseBar meta={META} activeUniverse={{ op: 'eq', value: 'uct' }} onSetFilter={() => {}} />)
+    expect(screen.getByText(/price ≥ \$5/)).toBeInTheDocument()           // UCT rule
+    expect(screen.getByText(/30-day \$-vol ≥ \$20M/)).toBeInTheDocument()
+  })
+
+  it('the ⓘ opens a popover spelling out BOTH pools', () => {
+    render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}} />)
+    // control: closed until asked
+    expect(screen.queryByText(/Micro-caps, OTC and most funds/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Universe criteria' }))
+    expect(screen.getByText(/Micro-caps, OTC and most funds/)).toBeInTheDocument()      // All Market body
+    expect(screen.getByText(/liquid, tradeable subset/)).toBeInTheDocument()            // UCT body
+  })
+
+  it('Clear resets the pool to All Market, and is absent when already there', () => {
+    const onSetFilter = vi.fn()
+    const { rerender } = render(<UniverseBar meta={META} activeList={undefined} onSetFilter={onSetFilter} />)
+    // All Market IS the cleared state → nothing to clear
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
+    rerender(<UniverseBar meta={META} activeUniverse={{ op: 'eq', value: 'uct' }} onSetFilter={onSetFilter} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(onSetFilter).toHaveBeenCalledWith('universe', null)
+    expect(onSetFilter).toHaveBeenCalledWith('list', null)
+  })
 })
