@@ -31,12 +31,30 @@ import os
 log = logging.getLogger(__name__)
 
 _FILENAME = "screener_universe.json"
+_TYPES_FILENAME = "screener_types.json"
 _BUYOUT_FILENAME = "screener_buyout_exclude.json"
 
-# US common stock + ADR classes, per `api/ticker_types.py`. Deliberately NARROW:
-# no preferreds (PFD), units, rights, warrants, ETFs, ETNs or funds — "US stocks
-# + ADR" is exactly common + depositary receipts.
-KEEP_TYPES = frozenset({"CS", "ADRC", "ADRP", "ADRR", "ADRW"})
+# US common stock + ADR classes, per `api/ticker_types.py`.
+ADR_TYPES = frozenset({"ADRC", "ADRP", "ADRR", "ADRW"})
+KEEP_TYPES = frozenset({"CS"}) | ADR_TYPES              # common + ADR
+# The "Global Universe" pool: common + ADR + the whole exchange-traded fund family
+# (ETF/ETN/ETV + closed-end funds). Still excludes preferreds/units/rights/warrants
+# and buyout targets. ETF_TYPES is imported at build time from `api.ticker_types`.
+_ETF_FAMILY = frozenset({"ETF", "ETN", "ETV", "FUND"})
+INSTRUMENT_KEEP = KEEP_TYPES | _ETF_FAMILY
+
+# The screener-row `security_type` bucket a member filters on (Stocks / ADRs /
+# ETFs). Closed-end funds and ETNs fold into "ETF" to match the member-facing
+# Type control; the raw reference code is not shown.
+def _coarse_type(sym: str, ref_type: dict, core_etfs: set) -> str:
+    ty = ref_type.get(sym, "")
+    if ty in ADR_TYPES:
+        return "ADR"
+    if ty == "CS":
+        return "Stock"
+    if ty in _ETF_FAMILY or sym in core_etfs:
+        return "ETF"
+    return "Stock"          # a curated core equity the reference enumeration missed
 
 
 def _pkg_data_path(filename: str) -> str:
@@ -109,6 +127,37 @@ def symbols() -> list[str]:
         return []
 
 
+def _types_paths() -> list[str]:
+    override = os.environ.get("SCREENER_TYPES_PATH")
+    paths = [override] if override else []
+    paths.append(os.path.join(_data_dir(), _TYPES_FILENAME))
+    paths.append(_pkg_data_path(_TYPES_FILENAME))
+    return paths
+
+
+def writable_types_path() -> str:
+    override = os.environ.get("SCREENER_TYPES_PATH")
+    return override or os.path.join(_data_dir(), _TYPES_FILENAME)
+
+
+def types() -> dict:
+    """`{TICKER: "Stock"|"ADR"|"ETF"}` — the coarse instrument bucket the snapshot
+    builder stamps on each row's `security_type` and the Type filter narrows on.
+    Written alongside the universe by `build_and_save`; {} when not generated yet
+    (the builder then defaults a row to "Stock")."""
+    for p in _types_paths():
+        try:
+            with open(p, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict) and data:
+                return {str(k).upper(): str(v) for k, v in data.items()}
+        except FileNotFoundError:
+            continue
+        except Exception as exc:                            # noqa: BLE001
+            log.warning("[screener-universe] types load failed for %s: %s", p, exc)
+    return {}
+
+
 # ── the generator (runs where the Massive key lives: the web pod) ──────────────
 
 def _recent_traded_set(sessions: int, min_shares: float,
@@ -142,16 +191,19 @@ def _recent_traded_set(sessions: int, min_shares: float,
 
 def build_and_save(min_shares: float | None = None, sessions: int = 5,
                    write_path: str | None = None) -> dict:
-    """Regenerate the screener universe from Massive reference and persist it.
+    """Regenerate the "Global Universe" from Massive reference and persist it.
 
-    US common + ADR (`KEEP_TYPES`), active, NO price/market-cap floor, minus
+    US common + ADR + the exchange-traded fund family (`INSTRUMENT_KEEP` =
+    ETF/ETN/ETV + closed-end funds), active, NO price/market-cap floor, minus
     truly dead shells (never traded ≥ `min_shares` over the recent window) and
     minus the buyout exclude list. A name in the curated cap universe is ALWAYS
     kept even if it fails the liveness test — the known-good core can never shrink.
 
-    Returns a summary; writes a flat JSON list. Best-effort: on a reference-API
-    failure it writes nothing and reports `final == 0`, so the loader keeps the
-    previous file (or the cap-universe fallback) rather than blanking the screener.
+    Writes TWO files: the flat universe list, and a `{ticker: type}` map
+    (Stock/ADR/ETF) the snapshot builder stamps onto each row's `security_type`.
+    Best-effort: on a reference-API failure it writes nothing and reports
+    `final == 0`, so the loader keeps the previous file (or the cap-universe
+    fallback) rather than blanking the screener.
     """
     from api.services import massive
     if min_shares is None:
@@ -160,7 +212,6 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
         except Exception:                                  # noqa: BLE001
             min_shares = 1000.0
 
-    from api.ticker_types import ETF_TYPES          # {ETF, ETN, ETV, FUND}
     ref = massive.list_reference_tickers(active=True, market="stocks") or []
     ref_type: dict[str, str] = {}
     for r in ref:
@@ -168,57 +219,61 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
         typ = str(r.get("type") or "").upper()
         if tk:
             ref_type[tk] = typ
-    typed = {t for t, ty in ref_type.items() if ty in KEEP_TYPES}   # reference CS/ADR
+    typed = {t for t, ty in ref_type.items() if ty in INSTRUMENT_KEEP}  # CS/ADR + fund family
 
     if not typed:
         # Reference call failed — do NOT overwrite a good file with nothing.
-        log.warning("[screener-universe] reference returned no CS/ADR names; "
+        log.warning("[screener-universe] reference returned no keepable names; "
                     "leaving the existing universe untouched")
         return {"ok": False, "reason": "reference_empty", "final": 0}
 
     live = _recent_traded_set(sessions, min_shares)
     try:
         from api.services import cap_universe
-        core = set(cap_universe.symbols())
-        etf_like = {t for t, ty in ref_type.items() if ty in ETF_TYPES}
-        etf_like |= set(cap_universe.etf_symbols())
+        core = set(cap_universe.symbols())          # curated equities the reference misses
+        core_etfs = set(cap_universe.etf_symbols())  # curated liquid ETFs
     except Exception:                                      # noqa: BLE001
-        core, etf_like = set(), set()
+        core, core_etfs = set(), set()
     excl = buyout_excludes()
 
-    # ⛔ THE REFERENCE ENUMERATION IS INCOMPLETE — it dropped real common stocks
-    # (AL, AMWD, ASGN, AVB … present in the curated cap_universe but absent from
-    # `list_reference_tickers`). So the universe is the UNION of two sources, not
-    # the reference alone:
-    #   1. reference CS/ADR that actually TRADE (live) or are curated (core), and
-    #   2. every curated cap_universe name — a $300M+ EQUITY set, so a core name
-    #      the reference missed is a common stock we must keep.
-    # Then subtract ETFs/funds (reference type OR the prebuilt-ETF list) and the
-    # buyout list. A blank liveness frame (provider hiccup) must not delete the
-    # world, so `keep_live` falls back to all typed names.
+    # ⛔ THE REFERENCE ENUMERATION IS INCOMPLETE — it drops real common stocks
+    # (AL, AMWD, ASGN … present in cap_universe but absent from
+    # `list_reference_tickers`). So the universe UNIONS three sources: reference
+    # instruments that TRADE (or are curated), every curated cap_universe equity,
+    # and the curated ETF list — then subtracts only the buyout targets. ETFs and
+    # funds are now KEPT (the Global Universe is the whole tradeable market); the
+    # Type filter narrows by `security_type` at read time. A blank liveness frame
+    # (provider hiccup) must not delete the world, so `keep_live` falls back to all
+    # typed names.
     keep_live = live or set(typed)
-    keep = {t for t in typed if t in keep_live or t in core}
-    keep |= {t for t in core if t not in etf_like}
-    keep -= etf_like
+    keep = {t for t in typed if t in keep_live or t in core or t in core_etfs}
+    keep |= core
+    keep |= core_etfs
     keep -= excl
     final = sorted(keep)
+    type_map = {t: _coarse_type(t, ref_type, core_etfs) for t in final}
 
     dest = write_path or writable_path()
+    tdest = writable_types_path()
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-    tmp = dest + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(final, fh)
-    os.replace(tmp, dest)
+    for path, payload in ((dest, final), (tdest, type_map)):
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+        os.replace(tmp, path)
 
+    by_bucket: dict[str, int] = {}
+    for v in type_map.values():
+        by_bucket[v] = by_bucket.get(v, 0) + 1
     summary = {
         "ok": True,
         "reference_total": len(ref),
-        "reference_cs_adr": len(typed),
-        "core_added": len({t for t in core if t not in etf_like} - typed),
+        "reference_kept": len(typed),
+        "core_added": len((core | core_etfs) - typed),
         "traded_recently": len(live),
-        "excluded_etf": len(etf_like),
-        "excluded_buyouts": len({t for t in (typed | core) if t in excl}),
+        "excluded_buyouts": len({t for t in (typed | core | core_etfs) if t in excl}),
         "final": len(final),
+        "by_type": by_bucket,
         "min_shares": min_shares,
         "path": dest,
     }
