@@ -247,14 +247,23 @@ export async function prepareForDisplay(sym, tf) {
     // Ask for exactly what is missing: the tail when we have a sound base to
     // repair, the window when we have nothing. Same URLs the warmer uses, so
     // this shares its dedupe and its shed-ability rather than opening a door.
-    const url = (hasBars && typeof lastT === 'number'
+    const asked = (hasBars && typeof lastT === 'number'
       && classifyIntradayTail(lastT, tf) === 'behind')
-      ? _sinceUrl(sym, tf, lastT)
-      : _url(sym, tf)
+    const url = asked ? _sinceUrl(sym, tf, lastT) : _url(sym, tf)
     const json = _noteWarmResult(await preload(url, warmFetcher))
-    const rows = json?.bars ?? []
+
+    // ⛔⛔ VERIFY THAT WE ACTUALLY HEARD FROM THE AUTHORITY BEFORE BELIEVING
+    // "there is nothing newer". `warmFetcher` maps a 503 SHED to
+    // `{ bars: [], error: 'warming' }` — the server saying "I was too busy to
+    // look". An earlier version of this function read that as an empty answer,
+    // kept the old cache, and returned 'authoritative': an hours-stale chart
+    // committed as though it had been verified. A non-answer is not an answer.
+    const answered = _isAuthoritativeAnswer(json, sym, tf)
+    if (!answered.ok) return 'error'
+
+    const rows = json.bars
     if (!rows.length && !hasBars) return 'nodata'
-    const next = (hasBars && json?.delta) ? mergeDelta(have.bars, rows)
+    const next = (hasBars && json.delta) ? mergeDelta(have.bars, rows)
       : (rows.length ? rows : have.bars)
     if (!next?.length) return 'nodata'
     await idbPut(sym, tf, next)
@@ -262,11 +271,37 @@ export async function prepareForDisplay(sym, tf) {
     const newestT = next[next.length - 1]?.t
     if (!_INTRADAY_TFS.has(String(tf))) return 'current'
     if (typeof newestT === 'number' && isCurrentEnoughForPaint(newestT, tf)) return 'current'
-    // We asked and this is everything that exists for this symbol right now.
+    // We asked the authority for this exact symbol + timeframe and it confirmed
+    // there is nothing newer. The cache IS the frontier for this symbol.
     return 'authoritative'
   } catch {
     return 'error'
   }
+}
+
+/**
+ * Did this response genuinely come from the authority, FOR THIS REQUEST?
+ *
+ * ⛔ EVERY CLAUSE HERE EXISTS BECAUSE ITS ABSENCE WOULD MANUFACTURE A FALSE
+ * 'authoritative' — and a false 'authoritative' is worse than a stale paint,
+ * because it commits stale data while asserting it was checked.
+ */
+export function _isAuthoritativeAnswer(json, sym, tf) {
+  //   a request that never reached the source / network error / aborted
+  if (json == null) return { ok: false, why: 'no-response' }
+  //   503 shed or any transient — the server did not look
+  if (json.error) return { ok: false, why: `server-${json.error}` }
+  //   malformed body
+  if (!Array.isArray(json.bars)) return { ok: false, why: 'malformed' }
+  //   wrong symbol (a dedupe/cache collision must never answer for another name)
+  if (json.ticker && String(json.ticker).toUpperCase() !== String(sym).toUpperCase()) {
+    return { ok: false, why: 'wrong-symbol' }
+  }
+  //   wrong timeframe
+  if (json.tf != null && String(json.tf) !== String(tf)) {
+    return { ok: false, why: 'wrong-timeframe' }
+  }
+  return { ok: true, why: 'verified' }
 }
 
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).

@@ -20,7 +20,7 @@ vi.mock('./barsIDB', () => ({
 }))
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
-import { prepareForDisplay, _noteWarmResult } from './prefetchBars'
+import { prepareForDisplay, _isAuthoritativeAnswer, _noteWarmResult } from './prefetchBars'
 import { memClear } from './barsMemCache'
 
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
@@ -111,6 +111,57 @@ describe('prepareForDisplay — an OUTCOME, never a stopwatch', () => {
       preloadMock.mockResolvedValue({ bars: barsEnding(unix('15:54'), 3), delta: true })
       await expect(prepareForDisplay(`T${tf}`, tf)).resolves.toBe('current')
     }
+  })
+
+  // ── 'authoritative' MUST MEAN WE HEARD FROM THE AUTHORITY ────────────────
+  //
+  // ⛔⛔ A FALSE 'authoritative' IS WORSE THAN A STALE PAINT, because it commits
+  // stale data while asserting it was checked. Each case below produced exactly
+  // that before the verification gate existed — the 503 one was live: warmFetcher
+  // maps a shed to `{ bars: [], error: 'warming' }` (the server saying "I was too
+  // busy to look"), which read as "an empty answer, so nothing is newer".
+  describe.each([
+    ['a 503 SHED — the server never looked', { bars: [], error: 'warming' }],
+    ['a transient error body',               { bars: [], error: 'transient' }],
+    ['no response at all (network/abort)',   null],
+    ['a malformed body (bars not an array)', { bars: 'nope' }],
+    ['a body with no bars field',            { ticker: 'HALT' }],
+    ['a WRONG-SYMBOL response',              { ticker: 'OTHER', tf: '5', bars: [], delta: true }],
+    ['a WRONG-TIMEFRAME response',           { ticker: 'HALT', tf: '60', bars: [], delta: true }],
+  ])('never authoritative: %s', (_label, body) => {
+    it('resolves "error", never "authoritative" or "current"', async () => {
+      idbState.entry = { bars: barsEnding(unix('10:00')), lastT: unix('10:00') }
+      preloadMock.mockResolvedValue(body)
+      const out = await prepareForDisplay('HALT', '5')
+      expect(out).toBe('error')
+      expect(out).not.toBe('authoritative')
+    })
+
+    it('and writes NOTHING back to the cache', async () => {
+      idbState.entry = { bars: barsEnding(unix('10:00')), lastT: unix('10:00') }
+      preloadMock.mockResolvedValue(body)
+      await prepareForDisplay('HALT', '5')
+      expect(idbState.put).not.toHaveBeenCalled()
+    })
+  })
+
+  it('⭐ the verified case is the ONLY one that passes the gate', () => {
+    expect(_isAuthoritativeAnswer({ ticker: 'MU', tf: '5', bars: [], delta: true }, 'MU', '5'))
+      .toEqual({ ok: true, why: 'verified' })
+    // Case-insensitive on the ticker, because the server echoes upper-case.
+    expect(_isAuthoritativeAnswer({ ticker: 'MU', tf: '5', bars: [] }, 'mu', '5').ok).toBe(true)
+    // A response that omits ticker/tf entirely is still usable — those fields are
+    // optional in the contract; what is NOT optional is that it carry real bars
+    // and no error.
+    expect(_isAuthoritativeAnswer({ bars: [] }, 'MU', '5').ok).toBe(true)
+  })
+
+  it('names WHY it refused, so a false authoritative is debuggable', () => {
+    expect(_isAuthoritativeAnswer(null, 'MU', '5').why).toBe('no-response')
+    expect(_isAuthoritativeAnswer({ bars: [], error: 'warming' }, 'MU', '5').why).toBe('server-warming')
+    expect(_isAuthoritativeAnswer({ bars: 1 }, 'MU', '5').why).toBe('malformed')
+    expect(_isAuthoritativeAnswer({ ticker: 'X', bars: [] }, 'MU', '5').why).toBe('wrong-symbol')
+    expect(_isAuthoritativeAnswer({ tf: '60', bars: [] }, 'MU', '5').why).toBe('wrong-timeframe')
   })
 
   it('⛔ …and a tail that does NOT reach the frontier stays "authoritative"', async () => {
