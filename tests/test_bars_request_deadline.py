@@ -128,3 +128,42 @@ def test_a_raising_provider_still_releases_and_reports_completion(monkeypatch):
         raise RuntimeError("provider down")
     monkeypatch.setattr(bars_fetch, "_delta_intraday", _boom)
     assert bars_fetch._bounded_delta("AAPL", "5", _RECENT, False) is True
+
+
+# ── the deep / custom-timeframe door into the same defect ────────────────────
+
+def test_the_deep_fetch_is_bounded_too(monkeypatch):
+    """⛔ `_is_deep_request` is True at >= 1200 bars, and `_customBaseBars` is a flat
+    5000 — so EVERY custom-timeframe first paint (2m, 45m, 4h) is classified as a
+    deep backfill and used to take a bare `_fetch_intraday` on the request thread.
+    That is the 16-second path again, by a different door."""
+    monkeypatch.setattr(bars_fetch, "_DEEP_DEADLINE_SECONDS", 0.3)
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday",
+                        lambda t, tf, n: (time.sleep(3.0), [])[1])
+    t0 = time.perf_counter()
+    assert bars_fetch._bounded_fetch_intraday("AAPL", "1", 5000) is False
+    assert time.perf_counter() - t0 < 1.0
+
+
+def test_the_deep_ceiling_is_longer_than_the_delta_ceiling():
+    """⭐ A pan is an EXPLICIT ask for deep history, so it keeps a longer budget
+    than a routine tail top-up — but both stay under the edge's 8 s abort, which is
+    what keeps the double-origin path unreachable."""
+    assert bars_fetch._DEEP_DEADLINE_SECONDS > bars_fetch._REQUEST_DEADLINE_SECONDS
+    assert bars_fetch._DEEP_DEADLINE_SECONDS < 8.0
+    assert bars_fetch._REQUEST_DEADLINE_SECONDS < 8.0
+
+
+def test_a_shed_deep_fetch_still_persists_and_marks_history_complete(monkeypatch):
+    monkeypatch.setattr(bars_fetch, "_DEEP_DEADLINE_SECONDS", 0.2)
+    persisted, marked = [], []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday",
+                        lambda t, tf, n: (time.sleep(0.5),
+                                          [{"t": _RECENT, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])[1])
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars",
+                        lambda t, tf, rows, **k: persisted.append(t))
+    monkeypatch.setattr(bars_fetch, "_mark_history_complete",
+                        lambda t, tf: marked.append(t))
+    assert bars_fetch._bounded_fetch_intraday("AAPL", "5", 5000) is False
+    time.sleep(0.9)
+    assert persisted == ["AAPL"] and marked == ["AAPL"]

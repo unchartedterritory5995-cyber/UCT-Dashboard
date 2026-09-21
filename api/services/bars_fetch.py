@@ -2583,6 +2583,59 @@ def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
     return done.wait(timeout=deadline)
 
 
+# The deep-pan / large-window fetch has its own, LONGER ceiling. ⛔ It must still
+# have one: `_is_deep_request(bars)` is True for any request ≥ 1200 bars, and that
+# includes the FIRST PAINT of every custom timeframe — `_customBaseBars` is a flat
+# 5000, so a 2m chart's initial load is classified as a deep backfill and took this
+# synchronous branch. On a cold symbol that is the 16-second path again, by a
+# different door.
+#
+# ⭐ LONGER, NOT EQUAL, BECAUSE A PAN IS AN EXPLICIT ASK. A user who drags into
+# history has asked for a 3-20 s fetch and the old behaviour (block, then paint the
+# deep window) is right for them. 6 s keeps that intent while staying under the
+# edge's 8 s abort, so the double-origin path stays unreachable either way.
+_DEEP_DEADLINE_SECONDS = float(
+    _os.environ.get("BARS_DEEP_DEADLINE_SECONDS", "6.0")
+)
+
+
+def _bounded_fetch_intraday(ticker_up: str, tf: str, bars: int,
+                            deadline: float | None = None) -> bool:
+    """Run the deep intraday fetch with a hard wait ceiling.
+
+    Same contract as `_bounded_delta`: True when it finished inside the deadline,
+    and the job is never cancelled — a shed fetch still persists for the next poll.
+    """
+    if deadline is None:
+        deadline = _DEEP_DEADLINE_SECONDS
+    if not _bg_delta_sem.acquire(blocking=False):
+        return False
+    done = _threading.Event()
+
+    def _job():
+        try:
+            raw = _fetch_intraday(ticker_up, tf, bars)
+            if raw and not _is_intraday_stale(raw):
+                _sqlite.put_bars(ticker_up, tf, raw, date_tf=False)
+                _mark_history_complete(ticker_up, tf)
+        except Exception as _e:           # noqa: BLE001
+            import logging as _log_bf
+            _log_bf.getLogger(__name__).warning(
+                "[bars] bounded deep fetch %s tf=%s: %s: %s",
+                ticker_up, tf, type(_e).__name__, _e)
+        finally:
+            _bg_delta_sem.release()
+            done.set()
+
+    try:
+        _threading.Thread(target=_job, daemon=True,
+                          name=f"bars-deepfetch-{ticker_up}-{tf}").start()
+    except Exception:                     # noqa: BLE001
+        _bg_delta_sem.release()
+        return False
+    return done.wait(timeout=deadline)
+
+
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None:
     """Fire-and-forget cache warmer. Submits one task per ticker to a bounded
     thread pool and returns immediately. Errors are silenced (best-effort).
@@ -3015,10 +3068,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     i_fetch_deep = True
             if i_fetch_deep:
                 try:
-                    raw = _fetch_intraday(ticker_up, tf, bars)
-                    if raw and not _is_intraday_stale(raw):
-                        _sqlite.put_bars(ticker_up, tf, raw, date_tf=False)
-                        _mark_history_complete(ticker_up, tf)
+                    # ⛔ BOUNDED (was a bare `_fetch_intraday` on the request thread).
+                    # A shed fetch still persists, so the next poll paints the deep
+                    # window; what it can no longer do is hold the request past the
+                    # edge's 8 s abort. See `_bounded_fetch_intraday`.
+                    if not _bounded_fetch_intraday(ticker_up, tf, bars):
+                        _mark_serve("deep-deadline")
                     fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
