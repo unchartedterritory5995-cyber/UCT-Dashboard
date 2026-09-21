@@ -74,13 +74,33 @@ describe('RVOL slice parse evidence (F2)', () => {
     // cannot be sized — which needs the body lowered per CALL SITE, not once.
     // That is the next capability, and it is named rather than approximated.
     //
+    //   · L96 `runtime:statement` — a symbol field (2026-09-20), once three
+    //     things landed together: a request carrying a TUPLE from a helper, that
+    //     helper lowered AT THE CALL SITE (so its columns are the requested
+    //     symbol's, which is what `carriesColumn` named as the next capability),
+    //     and a window's source HOISTED into its own committed series inside the
+    //     request. L57 is gone.
+    //
+    // ⚰️ AND THE RECORDED DIAGNOSIS ABOVE WAS WRONG, which is worth keeping
+    // rather than quietly deleting. "A window whose LENGTH is a `simple int`
+    // parameter cannot fold" — measured 2026-09-20, a PLAIN `int` parameter
+    // fails identically, and without history it fails as `function-global-state`
+    // instead. `simple` was never the discriminator; ANY parameter used as a
+    // length was. Substituting the argument at the call site is what fixed it.
+    //
+    // ⚠️ THE NEW WALL IS NOT A CAPABILITY. `syminfo.tickerid` is a value the
+    // BINDING supplies, and this rail calls `buildRuntimeIr(src)` with no opts —
+    // so the script now reaches the first line that needs to know which symbol
+    // the chart is on. That is a harness condition, and saying so is the point:
+    // the next step for this script is data, not grammar.
+    //
     // ⛔ THE ASSERTION NAMES THE CAPABILITY, NOT THE LINE. A line number would
     // move on any edit to the script and would have to be re-pinned for reasons
     // that say nothing about the engine.
     const rt = buildRuntimeIr(src)
     expect(rt.ok).toBe(false)
     expect(rt.refusal.message).toMatch(
-      /tuple|text|value-model|collection|loop|request|drawing|history|committed series/i)
+      /tuple|text|value-model|collection|loop|request|drawing|history|committed series|symbol/i)
     // ⭐ AND IT GETS FURTHER THAN THE HEADER: a floor, so a regression that put
     // the wall back at the first input block fails here rather than passing on
     // a vaguer sentence.

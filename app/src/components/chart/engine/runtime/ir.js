@@ -197,7 +197,10 @@ export function validateIr(p) {
     if (!isObj(e) || typeof e.kind !== 'string') throw new IrError(`${where}: not an expression node — ${JSON.stringify(e)}`)
     switch (e.kind) {
       case EXPR.NUM:
-        if (typeof e.value !== 'number' || !Number.isFinite(e.value)) {
+        // ⛔ A NON-FINITE CONST IS STILL REFUSED unless it is a DECLARED `na`.
+        // See `naValue`: the marker distinguishes an author's absent value from
+        // a number that lost itself on the way here.
+        if (typeof e.value !== 'number' || (!Number.isFinite(e.value) && e.na !== true)) {
           throw new IrError(`${where}: a num carries a finite number, got ${JSON.stringify(e.value)}`)
         }
         return
@@ -540,6 +543,15 @@ export function validateIr(p) {
 
 // ── small constructors, so a front end never hand-writes a literal ───────────
 export const num = (value) => ({ kind: EXPR.NUM, value })
+/** Pine's `na` — the ABSENT value, which is NaN at run time.
+ *
+ *  ⛔⛔ IT CARRIES A MARKER BECAUSE `num(NaN)` IS REFUSED, AND SHOULD BE. A
+ *  non-finite const arriving by accident is how a coordinate silently becomes
+ *  nothing, which is why the validator rejects one. But `na` is a LITERAL a
+ *  member writes — `x > 0 ? y : na` is the standard way to leave a plot blank —
+ *  so the intent has to be expressible. The marker is what separates
+ *  'the author wrote absent' from 'something lost its value on the way here'. */
+export const naValue = () => ({ kind: EXPR.NUM, value: NaN, na: true })
 export const str = (value) => ({ kind: EXPR.STR, value })
 /** ⛔ CONCATENATION IS NOT `binary('+')`, and the difference is a correctness
  *  one rather than a tidiness one. `BINARY['+']` is `(a, b) => a + b`, which on

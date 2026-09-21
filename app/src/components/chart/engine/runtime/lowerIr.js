@@ -40,7 +40,10 @@ export function lowerIrProgram(ir) {
   const arrayOps = []
 
   const constIndex = (v) => {
-    const i = consts.indexOf(v)
+    // ⛔ `indexOf` CANNOT FIND NaN (`NaN !== NaN`), so an `na` would push a new
+    // const every time it appears. `findIndex` with `Object.is` interns it like
+    // any other value.
+    const i = consts.findIndex((c) => Object.is(c, v))
     if (i >= 0) return i
     consts.push(v)
     return consts.length - 1
@@ -442,6 +445,10 @@ export function lowerIrProgram(ir) {
   // calls, which is the second-authority defect in compiled form.
   const requests = (ir.requests || []).map((r) => {
     const entry = here()
+    // ⭐⭐ THE HOISTED BINDINGS RUN FIRST, ON THE SAME BAR. A window inside a
+    // request needs its source as a committed series, and the author has no line
+    // to write that binding on — the front end hoists it here.
+    stmts(r.statements || [])
     const value = r.value
     const results = value && value.kind === EXPR.TUPLE ? value.elements.length : 1
     if (results === 1) { expr(value); emit(OP.EMIT, 0) } else {

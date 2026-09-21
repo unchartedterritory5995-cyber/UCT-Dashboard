@@ -39,7 +39,7 @@ import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './inter
 import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
-  declare, assign, ifStmt, emit, emitIter, call as irCall, builtin as irBuiltin, histSlot,
+  declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
 } from '../runtime/ir.js'
@@ -1110,6 +1110,10 @@ export function buildRuntimeIr(source, opts = {}) {
   /** Names currently being inlined — a recursion guard, since an inlined body
    *  can reach another call to the same function. */
   const inliningNow = new Set()
+  /** Statements hoisted OUT of the expression being lowered, to run before it
+   *  on the same bar. ⭐ Non-null only inside a request's value — the one
+   *  region that has somewhere to put them. */
+  let hoistSink = null
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
@@ -1221,6 +1225,10 @@ export function buildRuntimeIr(source, opts = {}) {
     const inner = new Scope(null)
     const wasInRequest = inRequestValue
     inRequestValue = true
+    // ⭐ A REQUEST'S VALUE IS THE ONE EXPRESSION WITH SOMEWHERE TO HOIST TO:
+    // its region is a statement sequence with its own entry point.
+    const prevSink = hoistSink
+    hoistSink = []
     let valueIr
     try {
       // ⭐⭐ THE DESTRUCTURING FLAG REACHES THE VALUE, and without it a request
@@ -1239,6 +1247,8 @@ export function buildRuntimeIr(source, opts = {}) {
         ? tuple(valueNode.elements.map((x) => lowerExpr(x, inner)))
         : lowerExpr(valueNode, inner, valueOpts)
     } finally { inRequestValue = wasInRequest }
+    const hoisted = hoistSink
+    hoistSink = prevSink
 
     // ⛔ A COLUMN INSIDE A REQUEST IS REFUSED BY NAME. A column is computed once,
     // from THIS chart's bars, before the run starts — inside a request it would
@@ -1274,7 +1284,7 @@ export function buildRuntimeIr(source, opts = {}) {
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
     const site = requests.length
-    requests.push({ timeframe: tfIr.value, value: valueIr, results })
+    requests.push({ timeframe: tfIr.value, value: valueIr, results, statements: hoisted })
     return requestCall(site, symbolIr, results)
   }
 
@@ -1711,6 +1721,16 @@ export function buildRuntimeIr(source, opts = {}) {
             throw new RuntimeRefusal('runtime:plot-id',
               `\`${node.name}\` is the id of ${pref.call}()`, locate(node.tok))
           }
+          // ⭐⭐ `na` IS A LITERAL, NOT A NAME NOTHING BINDS. `x > 0 ? y : na`
+          // is how a member leaves a plot blank, and it reached
+          // `runtime:unbound` — "a name nothing in this script binds" — about
+          // Pine's own absent value.
+          // ⚠️ It only ever surfaced INSIDE a request, because everywhere else
+          // the surrounding expression is pure and the columnar lane answers
+          // it. A request bars that lane, which is what exposed the gap.
+          if (node.name === 'na' && scope.lookup('na') === null && !env.has('na')) {
+            return naValue()
+          }
           const bound = env.get(node.name)
           if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
           // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
@@ -2023,13 +2043,33 @@ export function buildRuntimeIr(source, opts = {}) {
           // only a variable has one — `sma(x + 1, 5)` needs its own series exactly
           // as `(x + 1)[1]` does, and is refused by the same name.
           const srcNode = given[0]
-          if (!srcNode || srcNode.type !== 'name') {
-            note('runtime:history-expression')
-            throw new RuntimeRefusal('runtime:history-expression',
-              `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+          let varSlot = srcNode && srcNode.type === 'name' ? scope.lookup(srcNode.name) : null
+          let srcLabel = srcNode && srcNode.type === 'name' ? srcNode.name : null
+          // ⭐⭐ INSIDE A REQUEST, THE SOURCE IS GIVEN ITS OWN COMMITTED SERIES.
+          //
+          // ⛔ The refusals below are right everywhere else: a window needs a
+          // series, and only a variable has one. But inside a request there is
+          // nowhere for a member to PUT that variable — the value is a single
+          // expression evaluated against another symbol's bars, so
+          // `ta.sma(volume[1], N)` has no line on which to write
+          // `tmp = volume[1]` first. A request region IS a statement
+          // sequence, so the binding the author cannot write is hoisted for them.
+          //
+          // ⭐ It is exactly the rewrite the refusal below describes — "needs
+          // that expression's own committed series" — performed, not demanded.
+          if (varSlot === null && hoistSink) {
+            const tmp = `${node.name} src ${hoistSink.length}`
+            const slot = scope.declare(tmp, newSlot(tmp, false))
+            hoistSink.push(declare(slot, lowerExpr(srcNode, scope)))
+            varSlot = slot
+            srcLabel = tmp
           }
-          const varSlot = scope.lookup(srcNode.name)
           if (varSlot === null) {
+            if (!srcNode || srcNode.type !== 'name') {
+              note('runtime:history-expression')
+              throw new RuntimeRefusal('runtime:history-expression',
+                `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+            }
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
           }
@@ -2061,7 +2101,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // inside one opcode. The measured `skip` policy needs a ring of the
           // last `n` FINITE observations, which is STATE, and state that two
           // call sites shared would interleave two series into one window.
-          const entry = { fn: win.table, name: `${node.name}(${srcNode.name},${n})`, historySlot: histIndex, span }
+          const entry = { fn: win.table, name: `${node.name}(${srcLabel},${n})`, historySlot: histIndex, span }
           let widx
           if (owner !== null) {
             const list = functions[owner].windowLocals || (functions[owner].windowLocals = [])

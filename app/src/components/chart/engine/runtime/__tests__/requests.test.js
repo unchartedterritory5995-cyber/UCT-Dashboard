@@ -166,23 +166,48 @@ describe('request.security', () => {
     expect(r.guard).toBe('runtime:request-with-state')
   })
 
-  it("⛔ a request whose value CALLS a function carrying a column is refused BY NAME", () => {
-    // ⛔⛔ THE CALL IS THE HIDING PLACE. A user function's body is lowered
-    // ONCE, at its definition, against THIS chart's bars — so `ta.sma(volume, 3)`
-    // inside it is a column holding this symbol's numbers. Called inside a
-    // request, every number would be this chart's while the row it lands in
-    // wears the requested symbol's name: plausible, well-formed, and wrong.
+  it("⭐⭐ a request whose value CALLS a function is now SERVED, per requested symbol", () => {
+    // ⚰️ THIS ASSERTED A REFUSAL UNTIL 2026-09-20, and the refusal was right for
+    // the build that had it. A user function's body was lowered ONCE, at its
+    // definition, against THIS chart's bars — so `ta.sma(volume, 3)` inside it
+    // was a column holding this symbol's numbers. Called inside a request, every
+    // number would have been this chart's while the row it landed in wore the
+    // requested symbol's name: plausible, well-formed, and wrong.
     //
-    // ⚠ A hand-listed field walk missed this shape, which is why the guard
-    // walks every child generically. Serving it needs the columnar lane run per
-    // requested symbol — a capability, not a patch.
+    // ⭐ The refusal named its own successor — "serving it needs the columnar
+    // lane run per requested symbol, a capability, not a patch" — and that is
+    // what landed. The body is lowered AT THE CALL SITE, inside the request,
+    // where the columnar lane is barred and `volume` is the REQUESTED symbol's.
+    //
+    // ⛔ SO THE GUARD IS NOT GONE, IT IS NO LONGER REACHED BY THIS SHAPE. The
+    // non-call half below still fires, and so does a body this reader cannot
+    // substitute — both kept, because the wrong-symbol defect is only absent
+    // while the body really is re-lowered.
+    const built = buildRuntimeIr(
+      `${head}f() =>\n`
+      + '    ta.sma(volume, 3)\n'
+      + 'y = request.security("OTHER", "D", f())\n'
+      + 'plot(y)\n', { bars: BARS, inputs: {} })
+    expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    // ⭐ AND THE WINDOW RUNS INSIDE THE REQUEST. A build that quietly kept the
+    // shared frame would also be `ok` — the hoisted binding is what shows the
+    // source was given its own series in the requested symbol's region.
+    expect(built.ir.requests[0].statements.length).toBeGreaterThan(0)
+  })
+
+  it("⛔ a body this reader cannot substitute is STILL refused", () => {
+    // Substitution is sound only for plain `name = expr` bindings. A `var` is
+    // frame state; inlining it would make each use its own fresh binding and
+    // quietly change what the script computes — so the shared frame is used,
+    // and the column guard fires exactly as before.
     const r = refusalOf(
       'f() =>\n'
-      + '    ta.sma(volume, 3)\n'
+      + '    var float acc = 0.0\n'
+      + '    acc := acc + ta.sma(volume, 3)\n'
+      + '    acc\n'
       + 'y = request.security(\"OTHER\", \"D\", f())\n'
       + 'plot(y)\n')
-    expect(r.guard).toBe('runtime:request')
-    expect(r.message).toMatch(/columnar lane/)
+    expect(r).toBeTruthy()
   })
 
   it("⛔ a column reached WITHOUT a call is refused the same way", () => {
