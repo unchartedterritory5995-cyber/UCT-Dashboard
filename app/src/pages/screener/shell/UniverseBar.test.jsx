@@ -84,7 +84,7 @@ describe('UniverseBar', () => {
 
   it('shows the ACTIVE pool\'s criteria inline — All Market vs UCT', () => {
     const { rerender } = render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}} />)
-    expect(screen.getByText(/cap ≥ \$300M/)).toBeInTheDocument()          // All Market rule
+    expect(screen.getByText(/no price floor/)).toBeInTheDocument()        // All Market rule
     rerender(<UniverseBar meta={META} activeUniverse={{ op: 'eq', value: 'uct' }} onSetFilter={() => {}} />)
     expect(screen.getByText(/price ≥ \$5/)).toBeInTheDocument()           // UCT rule
     expect(screen.getByText(/30-day \$-vol ≥ \$20M/)).toBeInTheDocument()
@@ -93,9 +93,9 @@ describe('UniverseBar', () => {
   it('the ⓘ opens a popover spelling out BOTH pools', () => {
     render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}} />)
     // control: closed until asked
-    expect(screen.queryByText(/Micro-caps, OTC and most funds/)).toBeNull()
+    expect(screen.queryByText(/no price or market-cap floor/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Universe criteria' }))
-    expect(screen.getByText(/Micro-caps, OTC and most funds/)).toBeInTheDocument()      // All Market body
+    expect(screen.getByText(/no price or market-cap floor/)).toBeInTheDocument()        // All Market body
     expect(screen.getByText(/liquid, tradeable subset/)).toBeInTheDocument()            // UCT body
   })
 
