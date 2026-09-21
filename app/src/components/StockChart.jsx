@@ -770,6 +770,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
+import { timingStart, timingMark } from '../utils/intradayTiming'
 import { classifyIntradayTail, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -6072,6 +6073,7 @@ export default function StockChart({
   // instantly; the deep fills ~150ms after the chart settles.
   const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
+  const _timingIdRef = useRef(null)   // T0-T4 diagnostic load id (null when off)
   const _fullTarget = fullBarsFor(resolvedTf)
   // First paint is SHALLOW (FIRST_PAINT_BARS) for an instant cold open on EVERY tf. An earlier
   // smooth-switch cut set _fpBars = INTRADAY_DEFAULT_BARS to show weeks of history in one paint,
@@ -6093,6 +6095,12 @@ export default function StockChart({
   const _depthKey = `${sym}_${resolvedTf}`
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
+    // T0 — a new (symbol, timeframe) load begins. Inert unless the diagnostic flag
+    // is on; see utils/intradayTiming.js.
+    _timingIdRef.current = timingStart(sym, resolvedTf, {
+      session: showExtended ? 'extended' : 'rth',
+      cache: (idbBars?.length ? 'client-warm' : 'cold'),
+    })
     if (fetchDepth !== _fpBars) setFetchDepth(_fpBars)
     if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
     if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
@@ -6694,6 +6702,19 @@ export default function StockChart({
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
     if (!data?.bars || !sym || !resolvedTf) return
+    // T1 — stable history available. T3 — the authoritative session tail has landed,
+    // recorded ONLY once the merged tail actually reaches the market: a response that
+    // arrives still behind has not delivered the tail, and marking T3 on arrival
+    // would be the exact latency-without-freshness lie this instrument exists to stop.
+    if (_timingIdRef.current) {
+      const _rows = data.bars
+      const _tail = _rows.length ? _rows[_rows.length - 1]?.t : null
+      timingMark(_timingIdRef.current, 'T1', { historyEnd: _tail })
+      const _merged = typeof idbSinceRef.current === 'number' ? idbSinceRef.current : _tail
+      if (typeof _merged === 'number' && classifyIntradayTail(_merged, resolvedTf) === 'fresh') {
+        timingMark(_timingIdRef.current, 'T3', { tailEnd: _merged })
+      }
+    }
     // Guard against stale closure: if sym changed between fetch-start and resolve,
     // the server's `ticker` field reveals the mismatch — skip to avoid storing
     // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
@@ -7102,6 +7123,10 @@ export default function StockChart({
   useEffect(() => {
     if (!loading && !barsReadyFiredRef.current) {
       barsReadyFiredRef.current = true
+      // T2 — first useful paint. Reuses the EXISTING settled-bars latch rather than
+      // adding a second definition of "the chart is up"; the grid mount queue already
+      // trusts this one.
+      timingMark(_timingIdRef.current, 'T2')
       try { onBarsReadyRef.current?.() } catch {}
     }
   }, [loading])
@@ -9216,6 +9241,10 @@ export default function StockChart({
         const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : price
 
         // Initialize tick-accurate tracking for this bar
+        // T4 — forming bar active (writer A, the quote-synthesised path that owns
+        // the candle while VITE_REALTIME_BARS is held at 0). Marked here too so the
+        // instrument reports what members ACTUALLY get, not only the intended path.
+        timingMark(_timingIdRef.current, 'T4', { formingAt: barTime })
         liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
         barStartVolRef.current = liveData.volume || 0
         // D/W/M: the developing bar spans the whole day, so the live cumulative DAY
@@ -9441,6 +9470,8 @@ export default function StockChart({
       // new bar even though the Finnhub writers are suppressed. Carry VOLUME on liveBarRef so the
       // post-setData re-top can restore it (else the developing bar shows ~30s-stale server
       // volume until the next AM push — a volume flicker every SWR poll, retro-audit #5).
+      // T4 — forming bar active (writer B, the authoritative push path).
+      timingMark(_timingIdRef.current, 'T4', { formingAt: tSec })
       liveBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
       lastBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
       // Drag the MA overlays out to this developing bar (see _extendOverlaysLive).

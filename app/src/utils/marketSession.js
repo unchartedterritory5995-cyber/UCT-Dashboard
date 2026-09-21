@@ -271,6 +271,91 @@ if (typeof window !== 'undefined') {
  * ⭐ 'behind' is the case the session tail is FOR. The cached history paints
  * immediately and the small `since=` response carries today's completed bars.
  */
+// ── EXPECTED LATEST COMPLETED BAR ─────────────────────────────────
+// The freshness half of the acceptance standard. At 13:17 ET on 5m the expected
+// completed bar starts 13:10 and the expected forming bar starts 13:15 — a chart
+// whose newest bar is 10:00 has failed, whatever its paint time was.
+//
+// ⛔ IT RETURNS null RATHER THAN A GUESS when there is no expectation to hold the
+// data to: a non-trading day, before the first bucket of the session has closed, or
+// a timeframe it cannot bucket. "No expectation right now" is an ANSWER; inventing
+// one would manufacture the very thing the no-fabricated-bars rule forbids, and a
+// freshness lag measured against a fabricated expectation is worse than none.
+//
+// ⚠️ EXPECTATION IS NOT EXISTENCE. This says which interval SHOULD have closed, not
+// that the symbol printed in it. An illiquid name with no trades legitimately has no
+// such bar, so a lag computed from this is evidence to read, never a defect on its own.
+const _RTH_OPEN_MINUTES = 570        // 09:30 ET
+const _EXT_OPEN_MINUTES = 240        // 04:00 ET
+const _EXT_CLOSE_MINUTES = 1200      // 20:00 ET
+
+function _etMinutesOfUnix(unixSec) {
+  const s = new Date(unixSec * 1000).toLocaleString('en-US', {
+    timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
+  })
+  const [h, m] = s.split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * Start instant of the bucket containing `unixSec`.
+ * ⭐ tf=60 is SESSION-ANCHORED (09:30-09:59 anchors at 09:30, then clock hours) to
+ * match the server's `bucket_60_et_unix_seconds`. Two bucketings of one timeframe is
+ * how duplicate candles at neighbouring timestamps get planted.
+ * Subtracting a MINUTE DIFFERENCE from the epoch keeps this DST-safe — no calendar
+ * instant is reconstructed.
+ */
+function _bucketStartUnix(unixSec, tfMin) {
+  const mins = _etMinutesOfUnix(unixSec)
+  const anchor = tfMin === 60
+    ? ((mins >= 570 && mins < 600) ? 570 : Math.floor(mins / 60) * 60)
+    : Math.floor(mins / tfMin) * tfMin
+  const secs = new Date(unixSec * 1000).getSeconds()   // timezone-invariant
+  return unixSec - (mins - anchor) * 60 - secs
+}
+
+export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
+  const tfMin = Number(tf)
+  if (!Number.isFinite(tfMin) || tfMin <= 0) return null
+  const d = new Date(nowMs)
+  if (_isNonTradingDayET(d)) return null
+  const nowSec = Math.floor(nowMs / 1000)
+  const mins = _etMinutesOfUnix(nowSec)
+  const open = session === 'extended' ? _EXT_OPEN_MINUTES : _RTH_OPEN_MINUTES
+  const close = session === 'extended'
+    ? _EXT_CLOSE_MINUTES
+    : _effectiveCloseMinutesET(d)           // early-close aware, one calendar
+  // Session over: the last completed bar is the one ending at the close.
+  const probe = mins >= close ? nowSec - (mins - (close - 1)) * 60 : nowSec
+  const curStart = _bucketStartUnix(probe, tfMin)
+  if (mins >= close) return curStart
+  // ⛔⛔ THE PREVIOUS BUCKET IS FOUND BY RE-BUCKETING, NOT BY SUBTRACTING tf.
+  // On tf=60 the opening bucket is only THIRTY minutes (09:30-10:00), so
+  // `curStart - 3600` at 10:05 yields 09:00 — an instant that is not a bar on this
+  // chart at all. Re-bucketing one second before the current start is correct for
+  // every timeframe AND for the irregular opening bucket, with no special case.
+  const prevStart = _bucketStartUnix(curStart - 1, tfMin)
+  // …and the same irregularity breaks an `open + tfMin` guard: at 10:05 a full hour
+  // has not elapsed since 09:30, yet the 09:30-10:00 bar HAS closed. Ask whether the
+  // previous bucket starts inside the session instead of doing clock arithmetic.
+  if (_etMinutesOfUnix(prevStart) < open) return null
+  return prevStart
+}
+
+/** The interval currently forming, or null when nothing is. */
+export function expectedFormingBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
+  if (expectedLatestCompletedBar(tf, nowMs, { session }) == null) return null
+  const tfMin = Number(tf)
+  const d = new Date(nowMs)
+  const nowSec = Math.floor(nowMs / 1000)
+  const mins = _etMinutesOfUnix(nowSec)
+  const close = session === 'extended' ? _EXT_CLOSE_MINUTES : _effectiveCloseMinutesET(d)
+  if (mins >= close) return null            // nothing forms after the close
+  // The bucket containing NOW — not completed + tf, which walks off the irregular
+  // opening hour exactly as the completed-bar arithmetic did.
+  return _bucketStartUnix(nowSec, tfMin)
+}
+
 export function classifyIntradayTail(lastTUnixSec, tf) {
   if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return 'gapped'
   const tailDate = _etDateOfUnix(lastTUnixSec)
