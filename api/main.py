@@ -4761,6 +4761,35 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_naaim_series_seed, daemon=True,
                          name="naaim_series_seed").start()
 
+    # ⭐ THE CBOE VOLATILITY FAMILY, same lesson, same shape.
+    #
+    # ⛔⛔ SEVEN PUBLISHED SERIES SHIPPED WITH ZERO ROWS. `tools/build_cboe_indices.py`
+    # is a developer's door and nothing running ever opened it, so the catalogue
+    # advertised VIX9D / VIX3M / VIX6M / VVIX / VXN / RVX / SKEW while the store behind
+    # them was empty. Measured on production immediately after the first deploy.
+    #
+    # ⚠️ ON THE POD THAT SERVES IT. `cboe_store` reads `/data/cboe_indices.db` and the
+    # web pod is what answers `/api/market-indicators/{id}` — a worker-side refresh
+    # would fill a volume the reader never sees.
+    #
+    # ⚠️ SEVEN SMALL EOD CSVs, NOT A BAR WARM. A few MB once at boot and once a day, in
+    # a daemon thread, every symbol isolated — deliberately unlike the bulk bar-warming
+    # that has OOM'd this pod before.
+    if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
+        def _cboe_refresh_loop():
+            while True:
+                try:
+                    from api.services.market_indicators import cboe_store as _cs
+                    res = _cs.refresh()
+                    print(f"[startup] cboe refresh: ingested={res['ingested']} "
+                          f"errors={res['errors']}")
+                except Exception as e:
+                    print(f"[startup] cboe refresh error (non-fatal): {e}")
+                time.sleep(int(os.environ.get("CBOE_REFRESH_SECS", "86400")))
+
+        threading.Thread(target=_cboe_refresh_loop, daemon=True,
+                         name="cboe_refresh").start()
+
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
     # current + prior days are always accurate. Boot pass fixes any leftover bad

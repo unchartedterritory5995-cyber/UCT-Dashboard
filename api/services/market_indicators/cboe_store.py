@@ -45,6 +45,8 @@ CSV_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{sym}_History
 #: Symbols this lane knows how to ingest. ⛔ Membership is a registry question, not a
 #: loader question — `registry.py` decides what is PUBLISHED; this is only what the
 #: builder will try to fetch, and it is deliberately the superset.
+PUBLISHED_SYMBOLS = ("VIX9D", "VIX3M", "VIX6M", "VVIX", "VXN", "RVX", "SKEW")
+
 KNOWN_SYMBOLS = ("VIX", "VIX9D", "VIX1D", "VIX3M", "VIX6M", "VVIX",
                  "VXN", "RVX", "SKEW", "GVZ", "OVX", "VXTLT", "VXEEM", "VXEFA")
 
@@ -204,6 +206,43 @@ def bars(symbol: str, limit: int = 20000) -> list[dict]:
         return []
     return [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": 0}
             for r in rows]
+
+
+#: The browser-ish UA Cboe's CDN expects. A bare urllib default gets refused.
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+
+def fetch_csv(symbol: str, timeout: int = 60) -> str:
+    """GET one symbol's published daily-price CSV from Cboe's CDN."""
+    import urllib.request
+    url = CSV_URL.format(sym=symbol)
+    req = urllib.request.Request(url, headers={"User-Agent": _UA})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def refresh(symbols=None, timeout: int = 60) -> dict:
+    """Fetch + ingest the published volatility family. Idempotent (upsert by date).
+
+    ⛔⛔ THE STORE DOES NOT FILL ITSELF. `tools/build_cboe_indices.py` is a developer's
+    door; nothing in the running service ever called it, so the seven published Cboe
+    series shipped with ZERO rows while the catalogue happily advertised them. This is
+    the same defect the NAAIM seed had, and it is wired at boot for the same reason.
+
+    ⚠️ PER-SYMBOL ISOLATION. One symbol's CDN hiccup must not cost the other six;
+    each is caught and reported, and the caller decides whether a partial refresh is
+    worth logging loudly.
+    """
+    out = {"ok": True, "ingested": {}, "errors": {}}
+    for sym in (symbols or PUBLISHED_SYMBOLS):
+        try:
+            rows, _has_ohlc = parse_csv(fetch_csv(sym, timeout=timeout))
+            out["ingested"][sym] = upsert(sym, rows)
+        except Exception as e:                      # noqa: BLE001 - reported, not raised
+            out["ok"] = False
+            out["errors"][sym] = f"{type(e).__name__}: {e}"
+    return out
 
 
 def coverage() -> dict:

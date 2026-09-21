@@ -112,3 +112,56 @@ def test_the_volatility_family_never_claims_to_be_our_calculation():
     for s in reg.rows_for_family(reg.FAM_VOLATILITY):
         assert "UCT does not compute it" in s.methodology
         assert s.reproduces_reference is True
+
+
+# ── The store must not ship EMPTY ────────────────────────────────────────────
+
+def test_the_published_family_is_what_refresh_fetches():
+    """⛔ THE LIST THE CATALOGUE ADVERTISES AND THE LIST THE REFRESH FILLS ARE ONE.
+
+    A series published without a matching fetch is a series that renders nothing;
+    a symbol fetched but not published is wasted bandwidth. `VIX` is deliberately
+    absent from both — `api/index_bars.py` already owns that symbol.
+    """
+    published = {s.symbol for s in reg.rows_for_family(reg.FAM_VOLATILITY)}
+    assert set(cs.PUBLISHED_SYMBOLS) == published, (
+        f"catalogue={sorted(published)} refresh={sorted(cs.PUBLISHED_SYMBOLS)}")
+    assert "VIX" not in cs.PUBLISHED_SYMBOLS
+    for sym in cs.PUBLISHED_SYMBOLS:
+        assert sym in cs.KNOWN_SYMBOLS
+
+
+def test_the_refresh_is_actually_wired_into_boot():
+    """⛔⛔ THE TOOL EXISTING IS NOT THE TOOL RUNNING.
+
+    `tools/build_cboe_indices.py` was the only door into this store and nothing in
+    the service ever opened it, so seven PUBLISHED series went live with zero rows.
+    Same defect as the NAAIM seed, so it gets the same source-level rail.
+    """
+    import inspect
+    import api.main as main
+    src = inspect.getsource(main)
+    i = src.index("_cboe_refresh_loop")
+    block = src[i:i + 900]
+    assert "cboe_store" in block and ".refresh()" in block
+    assert "threading.Thread(target=_cboe_refresh_loop" in src
+    assert ".start()" in src[src.index("threading.Thread(target=_cboe_refresh_loop"):][:300]
+
+
+def test_one_symbols_failure_cannot_cost_the_others(monkeypatch):
+    """⚠️ PER-SYMBOL ISOLATION — a CDN hiccup on SKEW must not empty VIX9D."""
+    calls = []
+
+    def flaky(sym, timeout=60):
+        calls.append(sym)
+        if sym == "SKEW":
+            raise TimeoutError("cdn said no")
+        return "DATE,OPEN,HIGH,LOW,CLOSE\n01/02/1990,17.24,17.9,17.1,17.5\n"
+
+    monkeypatch.setattr(cs, "fetch_csv", flaky)
+    monkeypatch.setattr(cs, "upsert", lambda s, b: len(b))
+    res = cs.refresh()
+    assert res["ok"] is False, "a partial refresh must not report success"
+    assert "SKEW" in res["errors"]
+    assert res["ingested"].get("VIX9D") == 1, "the healthy symbols still ingested"
+    assert len(calls) == len(cs.PUBLISHED_SYMBOLS), "every symbol was attempted"
