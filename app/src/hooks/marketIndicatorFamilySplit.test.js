@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs'
 import {
   canonicalFamily, presentationFamily, __setMarketIndicatorsForTest,
 } from './useMarketIndicators'
-import { loadBreadthSymbols } from './useBreadthSymbols'
+import { loadBreadthSymbols, __setBreadthSymbolsForTest } from './useBreadthSymbols'
 import { ohlcCapabilityOf, OHLC_FAMILY } from '../components/chart/engine/ohlcCapability'
 
 // The registry shape the server ships, trimmed to the rows this rail reasons about.
@@ -95,6 +95,31 @@ describe('⭐ the MI registry HAS landed', () => {
   it('⭐ an ordinary security is a security, and keeps candles', () => {
     expect(canonicalFamily('AAPL')).toBe(OHLC_FAMILY.SECURITY)
     expect(capability('AAPL', canonicalFamily).ok).toBe(true)
+  })
+})
+
+describe('⭐ a BREADTH series is classified exactly as it always was', () => {
+  // The 44 shipped pseudo-tickers must never be reclassified by a newer catalogue.
+  beforeEach(() => { __setBreadthSymbolsForTest([{ symbol: 'UCTA50' }, { symbol: 'UCTU20W' }]) })
+
+  it('breadth wins over the MI registry, landed or not', () => {
+    for (const ready of [null, REGISTRY]) {
+      __setMarketIndicatorsForTest(ready)
+      expect(canonicalFamily('UCTA50')).toBe(OHLC_FAMILY.BREADTH)
+      expect(presentationFamily('UCTA50')).toBe(OHLC_FAMILY.BREADTH)
+    }
+  })
+
+  it('⛔ and a breadth series still may not draw candles', () => {
+    __setMarketIndicatorsForTest(REGISTRY)
+    expect(capability('UCTA50', canonicalFamily).ok).toBe(false)
+  })
+
+  it('⚠️ a breadth symbol is NOT shadowed by an MI row of the same name', () => {
+    // `US:MCO` ships as `UCTMCO`; were it also a breadth pseudo-ticker, breadth wins.
+    __setBreadthSymbolsForTest([{ symbol: 'UCTMCO' }])
+    __setMarketIndicatorsForTest(REGISTRY)
+    expect(canonicalFamily('UCTMCO')).toBe(OHLC_FAMILY.BREADTH)
   })
 })
 
