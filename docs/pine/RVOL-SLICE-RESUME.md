@@ -1,11 +1,30 @@
 # Pine RVOL slice — RESUME HERE
 
 > **Branch `feat/pine-value-model`. Read this before touching the Pine engine.**
-> State at `5bc01520b`, 2026-09-20. Base `b2b95c764`; 26 commits ahead of
-> master, 48 behind. Nothing here is merged and nothing reaches a member.
+> State at **`9d68ddab5`**, 2026-09-20 (was `5bc01520b`). Nothing here is merged
+> and nothing reaches a member.
 >
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
 > this one. Do not update it for this work.
+
+> ## ⛔⛔ THE ACCEPTANCE SCRIPT CHANGED, AND IT IS NOT IN THIS REPO
+>
+> The owner switched targets on 2026-09-20: **"RVOL + ATR Dashboard"**, not the
+> corpus's `strong-start-rvol-dashboard`. Both are parked OUTSIDE the repo at
+>
+> ```
+> C:\Users\Patrick\uct-pine-local\rvol-atr-dashboard.pine        <- THE TARGET (143 lines)
+> C:\Users\Patrick\uct-pine-local\strong-start-rvol-dashboard.pine  <- the previous one
+> ```
+>
+> ⛔⛔ **NEVER COMMIT EITHER.** This repo is PUBLIC and the target carries no
+> licence header. It was previously held in a session scratchpad, which a new
+> session cannot reach — that is why it now lives at a durable path instead.
+>
+> ⭐ Its SHAPE is reproduced, licence-free, in
+> `app/src/components/chart/engine/runtime/__tests__/watchlistDashboard.test.js`.
+> Use that rail for regression work; use the parked file only to re-measure the
+> real thing.
 
 ---
 
@@ -28,7 +47,36 @@ is *for*. Read this section before planning more of it.
 
 ---
 
-## WHERE THE TWO ACCEPTANCE SCRIPTS ACTUALLY STAND
+## ⭐⭐ THE TARGET BUILDS, RUNS AND DRAWS (at `9d68ddab5`)
+
+Measured end to end through `buildObjectLane` → `runObjectLane`, two passes,
+with real per-symbol request bars. No layer mocked:
+
+```
+Symbol | RVOL        CCC | 545%        BBB | 288%        AAA | 149%
+```
+
+Ranked by `array.sort_indices(…, order.descending)`; symbols extracted from
+`NASDAQ:CCC` by `str.split`; RVOL exact (`3000/((500*49+3000)/50) = 545%`).
+`droppedOps 0`, `droppedPropNames []`, `loopValuesUnresolved 0`.
+
+The wall moved **L82 → L106 → L129 → L143 → none** over this session.
+
+⚠️ **The ORB column reads `NO` in that fixture and that is CORRECT** — the only
+09:30 ET bar in it IS the opening bar, and `openingRangeComplete` excludes it.
+The ORB logic is proved separately in `objectLane`/clock rails
+(`NaN,0,1,1,1,1,1,1` once later closes exceed the opening range).
+
+⛔ **`table.clear` IS SILENTLY IGNORED** — absent from the ops AND absent from
+`droppedOps`. Harmless for a last-bar-only draw, and it is still a silent
+omission rather than a named refusal, which this codebase treats as a defect.
+First item on the list below.
+
+### The previous script (`strong-start-rvol-dashboard`)
+
+Its own status below is from `8b0581541` and is **not re-measured**. Several of
+its listed blockers (object-pass loops, dropped props, `unresolvedValues`) were
+closed by this session's work; re-measure before acting on any of it.
 
 Measured at `8b0581541`. Re-measure rather than quoting these.
 
@@ -110,8 +158,11 @@ values and is a renderer capability, not a front-end one.
 | `078778009` | `fill()` — an output becomes a descriptor carrying its span. 7/7. |
 | `dbfc982b5` | **`pine:objects-only`** — a table-only script keeps its drawing. 5/5. |
 | `8b0581541` | A text input may NAME its default; **19 corpus scripts** move off `pine:no-output`. 4/4. |
+| `477da5bc8` | **The ET clock + session clock + statement bodies in a request.** `etClockAt` extracted as ONE clock both lanes read; `OP.READ_CLOCK` + `OP.SESSION`; `hour/minute(time, tz)`, `time(tf,"0930-1600",tz)`; a `var`/`if` helper body lowered INTO a request's region; `%` routed to the same `mod` the columnar lane already used; `array.sort_indices` (M7 tie order); hex colour literals. |
+| `d54e1af5b` | **Build fix, unrelated to Pine.** `vite.config.js` had a duplicate `build:` key — the last won, so `chunkSizeWarningLimit` and the WHOLE `rollupOptions.manualChunks` block were dead from 2026-09-12. Four vendor chunks restored. |
+| `9d68ddab5` | **The dashboard draws.** Object trees lowered where their names live; inline frames applied to raw trees; per-iteration values ride the member's own loop (parallel loop kept as fallback); `runObjectLane` forwards `barTimes`/`requestBars` and returns `requested`; three text-read-as-numeric holes closed. |
 
-**29 test files** added or changed on the branch.
+**32 test files** added or changed on the branch.
 
 ---
 
@@ -172,12 +223,62 @@ harness not telling the lane about the clock, not a property of the corpus.
 
 ---
 
+## TRAPS PAID FOR ON 2026-09-20 (the draw session)
+
+⛔⛔ **SOURCE ORDER IN `lowerStmts`' `if` BRANCH IS LOAD-BEARING.** The test is
+lowered BEFORE the body, and the function's own comment says so. Recording the
+branch scopes inverted it, and the cost was not a mis-numbered artifact but a
+**MOVED REFUSAL**: `if not isRatioSymbol` at v2:249 reads `syminfo.ticker`, and
+with the body first a `lookahead` refusal twelve lines INSIDE that body fired
+instead. The symbol seam stopped being reached — "with symbol" and "without
+symbol" read identically. `irSymbolFold`'s control is exactly what caught it.
+
+⛔⛔ **I EDITED LEDGERS TO MATCH THAT REGRESSION BEFORE I UNDERSTOOD IT.**
+`pineRuntimeTextLane` pins statement counts and the seam's line; both "moved
+forward", which reads as progress. They had not: the lane had stopped CHECKING.
+**A ledger edited to match the code it measures is not a ledger.** Reverted.
+
+⛔ **A DEPTH GUARD MUST BE THREADED THROUGH EVERY RECURSIVE EDGE.** `holdsText`
+gained a user-function branch with `depth < 8`, but its `binary` and `ternary`
+branches called back without passing `depth` — so it reset to 0 every hop and
+`f(x) => f(x) + 1` overflowed the stack instead of refusing `runtime:recursion`.
+
+⛔ **A SYNTHESISED NODE SHAPE HAS AN OWNER.** `guardOf` builds drawing guards as
+`{type:'op', name:'!'|'&&'}` — the RESOLVER's shape, not the parser's.
+Respelling it into the parser's shape "for one spelling of one meaning" broke
+the table vendor-parity suite outright, because another reader depends on it.
+The runtime lane is a second READER, so it reads `op`; it does not respell.
+
+⛔ **A REFUSAL BACKED BY A MEASUREMENT IS NOT A GAP TO FILL IN PASSING.**
+`array.sort_indices` was refused BY NAME because vendor packet M7 is partial.
+M7 measured that ties KEEP their order ascending and **REVERSE descending**; a
+stable sort keeps them both ways — correct ascending, wrong in the direction a
+dashboard ranks by. `arrays.test.js`'s own control caught it.
+
+⚠️ **MY OWN PROBES WERE WRONG FOUR TIMES, each reading as a product finding:**
+`Object.keys()`/`JSON.stringify` on a **Map** (`iterByTree`) reporting empty;
+passing the bars ARRAY where `view.bars` is a COUNT (`array | 0` → 0, so nothing
+executed); keying `inputs` by the input's TITLE when it is keyed by the bound
+NAME; and a hand-rolled `stringy()` heuristic that found 0 text trees while the
+VM was demonstrably throwing on one. **Check the accessor before believing the
+zero.**
+
+---
+
 ## HOW TO VERIFY
 
 ```sh
 cd app
-# the engine suite — expect ~6460 passed / 11 failed, ALL pre-existing
+# the engine suite — 11-12 failed across 7-8 files, ALL pre-existing:
+#   memberPaneGate · bothLanesAgreeOnFacts · capabilityDemandCensus ·
+#   historyDemandCensus · oosMeasuredBaseline · paramIds ·
+#   recurrenceSteps.measure  (+ stockChartWiring, LOAD-SENSITIVE — passes
+#   216/216 alone; re-run it alone before calling it a regression)
 node node_modules/vitest/vitest.mjs run src/components/chart/engine
+
+# the end-to-end dashboard rail (6 cases, asserts CELL TEXT not counts)
+node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/runtime/__tests__/watchlistDashboard.test.js
 
 # pine.js is the PRODUCTION columnar lane — its other consumers too
 node node_modules/vitest/vitest.mjs run src/components/chart/builder src/components/screener
@@ -195,16 +296,31 @@ case. Compare failing test NAMES.
 
 ## NEXT, IN ORDER
 
-1. ✅ **DONE** — an objects-only script draws, dark behind a flag.
-   **NEXT: loops in the OBJECT PASS.** 15 blocked ops on the dashboard, and the
-   whole difference between one header cell and the watchlist table.
-2. **The gradient fill** — the last blocker on script 2. Front end is easy (four
-   series + a descriptor); the renderer is the work.
-3. **Per-call-site specialisation** — the dashboard's runtime blocker. 4 of 266
-   corpus demand; weigh against the above.
-4. **Still owed, market hours only:** vendor measurements M2, M5, and M1's
-   realtime half. M4 part A and M10's data-feed label are owner-side but not
-   market-dependent.
+✅ **DONE:** objects-only scripts draw · object-pass loops · per-call-site
+lowering inside a request · the ET clock and session clock · the target
+dashboard builds, runs and draws.
+
+1. **`table.clear` — silently ignored.** Not in the ops, not in `droppedOps`.
+   Either carry it or refuse it BY NAME; a silent omission is the failure mode
+   this engine exists to avoid. Smallest item, highest principle.
+2. **`calc_bars_count`** — a named argument on `request.security`, accepted and
+   ignored today. Decide: honour it (bounds the history a request needs) or
+   refuse by name.
+3. **`text.format_bold`** — `text_formatting` is not in `CELL_PROPS`, so the
+   target's header row loses its bold. Silent, same class as (1).
+4. **Re-measure the CORPUS.** Every number in the map below predates this
+   session; the clock, session, statement-body, `%`, colour-literal and enum
+   work will have moved many first-blockers. Re-run before planning from it.
+5. **The gradient fill** — the last blocker on script 2. Front end is easy;
+   the renderer is the work.
+6. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
+   **M7's all-equal / already-descending halves** (see `sort_indices` — the tie
+   rule is measured, those two are extrapolated and labelled as such).
+
+⚠️ **AND THE STANDING QUESTION NOBODY HAS RE-OPENED:** ruling D2 means all of
+this improves a lane with **zero live importers**. The objects-only pane path is
+dark behind `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`. Deciding whether a member
+ever sees this is the owner's call, not a task.
 
 ## Related
 
