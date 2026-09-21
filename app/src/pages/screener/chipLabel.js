@@ -6,6 +6,11 @@ export function chipLabel(def, spec) {
   if (preset && preset.label && preset.label !== 'Any') {
     return `${def.label}: ${preset.label}`
   }
+  // The Type filter (Include/Exclude a set): {op:'in'|'not_in', values:[…]}.
+  if (Array.isArray(spec.values) && spec.values.length) {
+    const names = spec.values.map(v => (String(v).endsWith('s') ? v : `${v}s`)).join(', ')
+    return spec.op === 'not_in' ? `${def.label}: not ${names}` : `${def.label}: ${names}`
+  }
   const isMoney = def.unit === '$'
   const unit = def.unit && !isMoney ? def.unit : ''
   const pfx = isMoney ? '$' : ''

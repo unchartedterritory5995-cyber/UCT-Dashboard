@@ -87,6 +87,38 @@ def test_display_companion_is_fetched_but_not_a_duplicate_column(monkeypatch, tm
     assert out["rows"][0]["candle_label"] == "Tweezer Top (Hanging Man)"  # fetched
 
 
+def test_security_type_filter_include_and_exclude(monkeypatch, tmp_path):
+    # The Type filter: Include (op:in) keeps only the chosen buckets; Exclude
+    # (op:not_in) drops them AND deliberately KEEPS an unknown-type row (a NULL is
+    # not "an ETF", so "exclude ETFs" must not silently also hide it).
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, query
+    snapshot_db.init_db()
+    snapshot_db.upsert_rows([
+        {"ticker": "AAA", "security_type": "Stock", "snapshot_date": "2026-08-21"},
+        {"ticker": "BBB", "security_type": "ADR", "snapshot_date": "2026-08-21"},
+        {"ticker": "EEE", "security_type": "ETF", "snapshot_date": "2026-08-21"},
+        {"ticker": "NUL", "snapshot_date": "2026-08-21"},   # no type stamped
+    ])
+    inc = query.run_scan({"columns": ["price"], "filters": [
+        {"key": "security_type", "op": "in", "values": ["Stock", "ADR"]}]})
+    assert {r["ticker"] for r in inc["rows"]} == {"AAA", "BBB"}
+    exc = query.run_scan({"columns": ["price"], "filters": [
+        {"key": "security_type", "op": "not_in", "values": ["ETF"]}]})
+    assert {r["ticker"] for r in exc["rows"]} == {"AAA", "BBB", "NUL"}
+
+
+def test_type_filter_is_published_in_meta_with_its_custom_control(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
+    from api.services.screener import snapshot_db, filters
+    snapshot_db.init_db()
+    m = filters.meta()
+    st = next((f for f in m["filters"] if f["key"] == "security_type"), None)
+    assert st is not None and st["control"] == "typeset"
+    assert st["options"] == ["Stock", "ADR", "ETF"] and st["category"] == "type"
+    assert any(c["key"] == "type" for c in m["categories"])
+
+
 def test_uct_universe_gate_filters_to_liquid_priced_names(monkeypatch, tmp_path):
     # UCT Universe = the curated subset (price >= $5 AND 30d $-vol >= $20M);
     # "all"/absent = the full market. Resolved server-side, never a member chip.
