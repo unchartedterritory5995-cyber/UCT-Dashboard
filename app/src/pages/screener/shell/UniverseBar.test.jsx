@@ -17,7 +17,7 @@ const META = {
 describe('UniverseBar', () => {
   it('renders All Market, UCT Universe, Watchlist and Combo when the member has lists', () => {
     render(<UniverseBar meta={META} activeList={undefined} onSetFilter={() => {}} />)
-    expect(screen.getByRole('button', { name: 'All Market' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Global Universe' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /UCT Universe/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Watchlist/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Combo/ })).toBeInTheDocument()
@@ -25,7 +25,7 @@ describe('UniverseBar', () => {
 
   it('shows All Market + UCT Universe when there are no lists (absence contract)', () => {
     render(<UniverseBar meta={{ filters: [] }} activeList={undefined} onSetFilter={() => {}} />)
-    expect(screen.getByRole('button', { name: 'All Market' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Global Universe' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /UCT Universe/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Watchlist/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Combo/ })).not.toBeInTheDocument()
@@ -51,7 +51,7 @@ describe('UniverseBar', () => {
   it('All Market clears both universe and list', () => {
     const onSetFilter = vi.fn()
     render(<UniverseBar meta={META} activeUniverse={{ op: 'eq', value: 'uct' }} onSetFilter={onSetFilter} />)
-    fireEvent.click(screen.getByRole('button', { name: 'All Market' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Global Universe' }))
     expect(onSetFilter).toHaveBeenCalledWith('universe', null)
     expect(onSetFilter).toHaveBeenCalledWith('list', null)
   })

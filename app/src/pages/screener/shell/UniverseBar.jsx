@@ -12,9 +12,9 @@ import styles from './ScannerShell.module.css'
 // smaller number than All Market without leaving the row.
 const UNIVERSE_INFO = {
   all: {
-    name: 'All Market',
-    short: 'US common + ADR · no price floor',
-    body: 'Every US-listed common stock and ADR that trades — no price or market-cap floor. ETFs, funds, and buyout / acquisition targets are excluded.',
+    name: 'Global Universe',
+    short: 'Stocks, ADRs & ETFs · no price floor',
+    body: 'The whole US-listed tradeable market — common stocks, ADRs and exchange-traded funds (incl. ETNs and closed-end funds) that trade, with no price or market-cap floor. Buyout / acquisition targets are excluded. Narrow it with the Type filter.',
   },
   uct: {
     name: 'UCT Universe',
@@ -128,7 +128,7 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
       </div>
       <div className={styles.uSeg}>
         <button type="button" className={styles.uBtn} aria-pressed={isAllMarket} onClick={pickAllMarket}>
-          All Market
+          Global Universe
         </button>
         <button type="button" className={styles.uBtn} aria-pressed={isUCT} onClick={pickUCT}
           title="Curated, tradeable subset — price ≥ $5 and 30-day $-volume ≥ $20M">
@@ -189,17 +189,17 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
           rule; a member's own list does not. */}
       {activeCriteria && <span className={styles.uCriteria}>{activeCriteria}</span>}
 
-      {/* Reset the pool to All Market. Shown only when something narrows it —
-          All Market IS the cleared state, so there is nothing to clear there. */}
+      {/* Reset the pool to the Global Universe. Shown only when something narrows
+          it — the Global Universe IS the cleared state, nothing to clear there. */}
       {!isAllMarket && (
         <button type="button" className={styles.uClear} onClick={pickAllMarket}
-          title="Reset the pool to All Market">
+          title="Reset to the Global Universe">
           Clear
         </button>
       )}
 
       <span className={styles.uBase}>
-        {isAllMarket ? 'All Market' : isUCT ? 'UCT Universe' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
+        {isAllMarket ? 'Global Universe' : isUCT ? 'UCT Universe' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
         {/* Live count of the current selection: with no filters this is the
             pool's own size (names); once filters narrow it, it's the matches. */}
         {total != null && !isLoading && (

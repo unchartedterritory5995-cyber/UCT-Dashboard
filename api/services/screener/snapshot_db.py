@@ -11,7 +11,7 @@ _WRITE_LOCK = threading.Lock()
 
 # Canonical column set. Add columns here ONLY (builder + query read this list).
 COLUMNS = [
-    "ticker", "company", "sector", "industry", "exchange",
+    "ticker", "company", "sector", "industry", "exchange", "security_type",
     "market_cap", "price", "avg_volume_30d", "dividend_yield",
     # fundamentals
     "pe_ttm", "pe_fwd", "peg", "ps", "pb", "eps_growth", "rev_growth",
@@ -148,7 +148,7 @@ COLUMNS = [
     "snapshot_date", "bars_asof", "built_at",
 ]
 
-_TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
+_TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
          "bar_character", "bar_character_label",
          "candle_recent", "candle_recent_label", "candle_recent_status",
