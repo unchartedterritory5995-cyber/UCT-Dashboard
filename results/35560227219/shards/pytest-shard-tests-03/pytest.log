@@ -1,0 +1,112 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+................ssssssssssss............................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 15%]
+.........................F........................................F..... [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 30%]
+........................................................................ [ 34%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+.....sss...sss...ss....ss....s.....s.....s.....s.....ss....ss....s.....s [ 64%]
+........................................................................ [ 68%]
+........................................................................ [ 72%]
+.............................s.....s.................................... [ 76%]
+.....sss...sss...s.....s................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+_____________________ test_e_a_corrupt_snapshot_is_refused _____________________
+
+live = '/tmp/pytest-of-runner/pytest-0/test_e_a_corrupt_snapshot_is_r0/live.db'
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_e_a_corrupt_snapshot_is_r0')
+
+    def test_e_a_corrupt_snapshot_is_refused(live, tmp_path):
+        """⛔ integrity_check first. Installing an unreadable snapshot over a readable
+        database is the one outcome worse than not restoring at all."""
+        before = _fingerprint(live)
+        snap = _snapshot(str(tmp_path / "bad.db"))
+        with open(snap, "r+b") as fh:          # scribble over the middle of the file
+            fh.seek(os.path.getsize(snap) // 2)
+            fh.write(b"\x00" * 8192)
+        with pytest.raises(br.RestoreRefused) as e:
+>           br.restore_from_db(snap)
+
+tests/test_breadth_restore.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/breadth_restore.py:163: in restore_from_db
+    info = inspect_snapshot(staged_db)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = '/tmp/pytest-of-runner/pytest-0/test_e_a_corrupt_snapshot_is_r0/bad.db'
+
+    def inspect_snapshot(path: str) -> dict:
+        """Everything we need in order to DECIDE, read from the staged file. Read-only.
+    
+        ⛔ Every check here is a REFUSAL, not a warning. A restore that installs something
+        it could not validate is the one outcome worse than not restoring at all.
+        """
+        c = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        try:
+            # ⛔ INTEGRITY FIRST — every other question is meaningless on a corrupt file.
+>           verdict = c.execute("PRAGMA integrity_check").fetchone()[0]
+E           sqlite3.DatabaseError: database disk image is malformed
+
+api/services/breadth_restore.py:103: DatabaseError
+_ test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary _
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_report_survives_a_for0')
+
+    def test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary(tmp_path):
+        """⛔⛔ THE FAILURE THIS REPLACES: exit 1 and NO FILE, on the box Task Scheduler runs
+        it on. The tool reconfigures stdout at entry, and writes the artifact before it echoes.
+        """
+        p, summary = _run_report(tmp_path, "cp1252")
+        assert p.returncode == 0, (f"exit {p.returncode}\n"
+                                   f"{p.stderr.decode('utf-8', 'replace')[-800:]}")
+        assert summary.exists(), "the summary was not written under a cp1252 stdout"
+    
+        text = summary.read_text(encoding="utf-8")
+        # ⛔ "Complete", not merely "present": a truncated file is the failure mode that a
+        # bare exists() check cannot see.
+        for marker in ("GENERATED FILE", "NOT A SOURCE", "NO MEMBER DATA",
+                       "# Breadth sampler - pool summary", "```"):
+            assert marker in text, f"summary is missing {marker!r} — written but incomplete"
+        assert text.rstrip().endswith("```"), "the fenced block is not closed — truncated"
+>       assert "BREADTH SAMPLER" in text, "the report body never reached the file"
+E       AssertionError: the report body never reached the file
+E       assert 'BREADTH SAMPLER' in '<!-- GENERATED FILE - do not edit by hand.\n     Written by tools/breadth_sampler_report.py on every run.\n     NOT A...readth sampler - pool summary\n\n```\nno sample file at C:/Users/Patrick/uct-breadth-pool/breadth-samples.jsonl\n```\n'
+
+tests/test_breadth_sampler.py:400: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [12] tests/test_breadth_live.py:1025: breadth_collector.py not on this machine
+SKIPPED [30] tests/test_bs_iv.py:49: price pinned to intrinsic floor; no recoverable vol
+FAILED tests/test_breadth_restore.py::test_e_a_corrupt_snapshot_is_refused - sqlite3.DatabaseError: database disk image is malformed
+FAILED tests/test_breadth_sampler.py::test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary - AssertionError: the report body never reached the file
+assert 'BREADTH SAMPLER' in '<!-- GENERATED FILE - do not edit by hand.\n     Written by tools/breadth_sampler_report.py on every run.\n     NOT A...readth sampler - pool summary\n\n```\nno sample file at C:/Users/Patrick/uct-breadth-pool/breadth-samples.jsonl\n```\n'
+2 failed, 1847 passed, 42 skipped, 2 warnings in 251.52s (0:04:11)
