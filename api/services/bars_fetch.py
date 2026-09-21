@@ -381,8 +381,101 @@ def _last_weekday_yyyymmdd() -> int:
 _INTRADAY_FRESHNESS_THRESHOLDS = {"1": 90, "5": 300, "15": 900, "30": 1800, "60": 3600}
 
 
-def _needs_fresh(last_ts: int | None, tf: str) -> bool:
-    """True if SQLite data is stale enough to warrant a delta fetch."""
+# ── Session COMPLETENESS — "does this tail reach the end of its session?" ─────
+# ⛔⛔ A DATE MATCH IS NOT FRESHNESS, AND OFF-MARKET THAT FROZE TRUNCATED TAILS.
+# `_is_cold_stale_intraday` compares ET DATES, and `_needs_fresh`'s off-market branch
+# trusts it completely ("if the cache covers the most-recent trading session, the
+# entry is fresh enough off-market regardless of wall-clock age"). So a tail that
+# stopped mid-session still bears the right date and is served, unrefreshed, until
+# the market reopens.
+#
+# ⚰️ MEASURED, production, Sunday 2026-09-20, against Friday 2026-09-18 (whose
+# post-market ran to 19:55): PLTR 5m ended 15:15 · AEHR 5m 13:20 · CELH 5m 10:10 ·
+# BATRK 5m 09:50 and 60m 10:00. Five of nine sampled symbols served a truncated
+# session 55 hours later — every one of them reporting `newest_bar_is_forming:
+# false`, i.e. the server asserting those cut-short tails were settled.
+#
+# ⭐ ONE CALENDAR, NOT A SECOND ONE. Early closes and holidays come from
+# `nyse_calendar`, the set the router's clock already reads.
+#
+# ⭐ AND THE RULE IS THE CLIENT'S OWN. `marketSession.isIntradayTailStale` already
+# encodes exactly this test (`tailMin < 960 - tfMin`) behind
+# `INTRADAY_COMPLETENESS_PCT`, shipped at 0. Restating it here rather than importing
+# the idea would put two authorities on "is this session complete"; this is
+# deliberately the same comparison so origin and chart cannot disagree.
+_RTH_CLOSE_MINUTES = 960          # 16:00 ET
+_RTH_EARLY_CLOSE_MINUTES = 780    # 13:00 ET on a half day
+
+
+def _session_close_minutes(ymd: int) -> int:
+    """ET minutes-from-midnight when the REGULAR session for `ymd` closes."""
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+        if int(ymd) in NYSE_EARLY_CLOSES_YYYYMMDD:
+            return _RTH_EARLY_CLOSE_MINUTES
+    except Exception:                      # noqa: BLE001 — unreadable calendar → full day
+        pass
+    return _RTH_CLOSE_MINUTES
+
+
+def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
+    """True when an intraday tail reaches the FINAL bucket of its own session.
+
+    A post-market tail is complete by construction (it is past the close). A tail
+    that stops before the last regular bucket is an artifact of when we last
+    fetched, not of trading — which is the distinction the date compare cannot make.
+
+    ⚠️ ABSTAINS RATHER THAN GUESSING: an unparseable instant answers True, so a
+    shape surprise can never turn into a universe-wide refetch.
+    """
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return True
+    try:
+        et = _ZI("America/New_York")
+        dt = datetime.fromtimestamp(int(last_ts), et)
+        tail_minutes = dt.hour * 60 + dt.minute
+        close_minutes = _session_close_minutes(int(dt.strftime("%Y%m%d")))
+        return tail_minutes >= close_minutes - int(tf)
+    except Exception:                      # noqa: BLE001
+        return True
+
+
+# One heal attempt per truncated tail per cooldown. ⛔ WITHOUT THIS THE PREDICATE
+# ABOVE IS A SATURATION BUG: a genuinely thin symbol that simply stopped trading at
+# 13:20 is indistinguishable from a truncated fetch, so it would report "needs
+# fresh" on every prewarm cycle forever and re-fire a delta that returns nothing.
+# That is the Memorial-Day-2026 pattern the off-market shortcut was written to stop
+# (14k+ refresh calls per cycle against the shared Massive key). Keyed on the tail
+# INSTANT, so a tail that actually advances is a new key and heals immediately,
+# while one the provider cannot extend is asked again at most once per window.
+_COMPLETENESS_COOLDOWN = int(
+    _os.environ.get("BARS_COMPLETENESS_COOLDOWN_SECONDS", str(6 * 3600)))
+_COMPLETENESS_MAX_KEYS = 20000
+_completeness_attempt: dict[str, float] = {}
+_completeness_lock = _threading.Lock()
+
+
+def _completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
+    """True at most once per (ticker, tf, tail instant) per cooldown."""
+    key = f"{ticker}_{tf}_{int(last_ts)}"
+    now = _time.time()
+    with _completeness_lock:
+        prev = _completeness_attempt.get(key)
+        if prev is not None and (now - prev) < _COMPLETENESS_COOLDOWN:
+            return False
+        if len(_completeness_attempt) >= _COMPLETENESS_MAX_KEYS:
+            _completeness_attempt.clear()   # bounded; a cleared window costs one retry
+        _completeness_attempt[key] = now
+    return True
+
+
+def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
+    """True if SQLite data is stale enough to warrant a delta fetch.
+
+    `ticker` is OPTIONAL and enables the off-market session-completeness
+    escalation below. Callers that omit it keep byte-identical behaviour, so the
+    freshness alerting and any other reader is untouched by this change.
+    """
     if last_ts is None:
         return True
     if tf in ("D", "W", "M"):
@@ -465,6 +558,15 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     # the 30h gate still kicks in to make sure we don't sit on truly
     # ancient data.
     if tf in ("1", "5", "15", "30", "60") and not _is_cold_stale_intraday(tf, last_ts):
+        # The date matches the latest session — but a date is not a session. A tail
+        # that stops before its own close is TRUNCATED, and off-market nothing else
+        # will ever notice (see `intraday_session_complete`). Escalate once per
+        # truncated tail per cooldown, and only when the caller named the symbol.
+        if (ticker
+                and _os.environ.get("BARS_SESSION_COMPLETENESS", "1") == "1"
+                and not intraday_session_complete(tf, last_ts)
+                and _completeness_heal_allowed(ticker, tf, last_ts)):
+            return True
         return False
     return age > 30 * 3600
 
@@ -2278,7 +2380,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
 
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
-    if _needs_fresh(last_ts, tf):
+    if _needs_fresh(last_ts, tf, ticker_up):
         if _since_async_heal():
             # PHASE 1.4 — DON'T block this high-QPS poll on a provider. Heal the tail
             # in the background (bounded, deduped) and serve whatever local delta
@@ -2843,7 +2945,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # serve 10 rows because they're "fresh", leaving a huge gap on the chart).
     # Fall through to the stale-while-revalidate path when we have data but
     # less than requested — bg fetch will populate the missing depth.
-    if stored_rows and not _needs_fresh(last_ts, tf) and (
+    if stored_rows and not _needs_fresh(last_ts, tf, ticker_up) and (
         len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
     ):
         # SQLite has enough fresh data (or holds the full available history,

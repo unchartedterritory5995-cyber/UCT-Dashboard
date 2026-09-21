@@ -13,7 +13,7 @@ import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut, mergeDelta } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
-import { FIRST_PAINT_BARS, fullBarsFor } from './barsBackfill'
+import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
@@ -85,9 +85,18 @@ const warmFetcher = url => fetch(url).then(r =>
 // fetched lazily by StockChart's backfill when the user actually pans into it,
 // so warming need not pull 5000-8000 bars per ticker/TF. Keeps the SWR cache key
 // (bars=FIRST_PAINT_BARS) aligned with the chart's cold fetch.
+// ⛔⛔ THIS MUST TRACK `firstPaintBarsFor` EXACTLY. The alignment noted above is
+// not a nicety — `bars=` is part of the SWR cache key AND of the server's
+// `bars_{sym}_{tf}_{n}` key, so a prefetch that warms a DIFFERENT count than the
+// chart requests warms a key the chart never reads: every intraday prefetch
+// becomes pure cost (a provider fetch, a store write, browser bandwidth) and the
+// chart still opens cold. Derive it; never restate the number.
+// ⚠️ RTH mode (the default) is assumed: warming is speculative and has no user
+// session setting to read, and the RTH budget is the LARGER of the two, so an
+// extended-hours viewer reads a warm superset rather than a cold miss.
 const BAR_COUNTS = {
-  1: FIRST_PAINT_BARS, 5: FIRST_PAINT_BARS, 15: FIRST_PAINT_BARS,
-  30: FIRST_PAINT_BARS, 60: FIRST_PAINT_BARS,
+  1: firstPaintBarsFor('1'), 5: firstPaintBarsFor('5'), 15: firstPaintBarsFor('15'),
+  30: firstPaintBarsFor('30'), 60: firstPaintBarsFor('60'),
   D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS,
 }
 // Common TFs first (Daily, 5min) so those switches warm first; 5min was last-ish

@@ -784,7 +784,7 @@ import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 // ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
 // INSTANCES and geometry; it has no `cs`, and the three questions below are all
 // answered FROM `cs` — who follows whom, who hosts a pane, and who still needs
@@ -6079,7 +6079,13 @@ export default function StockChart({
   // searching up new intraday names). The deep intraday window now loads OFF the critical path via
   // the deep-backfill SWR below (Phase 3' Part 3). _fpBars === FIRST_PAINT_BARS now, so barCount /
   // since are byte-identical to the original; kept as a named constant for its two call sites.
-  const _fpBars = FIRST_PAINT_BARS
+  // ⭐ PER-TF AND SESSION-AWARE (was a flat FIRST_PAINT_BARS). The RTH filter below
+  // discards ~59% of an intraday payload, so a flat 600 reached the screen as ~240
+  // bars against a 200-bar default zoom. `firstPaintBarsFor` budgets in VISIBLE bars
+  // and grosses up by the session fraction only when extended hours are hidden — so
+  // turning EXT on makes the request SMALLER, not larger. Clamped under the server's
+  // deep-request threshold so a first paint never crosses into the heavy branch.
+  const _fpBars = firstPaintBarsFor(resolvedTf, showExtended)
   const _overlayActive = !!(
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
@@ -6087,7 +6093,7 @@ export default function StockChart({
   const _depthKey = `${sym}_${resolvedTf}`
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
-    if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    if (fetchDepth !== _fpBars) setFetchDepth(_fpBars)
     if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
     if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
     pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
@@ -6461,7 +6467,7 @@ export default function StockChart({
   // would never load the deep history the user panned to see — so a progressive
   // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
   // bar count grows and the existing same-ticker re-anchor holds the view steady.
-  if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
+  if (fetchDepth > _fpBars || _pinnedFull) _sinceParam = null
   // Custom (non-native) timeframe → the native path fetches nothing; the isolated
   // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
@@ -6490,13 +6496,13 @@ export default function StockChart({
   // warm-deep browser renders full history via _splitDeepUsable (Fix 1) with no edge fetch, so
   // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
   // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
-  const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
+  const _idbAlreadyDeep = idbBars?.length > _fpBars
   const _fpEdge = _firstPaintEdgeEnabled()
   const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
   // Deep sealed history from the edge — after the user pans PAST the first-paint tail
   // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-    && (fetchDepth > FIRST_PAINT_BARS || _histFirstPaint)
+    && (fetchDepth > _fpBars || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
   // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
@@ -6830,7 +6836,9 @@ export default function StockChart({
           const maxAge = (['D', 'W'].includes(tf) ? 86400 : 14400) * 1000
           if (!entryStaleIntraday && entry?.bars?.length
               && Date.now() - (entry.savedAt || 0) < maxAge) continue
-          const bc    = FIRST_PAINT_BARS  // viewport-first: warm the shallow window; backfill loads deep history on pan
+          // Per-tf first-paint budget — the SAME count the chart will request for
+          // this tf, or this warm writes a cache key the chart never reads.
+          const bc    = firstPaintBarsFor(tf)  // viewport-first; backfill loads deep history on pan
           const since = entryStaleIntraday ? null : entry?.lastT
           // &warm=1: this all-TF chain is SPECULATIVE (warming timeframes the user
           // isn't viewing), so it MUST shed under load. Without it, at MARKET OPEN
