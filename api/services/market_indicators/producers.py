@@ -123,6 +123,15 @@ def mcclellan_for_universe(universe: str,
         anchor = derive_summation_anchor(dates, adv, dec, method)
         if anchor is None:
             return None
+    if anchor is not None and anchor.at not in set(dates):
+        # ⛔⛔ A PINNED EPOCH THAT IS NOT IN THE DATA IS A REFUSAL. Falling back to a
+        # derived one would re-level the whole series the moment the source changed
+        # shape — which is the exact drift pinning exists to prevent — and would do it
+        # silently, because the curve would still look right.
+        _log.error("market indicators: summation anchor %s is not a session in "
+                   "universe %s (%d sessions, %s..%s) — refusing to re-derive",
+                   anchor.at, universe, len(dates), dates[0], dates[-1])
+        return None
     return mc.compute(dates, adv, dec, method=method, anchor=anchor)
 
 
@@ -310,7 +319,17 @@ def _build_uncached(sid: str) -> Optional[DerivedSeries]:
                              detail={"ema19": res.ema19, "ema39": res.ema39,
                                      "normalised": res.normalised})
     if sid.endswith(":MCS"):
-        res = mcclellan_for_universe(uni, want_summation=True)
+        # ⛔⛔ THE PINNED ANCHOR IS THE DEFINITION OF THIS SERIES' LEVEL, and it is read
+        # from the registry rather than re-derived. Deriving it per build is
+        # deterministic only while the dataset's start date never moves; a backfill
+        # that adds earlier sessions would shift the epoch and silently re-level every
+        # historical value. Pinning makes the level a property of the DEFINITION.
+        anchor = None
+        if row.summation_epoch is not None and row.summation_base is not None:
+            anchor = mc.Anchor(at=row.summation_epoch, value=float(row.summation_base),
+                               source=row.summation_anchor_source or "declared")
+        res = mcclellan_for_universe(uni, anchor=anchor,
+                                     want_summation=anchor is None)
         if res is None or res.anchor is None:
             return None
         return DerivedSeries(series_id=sid, dates=res.dates, values=res.summation,

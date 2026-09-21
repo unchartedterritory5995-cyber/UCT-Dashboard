@@ -417,3 +417,175 @@ def test_the_catalogue_never_contains_a_dormant_row():
     from api.services.market_indicators import discovery as disc
     ids = {r["id"] for r in disc.catalogue()["rows"]}
     assert not ids & {s.id for s in reg.dormant_rows()}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# THE MEASURED FACTS THIS DESIGN RESTS ON
+#
+# ⛔⛔ Each of these was verified by a READ-ONLY probe of the production store on
+# 2026-09-20 and then written into the code as a claim. A claim nobody re-reads is a
+# claim that rots, so these rails fail when the code stops saying what was measured.
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_trin_bpi_and_putcall_are_absent_and_the_registry_says_why():
+    """⛔ ABSENT, NOT DORMANT — a decision not to have a row, recorded where a
+    reviewer looks. And absent means unreachable through every door."""
+    import inspect
+    from api.services.market_indicators import registry as _reg
+    for token in ("TRIN", "BPI", "UCTPC", "$CPCE"):
+        assert _reg.resolve(token) is None
+        assert _reg.resolve(token, include_dormant=True) is None
+        assert not _reg.is_market_indicator(token)
+
+    src = inspect.getsource(_reg)
+    # The corrected TRIN position: derivable for US today, blocked on PRECISION and on
+    # the exchange universes never being able to follow — not on "we cannot compute it".
+    assert "TRIN / ARMS INDEX IS NOT REGISTERED" in src
+    assert "up_vol_ratio" in src and "round(..., 2)" in src
+    assert "point-and-figure" in src          # the BPI reason
+    assert "QUARANTINED" in src               # the UCTPC position
+
+
+def test_the_uct_ratio_adjusted_mcclellan_names_its_real_blocker():
+    """The first audit said "only from 2026-03-16". The store says 15 rows."""
+    row = reg.resolve("UCT:MCO", include_dormant=True)
+    assert row is not None and row.status == reg.ST_DORMANT
+    assert "15" in row.blocked_on, "the blocker must carry the measured row count"
+    assert "UCTMC" in row.blocked_on, "it must name the series it would collide with"
+    assert row.history_start is None, (
+        "claiming a history_start for a series with 15 source rows would be a "
+        "coverage promise the data cannot keep")
+
+
+def test_the_shipped_uctmc_is_not_touched_by_this_package():
+    """⛔ NO RENAME, NO MIGRATION, NO DELETION. `UCTMC` stays a breadth-library symbol
+    served by the breadth path; nothing here may claim it."""
+    assert reg.resolve("UCTMC", include_dormant=True) is None
+    assert not reg.is_market_indicator("UCTMC")
+    # and the new ratio-adjusted row must not alias itself onto the legacy identity
+    row = reg.resolve("UCT:MCO", include_dormant=True)
+    assert "UCTMC" not in [a.upper() for a in row.aliases]
+    assert "Ratio-Adjusted" in row.display
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# THE SUMMATION'S ABSOLUTE LEVEL — pinned, not derived
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_the_us_summation_level_is_defined_in_the_registry_not_discovered():
+    """⛔⛔ THE CANONICAL DEFINITION OF THE LEVEL LIVES IN ONE PLACE.
+
+    "the cumulative sum of the ratio-adjusted US McClellan Oscillator since
+     2008-06-24, taking the value 0 on that session."
+
+    Deriving the epoch per build is deterministic only while the dataset's start never
+    moves. A backfill that added 2007 sessions would shift it and silently re-level
+    every historical value — the curve would still look right.
+    """
+    row = reg.get("US:MCS")
+    assert row.summation_epoch == "2008-06-24"
+    assert row.summation_base == 0.0
+    assert row.summation_anchor_source == "declared"
+    assert row.summation_base == mc.RATIO_ADJUSTED.summation_base, (
+        "the base must be the VARIANT's neutral level, not an arbitrary number")
+
+
+def test_the_pinned_epoch_sits_exactly_at_the_burn_in():
+    """The pin is not a free parameter: it is the first session with DEFAULT_BURN_IN
+    real observations behind it, given the store's measured start of 2008-01-02."""
+    row = reg.get("US:MCS")
+    assert row.summation_epoch > (reg.get("US:MCO").history_start or "")
+    # 120 sessions after 2008-01-02 lands in mid-2008; a pin outside that window would
+    # mean the burn-in and the pin had drifted apart.
+    assert "2008-0" in row.summation_epoch
+
+
+def test_a_pinned_epoch_missing_from_the_data_is_refused_not_re_derived(monkeypatch):
+    """⛔⛔ THE DRIFT GUARD. Falling back to a derived epoch when the pinned one is
+    absent would re-level the series the moment the source changed shape, silently."""
+    dates = [f"2026-0{1 + i // 28}-{1 + i % 28:02d}" for i in range(200)]
+    monkeypatch.setattr(producers, "load_pair",
+                        lambda *a, **k: (dates, [600] * 200, [400] * 200))
+    producers.invalidate()
+    out = producers.mcclellan_for_universe(
+        "us", anchor=mc.Anchor(at="1999-01-04", value=0.0, source="declared"))
+    assert out is None
+
+
+def test_nothing_is_served_before_the_epoch(monkeypatch):
+    """⛔ NO FAKE SUMMATION VALUES DURING WARMUP. The series is UNDEFINED before its
+    epoch, and an undefined point is not a bar."""
+    dates = [f"2026-{1 + i // 28:02d}-{1 + i % 28:02d}" for i in range(200)]
+    monkeypatch.setattr(producers, "load_pair",
+                        lambda *a, **k: (dates, [600] * 200, [400] * 200))
+    monkeypatch.setattr(producers, "load_metric_closes",
+                        lambda *a, **k: (dates, [200] * 200))
+    producers.invalidate()
+    res = producers.mcclellan_for_universe(
+        "us", anchor=mc.Anchor(at=dates[120], value=0.0, source="declared"))
+    assert res is not None
+    assert all(v is None for v in res.summation[:120])
+    assert res.summation[120] == pytest.approx(0.0)
+    # and the served bars start AT the epoch, never before it
+    ds = producers.DerivedSeries("US:MCS", res.dates, res.summation, "us", "v")
+    pts = ds.as_points()
+    assert pts[0]["t"] == dates[120]
+    assert len(pts) == len(dates) - 120
+
+
+def test_the_oscillator_is_served_from_the_first_session_but_the_summation_is_not():
+    """They answer different questions: the oscillator forgets its seed, the level
+    never does. Serving both from session 1 would be the bug."""
+    assert reg.get("US:MCO").summation_epoch is None
+    assert reg.get("US:MCS").summation_epoch is not None
+
+
+def test_the_dormant_exchange_summations_carry_no_declared_level_yet():
+    """⛔ NYSI/NASI will be anchored to a PUBLISHED reference value, which is what makes
+    their level comparable rather than merely self-consistent. Pinning a declared one
+    now would bake in the wrong strategy."""
+    for sym in ("NYSI", "NASI"):
+        row = reg.resolve(sym, include_dormant=True)
+        assert row.summation_epoch is None
+        assert "anchor" in row.blocked_on.lower()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# WHAT THE ZERO-ERROR REFERENCE RESULT DOES AND DOES NOT PROVE
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_the_reference_reproduction_supplies_its_own_initial_conditions():
+    """⛔⛔ NO AMBIGUITY ABOUT WHAT THE 0.000000000 MEANS.
+
+    The zero-error replay seeds the trends from the REFERENCE'S OWN published 10%/5%
+    values and anchors the summation at the REFERENCE'S OWN published level. It is a
+    test of the RECURRENCE with initial conditions given — and it is therefore NOT a
+    validation of `SEED_ZERO` or of `DEFAULT_BURN_IN`, which are the COLD-START
+    strategy for the case where no such preceding state exists (ours).
+
+    The two are connected by a separate measurement — the cold replay against the same
+    published series — which is what `DEFAULT_BURN_IN` is derived from.
+    """
+    rows = val.load_reference_fixture()
+    seeded = mc.TrendState(ema19=rows[0]["ref_trend_10pct"],
+                           ema39=rows[0]["ref_trend_5pct"], n=1)
+    assert seeded.ema19 is not None and seeded.ema39 is not None, (
+        "the fixture supplies preceding state; that is the point")
+
+    # Cold, with the shipped strategy, the FIRST oscillator is nowhere near the
+    # reference — the seed has not been forgotten yet.
+    cold = mc.compute([r["date"] for r in rows[:5]],
+                      [r["advances"] for r in rows[:5]],
+                      [r["declines"] for r in rows[:5]], method=mc.CLASSIC)
+    assert abs(cold.oscillator[1] - rows[1]["ref_oscillator"]) > 10.0, (
+        "if a cold start matched immediately, the burn-in would be unnecessary — and "
+        "this test would be the thing that noticed")
+
+
+def test_the_reference_anchor_is_labelled_as_a_reference_not_as_a_declaration():
+    """The provenance of a level is part of the level. A reference anchor is exempt
+    from the burn-in gate precisely because its authority comes from outside."""
+    a = mc.Anchor(at="2026-01-02", value=1698.5, source="reference:mcclellan")
+    assert a.source.startswith("reference:")
+    d = mc.Anchor(at="2026-01-02", value=0.0, source="declared")
+    assert not d.source.startswith("reference:")

@@ -121,6 +121,19 @@ class Series:
     licensing: str = ""                       # what we may do with it
     blocked_on: str = ""                      # why it is dormant, if it is
     reproduces_reference: bool = False        # Rule 1 precondition — an explicit claim
+    #: ⛔⛔ THE SUMMATION'S ABSOLUTE LEVEL, PINNED AS DATA RATHER THAN DERIVED.
+    #: A cumulative series' level is entirely determined by where it started. Deriving
+    #: the epoch as "the first session 120 observations in" is deterministic for a
+    #: FIXED dataset and NOT deterministic across one that grows backwards: a backfill
+    #: that adds 2007 sessions moves the epoch and silently re-levels every historical
+    #: value. Pinning it means the level survives the data changing underneath it, and
+    #: means a reviewer can see what the number is relative to without running anything.
+    #:
+    #: ⚠️ A PINNED EPOCH THAT IS NOT IN THE DATA IS A REFUSAL, NOT A FALLBACK. Quietly
+    #: re-deriving would reintroduce exactly the drift this exists to prevent.
+    summation_epoch: Optional[str] = None     # 'YYYY-MM-DD' — where the level is fixed
+    summation_base: Optional[float] = None    # the value it takes there
+    summation_anchor_source: str = ""         # 'declared' | 'reference:<publisher>'
     #: ⛔⛔ PER-SERIES, NOT PER-FAMILY. Cboe publish VIX as DATE,OPEN,HIGH,LOW,CLOSE
     #: and VVIX/SKEW as DATE,<SYM> — one close and nothing else. Both are volatility
     #: indices; only one of them has bars that mean an auction period. A family-level
@@ -197,6 +210,9 @@ class Series:
             "source_owner": self.source_owner,
             "licensing": self.licensing,
             "blocked_on": self.blocked_on,
+            "summation_epoch": self.summation_epoch,
+            "summation_base": self.summation_base,
+            "summation_anchor_source": self.summation_anchor_source,
         }
 
 
@@ -253,10 +269,30 @@ _ROWS: list[Series] = [
         history_start="2008-01-02",
         observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
         provenance="Cumulated from US:MCO in ONE forward pass over the whole history, "
-                   "from an epoch 120 observations after the inputs begin so the level "
-                   "is not an artifact of the EMA seed.",
+                   "anchored at a PINNED epoch and base so the level survives the "
+                   "source data changing underneath it.",
         source_owner="UCT", licensing="Own data.",
         reproduces_reference=False,
+        # ⭐⭐ THE CANONICAL DEFINITION OF THIS SERIES' LEVEL, IN ONE PLACE:
+        #
+        #   "the cumulative sum of the ratio-adjusted US McClellan Oscillator since
+        #    2008-06-24, taking the value 0 on that session."
+        #
+        # ⛔ THE EPOCH IS NOT "WHERE THE DATA STARTS". It is the first session with
+        # `DEFAULT_BURN_IN` (120) real observations already behind it, given the store's
+        # measured start of 2008-01-02 — read-only probe, 2026-09-20, session index 120
+        # of 4,708. Before it the series is UNDEFINED and nothing is served; a warmup
+        # value a member could see would be an artifact of the EMA seed wearing the
+        # name of a market level.
+        #
+        # ⛔ AND IT IS `declared`, NOT `reference:`. Nobody publishes a McClellan
+        # Summation Index over US common stock, so there is no external value to anchor
+        # to; borrowing NYSI's would be calling a different calculation by a famous
+        # indicator's name. The level is therefore ours BY DECLARATION and is not
+        # comparable to NYSI — which the methodology field says in words.
+        summation_epoch="2008-06-24",
+        summation_base=0.0,
+        summation_anchor_source="declared",
     ),
 
     # ⛔⛔ DORMANT — registered so the design is reviewable and the dependency is
@@ -351,14 +387,19 @@ _ROWS: list[Series] = [
         methodology=_MC_METHOD_RATIO + " ⛔ NOT the same series as the shipped `UCTMC`, "
                     "which is RAW (unadjusted) net advances over the UCT universe.",
         methodology_version="mcclellan-v1/ratio_adjusted",
-        history_start="2026-03-16",
+        history_start=None,
         observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
         provenance="Would derive from the collector's `advancing`/`declining`.",
         source_owner="UCT", licensing="Own data.",
-        blocked_on="UCT `advancing`/`declining` only exist from 2026-03-16, so a "
-                   "ratio-adjusted UCT oscillator would carry ~6 months of history "
-                   "against the shipped UCTMC's 18 years. Shipping it needs a product "
-                   "decision about what happens to UCTMC first.",
+        blocked_on="⛔ THERE IS ALMOST NO UCT advancing/declining HISTORY TO DERIVE "
+                   "FROM. Measured read-only against the production store 2026-09-20: "
+                   "universe `uct` carries just 15 `advancing` rows and 15 `declining` "
+                   "rows (2010-05-10 .. 2026-09-18) against 4,704 sessions — the "
+                   "collector writes the pair into `breadth_snapshots`, not into "
+                   "`breadth_daily_ohlc`. A ratio-adjusted UCT oscillator built from "
+                   "that would be 15 points beside the shipped UCTMC's 18 years. "
+                   "Needs a collector/backfill decision first, then a product decision "
+                   "about what happens to UCTMC.",
     ),
 
     # ── Breadth family ──────────────────────────────────────────────────────
@@ -503,6 +544,54 @@ _ROWS += [
                     "index path, not as a side effect of this catalogue."),
 ]
 
+
+# ── DELIBERATELY ABSENT, AND WHY ─────────────────────────────────────────────
+#
+# ⛔⛔ TRIN / ARMS INDEX IS NOT REGISTERED — not even dormant. A dormant row is a
+# design somebody reviewed; this is a decision to not have one yet, and the reason is
+# narrower than the first audit stated. Corrected by a READ-ONLY probe of the
+# production store, 2026-09-20:
+#
+#   TRIN = (advancing / declining) / (up volume / down volume)
+#        = (advancing / declining) / up_vol_ratio
+#
+#   universe `us`   up_vol_ratio   4,708 rows, 2008-01-02..2026-09-18, 0 nulls
+#                   up_on_volume   4,708 rows, same span
+#                   down_on_volume 4,708 rows, same span
+#
+#   ⭐ SO A US TRIN IS DERIVABLE FROM THE STORE THAT EXISTS TODAY. The earlier
+#   "DATA DEPENDENCY NOT SATISFIED" was right about the V2 INTRADAY pass — 
+#   `breadth_wick_recon.session_ohlc` calls `compute_metrics(levels, prices)` with no
+#   volumes, so nothing it produces carries a volume metric — and it was right about
+#   NYSE/NASDAQ, which have zero rows of anything. It was WRONG as a blanket claim
+#   about US: production's `us` history is 100% `close_recon`, and that sweep DOES
+#   pass day volumes.
+#
+# ⚠️ TWO REASONS IT STILL DOES NOT SHIP HERE, and neither is "we cannot":
+#
+#   1. PRECISION. `up_vol_ratio` is stored `round(..., 2)` — 744 distinct values
+#      across 4,708 sessions. Near 1.00, where TRIN is actually read, a 2-decimal
+#      denominator quantises the result to roughly ±2%. A famous indicator published
+#      at a precision its inputs cannot support is the kind of thing that reads as
+#      correct and is not.
+#   2. IT WOULD BE US-ONLY AND PERMANENTLY SO. The exchange universes cannot follow:
+#      even after Breadth V2 populates them, the intraday pass it runs produces no
+#      volume metric at all. A TRIN that can never have an NYSE sibling is a
+#      different product decision from the one this V1 was scoped around.
+#
+# ⛔ THE FIX IS NOT OURS TO MAKE HERE: an unrounded up/down volume ratio (or the raw
+# sums) in the canonical store. Documented, not worked around. Breadth V2 was not
+# changed to obtain it.
+#
+# ⛔ BULLISH PERCENT INDEX is absent for a different reason entirely — it needs a
+# per-stock point-and-figure state machine over point-in-time index membership, which
+# is a new subsystem rather than a derivation. No percent-above-MA substitute exists
+# anywhere in this package, and none may be added under that name.
+#
+# ⛔ PUT/CALL is absent because the legacy `UCTPC` breadth symbol is QUARANTINED: a
+# published symbol with a dead feed since 2026-08-07 and a six-year hole
+# (2019-10-05 .. 2026-01-01). It is untouched, unmigrated, and must not be given
+# continuity from a different semantic source.
 
 # ── Indexes ──────────────────────────────────────────────────────────────────
 
