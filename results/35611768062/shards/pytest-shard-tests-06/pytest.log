@@ -1,0 +1,1662 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+............................................................F........... [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+......................F................................................. [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+......................................................s...s............. [ 51%]
+...ss.....FF..FFF....................................................... [ 54%]
+....................................F................................... [ 57%]
+........................................................................ [ 61%]
+...................ssssss................FFFF...................F....... [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+.......................FF.F.......................................s..... [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................FF.............................. [ 83%]
+.............F.F....s....FssF..................ss...s................... [ 86%]
+....................................................s................... [ 90%]
+................................s....................FFF................ [ 93%]
+.ssssss..........FFFF.F................................................. [ 96%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+_________ test_the_checked_in_manifest_IS_what_the_declarations_derive _________
+
+    def test_the_checked_in_manifest_IS_what_the_declarations_derive():
+        r = subprocess.run([sys.executable, str(_BUILDER), "--check"],
+                           cwd=str(_REPO), capture_output=True, text=True)
+>       assert r.returncode == 0, (
+            "the checked-in entitlements manifest is not what the declarations "
+            "derive:\n" + r.stdout + r.stderr)
+E       AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+E         [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...s-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.\n', stderr='').returncode
+
+tests/test_entitlements_manifest.py:70: AssertionError
+__________________ test_every_off_by_default_gate_is_declared __________________
+
+    def test_every_off_by_default_gate_is_declared():
+        """A new dark gate cannot merge unnoticed."""
+        declared = set(_ledger())
+        needed = _gates_needing_declaration()
+        missing = sorted(set(needed) - declared)
+>       assert not missing, (
+            "These feature gates are OFF unless something sets them, and nothing in "
+            "docs/feature_flags.json says whether that is deliberate:\n"
+            + "\n".join(f"  {k}  (default={needed[k]['default']!r}, {needed[k]['sites'][0]})"
+                        for k in missing)
+            + "\n\nAdd an entry: armed / dark (with a reason) / pending (reason + since)."
+        )
+E       AssertionError: These feature gates are OFF unless something sets them, and nothing in docs/feature_flags.json says whether that is deliberate:
+E           WISDOM_EXTRACT_PRESCREEN_ENABLED  (default='', api/services/wisdom/extract/prescreen.py)
+E         
+E         Add an entry: armed / dark (with a reason) / pending (reason + since).
+E       assert not ['WISDOM_EXTRACT_PRESCREEN_ENABLED']
+
+tests/test_feature_flag_ledger.py:74: AssertionError
+________ test_warm_means_this_exact_version_not_merely_something_cached ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7782145550>
+
+    def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
+        """⛔ THE CASE A STALLED WARMER WOULD HIDE BEHIND.
+    
+        An entry for a SUPERSEDED version is not warm — the next caller rebuilds.
+        Counting it as warm is how a warmer that stopped running would keep
+        reporting healthy: the cache is non-empty forever after one success.
+        """
+        monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+            "json_bytes": b'{"ok":true}', "stats": {}})
+        fa.get_cached_or_build(("stocks", 1, "Last1"), 5, lambda: "csv", "Last1")
+    
+>       assert fa.health(current_version=5)["warm"] is True
+E       assert False is True
+
+tests/test_flow_aggregate.py:400: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-21 14:29:20,324 INFO api.services.flow_aggregate: [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+------------------------------ Captured log call -------------------------------
+INFO     api.services.flow_aggregate:flow_aggregate.py:195 [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+__________________ test_cold_is_reported_but_is_not_a_failure __________________
+
+    def test_cold_is_reported_but_is_not_a_failure():
+        """A pod that just booted has an empty cache BY CONSTRUCTION."""
+        h = fa.health(current_version=1)
+>       assert h["warm"] is False and h["reason"] == "cold"
+E       AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+E         
+E         - cold
+E         + bundle_missing)
+
+tests/test_flow_aggregate.py:409: AssertionError
+__________ test_each_way_it_can_break_names_itself[env2-node_missing] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77827a2ba0>
+env = {'FLOW_NODE_BIN': 'definitely-not-a-real-binary-xyz'}
+expected = 'node_missing'
+
+    @pytest.mark.parametrize("env,expected", [
+        ({"FLOW_AGGREGATE_ENABLED": "0"}, "disabled"),
+        ({"FLOW_FACTS_BUNDLE": "/nope/missing.cjs"}, "bundle_missing"),
+        ({"FLOW_NODE_BIN": "definitely-not-a-real-binary-xyz"}, "node_missing"),
+    ])
+    def test_each_way_it_can_break_names_itself(monkeypatch, env, expected):
+        """The reason string is the whole point — 'unhealthy' with no cause sends
+        someone reading code at 7am."""
+        for k, v in env.items():
+            monkeypatch.setenv(k, v)
+        h = fa.health(current_version=1)
+        assert h["available"] is False
+>       assert h["reason"] == expected
+E       AssertionError: assert 'bundle_missing' == 'node_missing'
+E         
+E         - node_missing
+E         ?  -
+E         + bundle_missing
+E         ? ++  +
+
+tests/test_flow_aggregate.py:426: AssertionError
+______________________ test_it_alerts_on_TRANSITION_only _______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77827a25a0>
+
+    def test_it_alerts_on_TRANSITION_only(monkeypatch):
+        """⛔ A check that posts every cycle while broken gets muted inside a week,
+        and a muted alert is worse than none because it reads as coverage."""
+        posts = []
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)          # first observation: arm only
+        assert posts == []
+    
+        monkeypatch.setattr(fa, "available", lambda: False)
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # healthy -> broken
+>       assert len(posts) == 1 and "UNAVAILABLE" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:440: AssertionError
+________________________ test_recovery_is_announced_too ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77827a3890>
+
+    def test_recovery_is_announced_too(monkeypatch):
+        """Without this nobody knows whether this morning's alert still stands."""
+        posts = []
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # arm as broken
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "1")
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)
+>       assert len(posts) == 1 and "again" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:455: AssertionError
+_____________________________ test_cream_meta_key ______________________________
+
+    def test_cream_meta_key():
+        # (ticker, CALL/PUT, strike normalized to int-text when whole, exp)
+>       assert m._cream_meta_key({"ticker": "IREN", "cp": "C", "strike": 65.0,
+                                  "exp": "3/19/2027"}) == ("IREN", "CALL", "65", "3/19/2027")
+E       AssertionError: assert ('IREN', 'C',..., '3/19/2027') == ('IREN', 'CAL..., '3/19/2027')
+E         
+E         At index 1 diff: 'C' != 'CALL'
+E         
+E         Full diff:
+E           (
+E               'IREN',
+E         -     'CALL',
+E         ?       ---
+E         +     'C',
+E         -     '65',
+E         ?     -  ^
+E         +     65.0,
+E         ?       ^^
+E               '3/19/2027',
+E           )
+
+tests/test_flow_classification.py:595: AssertionError
+__________ test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779c72630>
+_clean_caches = None
+
+    def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
+        # ...and no parts at all, which is precisely the prod reading.
+    
+        h = fa.health(current_version=7)
+    
+        assert h["warm"] is False, (
+            "health reported the fast path warm while the transport members take "
+            "was empty -- the proxy-not-artifact defect")
+>       assert h["warm_whole"] is True, "the whole-D path really was warm"
+E       KeyError: 'warm_whole'
+
+tests/test_flow_prepare.py:240: KeyError
+_________ test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779c72240>
+_clean_caches = None
+
+    def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+        """Without this the test above would pass on a health() that always says
+        cold, and the long-standing behaviour would be silently broken."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: False)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["reason"] is None
+E       assert (False is True)
+
+tests/test_flow_prepare.py:252: AssertionError
+_______ test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779c5aab0>
+_clean_caches = None
+
+    def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["warm_parts"] is True
+E       assert (False is True)
+
+tests/test_flow_prepare.py:262: AssertionError
+____________ test_parts_built_for_a_SUPERSEDED_version_are_not_warm ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779c81d90>
+_clean_caches = None
+
+    def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+        """The next caller rebuilds, so reporting warm is how a stalled preparer
+        would hide -- the same rule the whole-D path already had."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
+    
+        h = fa.health(current_version=7)
+        assert h["warm"] is False
+>       assert "stale" in (h["reason"] or "")
+E       AssertionError: assert 'stale' in (('bundle_missing'))
+
+tests/test_flow_prepare.py:274: AssertionError
+_________________ test_a_BURST_of_bumps_collapses_to_ONE_roll __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779c9cec0>
+
+    def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
+        """N rapid bumps must not become N rolls. If this ever fails, the burst
+        concern becomes real and `prev_version is None` stops being sufficient."""
+        monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+        monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+        monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.05)
+        base = _bumped_version()
+        state = {"v": base}
+        _stub_build(monkeypatch, base, lambda: state["v"])
+        monkeypatch.setattr(fr, "_get_cached_or_build",
+                            lambda source, days: (state["v"],
+                                                  __import__("gzip").compress(b"csv")))
+    
+        fr._PREPARE_STOP.clear()
+        t = threading.Thread(target=fr._prepare_loop, daemon=True)
+        t.start()
+        try:
+            for i in range(1, 6):        # five bumps, back to back
+                state["v"] = base + i
+            time.sleep(1.2)
+        finally:
+            fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
+            t.join(timeout=5)
+            fr._PREPARE_STOP.clear()
+    
+        rolls = list(fr._PREPARE_ROLLS)
+>       assert len(rolls) == 1, (
+            f"{len(rolls)} rolls from 5 bumps — the loop is observing intermediate "
+            "versions, so a burst CAN reach the ledger and rolls 2..N would be "
+            "misfiled as steady-state")
+E       AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+E       assert 2 == 1
+E        +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+
+tests/test_flow_prepare.py:682: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-21 14:29:23,109 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39833349 in 0ms
+2026-09-21 14:29:23,109 INFO api.flow_router: [flow-prepare] version moved during pass 1 — skipping the remainder for v=39833349
+2026-09-21 14:29:23,160 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39833354 in 0ms
+2026-09-21 14:29:23,160 INFO api.flow_router: [flow-prepare] remainder warmed v=39833354 in 0ms
+------------------------------ Captured log call -------------------------------
+INFO     api.flow_router:flow_router.py:1714 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39833349 in 0ms
+INFO     api.flow_router:flow_router.py:1725 [flow-prepare] version moved during pass 1 — skipping the remainder for v=39833349
+INFO     api.flow_router:flow_router.py:1714 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39833354 in 0ms
+INFO     api.flow_router:flow_router.py:1736 [flow-prepare] remainder warmed v=39833354 in 0ms
+____________ test_a_window_with_no_spooled_frames_is_handed_to_rest ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779b05f70>
+
+    def test_a_window_with_no_spooled_frames_is_handed_to_rest(monkeypatch):
+        """Zero frames == the socket was down == exactly the REST heal's job."""
+        bf = _FakeBackfill()
+        _install(monkeypatch, bf)
+        windows = [(570, 575)]
+        out = fts._rest_backfill_uncovered(date(2026, 8, 28), windows, {0: []})
+>       assert out["uncovered"] == 1 and out["sent"] == 1
+E       assert (1 == 1 and 0 == 1)
+
+tests/test_flow_tape_spool.py:393: AssertionError
+___________ test_a_window_the_spool_COVERED_is_not_re_read_over_rest ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77824be780>
+
+    def test_a_window_the_spool_COVERED_is_not_re_read_over_rest(monkeypatch):
+        """⛔ THE DISCRIMINATING CASE. A window healed from frames we actually
+        received must not also be pulled over REST — that spends vendor calls to
+        insert rows dedup_key throws away. Without this the handoff would look
+        correct while doubling the backfill's cost on every ordinary freeze."""
+        bf = _FakeBackfill()
+        _install(monkeypatch, bf)
+        windows = [(570, 575), (600, 605)]
+        covered = {0: [("O:AAA", 1.0, 5, 4, 0, 1)], 1: []}   # window 0 had frames
+        out = fts._rest_backfill_uncovered(date(2026, 8, 28), windows, covered)
+        assert out["uncovered"] == 1, "a covered window was treated as socket-down"
+>       assert len(bf.calls) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_flow_tape_spool._FakeBackfill object at 0x7f77824bf050>.calls
+
+tests/test_flow_tape_spool.py:411: AssertionError
+______________ test_it_never_raises_when_the_qpool_is_unavailable ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77824bc530>
+
+    def test_it_never_raises_when_the_qpool_is_unavailable(monkeypatch):
+        """The consumer module may not be importable on every pod. A heal that
+        cannot run must not take the spool replay down with it."""
+        bf = _FakeBackfill()
+        _install(monkeypatch, bf, qpool=None)      # module present, attribute absent
+        out = fts._rest_backfill_uncovered(date(2026, 8, 28), [(570, 575)], {0: []})
+>       assert out["sent"] == 0 and "qpool" in (out["reason"] or "")
+E       AssertionError: assert (0 == 0 and 'qpool' in (('rest_backfill_disabled')))
+
+tests/test_flow_tape_spool.py:434: AssertionError
+__________ test_earnings_table_stale_serves_old_and_schedules_refresh __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77a69d95e0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_earnings_table_stale_serv0')
+
+    def test_earnings_table_stale_serves_old_and_schedules_refresh(monkeypatch, tmp_path):
+        et = _et(monkeypatch, tmp_path)
+        calls = []
+        _stub_build(monkeypatch, et, calls)
+        now = 1_760_000_000.0
+        first = et.get_earnings_table("ZZSTALE", now=now)
+        assert calls == ["ZZSTALE"]
+        et.cache.invalidate("earnings_table::ZZSTALE")
+        scheduled = []
+        monkeypatch.setattr(et, "_schedule_refresh", lambda t: scheduled.append(t))
+        # Past the 6h slow TTL but under the 3-day stale ceiling → instant stale serve.
+        out = et.get_earnings_table("ZZSTALE", now=now + et._SLOW_TTL + 60)
+        assert out == first                                       # served instantly, old payload
+>       assert scheduled == ["ZZSTALE"]                           # background rebuild queued
+E       AssertionError: assert [] == ['ZZSTALE']
+E         
+E         Right contains one more item: 'ZZSTALE'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'ZZSTALE',
+E         - ]
+
+tests/test_fundamentals_snapshot_store.py:94: AssertionError
+______________ test_earnings_table_too_old_rebuilds_synchronously ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7782787cb0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_earnings_table_too_old_re0')
+
+    def test_earnings_table_too_old_rebuilds_synchronously(monkeypatch, tmp_path):
+        et = _et(monkeypatch, tmp_path)
+        calls = []
+        _stub_build(monkeypatch, et, calls)
+        now = 1_760_000_000.0
+        et.get_earnings_table("ZZOLD", now=now)
+        et.cache.invalidate("earnings_table::ZZOLD")
+        out = et.get_earnings_table("ZZOLD", now=now + et._STALE_SERVE_MAX + et._SLOW_TTL + 60)
+>       assert calls == ["ZZOLD", "ZZOLD"]                        # rebuilt on the request path
+E       AssertionError: assert ['ZZOLD'] == ['ZZOLD', 'ZZOLD']
+E         
+E         Right contains one more item: 'ZZOLD'
+E         
+E         Full diff:
+E           [
+E               'ZZOLD',
+E         -     'ZZOLD',
+E           ]
+
+tests/test_fundamentals_snapshot_store.py:106: AssertionError
+_________ test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded __________
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/pytest-of-runner/pytest-0/test_a_DEAD_holder_is_reclaime0/box.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_DEAD_holder_is_reclaime0')
+
+    def test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded(tmp_path):
+        """⭐ RECORDED, NOT SILENTLY FORGOTTEN. A crashed gate that leaves a lock behind is how you
+        learn a run died without anybody noticing; swallowing it loses that entirely."""
+        lock = tmp_path / "box.lock"
+        proc = _spawn_gate_like(1)
+        proc.kill(); proc.wait(timeout=10)
+        dead_pid = proc.pid
+        for _ in range(8):                    # let the OS reap it
+            if not L._alive(dead_pid):
+                break
+            time.sleep(0.5)
+        _write_lock_for(dead_pid, lock, run_id="the-crashed-one")
+    
+>       rec = L.acquire("mine", path=lock)
+
+tests/test_gate_box_lock.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 3412 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+
+tools/gate_box_lock.py:294: LockHeld
+_ test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED _
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_R3_a_bypassed_run_under_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f77827bf2f0>
+
+    def test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED(tmp_path,
+                                                                                      monkeypatch):
+        """⛔⛔ OWNER RULING R3, AND IT IS THE POINT OF THE WHOLE BYPASS DESIGN.
+    
+        *"a bypass NEVER buys a CLEAR verdict: the bypassed run is still sampled and lands
+        INCONCLUSIVE-CONTENDED if the holder is alive, with the bypass reason in the manifest. The
+        override lets you run; it does not let you pretend."*
+    
+        The chain is driven end to end: a LIVE holder, a bypass WITH a reason, and then the sampler —
+        which knows nothing about locks or bypasses — asked for its verdict over the same interval.
+    
+        ⚠️ The holder is spawned by this test, so it is our own child; we therefore sample WITHOUT the
+        tree exclusion, because a real holder belongs to another session and is NOT our descendant.
+        The exclusion itself is exercised by its own rails in `test_gate_box_sampler.py`; using it
+        here would hide the very process the rule is about.
+        """
+        proc = _spawn_gate_like()
+        lock = tmp_path / "box.lock"
+        try:
+            _write_lock_for(proc.pid, lock)
+            monkeypatch.setenv(L.BYPASS_ENV, "R3 rail: proving a bypass does not buy CLEAR")
+    
+            rec = L.acquire("mine", path=lock)
+            # it RUNS ...
+            assert rec["bypass"] is True
+            assert rec["bypass_reason"] == "R3 rail: proving a bypass does not buy CLEAR"
+            assert rec["overrode"]["pid"] == proc.pid
+            # ... and it does NOT steal the lock from the live holder
+            assert rec["acquired"] is False
+            assert json.loads(lock.read_text(encoding="utf-8"))["pid"] == proc.pid
+    
+            # ... and the sampler's verdict is unmoved by any of that.
+            samples, seen = [], False
+            for _ in range(10):
+>               s = S.take_sample(S._self_pids())
+
+tests/test_gate_box_lock.py:167: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/gate_box_sampler.py:440: in take_sample
+    snap = _snapshot()
+tools/gate_box_sampler.py:257: in _snapshot
+    proc = subprocess.run(
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['powershell', '-NoProfile', '-NonInteractive'...>
+args = ['powershell', '-NoProfile', '-NonInteractive', '-Command', '$os = Get-CimInstance Win32_OperatingSystem;$p = Get-CimI...free_kb=$os.FreePhysicalMemory; total_kb=$os.TotalVisibleMemorySize; procs=@($p)} | ConvertTo-Json -Depth 4 -Compress']
+executable = b'powershell', preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = None, env = None, startupinfo = None, creationflags = 0, shell = False
+p2cread = -1, p2cwrite = -1, c2pread = 137, c2pwrite = 143, errread = 144
+errwrite = 146, restore_signals = True, gid = None, gids = None, uid = None
+umask = -1, start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: 'powershell'
+
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/subprocess.py:1955: FileNotFoundError
+___________ test_the_load_reading_NEVER_changes_the_holder_contract ____________
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/pytest-of-runner/pytest-0/test_the_load_reading_NEVER_ch0/dead.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_load_reading_NEVER_ch0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7779cc1460>
+
+    def test_the_load_reading_NEVER_changes_the_holder_contract(tmp_path, monkeypatch):
+        """⛔⛔ OWNER RULING R1 SURVIVES C-4 INTACT: the lock is ADVISORY, has NO TTL, and is stale
+        ONLY when the bound pid is dead. "pid alive but idle" is a Live-session-in-waiting.
+    
+        A busy box must not reclaim, refuse or promote anything. Driven against an IDLE LIVE holder —
+        this very pytest process, which is doing nothing the probe can call gate work — on the most
+        loaded box the fixtures can describe.
+        """
+        lock = tmp_path / "box.lock"
+        _write_lock_for(os.getpid(), lock, run_id="idle-but-live")
+    
+        _with_snapshot(monkeypatch, _busy_snapshot)
+        s = L.status(path=lock)
+        assert s["state"] == "HELD", "a loaded box reclassified a LIVE holder — R1 violated"
+        assert s["live"] is True
+        assert s["load"]["state"] == "BUSY"
+    
+        # ⛔ ADVISORY, NOT A MUTEX: a busy box does not become a refusal of its own.
+        free_lock = tmp_path / "free.lock"
+        rec = L.acquire("mine", path=free_lock)
+        assert rec["acquired"] is True, (
+            "the gate refused to start because the box was busy — that is a mutex, not a queue, and "
+            "it would deadlock a gate behind its own vitest workers")
+        assert rec["load"]["state"] == "BUSY", "the reading was taken but not reported to the caller"
+    
+        # ⭐ CONTROL, the only refusal there is: a DEAD holder is still reclaimed on a busy box…
+        dead_lock = tmp_path / "dead.lock"
+        _write_lock_for(999_999, dead_lock)
+>       assert L.acquire("mine", path=dead_lock)["acquired"] is True
+
+tests/test_gate_box_lock.py:514: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 999999 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+
+tools/gate_box_lock.py:294: LockHeld
+_______________ test_the_lock_self_check_still_passes_end_to_end _______________
+
+run_id = 'e'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/gate-box-lock-4ph44rqw/t.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+    def test_the_lock_self_check_still_passes_end_to_end():
+        """⛔ A SELF-CHECK NOBODY HAS RUN IS NOT A SELF-CHECK — and it now rehearses all four load
+        states against an injected box, so each is reachable on demand rather than whenever the
+        machine happens to be loaded."""
+>       assert L.self_check() == 0
+
+tests/test_gate_box_lock.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/gate_box_lock.py:428: in self_check
+    r = acquire("e", path=tmp, load=False)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'e'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 999999 since 2026-09-21T14:30:22 [UCT-Dashboard] /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest/__main__.py -q -p no:cacheprovider --timeout=120 --timeout-method=signal --junitxml=
+
+tools/gate_box_lock.py:294: LockHeld
+----------------------------- Captured stdout call -----------------------------
+  ok   a free box acquires
+  ok   status reads HELD
+  ok   a live holder refuses a second acquire
+  ok   bypass with a reason runs over a live holder
+  ok   bypass does NOT steal the lock
+  ok   a blank bypass reason is ignored
+  ok   release removes our own lock
+  ok   release is idempotent
+  ok   status reads FREE again
+___ test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point ____
+
+    def test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point():
+        """⛔ The control for `--cached`. If these two ever returned the same set, the
+        scan would be reading the wrong thing and nobody would notice."""
+        cached = set((git("grep", "--cached", "-l", "-P", r"\r") or "").split())
+        worktree = set((git("grep", "-l", "-P", r"\r") or "").split())
+>       assert len(worktree) > len(cached) * 2, (
+            "the working tree should carry CRLF on far more files than the index does "
+            f"(index {len(cached)}, worktree {len(worktree)}) — if not, autocrlf is off "
+            "on this box and this rail's premise needs re-checking")
+E       AssertionError: the working tree should carry CRLF on far more files than the index does (index 287, worktree 287) — if not, autocrlf is off on this box and this rail's premise needs re-checking
+E       assert 287 > (287 * 2)
+E        +  where 287 = len({'Logo.png', 'Page', 'abc123def456789012345678abcdef01/img.png', 'api/services/desk_assets/DejaVuSans-Bold.ttf', 'api/services/desk_assets/DejaVuSans.ttf', 'api/services/desk_assets/DejaVuSerif-Bold.ttf', ...})
+E        +  and   287 = len({'Logo.png', 'Page', 'abc123def456789012345678abcdef01/img.png', 'api/services/desk_assets/DejaVuSans-Bold.ttf', 'api/services/desk_assets/DejaVuSans.ttf', 'api/services/desk_assets/DejaVuSerif-Bold.ttf', ...})
+
+tests/test_gitattributes_eol.py:83: AssertionError
+________________ test_every_derived_path_is_declared_text_unset ________________
+
+    def test_every_derived_path_is_declared_text_unset():
+        missing = {p: a for p, a in check_attr(derive()).items() if a != "unset"}
+>       assert not missing, (
+            "these blobs are stored with CR and nothing protects them:\n  "
+            + "\n  ".join(f"{p} (text={a})" for p, a in sorted(missing.items())))
+E       AssertionError: these blobs are stored with CR and nothing protects them:
+E           app/src/components/chart/engine/ast/pineObjects.js (text=unspecified)
+E       assert not {'app/src/components/chart/engine/ast/pineObjects.js': 'unspecified'}
+
+tests/test_gitattributes_eol.py:91: AssertionError
+_______________ test_the_declared_list_is_still_the_derived_list _______________
+
+    def test_the_declared_list_is_still_the_derived_list():
+        """⛔ Both directions. A path that qualifies and is missing is the hole this
+        exists to close; a declared path that no longer qualifies is a stale entry
+        claiming protection nothing needs."""
+        d, dec = set(derive()), set(declared())
+        # Entries for paths that are binary-by-extension live elsewhere in the file and
+        # are not part of this list, so compare only against what the derivation covers.
+        unprotected = d - dec
+>       assert not unprotected, f"newly qualifying, undeclared: {sorted(unprotected)}"
+E       AssertionError: newly qualifying, undeclared: ['app/src/components/chart/engine/ast/pineObjects.js']
+E       assert not {'app/src/components/chart/engine/ast/pineObjects.js'}
+
+tests/test_gitattributes_eol.py:104: AssertionError
+_______________ test_stored_response_and_compact_response_bytes ________________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_stored_response_and_compa0')
+
+    def test_stored_response_and_compact_response_bytes(store):
+        """The three numbers, for every band."""
+        rows = []
+        for c in _cases():
+>           svc.save(USER, c["id"], c["definition"])
+
+tests/test_graph_wire_size.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/user_definitions.py:1334: in save
+    stored, definition = normalize_graph_document(definition)
+api/services/user_definitions.py:800: in normalize_graph_document
+    working = materialize(definition)
+api/services/user_definitions.py:734: in materialize
+    trees = compute_graph.expand_graph(compute["graph"])
+api/services/compute_graph.py:254: in expand_graph
+    keys = assert_graph(graph)
+api/services/compute_graph.py:164: in assert_graph
+    expanded_sizes(graph, keys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = {'graphVersion': 2, 'nodes': [{'type': 'num', 'value': 1000}, {'type': 'num', 'value': 250}, {'name': 'lv3', 'type': '......}, '__uct_param_5': {'default': 60, 'locators': [{'node': 22, 'path': ['value']}], 'max': 300, 'min': 5, ...}, ...}}
+keys = ['out10', 'out11', 'out12', 'out2', 'out3', 'out4', ...]
+
+    def expanded_sizes(graph: Mapping, keys: Any = None) -> list:
+        """The inlined node count of every graph node, bottom-up, in integers.
+    
+        ⛔⛔ THE BOMB GUARD, AND IT RUNS BEFORE ANY EXPANSION. Because references
+        run strictly backwards, one forward pass with no recursion computes every
+        size, and the numbers stay numbers — nothing is built.
+        """
+        nodes = graph["nodes"]
+        size = [0] * len(nodes)
+        for i, node in enumerate(nodes):
+            s = 1
+            for ref in node.get("args") or ():
+                s += size[ref]
+            if s > MAX_EXPANDED_TOTAL:
+                raise ValueError(
+                    f"compute.graph.nodes[{i}]: expands to {s} inlined nodes, over the "
+                    f"{MAX_EXPANDED_TOTAL} ceiling — a shared graph can describe a tree far "
+                    "larger than it is")
+            size[i] = s
+        out_keys = sorted(graph["outputRoots"]) if keys is None else keys
+        total = 0
+        for k in out_keys:
+            s = size[graph["outputRoots"][k]]
+            if s > MAX_EXPANDED_NODES:
+>               raise ValueError(
+                    f"compute.graph.outputRoots.{k}: expands to {s} nodes, over the "
+                    f"{MAX_EXPANDED_NODES} per-plot ceiling")
+E               ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+
+api/services/compute_graph.py:234: ValueError
+____________ test_a_caller_that_does_not_ask_still_gets_the_forest _____________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_caller_that_does_not_as0')
+
+    def test_a_caller_that_does_not_ask_still_gets_the_forest(store):
+        """⛔⛔ THE COMPATIBILITY BOUNDARY, ASSERTED. A member holding yesterday's
+        bundle cannot hydrate; answering them compactly would blank their chart with
+        nothing red anywhere. Opt-in means an old client never asks."""
+        graph_case = next(c for c in _cases() if c["isGraph"])
+>       svc.save(USER, graph_case["id"], graph_case["definition"])
+
+tests/test_graph_wire_size.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/user_definitions.py:1334: in save
+    stored, definition = normalize_graph_document(definition)
+api/services/user_definitions.py:800: in normalize_graph_document
+    working = materialize(definition)
+api/services/user_definitions.py:734: in materialize
+    trees = compute_graph.expand_graph(compute["graph"])
+api/services/compute_graph.py:254: in expand_graph
+    keys = assert_graph(graph)
+api/services/compute_graph.py:164: in assert_graph
+    expanded_sizes(graph, keys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = {'graphVersion': 2, 'nodes': [{'type': 'num', 'value': 1000}, {'type': 'num', 'value': 250}, {'name': 'lv3', 'type': '......}, '__uct_param_5': {'default': 60, 'locators': [{'node': 22, 'path': ['value']}], 'max': 300, 'min': 5, ...}, ...}}
+keys = ['out10', 'out11', 'out12', 'out2', 'out3', 'out4', ...]
+
+    def expanded_sizes(graph: Mapping, keys: Any = None) -> list:
+        """The inlined node count of every graph node, bottom-up, in integers.
+    
+        ⛔⛔ THE BOMB GUARD, AND IT RUNS BEFORE ANY EXPANSION. Because references
+        run strictly backwards, one forward pass with no recursion computes every
+        size, and the numbers stay numbers — nothing is built.
+        """
+        nodes = graph["nodes"]
+        size = [0] * len(nodes)
+        for i, node in enumerate(nodes):
+            s = 1
+            for ref in node.get("args") or ():
+                s += size[ref]
+            if s > MAX_EXPANDED_TOTAL:
+                raise ValueError(
+                    f"compute.graph.nodes[{i}]: expands to {s} inlined nodes, over the "
+                    f"{MAX_EXPANDED_TOTAL} ceiling — a shared graph can describe a tree far "
+                    "larger than it is")
+            size[i] = s
+        out_keys = sorted(graph["outputRoots"]) if keys is None else keys
+        total = 0
+        for k in out_keys:
+            s = size[graph["outputRoots"][k]]
+            if s > MAX_EXPANDED_NODES:
+>               raise ValueError(
+                    f"compute.graph.outputRoots.{k}: expands to {s} nodes, over the "
+                    f"{MAX_EXPANDED_NODES} per-plot ceiling")
+E               ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+
+api/services/compute_graph.py:234: ValueError
+_______________ test_compacting_is_lossless_the_program_survives _______________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_compacting_is_lossless_th0')
+
+    def test_compacting_is_lossless_the_program_survives(store):
+        """A smaller response that lost maths is not a smaller response."""
+        from api.services import compute_graph as cg
+        graph_case = next(c for c in _cases() if c["isGraph"])
+>       svc.save(USER, graph_case["id"], graph_case["definition"])
+
+tests/test_graph_wire_size.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/user_definitions.py:1334: in save
+    stored, definition = normalize_graph_document(definition)
+api/services/user_definitions.py:800: in normalize_graph_document
+    working = materialize(definition)
+api/services/user_definitions.py:734: in materialize
+    trees = compute_graph.expand_graph(compute["graph"])
+api/services/compute_graph.py:254: in expand_graph
+    keys = assert_graph(graph)
+api/services/compute_graph.py:164: in assert_graph
+    expanded_sizes(graph, keys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = {'graphVersion': 2, 'nodes': [{'type': 'num', 'value': 1000}, {'type': 'num', 'value': 250}, {'name': 'lv3', 'type': '......}, '__uct_param_5': {'default': 60, 'locators': [{'node': 22, 'path': ['value']}], 'max': 300, 'min': 5, ...}, ...}}
+keys = ['out10', 'out11', 'out12', 'out2', 'out3', 'out4', ...]
+
+    def expanded_sizes(graph: Mapping, keys: Any = None) -> list:
+        """The inlined node count of every graph node, bottom-up, in integers.
+    
+        ⛔⛔ THE BOMB GUARD, AND IT RUNS BEFORE ANY EXPANSION. Because references
+        run strictly backwards, one forward pass with no recursion computes every
+        size, and the numbers stay numbers — nothing is built.
+        """
+        nodes = graph["nodes"]
+        size = [0] * len(nodes)
+        for i, node in enumerate(nodes):
+            s = 1
+            for ref in node.get("args") or ():
+                s += size[ref]
+            if s > MAX_EXPANDED_TOTAL:
+                raise ValueError(
+                    f"compute.graph.nodes[{i}]: expands to {s} inlined nodes, over the "
+                    f"{MAX_EXPANDED_TOTAL} ceiling — a shared graph can describe a tree far "
+                    "larger than it is")
+            size[i] = s
+        out_keys = sorted(graph["outputRoots"]) if keys is None else keys
+        total = 0
+        for k in out_keys:
+            s = size[graph["outputRoots"][k]]
+            if s > MAX_EXPANDED_NODES:
+>               raise ValueError(
+                    f"compute.graph.outputRoots.{k}: expands to {s} nodes, over the "
+                    f"{MAX_EXPANDED_NODES} per-plot ceiling")
+E               ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+
+api/services/compute_graph.py:234: ValueError
+________ test_a_malformed_stored_graph_is_readable_but_never_expandable ________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_malformed_stored_graph_0')
+
+    def test_a_malformed_stored_graph_is_readable_but_never_expandable(store):
+        """⛔ A ROW THAT CANNOT BE EXPANDED MUST STILL BE READABLE. Its owner has to
+        be able to SEE it — to report it, to delete it — and one bad row taking out
+        every listing that includes it is a worse failure than the row itself. The
+        refusal belongs on the WRITE path, where `save` runs `assert_graph` before
+        anything is stored.
+        """
+        import sqlite3
+        graph_case = next(c for c in _cases() if c["isGraph"])
+>       svc.save(USER, graph_case["id"], graph_case["definition"])
+
+tests/test_graph_wire_size.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/user_definitions.py:1334: in save
+    stored, definition = normalize_graph_document(definition)
+api/services/user_definitions.py:800: in normalize_graph_document
+    working = materialize(definition)
+api/services/user_definitions.py:734: in materialize
+    trees = compute_graph.expand_graph(compute["graph"])
+api/services/compute_graph.py:254: in expand_graph
+    keys = assert_graph(graph)
+api/services/compute_graph.py:164: in assert_graph
+    expanded_sizes(graph, keys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = {'graphVersion': 2, 'nodes': [{'type': 'num', 'value': 1000}, {'type': 'num', 'value': 250}, {'name': 'lv3', 'type': '......}, '__uct_param_5': {'default': 60, 'locators': [{'node': 22, 'path': ['value']}], 'max': 300, 'min': 5, ...}, ...}}
+keys = ['out10', 'out11', 'out12', 'out2', 'out3', 'out4', ...]
+
+    def expanded_sizes(graph: Mapping, keys: Any = None) -> list:
+        """The inlined node count of every graph node, bottom-up, in integers.
+    
+        ⛔⛔ THE BOMB GUARD, AND IT RUNS BEFORE ANY EXPANSION. Because references
+        run strictly backwards, one forward pass with no recursion computes every
+        size, and the numbers stay numbers — nothing is built.
+        """
+        nodes = graph["nodes"]
+        size = [0] * len(nodes)
+        for i, node in enumerate(nodes):
+            s = 1
+            for ref in node.get("args") or ():
+                s += size[ref]
+            if s > MAX_EXPANDED_TOTAL:
+                raise ValueError(
+                    f"compute.graph.nodes[{i}]: expands to {s} inlined nodes, over the "
+                    f"{MAX_EXPANDED_TOTAL} ceiling — a shared graph can describe a tree far "
+                    "larger than it is")
+            size[i] = s
+        out_keys = sorted(graph["outputRoots"]) if keys is None else keys
+        total = 0
+        for k in out_keys:
+            s = size[graph["outputRoots"][k]]
+            if s > MAX_EXPANDED_NODES:
+>               raise ValueError(
+                    f"compute.graph.outputRoots.{k}: expands to {s} nodes, over the "
+                    f"{MAX_EXPANDED_NODES} per-plot ceiling")
+E               ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+
+api/services/compute_graph.py:234: ValueError
+_____________ test_serialisation_and_parse_cost_of_each_read_shape _____________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_serialisation_and_parse_c0')
+
+    def test_serialisation_and_parse_cost_of_each_read_shape(store):
+        """⛔ NOT A MICRO-BENCHMARK FOR ITS OWN SAKE. C3 will hang visual payloads
+        off this read path, and the question is whether it is being built on a
+        response that needlessly rebuilds a forest first."""
+        import time
+        rows = []
+        for c in _cases():
+>           svc.save(USER, c["id"], c["definition"])
+
+tests/test_graph_wire_size.py:200: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/user_definitions.py:1334: in save
+    stored, definition = normalize_graph_document(definition)
+api/services/user_definitions.py:800: in normalize_graph_document
+    working = materialize(definition)
+api/services/user_definitions.py:734: in materialize
+    trees = compute_graph.expand_graph(compute["graph"])
+api/services/compute_graph.py:254: in expand_graph
+    keys = assert_graph(graph)
+api/services/compute_graph.py:164: in assert_graph
+    expanded_sizes(graph, keys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = {'graphVersion': 2, 'nodes': [{'type': 'num', 'value': 1000}, {'type': 'num', 'value': 250}, {'name': 'lv3', 'type': '......}, '__uct_param_5': {'default': 60, 'locators': [{'node': 22, 'path': ['value']}], 'max': 300, 'min': 5, ...}, ...}}
+keys = ['out10', 'out11', 'out12', 'out2', 'out3', 'out4', ...]
+
+    def expanded_sizes(graph: Mapping, keys: Any = None) -> list:
+        """The inlined node count of every graph node, bottom-up, in integers.
+    
+        ⛔⛔ THE BOMB GUARD, AND IT RUNS BEFORE ANY EXPANSION. Because references
+        run strictly backwards, one forward pass with no recursion computes every
+        size, and the numbers stay numbers — nothing is built.
+        """
+        nodes = graph["nodes"]
+        size = [0] * len(nodes)
+        for i, node in enumerate(nodes):
+            s = 1
+            for ref in node.get("args") or ():
+                s += size[ref]
+            if s > MAX_EXPANDED_TOTAL:
+                raise ValueError(
+                    f"compute.graph.nodes[{i}]: expands to {s} inlined nodes, over the "
+                    f"{MAX_EXPANDED_TOTAL} ceiling — a shared graph can describe a tree far "
+                    "larger than it is")
+            size[i] = s
+        out_keys = sorted(graph["outputRoots"]) if keys is None else keys
+        total = 0
+        for k in out_keys:
+            s = size[graph["outputRoots"][k]]
+            if s > MAX_EXPANDED_NODES:
+>               raise ValueError(
+                    f"compute.graph.outputRoots.{k}: expands to {s} nodes, over the "
+                    f"{MAX_EXPANDED_NODES} per-plot ceiling")
+E               ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+
+api/services/compute_graph.py:234: ValueError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:233: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7484 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:126: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7484 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:127: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=calendar_days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1433: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1434: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1025: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1026: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+  <unknown>:10: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:63: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_replay_disabled_by_default
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:357: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h0 = datetime.utcfromtimestamp(t0_ns / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_replay_disabled_by_default
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:358: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h1 = datetime.utcfromtimestamp(t1_ns / 1e9 + 3600).strftime("%Y%m%d-%H")
+
+tests/test_gate_trigger3.py::test_a_stuck_queue_turns_the_whole_verdict
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_gate_trigger3.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc = _resume(tmp_path / "r.md", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), 4)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_flow_aggregate.py:67: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:117: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:242: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:258: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_parts_only.py:64: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:73: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:81: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:89: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:98: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:122: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_worker_watch_coverage.py:100: no diff against origin/master — nothing to judge (this is the on-master case, not a pass)
+SKIPPED [1] tests/test_gate_box_lock.py:304: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:537: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:588: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:148: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:190: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:239: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_shards.py:307: OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, unbounded; it killed a landing run on 2026-09-17
+SKIPPED [1] tests/test_gate_shards.py:1613: OPT-IN rail: spawns two real vitest runs and samples process counts
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:120: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:137: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:158: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:172: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:207: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:237: INDICATOR_VISION_ENABLED is not '1' -- deliberate product flag, and DEC-008 requires it set ONLY in the same isolated environment as the scoped key, never globally.
+FAILED tests/test_entitlements_manifest.py::test_the_checked_in_manifest_IS_what_the_declarations_derive - AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+  [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.14/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...s-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.\n', stderr='').returncode
+FAILED tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared - AssertionError: These feature gates are OFF unless something sets them, and nothing in docs/feature_flags.json says whether that is deliberate:
+    WISDOM_EXTRACT_PRESCREEN_ENABLED  (default='', api/services/wisdom/extract/prescreen.py)
+  
+  Add an entry: armed / dark (with a reason) / pending (reason + since).
+assert not ['WISDOM_EXTRACT_PRESCREEN_ENABLED']
+FAILED tests/test_flow_aggregate.py::test_warm_means_this_exact_version_not_merely_something_cached - assert False is True
+FAILED tests/test_flow_aggregate.py::test_cold_is_reported_but_is_not_a_failure - AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+  
+  - cold
+  + bundle_missing)
+FAILED tests/test_flow_aggregate.py::test_each_way_it_can_break_names_itself[env2-node_missing] - AssertionError: assert 'bundle_missing' == 'node_missing'
+  
+  - node_missing
+  ?  -
+  + bundle_missing
+  ? ++  +
+FAILED tests/test_flow_aggregate.py::test_it_alerts_on_TRANSITION_only - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_aggregate.py::test_recovery_is_announced_too - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_classification.py::test_cream_meta_key - AssertionError: assert ('IREN', 'C',..., '3/19/2027') == ('IREN', 'CAL..., '3/19/2027')
+  
+  At index 1 diff: 'C' != 'CALL'
+  
+  Full diff:
+    (
+        'IREN',
+  -     'CALL',
+  ?       ---
+  +     'C',
+  -     '65',
+  ?     -  ^
+  +     65.0,
+  ?       ^^
+        '3/19/2027',
+    )
+FAILED tests/test_flow_prepare.py::test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold - KeyError: 'warm_whole'
+FAILED tests/test_flow_prepare.py::test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_parts_built_for_a_SUPERSEDED_version_are_not_warm - AssertionError: assert 'stale' in (('bundle_missing'))
+FAILED tests/test_flow_prepare.py::test_a_BURST_of_bumps_collapses_to_ONE_roll - AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+assert 2 == 1
+ +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+FAILED tests/test_flow_tape_spool.py::test_a_window_with_no_spooled_frames_is_handed_to_rest - assert (1 == 1 and 0 == 1)
+FAILED tests/test_flow_tape_spool.py::test_a_window_the_spool_COVERED_is_not_re_read_over_rest - assert 0 == 1
+ +  where 0 = len([])
+ +    where [] = <tests.test_flow_tape_spool._FakeBackfill object at 0x7f77824bf050>.calls
+FAILED tests/test_flow_tape_spool.py::test_it_never_raises_when_the_qpool_is_unavailable - AssertionError: assert (0 == 0 and 'qpool' in (('rest_backfill_disabled')))
+FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_stale_serves_old_and_schedules_refresh - AssertionError: assert [] == ['ZZSTALE']
+  
+  Right contains one more item: 'ZZSTALE'
+  
+  Full diff:
+  + []
+  - [
+  -     'ZZSTALE',
+  - ]
+FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_too_old_rebuilds_synchronously - AssertionError: assert ['ZZOLD'] == ['ZZOLD', 'ZZOLD']
+  
+  Right contains one more item: 'ZZOLD'
+  
+  Full diff:
+    [
+        'ZZOLD',
+  -     'ZZOLD',
+    ]
+FAILED tests/test_gate_box_lock.py::test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded - gate_box_lock.LockHeld: pid 3412 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+FAILED tests/test_gate_box_lock.py::test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED - FileNotFoundError: [Errno 2] No such file or directory: 'powershell'
+FAILED tests/test_gate_box_lock.py::test_the_load_reading_NEVER_changes_the_holder_contract - gate_box_lock.LockHeld: pid 999999 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+FAILED tests/test_gate_box_lock.py::test_the_lock_self_check_still_passes_end_to_end - gate_box_lock.LockHeld: pid 999999 since 2026-09-21T14:30:22 [UCT-Dashboard] /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest/__main__.py -q -p no:cacheprovider --timeout=120 --timeout-method=signal --junitxml=
+FAILED tests/test_gitattributes_eol.py::test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point - AssertionError: the working tree should carry CRLF on far more files than the index does (index 287, worktree 287) — if not, autocrlf is off on this box and this rail's premise needs re-checking
+assert 287 > (287 * 2)
+ +  where 287 = len({'Logo.png', 'Page', 'abc123def456789012345678abcdef01/img.png', 'api/services/desk_assets/DejaVuSans-Bold.ttf', 'api/services/desk_assets/DejaVuSans.ttf', 'api/services/desk_assets/DejaVuSerif-Bold.ttf', ...})
+ +  and   287 = len({'Logo.png', 'Page', 'abc123def456789012345678abcdef01/img.png', 'api/services/desk_assets/DejaVuSans-Bold.ttf', 'api/services/desk_assets/DejaVuSans.ttf', 'api/services/desk_assets/DejaVuSerif-Bold.ttf', ...})
+FAILED tests/test_gitattributes_eol.py::test_every_derived_path_is_declared_text_unset - AssertionError: these blobs are stored with CR and nothing protects them:
+    app/src/components/chart/engine/ast/pineObjects.js (text=unspecified)
+assert not {'app/src/components/chart/engine/ast/pineObjects.js': 'unspecified'}
+FAILED tests/test_gitattributes_eol.py::test_the_declared_list_is_still_the_derived_list - AssertionError: newly qualifying, undeclared: ['app/src/components/chart/engine/ast/pineObjects.js']
+assert not {'app/src/components/chart/engine/ast/pineObjects.js'}
+FAILED tests/test_graph_wire_size.py::test_stored_response_and_compact_response_bytes - ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+FAILED tests/test_graph_wire_size.py::test_a_caller_that_does_not_ask_still_gets_the_forest - ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+FAILED tests/test_graph_wire_size.py::test_compacting_is_lossless_the_program_survives - ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+FAILED tests/test_graph_wire_size.py::test_a_malformed_stored_graph_is_readable_but_never_expandable - ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+FAILED tests/test_graph_wire_size.py::test_serialisation_and_parse_cost_of_each_read_shape - ValueError: compute.graph.outputRoots.out10: expands to 13009 nodes, over the 2048 per-plot ceiling
+30 failed, 2182 passed, 25 skipped, 15037 warnings in 197.93s (0:03:17)
