@@ -149,7 +149,114 @@ function deepFreeze(obj) {
   return Object.freeze(obj)
 }
 
-export const WIDGET_REGISTRY = deepFreeze({
+// ── registerPanel — the ONE path every entry takes into WIDGET_REGISTRY ──────
+// S1 CP3 (signed by the owner 2026-09-21, gate fingerprint fc609961a). A panel
+// manifest is validated HERE, at registration, instead of at first render: today
+// an entry with a typo'd param type is silently accepted and only misbehaves when
+// something coerces a value of that type (`coerce`'s default branch drops it), and
+// a missing label renders as `undefined` on a member's screen.
+//
+// Deliberately THIN and additive: it validates the three fields the registry's own
+// characterization rail (registry.test.js) already treats as load-bearing — labels,
+// defaults, paramsSchema — plus the menu flags, and it adds the fifth flag,
+// `menus.terminal`, defaulting FALSE so no existing entry's behaviour changes. Every
+// other field (placement, themeFollow, plainText, reconstructable, liveCapable)
+// passes through by identity. Adding a widget type is still exactly one entry below
+// + one host binding line; this is the door that entry walks through.
+//
+// ⛔ It does NOT mutate WIDGET_REGISTRY at runtime — the registry is a frozen
+// literal by design (see deepFreeze). It RETURNS the normalized entry.
+
+// The field types `coerce` (below) understands. Kept as data so the validator and
+// the coercer cannot drift silently: registerPanel.test.js derives the `case`
+// labels out of coerce's source and fails by name if this list and that switch
+// ever disagree.
+export const PARAM_FIELD_TYPES = Object.freeze([
+  'symbol', 'tf', 'ts', 'string', 'number', 'boolean', 'enum', 'json',
+])
+const MENU_FLAGS = Object.freeze(['workspace', 'tab', 'mobile', 'journal'])
+const _isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const _isText = (v) => typeof v === 'string' && v.trim() !== ''
+const _isPositive = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0
+
+export class PanelManifestError extends Error {
+  constructor(id, problems) {
+    super(`registerPanel(${JSON.stringify(id)}): ${problems.join('; ')}`)
+    this.name = 'PanelManifestError'
+    this.panelId = id
+    this.problems = problems
+  }
+}
+
+/** Every reason `manifest` would be refused — [] when it is registrable. Pure. */
+export function validatePanelManifest(id, manifest) {
+  const problems = []
+  if (typeof id !== 'string' || !/^[A-Za-z][A-Za-z0-9]*$/.test(id)) {
+    problems.push('id must be an alphanumeric identifier starting with a letter')
+  }
+  if (!_isPlainObject(manifest)) return [...problems, 'manifest must be an object']
+
+  if (!_isPlainObject(manifest.labels)) {
+    problems.push('labels is required')
+  } else {
+    for (const k of ['header', 'menu', 'tab']) {
+      if (!_isText(manifest.labels[k])) problems.push(`labels.${k} must be a non-empty string`)
+    }
+  }
+
+  if (!_isPlainObject(manifest.defaults)) {
+    problems.push('defaults is required')
+  } else {
+    for (const k of ['w', 'h', 'minW', 'minH']) {
+      if (!_isPositive(manifest.defaults[k])) problems.push(`defaults.${k} must be a positive number`)
+    }
+  }
+
+  if (!Array.isArray(manifest.paramsSchema)) {
+    problems.push('paramsSchema must be an array (empty is fine)')
+  } else {
+    const seen = new Set()
+    manifest.paramsSchema.forEach((f, i) => {
+      const at = `paramsSchema[${i}]`
+      if (!_isPlainObject(f)) { problems.push(`${at} must be an object`); return }
+      if (!_isText(f.key)) problems.push(`${at}.key must be a non-empty string`)
+      else if (seen.has(f.key)) problems.push(`${at}.key ${JSON.stringify(f.key)} is declared twice`)
+      else seen.add(f.key)
+      if (!PARAM_FIELD_TYPES.includes(f.type)) {
+        problems.push(`${at}.type ${JSON.stringify(f.type)} is not one of ${PARAM_FIELD_TYPES.join('|')}`)
+      } else if (f.type === 'enum' && !(Array.isArray(f.options) && f.options.length > 0)) {
+        problems.push(`${at} is an enum and needs a non-empty options array`)
+      }
+    })
+  }
+
+  if (!_isPlainObject(manifest.menus)) {
+    problems.push('menus is required')
+  } else {
+    for (const k of MENU_FLAGS) {
+      if (typeof manifest.menus[k] !== 'boolean') problems.push(`menus.${k} must be a boolean`)
+    }
+    if (manifest.menus.terminal !== undefined && typeof manifest.menus.terminal !== 'boolean') {
+      problems.push('menus.terminal must be a boolean when present')
+    }
+  }
+  return problems
+}
+
+/** Validate `manifest` and return its normalized copy (`menus.terminal` defaulted
+ *  to false); throws PanelManifestError naming every problem at once. The input is
+ *  never mutated and every other field is carried by identity. */
+export function registerPanel(id, manifest) {
+  const problems = validatePanelManifest(id, manifest)
+  if (problems.length) throw new PanelManifestError(id, problems)
+  return { ...manifest, menus: { ...manifest.menus, terminal: manifest.menus.terminal === true } }
+}
+
+// The literal every entry is declared in. It is NOT exported: the exported
+// WIDGET_REGISTRY below is what each entry becomes AFTER registerPanel has
+// validated it, so a malformed entry fails when this module loads (in CI, in
+// dev, in the first test that imports it) rather than on a member's screen.
+const PANEL_MANIFESTS = {
   chart: {
     labels: { header: 'Chart', menu: 'Chart', tab: 'Chart' },
     defaults: { w: 12, h: 12, minW: 6, minH: 6 },
@@ -596,7 +703,11 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // a live market map at a past instant is not replayable
     liveCapable: false,
   },
-})
+}
+
+export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(
+  Object.entries(PANEL_MANIFESTS).map(([id, manifest]) => [id, registerPanel(id, manifest)]),
+))
 
 // Registry ids in declaration order — this order IS the menu order.
 export const WIDGET_IDS = Object.keys(WIDGET_REGISTRY)

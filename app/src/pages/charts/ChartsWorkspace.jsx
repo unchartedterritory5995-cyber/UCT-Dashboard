@@ -21,6 +21,8 @@ import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
+import useStaggeredMount from './grid/useStaggeredMount'
+import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
 import { planPlacement, nudgePlan } from './placement/place'
@@ -66,6 +68,16 @@ const GRID_COLS = 24
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+
+// S1 CP3 (gate fc609961a): the single board had no mount-count cap at all
+// (capability-ledger.md row C1 — "geometry is the implicit bound"), so opening a
+// layout with many widgets, or switching layouts, fired every widget's initial
+// data fetch at once. `useStaggeredMount` already bounds this for the Multi-Chart
+// Grid; this ports the same idiom here rather than inventing a second mount-queue.
+// No production telemetry on concurrent-widget counts exists yet (an owner-bound
+// question, GATE-S1-CP3 §6), so this starts at the Multi-Chart Grid's own proven
+// default and is tunable in one place without a schema change.
+export const PANEL_MOUNT_CAP = 3
 // Smart adaptive placement (docs/superpowers/plans/2026-08-23-smart-adaptive-
 // widget-placement.md). When true, a newly ADDED widget is positioned/sized by
 // planPlacement (region + type affinity, fill-empty-then-resize) instead of the
@@ -865,6 +877,22 @@ export default function ChartsWorkspace() {
   // menu — opens SMALL under the cursor. Absent = a grid-popped float (sized from
   // the slot it left). Cleared on dock/remove so a later re-float uses grid geom.
   const [floatSpawns, setFloatSpawns] = useState({})
+
+  // MAIN-BOARD mount cap (S1 CP3) — computed here, ahead of the isMobile early
+  // return below, so this hook's position in the call order never changes.
+  // Deliberately scoped to the desktop main board only, per the signed scope:
+  // popped-out boards (another monitor) and the phone app (MobileChartsApp, a
+  // different render tree entirely) are unaffected and stay eagerly mounted.
+  // `mainBoardWidgetIds` mirrors visibleWidgets' filter (defined again, further
+  // down, once poppedWidgetIds/floatingWidgetIds are in scope either way) —
+  // computed from the same two state values so the two can never disagree.
+  const mainBoardWidgetIds = useMemo(
+    () => layout.widgets
+      .filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+      .map(w => w.id),
+    [layout.widgets, poppedWidgetIds, floatingWidgetIds],
+  )
+  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
 
   const widgetCanvasByType = useMemo(() => {
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
@@ -1960,15 +1988,19 @@ export default function ChartsWorkspace() {
 
   // A popped widget stays in layout.widgets — it's only hidden from the grid — so
   // its position survives the trip and it docks straight back where it was.
+  // S1 CP3 SHOULD: the actual list transition is `popoutAddWidgetId`/
+  // `popoutRemoveWidgetId` (./popout/popoutState.js) — named and tested so a
+  // future caller has a stable shape to call rather than re-deriving these two
+  // one-liners. Byte-identical to the inline callbacks these replaced.
   const handlePopOutWidget = useCallback((id) => {
-    setPoppedWidgetIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+    setPoppedWidgetIds(prev => popoutAddWidgetId(prev, id))
   }, [])
   const handleDockWidget = useCallback((id) => {
-    setPoppedWidgetIds(prev => prev.filter(x => x !== id))
+    setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
   }, [])
   // Closing a widget from inside its own window should delete it, not dock it.
   const handleRemovePoppedWidget = useCallback((id) => {
-    setPoppedWidgetIds(prev => prev.filter(x => x !== id))
+    setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
     handleRemoveWidget(id)
   }, [handleRemoveWidget])
 
@@ -2453,6 +2485,10 @@ export default function ChartsWorkspace() {
               widget={w}
               headerAtBottom={false}
               merged={merged}
+              // Only the main board passes `h.onPopOut`/`h.onFloat` from
+              // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
+              // both, so `isMainBoard` never mis-caps a secondary monitor's board.
+              mounted={h.onPopOut ? mainBoardMountedIds.has(w.id) : true}
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}

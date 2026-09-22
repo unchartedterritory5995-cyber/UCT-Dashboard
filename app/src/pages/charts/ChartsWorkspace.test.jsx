@@ -11,7 +11,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 // internals. WidgetHost surfaces the widget type so tests can assert which
 // widgets are on the board.
 vi.mock('./WidgetHost', () => ({
-  default: ({ widget }) => <div data-testid={`body-${widget.type}`}>{widget.type}</div>,
+  // `data-mounted` surfaces the S1 CP3 mount-cap prop for
+  // test_board_mount_count_is_bounded_by_staggered_mount below; every other
+  // existing test reads only `data-testid` and is unaffected by the addition.
+  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)}>{widget.type}</div>,
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -86,6 +89,28 @@ function renderWS() {
     </MemoryRouter>,
   )
 }
+
+// S1 CP3 (gate fc609961a) §7: test_board_mount_count_is_bounded_by_staggered_mount.
+// Mirrors useStaggeredMount.test.js's own grid coverage, applied to the single
+// board: adding widgets past PANEL_MOUNT_CAP leaves only `limit` concurrently
+// `mounted`, the rest queued behind the same hook the Multi-Chart Grid already
+// ships. Six widget TYPES (distinct so each has its own stable data-testid) —
+// more than PANEL_MOUNT_CAP (3) — seeded directly into the layout pref.
+const CAP_TEST_TYPES = ['chart', 'watchlist', 'themes', 'fundamentals', 'breadth', 'indexes']
+test('the main board mount count is bounded by PANEL_MOUNT_CAP, not by widget count', () => {
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({
+      widgets: CAP_TEST_TYPES.map((type, i) => ({ id: `w${i}`, type, color: 'A', x: 0, y: i * 4, w: 6, h: 4, opts: {} })),
+      cols: 24,
+    }),
+  }
+  renderWS()
+  const mountedNodes = document.querySelectorAll('[data-testid^="body-"][data-mounted="true"]')
+  const queuedNodes = document.querySelectorAll('[data-testid^="body-"][data-mounted="false"]')
+  expect(mountedNodes.length + queuedNodes.length, 'every seeded widget rendered its header/chrome').toBe(CAP_TEST_TYPES.length)
+  expect(mountedNodes.length, 'no more than PANEL_MOUNT_CAP widgets are mounted at once').toBe(3)
+  expect(queuedNodes.length).toBe(CAP_TEST_TYPES.length - 3)
+})
 
 // ── Toolbar navigation ──────────────────────────────────────────────────────
 // The header used to be seven flat buttons and is now two dropdowns ("Widgets ▾"
