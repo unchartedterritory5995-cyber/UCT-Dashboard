@@ -11,10 +11,10 @@ date: 2026-09-22
 ## ⛔ APPROVAL — EMPTY, and that is its correct state
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      2026-09-22
+APPROVED AT SHA:  ddcad5b0c
+SCOPE APPROVED:   CP1 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
 > ⛔⛔ **NOT AUTHORIZED. PROPOSED** — no existing checkpoint governs this connection.
