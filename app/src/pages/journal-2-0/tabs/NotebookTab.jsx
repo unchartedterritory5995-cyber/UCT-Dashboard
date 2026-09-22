@@ -324,6 +324,21 @@ export default function NotebookTab() {
   // from Home.
   const viewAll = searchParams.get('view') === 'all'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
+  // `?view=all` on a genuinely empty notebook render two different "you have
+  // no notes" screens for the identical fact. Attempted a route-into-
+  // ResearchHome fix here and reverted it: NotebookTab.test.jsx's OWN header
+  // comment deliberately keeps `?view=all` on the grid ("these tests are
+  // about the tab's OWN template-picker/grid/toolbar wiring, NOT Home...
+  // `?view=all` is the explicit flag that keeps them landing on the grid
+  // unchanged") specifically so this file has a stable surface to test
+  // template-picking against -- the promised split-out
+  // `NotebookTab.researchHome.test.jsx` referenced by that same comment does
+  // not exist. Unifying the two screens is real and correct, but it broke
+  // 20 of this file's 37 tests, all of which need a deliberate decision
+  // about which surface re-exercises template-picking once `?view=all` no
+  // longer does -- not a drive-by two-line change. Left as a named, still-open
+  // quick win rather than a rushed test-suite rewrite.
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed

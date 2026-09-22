@@ -1260,16 +1260,34 @@ describe('Saved Views sidebar section (Wave E)', () => {
     expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
   })
+})
 
-  /**
-   * ⛔⛔ THE ROW ICON MUST MATCH THE VIEW'S OWN TYPE, NOT A LIST/TABLE BINARY.
-   *
-   * This used to be `view.viewType === 'table' ? 'columns' : 'rows'` — a
-   * saved Board, Calendar or Graph view all rendered the same generic
-   * "rows" icon, a hand-typed second authority over data `lib/savedViewModes`
-   * already has correct (VIEW_MODES). Competitive audit finding UX #6,
-   * 2026-09-22.
-   */
+/**
+ * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
+ * double-clicking a folder row, a desktop-file-manager convention this
+ * product never taught anywhere. Competitive audit finding UX #10,
+ * 2026-09-22.
+ */
+describe('Folder rename affordance (UX #10)', () => {
+  it('a visible Rename icon enters edit mode, the same as double-click', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+    fireEvent.click(screen.getByLabelText('Rename Trading'))
+    const input = screen.getByDisplayValue('Trading')
+    expect(input.tagName).toBe('INPUT')
+  })
+})
+
+/**
+ * ⛔⛔ THE ROW ICON MUST MATCH THE VIEW'S OWN TYPE, NOT A LIST/TABLE BINARY.
+ *
+ * This used to be `view.viewType === 'table' ? 'columns' : 'rows'` — a
+ * saved Board, Calendar or Graph view all rendered the same generic
+ * "rows" icon, a hand-typed second authority over data `lib/savedViewModes`
+ * already has correct (VIEW_MODES). Competitive audit finding UX #6,
+ * 2026-09-22.
+ */
+describe('Saved Views sidebar section — row icons', () => {
   it('the row icon matches each saved view type, not a list/table binary', () => {
     const views = [
       { id: 'v1', name: 'A Board', viewType: 'board' },

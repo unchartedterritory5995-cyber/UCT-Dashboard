@@ -1929,6 +1929,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
           />
+          {/*
+            ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
+            (grepped the whole file for setFindOpen(true): one call site, the
+            keydown handler). History, two buttons over, has always had a
+            labeled button in this same row. Competitive audit finding UX #5,
+            2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
+            by this -- purely a missing entry point, not new find logic.
+          */}
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={() => setFindOpen(true)}
+            title="Find in this note"
+            aria-label="Find in note"
+          >
+            <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            Find
+          </button>
           <button
             type="button"
             className={styles.chromeBtn}

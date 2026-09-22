@@ -391,6 +391,19 @@ function FolderNode({
           >
             <span>{node.name}</span>
             <span className={styles.actions}>
+              {/*
+                ⛔ RENAME HAD ZERO VISUAL AFFORDANCE -- discoverable only by
+                double-clicking, a desktop-file-manager convention this
+                product never taught. Wired to the SAME setEditingId/
+                setEditName path onDoubleClick already uses, just given a
+                visible door. Competitive audit finding UX #10, 2026-09-22.
+              */}
+              <span
+                className={styles.iconBtn}
+                onClick={(e) => { e.stopPropagation(); setEditingId(node.id); setEditName(node.name) }}
+                title="Rename folder"
+                aria-label={`Rename ${node.name}`}
+              ><UIcon name="edit" size={11} gold={false} /></span>
               <span
                 className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
                 onClick={(e) => { e.stopPropagation(); onStartAddChild(node.id) }}

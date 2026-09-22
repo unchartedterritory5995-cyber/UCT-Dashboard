@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -114,6 +114,19 @@ describe('NoteEditorPage editor toolbar row', () => {
     // Controls — the two that already worked, so this is a real gap check, not a broken query
     expect(q.getByLabelText('Insert image')).toBeInTheDocument()
     expect(q.getByLabelText('Attach a file')).toBeInTheDocument()
+  })
+
+  /**
+   * ⛔⛔ FIND HAD NO VISIBLE ENTRY POINT — Cmd/Ctrl+F was the only door.
+   * History, right beside where this button now lives, has always had one.
+   * Competitive audit finding UX #5, 2026-09-22.
+   */
+  it('a visible Find button opens NoteFindBar, the same as Ctrl+F', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    expect(screen.queryByRole('search', { name: 'Find in note' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find in note' }))
+    expect(screen.getByRole('search', { name: 'Find in note' })).toBeInTheDocument()
   })
 })
 
