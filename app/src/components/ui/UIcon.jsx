@@ -197,6 +197,13 @@ const ICONS = {
       <path d="M12 6.6v13.7" />
     </>
   ),
+  save: (
+    <>
+      <path d="M5 4.5h11l3 3V19.5H5z" />
+      <path d="M8.5 4.5v4.5h6.5V4.5" />
+      <path d="M8.5 19.5v-6h7v6" />
+    </>
+  ),
   library: (
     <>
       <rect x="4" y="4" width="4" height="16" rx="1" />

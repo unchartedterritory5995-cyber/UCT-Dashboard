@@ -200,6 +200,13 @@
   cursor: pointer; font-size: 11.5px; padding: 6px 8px; margin-top: 4px; border-radius: 5px; }
 .flaggedClear:hover { color: var(--color-danger, #f87171); background: var(--bg-hover); }
 
+/* "Save as scan" — the inline name form in the toolbar's save slot. */
+.saveScanWrap { display: inline-flex; align-items: center; }
+.saveScanForm { display: inline-flex; align-items: center; gap: 6px; }
+.saveScanInput { background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px); padding: 5px 8px; color: var(--text);
+  font-size: 12px; min-width: 150px; }
+
 /* The Type filter's Include/Exclude multi-select (TypeFilterControl). */
 .typeCtl { padding: 4px 8px 8px; }
 .typeToggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;

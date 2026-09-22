@@ -24,6 +24,7 @@ import { exportScreen } from './csvExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ScreenerReviewOverlay from './ScreenerReviewOverlay'
 import FlaggedActions from './FlaggedActions'
+import SaveScanButton from './SaveScanButton'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
@@ -286,13 +287,17 @@ export default function ScannerShell({ embedded = false }) {
             <button type="button" className={styles.toolBtn} onClick={() => setReviewOpen(true)}>
               <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
             </button>
-          ) : null} />
+          ) : null}
+          libraryBar={(
+            <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
+              <UIcon name="book" size={12} /> Structure library
+            </button>
+          )}
+          saveBar={<SaveScanButton spec={s.baseSpec}
+            hasFilters={Object.keys(s.filters).length > 0} />} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
-          </button>
-          <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
-            <UIcon name="book" size={11} /> Structure library
           </button>
           <FilterChips meta={meta} activeFilters={s.filters}
             onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
