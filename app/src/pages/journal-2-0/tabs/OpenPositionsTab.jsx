@@ -247,7 +247,8 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       await refreshPositions()
       showToast(`Deleted ${deleteTarget.symbol}`, 'success')
     } catch (e) {
-      showToast(String(e.message || e), 'error')
+      console.error('[positions] delete failed', e)
+      showToast("Couldn't delete that position. Nothing was removed.", 'error')
     }
   }, [deleteTarget, refreshPositions, showToast])
 
@@ -532,7 +533,8 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
               setToast({ message: `Marked ${ids.length} strategies expired.`, tone: 'success' })
             } catch (e) {
-              setToast({ message: `Batch-expire failed: ${e.message}`, tone: 'error' })
+              console.error('[options] mark-expired-batch failed', e)
+              setToast({ message: "Couldn't mark those strategies expired. Nothing was changed.", tone: 'error' })
             }
           }}
           onDismiss={() => setExpiredBannerDismissed(true)}
