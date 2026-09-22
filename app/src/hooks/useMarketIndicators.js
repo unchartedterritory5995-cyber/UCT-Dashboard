@@ -211,8 +211,48 @@ export function canonicalPresentation(sym) {
  * a second, weaker answer that disagreed with the gate.
  */
 export function canonicalSourceCapability(sym, ohlcCapable) {
+  // ⛔⛔ A PRODUCT IS NEVER CANDLE-CAPABLE, AND IT HAS TO BE ASKED FIRST.
+  //
+  // ⚰️ MEASURED IN A BROWSER: charting `AAII` as the PRIMARY symbol still drew
+  // CANDLES. A product is deliberately absent from the SERIES index (`byKey`), so
+  // `canonicalFamily` found no record, both registries had answered, and it fell
+  // through to `'security'` — the one classification that grants candles. The
+  // product's own row says `ohlc_capable: false`; this is where that is read.
+  const prod = canonicalProduct(sym)
+  if (prod) {
+    return sourceCapabilityOf(
+      prod.presentation ? { presentation: prod.presentation } : null, false)
+  }
   const presentation = canonicalPresentation(sym)
   return sourceCapabilityOf(presentation ? { presentation } : null, !!ohlcCapable)
+}
+
+/**
+ * The PRODUCT a member-facing spelling names, or `null`.
+ *
+ * ⭐⭐ THIS IS WHAT MAKES A PRODUCT A PRIMARY-CHART IDENTITY ON THE CLIENT. The
+ * series index (`byKey`) deliberately does not contain products — a product has no
+ * bars of its own and must never be mistaken for a series — so this is the second,
+ * explicit question, exactly as `registry.resolve_product` is on the server.
+ *
+ * ⚠️ IT MATCHES THE SAME SPELLINGS THE SERVER DOES: the id, the display name, the
+ * short name and every declared alias, case- and space-insensitively. `AAII`,
+ * `aaii`, `AAII Sentiment Survey` and `AAII:SURVEY` are one request.
+ */
+export function canonicalProduct(sym) {
+  if (!sym) return null
+  const key = String(sym).trim().toUpperCase().replace(/\s+/g, ' ')
+  if (!key) return null
+  const rows = (_cache && _cache.rows) || []
+  for (const row of rows) {
+    if (!row || row.kind !== 'product') continue
+    const spellings = [row.id, row.symbol, row.display, row.short, ...(row.aliases || [])]
+    for (const sp of spellings) {
+      if (!sp) continue
+      if (String(sp).trim().toUpperCase().replace(/\s+/g, ' ') === key) return row
+    }
+  }
+  return null
 }
 
 /** Start the fetch without mounting a component. Safe to call repeatedly. */

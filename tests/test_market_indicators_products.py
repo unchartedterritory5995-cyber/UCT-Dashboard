@@ -86,12 +86,26 @@ def test_components_still_resolve_even_though_they_are_unlisted():
         assert reg.get(cid) is not None
 
 
-def test_a_product_is_not_a_bars_symbol():
-    """It names three series and has none of its own; resolving it would be a chart
-    that draws nothing."""
+def test_a_product_is_not_a_SERIES_but_is_a_chart_identity():
+    """⭐⭐ THIS RULE CHANGED, DELIBERATELY, AND THE OLD HALF IS KEPT.
+
+    V1 said "a product is not a ticker" and refused it everywhere, because a product
+    has no bars of its own and typing it would have produced an empty chart. The
+    accepted requirement is now that `AAII Sentiment Survey` opens AS A PRIMARY CHART,
+    so the refusal moved rather than disappeared:
+
+      `resolve()`              still None — it is not a SERIES, and a caller that
+                               wanted one must not silently receive this
+      `is_market_indicator()`  now True   — it IS a chart identity, and every routing
+                               decision must send it to the library rather than to
+                               bars.db, which has no rows for it
+
+    ⛔ The bars it serves are its PRIMARY COMPONENT's, under its own ticker. Nothing
+    anywhere invents a bar for a product.
+    """
     assert reg.resolve("AAII:SURVEY") is None
     from api.routers.bars import _is_market_indicator
-    assert _is_market_indicator("AAII:SURVEY") is False
+    assert _is_market_indicator("AAII:SURVEY") is True
     for cid in reg.PRODUCT_COMPONENT_IDS:
         assert _is_market_indicator(cid) is True
 
@@ -173,3 +187,66 @@ def test_the_components_are_dated_by_the_survey_not_by_the_snapshot():
     assert aaii_store._iso10(None) is None
     assert aaii_store._iso10("2026-01-01T00:00:00") == "2026-01-01"
     assert aaii_store._iso10("not-a-date") is None
+
+
+# ── A PRODUCT AS A PRIMARY-CHART IDENTITY ───────────────────────────────────
+
+@pytest.mark.parametrize("spelling", [
+    "AAII", "aaii", "AAII:SURVEY", "aaii:survey",
+    "AAII Sentiment Survey", "  AAII   Sentiment   Survey  ", "AAII SENTIMENT",
+])
+def test_a_member_facing_spelling_resolves_to_the_product(spelling):
+    """⭐ THE MEMBER TYPES A NAME, NOT AN INTERNAL ID. A primary-symbol search must
+    accept the words a member actually knows."""
+    p = reg.resolve_product(spelling)
+    assert p is not None and p.id == "AAII:SURVEY", spelling
+
+
+def test_a_product_spelling_is_never_mistaken_for_a_series():
+    """⛔ `resolve()` is the SERIES authority and must keep refusing a product — a
+    caller that wanted something with bars must not silently get something without."""
+    for spelling in ("AAII", "AAII:SURVEY", "AAII Sentiment Survey"):
+        assert reg.resolve(spelling) is None
+
+
+def test_ordinary_symbols_are_not_products():
+    for t in ("QQQ", "NAAIM", "US:MCO", "UCTAAII", "", None):
+        assert reg.resolve_product(t) is None
+
+
+def test_the_product_routes_as_a_market_indicator():
+    """⛔⛔ EVERY ROUTING DECISION MUST SAY YES. `is_market_indicator` is the oracle
+    all three doors in `api/routers/bars.py` consult; a no here sends the product down
+    the ordinary bars path, which has no rows for it, and the member gets the
+    cacheable `200 + bars: []` that blanked every market-indicator chart in V1."""
+    from api.routers.bars import _is_market_indicator
+    for t in ("AAII:SURVEY", "AAII"):
+        assert _is_market_indicator(t) is True
+    assert _is_market_indicator("QQQ") is False
+
+
+def test_the_product_serves_its_primary_component_under_its_own_ticker():
+    """⛔ THE TICKER STAYS THE PRODUCT'S. A chart that asked for `AAII:SURVEY` must get
+    `AAII:SURVEY` back — the client matches the reply against its request, and handing
+    back `AAII:BULLS` would read as a wrong-symbol answer and be discarded by the very
+    guards the atomic handoff added."""
+    from api.services.market_indicators import series as ms
+    out = ms.build_bars("AAII:SURVEY", "D", 50)
+    assert out["ticker"] == "AAII:SURVEY"
+    prod = reg.get_product("AAII:SURVEY")
+    assert prod.primary_component == prod.components[0]
+    # Same numbers as the component it names — it serves that series, it invents none.
+    comp = ms.build_bars(prod.primary_component, "D", 50)
+    assert out["bars"] == comp["bars"]
+
+
+def test_the_product_declares_the_aliases_its_search_ranking_depends_on():
+    """⚰️ WHY THIS IS A RAIL. `discovery.search` scores an ALIAS match as tier 0, which
+    `ticker_search` reads as `symbol_hit` to rank a row at the FRONT. With synonyms
+    alone the product scored >= 2 and sat behind every general match — surviving only
+    as long as nothing truncated the list."""
+    p = reg.get_product("AAII:SURVEY")
+    assert "AAII" in p.aliases
+    hits = disc.search("AAII", limit=20, include_breadth=False)
+    assert hits and hits[0]["id"] == "AAII:SURVEY"
+    assert hits[0].get("symbol_hit") is True

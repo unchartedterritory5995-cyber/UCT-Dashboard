@@ -275,6 +275,23 @@ def build_bars(symbol: str, tf: str = "D", bars: int = 5000) -> dict:
         tf = "D"
     row = reg.resolve(symbol)
     if row is None:
+        # ⭐⭐ A PRODUCT SERVES ITS PRIMARY COMPONENT UNDER ITS OWN TICKER. The chart's
+        # price slot holds ONE series; the product's other components are added
+        # alongside it as ordinary overlays, so the member sees the whole product.
+        #
+        # ⛔ THE TICKER STAYS THE PRODUCT'S. A chart that asked for `AAII:SURVEY` must
+        # get `AAII:SURVEY` back — the response's ticker is what the client matches its
+        # request against, and handing back `AAII:BULLS` would read as a wrong-symbol
+        # reply and be discarded by the very guards the atomic handoff added.
+        prod = reg.resolve_product(symbol)
+        if prod is not None:
+            comp = reg.get(prod.primary_component)
+            if comp is not None:
+                out = resample(daily_bars(comp.id), tf)
+                if bars and len(out) > bars:
+                    out = out[-int(bars):]
+                return {"ticker": prod.id, "tf": tf, "bars": out}
+            return {"ticker": prod.id, "tf": tf, "bars": []}
         # ⛔ An unresolved or DORMANT identity serves an empty series, never another
         # series' numbers. `resolve()` hides dormant rows, so NYMO lands here.
         return {"ticker": (symbol or "").upper(), "tf": tf, "bars": []}

@@ -67,7 +67,7 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
-  securityResults, breadthResults, marketIndicatorResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
+  securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, LIBRARY_TABS, FUNDAMENTALS_STATUS,
   glyphNameOf, glyphFamilyOf,
 } from './discoveryCatalog'
 import UIcon from '../ui/UIcon'
@@ -907,7 +907,31 @@ export default function ChartSettingsIndicators({
     // lists every ticker — so an empty box shows the canonical popular/index
     // sets rather than an empty tab that reads as broken. A query replaces them
     // with the real answer.
-    const live = query ? symbolRows.rows : browsed
+    // ⚰️⚰️ THE PRODUCTION DEFECT THIS LINE CAUSED, AND THE ONE IT NOW PREVENTS.
+    //
+    // It read `query ? symbolRows.rows : browsed` — so the instant a member TYPED,
+    // every browsed row was DISCARDED and the list became whatever
+    // `/api/ticker-search` happened to return. `browsed` is the only path carrying
+    // `marketIndicatorResults(marketAll.rows)`, so searching "AAII" made the Market
+    // Indicators catalogue irrelevant and the AAII Sentiment Survey's existence
+    // depended entirely on one remote reply — whose market-indicator injection is
+    // wrapped in `except Exception: pass` server-side.
+    //
+    // ⭐ THE ASYMMETRY IS WHAT MADE IT LOOK LIKE A DATA BUG. The AAII Bull-Bear
+    // Spread kept appearing because it ALSO comes from `useBreadthSymbols`, which
+    // needs no network at all. One AAII row present and the other absent reads as
+    // "the Survey is missing"; it was really "the Survey has only one door and that
+    // door is remote".
+    //
+    // ⛔ SO THE QUERY UNIONS BOTH SOURCES, exactly as `resultByKey` below already
+    // does for the CLICK path. That fix — browse + query in one map — was made for
+    // this same class of bug (a browsed row the lookup had never been told about);
+    // the LIST kept the old either/or and inherited it. Same rule, both places.
+    //
+    // ⚠️ THE REMOTE ANSWER STILL LEADS. It is ranked by a server that knows more
+    // than a substring test, and the dedupe below keeps the first of any key — so a
+    // row present in both sources reads exactly as it did before.
+    const live = liveDiscoveryRows(query, symbolRows.rows, browsed, matches)
     // ⛔ DEDUPED, THE QUERY'S ANSWER WINNING. A browsed `QQQ` and a searched
     // `QQQ` are the same instrument with the same key.
     //
