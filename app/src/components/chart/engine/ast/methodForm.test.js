@@ -253,6 +253,31 @@ describe('⛔⛔ D — a user definition wins over the method form', () => {
     expect(diag(t).unsupported).not.toContain('array.maintainPivot')
   })
 
+  it('⛔⛔ AND THE CHAINED FORM YIELDS TOO — the receiver rewrite is not a back door', () => {
+    // ⚰️ THE ONLY RAIL ON `ufcs.js`'s OWN `shadowed` PARAMETER, and it was
+    // missing: a mutation disabling that check stayed GREEN across 59 cases,
+    // because the two other callers each test `defined` themselves before
+    // asking. `emitPostfix` does NOT — it hands `isDefined` to `methodFormCall`
+    // and trusts it — so without this case the parameter was a guard nobody
+    // could demonstrate (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    //
+    // ⛔ A SCRIPT THAT DEFINES `method get(…)` OWNS `ls.get(i)`. Rewriting it to
+    // `array.get(ls, i)` and then addressing the result would aim a setter at
+    // whatever the built-in returns, not at what the member's own method does —
+    // a wrong drawing, silently, from a name they defined themselves.
+    const DEFG = 'method get(array<line> srcArray, int i) =>\n    array.first(srcArray)\n'
+    const body = `${MK}    array.push(ls, l)\n    ls.get(${IDX}).set_x2(bar_index)\nplot(close)`
+    const shadowed = pass(DEFG + body, H6)
+    expect(kinds(shadowed)).not.toContain('update')
+  })
+
+  it('⛔ CONTROL — WITHOUT that definition the chained form IS lowered', () => {
+    // The pair that makes the case above a measurement: same program, no
+    // `method get`, and the update must appear.
+    const t = pass(`${MK}    array.push(ls, l)\n    ls.get(${IDX}).set_x2(bar_index)\nplot(close)`, H6)
+    expect(kinds(t)).toContain('update')
+  })
+
   it('⛔ CONTROL — WITHOUT the definition the same line IS counted', () => {
     // The control that makes the case above a measurement rather than a
     // tautology: with nothing shadowing it, the rewrite fires and the name is
@@ -304,12 +329,19 @@ describe('⛔⛔ F — a method-form WRITE is a write, and a read never folds pa
     expect(t.refusal.message).toContain('`a`')
   })
 
-  it('⛔ CONTROL — a NAMESPACE call is not mistaken for a method-form write', () => {
-    // `table.clear(t, …)` and `array.push(a, x)` split exactly like `a.push(x)`.
-    // Reading `table`/`array` as a mutated VARIABLE would add names nobody bound
-    // to the opacity set — and for a script that binds one of those words, an
-    // opacity nobody asked for. This is the control that proves the namespace
-    // exclusion is live: the name form must still fold.
+  it('⛔ CONTROL — adding the method-form clause did not break the NAME form', () => {
+    // ⭐ WHAT THIS ACTUALLY PROVES, stated precisely because the obvious reading
+    // is wrong: the new clause in `mutatorTargets` runs over EVERY dotted call,
+    // including `array.push(a, x)` itself, and this asserts it did not make the
+    // name form opaque on the way past. That is a real regression guard.
+    //
+    // ⚠️ IT IS NOT A PROOF THAT THE NAMESPACE EXCLUSION IS LIVE, and an earlier
+    // draft of this comment claimed it was. Deleting
+    // `!PINE_MEMBER_NAMESPACES.has(...)` leaves this case GREEN — measured — and
+    // no fixture can turn it red, because a Pine script cannot bind `array`,
+    // `table`, `matrix`, `map` or `linefill` for the extra entry to collide
+    // with. The exclusion is kept as stated intent and is recorded in `pine.js`
+    // as undemonstrable rather than counted as a guard here.
     const t = host(`${PUSH_NAME}plot(array.size(a))`)
     expect(t.ok).toBe(true)
   })

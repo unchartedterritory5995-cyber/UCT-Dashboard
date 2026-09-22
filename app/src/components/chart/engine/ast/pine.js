@@ -9175,6 +9175,21 @@ function mutatorTargets(toks) {
     // that happens to bind one of those words, an opacity nobody asked for. The
     // name form is the branch directly above; this one is only for the other
     // spelling.
+    //
+    // ⚠️ THIS EXCLUSION IS NOT INDEPENDENTLY PROVABLE, AND SAYING SO IS THE
+    // POINT. A mutation deleting `PINE_MEMBER_NAMESPACES.has(...)` stays GREEN
+    // across every suite that touches this function, because nothing downstream
+    // can tell: the set is consumed by name, and a script cannot BIND one of
+    // these words for the extra entry to collide with. Measured 2026-09-22 —
+    // `table`, `matrix`, `map` and `linefill` are each refused before a binding
+    // exists, and the one that DOES bind (`str`) shares no member name with
+    // `VEC.WRITE_MEMBERS`, so the clause cannot fire for it either.
+    //
+    // ⛔ It is kept for the reason `parseForHead`'s `by`/`while` guards are
+    // kept one file over: it states the INTENT, so a future reader who widens
+    // either roster meets the rule rather than rediscovering it. It is NOT
+    // counted as a guard this file can demonstrate
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`).
     if (tok.kind === 'ident' && toks[i + 1] && isPunct(toks[i + 1], '(')) {
       const m = splitMethodName(String(tok.value))
       if (m && !PINE_MEMBER_NAMESPACES.has(m.recv)
