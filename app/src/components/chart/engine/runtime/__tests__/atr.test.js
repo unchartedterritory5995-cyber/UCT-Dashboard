@@ -109,7 +109,22 @@ describe('⭐ where `ta.atr` now works', () => {
     expect(ok('plot(request.security("A", "D", ta.atr(14)))\n')).toBe('OK')
   })
 
-  it('⭐ and over runtime state, where the columnar lane cannot reach', () => {
+  // ⚰⚰ THIS CASE'S NAME WAS FALSE, AND ITS ASSERTION COULD NOT TELL.
+  //
+  // It read "and over runtime state, where the columnar lane cannot reach"
+  // and asserted only `'OK'` — which this source returns whichever lane
+  // serves it, so the claim in the title was never under test
+  // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+  //
+  // MEASURED 2026-09-21 BY MUTATION: a `throw` planted as the first statement
+  // of the `ta.atr` branch in `pineRuntimeFrontend.js` does NOT fire for this
+  // source, nor for a plain `ta.atr(5)`, nor inside a user function, nor
+  // inside an `if` body. The COLUMNAR lane reaches all of them. That branch
+  // has exactly ONE reachable door and it is the case above this one.
+  //
+  // ⭐ Kept, because "the columnar lane serves this too" is worth pinning —
+  // but pinned as what it is.
+  it('⭐ over runtime state the COLUMNAR lane still serves it', () => {
     expect(ok('var float s = 0.0\ns := close\nplot(ta.atr(14) + s)\n')).toBe('OK')
   })
 
@@ -126,5 +141,77 @@ describe('⭐ where `ta.atr` now works', () => {
     // the branch's own sentence here would have been asserting unreachable code.
     expect(ok('var float s = 0.0\ns := close\nplot(ta.atr(14, 2) + s)\n'))
       .toMatch(/arity|given 2 argument/)
+  })
+})
+
+describe('⛔⛔ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — ours differ', () => {
+  // ⭐⭐ THE OPEN QUESTION, STATED PRECISELY SO NOBODY "FIXES" IT ON A GUESS.
+  //
+  // Pine's reference defines `ta.atr(length)` as `ta.rma(ta.tr(true), length)`.
+  // `ta.tr(true)` is `high - low` on bar 0 — measured, ours is correct there.
+  // But BOTH of this engine's ATR routes build a true range from a raw
+  // `close[1]`, which is `na` on bar 0, so the warm-up ends one bar later and
+  // the seed differs. The delta decays by exactly (n-1)/n, which is the
+  // signature of the same recurrence started from a different seed.
+  //
+  // ⛔⛔ AND THE VENDOR CAPTURE CANNOT SETTLE IT. The 2026-09-21 capture
+  // (`tests/fixtures/vendor/p1-top-unmeasured-spy-1d-2026-09-21.json`) holds
+  // bars 8168..8467, where any seed difference has long since decayed to zero —
+  // so TradingView's two series agreeing there is NOT evidence about the seed.
+  // Changing these numbers on the strength of the documentation alone would put
+  // a plausible figure where a capture belongs, which is the one thing the
+  // desugar's own comment warns against.
+  //
+  // ⭐ SO THIS IS `it.fails`, NOT `it.skip`. The day somebody captures the seed
+  // from a short-history symbol (or a chart scrolled back to bar 0) and fixes
+  // it, this goes RED for "expected to fail but passed", the marker comes off,
+  // and it becomes an ordinary assertion. A skip would go quiet instead, which
+  // is how a known defect becomes a forgotten one.
+  const series = (src) => {
+    const r = buildRuntimeIr(head + src, { bars: BARS, inputs: {}, newestBarIsForming: false })
+    if (!r.ok) throw new Error(`refused ${r.refusal.guard}: ${r.refusal.message}`)
+    const { outputs } = execute(lowerIrProgram(r.ir), {
+      bars: BARS.length, series: SERIES, columns: lowerIrProgram(r.ir).columns, confirmed: true,
+    })
+    return Array.from(outputs[0])
+  }
+
+  it.fails('⛔ KNOWN DEFECT — the identity does not hold in this engine', () => {
+    const atr = series('plot(ta.atr(5))' + String.fromCharCode(10))
+    const rma = series('plot(ta.rma(ta.tr(true), 5))' + String.fromCharCode(10))
+    let maxDelta = 0
+    let compared = 0
+    for (let i = 0; i < BARS.length; i += 1) {
+      if (!Number.isFinite(atr[i]) || !Number.isFinite(rma[i])) continue
+      maxDelta = Math.max(maxDelta, Math.abs(atr[i] - rma[i]))
+      compared += 1
+    }
+    // ⛔ NON-VACUITY: an identity over zero compared bars is satisfied by two
+    // all-na series, which is exactly what a broken build produces.
+    expect(compared).toBeGreaterThan(3)
+    expect(maxDelta).toBeLessThan(1e-9)
+  })
+
+  // ⛔⛔ NON-VACUITY FOR THE `it.fails` ABOVE, AND IT IS NOT OPTIONAL.
+  // `it.fails` is satisfied by ANY throw — including a refusal, a lowering
+  // error, or a typo in the source string. That would make the marker report
+  // "the defect is still there" for a test that never computed anything.
+  // This measures the defect POSITIVELY: both series compute, they overlap on
+  // real bars, and they disagree. When the seed is fixed this goes RED first.
+  it('⛔ the defect is MEASURED, not merely expected — both compute and differ', () => {
+    const atr = series('plot(ta.atr(5))' + String.fromCharCode(10))
+    const rma = series('plot(ta.rma(ta.tr(true), 5))' + String.fromCharCode(10))
+    const overlap = atr.filter((v, i) => Number.isFinite(v) && Number.isFinite(rma[i])).length
+    expect(overlap).toBeGreaterThan(3)
+    const maxDelta = Math.max(...atr.map((v, i) => (
+      Number.isFinite(v) && Number.isFinite(rma[i]) ? Math.abs(v - rma[i]) : 0)))
+    expect(maxDelta).toBeGreaterThan(1e-9)
+  })
+
+  it('⛔ CONTROL — `ta.tr(true)` really is `high - low` on bar 0', () => {
+    // If this ever fails, the diagnosis above is wrong and the identity test
+    // is failing for a different reason than the one it documents.
+    const tr = series('plot(ta.tr(true))' + String.fromCharCode(10))
+    expect(tr[0]).toBeCloseTo(BARS[0].h - BARS[0].l, 10)
   })
 })

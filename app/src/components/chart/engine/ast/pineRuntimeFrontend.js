@@ -2658,9 +2658,27 @@ export function buildRuntimeIr(source, opts = {}) {
         //
         // ⛔ SO THIS DESUGARS RATHER THAN IMPLEMENTING. A second ATR here would
         // be a second authority on a number a member reads off the screen, and
-        // the two would drift the first time either seed changed. `atrParity`
-        // in `runtime/__tests__/atr.test.js` measures the agreement against
-        // `computeATR` itself rather than asserting it.
+        // the two would drift the first time either seed changed. The agreement
+        // is MEASURED in `runtime/__tests__/atr.test.js` against `computeATR`
+        // itself rather than asserted.
+        //
+        // ⭐⭐ AND THIS BRANCH HAS EXACTLY ONE REACHABLE DOOR — measured by
+        // mutation 2026-09-21, not by reading. A `throw` planted as this
+        // branch's first statement fires ONLY for `ta.atr` inside a
+        // `request`. A plain `ta.atr(5)`, one beside runtime state, one in a
+        // user function and one in an `if` body are ALL served by the
+        // columnar lane and never arrive here. A neighbouring test case
+        // claimed to cover the runtime-state route; it did not, and it could
+        // not tell, because it asserted only that the script compiled.
+        //
+        // ⛔ SEPARATELY, AND STILL OPEN: Pine defines `ta.atr(n)` as
+        // `ta.rma(ta.tr(true), n)`, and `tr(true)` is `high - low` on bar 0.
+        // The expression below uses a raw `close[1]`, which is `na` there, so
+        // this engine's ATR warm-up ends one bar late with a different seed.
+        // The 2026-09-21 vendor capture CANNOT settle which is right — it
+        // holds bars 8168..8467, where a seed difference has decayed to zero.
+        // Pinned in `atr.test.js`; do not change these numbers on the
+        // documentation alone.
         //
         // ⛔ THE TRUE RANGE IS `na` ON BAR 0, deliberately: `close[1]` does not
         // exist, `Math.max` propagates the NaN, and `smoothStep` HOLDS on a
