@@ -33,7 +33,7 @@ describe('ConnectTilesCompact', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders nothing while loading and nothing when no provider is configured', async () => {
+  it('renders nothing while loading', async () => {
     mockFetch([['/api/j2/notes/connectors/status', { body: NOTHING_CONFIGURED_STATUS }]])
     const { container } = render(<ConnectTilesCompact />)
     // While the SWR fetch is in flight, nothing renders.
@@ -41,7 +41,22 @@ describe('ConnectTilesCompact', () => {
     await waitFor(() => {
       expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('/status'))).toBe(true)
     })
-    expect(container).toBeEmptyDOMElement()
+  })
+
+  /**
+   * ⛔⛔ THIS USED TO BE THE SAME "renders nothing" CASE AS LOADING — a
+   * member on a deployment with zero providers configured saw no evidence
+   * this capability was even a category of feature, permanently, not just
+   * for the instant the fetch was in flight. Competitive audit finding
+   * UX #17, 2026-09-22.
+   */
+  it('shows an honest coming-soon note (not silence) once loaded with ZERO providers configured', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: NOTHING_CONFIGURED_STATUS }]])
+    render(<ConnectTilesCompact />)
+    expect(await screen.findByText(/coming soon/i)).toBeInTheDocument()
+    // No individual per-provider tile here -- that detail stays on the
+    // Settings card, this stays one compact line.
+    expect(screen.queryByTestId(/connect-tile-/)).toBeNull()
   })
 
   const MSGRAPH_SOURCELESS_STATUS = {
