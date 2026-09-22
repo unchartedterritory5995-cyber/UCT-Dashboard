@@ -4,18 +4,17 @@
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 22 of 32 systems are DONE and 1 (S7) is RULED-HOLD; three ready-to-sign proposals
-sit on the owner's desk (D4-CP5 is an extra checkpoint on a system already counted DONE; A12-CP1
-and A14-CP1 are what move their systems out of BLOCKED-SPEC-READ), and the ONE thing nothing can
-substitute for is a blocked production read of real member-alert data. Read this whole block
-before touching anything.**
+**One sentence: 23 of 32 systems are DONE and 1 (S7) is RULED-HOLD; two ready-to-sign proposals
+sit on the owner's desk (A12-CP1 and A14-CP1, each what moves its system out of BLOCKED-SPEC-READ),
+and the ONE thing nothing can substitute for is a blocked production read of real member-alert
+data. Read this whole block before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
-`COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 (§6
-below), and three of the "5 more" were already inside those 22.*
+`COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 as of
+that morning (§6 below), and three of the "5 more" were already inside those 22.*
 
-⚰️ *S1-CP3 and D3-CP4 were signed and built 2026-09-21 (§0b) — the count above already reflects three remaining,
-not five.*
+⚰️ *S1-CP3, D3-CP4 and D4-CP5 were all signed and built 2026-09-21 (§0b) — the DONE count moved to
+23 the same day, and the pending-signature list below now holds two, not five.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -66,7 +65,7 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   `GET /api/admin/alert-taxonomy/dark-report` returns **401 JSON** (not the SPA shell), prod uptime 13,625 s.
   Path 2 needs only an admin login in a real browser.
 - **Proposal premises re-checked against master `a392afd11`** (76 commits newer than the proposals):
-  D4-CP5, A14-CP1 target files untouched, every named symbol exists; A12-CP1 target files untouched except
+  A14-CP1 target files untouched, every named symbol exists; A12-CP1 target files untouched except
   `list_prebuilt_watchlists` (default unchanged), and both gaps it pins are still true.
 - **S1-CP3 SIGNED and BUILT 2026-09-21** (fingerprint `fc609961a`, `feat/s7-price-level` `96c810116`) —
   no longer in the list below. `promote()` (one of the two SHOULD wrappers) was not built; see the
@@ -76,17 +75,21 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   every tick; the source-agreement axis (agreed/poll_only/d3_only/not_comparable) lives on the same
   comparison-span row the dark-vs-legacy axis already owns; heartbeat gained `d3_priced`/`d3_no_price`.
   Still DARK, no delivery, no flag change. 9 new tests, full scoped run 87/87 green.
-- **F-AUDIT-3** (§3.1c of the audit): **narrowed, not closed** — D3's half resolved by the build above
-  (A10 no longer waits on anything D3-shaped); D4 is still counted DONE while A10 waits on D4-CP5.
-  Counts stay at 22 pending a ruling on D4; under the other reading DONE is 21 (D3 already counts DONE
-  either way now that it is fully built). Owner call.
+- **D4-CP5 SIGNED and BUILT 2026-09-21** (fingerprint `ce60908e5`, `feat/s7-price-level` `c269143a7`) —
+  no longer in the list below. MUST scope only. `.miss` is now JSON with a legacy-format fallback (no
+  backfill); the fetch chain returns `(bytes, name)` and takes `skip=`, so a retry never re-asks a
+  provider that already answered cleanly; a resolved hit writes a `.source` sidecar. 18 tests green
+  (9 existing updated to the new contract + 9 new). F-D4-2 (the addressed-tier `cache.py` work
+  SPEC-D4/GATE-D4 originally named) stays open and unproposed — a separate future checkpoint.
+- **F-AUDIT-3 CLOSED** (§3.1c of the audit): both D3's and D4's halves resolved by build — A10 moved
+  to DONE, no dependency remains. DONE count moved to **23**.
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. Three things are sitting ready for the owner's signature/decision RIGHT NOW
+## 1. Two things are sitting ready for the owner's signature/decision RIGHT NOW
 
-⚰️ *This said "five", then "four" — S1 CP3 and D3 CP4 were both SIGNED and BUILT 2026-09-21
-(see §0b); neither is in this list anymore.*
+⚰️ *This said "five", then "four", then "three" — S1 CP3, D3 CP4 and D4 CP5 were all SIGNED and
+BUILT 2026-09-21 (see §0b); none of them is in this list anymore.*
 
 Every one of these is a complete, evidence-cited proposal with a blank approval block — verified
 structurally signable (`declared_checkpoints()`/`read_approval()`/`target_span()` all checked)
@@ -94,8 +97,6 @@ before being handed over. **Nothing here should be re-derived from scratch — r
 then sign it.**
 
 ```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d4-cp5-ticker-logos-cache-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d4-cp5-ticker-logos-cache-scoped-proposal.scope.txt
-
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/a12-watchlists-cp1-scoped-proposal.scope.txt
 
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/a14-portfolio-heat-cp1-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/a14-portfolio-heat-cp1-scoped-proposal.scope.txt
@@ -109,7 +110,6 @@ will build exactly that checkpoint's scope — nothing more.**
 
 | Proposal | What it does | Risk |
 |---|---|---|
-| D4 CP5 | `ticker_logos.py`'s daily miss-retry stops re-walking providers that already answered cleanly | Low — one file, no schema change, revert-by-one-commit |
 | A12 CP1 | One test file: a consistency rail between two watchlist data sources, no product code | Minimal — literally a test |
 | A14 CP1 | One route + one page + one nav entry surfacing `portfolio_heat.py`'s already-computed numbers to paid members for the first time | Low — no new computation, gated the same way every other paid page already is |
 
@@ -184,23 +184,27 @@ re-checked and their premises are unverified — don't assume they're fine by as
 
 ## 6. Section 0's system counts — recomputed for real this session, walk section 1 to re-verify
 
+⚰️ *This table was written 2026-09-20 and read 22/1/1/3/2/5. Three checkpoints (S1-CP3, D3-CP4,
+D4-CP5) signed and built the next day moved A10 into DONE outright — see COMPLETION_AUDIT §0 for
+the current, re-derived table rather than trusting a second copy of it here.*
+
 | state | count | which |
 |---|---|---|
-| DONE | 22 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, I1 |
+| DONE | 23 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, A10, I1 |
 | RULED-HOLD | 1 | S7 (price-level) — a real decision (HOLD), not a block |
 | BLOCKED-DATA | 1 | D2 (needs real member traffic to accumulate, 0 rows as of last measurement) |
 | BLOCKED-OWNER | 3 | A9, A11, A13 — need §2's read + a CARD-6-style decision |
 | BLOCKED-SPEC-READ | 2 | A12, A14 — proposals in §1, awaiting signature |
-| BLOCKED-DEPENDENCY | 5 | S8, A1, A10, A11 (dual), A13 (dual) |
+| BLOCKED-DEPENDENCY | 4 | S8, A1, A11 (dual), A13 (dual) |
 
 Full detail, citations, and the arithmetic proof this sums to 32: `COMPLETION_AUDIT.md` §0.
 **Don't hand-restate these numbers in a future pass — walk section 1's 32 rows and recompute, the
 same discipline this pass used** (the 2026-09-13 count above was stale for a week before this pass
-caught it).
+caught it, and this table's own 2026-09-20 numbers were stale by the next afternoon).
 
 ## 7. What "100% ready to launch" actually still requires, plainly
 
-1. The five signatures in §1 (or a decision to decline any of them — that's a valid, complete
+1. The two signatures in §1 (or a decision to decline either of them — that's a valid, complete
    state too, per this programme's own "DONE, BLOCKED, or EXCLUDED, never TBD" rule).
 2. The production read in §2, then a real HOLD/FLIP decision for A9/A11/A13/event-proximity.
 3. D2's top-level CP3 needs real member traffic to accumulate — nothing to DO, just time, then a
