@@ -4153,14 +4153,28 @@ export function buildRuntimeIr(source, opts = {}) {
           const path = fieldPathOf({ type: 'name', name: nameTok.value, tok: nameTok }, scope)
           if (path) {
             const last = path.steps[path.steps.length - 1]
+            // ⭐ THE TYPE THAT OWNS THE FIELD BEING WRITTEN — for `a.b` that is
+            // `a`'s, for `a.b.c` it is `a.b`'s. `fieldPathOf` answered for the
+            // WHOLE path one line up, so the prefix necessarily resolves too.
+            // ⛔ AND IT IS STILL NULL-CHECKED. "Necessarily" is a claim about
+            // today's `fieldPathOf`; a `.type` straight off a null would surface
+            // to the member as a TypeError wearing a refusal's clothes, which is
+            // the failure this file records paying for twice.
+            const prefix = path.steps.length === 1 ? null : fieldPathOf({
+              type: 'name',
+              name: `${path.head}.${path.steps.slice(0, -1).join('.')}`,
+              tok: nameTok,
+            }, scope)
             const ownerType = path.steps.length === 1
               ? udtTypeOf({ type: 'name', name: path.head, tok: nameTok }, scope)
-              : fieldPathOf({
-                type: 'name',
-                name: `${path.head}.${path.steps.slice(0, -1).join('.')}`,
-                tok: nameTok,
-              }, scope).type
-            const spec = fieldSpec(ownerType, last)
+              : (prefix && prefix.type)
+            const spec = ownerType ? fieldSpec(ownerType, last) : null
+            if (!spec) {
+              note('runtime:udt-field')
+              throw new RuntimeRefusal('runtime:udt-field',
+                `\`${nameTok.value}\` — this lane cannot name the type that owns `
+                + `\`${last}\``, locate(nameTok))
+            }
             const target = path.steps.slice(0, -1).reduce(
               (acc, f) => irField(acc, f),
               lowerExpr({ type: 'name', name: path.head, tok: nameTok }, scope))
