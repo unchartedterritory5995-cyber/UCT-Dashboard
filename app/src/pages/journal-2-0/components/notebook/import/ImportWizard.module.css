@@ -10,7 +10,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -19,7 +19,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #dcbb5e;
+  background: var(--ut-gold);
   color: var(--bg);
   border: none;
   padding: 9px 16px;
@@ -28,21 +28,21 @@
   font-size: 13px;
   font-weight: 600;
 }
-.primaryBtn:hover { background: #d8b962; }
+.primaryBtn:hover { background: var(--ut-gold-bright); }
 .primaryBtn:disabled { opacity: 0.5; cursor: default; }
 .secondaryBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   background: transparent;
-  color: var(--text-bright, #e0dac8);
-  border: 1px solid var(--border, #2e3127);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   padding: 8px 14px;
   border-radius: var(--radius-md, 6px);
   cursor: pointer;
   font-size: 13px;
 }
-.secondaryBtn:hover { background: var(--bg-hover, #2a2d24); }
+.secondaryBtn:hover { background: var(--bg-hover); }
 
 /* ── drop step ── */
 .dropWrap {
@@ -51,7 +51,7 @@
   gap: 16px;
 }
 .dropzone {
-  border: 2px dashed var(--border-accent, #3a3d32);
+  border: 2px dashed var(--border-accent);
   border-radius: var(--radius-lg, 8px);
   padding: 36px 20px;
   text-align: center;
@@ -62,19 +62,19 @@
   transition: border-color 120ms ease, background 120ms ease;
 }
 .dropzoneActive {
-  border-color: #dcbb5e;
+  border-color: var(--ut-gold);
   background: rgba(220, 187, 94, 0.06);
 }
 .dropIcon { opacity: 0.85; margin-bottom: 6px; }
 .dropTitle {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-heading, #f0ead8);
+  color: var(--text-heading);
   margin: 0;
 }
 .dropHint {
   font-size: 12.5px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
   max-width: 440px;
   margin: 0;
 }
@@ -95,7 +95,7 @@
 }
 
 .accordion {
-  border-top: 1px solid var(--border, #2e3127);
+  border-top: 1px solid var(--border);
   padding-top: 12px;
 }
 .accordionHeader {
@@ -104,7 +104,7 @@
   gap: 8px;
   background: transparent;
   border: none;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -127,15 +127,15 @@
   max-width: 40ch;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text-muted, #9a9c92);
+  color: var(--text-muted);
 }
 
 .spinner {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 3px solid var(--border-accent, #3a3d32);
-  border-top-color: #dcbb5e;
+  border: 3px solid var(--border-accent);
+  border-top-color: var(--ut-gold);
   animation: uctImportSpin 0.9s linear infinite;
 }
 @keyframes uctImportSpin { to { transform: rotate(360deg); } }
@@ -144,12 +144,12 @@
   max-width: 320px;
   height: 6px;
   border-radius: 3px;
-  background: var(--border, #2e3127);
+  background: var(--border);
   overflow: hidden;
 }
 .progressFill {
   height: 100%;
-  background: #dcbb5e;
+  background: var(--ut-gold);
   transition: width 160ms ease;
 }
 
@@ -159,18 +159,18 @@
   flex-direction: column;
   gap: 14px;
 }
-.sourceLabel { margin: 0; font-size: 13px; color: var(--text-bright, #e0dac8); }
-.summaryLine { margin: 0; font-size: 13px; color: var(--text-muted, #8c8674); }
+.sourceLabel { margin: 0; font-size: 13px; color: var(--text-bright); }
+.summaryLine { margin: 0; font-size: 13px; color: var(--text-muted); }
 .countsLine {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-heading, #f0ead8);
+  color: var(--text-heading);
 }
 .destSelect {
-  background: var(--bg-surface, #1a1c17);
-  border: 1px solid var(--border, #2e3127);
-  color: var(--text-bright, #e0dac8);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
   border-radius: var(--radius-md, 6px);
   padding: 8px 10px;
   font-size: 13px;
@@ -185,7 +185,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
 }
 .notesWrap {
   display: flex;
@@ -208,15 +208,15 @@
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border, #2e3127);
-  color: var(--text-bright, #e0dac8);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
   border-radius: var(--radius-md, 6px);
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.bulkBtn:hover { background: var(--bg-hover, #2a2d24); }
+.bulkBtn:hover { background: var(--bg-hover); }
 /* Fixed max-height + overflow-y: auto make this the virtualizer's scroll
    element (`getScrollElement`, ImportWizard.jsx) — position: relative so its
    absolutely-positioned rows (each a virtual item) anchor here rather than
@@ -231,7 +231,7 @@
   position: relative;
   max-height: 280px;
   overflow-y: auto;
-  border: 1px solid var(--border, #2e3127);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
   padding: 10px;
 }
@@ -243,9 +243,9 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
   padding-bottom: 2px;
-  border-bottom: 1px solid var(--border, #2e3127);
+  border-bottom: 1px solid var(--border);
 }
 .notesGroupLabel {
   flex: 1;
@@ -256,20 +256,20 @@
 .groupBulkBtn {
   background: transparent;
   border: none;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
   font-size: 11px;
   font-weight: 600;
   text-transform: none;
   cursor: pointer;
   padding: 2px 4px;
 }
-.groupBulkBtn:hover { color: #dcbb5e; }
+.groupBulkBtn:hover { color: var(--ut-gold); }
 .noteRow {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
   padding: 2px 0;
 }
 /* Single line, always — a wrapped title would make this row's real height
@@ -286,7 +286,7 @@
   margin: 0;
   padding-left: 18px;
   font-size: 12.5px;
-  color: #e0b84c;
+  color: var(--warn);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -311,7 +311,7 @@
 .errorIcon, .crashIcon { color: var(--loss); }
 .crashDetail {
   font-size: 12px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
   word-break: break-word;
 }
 
@@ -329,7 +329,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-heading, #f0ead8);
+  color: var(--text-heading);
 }
 .summaryStats {
   list-style: none;
@@ -338,7 +338,7 @@
   display: flex;
   gap: 18px;
   font-size: 13px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
 }
 .failures {
   width: 100%;
@@ -366,12 +366,12 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
 }
 .folderTable th, .folderTable td {
   text-align: left;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--border, #2e3127);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 .folderTable th {
@@ -379,7 +379,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
 }
 .folderTable td:first-child { white-space: normal; word-break: break-word; }
 
@@ -393,15 +393,15 @@
   align-items: flex-start;
   gap: 8px;
   padding: 14px;
-  border: 1px solid var(--border, #2e3127);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
-  background: var(--bg-surface, #1a1c17);
+  background: var(--bg-surface);
 }
 .enrichHeadline {
   margin: 0;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--text-heading, #f0ead8);
+  color: var(--text-heading);
 }
 
 @media (max-width: 640px) {

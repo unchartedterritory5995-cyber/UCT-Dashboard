@@ -12,7 +12,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 0 8px 6px;
 }
 /* Wave B: Favorites/Recents section header — same weight as .sectionLabel,
@@ -25,7 +25,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 3px 0;
 }
 
@@ -36,14 +36,14 @@
   gap: 6px;
   margin: -16px -12px 0; /* span the panel's top + side edges */
   padding: 9px 10px;
-  border-bottom: 1px solid var(--color-border, #232932);
+  border-bottom: 1px solid var(--border);
 }
 .sbHeaderModes {
   display: flex;
   gap: 2px;
   margin-left: 4px;
   padding-left: 6px;
-  border-left: 1px solid var(--color-border, #232932);
+  border-left: 1px solid var(--border);
 }
 .sbHeaderBtn {
   width: 28px;
@@ -55,11 +55,11 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
-.sbHeaderBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+.sbHeaderBtn:hover { color: var(--accent); background: var(--bg-hover); }
 .sbHeaderBtnActive { color: var(--accent); background: rgba(220, 187, 94, 0.14); }
 
 /* ── Search view (replaces the tree when Search mode is active) ────────────── */
@@ -69,20 +69,20 @@
   position: absolute;
   left: 9px;
   display: inline-flex;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   pointer-events: none;
 }
 .searchInputIcon svg { width: 14px; height: 14px; }
 .searchInput {
   width: 100%;
   padding: 8px 28px 8px 30px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 7px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 13px;
 }
-.searchInput:focus { outline: none; border-color: #dcbb5e; }
+.searchInput:focus { outline: none; border-color: var(--ut-gold); }
 .searchClear {
   position: absolute;
   right: 6px;
@@ -93,7 +93,7 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
   font-size: 16px;
@@ -111,12 +111,12 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-.searchFilterToggle:hover { color: var(--color-text-primary, #e8eaed); }
-.searchFilterToggleActive { color: #dcbb5e; }
+.searchFilterToggle:hover { color: var(--text-bright); }
+.searchFilterToggleActive { color: var(--ut-gold); }
 /* .searchInput's right padding makes room for BOTH the clear (×) button and
    this toggle, whichever combination is visible at once. */
 .searchInput { padding-right: 52px; }
@@ -126,7 +126,7 @@
   gap: 8px;
   align-items: flex-end;
   padding: 8px 4px 4px;
-  border-bottom: 1px solid var(--color-border, #232932);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 .searchFilterField {
@@ -134,33 +134,33 @@
   flex-direction: column;
   gap: 2px;
   font-size: 10px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .searchFilterField input {
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 12px;
   padding: 4px 6px;
   width: 118px;
 }
-.searchFilterField input:focus { outline: none; border-color: #dcbb5e; }
+.searchFilterField input:focus { outline: none; border-color: var(--ut-gold); }
 .searchFilterClear {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
   padding: 4px 2px;
   text-decoration: underline;
 }
-.searchFilterClear:hover { color: var(--color-text-primary, #e8eaed); }
+.searchFilterClear:hover { color: var(--text-bright); }
 .searchCount {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 2px 4px 4px;
 }
 .searchResults { display: flex; flex-direction: column; gap: 2px; }
@@ -171,8 +171,8 @@
   gap: 6px;
   margin-top: 6px;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
-  border: 1px solid var(--color-border, #232932);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   padding: 6px 12px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -183,7 +183,7 @@
      touch tier here is <=1024px, not <=640px. */
   min-height: var(--tap-min, 44px);
 }
-.searchLoadMoreBtn:hover { background: var(--color-surface-hover, #1c2028); border-color: #dcbb5e; }
+.searchLoadMoreBtn:hover { background: var(--bg-hover); border-color: var(--ut-gold); }
 .searchLoadMoreBtn:disabled { opacity: 0.6; cursor: default; }
 .searchResultRow {
   display: flex;
@@ -194,17 +194,17 @@
   padding: 7px 10px;
   border: none;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-.searchResultRow:hover { background: var(--color-surface-hover, #1c2028); }
+.searchResultRow:hover { background: var(--bg-hover); }
 .searchResultRow .noteIcon { margin-top: 2px; opacity: 0.75; flex: 0 0 auto; }
 .searchResultBody { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 .searchResultTitle { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .searchResultSnippet {
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -222,8 +222,8 @@
   line-height: 14px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  color: var(--color-text-muted, #98a0aa);
-  border: 1px solid var(--color-border, #2a2f38);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
   border-radius: 3px;
   vertical-align: 1px;
 }
@@ -231,7 +231,7 @@
    explanation itself, per the design doc's own framing. */
 .searchResultSnippet mark, .searchResultTitle mark {
   background: rgba(220, 187, 94, 0.22);
-  color: #dcbb5e;
+  color: var(--ut-gold);
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -242,7 +242,7 @@
 .searchResultMeta {
   font-size: 10px;
   letter-spacing: 0.02em;
-  color: #dcbb5e;
+  color: var(--ut-gold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -251,12 +251,12 @@
    there is no snippet to render (never both at once). */
 .searchResultReason {
   font-size: 11px;
-  color: #dcbb5e;
+  color: var(--ut-gold);
   opacity: 0.85;
 }
 .searchHint, .searchEmpty {
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 12px 6px;
   line-height: 1.5;
 }
@@ -268,30 +268,30 @@
   padding: 6px 10px;
   border: none;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   cursor: pointer;
   border-radius: var(--radius-md);
   font-size: 13px;
   text-align: left;
 }
-.row:hover { background: var(--color-surface-hover, #1c2028); }
+.row:hover { background: var(--bg-hover); }
 .rowActive { background: rgba(220, 187, 94, 0.15); color: var(--accent); }
-.count { font-size: 11px; color: var(--color-text-muted, #98a0aa); }
+.count { font-size: 11px; color: var(--text-muted); }
 .addBtn {
   margin-top: 4px;
   background: transparent;
-  border: 1px dashed var(--color-border, #2d343f);
-  color: var(--color-text-muted, #98a0aa);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
   padding: 6px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
 }
-.addBtn:hover { border-color: #dcbb5e; color: var(--accent); }
+.addBtn:hover { border-color: var(--ut-gold); color: var(--accent); }
 .editInput {
   width: 100%;
-  background: var(--color-surface, #14171c);
-  border: 1px solid #dcbb5e;
+  background: var(--bg-surface);
+  border: 1px solid var(--ut-gold);
   border-radius: var(--radius-md);
   padding: 5px 8px;
   color: var(--text-bright);
@@ -312,12 +312,12 @@
 .disclosureBtn {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 3px;
   padding: 0;
 }
-.disclosureBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+.disclosureBtn:hover { color: var(--accent); background: var(--bg-hover); }
 .chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }
@@ -330,7 +330,7 @@
   top: 0;
   bottom: 2px;
   width: 1px;
-  background: var(--color-border, #2a2f3a);
+  background: var(--border);
 }
 .noteRow {
   display: flex;
@@ -341,13 +341,13 @@
   padding: 5px 10px;
   border: none;
   background: transparent;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-md);
   font-size: 12.5px;
   text-align: left;
 }
-.noteRow:hover { background: var(--color-surface-hover, #1c2028); color: var(--color-text-primary, #e8eaed); }
+.noteRow:hover { background: var(--bg-hover); color: var(--text-bright); }
 /* Wave G checkpoint §48 — one-click starter thesis views, shown only while
    the member has zero saved views of their own. */
 .starterViewsBtn {
@@ -358,13 +358,13 @@
   padding: 5px 10px;
   border: none;
   background: transparent;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-md);
   font-size: 12.5px;
   text-align: left;
 }
-.starterViewsBtn:hover { background: var(--color-surface-hover, #1c2028); color: var(--accent); }
+.starterViewsBtn:hover { background: var(--bg-hover); color: var(--accent); }
 .starterViewsBtn:disabled { opacity: 0.6; cursor: default; }
 /* Wave B: search-results loading skeleton, replacing the plain "Searching…"
    text on the one high-frequency structural load in this panel. */
@@ -379,7 +379,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 6px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 3px;
 }
@@ -390,13 +390,13 @@
   width: 100%;
   margin: 0 0 4px;
   padding: 6px 10px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 7px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 12px;
 }
-.tagFilterInput:focus { outline: none; border-color: #dcbb5e; }
+.tagFilterInput:focus { outline: none; border-color: var(--ut-gold); }
 
 /* Touch: no hover to reveal row actions, so keep them always visible and
  * give every control a 44px tap target. Desktop (≥1025px) is untouched. */
@@ -487,9 +487,9 @@
 .folderError {
   margin: 6px 8px;
   padding: 7px 10px;
-  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.35));
+  border: 1px solid var(--loss-border);
   border-radius: 6px;
-  background: var(--color-danger-bg, rgba(248, 113, 113, 0.08));
+  background: var(--loss-bg);
   font-size: 12px;
   line-height: 1.4;
 }
