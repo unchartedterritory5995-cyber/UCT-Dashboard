@@ -9939,6 +9939,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedOps += 1
     diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
   }
+  // ⭐⭐ HOW MANY OBJECT OPERATIONS THE READER SAW AT ALL, before any of them
+  // was converted, dropped or found not to create anything.
+  //
+  // ⛔ "NO PROGRAM" IS TWO UNRELATED ANSWERS AND NOTHING ELSE TELLS THEM APART.
+  // A script that never writes `line`/`label`/`box`/`table`/`linefill` and one
+  // whose object operations were all discarded both leave here with
+  // `program: null`, and `droppedOps` cannot separate them — the second case
+  // can drop nothing at all (an `update` with no `create` anywhere is kept,
+  // then refused by `createsSomewhere` below with a clean drop ledger).
+  // Measured before this was added: `line.set_width(l, 2)` beside a `plot`
+  // reported zero drops and was therefore indistinguishable from `plot(close)`
+  // alone — so a consumer classifying the two rows had to guess, and guessed
+  // that a script naming `line` draws with plots.
+  diagnostics.collectedOps = collected.ops.length
   if (!collected.ops.length) return { program: null, diagnostics }
 
   const trees = []

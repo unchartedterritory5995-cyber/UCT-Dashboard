@@ -87,19 +87,27 @@ const refuse = (lane, refusal) => ({ ok: false, lane, refusal })
  */
 function nothingDrawn(diagnostics) {
   const d = diagnostics || {}
-  const reasons = d.dropReasons || {}
-  const names = Object.keys(reasons)
-  if (!names.length) {
+  // ⛔ THE SIGNAL IS `collectedOps`, NEVER `droppedOps`. An `update` with no
+  // `create` anywhere is KEPT and then refused for creating nothing, so the
+  // drop ledger is empty in both cases. Keying the split on drops classified
+  // `line.set_width(l, 2)` beside a `plot` as "creates no line" — a sentence
+  // contradicted by the line above it in the source.
+  if (d.collectedOps) {
+    const reasons = d.dropReasons || {}
+    const names = Object.keys(reasons).sort()
+    const why = names.length
+      ? `— ${names.map((k) => `${k} (${reasons[k]})`).join(', ')}`
+      : '— none of them creates an object, so there is nothing to draw on'
     return {
-      guard: 'objects:no-objects-in-source',
-      message: 'this script creates no line, label, box, table or linefill — it '
-        + 'draws with plots, which the object lane does not carry',
+      guard: 'objects:object-ops-all-dropped',
+      message: `this script writes ${d.collectedOps} object operation(s) and none `
+        + `survived to the drawing ${why}`,
     }
   }
-  const named = names.sort().map((k) => `${k} (${reasons[k]})`).join(', ')
   return {
-    guard: 'objects:object-ops-all-dropped',
-    message: `every object operation this script writes was dropped — ${named}`,
+    guard: 'objects:no-objects-in-source',
+    message: 'this script creates no line, label, box, table or linefill — it '
+      + 'draws with plots, which the object lane does not carry',
   }
 }
 
@@ -169,16 +177,19 @@ export function buildObjectLane(source, opts = {}) {
   const iterated = objects.iteratedTrees || {}
   const iterSet = new Set(Object.keys(iterated).map(Number))
 
-  // tree index → { loop, reachedOnlyAtLastBar } for the ops that READ it.
+  // tree index → the loop enclosing the op that READS it.
+  //
+  // ⭐ ONE TREE HAS EXACTLY ONE READER, and that is a property of raw-tree mode
+  // rather than an assumption: `internTree` dedupes by `printFormula`, which
+  // throws on a raw parse node, so every occurrence interns its own index.
+  // Measured over the committed corpus — 218 iterated trees across 153
+  // scripts, ZERO read by more than one op. `iteratedTreeReaders.test.js`
+  // holds that invariant, so if dedupe is ever switched on here the rail names
+  // it instead of this quietly keeping whichever loop was walked last.
+  // ⛔ A refusal for the two-reader case was written first and then REMOVED: no
+  // fixture could make it fire, and a guard that cannot fire reads as
+  // protection without being any.
   const readBy = new Map()
-  const record = (i, loop, reached) => {
-    const prev = readBy.get(i)
-    if (!prev) { readBy.set(i, { loop, reached }); return }
-    // ⛔ A tree read from two DIFFERENT loops has two candidate ranges and one
-    // buffer. Tracked so the refusal below can say so rather than picking one.
-    if (prev.loop !== loop) prev.ambiguous = true
-    prev.reached = prev.reached && reached
-  }
   let offender = null
   const walkReads = (list, reachedIn, loop) => {
     for (const op of list || []) {
@@ -189,7 +200,10 @@ export function buildObjectLane(source, opts = {}) {
       const reached = reachedIn || !!op.lastBarOnly
       for (const i of treeRefsOfOp(op)) {
         if (!iterSet.has(i)) continue
-        record(i, loop, reached)
+        if (!readBy.has(i)) readBy.set(i, { loop })
+        // ⛔ SAFETY IS DECIDED HERE, NOT FROM `readBy` — so a second reader (if
+        // dedupe is ever enabled) can change which BOUNDS are chosen but can
+        // never turn an every-bar read into a compile.
         if (!reached && !offender) offender = { k: op.k, counter: loop && loop.id }
       }
       if (op.k === 'loop') walkReads(op.body, reached, op)
@@ -215,14 +229,6 @@ export function buildObjectLane(source, opts = {}) {
         guard: 'objects:iterated-tree-unbounded',
         message: `a per-row value names counter \`${iterated[i]}\`, which no loop in `
           + 'this drawing declares — its range is unknown and cannot be guessed',
-      })
-    }
-    if (read.ambiguous) {
-      return refuse('objects', {
-        guard: 'objects:iterated-tree-two-loops',
-        message: `a per-row value is read from two different loops, which declare `
-          + 'two ranges for the one iteration buffer that holds it — whichever '
-          + 'range were chosen, the other loop would read rows it never wrote',
       })
     }
     iterTreeIndex.set(i, iterSpecs.length)
