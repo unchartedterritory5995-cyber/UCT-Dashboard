@@ -47,7 +47,7 @@ import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 // `newestBarIsForming` and `interpretOpts.newestBarIsForming` — the pair the
 // gate and the columns read separately. See docs/pine/barstate.md.
 import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
-import { bindObjectProgram } from '../ast/objectProgram.js'
+import { bindObjectProgram, treeRefsOfOp } from '../ast/objectProgram.js'
 import { evaluateObjects } from '../objectRuntime.js'
 import { lowerIrProgram } from './lowerIr.js'
 import { execute } from './vm.js'
@@ -57,6 +57,59 @@ import { execute } from './vm.js'
  *  found nothing to draw" and "the runtime lane cannot compile this script" are
  *  different problems with different fixes, and a bare message conflates them. */
 const refuse = (lane, refusal) => ({ ok: false, lane, refusal })
+
+/**
+ * ⭐⭐ "NOTHING TO DRAW" IS TWO DIFFERENT ANSWERS, AND ONLY ONE IS A GAP.
+ *
+ * The object pass returns no program in two unrelated situations, and this
+ * module's own header argues that conflating problems with different fixes is
+ * how a work queue ends up pointing at the wrong half of a pipeline. The same
+ * argument applies one level down:
+ *
+ *   `objects:no-objects-in-source` — the source creates no `label`, `line`,
+ *       `box`, `table` or `linefill` at all. It draws with `plot`/`plotshape`/
+ *       `fill`/`hline`, which this lane does not carry and by construction
+ *       never will. ⛔ THIS IS A TERMINAL, CORRECT ANSWER, NOT A BLOCKER — no
+ *       capability added to the object pass can ever move such a script, and
+ *       counting it beside the real refusals overstates what this lane has left
+ *       to do.
+ *
+ *   `objects:object-ops-all-dropped` — the pass DID collect object operations
+ *       and none survived. That IS a gap, and `dropReasons` already names which
+ *       gate refused them, so the refusal can say so instead of making the next
+ *       reader go and instrument it.
+ *
+ * ⚰️ MEASURED before this split was written: all 13 scripts then on the
+ * `objects:nothing-drawn` row reported `droppedOps: 0` with an empty
+ * `dropReasons`, and a comment-stripped scan of their sources found ZERO
+ * object-family constructors against 2–31 plot calls each. The whole row was
+ * the first kind. It read as 13 scripts one capability away from drawing.
+ */
+function nothingDrawn(diagnostics) {
+  const d = diagnostics || {}
+  // ⛔ THE SIGNAL IS `collectedOps`, NEVER `droppedOps`. An `update` with no
+  // `create` anywhere is KEPT and then refused for creating nothing, so the
+  // drop ledger is empty in both cases. Keying the split on drops classified
+  // `line.set_width(l, 2)` beside a `plot` as "creates no line" — a sentence
+  // contradicted by the line above it in the source.
+  if (d.collectedOps) {
+    const reasons = d.dropReasons || {}
+    const names = Object.keys(reasons).sort()
+    const why = names.length
+      ? `— ${names.map((k) => `${k} (${reasons[k]})`).join(', ')}`
+      : '— none of them creates an object, so there is nothing to draw on'
+    return {
+      guard: 'objects:object-ops-all-dropped',
+      message: `this script writes ${d.collectedOps} object operation(s) and none `
+        + `survived to the drawing ${why}`,
+    }
+  }
+  return {
+    guard: 'objects:no-objects-in-source',
+    message: 'this script creates no line, label, box, table or linefill — it '
+      + 'draws with plots, which the object lane does not carry',
+  }
+}
 
 /**
  * Compile one Pine source into a DRAWING (a bound object program) plus the
@@ -86,8 +139,7 @@ export function buildObjectLane(source, opts = {}) {
   })
   const objects = t.objects
   if (!objects || !Array.isArray(objects.ops) || objects.ops.length === 0) {
-    return refuse('objects', t.refusal
-      || { guard: 'objects:nothing-drawn', message: 'the script draws nothing' })
+    return refuse('objects', t.refusal || nothingDrawn(t.objectDiagnostics))
   }
 
   const trees = objects.trees || []
@@ -107,41 +159,102 @@ export function buildObjectLane(source, opts = {}) {
   // written — that bar IS the one being drawn. For anything else the buffer
   // holds another bar's rows, and handing those back would be a table of real
   // numbers from the wrong moment: the most convincing kind of wrong.
+  // ⭐⭐ RESOLVED BY THE LOOP THAT ENCLOSES THE *READER*, NOT BY THE COUNTER'S
+  // NAME. `objects.iteratedTrees` maps a tree index to the innermost counter
+  // that was open when the tree was interned — a NAME, and in this corpus that
+  // name is `i` in nearly every script. Keying the bounds off it means a map
+  // whose two entries collide, silently keeping whichever loop was walked last.
+  //
+  // ⚰️ MEASURED ON THE COMMITTED CORPUS BEFORE THIS WAS WRITTEN: of the eleven
+  // scripts on the `objects:iterated-tree-not-last-bar` row, TWO
+  // (`market-profile-with-tpo`, `volume-delta-oi-delta-kioseff-trading`) carry
+  // two different loops both named `i`, one guarded and one not. A name-scoped
+  // fix would have declared both of them safe — and the per-op walk below shows
+  // the ops that actually read their per-row values run on EVERY bar, so
+  // "compiles" would have meant a table of real numbers from the wrong moment.
+  // The cheap fix was not merely imprecise; it was wrong in the dangerous
+  // direction.
   const iterated = objects.iteratedTrees || {}
-  const boundsByCounter = new Map()
-  let unguardedLoop = null
-  const walkLoops = (list) => {
+  const iterSet = new Set(Object.keys(iterated).map(Number))
+
+  // tree index → the loop enclosing the op that READS it.
+  //
+  // ⭐ ONE TREE HAS EXACTLY ONE READER, and that is a property of raw-tree mode
+  // rather than an assumption: `internTree` dedupes by `printFormula`, which
+  // throws on a raw parse node, so every occurrence interns its own index.
+  // Measured over the committed corpus — 218 iterated trees across 153
+  // scripts, ZERO read by more than one op. `iteratedTreeReaders.test.js`
+  // holds that invariant, so if dedupe is ever switched on here the rail names
+  // it instead of this quietly keeping whichever loop was walked last.
+  // ⛔ A refusal for the two-reader case was written first and then REMOVED: no
+  // fixture could make it fire, and a guard that cannot fire reads as
+  // protection without being any.
+  const readBy = new Map()
+  let offender = null
+  const walkReads = (list, reachedIn, loop) => {
     for (const op of list || []) {
-      if (op.k !== 'loop') continue
-      if (!op.lastBarOnly) unguardedLoop = op.id
-      boundsByCounter.set(op.id, op)
-      walkLoops(op.body)
+      if (!op || typeof op !== 'object') continue
+      // ⭐ `objectRuntime` skips a `lastBarOnly` op unless `bar === barCount-1`,
+      // and a loop's body only runs when the loop op itself runs — so a position
+      // is last-bar-only if ANY op enclosing it is, or it is itself.
+      const reached = reachedIn || !!op.lastBarOnly
+      for (const i of treeRefsOfOp(op)) {
+        if (!iterSet.has(i)) continue
+        if (!readBy.has(i)) readBy.set(i, { loop })
+        // ⛔ SAFETY IS DECIDED HERE, NOT FROM `readBy` — so a second reader (if
+        // dedupe is ever enabled) can change which BOUNDS are chosen but can
+        // never turn an every-bar read into a compile.
+        if (!reached && !offender) offender = { k: op.k, counter: loop && loop.id }
+      }
+      if (op.k === 'loop') walkReads(op.body, reached, op)
     }
   }
-  walkLoops(objects.ops)
+  walkReads(objects.ops, false, null)
 
   const iterSpecs = []
   const iterTreeIndex = new Map()
-  for (const [key, counter] of Object.entries(iterated)) {
-    const i = Number(key)
-    const loop = boundsByCounter.get(counter)
-    if (!loop) {
+  const orphanTrees = new Set()
+  for (const i of [...iterSet].sort((a, b) => a - b)) {
+    const read = readBy.get(i)
+    // ⭐⭐ AN ORPHAN IS DROPPED, NOT REFUSED ON. A tree can be marked `iterated`
+    // at intern time and then lose the op that would have read it — the object
+    // pass drops an op whose guard, handle or content it cannot read, and the
+    // tree it already interned stays behind. Refusing the whole drawing because
+    // a value NOTHING READS mentions a loop counter fails a script for a row it
+    // does not draw. It keeps its output slot (passed as `null` below) so the
+    // tree→output map stays index-aligned.
+    if (!read) { orphanTrees.add(i); continue }
+    if (!read.loop) {
       return refuse('objects', {
         guard: 'objects:iterated-tree-unbounded',
-        message: `a per-row value names counter \`${counter}\`, which no loop in `
+        message: `a per-row value names counter \`${iterated[i]}\`, which no loop in `
           + 'this drawing declares — its range is unknown and cannot be guessed',
       })
     }
     iterTreeIndex.set(i, iterSpecs.length)
-    iterSpecs.push({ node: trees[i], counter, from: loop.fromNode, to: loop.toNode })
+    iterSpecs.push({
+      node: trees[i],
+      counter: read.loop.id,
+      from: read.loop.fromNode,
+      to: read.loop.toNode,
+    })
   }
 
-  if (iterSpecs.length && unguardedLoop !== null) {
+  // ⛔⛔ THE REFUSAL IS ABOUT THE *READ*, NOT ABOUT THE PRESENCE OF A LOOP. The
+  // iteration buffer is overwritten every bar (`vm.js` allocates `iters` ONCE
+  // for the whole run, indexed by the counter alone — there is no bar
+  // dimension), so only the bar that wrote it last can be read back. For a
+  // `barstate.islast` drawing — which is how every dashboard in the corpus is
+  // written — that bar IS the one being drawn. For anything else the buffer
+  // holds another bar's rows, and handing those back would be a table of real
+  // numbers from the wrong moment: the most convincing kind of wrong.
+  if (offender) {
     return refuse('objects', {
       guard: 'objects:iterated-tree-not-last-bar',
-      message: `the loop on counter \`${unguardedLoop}\` draws per-row values but is `
-        + 'not guarded to the last bar — the per-iteration buffer holds only the '
-        + 'bar that wrote it last, so those rows would come from another moment',
+      message: `a \`${offender.k}\` inside the loop on counter \`${offender.counter}\` `
+        + 'reads a per-row value on every bar, not only the last — the '
+        + 'per-iteration buffer holds only the bar that wrote it last, so those '
+        + 'rows would come from another moment',
     })
   }
 
@@ -176,7 +289,15 @@ export function buildObjectLane(source, opts = {}) {
     ...clock,
     // ⭐ A PER-ROW TREE IS PASSED AS `null` HERE and supplied through
     // `objectIterTrees` instead — same list, same indices, different channel.
-    objectTrees: trees.map((node, i) => (iterTreeIndex.has(i) ? null : node)),
+    //
+    // ⛔ AN ORPHAN GOES DOWN THE SAME `null` CHANNEL AND IS SUPPLIED BY NEITHER.
+    // It mentions a loop counter, so lowering it as an ordinary tree would
+    // resolve that name at ROOT scope, where it does not exist — turning a
+    // drawing nothing reads into a runtime refusal for the whole script. It
+    // still takes its output slot, which is what keeps `treeOutputs` index
+    // aligned with `trees` for the check below.
+    objectTrees: trees.map((node, i) => (
+      (iterTreeIndex.has(i) || orphanTrees.has(i)) ? null : node)),
     objectIterTrees: iterSpecs,
   })
   if (!built.ok) return refuse('runtime', built.refusal)
@@ -212,6 +333,9 @@ export function buildObjectLane(source, opts = {}) {
     // tree index → { buffer, counter } for the per-row values.
     iterByTree: new Map([...iterTreeIndex].map(([i, b]) => (
       [i, { buffer: b, counter: iterSpecs[b].counter }]))),
+    // The per-row trees nothing reads. Carried so the reader can answer
+    // `undefined` for one rather than the contents of an output nobody filled.
+    orphanTrees,
   }
 }
 
@@ -277,7 +401,17 @@ export function runObjectLane(lane, view) {
 export function readObjectLaneNode(lane, outputs, iters = []) {
   const map = lane.treeOutputs
   const byTree = lane.iterByTree || new Map()
+  const orphans = lane.orphanTrees || new Set()
   return (treeIndex, bar, loopVars) => {
+    // ⛔ AN ORPHAN PER-ROW TREE ANSWERS `undefined`, NEVER ITS OUTPUT SLOT.
+    // It was supplied to neither channel, so its slot exists to keep the
+    // tree→output map aligned and was never written — and an unwritten numeric
+    // output reads back as ZERO, which this module's own floor note calls out
+    // as a coordinate, a row number and a colour. Nothing should reach here
+    // (the build classifies a tree as an orphan precisely because no op reads
+    // it); if the classification is ever wrong, this fails to "draw nothing"
+    // rather than to a plausible number.
+    if (orphans.has(treeIndex)) return undefined
     // ⭐⭐ A PER-ROW TREE IS READ FROM ITS ITERATION BUFFER, BY COUNTER.
     // ⛔ An unbound counter answers `undefined`, never slot 0: reading row
     // zero for every pass is the forty-identical-rows failure this channel

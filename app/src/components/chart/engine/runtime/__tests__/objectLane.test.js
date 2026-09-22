@@ -309,6 +309,125 @@ describe('⛔ what the seam refuses to invent', () => {
   })
 })
 
+// ─── ⭐⭐ WHICH LOOP OWNS A PER-ROW VALUE ─────────────────────────────────────
+//
+// `objects.iteratedTrees` maps a tree to the innermost COUNTER NAME that was
+// open when it was interned. In the committed corpus that name is `i` in
+// nearly every script, so a guard scoped by name is a guard over a colliding
+// key. These cases pin that the scope is the loop enclosing the op that
+// actually READS the value.
+//
+// ⛔ EVERY FIXTURE HERE COMPUTES ITS PER-ROW VALUE FROM `close`. A per-row
+// value built only from literals folds to a constant, which leaves the binding
+// path unrailed and lets a mutation of it survive.
+describe('⭐⭐ a per-row value is scoped by the loop that READS it', () => {
+  const PER_ROW = 'str.tostring(close * (r + 1))'
+
+  it('⭐⭐ AN UNGUARDED LOOP THAT DRAWS NO PER-ROW VALUE NO LONGER REFUSES', () => {
+    // ⚰️ THE DISCRIMINATOR. The old guard set its offender from ANY unguarded
+    // loop anywhere in the drawing, so this compiled or refused depending on a
+    // second loop that touches none of the per-row machinery. The guarded loop
+    // below is the only one reading an iteration buffer; the `q` loop draws a
+    // label from ordinary per-bar values and has nothing to do with it.
+    const lane = build(
+      'var t = table.new(position.top_right, 1, 3)\n'
+      + 'if barstate.islast\n'
+      + '    for r = 0 to 1\n'
+      + `        table.cell(t, 0, r + 1, ${PER_ROW})\n`
+      + 'for q = 0 to 1\n'
+      + '    label.new(bar_index, close, "x")\n',
+    )
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}/${lane.refusal.guard}`).toBe(true)
+  })
+
+  it('⛔⛔ AN UNGUARDED READ STILL REFUSES, AND NAMES THE OP THAT DOES IT', () => {
+    // The safety half. Without this the case above could be satisfied by
+    // deleting the guard outright.
+    const lane = build(
+      'var t = table.new(position.top_right, 1, 3)\n'
+      + 'for r = 0 to 1\n'
+      + `    table.cell(t, 0, r + 1, ${PER_ROW})\n`,
+    )
+    expect(lane.ok).toBe(false)
+    expect(lane.refusal.guard).toBe('objects:iterated-tree-not-last-bar')
+    // ⛔ The message must name the READ, not merely restate that a loop exists
+    // — that is the whole difference between the old guard and this one.
+    expect(lane.refusal.message).toContain('`cell`')
+    expect(lane.refusal.message).toContain('`r`')
+  })
+
+  it('⭐ an inner guarded loop under an UNGUARDED outer one compiles', () => {
+    // `objectRuntime` skips a `lastBarOnly` op unless it is the last bar, and a
+    // loop body only runs when its loop op runs — so the read here happens only
+    // on the last bar even though the outer loop is ungated.
+    const lane = build(
+      'var t = table.new(position.top_right, 1, 3)\n'
+      + 'for q = 0 to 1\n'
+      + '    if barstate.islast\n'
+      + '        for r = 0 to 1\n'
+      + `            table.cell(t, 0, r + 1, ${PER_ROW})\n`,
+    )
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}/${lane.refusal.guard}`).toBe(true)
+  })
+})
+
+// ─── ⭐⭐ "NOTHING TO DRAW" IS TWO ANSWERS ────────────────────────────────────
+describe('⭐⭐ the object pass produced nothing — for one of two reasons', () => {
+  it('a plot-only script is TERMINAL for this lane, and says so', () => {
+    const lane = build('plot(close)\n')
+    expect(lane.ok).toBe(false)
+    expect(lane.lane).toBe('objects')
+    expect(lane.refusal.guard).toBe('objects:no-objects-in-source')
+  })
+
+  it('⛔ object ops that ALL die is a DIFFERENT answer, and names the count', () => {
+    // ⛔ A COMPUTED COLOUR, so the op carries a real value expression rather
+    // than folding to a constant the reader never has to bind.
+    const lane = build(
+      'var line l = na\n'
+      + 'line.set_color(l, close > 0 ? color.red : color.green)\n'
+      + 'plot(close)\n',
+    )
+    expect(lane.ok).toBe(false)
+    expect(lane.lane).toBe('objects')
+    expect(lane.refusal.guard).toBe('objects:object-ops-all-dropped')
+    expect(lane.refusal.message).toContain('1 object operation')
+  })
+
+  it('⛔ CONTROL — the two guards are actually DIFFERENT', () => {
+    // ⚰️ Both scripts used to arrive as one row called `objects:nothing-drawn`,
+    // which is why 13 plot-only scripts read as 13 scripts one capability away
+    // from drawing. A split whose halves can return the same name would restore
+    // exactly that, with every assertion above still green.
+    const plots = build('plot(close)\n')
+    const dropped = build(
+      'var line l = na\n'
+      + 'line.set_width(l, 2)\n'
+      + 'plot(close)\n',
+    )
+    expect(plots.refusal.guard).not.toBe(dropped.refusal.guard)
+    // And the plot-only sentence must not be told about a script naming `line`.
+    expect(dropped.refusal.message).not.toContain('creates no line')
+  })
+})
+
+describe('⛔ an ORPHAN per-row tree — marked iterated, read by nothing', () => {
+  it('answers `undefined`, never the contents of an output nobody filled', () => {
+    // ⛔ An orphan keeps its output SLOT so the tree→output map stays index
+    // aligned, and that slot is never written. An unwritten numeric output
+    // reads back as ZERO — a coordinate, a row number and a colour — so the
+    // floor has to be `undefined` ("do not draw this"), not the slot.
+    const outputs = [Float64Array.from([11, 12, 13, 14])]
+    const lane = { treeOutputs: [0, 0], iterByTree: new Map(), orphanTrees: new Set([1]) }
+    const read = readObjectLaneNode(lane, outputs, [])
+    expect(read(1, 2)).toBeUndefined()
+    // ⛔ CONTROL — the same reader over the same outputs still answers for a
+    // tree that is NOT an orphan, so the case above cannot pass by the reader
+    // being broken for everything.
+    expect(read(0, 2)).toBe(13)
+  })
+})
+
 /** Re-run the VM for the reader-level cases. ⚠️ Deliberately a separate call
  *  rather than reaching into `runObjectLane`'s internals — the reader is exported
  *  precisely so it can be exercised without the drawing around it. */
